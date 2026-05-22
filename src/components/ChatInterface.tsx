@@ -178,7 +178,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // ==========================================
   // BRAND NEW CLINICAL TOOL HUB STATE
   // ==========================================
-  const [activeTool, setActiveTool] = useState<'lab_interpreter' | 'obstetric' | 'fluid_infusion'>('lab_interpreter');
+  const [activeTool, setActiveTool] = useState<'case_intake' | 'lab_interpreter' | 'obstetric' | 'fluid_infusion'>('case_intake');
   const [patientWeight, setPatientWeight] = useState<number>(12); // in kg
 
   // 1. Interactive Lab Interpreter State
@@ -203,6 +203,18 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // 3. Fluid Infusion & Resuscitation State
   const [dehydrationSeverity, setDehydrationSeverity] = useState<'none' | 'some' | 'severe'>('some');
   const [givingSetDrops, setGivingSetDrops] = useState<20 | 60>(20); // 20 macro, 60 micro
+
+  // 4. Patient Intake & EMR Case Formulator State
+  const [intakeAge, setIntakeAge] = useState<number>(28);
+  const [intakeGender, setIntakeGender] = useState<'male' | 'female'>('female');
+  const [intakeComplaint, setIntakeComplaint] = useState<string>('Cyclic high fever, shivering, severe chills, joint pain, and headache for 4 days.');
+  const [intakeDistrict, setIntakeDistrict] = useState<string>('Kampala');
+  const [intakeTemp, setIntakeTemp] = useState<number>(39.2);
+  const [intakeHR, setIntakeHR] = useState<number>(108);
+  const [intakeSystolic, setIntakeSystolic] = useState<number>(112);
+  const [intakeDiastolic, setIntakeDiastolic] = useState<number>(70);
+  const [intakeRR, setIntakeRR] = useState<number>(21);
+  const [intakeSpO2, setIntakeSpO2] = useState<number>(96);
 
   const [showNewChatDropdown, setShowNewChatDropdown] = useState<boolean>(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -812,6 +824,151 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       bg,
       action
     };
+  };
+
+  // ==========================================
+  // PATIENT CASE INTAKE & FORMULATOR HELPERS
+  // ==========================================
+  const applyIntakePreset = (preset: 'malaria' | 'pneumonia' | 'preeclampsia' | 'custom_clear') => {
+    if (preset === 'malaria') {
+      setIntakeAge(24);
+      setIntakeGender('female');
+      setIntakeComplaint('Cyclic high fever, shivering, severe chills, joint pain, muscle weakness, and splitting headache for 4 days.');
+      setIntakeDistrict('Kampala');
+      setIntakeTemp(39.2);
+      setIntakeHR(108);
+      setIntakeSystolic(112);
+      setIntakeDiastolic(70);
+      setIntakeRR(21);
+      setIntakeSpO2(96);
+    } else if (preset === 'pneumonia') {
+      setIntakeAge(5);
+      setIntakeGender('male');
+      setIntakeComplaint('Fast breathing, severe subcostal chest in-drawing, high persistent fever, and irritating dry cough for 2 days.');
+      setIntakeDistrict('Gulu');
+      setIntakeTemp(38.9);
+      setIntakeHR(124);
+      setIntakeSystolic(95);
+      setIntakeDiastolic(58);
+      setIntakeRR(44);
+      setIntakeSpO2(91);
+    } else if (preset === 'preeclampsia') {
+      setIntakeAge(31);
+      setIntakeGender('female');
+      setIntakeComplaint('Pregnancy age 34 weeks, severe pounding frontal headache, sudden blind spots / flashing lights in eyes, and pronounced swelling of face, hands and legs.');
+      setIntakeDistrict('Mbarara');
+      setIntakeTemp(36.9);
+      setIntakeHR(86);
+      setIntakeSystolic(165);
+      setIntakeDiastolic(104);
+      setIntakeRR(18);
+      setIntakeSpO2(98);
+    } else {
+      setIntakeAge(18);
+      setIntakeGender('male');
+      setIntakeComplaint('');
+      setIntakeDistrict('');
+      setIntakeTemp(37.0);
+      setIntakeHR(75);
+      setIntakeSystolic(120);
+      setIntakeDiastolic(80);
+      setIntakeRR(16);
+      setIntakeSpO2(99);
+    }
+    setTerminalLogs(prev => [...prev.slice(-3), `SYS: Intake Preset Preset "${preset.toUpperCase()}" loaded.`]);
+  };
+
+  const getComputedIntakeSOP = () => {
+    const alerts: string[] = [];
+    let severity: 'normal' | 'warn' | 'crit' = 'normal';
+    
+    if (intakeTemp >= 38.5) {
+      alerts.push(`Hyperpyrexia/Fever detected (${intakeTemp}°C) - Risk of dehydration & convulsions`);
+      severity = 'warn';
+    } else if (intakeTemp < 36.0) {
+      alerts.push(`Hypothermia alert (${intakeTemp}°C) - Warm resuscitation indicated`);
+      severity = 'warn';
+    }
+
+    if (intakeSpO2 < 93) {
+      alerts.push(`Severe Hypoxia risk (SpO2: ${intakeSpO2}%) - MoH Resuscitation: Immediate oxygen therapy`);
+      severity = 'crit';
+    }
+
+    if (intakeSystolic >= 160 || intakeDiastolic >= 110) {
+      alerts.push(`Pre-Eclampsia/HTN Crisis (${intakeSystolic}/${intakeDiastolic} mmHg) - Severe risk of eclamptic fits`);
+      severity = 'crit';
+    } else if (intakeSystolic >= 140 || intakeDiastolic >= 90) {
+      alerts.push(`Mild/Moderate Gestational or Systolic Hypertension (${intakeSystolic}/${intakeDiastolic} mmHg)`);
+      if (severity !== 'crit') severity = 'warn';
+    }
+
+    if (intakeAge <= 5) {
+      if (intakeRR >= 40) {
+        alerts.push(`Pediatric Tachypnea/Fast Breathing (RR: ${intakeRR} bpm) - Critical criteria under MoH guidelines`);
+        if (severity !== 'crit') severity = 'warn';
+      }
+    } else {
+      if (intakeRR >= 25) {
+        alerts.push(`Adult Tachypnea (RR: ${intakeRR} bpm) - Under hypoxia check`);
+        if (severity !== 'crit') severity = 'warn';
+      }
+    }
+
+    let label = 'ROUTINE CLINICAL CARE INDICATED';
+    let color = 'text-emerald-600 dark:text-emerald-400';
+    let border = 'border-emerald-200 dark:border-emerald-900/30';
+    let bg = 'bg-emerald-50 dark:bg-emerald-950/10';
+    let action = 'Patient exhibits stable clinical vital signs. Complete medical diagnostics, run baseline blood/urine indices, support symptoms (antipyretics / hydration) and proceed with localized care.';
+
+    if (severity === 'crit') {
+      label = 'CRITICAL PHYSIOLOGICAL EMERGENCY (MOH RED FLAG)';
+      color = 'text-rose-600 dark:text-rose-400';
+      border = 'border-rose-200 dark:border-rose-900/30';
+      bg = 'bg-rose-50 dark:bg-rose-950/15';
+      action = 'ALERT: Patient presents with urgent high-risk vital parameters! Administer immediate emergency life-saving stabilization (such as high-flow nasal oxygen, IV lines, or anticonvulsive magnesium sulfate) and arrange premium emergency transport / referral to high-level clinical facility.';
+    } else if (severity === 'warn') {
+      label = 'ELEVATED INTAKE RISK - PATHWAY SUSPECTED';
+      color = 'text-amber-600 dark:text-amber-400';
+      border = 'border-amber-200 dark:border-amber-900/30';
+      bg = 'bg-amber-50 dark:bg-amber-955/10';
+      action = 'Patient vital statistics show moderate deviancies. Screen immediately for localized infections (rapid malaria RDT, urinalysis, or chest auscultation). Initiate appropriate empirical therapeutics and secure re-evaluation details.';
+    }
+
+    return { alerts, severity, label, color, border, bg, action };
+  };
+
+  const injectCaseIntakeIntoChat = () => {
+    const intakeResult = getComputedIntakeSOP();
+    const alertsStr = intakeResult.alerts.map(a => `⚠️ ${a}`).join('\n');
+    const text = `📋 **Doctorian Unified Clinical Intake Case Report (EMR Draft)**
+- **Geographic Node**: region of ${intakeDistrict || 'Unspecified'}, Uganda 🇺🇬
+
+👤 **Patient Demographic Profile**:
+- **Age**: ${intakeAge} Years old
+- **Gender**: ${intakeGender === 'female' ? 'Female 🚺' : 'Male 🚹'}
+- **Chief Complaint**: "${intakeComplaint || 'No active complaint stated.'}"
+
+🌡️ **Intake Vital Sign Measurements**:
+- **Body Temperature**: ${intakeTemp}°C
+- **Heart Rate**: ${intakeHR} bpm
+- **Arterial Blood Pressure**: ${intakeSystolic}/${intakeDiastolic} mmHg
+- **Respiratory Rate**: ${intakeRR} bpm
+- **Pulse Oximetry (SpO2)**: ${intakeSpO2}%
+
+📊 **Computed Clinical Triage Summary**:
+- **Triage Assessment Category**: **${intakeResult.label}**
+- **Triggered Physiological Red Flags**:
+${alertsStr || '• No high-urgency physiological red flags triggered.'}
+
+🇺🇬 **Official Uganda MoH Care Plan SOP Directive**:
+${intakeResult.action}
+
+*Please synthesize an official SOAP note, formulate differential diagnoses under Uganda Clinical Guidelines, highlight severe complications to rule out, suggest diagnostic tests, and lay out an immediate management strategy.*`;
+
+    setInput(text);
+    setShowToolHub(false);
+    setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Clinical Case Intake injected.']);
   };
 
   const injectLabIntoChat = () => {
@@ -1436,14 +1593,14 @@ ${f.prescription}
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2.5">
-            {/* Clinical Tool Hub Trigger */}
+            {/* EMR Case Intake & Formulator Trigger */}
             <button 
               onClick={() => setShowToolHub(!showToolHub)} 
               className={`p-2 transition-all flex items-center gap-1.5 rounded-xl border ${showToolHub ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-mono font-bold' : 'text-slate-400 hover:text-blue-600 border-transparent bg-transparent'}`}
-              title="Clinical Tool Hub"
+              title="Patient Intake & Case EMR Formulator"
             >
-              <Stethoscope size={16} />
-              <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest">Clinical Hub</span>
+              <FileText size={16} />
+              <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest">Case Intake</span>
             </button>
 
             {/* Modernized Add Chat button with instant start template dropdown */}
@@ -1473,6 +1630,25 @@ ${f.prescription}
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Start Clinical Template</span>
                       </div>
                       
+                      <button
+                        type="button"
+                        onClick={() => {
+                          createNewSession('Clinical Intake Formulator');
+                          setActiveTool('case_intake');
+                          setShowToolHub(true);
+                          setShowNewChatDropdown(false);
+                        }}
+                        className="w-full text-left p-2.5 bg-blue-50/50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-bold border border-blue-100/30 rounded-xl transition-all flex items-start gap-2.5"
+                      >
+                        <div className="w-7 h-7 bg-blue-150/40 dark:bg-blue-900/40 rounded-lg flex items-center justify-center shrink-0">
+                          <FileText size={14} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase leading-none">Intake Formulator</p>
+                          <p className="text-[9px] text-slate-500 font-semibold leading-tight mt-1.5">Interactive EHR Patient Intake & SOAP Note Generator</p>
+                        </div>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -1627,7 +1803,7 @@ ${f.prescription}
                         {msg.role === 'user' ? <User size={18} /> : PERSONAS[activePersona].icon}
                       </div>
                       
-                      <div className={`flex flex-col space-y-2 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div className={`flex flex-col space-y-2 ${msg.role === 'user' ? 'max-w-[85%] items-end' : 'flex-1 items-start w-full'}`}>
                         {msg.images && msg.images.length > 0 && (
                           <div className={`flex flex-wrap gap-2 mb-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.images.map((img, idx) => (
@@ -1644,17 +1820,17 @@ ${f.prescription}
                         
                         <motion.div 
                           initial={false}
-                          className={`px-5 py-4 sm:px-6 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-sm sm:text-base leading-relaxed relative border transition-all ${
+                          className={`text-sm sm:text-base leading-relaxed relative border transition-all ${
                           msg.role === 'user' 
-                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent rounded-tr-none shadow-xl' 
-                            : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-100 dark:border-slate-800 rounded-tl-none shadow-sm group-hover:shadow-md'
+                            ? 'px-5 py-4 sm:px-6 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent rounded-tr-none shadow-xl' 
+                            : 'px-0 py-1 bg-transparent text-slate-800 dark:text-slate-100 border-transparent shadow-none w-full'
                           }`}
                         >
                            {msg.role === 'bot' && (
-                             <div className="flex items-center gap-2 mb-3 border-b border-slate-50 dark:border-slate-800 pb-2">
-                               <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Clinical Insight</span>
-                               <div className="w-1 h-1 rounded-full bg-slate-300" />
-                               <span className="text-[10px] font-bold text-slate-400">{PERSONAS[activePersona].name}</span>
+                             <div className="flex items-center gap-1.5 mb-3 border-b border-slate-100/30 dark:border-slate-800/20 pb-2.5">
+                               <span className="text-[10px] font-[1000] text-blue-600 dark:text-blue-400 uppercase tracking-widest">Doctorian Intelligence</span>
+                               <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                               <span className="text-[10px] font-black uppercase text-slate-400">{PERSONAS[activePersona].name}</span>
                              </div>
                            )}
 
@@ -1913,9 +2089,9 @@ ${f.prescription}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex flex-wrap items-center justify-between bg-white dark:bg-slate-950/80 backdrop-blur-md">
               <div>
                 <h3 className="text-sm font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-1.5 leading-none">
-                  <Stethoscope size={16} className="text-blue-600 animate-pulse" /> Clinical Tool Hub
+                  <FileText size={16} className="text-blue-600 animate-pulse" /> EMR Case Intake Core
                 </h3>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Uganda MoH Diagnostic Tools</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Patient Intake & Case Formulator</p>
               </div>
               <button 
                 onClick={() => setShowToolHub(false)} 
@@ -1926,33 +2102,249 @@ ${f.prescription}
             </div>
 
             {/* Selector Tabs */}
-            <div className="p-3 bg-slate-50/50 dark:bg-slate-950/30 flex border-b border-slate-100 dark:border-slate-800/50 gap-1.5 shrink-0">
+            <div className="p-2.5 bg-slate-50/50 dark:bg-slate-950/30 flex flex-wrap border-b border-slate-100 dark:border-slate-800/50 gap-1.5 shrink-0">
+              <button 
+                type="button"
+                onClick={() => setActiveTool('case_intake')}
+                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'case_intake' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+              >
+                EMR Intake
+              </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('lab_interpreter')}
-                className={`flex-1 py-2 px-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTool === 'lab_interpreter' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'lab_interpreter' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
                 Lab Interpreter
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('obstetric')}
-                className={`flex-1 py-1.5 px-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTool === 'obstetric' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'obstetric' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
-                Obstetric Risk
+                Obstetric Care
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('fluid_infusion')}
-                className={`flex-1 py-2 px-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTool === 'fluid_infusion' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'fluid_infusion' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
-                Fluid Infusion
+                Fluid Resus
               </button>
             </div>
 
             {/* Scrollable Panels Container */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {activeTool === 'lab_interpreter' ? (
+              {activeTool === 'case_intake' ? (
+                <div className="space-y-6 text-left">
+                  {/* Case Presets Selector */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Load Patient Case Preset</label>
+                    <div className="grid grid-cols-3 gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <button 
+                        type="button"
+                        onClick={() => applyIntakePreset('malaria')}
+                        className="py-2 px-1 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 text-[9px] font-black uppercase tracking-widest rounded-xl border border-red-200/55 dark:border-red-900/55 transition-all text-center font-bold"
+                      >
+                        Malaria
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => applyIntakePreset('pneumonia')}
+                        className="py-2 px-1 bg-blue-50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-405 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-[9px] font-black uppercase tracking-widest rounded-xl border border-blue-200/55 dark:border-blue-900/55 transition-all text-center font-bold"
+                      >
+                        Pneumonia
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => applyIntakePreset('preeclampsia')}
+                        className="py-2 px-1 bg-purple-50 dark:bg-purple-955/20 text-purple-600 dark:text-purple-405 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-[9px] font-black uppercase tracking-widest rounded-xl border border-purple-200/55 dark:border-purple-900/55 transition-all text-center font-bold"
+                      >
+                        Preeclampsia
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Demographics inputs */}
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient Age (Years)</label>
+                      <input 
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={intakeAge}
+                        onChange={(e) => setIntakeAge(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Biological Gender</label>
+                      <div className="flex gap-1.5">
+                        <button 
+                          type="button"
+                          onClick={() => setIntakeGender('female')}
+                          className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl border transition-all ${intakeGender === 'female' ? 'bg-blue-600 text-white border-blue-650 font-bold shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500'}`}
+                        >
+                          Female
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setIntakeGender('male')}
+                          className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl border transition-all ${intakeGender === 'male' ? 'bg-blue-600 text-white border-blue-650 font-bold shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-805 text-slate-500'}`}
+                        >
+                          Male
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Complaint */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chief Complaint & History</label>
+                    <textarea 
+                      rows={2}
+                      value={intakeComplaint}
+                      onChange={(e) => setIntakeComplaint(e.target.value)}
+                      placeholder="Fever, shivering, vomiting, severe cough..."
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-800 dark:text-white leading-relaxed"
+                    />
+                  </div>
+
+                  {/* District */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ugandan District / Node</label>
+                    <input 
+                      type="text"
+                      value={intakeDistrict}
+                      onChange={(e) => setIntakeDistrict(e.target.value)}
+                      placeholder="e.g. Mbarara, Kampala, Gulu"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Vital Signs Grid */}
+                  <div className="space-y-3.5 border-t border-slate-100 dark:border-slate-800/60 pt-4">
+                    <span className="text-[9px] font-[1000] text-slate-400 uppercase tracking-wider leading-none block">Vital Signs Array</span>
+                    
+                    {/* Temp Slider */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500">Core Temp</label>
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 font-mono">{intakeTemp}°C</span>
+                      </div>
+                      <input 
+                        type="range" min={35.0} max={42.0} step={0.1}
+                        value={intakeTemp} onChange={(e) => setIntakeTemp(Number(e.target.value))}
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
+
+                    {/* Sys / Dia BP Sliders */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[9px] font-bold text-slate-500">Systolic BP</label>
+                          <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 font-mono">{intakeSystolic}</span>
+                        </div>
+                        <input 
+                          type="range" min={80} max={200}
+                          value={intakeSystolic} onChange={(e) => setIntakeSystolic(Number(e.target.value))}
+                          className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[9px] font-bold text-slate-500">Diastolic BP</label>
+                          <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 font-mono">{intakeDiastolic}</span>
+                        </div>
+                        <input 
+                          type="range" min={40} max={130}
+                          value={intakeDiastolic} onChange={(e) => setIntakeDiastolic(Number(e.target.value))}
+                          className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Heart Rate & Resp Rate Sliders */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[9px] font-bold text-slate-500">Heart Rate</label>
+                          <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 font-mono">{intakeHR} bpm</span>
+                        </div>
+                        <input 
+                          type="range" min={40} max={180}
+                          value={intakeHR} onChange={(e) => setIntakeHR(Number(e.target.value))}
+                          className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[9px] font-bold text-slate-500">Resp Rate</label>
+                          <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 font-mono">{intakeRR} rpm</span>
+                        </div>
+                        <input 
+                          type="range" min={10} max={60}
+                          value={intakeRR} onChange={(e) => setIntakeRR(Number(e.target.value))}
+                          className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* SpO2 */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500">SpO2 (Pulse Ox)</label>
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 font-mono">{intakeSpO2}%</span>
+                      </div>
+                      <input 
+                        type="range" min={70} max={100}
+                        value={intakeSpO2} onChange={(e) => setIntakeSpO2(Number(e.target.value))}
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Computed Outcome */}
+                  {(() => {
+                    const computed = getComputedIntakeSOP();
+                    return (
+                      <div className={`p-4 rounded-2xl border ${computed.border} ${computed.bg} space-y-3.5 text-xs transition-colors`}>
+                        <div className="flex items-center gap-2">
+                          <Activity size={14} className={computed.color} />
+                          <span className={`${computed.color} text-[10px] font-[1000] uppercase tracking-wider leading-none`}>{computed.label}</span>
+                        </div>
+                        {computed.alerts.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">ACTIVE RED FLAGS ON ADMISSION</p>
+                            <ul className="text-[11px] text-slate-700 dark:text-slate-300 font-semibold space-y-0.5">
+                              {computed.alerts.map((a, idx) => (
+                                <li key={idx} className="flex items-start gap-1">
+                                  <span className="text-red-500">•</span> {a}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <div className="border-t border-slate-100 dark:border-slate-800 pt-2">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">MOH CLINICAL DIRECTIVE</p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold leading-relaxed leading-normal">{computed.action}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Inject Structured EMR Case report button */}
+                  <button 
+                    type="button"
+                    onClick={injectCaseIntakeIntoChat}
+                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/25 active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer font-bold font-sans"
+                  >
+                    Formulate Case Study & Inject
+                  </button>
+                </div>
+              ) : activeTool === 'lab_interpreter' ? (
                 <div className="space-y-6 text-left">
                   {/* Hemoglobin slider */}
                   <div className="space-y-2">

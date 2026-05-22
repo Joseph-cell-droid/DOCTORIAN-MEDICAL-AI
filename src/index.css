@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Libre Baskerville", ui-serif, Georgia, serif;
+  
+  --animate-spin-slow: spin 8s linear infinite;
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  
+  --shadow-3xl: 0 35px 60px -15px rgba(0, 0, 0, 0.5);
+}
+
+/* Markdown Sizing for Chat */
+.shrink-markdown p {
+  @apply my-1;
+}
+
+.shrink-markdown ul, .shrink-markdown ol {
+  @apply my-0.5;
+}
+
+/* Custom neural text selection */
+::selection {
+  @apply bg-blue-600/20 text-blue-900 dark:text-blue-200;
+}
+
+/* Ensure Tailwind v4 dark mode works with the .dark class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  
+  .dark {
+    color-scheme: dark;
+  }
+
+  html, body, #root {
+    @apply h-full transition-colors duration-300;
+  }
+
+  body {
+    @apply bg-[#f8fafc] text-slate-900;
+  }
+
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  /* High legibility classes for vision impaired users */
+  .text-high-visibility {
+    @apply font-bold tracking-normal leading-relaxed;
+    text-rendering: optimizeLegibility;
+  }
+
+  .text-label-accessible {
+    @apply text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider;
+  }
+
+  .text-value-accessible {
+    @apply text-slate-950 dark:text-white font-black tracking-tight;
+  }
+
+  @media (max-width: 640px) {
+    html {
+      font-size: 110%; /* Slightly scale up everything on small screens */
+    }
+  }
+
+  body.eye-care-mode::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 165, 0, 0.08); /* Warm amber tint */
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: multiply;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: #3b82f6 #0f172a;
+    scrollbar-gutter: stable;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-200 dark:bg-slate-950;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-blue-600 dark:bg-blue-500 rounded-full transition-all border-4 border-slate-200 dark:border-slate-950 bg-clip-padding hover:bg-blue-700 dark:hover:bg-blue-400;
+    will-change: transform;
+  }
+
+  /* Force GPU acceleration for smooth scrolling in containers */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    will-change: scroll-position;
+  }
+}
+
+/* Sidebar adjustments for screens with short heights (tablets in landscape, small laptops, portable Android layouts) */
+@media (max-height: 780px) {
+  aside nav {
+    gap: 0.75rem !important; /* reduce vertical gap between menu sections */
+  }
+  aside .py-6 {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+  aside .mb-6 {
+    margin-bottom: 0.75rem !important;
+  }
+  aside .pb-5 {
+    padding-bottom: 0.75rem !important;
+  }
+  aside button {
+    padding-top: 0.45rem !important;
+    padding-bottom: 0.45rem !important;
+  }
+  aside .p-4 {
+    padding: 0.75rem !important;
+  }
+  aside .gap-3 {
+    gap: 0.5rem !important;
+  }
+}
+

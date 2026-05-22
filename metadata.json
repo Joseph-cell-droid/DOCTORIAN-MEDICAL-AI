@@ -1,0 +1,12 @@
+{
+  "name": "Doctorian Medical AI",
+  "description": "Next-gen medical intelligence platform with multilingual support for Ugandan languages, cognitive performance tracking, and AI-driven clinical insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

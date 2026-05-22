@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user-specific information and preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique ID of the user." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "photoURL": { "type": "string", "format": "uri", "description": "The user's profile photo URL." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "The user's role in the application." },
+        "subscriptionTier": { "type": "string", "enum": ["free", "silver", "gold"], "description": "The user's AI performance tier." },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "expired", "none"], "description": "Status of the user's subscription." },
+        "lastPaymentDate": { "type": "string", "format": "date-time", "description": "Timestamp of the last payment." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The timestamp when the profile was created." }
+      },
+      "required": ["uid", "email", "role", "createdAt", "subscriptionTier"]
+    },
+    "HealthRecord": {
+      "title": "Health Record",
+      "description": "Stores a single health record for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the record." },
+        "uid": { "type": "string", "description": "The ID of the user who owns this record." },
+        "type": { "type": "string", "description": "The type of health record (e.g., Blood Pressure, Weight)." },
+        "value": { "type": "string", "description": "The value of the measurement." },
+        "unit": { "type": "string", "description": "The unit of measurement." },
+        "date": { "type": "string", "format": "date-time", "description": "The timestamp of the measurement." },
+        "notes": { "type": "string", "description": "Optional notes for the record." }
+      },
+      "required": ["id", "uid", "type", "value", "date"]
+    },
+    "Doctor": {
+      "title": "Doctor",
+      "description": "Information about a registered doctor available for consultation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the doctor." },
+        "name": { "type": "string", "description": "Full name of the doctor." },
+        "whatsappNumber": { "type": "string", "description": "WhatsApp contact number." },
+        "specialization": { "type": "string", "description": "Doctor's field of expertise." },
+        "location": { "type": "string", "description": "Clinic or practice location." },
+        "imageUrl": { "type": "string", "format": "uri", "description": "Profile picture URL." },
+        "active": { "type": "boolean", "description": "Whether the doctor is currently visible in the search." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Registration timestamp." }
+      },
+      "required": ["id", "name", "whatsappNumber", "specialization", "location", "active", "createdAt"]
+    },
+    "Workout": {
+      "title": "Workout",
+      "description": "Information about a logged workout activity.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the workout." },
+        "userId": { "type": "string", "description": "The ID of the user who owns this workout." },
+        "type": { "type": "string", "description": "The type of workout (e.g., Running, Cycling, Strength)." },
+        "duration": { "type": "number", "description": "Duration of the workout in minutes." },
+        "calories": { "type": "number", "description": "Estimated calories burned." },
+        "intensity": { "type": "string", "enum": ["Low", "Moderate", "High"], "description": "Workout intensity level." },
+        "date": { "type": "string", "format": "date-time", "description": "The date and time of the workout." },
+        "notes": { "type": "string", "description": "Optional notes or details about the session." }
+      },
+      "required": ["id", "userId", "type", "duration", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/records/{recordId}": {
+      "schema": "HealthRecord",
+      "description": "Individual health records for a user."
+    },
+    "/users/{userId}/workouts/{workoutId}": {
+      "schema": "Workout",
+      "description": "Collection of user workouts."
+    },
+    "/doctors/{doctorId}": {
+      "schema": "Doctor",
+      "description": "Collection of registered doctors."
+    }
+  }
+}

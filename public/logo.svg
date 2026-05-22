@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dynamic Gradient Background -->
+  <defs>
+    <linearGradient id="bg_grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Base Shape -->
+  <rect width="512" height="512" rx="128" fill="url(#bg_grad)"/>
+  
+  <!-- Neural Pulse Ring -->
+  <circle cx="256" cy="256" r="220" stroke="white" stroke-width="2" stroke-opacity="0.2" />
+  <circle cx="256" cy="256" r="200" stroke="white" stroke-width="1" stroke-opacity="0.1" />
+
+  <!-- The Neural Cross -->
+  <!-- Horizontal Bar -->
+  <rect x="156" y="226" width="200" height="60" rx="30" fill="white" filter="url(#glow)"/>
+  <!-- Vertical Bar -->
+  <rect x="226" y="156" width="60" height="200" rx="30" fill="white" filter="url(#glow)"/>
+
+  <!-- Neural Nodes -->
+  <circle cx="256" cy="156" r="14" fill="#10B981" stroke="white" stroke-width="4"/>
+  <circle cx="256" cy="356" r="14" fill="#10B981" stroke="white" stroke-width="4"/>
+  <circle cx="156" cy="256" r="14" fill="#10B981" stroke="white" stroke-width="4"/>
+  <circle cx="356" cy="256" r="14" fill="#10B981" stroke="white" stroke-width="4"/>
+  <circle cx="256" cy="256" r="18" fill="#2563EB" stroke="white" stroke-width="4"/>
+
+  <!-- Connecting Fibers -->
+  <path d="M256 170V238" stroke="white" stroke-width="3" stroke-dasharray="4 4" stroke-opacity="0.6"/>
+  <path d="M256 274V342" stroke="white" stroke-width="3" stroke-dasharray="4 4" stroke-opacity="0.6"/>
+  <path d="M170 256H238" stroke="white" stroke-width="3" stroke-dasharray="4 4" stroke-opacity="0.6"/>
+  <path d="M274 256H342" stroke="white" stroke-width="3" stroke-dasharray="4 4" stroke-opacity="0.6"/>
+</svg>

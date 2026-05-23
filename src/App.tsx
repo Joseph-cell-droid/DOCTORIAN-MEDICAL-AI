@@ -102,7 +102,7 @@ const Footer = lazy(() => import("./components/Footer").then(m => ({ default: m.
 import { HealthTip } from "./components/HealthTipModal";
 const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
 const HealthProgressTracker = lazy(() => import("./components/HealthProgressTracker").then(m => ({ default: m.HealthProgressTracker })));
-import { HelpCenter, ClinicalNetwork, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
+import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -855,7 +855,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="h-screen bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden">
+      <div id="app-root-container" className="h-screen bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden">
       <a 
         href="#main-content" 
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[150] focus:px-6 focus:py-3 focus:bg-blue-600 focus:text-white focus:rounded-2xl focus:font-black focus:shadow-2xl"
@@ -971,7 +971,6 @@ export default function App() {
                     >
                       {[
                         { label: 'Help Center', id: 'help', icon: <Info size={14} />, color: 'hover:text-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20' },
-                        { label: 'Clinical Network', id: 'community', icon: <UserPlus size={14} />, color: 'hover:text-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20' },
                         { label: 'Privacy Vault', id: 'privacy', icon: <Shield size={14} />, color: 'hover:text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/20' },
                         { label: 'Terms & Data', id: 'terms', icon: <FileText size={14} />, color: 'hover:text-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20' }
                       ].map((res, i) => {
@@ -1062,10 +1061,10 @@ export default function App() {
       )}
 
       {/* Mobile/Tablet Header & Bottom Nav */}
-      <div className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50 dark:bg-slate-950 overflow-hidden">
 
 
-        <div className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
+        <div id="app-scroll-viewport" className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
         <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
           {/* PWA Install Banner (Mobile Only) */}
           <AnimatePresence>
@@ -1661,15 +1660,6 @@ export default function App() {
             exit={{ opacity: 0, scale: 1.02 }}
           >
             <HelpCenter user={user} onNavigate={setCurrentView} />
-          </motion.div>
-        ) : currentView === 'community' ? (
-          <motion.div
-            key="community"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.02 }}
-          >
-            <ClinicalNetwork user={user} onNavigate={setCurrentView} />
           </motion.div>
         ) : currentView === 'privacy' ? (
           <motion.div

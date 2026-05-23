@@ -20,14 +20,25 @@ import { api, User as UserType } from '../api';
 interface EmergencyRegistryProps {
   user: UserType | null;
   onUpdate: (user: UserType) => void;
+  isAdmin?: boolean;
+  setIsAdmin?: (admin: boolean) => void;
 }
 
-export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({ user, onUpdate }) => {
+export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({ 
+  user, 
+  onUpdate,
+  isAdmin = false,
+  setIsAdmin
+}) => {
   const [doctorPhone, setDoctorPhone] = useState(user?.doctorPhone || '');
   const [doctorEmail, setDoctorEmail] = useState(user?.doctorEmail || '');
   const [mentorPhone, setMentorPhone] = useState(user?.mentorPhone || '');
   const [mentorEmail, setMentorEmail] = useState(user?.mentorEmail || '');
   
+  // Local pin state for emergency override
+  const [localPin, setLocalPin] = useState('');
+  const [localPinError, setLocalPinError] = useState('');
+
   // New Professional Features
   const [allergies, setAllergies] = useState(user?.allergies || '');
   const [conditions, setConditions] = useState(user?.conditions || '');
@@ -68,6 +79,10 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({ user, onUp
   }, [sosCountdown]);
 
   const triggerSOS = () => {
+    if (!isAdmin) {
+      addNotification("LOCK PREVENTED: Manual broadcasting requires clinical admin bypass PIN.", "error");
+      return;
+    }
     setSosCountdown(10);
     addNotification("SOS PROTOCOL INITIATED: 10s to broadcast via MTN 0787674140.", "warning");
   };
@@ -83,6 +98,10 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({ user, onUp
   };
 
   const handleUpdate = async () => {
+    if (!isAdmin) {
+      addNotification("LOCK PREVENTED: Profile synchronization requires clinical admin bypass PIN.", "error");
+      return;
+    }
     if (!user) return;
     setIsSaving(true);
     try {
@@ -107,6 +126,10 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({ user, onUp
   };
 
   const testLink = async (role: 'Doctor' | 'Mentor', phone: string) => {
+    if (!isAdmin) {
+      addNotification("LOCK PREVENTED: Direct link diagnostic requires clinical admin bypass PIN.", "error");
+      return;
+    }
     if (!phone) {
       addNotification("No destination phone specified.", "error");
       return;
@@ -130,6 +153,75 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({ user, onUp
         <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/[0.03] blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         
         <div className="relative z-10">
+          {/* Clinical Silent Monitor Mode & PIN Unlock Header */}
+          <div className={`mb-10 p-6 rounded-2xl border transition-all ${isAdmin ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-800 dark:text-emerald-400' : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${isAdmin ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-pulse'}`} />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    {isAdmin ? '🛡️ Administration Bypass Active' : '🔒 Secure Room Broadcast Protection Lock'}
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {isAdmin 
+                    ? "Direct override enabled. You may trigger manual SOS broadcasts, test phone signals, and update telemetry settings."
+                    : "Loud Room Ringing & Manual Calling are disabled globally to prevent room disruption. Quiet automated background SMS/Call alerts remain 100% active."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isAdmin ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="Enter Admin PIN to Unlock overrides"
+                      value={localPin}
+                      onChange={e => {
+                        setLocalPin(e.target.value);
+                        setLocalPinError('');
+                      }}
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-black placeholder:text-slate-500 outline-none w-48 text-slate-900 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (localPin === '1234') {
+                          if (setIsAdmin) {
+                            setIsAdmin(true);
+                          }
+                          setLocalPin('');
+                          addNotification("Override authorized. Manual communication override open.", "success");
+                        } else {
+                          setLocalPinError("Invalid PIN");
+                          addNotification("Protection Alert: Invalid PIN rejected.", "error");
+                        }
+                      }}
+                      className="px-4 py-2 bg-slate-950 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer shadow-sm border border-slate-700/50"
+                    >
+                      Unlock PIN
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setIsAdmin) {
+                        setIsAdmin(false);
+                      }
+                      addNotification("Clinical bypass revoked. Silent protection restored.", "info");
+                    }}
+                    className="px-4 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer border border-rose-500/20"
+                  >
+                    Lock Controls
+                  </button>
+                )}
+              </div>
+            </div>
+            {localPinError && (
+              <p className="mt-2 text-[10px] font-bold text-rose-500">{localPinError}</p>
+            )}
+          </div>
+
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
             <div className="flex items-center gap-8">
               <div className="w-24 h-24 bg-rose-600 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-rose-500/30 border border-rose-400/20 relative group">

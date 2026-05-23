@@ -103,6 +103,55 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const [activeMetric, setActiveMetric] = useState('performance');
   const [isSosTriggering, setIsSosTriggering] = useState(false);
+  
+  // High-visibility long-press variables and handlers
+  const [longPressProgress, setLongPressProgress] = useState(0);
+  const [isPressing, setIsPressing] = useState(false);
+  const pressIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = (e: React.MouseEvent | React.TouchEvent) => {
+    if (isSosTriggering) return;
+    setIsPressing(true);
+    setLongPressProgress(0);
+    const duration = 1200; // 1.2s for highly responsive verification
+    const intervalTime = 20;
+    const steps = duration / intervalTime;
+    let currentStep = 0;
+
+    if (pressIntervalRef.current) clearInterval(pressIntervalRef.current);
+
+    pressIntervalRef.current = setInterval(() => {
+      currentStep++;
+      const progress = Math.min((currentStep / steps) * 100, 100);
+      setLongPressProgress(progress);
+      if (progress >= 100) {
+        if (pressIntervalRef.current) {
+          clearInterval(pressIntervalRef.current);
+          pressIntervalRef.current = null;
+        }
+        setIsPressing(false);
+        setLongPressProgress(0);
+        handleSOS();
+      }
+    }, intervalTime);
+  };
+
+  const cancelPress = () => {
+    setIsPressing(false);
+    setLongPressProgress(0);
+    if (pressIntervalRef.current) {
+      clearInterval(pressIntervalRef.current);
+      pressIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pressIntervalRef.current) {
+        clearInterval(pressIntervalRef.current);
+      }
+    };
+  }, []);
   const [showBioCore, setShowBioCore] = useState(false);
   const [showBioSecurity, setShowBioSecurity] = useState(false);
   const [selectedStat, setSelectedStat] = useState<any>(null);
@@ -319,23 +368,88 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Unified diagnostic interface for {user?.name || user?.displayName || 'Authorized User'}. Real-time biometric synthesis and predictive modeling active.
             </p>
 
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-4 w-full justify-center xl:justify-start">
+            <div className="flex flex-row items-center flex-wrap gap-6 pt-2 sm:pt-4 w-full justify-center xl:justify-start">
               <button 
                 onClick={() => onNavigate('ai_nexus')}
-                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-5 bg-blue-600 text-white rounded-xl sm:rounded-2xl shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all font-black text-[10px] sm:text-base uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 border-2 border-transparent"
+                className="w-auto px-6 sm:px-8 py-3.5 sm:py-5 bg-blue-600 text-white rounded-xl sm:rounded-2xl shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all font-black text-[10px] sm:text-base uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 border-2 border-transparent"
               >
                 <Bot size={20} className="text-white animate-pulse" />
                 Doctorian
               </button>
 
-              <button 
-                onClick={handleSOS}
-                disabled={isSosTriggering}
-                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-5 bg-rose-600 text-white rounded-xl sm:rounded-2xl shadow-xl shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all font-black text-[10px] sm:text-base uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 border-2 border-transparent disabled:opacity-50"
-              >
-                <Zap size={20} className={isSosTriggering ? "animate-spin" : "text-white animate-pulse"} />
-                {isSosTriggering ? "Triggering..." : "SOS Emergency"}
-              </button>
+              {/* High-visibility circular SOS next to Doctorian */}
+              <div className="flex items-center gap-3 relative select-none">
+                <div 
+                  className="relative cursor-pointer"
+                  onMouseDown={startPress}
+                  onMouseUp={cancelPress}
+                  onMouseLeave={cancelPress}
+                  onTouchStart={startPress}
+                  onTouchEnd={cancelPress}
+                  onClick={handleSOS}
+                >
+                  {/* Pulsing Light Aura */}
+                  <div className={`absolute inset-0 bg-rose-600 rounded-full blur-xl transition-all duration-300 opacity-60 ${
+                    isPressing ? 'scale-125 opacity-100' : 'scale-100 hover:scale-110'
+                  }`} />
+
+                  {/* Ring Outline */}
+                  <div className={`absolute -inset-2 rounded-full border border-rose-500/30 transition-all duration-300 ${
+                    isPressing ? 'scale-110 border-rose-500' : 'scale-100 hover:scale-105 animate-pulse'
+                  }`} />
+
+                  {/* Progress Circle SVG */}
+                  <svg className="absolute -inset-1 w-[72px] h-[72px] -rotate-90 pointer-events-none z-10">
+                    <circle
+                      cx="36"
+                      cy="36"
+                      r="28"
+                      stroke="rgba(244, 63, 94, 0.1)"
+                      strokeWidth="3.5"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="36"
+                      cy="36"
+                      r="28"
+                      stroke="rgb(244, 63, 94)"
+                      strokeWidth="3.5"
+                      fill="transparent"
+                      strokeDasharray={2 * Math.PI * 28}
+                      strokeDashoffset={(2 * Math.PI * 28) - (longPressProgress / 100) * (2 * Math.PI * 28)}
+                      strokeLinecap="round"
+                      className="transition-all duration-75"
+                    />
+                  </svg>
+
+                  {/* Main Circular Button */}
+                  <button
+                    type="button"
+                    disabled={isSosTriggering}
+                    className={`relative w-14 h-14 bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white rounded-full flex flex-col items-center justify-center shadow-[0_12px_24px_rgba(239,68,68,0.4)] border border-rose-400 select-none overflow-hidden transition-all duration-150 ${
+                      isPressing ? 'scale-95 shadow-[0_4px_10px_rgba(239,68,68,0.2)]' : 'hover:scale-105'
+                    }`}
+                  >
+                    {isSosTriggering ? (
+                      <RefreshCw size={20} className="animate-spin text-white" />
+                    ) : (
+                      <>
+                        <Zap size={18} className={`text-white ${isPressing ? 'scale-110' : 'animate-pulse'}`} />
+                        <span className="text-[9px] font-black tracking-widest mt-0.5 uppercase">SOS</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex flex-col text-left pl-1">
+                  <span className="text-[10px] font-black uppercase text-rose-500 tracking-wider">
+                    {isSosTriggering ? "DISPATCHED" : isPressing ? "ACTIVATING..." : "EMERGENCY NODE"}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 font-mono tracking-tight leading-none mt-1">
+                    {isSosTriggering ? "All channels notified" : isPressing ? `HOLD (${Math.round(longPressProgress)}%)` : "Click or Hold SOS"}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

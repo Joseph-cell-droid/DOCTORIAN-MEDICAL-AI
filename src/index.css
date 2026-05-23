@@ -148,3 +148,181 @@
   }
 }
 
+/* ==========================================
+   HIGH-PRECISION RESPONSIVENESS OVERRIDES
+   Optimized for watches (e.g., Apple Watch, WearOS), small phones, and tablets
+   ========================================== */
+
+/* 1. Global Touch Elements & Compact Paddings for Mobile <= 640px */
+@media (max-width: 640px) {
+  /* Reduce excessive page and section margin/padding */
+  .py-20, .py-16, .py-12, .py-10, .py-8 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+  .px-8, .px-6, .px-4, .sm\:px-8, .sm\:px-6 {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  
+  /* Auto dynamic margins */
+  .my-10, .my-8, .my-6 {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Shrink borders and large card rounded corners */
+  .rounded-[3rem], .rounded-[4rem], .rounded-[2.5rem], .rounded-3xl {
+    border-radius: 1rem !important;
+  }
+
+  /* Cap card padding to make sure everything fits the width */
+  .p-16, .p-12, .p-10, .p-8, .p-6, .p-5, .sm\:p-12, .sm\:p-10, .sm\:p-8 {
+    padding: 0.75rem !important;
+  }
+
+  /* Compact grid gaps */
+  .gap-16, .gap-12, .gap-8, .gap-6, .gap-5 {
+    gap: 0.5rem !important;
+  }
+
+  /* Compact typography so metrics and numbers never spill out of simple cards */
+  .text-7xl { font-size: 2.25rem !important; line-height: 1 !important; }
+  .text-6xl { font-size: 2rem !important; line-height: 1 !important; }
+  .text-5xl { font-size: 1.75rem !important; line-height: 1.1 !important; }
+  .text-4xl { font-size: 1.5rem !important; line-height: 1.1 !important; }
+  .text-3xl { font-size: 1.25rem !important; line-height: 1.2 !important; }
+  .text-2xl { font-size: 1.125rem !important; line-height: 1.2 !important; }
+  .text-xl { font-size: 1.05rem !important; line-height: 1.2 !important; }
+
+  /* Ensure tables/grids inside cards support full horizontal scrolling overflow and don't expand the screen size */
+  .overflow-x-auto {
+    overflow-x: auto !important;
+    max-width: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Keep layout wrapping safe inside containers */
+  h1, h2, h3, h4, span, p, label {
+    overflow-wrap: break-word !important;
+    word-break: break-all !important;
+  }
+  
+  /* Buttons can wrap their text cleanly instead of forcing overflow */
+  button, a {
+    white-space: normal !important;
+  }
+}
+
+/* 2. Shrunk Layout Controls for Very Small Devices & Smartwatches <= 360px */
+@media (max-width: 360px) {
+  /* Force all standard grids into a single-column layout so they fit vertical watch containers perfectly */
+  .grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+
+  /* Tighten paddings to the absolute minimum */
+  .p-16, .p-12, .p-10, .p-8, .p-6, .p-5, .p-4, .sm\:p-8, .sm\:p-4 {
+    padding: 0.5rem !important;
+  }
+  .px-4, .px-3, .px-2 {
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+  }
+  .py-4, .py-3, .py-2 {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+  }
+  .gap-4, .gap-3, .gap-2 {
+    gap: 0.35rem !important;
+  }
+
+  /* Tighten radius of cards on watch displays */
+  .rounded-[4rem], .rounded-[3rem], .rounded-[2.5rem], .rounded-[2rem], .rounded-3xl, .rounded-2xl {
+    border-radius: 0.5rem !important;
+  }
+
+  /* Shrink titles globally */
+  .text-7xl, .text-6xl, .text-5xl, .text-4xl, .text-3xl {
+    font-size: 1.2rem !important;
+    line-height: normal !important;
+  }
+  .text-2xl, .text-xl, .text-lg {
+    font-size: 0.95rem !important;
+    line-height: normal !important;
+  }
+  .text-base, .text-sm {
+    font-size: 10px !important;
+  }
+  .text-xs {
+    font-size: 8px !important;
+  }
+
+  /* Compact navigation handles & footers */
+  aside, footer, header {
+    padding-left: 0.15rem !important;
+    padding-right: 0.15rem !important;
+  }
+
+  /* Scale down SVGs slightly */
+  svg {
+    transform: scale(0.85);
+  }
+
+  /* Compact custom button paddings */
+  button, a {
+    padding-left: 0.4rem !important;
+    padding-right: 0.4rem !important;
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+    font-size: 9px !important;
+  }
+
+  /* Bottom drawer sheet, login, installation badges */
+  .fixed.inset-0 .rounded-[2.5rem],
+  .fixed.inset-0 .rounded-[3rem] {
+    border-radius: 0.75rem !important;
+    padding: 0.75rem !important;
+  }
+}
+
+/* 3. Horizontal Smooth Scroll support for Upper Header Bar elements on narrow viewports */
+@media (max-width: 639px) {
+  /* Make the main header list horizontally scrollable so elements do not wrap into second rows or stack */
+  header .max-w-7xl > div {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important; /* Firefox hide */
+    padding-bottom: 2px !important;
+  }
+  header .max-w-7xl > div::-webkit-scrollbar {
+    display: none !important; /* Safari/Chrome hide */
+  }
+
+  /* Prevent elements in the horizontal bar from getting flattened/shrunk */
+  header .max-w-7xl > div > * {
+    flex-shrink: 0 !important;
+  }
+
+  /* Shrunk slot for search bar in scrolling header block on watches/phones */
+  header .max-w-7xl > div button[aria-label="Open search"] {
+    width: 90px !important;
+    min-width: 90px !important;
+  }
+}
+
+/* 4. Let any nested canvas/charts auto-scroll horizontally instead of breaking grid sizes */
+.recharts-responsive-container {
+  min-width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Let the app root container remain scrollable if required */
+#app-scroll-viewport {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+

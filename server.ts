@@ -81,8 +81,8 @@ const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const DEFAULT_GEMMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const BACKUP_ENGINE = "google gemma2";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL;
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "ollama3.1";
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama.railway.internal:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama2";
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
 const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
@@ -93,8 +93,11 @@ const SILENT_OLLAMA = process.env.SILENT_OLLAMA === 'true';
 const shouldTryOllama = () => {
   if (!OLLAMA_URL) return false;
   if (SILENT_OLLAMA) return false;
+  // Always try when pointed at the Railway internal Ollama service
+  const isRailwayInternal = OLLAMA_URL.includes('ollama.railway.internal');
+  if (isRailwayInternal) return true;
   const isLocalhost = OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1');
-  // If we are in production (Cloud Run) and URL is localhost, only try if USE_LOCAL_AI is strictly true
+  // If we are in production and URL is localhost, only try if USE_LOCAL_AI is strictly true
   if (!IS_LOCAL_ENV && isLocalhost && !USE_LOCAL_AI) return false;
   return true;
 };
@@ -259,6 +262,29 @@ function doctorianLocalSynthesis(prompt: string): string {
   return "I am receiving your transmission. While my high-level cloud synthesis is currently restricted, I can still analyze your health vitals and provide basic guidance based on local clinical protocols. How can I help you proceed?";
 }
 
+async function checkOllamaHealth(): Promise<boolean> {
+  if (!shouldTryOllama()) return false;
+  try {
+    const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
+    const response = await axios.get(`${endpoint}/api/tags`, { timeout: 5000 });
+    return response.status === 200;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function ensureModelAvailable(): Promise<boolean> {
+  if (!shouldTryOllama()) return false;
+  try {
+    const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
+    const response = await axios.get(`${endpoint}/api/tags`, { timeout: 5000 });
+    const models = response.data.models || [];
+    return models.some((m: any) => m.name.includes('llama2'));
+  } catch (e) {
+    return false;
+  }
+}
+
 async function* callAIStream(options: {
   messages: { role: string; text: string; images?: string[] }[],
   systemInstruction: string,
@@ -273,10 +299,10 @@ async function* callAIStream(options: {
   if (shouldTryOllama()) {
     try {
       const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-      const isGenerateEndpoint = endpoint.includes('/api/generate');
-      const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
-        ? endpoint
-        : `${endpoint}/api/chat`;
+      // Always use /api/chat for Ollama's native chat format; only fall back to the
+      // URL as-is when the caller has already embedded a specific sub-path.
+      const hasExplicitPath = endpoint.includes('/api/') || endpoint.includes('/v1/');
+      const finalUrl = hasExplicitPath ? endpoint : `${endpoint}/api/chat`;
 
       console.log(`[AI-STREAM] Directing pulse to Ollama Stream: ${finalUrl} (Model: ${OLLAMA_MODEL})`);
       
@@ -288,25 +314,14 @@ async function* callAIStream(options: {
         }
       };
 
-      if (isGenerateEndpoint) {
-        // Format as plain-text conversation prompt for /api/generate
-        const conversationPrompt = messages.map(m => {
-          const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
-          return `${prefix}${m.text}`;
-        }).join('\n') + '\nAssistant:';
-
-        payload.prompt = conversationPrompt;
-        payload.system = systemInstruction;
-      } else {
-        // Standard chat messages payload for /api/chat or OpenAI-compatible
-        payload.messages = [
-          { role: "system", content: systemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ];
-      }
+      // Use /api/chat message format — works for both Ollama native and OpenAI-compatible paths
+      payload.messages = [
+        { role: "system", content: systemInstruction },
+        ...messages.map(m => ({
+          role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.text
+        }))
+      ];
 
       const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
 
@@ -361,17 +376,24 @@ async function* callAIStream(options: {
       }
       return; // Success
     } catch (ollamaErr: any) {
-      const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
+      const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.code === 'ENOTFOUND' || ollamaErr.message?.includes('Network Error');
+      const isRailwayInternal = OLLAMA_URL?.includes('ollama.railway.internal');
       const isLocalhost = OLLAMA_URL?.includes('localhost') || OLLAMA_URL?.includes('127.0.0.1');
-      
+      const isModelError = ollamaErr.response?.status === 404 || ollamaErr.message?.includes('model') || ollamaErr.message?.includes('not found');
+
       let errorDetail = ollamaErr.message;
-      if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
-        errorDetail = `CONNECTION REFUSED. Logic: The server is running in the cloud, but the Neural Link is pointed to 'localhost'. You must use a tunnel (e.g., ngrok) to bridge your local Ollama node to the cloud.`;
+      if (isConnError && isRailwayInternal) {
+        errorDetail = `Ollama not running at ${OLLAMA_URL}. Ensure the Ollama Railway service is deployed and healthy, and that OLLAMA_URL is set to the correct internal hostname.`;
+      } else if (isModelError) {
+        errorDetail = `Model '${OLLAMA_MODEL}' is not available on the Ollama instance at ${OLLAMA_URL}. The model may still be pulling — check Ollama service logs.`;
+      } else if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
+        errorDetail = `CONNECTION REFUSED. The server is running in the cloud but the Neural Link is pointed to 'localhost'. Use the Railway internal hostname (ollama.railway.internal) or a tunnel to bridge your local Ollama node.`;
       } else if (isConnError) {
         errorDetail = `Connection refused at ${OLLAMA_URL}. Ensure Ollama is running and OLLAMA_ORIGINS="*" is set.`;
       }
 
       console.warn(`[AI-STREAM] Ollama pulse failed: ${errorDetail}. Falling back to cloud neurons.`);
+      console.debug(`[AI-STREAM] Ollama error detail — code: ${ollamaErr.code}, status: ${ollamaErr.response?.status}, url: ${OLLAMA_URL}, model: ${OLLAMA_MODEL}`);
     }
   }
 

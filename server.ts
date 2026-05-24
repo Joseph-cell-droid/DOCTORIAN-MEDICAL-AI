@@ -89,9 +89,20 @@ const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
 const USE_LOCAL_AI = process.env.USE_LOCAL_AI === 'true';
 const SILENT_OLLAMA = process.env.SILENT_OLLAMA === 'true';
 
+// Together AI Configuration (Primary)
+// TOGETHER_API_KEY: Your Together AI API key (get from https://www.together.ai/)
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || "";
-const TOGETHER_URL = process.env.TOGETHER_URL || "https://api.together.xyz/v1/chat/completions";
-const TOGETHER_MODEL = process.env.TOGETHER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+const TOGETHER_API_URL = process.env.TOGETHER_URL || "https://api.together.xyz/v1/chat/completions";
+const TOGETHER_URL = TOGETHER_API_URL; // Alias for backward compatibility
+const TOGETHER_MODEL = process.env.TOGETHER_MODEL || "meta-llama/Llama-3.1-8b-instruct-turbo";
+
+// Local Ollama Configuration (Fallback)
+// LOCAL_OLLAMA_URL: URL to your local Ollama instance (default: http://localhost:11434)
+// LOCAL_OLLAMA_MODEL: Model name on local Ollama (default: llama2)
+// USE_LOCAL_OLLAMA_FALLBACK: Enable fallback to local Ollama when Together AI fails (default: false)
+const LOCAL_OLLAMA_URL = process.env.LOCAL_OLLAMA_URL || "http://localhost:11434";
+const LOCAL_OLLAMA_MODEL = process.env.LOCAL_OLLAMA_MODEL || "llama2";
+const USE_LOCAL_OLLAMA_FALLBACK = process.env.USE_LOCAL_OLLAMA_FALLBACK === 'true';
 
 const shouldTryTogetherAI = () => {
   return !!TOGETHER_API_KEY && TOGETHER_API_KEY.trim().length > 0;
@@ -154,13 +165,19 @@ function getValidApiKeys() {
   const googleKeys = valid.filter(k => !k.toLowerCase().startsWith('sk-'));
 
   const provider = (ACTIVE_AI_PROVIDER || "").toLowerCase();
+
+  // Together AI key is handled separately as the primary provider (see callAIStream/callAI).
+  // getValidApiKeys() covers the fallback cloud tier: OpenRouter, Gemini, etc.
+  // Exclude the TOGETHER_API_KEY from this pool to avoid double-routing.
+  const togetherKey = TOGETHER_API_KEY.trim();
+
   if (provider === "gemini") {
     // Option Two: Gemini prioritized, OpenRouter/Llama as fallback
-    const ordered = [...googleKeys, ...skKeys];
+    const ordered = [...googleKeys, ...skKeys].filter(k => k !== togetherKey);
     return [...new Set(ordered)];
   } else {
     // Option One: OpenRouter/Llama prioritized, Gemini as fallback
-    const ordered = [...skKeys, ...googleKeys];
+    const ordered = [...skKeys, ...googleKeys].filter(k => k !== togetherKey);
     return [...new Set(ordered)];
   }
 }
@@ -267,6 +284,183 @@ function doctorianLocalSynthesis(prompt: string): string {
   return "I am receiving your transmission. While my high-level cloud synthesis is currently restricted, I can still analyze your health vitals and provide basic guidance based on local clinical protocols. How can I help you proceed?";
 }
 
+// --- TOGETHER AI STREAMING FUNCTION ---
+async function* callTogetherAIStream(options: {
+  messages: { role: string; text: string; images?: string[] }[],
+  systemInstruction: string,
+  temperature?: number
+}) {
+  const { messages, systemInstruction, temperature } = options;
+
+  if (!TOGETHER_API_KEY) {
+    throw new Error("TOGETHER_API_KEY not set");
+  }
+
+  try {
+    console.log(`[AI-STREAM] Attempting Together AI (${TOGETHER_MODEL})...`);
+    const response = await axios.post(TOGETHER_API_URL, {
+      model: TOGETHER_MODEL,
+      messages: [
+        { role: "system", content: systemInstruction },
+        ...messages.map(m => ({
+          role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.text
+        }))
+      ],
+      temperature: temperature || 0.7,
+      max_tokens: 1024,
+      stream: true
+    }, {
+      headers: {
+        "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      responseType: 'stream',
+      timeout: 60000
+    });
+
+    const stream = response.data;
+    let buffer = "";
+    for await (const chunk of stream) {
+      const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+      buffer += chunkStr;
+
+      let lineEndIndex;
+      while ((lineEndIndex = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, lineEndIndex).trim();
+        buffer = buffer.slice(lineEndIndex + 1);
+
+        if (!line || line === "data: [DONE]" || line === "data:[DONE]") continue;
+        if (line.startsWith("data:")) {
+          const jsonStr = line.substring(5).trim();
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) yield content;
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (error: any) {
+    const isRateLimit = error.response?.status === 429;
+    const isAuthError = error.response?.status === 401 || error.response?.status === 403;
+    const isServiceDown = error.response?.status >= 500;
+    const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+    const isNetworkError = error.code === 'ECONNREFUSED' || error.message?.includes('Network Error');
+
+    if (isRateLimit) {
+      console.error(`[AI-STREAM] Together AI rate limited (429). Triggering fallback...`);
+    } else if (isAuthError) {
+      console.error(`[AI-STREAM] Together AI authentication failed (${error.response?.status}). Check TOGETHER_API_KEY.`);
+    } else if (isServiceDown) {
+      console.error(`[AI-STREAM] Together AI service error (${error.response?.status}). Service may be down.`);
+    } else if (isTimeout) {
+      console.error(`[AI-STREAM] Together AI request timed out. Triggering fallback...`);
+    } else if (isNetworkError) {
+      console.error(`[AI-STREAM] Together AI network error. Check connectivity.`);
+    } else {
+      console.error(`[AI-STREAM] Together AI failed: ${error.message}. Attempting fallback...`);
+    }
+    throw error; // Will be caught by caller to trigger fallback
+  }
+}
+
+// --- LOCAL OLLAMA STREAMING FUNCTION (Reusable) ---
+async function* callOllamaStream(options: {
+  messages: { role: string; text: string; images?: string[] }[],
+  systemInstruction: string,
+  ollamaUrl: string,
+  ollamaModel: string,
+  temperature?: number
+}) {
+  const { messages, systemInstruction, ollamaUrl, ollamaModel, temperature } = options;
+
+  const endpoint = ollamaUrl.endsWith('/') ? ollamaUrl.slice(0, -1) : ollamaUrl;
+  const isGenerateEndpoint = endpoint.includes('/api/generate');
+  const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
+    ? endpoint
+    : `${endpoint}/api/chat`;
+
+  console.log(`[AI-STREAM] Directing pulse to Ollama: ${finalUrl} (Model: ${ollamaModel})`);
+
+  const payload: any = {
+    model: ollamaModel,
+    stream: true,
+    options: {
+      temperature: temperature || 0.7
+    }
+  };
+
+  if (isGenerateEndpoint) {
+    const conversationPrompt = messages.map(m => {
+      const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
+      return `${prefix}${m.text}`;
+    }).join('\n') + '\nAssistant:';
+    payload.prompt = conversationPrompt;
+    payload.system = systemInstruction;
+  } else {
+    payload.messages = [
+      { role: "system", content: systemInstruction },
+      ...messages.map(m => ({
+        role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.text
+      }))
+    ];
+  }
+
+  const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
+
+  const stream = response.data;
+  let buffer = "";
+  for await (const chunk of stream) {
+    const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+    buffer += chunkStr;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+
+      let targetJson = cleanLine;
+      if (cleanLine.startsWith("data:")) {
+        targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
+      }
+
+      try {
+        const parsed = JSON.parse(targetJson);
+        if (parsed.message?.content) {
+          yield parsed.message.content;
+        } else if (parsed.response) {
+          yield parsed.response;
+        } else if (parsed.choices?.[0]?.delta?.content) {
+          yield parsed.choices[0].delta.content;
+        }
+      } catch (e) {}
+    }
+  }
+
+  if (buffer.trim()) {
+    const cleanBuffer = buffer.trim();
+    if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
+      let targetJson = cleanBuffer;
+      if (cleanBuffer.startsWith("data:")) {
+        targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
+      }
+      try {
+        const parsed = JSON.parse(targetJson);
+        if (parsed.message?.content) {
+          yield parsed.message.content;
+        } else if (parsed.response) {
+          yield parsed.response;
+        } else if (parsed.choices?.[0]?.delta?.content) {
+          yield parsed.choices[0].delta.content;
+        }
+      } catch (e) {}
+    }
+  }
+}
+
 async function* callAIStream(options: {
   messages: { role: string; text: string; images?: string[] }[],
   systemInstruction: string,
@@ -277,175 +471,66 @@ async function* callAIStream(options: {
 }) {
   const { messages, systemInstruction, modelName, temperature } = options;
 
-  // --- TOGETHER AI PATHWAY (Primary Cloud Llama 3.1 8B Brain) ---
-  if (shouldTryTogetherAI()) {
+  // --- TOGETHER AI PRIMARY PATHWAY ---
+  if (TOGETHER_API_KEY && !options.useSearch) {
     try {
-      console.log(`[AI-STREAM] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
-      
-      const payload: any = {
-        model: TOGETHER_MODEL,
-        stream: true,
-        messages: [
-          { role: "system", content: systemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ],
-        temperature: temperature || 0.7
-      };
-
-      const response = await axios.post(TOGETHER_URL, payload, {
-        headers: {
-          "Authorization": `Bearer ${TOGETHER_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        responseType: 'stream',
-        timeout: 15000 // Fast 15s timeout to trigger Ollama offline failover quickly
-      });
-
-      let stream = response.data;
-      let buffer = "";
-      for await (const chunk of stream) {
-        const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
-        buffer += chunkStr;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || "";
-        
-        for (const line of lines) {
-          const cleanLine = line.trim();
-          if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
-          
-          let targetJson = cleanLine;
-          if (cleanLine.startsWith("data:")) {
-            targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
-          }
-
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
+      for await (const chunk of callTogetherAIStream({ messages, systemInstruction, temperature })) {
+        yield chunk;
       }
-
-      if (buffer.trim()) {
-        const cleanBuffer = buffer.trim();
-        if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
-          let targetJson = cleanBuffer;
-          if (cleanBuffer.startsWith("data:")) {
-            targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
-          }
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
-      }
-      return; // Stream success!
+      return; // Success
     } catch (togetherErr: any) {
-      console.warn(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
+      console.warn(`[AI-STREAM] Together AI failed: ${togetherErr.message}`);
+
+      // If local Ollama fallback is enabled, try it before cloud providers
+      if (USE_LOCAL_OLLAMA_FALLBACK) {
+        console.log(`[AI-STREAM] Falling back to local Ollama at ${LOCAL_OLLAMA_URL} (model: ${LOCAL_OLLAMA_MODEL})...`);
+        try {
+          for await (const chunk of callOllamaStream({
+            messages,
+            systemInstruction,
+            ollamaUrl: LOCAL_OLLAMA_URL,
+            ollamaModel: LOCAL_OLLAMA_MODEL,
+            temperature
+          })) {
+            yield chunk;
+          }
+          return; // Success via local Ollama
+        } catch (ollamaErr: any) {
+          const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
+          const isModelError = ollamaErr.response?.status === 404 || ollamaErr.message?.includes('model');
+          const isTimeout = ollamaErr.code === 'ECONNABORTED' || ollamaErr.message?.includes('timeout');
+
+          if (isConnError) {
+            console.warn(`[AI-STREAM] Local Ollama unavailable at ${LOCAL_OLLAMA_URL}. Is Ollama running? Trying cloud providers...`);
+          } else if (isModelError) {
+            console.warn(`[AI-STREAM] Local Ollama model '${LOCAL_OLLAMA_MODEL}' not found. Run: ollama pull ${LOCAL_OLLAMA_MODEL}. Trying cloud providers...`);
+          } else if (isTimeout) {
+            console.warn(`[AI-STREAM] Local Ollama timed out. Trying cloud providers...`);
+          } else {
+            console.warn(`[AI-STREAM] Local Ollama also failed: ${ollamaErr.message}. Trying cloud providers...`);
+          }
+        }
+      }
     }
   }
 
-  // --- OLLAMA STREAMING PATHWAY ---
+  // --- CONFIGURED OLLAMA PATHWAY (OLLAMA_URL env var) ---
   if (shouldTryOllama()) {
     try {
-      const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-      const isGenerateEndpoint = endpoint.includes('/api/generate');
-      const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
-        ? endpoint
-        : `${endpoint}/api/chat`;
-
-      console.log(`[AI-STREAM] Directing pulse to Ollama Stream: ${finalUrl} (Model: ${OLLAMA_MODEL})`);
-      
-      const payload: any = {
-        model: OLLAMA_MODEL,
-        stream: true,
-        options: {
-          temperature: temperature || 0.7
-        }
-      };
-
-      if (isGenerateEndpoint) {
-        // Format as plain-text conversation prompt for /api/generate
-        const conversationPrompt = messages.map(m => {
-          const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
-          return `${prefix}${m.text}`;
-        }).join('\n') + '\nAssistant:';
-
-        payload.prompt = conversationPrompt;
-        payload.system = systemInstruction;
-      } else {
-        // Standard chat messages payload for /api/chat or OpenAI-compatible
-        payload.messages = [
-          { role: "system", content: systemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ];
-      }
-
-      const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
-
-      let stream = response.data;
-      let buffer = "";
-      for await (const chunk of stream) {
-        const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
-        buffer += chunkStr;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ""; // Keep the partial line buffered
-        
-        for (const line of lines) {
-          const cleanLine = line.trim();
-          if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
-          
-          let targetJson = cleanLine;
-          if (cleanLine.startsWith("data:")) {
-            targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
-          }
-
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.message?.content) {
-              yield parsed.message.content;
-            } else if (parsed.response) {
-              yield parsed.response;
-            } else if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
-      }
-      
-      if (buffer.trim()) {
-        const cleanBuffer = buffer.trim();
-        if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
-          let targetJson = cleanBuffer;
-          if (cleanBuffer.startsWith("data:")) {
-            targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
-          }
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.message?.content) {
-              yield parsed.message.content;
-            } else if (parsed.response) {
-              yield parsed.response;
-            } else if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
+      for await (const chunk of callOllamaStream({
+        messages,
+        systemInstruction,
+        ollamaUrl: OLLAMA_URL!,
+        ollamaModel: OLLAMA_MODEL,
+        temperature
+      })) {
+        yield chunk;
       }
       return; // Success
     } catch (ollamaErr: any) {
       const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
       const isLocalhost = OLLAMA_URL?.includes('localhost') || OLLAMA_URL?.includes('127.0.0.1');
-      
+
       let errorDetail = ollamaErr.message;
       if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
         errorDetail = `CONNECTION REFUSED. Logic: The server is running in the cloud, but the Neural Link is pointed to 'localhost'. You must use a tunnel (e.g., ngrok) to bridge your local Ollama node to the cloud.`;

@@ -60,7 +60,7 @@ let genAI: GoogleGenerativeAI | null = null;
 
 // 3. Neural Architecture & Configuration
 // Toggle between "gemini" (Option Two - free platform Gemini models) and "Ollama" (Option One - Llama 3.1 8b via Ollama)
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "ollama";
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "together";
 
 // Option Two Engines (Google Gemini mapped to Llama for removal of Gemini)
 const GEMINI_PRIMARY = "meta-llama/llama-3.1-8b-instruct"; 
@@ -81,8 +81,8 @@ const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const DEFAULT_GEMMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const BACKUP_ENGINE = "google gemma2";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL;
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "ollama3.1";
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama2";
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
 const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
@@ -101,9 +101,7 @@ const shouldTryTogetherAI = () => {
 const shouldTryOllama = () => {
   if (!OLLAMA_URL) return false;
   if (SILENT_OLLAMA) return false;
-  const isLocalhost = OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1');
-  // If we are in production (Cloud Run) and URL is localhost, only try if USE_LOCAL_AI is strictly true
-  if (!IS_LOCAL_ENV && isLocalhost && !USE_LOCAL_AI) return false;
+  // Allow localhost for fallback when Together AI fails (user's local Ollama instance)
   return true;
 };
 
@@ -348,6 +346,7 @@ async function* callAIStream(options: {
       return; // Stream success!
     } catch (togetherErr: any) {
       console.warn(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
+      console.log(`[AI-STREAM] Together AI unavailable. Attempting local Ollama fallback at ${OLLAMA_URL}...`);
     }
   }
 
@@ -454,6 +453,7 @@ async function* callAIStream(options: {
       }
 
       console.warn(`[AI-STREAM] Ollama pulse failed: ${errorDetail}. Falling back to cloud neurons.`);
+      console.error(`[AI-STREAM] Both Together AI and local Ollama failed. Falling back to cloud API keys.`);
     }
   }
 

@@ -301,7 +301,7 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
                      <ImageIcon size={64} strokeWidth={1} />
                    </div>
                    <div className="space-y-2">
-                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Await Clinical Projection</h3>
+                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">Direct Core Projection</h3>
                      <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed max-w-[280px]">
                        Input a clinical prompt on the left to synthesize high-fidelity medical illustrations.
                      </p>

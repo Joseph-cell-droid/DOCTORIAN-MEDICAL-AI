@@ -445,22 +445,22 @@ export const SpecialistFinder: React.FC = () => {
           </div>
 
           {/* Tab Navigation Hub */}
-          <div className="flex flex-wrap bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm gap-1 self-start xl:self-end">
+          <div className="flex bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm gap-1 self-start xl:self-end overflow-x-auto no-scrollbar whitespace-nowrap flex-nowrap shrink-0 max-w-full">
             <button 
               onClick={() => setActiveTab('specialists')}
-              className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'specialists' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
+              className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 ${activeTab === 'specialists' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
             >
               <Stethoscope size={14} /> Active Specialists
             </button>
             <button 
               onClick={() => setActiveTab('clinical_network')}
-              className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'clinical_network' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
+              className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 ${activeTab === 'clinical_network' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
             >
               <Radio size={14} className="text-emerald-500 animate-pulse" /> Live Clinical Network
             </button>
             <button 
               onClick={() => setActiveTab('referrals')}
-              className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'referrals' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
+              className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 ${activeTab === 'referrals' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
             >
               <FileText size={14} /> SOAP Referral dossiers
             </button>

@@ -265,29 +265,29 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.03)_1px,transparent_0)] bg-[size:16px_16px] pointer-events-none" />
 
       {/* Simulator Interface Container */}
-      <div className="p-6 sm:p-8 relative z-10 flex flex-col justify-between h-full text-slate-100">
+      <div className="p-4 sm:p-8 relative z-10 flex flex-col justify-between h-full text-slate-100">
         
         {/* Header Block */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 pb-6 border-b border-slate-800">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700/60 text-blue-400">
+              <div className="p-2 sm:p-2.5 bg-slate-850 rounded-xl border border-slate-705 text-blue-400">
                 <Cpu size={18} className="animate-spin-slow" />
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase text-blue-400 tracking-[0.2em]">Bio-Nexus Companion</span>
-                <h3 className="text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
                   Interactive Signal Generator v5.2
                 </h3>
               </div>
             </div>
-            <p className="text-xs text-slate-400 font-medium">Standalone hardware module emulator with tactile clinician dials</p>
+            <p className="text-xs text-slate-400 font-medium">Standalone hardware emulator with tactile clinician dials</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button 
               onClick={() => setShowGuide(!showGuide)}
-              className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-300 transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-300 transition-colors flex items-center gap-1.5"
             >
               <HelpCircle size={12} />
               {showGuide ? 'Hide Guide' : 'Explain Device'}
@@ -297,7 +297,7 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
             <button
               onClick={toggleConnection}
               disabled={connectionState === 'linking'}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all border ${
                 connectionState === 'online'
                   ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 shadow-lg shadow-emerald-500/10'
                   : connectionState === 'linking'
@@ -305,10 +305,10 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
                   : 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-lg shadow-blue-500/10'
               }`}
             >
-              <Radio size={14} className={connectionState === 'online' ? 'animate-pulse' : ''} />
+              <Radio size={12} className={connectionState === 'online' ? 'animate-pulse' : ''} />
               <span>{
-                connectionState === 'online' ? 'NEXUS COUPLING: CONNECTED' :
-                connectionState === 'linking' ? 'CALIBRATING LINK...' : 'CONNECT TO PATIENT MONITOR'
+                connectionState === 'online' ? 'COUPLING: CONNECTED' :
+                connectionState === 'linking' ? 'CALIBRATING LINK...' : 'CONNECT TO CLINICAL MONITOR'
               }</span>
             </button>
           </div>
@@ -342,7 +342,7 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
               <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-3 block">
                 Clinical Preset Profiles
               </h4>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-2.5">
                 {[
                   { id: 'nominal', label: 'Stable Base', desc: 'Typical rest', color: 'hover:border-emerald-500/30' },
                   { id: 'exercise', label: 'Workout Stress', desc: 'Elevated vitals', color: 'hover:border-blue-500/30' },
@@ -356,17 +356,17 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
                     <button
                       key={p.id}
                       onClick={() => applyPreset(p.id)}
-                      className={`text-left p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                      className={`text-left p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all active:scale-[0.98] ${
                         active
                           ? 'bg-blue-600/10 border-blue-500 text-white shadow-xl shadow-blue-500/5'
                           : 'bg-slate-850/60 border-slate-800 hover:bg-slate-800 text-slate-300'
                       } ${p.color}`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-tight">{p.label}</p>
-                        {active && <Check size={12} className="text-blue-400 shrink-0" />}
+                        <p className="text-[10px] sm:text-xs font-black uppercase tracking-tight truncate">{p.label}</p>
+                        {active && <Check size={11} className="text-blue-400 shrink-0" />}
                       </div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-1 tracking-tight truncate opacity-80">{p.desc}</p>
+                      <p className="text-[8px] sm:text-[9px] text-slate-400 font-bold uppercase mt-0.5 sm:mt-1 tracking-tight truncate opacity-80">{p.desc}</p>
                     </button>
                   );
                 })}
@@ -391,7 +391,7 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
           </div>
 
           {/* Dials & Sliding Overrides (Right 8 Cols) */}
-          <div className="lg:col-span-8 bg-slate-850/30 border border-slate-800/80 p-5 sm:p-7 rounded-3xl grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <div className="lg:col-span-8 bg-slate-850/30 border border-slate-800/80 p-4 sm:p-6 md:p-7 rounded-3xl grid grid-cols-1 md:grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-5 sm:gap-y-6">
             
             {/* Hearth Rate Dial */}
             <div className="space-y-2">

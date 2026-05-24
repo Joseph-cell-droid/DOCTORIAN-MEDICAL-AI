@@ -139,9 +139,11 @@ import {
 import { useArduinoContext } from './ArduinoContext';
 import { useMedicationReminders } from './hooks/useMedicationReminders';
 import { SubscriptionModal } from './components/SubscriptionModal';
+import { AppTutorial } from './components/AppTutorial';
 
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | ResourceType>('home');
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -428,6 +430,38 @@ export default function App() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleActionQueued = (e: any) => {
+      const { endpoint, type } = e.detail;
+      const label = endpoint.charAt(0).toUpperCase() + endpoint.slice(1);
+      setToast({
+        message: `💾 Offline Cache Secure: Queueing outbound ${type} ${label} packet. Synchronizing triggers online.`,
+        type: 'success'
+      });
+    };
+    const handleActionsSynced = (e: any) => {
+      const { syncedCount } = e.detail;
+      setToast({
+        message: `⚡ Clinical Link Synced! Dynamic local queue synchronized ${syncedCount} changes successfully.`,
+        type: 'success'
+      });
+    };
+    window.addEventListener('offline_action_queued', handleActionQueued);
+    window.addEventListener('offline_actions_synced', handleActionsSynced);
+    
+    // Also trigger initial sync check on mount if online
+    if (navigator.onLine) {
+      import('./api').then(({ syncOfflineActions }) => {
+        syncOfflineActions();
+      }).catch(console.error);
+    }
+
+    return () => {
+      window.removeEventListener('offline_action_queued', handleActionQueued);
+      window.removeEventListener('offline_actions_synced', handleActionsSynced);
     };
   }, []);
 
@@ -1659,7 +1693,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.02 }}
           >
-            <HelpCenter user={user} onNavigate={setCurrentView} />
+            <HelpCenter user={user} onNavigate={setCurrentView} onStartTutorial={() => setIsTutorialOpen(true)} />
           </motion.div>
         ) : currentView === 'privacy' ? (
           <motion.div
@@ -1834,9 +1868,12 @@ export default function App() {
     <AuthModal 
       isOpen={isAuthModalOpen} 
       onClose={() => setIsAuthModalOpen(false)} 
-      onSuccess={(u) => {
+      onSuccess={(u, isSignUp) => {
         setUser(u);
         setToast({ message: `Access sequence confirmed. Welcome ${u.displayName || u.email}.`, type: 'success' });
+        if (isSignUp) {
+          setIsTutorialOpen(true);
+        }
       }} 
       initialView={authModalView}
     />
@@ -1870,6 +1907,13 @@ export default function App() {
       )}
     </AnimatePresence>
   </Suspense>
+
+  <AppTutorial 
+    isOpen={isTutorialOpen} 
+    onClose={() => setIsTutorialOpen(false)} 
+    onNavigate={setCurrentView} 
+    currentView={currentView} 
+  />
 
   {/* Admin Authentication Overlay */}
   <AnimatePresence>
@@ -1956,40 +2000,49 @@ export default function App() {
           
           {/* Drawer Sheet */}
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full max-h-[85vh] bg-white dark:bg-slate-900 rounded-t-[3rem] shadow-2xl overflow-hidden border-t border-slate-100 dark:border-slate-800 flex flex-col pointer-events-auto pb-10"
+            initial={{ y: '100%', opacity: 0.95 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0.95 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            className="relative w-full max-h-[85vh] bg-gradient-to-b from-white/95 to-slate-50/98 dark:from-slate-900/95 dark:to-slate-950/98 backdrop-blur-2xl rounded-t-[3rem] shadow-[0_-15px_50px_rgba(0,0,0,0.12)] dark:shadow-[0_-15px_50px_rgba(0,0,0,0.65)] overflow-hidden border-t-2 border-slate-100 dark:border-slate-800/80 flex flex-col pointer-events-auto pb-10"
           >
             {/* Visual Pull Tab */}
-            <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto my-3 shrink-0" />
+            <div className="w-14 h-1.5 bg-slate-200 dark:bg-slate-700/80 rounded-full mx-auto my-3.5 shrink-0 animate-pulse" />
             
             {/* Drawer Header */}
-            <div className="px-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl">
-                  <LayoutGrid size={20} />
+            <div className="px-8 pb-4 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/50 dark:bg-slate-900/40">
+              <div className="flex items-center gap-3.5">
+                <div className="relative p-3 bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl shadow-[inset_0_1px_2px_rgba(59,130,246,0.1)] border border-blue-100/40 dark:border-blue-900/30">
+                  <LayoutGrid size={20} className="relative z-10 animate-pulse" />
+                  <span className="absolute inset-0 rounded-2xl bg-blue-500/10 animate-ping opacity-75" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">Systems Core</h3>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                    Systems Core
+                    <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 animate-pulse ml-1">
+                      LIVE
+                    </span>
+                  </h3>
                   <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{user?.displayName || 'Authorized Session'}</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
+                className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-2xl transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700/60 cursor-pointer shadow-sm active:scale-90"
               >
-                <X size={22} />
+                <X size={20} />
               </button>
             </div>
             
             {/* Content Categories */}
             <div className="flex-1 p-6 space-y-8 overflow-y-auto custom-scrollbar">
               {sidebarSections.map((section) => (
-                <div key={section.title} className="space-y-3">
-                  <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] px-1">{section.title}</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                <div key={section.title} className="space-y-4">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${section.accent.bar} animate-ping`} />
+                    <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{section.title}</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3.5">
                     {section.items.map((item) => {
                       const isActive = currentView === item.id;
                       return (
@@ -2003,16 +2056,37 @@ export default function App() {
                             }
                             setIsMobileMenuOpen(false);
                           }}
-                          className={`flex items-center gap-3 p-4 rounded-2xl border text-left transition-all active:scale-[0.97] ${
+                          className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all duration-350 active:scale-[0.96] group cursor-pointer ${
                             isActive
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/10'
-                              : 'bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              ? section.accent.active + ' shadow-md shadow-slate-900/10 dark:shadow-slate-950/30 translate-y-[-2px]'
+                              : 'bg-white dark:bg-slate-800/40 border-slate-100/80 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
                           }`}
                         >
-                          <div className={`p-2 rounded-xl shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 shadow-sm'}`}>
-                            {React.cloneElement(item.icon as any, { size: 16 })}
+                          <div className={`p-2.5 rounded-xl shrink-0 transition-all ${
+                            isActive 
+                              ? 'bg-white/20 text-white shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.15)] ring-1 ring-white/10' 
+                              : 'bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 shadow-sm border border-slate-100 dark:border-slate-800/50 group-hover:scale-110'
+                          }`}>
+                            {React.cloneElement(item.icon as any, { 
+                              size: 16,
+                              className: `w-4 h-4 transition-colors ${
+                                isActive 
+                                  ? section.accent.iconActive 
+                                  : section.accent.iconInactive
+                              }`
+                            })}
                           </div>
-                          <span className="text-xs font-bold leading-tight uppercase tracking-tight line-clamp-2">{item.label.split(' Hub')[0].split(' Node')[0].split(' Console')[0].split(' Trace')[0].split(' Core')[0].split(' Depot')[0]}</span>
+                          
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-black leading-tight uppercase tracking-tight line-clamp-2 transition-colors">
+                              {item.label.split(' Hub')[0].split(' Node')[0].split(' Console')[0].split(' Trace')[0].split(' Core')[0].split(' Depot')[0]}
+                            </span>
+                            {isActive && (
+                              <span className="block text-[7px] font-bold text-white/70 uppercase tracking-widest mt-0.5 animate-pulse">
+                                ACTIVE VIEW
+                              </span>
+                            )}
+                          </div>
                         </button>
                       );
                     })}

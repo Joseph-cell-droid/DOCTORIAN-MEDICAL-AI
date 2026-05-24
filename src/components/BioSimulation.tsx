@@ -76,10 +76,10 @@ export default function BioSimulation({ user, onUpdateUser }: { user?: any, onUp
   }, [frame]);
 
   return (
-    <div className="p-8 bg-slate-950 text-white min-h-[500px] flex flex-col font-sans relative overflow-hidden group">
+    <div className="p-4 sm:p-8 bg-slate-950 text-white min-h-[450px] sm:min-h-[500px] flex flex-col font-sans relative overflow-hidden group rounded-[2.5rem] border border-slate-900 shadow-xl">
       {/* Background Decor */}
-      <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-        <Fingerprint size={300} />
+      <div className="absolute top-0 right-0 p-4 sm:p-12 opacity-5 pointer-events-none">
+        <Fingerprint size={240} className="sm:w-[300px] sm:h-[300px]" />
       </div>
       
       {/* Background Grid */}
@@ -107,78 +107,78 @@ export default function BioSimulation({ user, onUpdateUser }: { user?: any, onUp
         </div>
 
         {/* Dynamic Wave Visualization */}
-        <div className="relative h-48 mb-8 bg-slate-900/30 rounded-3xl border border-slate-800/50 flex flex-col items-center justify-center overflow-hidden">
+        <div className="relative h-32 sm:h-48 mb-6 sm:mb-8 bg-slate-900/30 rounded-3xl border border-slate-800/50 flex flex-col items-center justify-center overflow-hidden">
           <canvas ref={canvasRef} width={400} height={100} className="w-full opacity-60" />
-          <div className="absolute inset-0 flex items-center justify-center">
-             <div className="flex gap-1">
-               {[...Array(24)].map((_, i) => (
+          <div className="absolute inset-x-0 inset-y-0 flex items-center justify-center pointer-events-none">
+             <div className="flex gap-0.5 sm:gap-1">
+               {[...Array(16)].map((_, i) => (
                  <motion.div
                    key={i}
                    animate={{
-                     height: [10, 40, 10],
-                     opacity: [0.2, 1, 0.2]
+                     height: [8, 32, 8],
+                     opacity: [0.2, 0.8, 0.2]
                    }}
                    transition={{
                      duration: 1.5,
                      repeat: Infinity,
                      delay: i * 0.05
                    }}
-                   className="w-1 bg-blue-600/40 rounded-full"
+                   className="w-1 bg-blue-600/45 rounded-full"
                  />
                ))}
              </div>
           </div>
-          <div className="absolute bottom-4 left-6 flex items-center gap-2">
-            <Waves size={12} className="text-blue-500" />
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Signal Integrity: 99.4%</span>
+          <div className="absolute bottom-3 left-4 sm:bottom-4 sm:left-6 flex items-center gap-2">
+            <Waves size={10} className="text-blue-500" />
+            <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-slate-500">Signal Integrity: 99.4%</span>
           </div>
         </div>
 
         {/* DNA Helix visualization (smaller/refined) */}
-        <div className="flex items-center gap-6 mb-8">
-           <div className="w-16 h-16 rounded-full border-4 border-blue-600/20 border-t-blue-600 animate-spin-slow flex items-center justify-center">
-              <Dna size={20} className="text-blue-500" />
+        <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
+           <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-4 border-blue-600/20 border-t-blue-600 animate-spin-slow flex items-center justify-center shrink-0">
+               <Dna size={16} className="text-blue-500 sm:w-5 sm:h-5" />
            </div>
-           <div className="flex-1">
-              <div className="flex justify-between mb-1">
-                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Genomic Sequencing</span>
-                 <span className="text-[9px] font-black text-blue-500 uppercase">Active</span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <motion.div 
-                  animate={{ width: ['20%', '80%', '20%'] }} 
-                  transition={{ duration: 10, repeat: Infinity }}
-                  className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_8px_rgba(37,99,235,0.4)]" 
-                />
-              </div>
+           <div className="flex-1 min-w-0">
+               <div className="flex justify-between mb-1">
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400">Genomic Sequencing</span>
+                  <span className="text-[8px] sm:text-[9px] font-black text-blue-500 uppercase">Active</span>
+               </div>
+               <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                 <motion.div 
+                   animate={{ width: ['20%', '80%', '20%'] }} 
+                   transition={{ duration: 10, repeat: Infinity }}
+                   className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_8px_rgba(37,99,235,0.4)]" 
+                 />
+               </div>
            </div>
         </div>
 
         {/* Telemetry Stats */}
-        <div className="grid grid-cols-2 gap-4 grow">
-          <div className="p-6 bg-slate-900/50 rounded-3xl border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <Cpu size={14} className="text-blue-500" />
-              <span className="text-[10px] font-black text-slate-500 uppercase">Process Load</span>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 grow">
+          <div className="p-4 sm:p-6 bg-slate-900/50 rounded-2xl sm:rounded-3xl border border-slate-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <Cpu size={12} className="text-blue-500 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase">Process Load</span>
             </div>
             <div className="space-y-1">
-              <span className="text-3xl font-black italic tracking-tighter tabular-nums">42.8%</span>
+              <span className="text-2xl sm:text-3xl font-black italic tracking-tighter tabular-nums">42.8%</span>
               <div className="flex gap-0.5">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className={`h-1 flex-1 rounded-full ${i < 4 ? 'bg-blue-600' : 'bg-slate-800'}`} />
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className={`h-1 flex-1 rounded-full ${i < 3 ? 'bg-blue-600' : 'bg-slate-850'}`} />
                 ))}
               </div>
             </div>
           </div>
           
-          <div className="p-6 bg-slate-900/50 rounded-3xl border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <Layers size={14} className="text-purple-500" />
-              <span className="text-[10px] font-black text-slate-500 uppercase">Cognis Layers</span>
+          <div className="p-4 sm:p-6 bg-slate-900/50 rounded-2xl sm:rounded-3xl border border-slate-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <Layers size={12} className="text-purple-500 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase">Cognis Layers</span>
             </div>
             <div className="space-y-1">
-              <span className="text-3xl font-black italic tracking-tighter tabular-nums">LX-9</span>
-              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Autonomous Sync Mode</p>
+              <span className="text-2xl sm:text-3xl font-black italic tracking-tighter tabular-nums text-white">LX-9</span>
+              <p className="text-[7px] sm:text-[8px] font-bold text-slate-600 uppercase tracking-widest truncate">Auto Sync</p>
             </div>
           </div>
         </div>
@@ -190,13 +190,13 @@ export default function BioSimulation({ user, onUpdateUser }: { user?: any, onUp
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mb-8 p-6 bg-blue-600/10 rounded-[2rem] border border-blue-500/20"
+              className="mt-6 sm:mt-8 p-4 sm:p-6 bg-blue-600/10 rounded-2xl sm:rounded-[2rem] border border-blue-500/20"
             >
               <div className="flex items-center gap-2 mb-2">
-                <Brain size={14} className="text-blue-500" />
-                <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Core Insight</span>
+                <Brain size={12} className="text-blue-500 sm:w-3.5 sm:h-3.5" />
+                <span className="text-[8px] sm:text-[10px] font-black uppercase text-blue-500 tracking-widest">Core Insight</span>
               </div>
-              <p className="text-sm font-bold text-slate-300 italic leading-relaxed">
+              <p className="text-xs sm:text-sm font-bold text-slate-300 italic leading-relaxed">
                 "{syncInsight}"
               </p>
             </motion.div>
@@ -207,13 +207,13 @@ export default function BioSimulation({ user, onUpdateUser }: { user?: any, onUp
         <button 
           onClick={handleBioSync}
           disabled={isSyncing}
-          className="mt-8 group/btn relative overflow-hidden w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-blue-900/20 border border-blue-500/50 disabled:opacity-50"
+          className="mt-6 sm:mt-8 group/btn relative overflow-hidden w-full py-3 sm:py-4 bg-blue-600 text-white rounded-xl sm:rounded-2xl font-black text-[9px] sm:text-[10px] uppercase tracking-[0.2em] transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-blue-900/20 border border-blue-500/50 disabled:opacity-50"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000"></div>
           {isSyncing ? (
-            <>Syncing Neural Nodes <RefreshCw size={14} className="animate-spin" /></>
+            <>Syncing Neural Nodes <RefreshCw size={12} className="animate-spin" /></>
           ) : (
-            <>Sync Bio-Core Intelligence <Zap size={14} fill="currentColor" /></>
+            <>Sync Bio-Core Intelligence <Zap size={12} fill="currentColor" /></>
           )}
         </button>
       </div>

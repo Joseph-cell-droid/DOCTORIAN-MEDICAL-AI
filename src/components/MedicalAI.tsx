@@ -243,26 +243,26 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-5xl h-[80vh] bg-white dark:bg-slate-900 rounded-[2.5rem] border border-white/20 shadow-2xl overflow-hidden flex flex-col"
+              className="relative w-full max-w-5xl h-[85vh] sm:h-[80vh] bg-slate-950 text-white rounded-[2.5rem] border border-slate-900 shadow-2xl overflow-hidden flex flex-col"
             >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="p-4 sm:p-6 border-b border-slate-900 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-                    <Dna className="text-emerald-600" size={20} />
+                  <div className="p-3 bg-emerald-950/50 text-emerald-400 rounded-xl">
+                    <Dna className="text-emerald-500" size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Quantum Bio-Simulation</h2>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Cellular Path Dynamics & Synaptic Integrity</p>
+                    <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-tight">Quantum Bio-Simulation</h2>
+                    <p className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Cellular Path Dynamics & Synaptic Integrity</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowBioSim(false)}
-                  className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                  className="p-3 hover:bg-slate-900 rounded-xl transition-all"
                 >
                   <X size={20} className="text-slate-400" />
                 </button>
               </div>
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 <BioSimulation user={user} onUpdateUser={onUpdate} />
               </div>
             </motion.div>

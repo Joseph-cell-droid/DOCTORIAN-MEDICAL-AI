@@ -6,6 +6,7 @@ interface VitalWaveformProps {
   color: string;
   width?: number;
   height?: number;
+  minVal?: number;
   maxVal?: number;
   label?: string;
   unit?: string;
@@ -16,6 +17,7 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
   color, 
   width: fixedWidth, 
   height: fixedHeight = 80,
+  minVal = 0,
   maxVal = 200,
   label,
   unit
@@ -65,7 +67,7 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
       .range([0, innerWidth]);
 
     const y = d3.scaleLinear()
-      .domain([0, maxVal])
+      .domain([minVal, maxVal])
       .range([innerHeight, 0]);
 
     const line = d3.line<{ value: number; timestamp: number }>()
@@ -116,7 +118,11 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
       .attr("d", line);
 
     // Add grid lines (horizontal)
-    const yTicks = [maxVal * 0.25, maxVal * 0.5, maxVal * 0.75];
+    const yTicks = [
+      minVal + (maxVal - minVal) * 0.25,
+      minVal + (maxVal - minVal) * 0.5,
+      minVal + (maxVal - minVal) * 0.75
+    ];
     g.selectAll(".grid-line")
       .data(yTicks)
       .enter()
@@ -175,7 +181,7 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
         .attr("opacity", 0.5);
     }
 
-  }, [data, color, dimensions, maxVal, tooltip]);
+  }, [data, color, dimensions, minVal, maxVal, tooltip]);
 
   return (
     <div ref={containerRef} className="w-full h-full min-h-[40px] relative">

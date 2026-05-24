@@ -89,6 +89,14 @@ const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
 const USE_LOCAL_AI = process.env.USE_LOCAL_AI === 'true';
 const SILENT_OLLAMA = process.env.SILENT_OLLAMA === 'true';
 
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || "";
+const TOGETHER_URL = process.env.TOGETHER_URL || "https://api.together.xyz/v1/chat/completions";
+const TOGETHER_MODEL = process.env.TOGETHER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+
+const shouldTryTogetherAI = () => {
+  return !!TOGETHER_API_KEY && TOGETHER_API_KEY.trim().length > 0;
+};
+
 // Helper to determine if we should even try the local Ollama pulse
 const shouldTryOllama = () => {
   if (!OLLAMA_URL) return false;
@@ -268,6 +276,80 @@ async function* callAIStream(options: {
   thinkingLevel?: string
 }) {
   const { messages, systemInstruction, modelName, temperature } = options;
+
+  // --- TOGETHER AI PATHWAY (Primary Cloud Llama 3.1 8B Brain) ---
+  if (shouldTryTogetherAI()) {
+    try {
+      console.log(`[AI-STREAM] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
+      
+      const payload: any = {
+        model: TOGETHER_MODEL,
+        stream: true,
+        messages: [
+          { role: "system", content: systemInstruction },
+          ...messages.map(m => ({
+            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.text
+          }))
+        ],
+        temperature: temperature || 0.7
+      };
+
+      const response = await axios.post(TOGETHER_URL, payload, {
+        headers: {
+          "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        responseType: 'stream',
+        timeout: 15000 // Fast 15s timeout to trigger Ollama offline failover quickly
+      });
+
+      let stream = response.data;
+      let buffer = "";
+      for await (const chunk of stream) {
+        const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+        buffer += chunkStr;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          const cleanLine = line.trim();
+          if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+          
+          let targetJson = cleanLine;
+          if (cleanLine.startsWith("data:")) {
+            targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
+          }
+
+          try {
+            const parsed = JSON.parse(targetJson);
+            if (parsed.choices?.[0]?.delta?.content) {
+              yield parsed.choices[0].delta.content;
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (buffer.trim()) {
+        const cleanBuffer = buffer.trim();
+        if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
+          let targetJson = cleanBuffer;
+          if (cleanBuffer.startsWith("data:")) {
+            targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
+          }
+          try {
+            const parsed = JSON.parse(targetJson);
+            if (parsed.choices?.[0]?.delta?.content) {
+              yield parsed.choices[0].delta.content;
+            }
+          } catch (e) {}
+        }
+      }
+      return; // Stream success!
+    } catch (togetherErr: any) {
+      console.warn(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
+    }
+  }
 
   // --- OLLAMA STREAMING PATHWAY ---
   if (shouldTryOllama()) {
@@ -561,6 +643,41 @@ async function callAI(options: {
   userId?: string
 }) {
   const { messages, systemInstruction, modelName, temperature, userId } = options;
+
+  // --- TOGETHER AI PATHWAY (Primary Cloud Llama 3.1 8B Brain) ---
+  if (shouldTryTogetherAI()) {
+    try {
+      console.log(`[AI-BRAIN] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
+      
+      const payload: any = {
+        model: TOGETHER_MODEL,
+        stream: false,
+        messages: [
+          { role: "system", content: systemInstruction },
+          ...messages.map(m => ({
+            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.text
+          }))
+        ],
+        temperature: temperature || 0.7
+      };
+
+      const response = await axios.post(TOGETHER_URL, payload, {
+        headers: {
+          "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 15000 // Fast 15s timeout to trigger Ollama offline failover quickly
+      });
+
+      if (response.data?.choices?.[0]?.message?.content) {
+        console.log(`[AI-BRAIN] Together AI Cloud Brain response successful`);
+        return response.data.choices[0].message.content;
+      }
+    } catch (togetherErr: any) {
+      console.warn(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
+    }
+  }
 
   // --- OLLAMA PATHWAY (Local Inference) ---
   // We prioritize this if USE_LOCAL_AI is true or OLLAMA_URL is explicitly provided

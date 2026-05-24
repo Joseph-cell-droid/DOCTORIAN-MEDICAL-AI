@@ -101,38 +101,41 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <footer className="relative bg-white dark:bg-[#030712] pt-20 pb-40 lg:pb-20 overflow-hidden border-t border-slate-200 dark:border-slate-900/40 mt-auto transition-colors duration-300">
+    <footer className="relative bg-[#f8fafc] dark:bg-[#030712] pt-24 pb-44 lg:pb-24 overflow-hidden border-t-2 border-slate-200 dark:border-slate-900/40 mt-auto transition-colors duration-300">
       
+      {/* Laser Gradient Accent Bar across the top of the footer */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 shadow-[0_1px_4px_rgba(59,130,246,0.3)]" />
+
       {/* Elegantly soft illumination backdrops */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-        <div className="absolute top-0 left-1/4 w-[450px] h-[350px] bg-gradient-to-br from-blue-500/5 to-transparent dark:from-blue-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-10 right-1/4 w-[350px] h-[300px] bg-gradient-to-br from-indigo-500/5 to-transparent dark:from-indigo-500/10 rounded-full blur-[90px]" />
-        <div className="absolute top-1/2 right-10 w-[200px] h-[200px] bg-gradient-to-br from-emerald-500/5 to-transparent dark:from-emerald-500/10 rounded-full blur-[70px]" />
+        <div className="absolute top-0 left-1/4 w-[450px] h-[350px] bg-gradient-to-br from-blue-500/10 to-transparent dark:from-blue-500/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-10 right-1/4 w-[350px] h-[300px] bg-gradient-to-br from-indigo-500/10 to-transparent dark:from-indigo-500/20 rounded-full blur-[90px]" />
+        <div className="absolute top-1/2 right-10 w-[200px] h-[200px] bg-gradient-to-br from-emerald-500/10 to-transparent dark:from-emerald-500/20 rounded-full blur-[70px]" />
       </div>
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 relative z-10">
         
-        {/* Interactive System Status Top Row (Modern Grid Bar) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 p-6 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-indigo-950/20 rounded-3xl backdrop-blur-md shadow-sm">
+        {/* Interactive System Status Top Row (Modern Grid Bar) / Highly visible grid boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 p-6 bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-indigo-950/20 rounded-[2rem] shadow-md dark:shadow-none hover:shadow-lg transition-shadow duration-300 backdrop-blur-md">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl shrink-0">
+            <div className="p-3 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl shrink-0 shadow-inner">
               <Server size={18} className="animate-pulse" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Clinic Gateway</p>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">Clinic Gateway</p>
               <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                 Uganda Hub Active (UTC+3)
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-4 border-t md:border-t-0 md:border-x border-slate-200/50 dark:border-slate-800/40 pt-4 md:pt-0 md:px-6">
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl shrink-0">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl shrink-0 shadow-inner">
               <Users size={18} />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Clinicians Online</p>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">Clinicians Online</p>
               <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
                 {activeClinicians} Health Workers Syncing
               </p>
@@ -140,11 +143,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           <div className="flex items-center gap-4 border-t md:border-t-0 pt-4 md:pt-0 md:pl-6">
-            <div className="p-3 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl shrink-0">
+            <div className="p-3 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl shrink-0 shadow-inner">
               <Radio size={18} className="animate-pulse" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Calibration Clock</p>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">Calibration Clock</p>
               <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight font-mono">
                 {systemTime || 'Syncing...'}
               </p>
@@ -158,34 +161,34 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           {/* Brand Identity Panel */}
           <div className="lg:col-span-4 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-blue-500/15 shrink-0 flex items-center justify-center">
+              <div className="p-3 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-blue-500/15 shrink-0 flex items-center justify-center">
                 <Logo className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white uppercase tracking-wider leading-none">
+                <h2 className="text-lg font-extrabold text-slate-950 dark:text-white uppercase tracking-wider leading-none">
                   Doctorian <span className="text-blue-600 dark:text-blue-500 font-black">AI</span>
                 </h2>
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1.5 leading-none">Clinical Security Core v2.4</p>
+                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5 leading-none">Clinical Security Core v2.4</p>
               </div>
             </div>
 
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-medium leading-relaxed max-w-sm">
+            <p className="text-slate-600 dark:text-slate-300 text-xs font-semibold leading-relaxed max-w-sm">
               An advanced, user-centric clinical platform bridging bio-telemetry pipelines in real-time with reliable automated medical insights. Built to ensure smooth workflows for practitioners, VHTs, and regional patients in Great Lakes communities.
             </p>
 
             {/* Quick Contact Info */}
-            <div className="flex flex-col gap-3 pt-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="flex flex-col gap-3 pt-2 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               <div className="flex items-center gap-3 group">
-                <div className="w-7 h-7 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors">
-                  <Mail size={13} />
+                <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 rounded-xl flex items-center justify-center transition-colors">
+                  <Mail size={14} />
                 </div>
-                <span className="break-all">gloriajayakullo@gmail.com</span>
+                <span className="break-all select-all font-bold">{process.env.MTN_EMAIL || 'gloriajayakullo@gmail.com'}</span>
               </div>
               <div className="flex items-center gap-3 group">
-                <div className="w-7 h-7 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400">
-                  <MapPin size={13} />
+                <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 text-slate-500 rounded-xl flex items-center justify-center">
+                  <MapPin size={14} />
                 </div>
-                <span>Kampala Region, Uganda Node</span>
+                <span className="font-bold">Kampala Region, Uganda Node</span>
               </div>
             </div>
           </div>
@@ -194,7 +197,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 gap-8">
             {menuSections.map((section, idx) => (
               <div key={idx} className="space-y-5">
-                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{section.title}</h4>
+                <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{section.title}</h4>
                 <ul className="space-y-3">
                   {section.links.map((link: any, linkIdx) => (
                     <li key={linkIdx}>
@@ -203,15 +206,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                           href={link.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-150 flex items-center gap-1.5 group/item whitespace-normal break-words"
+                          className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-400 transition-all duration-150 flex items-center gap-1.5 group/item whitespace-normal break-words"
                         >
-                          <span className="flex-1 group-hover/item:translate-x-0.5 transition-transform">{link.label}</span>
-                          <ExternalLink size={10} className="opacity-0 group-hover/item:opacity-100 transition-opacity text-blue-500 shrink-0" />
+                          <span className="flex-1 group-hover/item:translate-x-1 transition-transform">{link.label}</span>
+                          <ExternalLink size={10} className="text-blue-500 dark:text-cyan-400 transform group-hover/item:scale-110 transition-transform shrink-0" />
                         </a>
                       ) : (
                         <button
                           onClick={() => onNavigate(link.view)}
-                          className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-150 text-left block w-full whitespace-normal break-words hover:translate-x-0.5"
+                          className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-400 transition-all duration-150 text-left block w-full whitespace-normal break-words hover:translate-x-1"
                         >
                           {link.label}
                         </button>
@@ -225,8 +228,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
           {/* Bulletin Feed panel */}
           <div className="lg:col-span-3 space-y-5">
-            <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Clinical Bulletins</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+            <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">Clinical Bulletins</h4>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
               Subscribe to the secure feed for modern clinical announcements, infectious health warnings, and telemetry release briefs.
             </p>
 
@@ -247,7 +250,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                       placeholder="ENTER TERMINAL EMAIL..."
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-white placeholder:text-slate-400/90 outline-none focus:border-blue-500/60 focus:bg-white dark:focus:bg-slate-950 transition-all"
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-850 dark:text-white placeholder:text-slate-400/90 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-950 transition-all"
                     />
                     <button 
                       type="submit" 
@@ -262,7 +265,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                       )}
                     </button>
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-400 text-[9px] font-bold uppercase tracking-wider ml-1">
+                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wider ml-1">
                     <ShieldCheck size={11} className="text-emerald-500 shrink-0" />
                     <span>Secure Delivery TLS Encrypted</span>
                   </div>
@@ -289,23 +292,23 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         {/* Bottom Bar: Copyright, HIPAA Certification, Scroll up button */}
         <div className="pt-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 text-center md:text-left">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">
+            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
               © {currentYear} Doctorian AI. All rights reserved.
             </p>
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-full shadow-sm shrink-0">
-              <ShieldCheck size={12} className="text-blue-500 shadow-sm" />
-              <span className="text-[8px] font-black tracking-widest uppercase text-slate-500 dark:text-slate-400">HIPAA & GDPR COMPLIANT NODE</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-500/20 dark:border-emerald-400/20 rounded-full shadow-sm shrink-0">
+              <ShieldCheck size={12} className="text-emerald-600 dark:text-emerald-400 shadow-sm" />
+              <span className="text-[8px] font-black tracking-widest uppercase text-emerald-600 dark:text-emerald-400">HIPAA & GDPR COMPLIANT NODE</span>
             </div>
           </div>
 
           <div className="flex items-center gap-5">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
               Pulse Calibration Sync
             </span>
             <button
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-sm border border-slate-200/10 cursor-pointer"
+              className="p-3 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-md border border-slate-200 dark:border-slate-800 cursor-pointer"
               title="Return to Core Stream"
             >
               <ChevronUp size={16} />

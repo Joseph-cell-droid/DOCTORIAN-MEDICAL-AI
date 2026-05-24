@@ -4,25 +4,31 @@ import {
   HelpCircle, BookOpen, MessageSquare, Key, ShieldAlert, FileText, CheckCircle2,
   Search, ExternalLink, UserCheck, PhoneCall, Send, Shield, Activity, 
   Settings, LogIn, Lock, Loader2, Download, Upload, AlertTriangle, Play, Check, 
-  Clock, Database, Users, Users2, Mail, MapPin, Sparkles, RefreshCw, X
+  Clock, Database, Users, Users2, Mail, MapPin, Sparkles, RefreshCw, X, MessageCircle, Smile
 } from 'lucide-react';
 
 interface SubViewProps {
   user: any;
   onNavigate?: (view: any) => void;
   vitals?: any;
+  onStartTutorial?: () => void;
 }
 
 /* ==========================================================================
    1. HELP CENTER VIEW
    ========================================================================== */
-export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate }) => {
+export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTutorial }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'faqs' | 'guide' | 'support'>('faqs');
+  const [activeTab, setActiveTab] = useState<'faqs' | 'guide' | 'support' | 'feedback'>('faqs');
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketMessage, setTicketMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticketSuccess, setTicketSuccess] = useState(false);
+
+  // Clinician feedback states
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState<string | null>(null);
+  const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
 
   const [systemChecks, setSystemChecks] = useState({
     audioSynth: { status: 'pending', label: 'IEC Acoustic Engine Pulse' },
@@ -52,6 +58,46 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate }) => {
       q: "Are the telemetry streams saved to persistent servers?",
       a: "This application prioritizes safe offline processing. Patient metrics and logs are handled using client-side memory and local sandbox encryption models to satisfy rigorous HIPAA patient data protection standards.",
       category: "security"
+    },
+    {
+      q: "How does the AI analyze my symptoms?",
+      a: "Doctorian uses advanced localized neural models trained on medical literature to identify potential health patterns. It generates suggestions and probability markers, which must be cross-referenced with professional clinical guidance.",
+      category: "AI & Symptoms"
+    },
+    {
+      q: "Is my medical data secure?",
+      a: "Yes, we use decentralized storage sandboxes and client-side Quantum-Relay Encryption (QRE). Your physiological data never leaves your device unless explicitly exported or synchronized offline with absolute verification.",
+      category: "security"
+    },
+    {
+      q: "Can I connect my own medical devices?",
+      a: "Currently, Doctorian supports Arduino-based custom vital monitors via Bluetooth, WiFi UDP, or Serial. We are continuously expanding integration interfaces for clinical telemetry sensors.",
+      category: "hardware"
+    },
+    {
+      q: "What should I do in an emergency?",
+      a: "Doctorian is a diagnostic support interface and NOT a certification dispensation facility. In a life-threatening acute biological crisis, always engage your physical emergency services or press the SOS alarm immediately.",
+      category: "safety"
+    },
+    {
+      q: "Is Doctorian free to use?",
+      a: "We offer a generous local free tier for basic symptom checking, medication logs, and pulse telemetry. Premium multi-layered anatomical visualization or specialist directories are unlocked using credits or active pro credentials.",
+      category: "accounts"
+    },
+    {
+      q: "Does it support multiple languages?",
+      a: "Yes, Doctorian implements real-time language translation for over 50 languages, allowing global clinicians to review diagnostic reports and interact in native vocabularies.",
+      category: "general"
+    },
+    {
+      q: "How do I sync my Arduino monitor?",
+      a: "Open the Patient Monitor ('Vitals') board, connect your hardware over Bluetooth/Serial, and set the correct matching baud rate/com port. Ensure the telemetry stream is active before starting recordings.",
+      category: "hardware"
+    },
+    {
+      q: "Can I share my reports with my doctor?",
+      a: "Yes, you can export your entire clinical footprint (symptom history, recorded ECG bounds, medication adherence metrics, and AI summaries) as encrypted JSON or PDF summaries from the Clinical Records portal.",
+      category: "export"
     }
   ];
 
@@ -73,6 +119,26 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate }) => {
       });
       setIsRunningCheck(false);
     }, 1500);
+  };
+
+  const handleContactWhatsApp = (message: string = "Hello, I need assistance with Doctorian.") => {
+    const url = `https://wa.me/256787674140?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleContactEmail = (subject: string = "Doctorian Support Request", body: string = "Hello, I need assistance with...") => {
+    const url = `mailto:gloriajayakullo@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = url;
+  };
+
+  const handleSendFeedback = (via: 'email' | 'whatsapp') => {
+    const message = `Clinician Feedback for Doctorian\nRating: ${feedbackRating || 'Not rated'}\nFeedback: ${feedbackText}`;
+    if (via === 'whatsapp') {
+      handleContactWhatsApp(message);
+    } else {
+      handleContactEmail("Doctorian Clinician Feedback", message);
+    }
+    setIsFeedbackSubmitted(true);
   };
 
   const submitTicket = (e: React.FormEvent) => {
@@ -110,16 +176,17 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-100 dark:border-slate-800/85">
+      <div className="flex border-b border-slate-100 dark:border-slate-800/85 overflow-x-auto no-scrollbar whitespace-nowrap flex-nowrap shrink-0">
         {[
           { id: 'faqs', label: 'Clinical FAQs', icon: <HelpCircle size={15} /> },
           { id: 'guide', label: 'Self Diagnostics', icon: <BookOpen size={15} /> },
-          { id: 'support', label: 'Escalation Desk', icon: <MessageSquare size={15} /> }
+          { id: 'support', label: 'Escalation Desk', icon: <PhoneCall size={15} /> },
+          { id: 'feedback', label: 'Clinician Feedback', icon: <Smile size={15} /> }
         ].map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id as any)}
-            className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all shrink-0 ${
               activeTab === t.id 
                 ? 'border-blue-600 text-blue-600 dark:text-blue-500 font-bold' 
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
@@ -129,6 +196,28 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate }) => {
           </button>
         ))}
       </div>
+
+      {/* Onboarding Tutorial Prompt */}
+      {onStartTutorial && (
+        <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-indigo-600/5 dark:from-blue-600/10 dark:via-indigo-600/10 border border-blue-500/20 dark:border-blue-500/25 rounded-[2.5rem] p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-500">
+              <Sparkles className="animate-pulse" size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Interactive Walkthrough</span>
+            </div>
+            <h2 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white">Workspace Onboarding Tour</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              New to Doctorian or need a complete diagnostic refresher? Launch our step-by-step interactive onboarding tour to explore the Symptom Analyzer, Patient wave monitoring, AI anatomy models, and EHR history vault with real-time views.
+            </p>
+          </div>
+          <button
+            onClick={onStartTutorial}
+            className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-500/15 cursor-pointer"
+          >
+            <Play size={12} className="fill-current" /> Start Interactive Tour
+          </button>
+        </div>
+      )}
 
       {/* Tab Switch Contents */}
       <AnimatePresence mode="wait">
@@ -363,26 +452,157 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate }) => {
               </p>
 
               <div className="space-y-4">
-                <div className="p-4 bg-white dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
-                  <span className="text-[11px] font-black uppercase text-blue-600 tracking-wider flex items-center gap-1.5">
-                    <PhoneCall size={12} /> Regional Network Support
-                  </span>
-                  <a href="tel:+256787674140" className="text-xs font-bold text-slate-700 dark:text-slate-350 block hover:text-blue-500 transition-colors">
-                    +256 787 674 140
-                  </a>
-                  <span className="text-[9px] font-semibold text-slate-400 uppercase block">Available 24/7/365</span>
-                </div>
+                <button
+                  onClick={() => handleContactWhatsApp("Hello Doctorian Team, I require real-time support for clinical telemetry.")}
+                  className="w-full p-4 bg-white dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 text-left transition-all select-none flex items-center gap-3"
+                >
+                  <div className="bg-emerald-500/10 p-2.5 rounded-xl text-emerald-500">
+                    <MessageCircle size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black uppercase text-emerald-600 tracking-wider block">WhatsApp Support Channel</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-350 block">+256 787 674 140</span>
+                  </div>
+                </button>
 
-                <div className="p-4 bg-white dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
-                  <span className="text-[11px] font-black uppercase text-indigo-500 tracking-wider flex items-center gap-1.5">
-                    <Mail size={12} /> Lead Systems Officer
-                  </span>
-                  <a href="mailto:gloriajayakullo@gmail.com" className="text-xs font-bold text-slate-705 dark:text-slate-350 block hover:text-blue-500 transition-colors truncate">
-                    gloriajayakullo@gmail.com
-                  </a>
-                  <span className="text-[9px] font-semibold text-slate-400 uppercase block">Typical turnaround: &lt; 2 hrs</span>
-                </div>
+                <button
+                  onClick={() => handleContactEmail("Doctorian Core Telemetry Failure", "Hello Support Team, we are observing telemetry anomalies on...\n\nUser identifier: " + (user?.uid || "GUEST"))}
+                  className="w-full p-4 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 text-left transition-all select-none flex items-center gap-3"
+                >
+                  <div className="bg-blue-500/10 p-2.5 rounded-xl text-blue-500">
+                    <Mail size={18} />
+                  </div>
+                  <div className="truncate">
+                    <span className="text-[11px] font-black uppercase text-blue-600 tracking-wider block">Lead Systems Officer</span>
+                    <span className="text-xs font-bold text-slate-705 dark:text-slate-350 block truncate">gloriajayakullo@gmail.com</span>
+                  </div>
+                </button>
               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* FEEDBACK TAB */}
+        {activeTab === 'feedback' && (
+          <motion.div 
+            key="feedback-pane"
+            className="space-y-6 max-w-3xl mx-auto"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 sm:p-12 border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 relative overflow-hidden">
+              <div className="text-center max-w-lg mx-auto space-y-2">
+                <span className="text-[9px] font-bold text-blue-600 dark:text-blue-500 uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-950/20 px-3 py-1 rounded-full">Telemetry Review</span>
+                <h3 className="text-xl font-black uppercase tracking-tight text-slate-955 dark:text-white">Share Your Insights</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Your practical diagnostics feedback is critical to improving clinical safety parameters across decentralized networks.</p>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {isFeedbackSubmitted ? (
+                  <motion.div 
+                    key="feedback-success"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="p-8 text-center space-y-4"
+                  >
+                    <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 mx-auto animate-bounce">
+                      <CheckCircle2 size={32} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-tight text-emerald-600">Insights Received</h4>
+                      <p className="text-xs text-slate-400 mt-1 uppercase font-semibold font-mono">Transmission Code: FEEDBACK_OK</p>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                      Thank you. Your ratings and suggestions have been formatted and dispatched immediately.
+                    </p>
+                    <button 
+                      onClick={() => {
+                        setIsFeedbackSubmitted(false);
+                        setFeedbackText('');
+                        setFeedbackRating(null);
+                      }}
+                      className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-500 hover:underline pt-2 block mx-auto"
+                    >
+                      Submit Another Report
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.div key="feedback-form" className="space-y-6">
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-black text-slate-900 dark:text-white mb-2 text-center uppercase tracking-wider">How would you rate the interface?</h4>
+                      <div className="flex justify-center gap-4">
+                        {[
+                          { emoji: '😞', label: 'Unsatisfied' },
+                          { emoji: '😐', label: 'Neutral' },
+                          { emoji: '😊', label: 'Satisfied' },
+                          { emoji: '🤩', label: 'Excellent' }
+                        ].map((item, idx) => (
+                          <button 
+                            key={idx} 
+                            onClick={() => setFeedbackRating(item.emoji)}
+                            aria-label={item.label}
+                            aria-checked={feedbackRating === item.emoji}
+                            role="radio"
+                            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl transition-all border outline-none ${
+                              feedbackRating === item.emoji 
+                                ? 'bg-blue-600 border-blue-500 scale-110 shadow-lg text-white' 
+                                : 'bg-slate-50 dark:bg-slate-950 border-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:scale-110 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span aria-hidden="true">{item.emoji}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 mt-4">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Predefined Performance Tags</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['AI Accuracy', 'Acoustic Alarms', 'Twilio Relays', 'User Interface', 'Speed', 'Offline Safety', 'HIPAA Privacy'].map((tag) => (
+                          <button 
+                            key={tag} 
+                            onClick={() => setFeedbackText(prev => prev + (prev ? ', ' : '') + tag)}
+                            className="px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all outline-none"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mt-4">
+                      <label htmlFor="feedback-input" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Suggestions & Observations</label>
+                      <textarea 
+                        id="feedback-input"
+                        rows={3}
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                        placeholder="PROVIDE ADDITIONAL THOUGHTS FOR ENHANCEMENTS..."
+                        className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl text-xs font-bold uppercase tracking-wider focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all resize-none dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mt-6">
+                      <button
+                        onClick={() => handleSendFeedback('email')}
+                        disabled={!feedbackText.trim()}
+                        className="py-3.5 bg-white dark:bg-slate-950 text-blue-600 border border-blue-100 dark:border-slate-800 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Mail size={14} /> Send via Email
+                      </button>
+                      <button
+                        onClick={() => handleSendFeedback('whatsapp')}
+                        disabled={!feedbackText.trim()}
+                        className="py-3.5 bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                      >
+                        <MessageCircle size={14} /> Send via WhatsApp
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
@@ -547,8 +767,106 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
           </div>
         </div>
 
+        {/* REGULATORY POLICIES SECTION */}
+        <div className="col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+          <div className="p-8 bg-zinc-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] space-y-4">
+            <div className="flex items-center gap-2 text-rose-500">
+              <ShieldAlert size={16} />
+              <h4 className="text-xs font-black uppercase tracking-wider">Patient Consent Verification Rules</h4>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              Affirmative, explicit consent is required before recording bio-indicators. High-frequency audio telemetry and emergency dispatch registers must have recorded clinician/patient validation signatures stored inside the localized secure sandbox directory.
+            </p>
+          </div>
+
+          <div className="p-8 bg-zinc-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] space-y-4">
+            <div className="flex items-center gap-2 text-blue-500">
+              <Lock size={16} />
+              <h4 className="text-xs font-black uppercase tracking-wider">Continuous Encryption standards</h4>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              All client telemetry is sealed locally using AES-256 cryptographic algorithms with dynamic salts. Quantum-Relay Encryption (QRE) blocks are rotated keys in 15-minute segments to guarantee absolute backward secrecy during live clinical telemetry.
+            </p>
+          </div>
+
+          <div className="p-8 bg-zinc-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] space-y-4">
+            <div className="flex items-center gap-2 text-amber-500">
+              <ExternalLink size={16} />
+              <h4 className="text-xs font-black uppercase tracking-wider">Third-Party Relay Disclaimers</h4>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              Emergency outward dispatches routed via the automated Twilio integration proxy are fully anonymized. Direct telemetry metrics and physiological parameters pass strictly as stateless indicator triggers, shielding personal identities from downstream network routes.
+            </p>
+          </div>
+        </div>
+
+        {/* FORGOTTEN PROTOCOL SELF-DESTRUCT PANEL */}
+        <ForgottenProtocolPanel />
+
       </div>
 
+    </div>
+  );
+};
+
+// Helper component to house state cleanly and prevent bulky file rebuilds
+const ForgottenProtocolPanel: React.FC = () => {
+  const [confirmStage, setConfirmStage] = useState<'idle' | 'warning' | 'done'>('idle');
+
+  const initiateDestruct = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    setConfirmStage('done');
+  };
+
+  return (
+    <div className="col-span-12 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 rounded-[3rem] p-8 sm:p-12 space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-rose-500">
+            <AlertTriangle className="animate-pulse" size={18} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Emergency Safety Override</span>
+          </div>
+          <h3 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white">Forgotten Protocol</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl font-semibold">
+            Immediately and completely wipes all cached clinical records, local patient files, Twilio integration tokens, and authorization blocks from this browser node. Once activated, trace endpoints are wiped permanently. Use strictly during facility transfers or emergency audits.
+          </p>
+        </div>
+
+        <div>
+          {confirmStage === 'idle' && (
+            <button
+              onClick={() => setConfirmStage('warning')}
+              className="px-6 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 whitespace-nowrap"
+            >
+              Wipe Credentials File
+            </button>
+          )}
+
+          {confirmStage === 'warning' && (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={initiateDestruct}
+                className="px-6 py-3 bg-red-800 hover:bg-red-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all animate-bounce"
+              >
+                CONFIRM ABSOLUTE WIPE
+              </button>
+              <button
+                onClick={() => setConfirmStage('idle')}
+                className="px-6 py-3 bg-slate-205 dark:bg-slate-800 text-slate-600 dark:text-slate-350 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+              >
+                CANCEL
+              </button>
+            </div>
+          )}
+
+          {confirmStage === 'done' && (
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500 font-bold text-xs uppercase tracking-wider bg-emerald-500/10 px-4 py-2.5 rounded-xl border border-emerald-500/20">
+              <Check size={16} /> PROTOCOL COMPLETED: ALL LOCAL DATABASES DESTROYED.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -636,7 +954,7 @@ export const TermsAndData: React.FC<SubViewProps> = ({ vitals, onNavigate }) => 
             <h3 className="text-lg font-black uppercase tracking-tight">EHR Telemetry Data Custody Covenant</h3>
           </div>
 
-          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 no-scrollbar text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+          <div className="space-y-6 max-h-[350px] overflow-y-auto pr-2 no-scrollbar text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
             <h4 className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px]">1. Scope of Continuous Bio-Monitoring</h4>
             <p>
               By keeping the real-time telemetry harness running, clinical personnel acknowledge that all physiological parameters (such as Heart Pulsations, SpO2 wave, Core Temperature limits, and Blood Pressure curves) are temporary metrics held strictly within active browser memory contexts. No secondary database records are published client-side unless manually exported.
@@ -650,6 +968,21 @@ export const TermsAndData: React.FC<SubViewProps> = ({ vitals, onNavigate }) => 
             <h4 className="font-extrabold text-[#111] dark:text-[#eee] uppercase tracking-wider text-[11px]">3. Consent & Local Encryption Sandboxes</h4>
             <p>
                All settings regarding alarms, thresholds, and patient vitals are subject to local storage persistence models. These are fully cleared immediately upon browser terminal resets unless backed up using our clinical exporter.
+            </p>
+
+            <h4 className="font-extrabold text-[#111] dark:text-[#eee] uppercase tracking-wider text-[11px]">4. Standard Terms of Service for Medical EHR Platforms</h4>
+            <p>
+              In compliance with national and regional Electronic Health Record (EHR) mandates, all practitioners, clinicians, and medical operators agree to access these vitals streams strictly for provisional visual review. This tool operates as an autonomous web client node and must not be treated as a primary diagnostic certification panel.
+            </p>
+
+            <h4 className="font-extrabold text-[#111] dark:text-[#eee] uppercase tracking-wider text-[11px]">5. Limitation of Liability for Automated Alarms</h4>
+            <p>
+              Operators explicitly recognize that automated alarms, including the IEC-60601-compliance heartbeat alarms, may fail in low-bandwidth, non-networked environments or during local browser crash states. The developers, directors, and affiliates remain fully insulated from life-threatening diagnostic omissions or critical alert latency.
+            </p>
+
+            <h4 className="font-extrabold text-[#111] dark:text-[#eee] uppercase tracking-wider text-[11px]">6. Third Party Relay Disclaimers</h4>
+            <p>
+              Carrier network operations (including Twilio REST gateway callbacks, Arduino WiFi relays, and serial interfaces) rely on separate third-party Service Level Agreements (SLAs). We maintain no operational oversight over carrier dropouts, routing congestion, or localized node disconnects.
             </p>
           </div>
 

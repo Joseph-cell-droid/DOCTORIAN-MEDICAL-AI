@@ -73,6 +73,22 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
   const [filterInstitution, setFilterInstitution] = useState('');
 
+  const [alarmTriggerMode, setAlarmTriggerMode] = useState<'all' | 'emergency_only' | 'disabled'>(() => {
+    return (localStorage.getItem('doctorian_alarm_trigger_mode') as 'all' | 'emergency_only' | 'disabled') || 'all';
+  });
+
+  const handleAlarmTriggerModeChange = (mode: 'all' | 'emergency_only' | 'disabled') => {
+    setAlarmTriggerMode(mode);
+    localStorage.setItem('doctorian_alarm_trigger_mode', mode);
+    if (addToast) {
+      addToast(`Alarm triggering mode set to: ${mode.toUpperCase().replace('_', ' ')}`, "success");
+    }
+    setLogs(prev => [
+      { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Security] Administrative bypass changed Alarm Triggering Mode to ${mode.toUpperCase().replace('_', ' ')}.`, type: 'system' },
+      ...prev
+    ]);
+  };
+
   // Real-time server telemetry simulation state
   const [telemetry, setTelemetry] = useState({
     activeConnections: 14,
@@ -376,14 +392,14 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
           </p>
         </div>
 
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto no-scrollbar" role="tablist" aria-label="Dashboard sections">
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto no-scrollbar max-w-full flex-nowrap shrink-0" role="tablist" aria-label="Dashboard sections">
           <button 
             onClick={() => setActiveTab('users')}
             role="tab"
             aria-selected={activeTab === 'users'}
             aria-controls="users-panel"
             id="tab-users"
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'users' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
@@ -396,7 +412,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             aria-selected={activeTab === 'notifications'}
             aria-controls="notifications-panel"
             id="tab-notifications"
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'notifications' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
@@ -407,7 +423,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             onClick={() => setActiveTab('billing')}
             role="tab"
             aria-selected={activeTab === 'billing'}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'billing' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
@@ -418,7 +434,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             onClick={() => setActiveTab('training')}
             role="tab"
             aria-selected={activeTab === 'training'}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'training' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
@@ -427,7 +443,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
           </button>
           <button 
             onClick={() => setActiveTab('doctors')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'doctors' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
@@ -440,7 +456,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             aria-selected={activeTab === 'system'}
             aria-controls="system-panel"
             id="tab-system"
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'system' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
@@ -1264,6 +1280,77 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     <span className="text-xs font-black text-blue-700 dark:text-blue-400">Firebase (50k+ Capacity)</span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Clinical Alarm & Emergency Dispatch Control Deck */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-2xl mt-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center animate-pulse">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Clinical Alarm & Automatic Emergency Dispatch Control</h3>
+                    <p className="text-xs text-slate-500 font-medium">Configure global clinical thresholds, system notifications, and automated emergency alert escalation</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                    alarmTriggerMode === 'all' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                    alarmTriggerMode === 'emergency_only' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                    'bg-slate-100 text-slate-500 border border-slate-200'
+                  }`}>
+                    Mode: {alarmTriggerMode === 'all' ? 'All Active' : alarmTriggerMode === 'emergency_only' ? 'Emergency Only' : 'Disabled (Logs Only)'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  {
+                    id: 'all',
+                    title: 'All Active',
+                    desc: 'Full clinical telemetry alarms. Warning & hazard thresholds generate alerts instantly on logs, sirens, and trigger calls.',
+                    color: 'text-emerald-500'
+                  },
+                  {
+                    id: 'emergency_only',
+                    title: 'Emergency Only',
+                    desc: 'Prioritize true emergencies. Critical vitals trigger automatic MTN calling and SMS dispatch to stored contacts immediately. Warning levels are recorded silently to logs.',
+                    color: 'text-amber-500'
+                  },
+                  {
+                    id: 'disabled',
+                    title: 'Logs Only (Muted)',
+                    desc: 'Deactivate audio sirens and MTN outbound calls entirely. All vitals data are charted silently in the clinical log to avoid alert fatigue.',
+                    color: 'text-slate-500'
+                  }
+                ].map((option) => {
+                  const isActive = alarmTriggerMode === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => handleAlarmTriggerModeChange(option.id as any)}
+                      className={`text-left p-6 rounded-3xl border transition-all duration-300 flex flex-col justify-between h-full ${
+                        isActive
+                          ? 'bg-blue-50/40 dark:bg-blue-900/10 border-blue-500 text-white shadow-xl shadow-blue-500/5'
+                          : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-805 hover:bg-slate-50 hover:border-slate-200'
+                      }`}
+                    >
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{option.title}</h4>
+                          <span className={`h-2.5 w-2.5 rounded-full ${isActive ? 'bg-blue-600 animate-pulse' : 'bg-slate-300'}`} />
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-405 leading-relaxed">{option.desc}</p>
+                      </div>
+                      <div className="pt-2 border-t border-slate-100/70 dark:border-slate-800/60 w-full text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                        {isActive ? '✓ Active Mode' : 'Activate Preset'}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -236,12 +236,12 @@ export const CognisHub: React.FC = () => {
           </p>
         </motion.div>
         
-        <div className="flex p-2 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="flex p-2 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-x-auto no-scrollbar whitespace-nowrap flex-nowrap shrink-0 max-w-full">
           {(['overview', 'sessions', 'analysis'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`relative z-10 px-10 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`relative z-10 px-8 sm:px-10 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
                 activeTab === tab 
                 ? 'text-white' 
                 : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'

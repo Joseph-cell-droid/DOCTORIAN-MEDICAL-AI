@@ -10,7 +10,7 @@ import { Logo } from './Logo';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (user: UserType) => void;
+  onSuccess: (user: UserType, isSignUp?: boolean) => void;
   initialView?: AuthView;
 }
 
@@ -134,7 +134,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           throw new Error("Password must be at least 8 characters and include letters, numbers, and symbols");
         }
         const user = await api.auth.signup(email, password, displayName);
-        onSuccess(user);
+        onSuccess(user, true);
         onClose();
       } else if (view === 'forgot-password') {
         const res = await api.auth.forgotPassword(email);

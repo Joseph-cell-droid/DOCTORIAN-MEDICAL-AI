@@ -1197,7 +1197,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="mt-10 bg-slate-950 rounded-[3rem] shadow-2xl border border-slate-800 overflow-hidden min-h-[600px]">
+        <div className="mt-10">
           <BioSimulation />
         </div>
 

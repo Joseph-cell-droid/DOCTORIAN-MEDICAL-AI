@@ -1014,7 +1014,8 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
   const isSustainedCritical = criticalDuration >= 3 || arduino.neuralAlert;
   const isCurrentlyAcknowledged = alarmAcknowledgeTime !== null && (Date.now() - alarmAcknowledgeTime < snoozeDuration);
-  const shouldShowAlarm = (isSustainedCritical || arduino.neuralAlert) && !isCurrentlyAcknowledged;
+  const alarmMode = (localStorage.getItem('doctorian_alarm_trigger_mode') as 'all' | 'emergency_only' | 'disabled') || 'all';
+  const shouldShowAlarm = alarmMode !== 'disabled' && (isSustainedCritical || arduino.neuralAlert) && !isCurrentlyAcknowledged;
 
   const acknowledgeAlarm = () => {
     setAlarmAcknowledgeTime(Date.now());
@@ -1262,7 +1263,22 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
       return alerts;
     };
 
-    const currentAlerts = checkVitalAlerts();
+    const alarmMode = (localStorage.getItem('doctorian_alarm_trigger_mode') as 'all' | 'emergency_only' | 'disabled') || 'all';
+    if (alarmMode === 'disabled') {
+      // Clear active alerts quickly so they don't stay in active references
+      Object.keys(activeAlertsRef.current).forEach(key => {
+        delete activeAlertsRef.current[key];
+      });
+      return;
+    }
+
+    const currentAlerts = checkVitalAlerts().filter(alert => {
+      // Skip warnings if in emergency_only mode
+      if (alarmMode === 'emergency_only' && alert.level === 'warning') {
+        return false;
+      }
+      return true;
+    });
     const currentKeys = new Set<string>();
 
     currentAlerts.forEach(alert => {
@@ -1293,6 +1309,11 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
   // Handle SMS and Call alarms
   React.useEffect(() => {
+    const alarmMode = (localStorage.getItem('doctorian_alarm_trigger_mode') as 'all' | 'emergency_only' | 'disabled') || 'all';
+    if (alarmMode === 'disabled') {
+      return;
+    }
+
     if (isCritical && (!lastAlertSent || Date.now() - lastAlertSent > 300000)) { // Alert every 5 minutes if still critical
       const activePatient = registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0];
       
@@ -1302,7 +1323,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
       const alertMessage = `CRITICAL ALERT [RELAY: 0787674140] for Patient: ${activePatient?.name || 'Authorized Client'} in ${activePatient?.bedNumber || 'Assigned Bed'}. Biometrics critical! HR: ${Math.round(vitals?.heartRate || 0)}bpm, SpO2: ${Math.round(vitals?.spo2 || 0)}%, Temp: ${vitals?.temperature.toFixed(1)}°C. Pre-existing Conditions: ${activePatient?.conditions || 'None'}. Clinical action required immediately.`;
       
-      // Send SMS
+      // Send SMS to Standard Primary Contacts
       api.alerts.sendSms(alertMessage, doctorPhone, mentorPhone, patientPhone)
         .then(res => {
           if (res.simulated && res.message.includes('TWILIO CONFIGURATION ERROR')) {
@@ -1314,6 +1335,27 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
           }
         })
         .catch(err => console.error('❌ Failed to send SMS alert:', err));
+
+      // Automated auto-dispatch to stored registered emergency contacts
+      let storedContacts: Array<{ role: string; phone: string }> = [];
+      try {
+        const saved = localStorage.getItem('emergency_contacts');
+        if (saved) {
+          storedContacts = JSON.parse(saved);
+        }
+      } catch (e) {
+        console.error("Failed to parse stored emergency contacts:", e);
+      }
+
+      // Also trigger emergency dispatch to all custom registered contacts
+      storedContacts.forEach(contact => {
+        if (contact.phone) {
+          const customAlertMessage = `EMERGENCY DISPATCH [RELAY: 0787674140]: Stored Emergency Contact Alert for Patient ${activePatient?.name || 'Authorized Client'}. Status: Critical. HR: ${Math.round(vitals?.heartRate || 0)} BPM, SpO2: ${Math.round(vitals?.spo2 || 0)}%. Urgent clinical attention requested.`;
+          api.alerts.sendSms(customAlertMessage, contact.phone)
+            .then(res => console.log('✅ Registered contact alert sent:', contact.phone, res.message))
+            .catch(err => console.error('❌ Failed to alert custom contact:', contact.phone, err));
+        }
+      });
 
       // Initiate Voice Call
       setIsEmergencyCalling(true);
@@ -3761,24 +3803,8 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 <ClinicalPatientRegistry />
               </div>
             ) : activeTab === 'simulator' ? (
-              <div className="max-w-4xl mx-auto px-4 py-8 bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 sm:p-10 text-white space-y-8 font-sans shadow-2xl">
-                <div className="flex items-center gap-4 border-b border-slate-800 pb-6">
-                  <div className="p-3 bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-500/20 animate-pulse">
-                    <Cpu size={28} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">Biomedical Simulator Node</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                      Open Clinical Hardware Stream & Biomimetic Waveform Generator
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-400 font-bold leading-relaxed text-slate-450">
-                  This console is designed for other devices, physical machine nodes, and terminal screens connected in the ward to calibrate or fake hardware feeds securely. Adjusting these dials modulates the global vitals state machine on all linked monitors and alerts relevant mobile subscribers.
-                </p>
-                <div className="bg-slate-950/60 p-2 sm:p-6 rounded-3xl border border-slate-850">
-                  <BiomedicalSimulator arduino={arduino} className="border-0 shadow-none bg-transparent p-0" />
-                </div>
+              <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
+                <BiomedicalSimulator arduino={arduino} />
               </div>
             ) : (
               <>
@@ -4187,7 +4213,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
             {/* Real-time ECG Waveform Monitor */}
             <div className="mb-8">
-              <LiveECGMonitor vitals={vitals} />
+              <LiveECGMonitor vitals={vitals} addAlarmLog={addAlarmLog} />
             </div>
 
             {/* Heart Rate Chart */}
@@ -4297,40 +4323,37 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               {/* SpO2 Chart */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200 dark:shadow-none p-4 sm:p-8 transition-colors">
-                <h3 className="font-black text-slate-900 dark:text-white mb-10 flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
-                    <Droplets className="w-5 h-5" />
-                  </div>
-                  Oxygen Saturation ({timeRange})
-                </h3>
-                <div className="overflow-x-auto no-scrollbar">
-                  <div className="h-40 flex items-end gap-1.5 min-w-[200px] px-2 pb-2">
-                    {displayHistory.length > 0 ? displayHistory.map((h, i) => {
-                      const height = Math.max(10, h.spo2);
-                      return (
-                        <div key={i} className="flex-1 group relative h-full flex flex-col justify-end">
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: `${height}%` }}
-                            className={`w-full rounded-t-lg transition-all duration-300 shadow-sm ${h.spo2 < 95 ? 'bg-rose-500' : 'bg-blue-500'}`}
-                            style={{
-                              opacity: 0.4 + (i / displayHistory.length) * 0.6,
-                            }}
-                          />
-                          {/* Tooltip */}
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 bg-slate-900 text-white p-3 rounded-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 border border-white/10 shadow-2xl scale-50 group-hover:scale-100 origin-bottom">
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">SpO2 Level</p>
-                            <p className="text-xl font-black">{Math.round(h.spo2)}%</p>
-                            <p className="text-[8px] font-bold text-slate-500 mt-1">{new Date(h.timestamp).toLocaleString()}</p>
-                          </div>
-                        </div>
-                      );
-                    }) : (
-                      <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-700 text-sm font-bold italic">
-                        Waiting for data...
-                      </div>
-                    )}
-                  </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                  <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                      <Droplets className="w-5 h-5" />
+                    </div>
+                    Oxygen Saturation ({timeRange})
+                  </h3>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full self-start sm:self-auto">SpO2 Trend</span>
+                </div>
+                <div className="h-40 flex items-center justify-center">
+                  {displayHistory.length > 0 ? (
+                    <div className="w-full h-full">
+                      <VitalWaveform 
+                        data={displayHistory.map(h => ({ value: h.spo2, timestamp: h.timestamp }))} 
+                        color="#06b6d4"
+                        height={160}
+                        minVal={80}
+                        maxVal={100}
+                        label="Oxygen Saturation"
+                        unit="%"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-700 text-sm font-bold italic">
+                      Waiting for data...
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6 px-4">
+                  <span className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]"></div> Current Stream</span>
+                  <span className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"></div> Hypoxia Threshold (95%)</span>
                 </div>
               </div>
 

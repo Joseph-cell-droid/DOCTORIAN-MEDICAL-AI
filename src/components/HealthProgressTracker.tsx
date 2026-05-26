@@ -3,12 +3,13 @@ import {
   TrendingUp, TrendingDown, Clock, Activity, Brain, 
   Sparkles, ShieldCheck, ChevronRight, BarChart3, 
   Calendar, Microscope, FileText, Pill, Search, ClipboardList, Cpu,
-  AlertCircle, ArrowRightCircle, RefreshCw, Target, Footprints, Droplet, Dumbbell
+  AlertCircle, ArrowRightCircle, RefreshCw, Target, Footprints, Droplet, Dumbbell, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useArduino } from '../hooks/useArduino';
 import { api, User } from '../api';
 import { HealthGoalsModal, HealthGoal } from './HealthGoalsModal';
+import confetti from 'canvas-confetti';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, AreaChart, Area,
@@ -50,13 +51,31 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
 
   const saveGoals = (updatedGoals: HealthGoal[]) => {
+    // Check if any goals transitioned from uncompleted to completed
+    const newlyCompleted = updatedGoals.filter(ug => {
+      const match = goals.find(og => og.id === ug.id);
+      return ug.current >= ug.target && (!match || match.current < match.target);
+    });
+
     setGoals(updatedGoals);
     localStorage.setItem('doctorian_daily_goals', JSON.stringify(updatedGoals));
     
     // Dynamically calculate progressScore based on goals completed to sync state beautifully!
-    const totalProgPercent = updatedGoals.reduce((acc, g) => acc + Math.min(100, (g.current / g.target) * 100), 0) / 3;
+    const totalProgPercent = updatedGoals.reduce((acc, g) => acc + Math.min(100, (g.current / g.target) * 100), 0) / (updatedGoals.length || 1);
     const computedScore = Math.round(72 + (totalProgPercent * 0.16)); // from 72 to 88 based on goals
     setProgressScore(computedScore);
+
+    if (newlyCompleted.length > 0) {
+      setTimeout(() => {
+        confetti({
+          particleCount: 150,
+          spread: 85,
+          origin: { y: 0.7 },
+          colors: ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#8B5CF6'],
+          zIndex: 100
+        });
+      }, 300);
+    }
   };
 
   const [logType, setLogType] = useState('Heart Rate');
@@ -638,6 +657,10 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
                             <div className="flex items-center gap-2">
                                <div className="p-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 border-slate-100/60 dark:border-slate-800/80 shrink-0">
                                   {g.id === 'steps' && <Footprints size={14} className="text-amber-500" />}
+                                  {g.id === 'sleep' && <Moon size={14} className="text-indigo-500" />}
+                                  {g.id === 'blood_pressure' && <Activity size={14} className="text-rose-500" />}
+                                  {g.id === 'meds' && <Pill size={14} className="text-purple-500" />}
+                                  {!['steps', 'water', 'workout', 'sleep', 'blood_pressure', 'meds'].includes(g.id) && <Target size={14} className="text-blue-500" />}
                                   {g.id === 'water' && <Droplet size={14} className="text-blue-500" />}
                                   {g.id === 'workout' && <Dumbbell size={14} className="text-emerald-500" />}
                                 </div>
@@ -652,7 +675,11 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
                             <div 
                                className={`h-full rounded-full transition-all duration-500 ${
                                   g.id === 'steps' ? 'bg-amber-500' :
-                                  g.id === 'water' ? 'bg-blue-500' : 'bg-emerald-500'
+                                  g.id === 'water' ? 'bg-blue-500' :
+                                  g.id === 'workout' ? 'bg-emerald-500' :
+                                  g.id === 'sleep' ? 'bg-indigo-500' :
+                                  g.id === 'blood_pressure' ? 'bg-rose-500' :
+                                  g.id === 'meds' ? 'bg-purple-500' : 'bg-blue-500'
                                }`}
                                style={{ width: `${progressPercent}%` }}
                             />

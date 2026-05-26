@@ -234,8 +234,8 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         }
         const recognition = new SpeechRecognition();
         micRecognitionRef.current = recognition;
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.interimResults = true;
         
         let langCode = 'en-US';
         if (targetLanguage === 'Swahili') langCode = 'sw-TZ';
@@ -249,7 +249,10 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         };
 
         recognition.onresult = async (event: any) => {
-          const transcriptText = event.results[0][0].transcript;
+          let transcriptText = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcriptText += event.results[i][0].transcript;
+          }
           if (transcriptText) {
             setInput(transcriptText);
             setTerminalLogs(prev => [...prev.slice(-3), `AI: Transcribed: "${transcriptText}"`]);
@@ -322,16 +325,17 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   };
 
   const stopRecording = () => {
-    if (micRecognitionRef.current && isRecording) {
+    if (micRecognitionRef.current) {
       try {
         micRecognitionRef.current.stop();
       } catch (e) {}
     }
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current) {
       try {
         mediaRecorderRef.current.stop();
       } catch (e) {}
     }
+    setIsRecording(false);
   };
 
   const [sessionInfo, setSessionInfo] = useState({
@@ -2014,6 +2018,37 @@ ${f.prescription}
                 )}
               </AnimatePresence>
 
+              {/* Speech Recognition Recording Pulse Banner */}
+              <AnimatePresence>
+                {isRecording && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0, y: -10 }}
+                    animate={{ opacity: 1, height: 'auto', y: 0 }}
+                    exit={{ opacity: 0, height: 0, y: -10 }}
+                    className="mx-6 mt-3 px-4 py-2.5 bg-rose-500/10 dark:bg-rose-950/20 rounded-2xl border border-rose-500/20 flex items-center justify-between gap-4 overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600 dark:bg-rose-500"></span>
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                        Recording voice note... Speak query clearly
+                      </span>
+                    </div>
+                    
+                    {/* Live Audio Waves Bars */}
+                    <div className="flex items-end gap-0.5 h-3 shrink-0">
+                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2.5 [animation-duration:0.6s]"></div>
+                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1.5 [animation-duration:0.4s]"></div>
+                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-3 [animation-duration:0.8s]"></div>
+                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2 [animation-duration:0.5s]"></div>
+                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1 [animation-duration:0.75s]"></div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex items-end gap-1 sm:gap-2 pl-3 sm:pl-6 text-sm">
                 <textarea 
                   ref={inputRef}
@@ -2047,13 +2082,23 @@ ${f.prescription}
                   />
                   
                   <button 
-                    onMouseDown={startRecording}
-                    onMouseUp={stopRecording}
-                    onMouseLeave={stopRecording}
-                    className={`hidden sm:flex p-3 rounded-full transition-all relative ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-                    title="Voice input"
+                    onClick={() => {
+                      if (isRecording) {
+                        stopRecording();
+                      } else {
+                        startRecording();
+                      }
+                    }}
+                    className={`flex p-2.5 sm:p-3 rounded-full transition-all relative shrink-0 ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                    title={isRecording ? "Stop voice query recording" : "Record voice query via Web Speech API"}
                   >
-                    <Mic size={20} />
+                    <Mic size={18} className={`sm:w-5 sm:h-5 ${isRecording ? 'animate-pulse' : ''}`} />
+                    {isRecording && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                      </span>
+                    )}
                   </button>
 
                   <button 

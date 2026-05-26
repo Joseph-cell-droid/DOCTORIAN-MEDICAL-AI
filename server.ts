@@ -82,14 +82,14 @@ const DEFAULT_GEMMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const BACKUP_ENGINE = "google gemma2";
 
 const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL;
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "ollama3.1";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
 const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
 const USE_LOCAL_AI = process.env.USE_LOCAL_AI === 'true';
 const SILENT_OLLAMA = process.env.SILENT_OLLAMA === 'true';
 
-const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || "";
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || "tgp_v1_r-su1DYx0zYLUUhlkY-b9UYZ5Hx404P6TuAuSl7ZvTM";
 const TOGETHER_URL = process.env.TOGETHER_URL || "https://api.together.xyz/v1/chat/completions";
 const TOGETHER_MODEL = process.env.TOGETHER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 

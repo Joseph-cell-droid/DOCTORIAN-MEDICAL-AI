@@ -9,6 +9,7 @@ import {
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
 import { motion, AnimatePresence } from 'motion/react';
 import { api, User } from '../api';
+import { DoctorVerificationModal } from './DoctorVerificationModal';
 import BioSimulation from './BioSimulation';
 import CognisAnalytics from './CognisAnalytics';
 import { NeuralHealthSummary } from './NeuralHealthSummary';
@@ -822,6 +823,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [showSettings, setShowSettings] = useState(false);
   const [isEmergencyCalling, setIsEmergencyCalling] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [timeRange, setTimeRange] = useState<'Day' | 'Week' | 'Month'>('Day');
   const [historicalData, setHistoricalData] = useState<Vitals[]>([]);
   const [activeMachines, setActiveMachines] = useState<{ id: string; label: string; status: 'online' | 'offline'; type: string; lastSync?: string }[]>([
@@ -4467,7 +4469,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
       {/* Floating Simulation Controller Button */}
       {connection.connected && connection.type === 'demo' && (
         <motion.button
-          onClick={() => setIsSimulatorOpen(true)}
+          onClick={() => {
+            const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
+            if (!isDocAuthed) {
+              setIsDoctorVerifyOpen(true);
+            } else {
+              setIsSimulatorOpen(true);
+            }
+          }}
           className="fixed bottom-24 right-8 z-[120] flex items-center gap-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 border border-slate-800 dark:border-slate-250 px-6 py-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest"
           title="Open Simulation Dials Drawer"
           whileHover={{ y: -2 }}
@@ -4525,6 +4534,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
           </div>
         )}
       </AnimatePresence>
+
+      <DoctorVerificationModal
+        isOpen={isDoctorVerifyOpen}
+        onClose={() => setIsDoctorVerifyOpen(false)}
+        onSuccess={() => setIsSimulatorOpen(true)}
+        title="Simulation Control Locked"
+        description="Patient stimulation and vital wave overrides require active Doctor protocol authentication."
+      />
     </div>
   );
 };

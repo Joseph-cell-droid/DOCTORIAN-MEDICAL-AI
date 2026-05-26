@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Cpu, Zap, RefreshCw, Activity, Heart, Thermometer, 
   Wind, Droplets, ToggleLeft, ToggleRight, Radio, BellRing,
-  Award, Play, Square, Settings, RefreshCw as LoopIcon, Check, HelpCircle
+  Award, Play, Square, Settings, RefreshCw as LoopIcon, Check, HelpCircle, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { DoctorVerificationModal } from './DoctorVerificationModal';
 
 export interface SimulatedVitals {
   heartRate: number;
@@ -26,6 +27,23 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
   onVitalsChange,
   className = "" 
 }) => {
+  const [isAuthed, setIsAuthed] = useState(() => sessionStorage.getItem('doctor_authenticated') === 'true');
+  const [isVerifyOpen, setIsVerifyOpen] = useState(false);
+
+  // Sync isAuthed if sessionStorage updates
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setIsAuthed(sessionStorage.getItem('doctor_authenticated') === 'true');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    // Also periodically check in case it was mutated in-page
+    const interval = setInterval(handleStorageChange, 1000);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
   // Simulator internal settings state (defaults to normal adult rest)
   const [simVitals, setSimVitals] = useState<SimulatedVitals>({
     heartRate: 72,
@@ -334,7 +352,25 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
           )}
         </AnimatePresence>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="relative">
+          {!isAuthed && (
+            <div className="absolute inset-0 z-40 bg-slate-900/90 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center border border-slate-800">
+              <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-400 mb-4 border border-blue-500/20">
+                <Lock size={28} className="animate-bounce" />
+              </div>
+              <h4 className="text-base font-black uppercase tracking-tight text-white mb-2">Tactile Clinician Dials Locked</h4>
+              <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed font-semibold">
+                This physical ward wave generator is write-protected under Doctor Protocol protection. Please authenticate with clinical passkey.
+              </p>
+              <button 
+                onClick={() => setIsVerifyOpen(true)}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              >
+                Unlock Clinician Controls
+              </button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Presets and Quick Targets (Left 4 Cols) */}
           <div className="lg:col-span-4 space-y-5">
@@ -546,6 +582,7 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
 
           </div>
         </div>
+        </div>
 
         {/* Footer Warning / State Info */}
         <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -584,6 +621,14 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
         </div>
 
       </div>
+      
+      <DoctorVerificationModal
+        isOpen={isVerifyOpen}
+        onClose={() => setIsVerifyOpen(false)}
+        onSuccess={() => setIsAuthed(true)}
+        title="Clinician Access Granted"
+        description="Your credentials have been authenticated. Sliders and wave presets are now unlocked for this session."
+      />
     </div>
   );
 };

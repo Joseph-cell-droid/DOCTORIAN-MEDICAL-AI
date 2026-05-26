@@ -1,4 +1,5 @@
 import React from 'react';
+// @ts-ignore
 import doctorianLogo from '../assets/images/doctorian_logo_1779622956808.png';
 
 interface LogoProps {

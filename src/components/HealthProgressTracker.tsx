@@ -3,11 +3,12 @@ import {
   TrendingUp, TrendingDown, Clock, Activity, Brain, 
   Sparkles, ShieldCheck, ChevronRight, BarChart3, 
   Calendar, Microscope, FileText, Pill, Search, ClipboardList, Cpu,
-  AlertCircle, ArrowRightCircle, RefreshCw
+  AlertCircle, ArrowRightCircle, RefreshCw, Target, Footprints, Droplet, Dumbbell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useArduino } from '../hooks/useArduino';
 import { api, User } from '../api';
+import { HealthGoalsModal, HealthGoal } from './HealthGoalsModal';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, AreaChart, Area,
@@ -30,6 +31,33 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   const [meds, setMeds] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [progressScore, setProgressScore] = useState(78);
+
+  const [goals, setGoals] = useState<HealthGoal[]>(() => {
+    const saved = localStorage.getItem('doctorian_daily_goals');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [
+      { id: 'steps', label: 'Daily Steps', current: 3500, target: 10000, unit: 'steps' },
+      { id: 'water', label: 'Water Intake', current: 3, target: 8, unit: 'cups' },
+      { id: 'workout', label: 'Workout Duration', current: 15, target: 45, unit: 'min' }
+    ];
+  });
+  const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
+
+  const saveGoals = (updatedGoals: HealthGoal[]) => {
+    setGoals(updatedGoals);
+    localStorage.setItem('doctorian_daily_goals', JSON.stringify(updatedGoals));
+    
+    // Dynamically calculate progressScore based on goals completed to sync state beautifully!
+    const totalProgPercent = updatedGoals.reduce((acc, g) => acc + Math.min(100, (g.current / g.target) * 100), 0) / 3;
+    const computedScore = Math.round(72 + (totalProgPercent * 0.16)); // from 72 to 88 based on goals
+    setProgressScore(computedScore);
+  };
 
   const [logType, setLogType] = useState('Heart Rate');
   const [logValue, setLogValue] = useState('72');
@@ -90,6 +118,12 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const totalProgPercent = goals.reduce((acc, g) => acc + Math.min(100, (g.current / g.target) * 100), 0) / 3;
+    const computedScore = Math.min(100, Math.round(70 + (totalProgPercent * 0.25)));
+    setProgressScore(computedScore);
+  }, [goals]);
 
   const runGlobalAnalysis = async () => {
     setIsTracing(true);
@@ -580,6 +614,55 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
             </div>
           </div>
 
+          {/* Daily Biometric Goals Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden relative">
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div>
+                   <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Daily Biometric Goals</h3>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Calibrate steps, hydration, and exercise inputs</p>
+                </div>
+                <button 
+                  onClick={() => setIsGoalsModalOpen(true)}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95 shrink-0"
+                >
+                   Update Goals
+                </button>
+             </div>
+
+             <div className="space-y-6">
+                {goals.map((g) => {
+                   const progressPercent = Math.min(100, Math.round((g.current / g.target) * 100));
+                   return (
+                      <div key={g.id} className="space-y-2.5">
+                         <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                               <div className="p-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 border-slate-100/60 dark:border-slate-800/80 shrink-0">
+                                  {g.id === 'steps' && <Footprints size={14} className="text-amber-500" />}
+                                  {g.id === 'water' && <Droplet size={14} className="text-blue-500" />}
+                                  {g.id === 'workout' && <Dumbbell size={14} className="text-emerald-500" />}
+                                </div>
+                               <span className="font-extrabold text-slate-800 dark:text-slate-200 uppercase text-[10px] tracking-wide">{g.label}</span>
+                            </div>
+                            <span className="font-black text-slate-900 dark:text-white text-[11px] tabular-nums flex items-baseline gap-1">
+                               {g.current.toLocaleString()}/{g.target.toLocaleString()} 
+                               <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase">{g.unit}</span>
+                            </span>
+                         </div>
+                         <div className="w-full h-2 bg-slate-50 dark:bg-slate-850 rounded-full overflow-hidden border border-slate-100/30 dark:border-slate-800/10">
+                            <div 
+                               className={`h-full rounded-full transition-all duration-500 ${
+                                  g.id === 'steps' ? 'bg-amber-500' :
+                                  g.id === 'water' ? 'bg-blue-500' : 'bg-emerald-500'
+                               }`}
+                               style={{ width: `${progressPercent}%` }}
+                            />
+                         </div>
+                      </div>
+                   );
+                })}
+             </div>
+          </div>
+
           {/* Critical Observations */}
           <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden">
              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Clinical Markers</h3>
@@ -626,6 +709,13 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
 
         </div>
       </div>
+
+      <HealthGoalsModal
+        isOpen={isGoalsModalOpen}
+        onClose={() => setIsGoalsModalOpen(false)}
+        goals={goals}
+        onSave={saveGoals}
+      />
     </div>
   );
 };

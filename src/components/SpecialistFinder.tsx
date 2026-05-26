@@ -8,10 +8,23 @@ import {
 } from 'lucide-react';
 import { AppointmentScheduler } from './AppointmentScheduler';
 import { api, Doctor } from '../api';
+import { DoctorVerificationModal } from './DoctorVerificationModal';
 
 export const SpecialistFinder: React.FC = () => {
   // Navigation & Filtering
   const [activeTab, setActiveTab] = useState<'specialists' | 'clinical_network' | 'referrals'>('specialists');
+  const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  const withAuth = (action: () => void) => {
+    const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
+    if (!isDocAuthed) {
+      setPendingAction(() => action);
+      setIsDoctorVerifyOpen(true);
+    } else {
+      action();
+    }
+  };
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [bookingSpecialist, setBookingSpecialist] = useState<any>(null);
@@ -453,13 +466,13 @@ export const SpecialistFinder: React.FC = () => {
               <Stethoscope size={14} /> Active Specialists
             </button>
             <button 
-              onClick={() => setActiveTab('clinical_network')}
+              onClick={() => withAuth(() => setActiveTab('clinical_network'))}
               className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 ${activeTab === 'clinical_network' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
             >
               <Radio size={14} className="text-emerald-500 animate-pulse" /> Live Clinical Network
             </button>
             <button 
-              onClick={() => setActiveTab('referrals')}
+              onClick={() => withAuth(() => setActiveTab('referrals'))}
               className={`px-5 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 ${activeTab === 'referrals' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
             >
               <FileText size={14} /> SOAP Referral dossiers
@@ -787,7 +800,7 @@ export const SpecialistFinder: React.FC = () => {
                       </button>
 
                       <button
-                        onClick={() => handlePrepareReferral(cl.id)}
+                        onClick={() => withAuth(() => handlePrepareReferral(cl.id))}
                         className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-350 font-bold uppercase tracking-widest text-[9px] transition-all"
                       >
                         Generate SOAP
@@ -1286,6 +1299,21 @@ export const SpecialistFinder: React.FC = () => {
         )}
       </AnimatePresence>
 
+      <DoctorVerificationModal
+        isOpen={isDoctorVerifyOpen}
+        onClose={() => {
+          setIsDoctorVerifyOpen(false);
+          setPendingAction(null);
+        }}
+        onSuccess={() => {
+          if (pendingAction) {
+            pendingAction();
+          }
+          setPendingAction(null);
+        }}
+        title="Clinical Matrix Access"
+        description="Accessing secure medical channels requires active clinical signature key verification."
+      />
     </div>
   );
 };

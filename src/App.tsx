@@ -140,11 +140,27 @@ import { useArduinoContext } from './ArduinoContext';
 import { useMedicationReminders } from './hooks/useMedicationReminders';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { AppTutorial } from './components/AppTutorial';
+import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | ResourceType>('home');
+  const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
+  const [pendingView, setPendingView] = useState<any>(null);
+
+  const setCurrentView = (view: any) => {
+    if (view === 'meds') {
+      const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
+      if (!isDocAuthed) {
+        setPendingView('meds');
+        setIsDoctorVerifyOpen(true);
+        return;
+      }
+    }
+    _setCurrentView(view);
+  };
+
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,7 +213,15 @@ export default function App() {
 
   const arduino = useArduinoContext();
   useMedicationReminders(user);
-  const isAdmin = user?.email?.toLowerCase() === "gloriajayakullo@gmail.com";
+  const isAdmin = user?.email?.toLowerCase() === "gloriajayakullo@gmail.com" || isAdminAuthenticated;
+
+  const handleNeuralCoreAccess = () => {
+    if (isAdminAuthenticated) {
+      setCurrentView('admin');
+    } else {
+      setShowAdminLogin(true);
+    }
+  };
 
   const handleAdminAccess = () => {
     if (!isAdmin) {
@@ -1281,6 +1305,21 @@ export default function App() {
                                   <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                 </button>
 
+                                <button
+                                  onClick={() => {
+                                    handleNeuralCoreAccess();
+                                    setIsProfileOpen(false);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all group"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
+                                      <BrainCircuit size={16} />
+                                    </div>
+                                    <span className="font-black uppercase tracking-tight text-left">Doctorian Neural Core</span>
+                                  </div>
+                                  <div className="w-2 h-2 rounded-full bg-violet-550 animate-pulse" />
+                                </button>
 
                                 {isAdmin && (
                                   <button
@@ -1861,6 +1900,19 @@ export default function App() {
   </AnimatePresence>
 
   <Suspense fallback={null}>
+    <DoctorVerificationModal
+      isOpen={isDoctorVerifyOpen}
+      onClose={() => {
+        setIsDoctorVerifyOpen(false);
+        setPendingView(null);
+      }}
+      onSuccess={() => {
+        if (pendingView) {
+          _setCurrentView(pendingView);
+        }
+        setPendingView(null);
+      }}
+    />
     <AdminInfoModal 
       isOpen={isAdminInfoOpen} 
       onClose={() => setIsAdminInfoOpen(false)} 

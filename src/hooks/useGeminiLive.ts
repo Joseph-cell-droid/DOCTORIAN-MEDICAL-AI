@@ -52,6 +52,21 @@ export function useGeminiLive(options: GeminiLiveOptions = {}) {
     onStatusChange?.(status);
   }, [status, onStatusChange]);
 
+  useEffect(() => {
+    let pingInterval: any;
+    if (status === 'connected') {
+      pingInterval = setInterval(() => {
+        if (sessionRef.current && sessionRef.current.readyState === WebSocket.OPEN) {
+          console.log("[DOCTORIAN-VOICE] Sending heartbeat ping...");
+          sessionRef.current.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 20000); // 20 seconds keep-alive
+    }
+    return () => {
+      if (pingInterval) clearInterval(pingInterval);
+    };
+  }, [status]);
+
   // Clean stop of Speech synthesis & recognition
   const stopSpeechUtility = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {

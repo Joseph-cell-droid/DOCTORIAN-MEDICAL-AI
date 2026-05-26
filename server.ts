@@ -4200,6 +4200,10 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       ws.on('message', async (data) => {
         try {
           const message = JSON.parse(data.toString());
+          if (message.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }));
+            return;
+          }
           if (message.type === 'setup') {
             console.log("[WS] Meta Llama 3.1 Neural Live session configured.");
           } else if (message.text) {

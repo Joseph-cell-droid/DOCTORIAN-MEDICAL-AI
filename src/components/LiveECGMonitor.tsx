@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Square, Settings, Activity, Sparkles, Sliders, Volume2, VolumeX, Eye, EyeOff, Shield, Database, Trash2, X } from 'lucide-react';
+import { Play, Square, Settings, Activity, Sparkles, Sliders, Volume2, VolumeX, Eye, EyeOff, Shield, Database, Trash2, X, Bluetooth, Loader2 } from 'lucide-react';
 import { useArduinoContext } from '../ArduinoContext';
 
 interface LiveECGMonitorProps {
@@ -27,6 +27,21 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
 
   const [hasLoggedLowBattery, setHasLoggedLowBattery] = useState(false);
   const battery = arduino?.watchMetadata?.battery;
+
+  const [isConnectingWatch, setIsConnectingWatch] = useState(false);
+
+  const handleConnectWatch = async () => {
+    if (arduino?.connectHealthWatch) {
+      setIsConnectingWatch(true);
+      try {
+        await arduino.connectHealthWatch();
+      } catch (err: any) {
+        console.error(err);
+      } finally {
+        setIsConnectingWatch(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (battery !== undefined && battery !== null) {
@@ -530,6 +545,33 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
               <span className="text-[10px] font-black text-emerald-400 tracking-wider">SECURE</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleConnectWatch}
+            disabled={isConnectingWatch}
+            className={`px-4 py-3 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+              isConnectingWatch
+                ? 'bg-slate-800 border-slate-700 text-slate-400'
+                : arduino?.connection?.connected && arduino?.connection?.type === 'bluetooth'
+                ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-400 hover:bg-emerald-900/40'
+                : 'bg-indigo-950/60 border-indigo-800/80 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/25'
+            }`}
+            title="Quick re-pair with Bluetooth heart rate monitors"
+          >
+            {isConnectingWatch ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Bluetooth size={13} className={arduino?.connection?.connected && arduino?.connection?.type === 'bluetooth' ? 'text-emerald-400' : 'animate-pulse'} />
+            )}
+            <span>
+              {isConnectingWatch 
+                ? 'Pairing Watch...' 
+                : arduino?.connection?.connected && arduino?.connection?.type === 'bluetooth'
+                ? `Paired: ${arduino?.connection?.deviceName || 'Watch'}`
+                : 'Connect Health Watch'}
+            </span>
+          </button>
 
           <button
             onClick={() => setIsDrawerOpen(!isDrawerOpen)}

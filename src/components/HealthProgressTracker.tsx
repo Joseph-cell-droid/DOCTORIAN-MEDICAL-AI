@@ -49,6 +49,18 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     ];
   });
   const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  const handleResetDaily = () => {
+    const resetGoals = goals.map(g => ({ ...g, current: 0 }));
+    setGoals(resetGoals);
+    localStorage.setItem('doctorian_daily_goals', JSON.stringify(resetGoals));
+    
+    // Recalculate progress score based on 0% progress
+    const computedScore = 72; // default baseline score
+    setProgressScore(computedScore);
+    setIsResetConfirmOpen(false);
+  };
 
   const saveGoals = (updatedGoals: HealthGoal[]) => {
     // Check if any goals transitioned from uncompleted to completed
@@ -640,12 +652,23 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
                    <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Daily Biometric Goals</h3>
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Calibrate steps, hydration, and exercise inputs</p>
                 </div>
-                <button 
-                  onClick={() => setIsGoalsModalOpen(true)}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95 shrink-0"
-                >
-                   Update Goals
-                </button>
+                <div className="flex items-center gap-2.5 shrink-0">
+                   <button 
+                     type="button"
+                     onClick={() => setIsResetConfirmOpen(true)}
+                     className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                     title="Reset all current progress for today"
+                   >
+                      <RefreshCw size={11} /> Reset Daily
+                   </button>
+                   <button 
+                     type="button"
+                     onClick={() => setIsGoalsModalOpen(true)}
+                     className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95 shrink-0 cursor-pointer"
+                   >
+                      Update Goals
+                   </button>
+                </div>
              </div>
 
              <div className="space-y-6">
@@ -743,6 +766,59 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
         goals={goals}
         onSave={saveGoals}
       />
+
+      <AnimatePresence>
+        {isResetConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsResetConfirmOpen(false)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            />
+            {/* Modal Card */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative z-10 overflow-hidden"
+            >
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-2xl">
+                  <AlertCircle size={28} className="animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Reset Progress?</h4>
+                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-0.5">Irreversible daily baseline reset</p>
+                </div>
+              </div>
+
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed mb-8">
+                Are you sure you want to clear all your current biometric measurements and logs for today? Your targets and configurations will remain unchanged, but your progress percentages and completed state will revert back to zero.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsResetConfirmOpen(false)}
+                  className="flex-1 py-3.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  No, Keep Progress
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetDaily}
+                  className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-lg shadow-rose-500/20 cursor-pointer"
+                >
+                  Yes, Reset Daily
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

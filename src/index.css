@@ -286,30 +286,30 @@
   }
 }
 
-/* 3. Horizontal Smooth Scroll support for Upper Header Bar elements on narrow viewports */
+/* 3. Modern, Non-Scrolling Responsive Header Setup for Mobile & Android devices */
 @media (max-width: 639px) {
-  /* Make the main header list horizontally scrollable so elements do not wrap into second rows or stack */
+  /* Clean, single-row layout without annoying horizontal scroll cutoffs */
   header .max-w-7xl > div {
     display: flex !important;
     flex-flow: row nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: none !important; /* Firefox hide */
-    padding-bottom: 2px !important;
-  }
-  header .max-w-7xl > div::-webkit-scrollbar {
-    display: none !important; /* Safari/Chrome hide */
+    justify-content: space-between !important;
+    align-items: center !important;
+    overflow-x: visible !important;
   }
 
-  /* Prevent elements in the horizontal bar from getting flattened/shrunk */
-  header .max-w-7xl > div > * {
-    flex-shrink: 0 !important;
-  }
-
-  /* Shrunk slot for search bar in scrolling header block on watches/phones */
+  /* Search button should expand to fill the middle space beautifully */
   header .max-w-7xl > div button[aria-label="Open search"] {
-    width: 90px !important;
-    min-width: 90px !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 110px !important;
+    max-width: 240px !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Make sure the header controls stand out and are easy to tap (44px target) */
+  header .max-w-7xl > div button {
+    min-height: 44px !important;
   }
 }
 

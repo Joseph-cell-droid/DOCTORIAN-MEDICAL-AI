@@ -31,7 +31,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', className = '', showTex
       </div>
       
       {showText && (
-        <div className="flex flex-col">
+        <div className="flex flex-col logo-text">
           <div className="flex items-baseline">
             <span className={`${fontSize} font-black tracking-tighter text-slate-900 dark:text-white uppercase leading-none`}>
               Doctorian

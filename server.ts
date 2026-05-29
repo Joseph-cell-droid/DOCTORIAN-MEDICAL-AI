@@ -172,22 +172,12 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
 
   if (isORKey) {
     const m = modelId.toLowerCase();
-    if (m.includes('llama') || m.includes('ollama') || m.includes('flash') || m.includes('pro')) {
-      if (m.includes('gemma')) {
-        return "google/gemma-2-9b-it";
-      }
-      if (m.includes('llama-3.2') || m.includes('vision')) {
-        return "meta-llama/llama-3.2-11b-vision-instruct";
-      }
-      return "meta-llama/llama-3.1-8b-instruct";
+    // To ensure Llama 3.1 8B functions globally as the primary clinical brain in Doctorian:
+    if (m.includes('llama-3.2') || m.includes('vision') || m.includes('image')) {
+      return "meta-llama/llama-3.2-11b-vision-instruct";
     }
-    if (m.includes('gemma-2') || m.includes('gemma')) {
-      return "google/gemma-2-9b-it";
-    }
-    if (m.includes('deepseek')) {
-      return "deepseek/deepseek-chat";
-    }
-    return modelId;
+    // All other medical/diagnostic reasoning queries are routed to Meta Llama 3.1 8B
+    return "meta-llama/llama-3.1-8b-instruct";
   }
   
   if (isOpenAI) {
@@ -3066,6 +3056,22 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
+  app.get("/api/medications/history", authenticate, (req: any, res) => {
+    try {
+      const history = db.prepare(`
+        SELECT i.*, m.name, m.dosage, m.frequency, m.category, m.time 
+        FROM medication_intakes i 
+        JOIN medications m ON i.medicationId = m.id 
+        WHERE i.userId = ? 
+        ORDER BY i.takenAt DESC
+      `).all(req.user.id);
+      res.json({ history });
+    } catch (err) {
+      console.error("[SERVER] Failed to fetch medication history:", err);
+      res.status(500).json({ error: "Failed to fetch medication history" });
+    }
+  });
+
   app.post("/api/medications", authenticate, (req: any, res) => {
     const { name, dosage, frequency, time, category, remindersEnabled } = req.body;
     if (!name) return res.status(400).json({ error: "Medication name required" });
@@ -4210,7 +4216,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
             console.log(`[WS] Processing text command via Llama: "${message.text}"`);
             const responseText = await callAI({
               messages: [{ role: 'user', text: message.text }],
-              systemInstruction: "You are Doctorian, a clinical voice assistant powered by Meta Llama 3.1. Provide a warm, clear, professional answer under 25 words so it has high voice stream flow.",
+              systemInstruction: "You are Doctorian, an automated clinical voice assistant. Keep answers warm, extremely brief (under 25 words total) for high voice stream fluidity. NEVER diagnose clinical conditions or label diseases. NEVER guarantee outcomes or suggest status outcomes. Encourage seeking professional support and conclude with: 'Medical attention is recommended.'",
               modelName: PRIMARY_ENGINE
             });
             

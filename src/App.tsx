@@ -575,7 +575,9 @@ export default function App() {
             }
 
             await api.alerts.sendSms(msg, user.doctorPhone, user.mentorPhone);
-            await api.alerts.makeCall("Critical Alert. Patient vitals have reached a critical baseline. Automated SOS protocols active. Please check the dashboard.", user.doctorPhone, user.mentorPhone, user.phone);
+            const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+            const callMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling to report an automated physiological crisis update from ${hospitalName}. Patient: ${user.displayName || user.email} has reached a critical biometric vital baseline. The heart rate is recorded at ${arduino.vitals?.heartRate || 0} beats per minute and the blood oxygen saturation level is at ${arduino.vitals?.spo2 || 0} percent. Immediate clinical intervention is required at ${hospitalName}. Please review the patient's telemetry and check on them immediately!`;
+            await api.alerts.makeCall(callMessage, user.doctorPhone, user.mentorPhone, user.phone);
             addToast("CRITICAL baseline reached. Automated SOS protocols active.", "error");
           } catch (err) {
             console.error("Auto SOS failed:", err);
@@ -754,7 +756,9 @@ export default function App() {
       await arduino.triggerAlarm('emergency');
       const msg = `EMERGENCY SOS from ${user?.displayName || 'User'}: Immediate assistance required! Location: App Dashboard.`;
       const smsRes = await api.alerts.sendSms(msg, user?.doctorPhone, user?.mentorPhone);
-      const callRes = await api.alerts.makeCall("Emergency. Emergency. Patient has triggered a manual SOS alert. Please check the dashboard immediately.", user?.doctorPhone, user?.mentorPhone, user?.phone);
+      const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+      const manualCallMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling to report a manual emergency clinical distress signal initiated from ${hospitalName}. Patient: ${user?.displayName || 'User'} has manually triggered a high-priority SOS alarm directly from their telemetry user interface, requesting immediate medical and physical assistance. Please check on the patient immediately!`;
+      const callRes = await api.alerts.makeCall(manualCallMessage, user?.doctorPhone, user?.mentorPhone, user?.phone);
       
       if (smsRes.simulated || callRes.simulated) {
         addToast("Alert sent (Simulated). Ensure Twilio keys are configured for live alerts.", "success");
@@ -1169,19 +1173,19 @@ export default function App() {
                   onClick={() => setCurrentView('home')}
                   aria-label="Go to Home"
                 >
-                  <Logo size="sm" className="scale-[0.8] sm:scale-90 lg:scale-100 shrink-0" />
+                  <Logo size="sm" className="scale-[0.8] sm:scale-90 lg:scale-100 shrink-0 [&_.logo-text]:hidden sm:[&_.logo-text]:flex" />
                 </button>
               </div>
 
-              <div className="flex flex-1 justify-center px-1 sm:px-4 items-center gap-1.5 sm:gap-4 overflow-hidden">
+              <div className="flex flex-1 justify-center px-1 sm:px-4 items-center gap-1.5 sm:gap-4 overflow-visible min-w-0">
                 <button 
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex flex-1 md:w-full md:max-w-md items-center gap-2 sm:gap-3 bg-slate-100 dark:bg-slate-800 p-2 sm:px-4 sm:py-2.5 rounded-xl text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-transparent hover:border-blue-200 dark:hover:border-blue-800 min-w-0"
+                  className="flex flex-1 md:w-full md:max-w-md items-center gap-2 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-2 sm:px-4 sm:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[85px] h-11 sm:h-auto shadow-sm"
                   aria-label="Open search"
                 >
-                  <Search aria-hidden="true" size={16} className="text-slate-600 dark:text-slate-400 shrink-0" />
-                  <span className="text-[10px] sm:text-xs font-bold md:inline text-high-visibility truncate uppercase tracking-widest hidden sm:block">Search System...</span>
-                  <span className="text-[10px] font-black sm:hidden truncate uppercase tracking-tighter">Search</span>
+                  <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
+                  <span className="text-[10px] sm:text-xs font-black md:inline text-high-visibility truncate uppercase tracking-widest hidden sm:block">Search System...</span>
+                  <span className="text-[10px] font-black sm:hidden truncate uppercase tracking-widest text-slate-900 dark:text-slate-100">Search</span>
                 </button>
                 
                 <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full border border-emerald-100 dark:border-emerald-800 shrink-0">
@@ -1191,16 +1195,16 @@ export default function App() {
 
                 <button
                   onClick={() => setIsEyeCareMode(!isEyeCareMode)}
-                  className={`p-2 sm:p-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm shrink-0 min-h-[40px] min-w-[40px] justify-center ${
+                  className={`p-2 sm:p-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm shrink-0 w-11 sm:w-auto h-11 sm:h-auto justify-center ${
                     isEyeCareMode 
-                      ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/60 dark:border-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-amber-100' 
-                      : 'bg-slate-100 border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
+                      ? 'bg-amber-100 border-amber-400 text-amber-900 dark:bg-amber-950 dark:border-amber-600 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-amber-100' 
+                      : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
                   }`}
                   aria-label={isEyeCareMode ? "Disable Legibility Mode" : "Enable Legibility Mode"}
                   aria-pressed={isEyeCareMode}
                   title={isEyeCareMode ? "Disable Legibility Mode" : "Enable Legibility Mode"}
                 >
-                  {isEyeCareMode ? <Eye aria-hidden="true" size={18} className="shrink-0" /> : <EyeOff aria-hidden="true" size={18} className="shrink-0" />}
+                  {isEyeCareMode ? <Eye aria-hidden="true" size={18} className="shrink-0 text-amber-900 dark:text-amber-300" /> : <EyeOff aria-hidden="true" size={18} className="shrink-0" />}
                   <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline text-high-visibility whitespace-nowrap shrink-0">Legibility Mode</span>
                 </button>
               </div>

@@ -20,12 +20,18 @@ interface BiomedicalSimulatorProps {
   arduino: any;
   onVitalsChange?: (vitals: SimulatedVitals) => void;
   className?: string;
+  patientId?: string;
+  patientName?: string;
+  patientPreset?: 'healthy' | 'warning' | 'critical';
 }
 
 export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({ 
   arduino, 
   onVitalsChange,
-  className = "" 
+  className = "",
+  patientId,
+  patientName,
+  patientPreset
 }) => {
   const [isAuthed, setIsAuthed] = useState(() => sessionStorage.getItem('doctor_authenticated') === 'true');
   const [isVerifyOpen, setIsVerifyOpen] = useState(false);
@@ -120,7 +126,7 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
         arduino.setConnection({
           connected: true,
           type: 'demo',
-          deviceName: 'Clinical Simulator Unit v5.2'
+          deviceName: patientName ? `Telemetry Node [${patientName}]` : 'Clinical Simulator Unit v5.2'
         });
         arduino.updateVitals({
           ...simVitals,
@@ -130,6 +136,13 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
       }, 1000);
     }
   };
+
+  // Sync state with selected patient preset if live
+  useEffect(() => {
+    if (patientPreset && connectionState === 'online') {
+      applyPreset(patientPreset === 'critical' ? 'sepsis' : patientPreset === 'warning' ? 'tachycardia' : 'nominal');
+    }
+  }, [patientPreset, connectionState]);
 
   // Whenever vital sliders change, push to parent or Arduino hook if live
   const updateSingleVital = (metric: keyof SimulatedVitals, value: number) => {
@@ -293,7 +306,15 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
                 <Cpu size={18} className="animate-spin-slow" />
               </div>
               <div>
-                <span className="text-[10px] font-black uppercase text-blue-400 tracking-[0.2em]">Bio-Nexus Companion</span>
+                <span className="text-[10px] font-black uppercase text-blue-400 tracking-[0.2em] flex items-center gap-1.5 flex-wrap">
+                  Bio-Nexus Companion
+                  {patientName && (
+                    <>
+                      <span className="text-slate-600">•</span>
+                      <span className="bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded-full text-[8px] animate-pulse">Coupled: {patientName}</span>
+                    </>
+                  )}
+                </span>
                 <h3 className="text-base sm:text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
                   Interactive Signal Generator v5.2
                 </h3>

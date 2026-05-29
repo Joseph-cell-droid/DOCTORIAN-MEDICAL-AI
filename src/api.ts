@@ -25,6 +25,7 @@ export interface User {
   bloodGroup?: string;
   hospitalPreference?: string;
   enableExternalAI?: boolean;
+  enableDeepHealthInsights?: boolean;
   ollamaUrl?: string;
   ollamaModel?: string;
 }
@@ -79,7 +80,22 @@ const generateOfflineMedicalResponse = (msg: string): string => {
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
   if (typeof localStorage === 'undefined') return defaultValue;
   try {
-    const item = localStorage.getItem(key);
+    let resolvedKey = key;
+    const exemptKeys = ["medical_offline_users", "medical_user", "medical_offline_actions_queue"];
+    if (!exemptKeys.includes(key) && (key.startsWith("medical_offline_") || key.startsWith("doctorian_") || key.startsWith("emergency_contacts"))) {
+      const usrStr = localStorage.getItem("medical_user");
+      if (usrStr) {
+        try {
+          const parsed = JSON.parse(usrStr);
+          if (parsed && parsed.id) {
+            resolvedKey = `${key}_${parsed.id}`;
+          }
+        } catch (je) {
+          // ignore
+        }
+      }
+    }
+    const item = localStorage.getItem(resolvedKey);
     return item ? JSON.parse(item) : defaultValue;
   } catch (e) {
     return defaultValue;
@@ -89,7 +105,22 @@ const getStorageItem = <T>(key: string, defaultValue: T): T => {
 const setStorageItem = <T>(key: string, value: T): void => {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    let resolvedKey = key;
+    const exemptKeys = ["medical_offline_users", "medical_user", "medical_offline_actions_queue"];
+    if (!exemptKeys.includes(key) && (key.startsWith("medical_offline_") || key.startsWith("doctorian_") || key.startsWith("emergency_contacts"))) {
+      const usrStr = localStorage.getItem("medical_user");
+      if (usrStr) {
+        try {
+          const parsed = JSON.parse(usrStr);
+          if (parsed && parsed.id) {
+            resolvedKey = `${key}_${parsed.id}`;
+          }
+        } catch (je) {
+          // ignore
+        }
+      }
+    }
+    localStorage.setItem(resolvedKey, JSON.stringify(value));
   } catch (e) {
     console.error(`[Offline Storage] Error writing ${key}`, e);
   }
@@ -698,6 +729,7 @@ export const api = {
       bloodGroup?: string;
       hospitalPreference?: string;
       enableExternalAI?: boolean;
+      enableDeepHealthInsights?: boolean;
       ollamaUrl?: string;
       ollamaModel?: string;
     }) {
@@ -1138,6 +1170,23 @@ export const api = {
         updates,
         "medications"
       );
+    },
+    async history() {
+      if (isOffline()) {
+        return getStorageItem<any[]>("medical_offline_medication_history", []);
+      }
+      try {
+        const res = await fetch(`${API_BASE}/medications/history`, { credentials: "include" });
+        const data = await res.json();
+        if (res.ok) {
+          const list = data.history || [];
+          setStorageItem("medical_offline_medication_history", list);
+          return list;
+        }
+        return getStorageItem<any[]>("medical_offline_medication_history", []);
+      } catch (err) {
+        return getStorageItem<any[]>("medical_offline_medication_history", []);
+      }
     }
   },
   alerts: {

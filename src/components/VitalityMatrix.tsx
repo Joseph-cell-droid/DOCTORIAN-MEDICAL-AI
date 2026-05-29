@@ -19,7 +19,8 @@ import {
   X,
   Plus,
   Play,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -75,6 +76,32 @@ export const VitalityMatrix: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(100);
   const [scanStep, setScanStep] = useState("Projections calibrated");
+
+  const [user, setUser] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem("medical_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const stored = localStorage.getItem("medical_user");
+        if (stored) {
+          setUser(JSON.parse(stored));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    // Also perform an initial sync on mount
+    handleStorage();
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const triggerReforecastSim = () => {
     setIsScanning(true);
@@ -312,8 +339,46 @@ export const VitalityMatrix: React.FC = () => {
         </div>
       </header>
 
-      {/* --- System Health Radar Matrix --- */}
-      <section className="mb-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+      {viewMode === 'predictive' && !user?.enableDeepHealthInsights ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-3xl mx-auto text-center py-16 px-8 bg-slate-50 dark:bg-slate-900/60 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800 shadow-xl space-y-8 mt-12 mb-20"
+        >
+          <div className="w-24 h-24 bg-amber-50 dark:bg-amber-955/20 text-amber-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <Lock size={40} className="animate-pulse" />
+          </div>
+          <div className="space-y-4 max-w-xl mx-auto font-sans">
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Predictive Metabolic Modeling Locked
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+              Neural forecasting of homeostatic baselines, target glucose channels, autonomic nervous system parameters, and longevity trajectories requires enabling <strong className="text-emerald-500">Deep Health Insights</strong>.
+            </p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-extrabold font-mono">
+              Status: SECURING PERSISTENT CONNECTION...
+            </p>
+          </div>
+          
+          <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 max-w-lg mx-auto flex items-start gap-4 text-left font-sans">
+            <Info size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+              To activate and begin training model forecasts:
+              <br />
+              1. Open <strong>Profile Settings</strong> from the navigation menu.
+              <br />
+              2. Go to the primary <strong>profile</strong> tab.
+              <br />
+              3. Scroll down to <strong>Advanced Analytics Configuration</strong>.
+              <br />
+              4. Toggle <strong>'Deep Health Insights'</strong> on and click <strong>Commit Identity Changes</strong>.
+            </div>
+          </div>
+        </motion.div>
+      ) : (
+        <>
+          {/* --- System Health Radar Matrix --- */}
+          <section className="mb-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
           <div className="relative z-10">
             <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Homeostasis Radar</h3>
@@ -1149,6 +1214,8 @@ export const VitalityMatrix: React.FC = () => {
           </div>
         </div>
       </section>
+      </>
+      )}
 
       <AnimatePresence>
         {showProtocols && (

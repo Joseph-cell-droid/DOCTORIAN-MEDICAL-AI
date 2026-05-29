@@ -263,23 +263,48 @@ export const useArduino = () => {
     setHealthStatus(null);
   }, []);
 
-  const startDemo = useCallback((forceCritical: boolean = false) => {
+  const startDemo = useCallback((preset: 'healthy' | 'warning' | 'critical' | boolean = 'healthy') => {
     disconnect();
     setConnection({ connected: true, type: 'demo', deviceName: 'Simulated Patient' });
     
     let tickCount = 0;
     demoIntervalRef.current = setInterval(() => {
-      const isCriticalEvent = forceCritical || (Math.random() < 0.1);
+      const condition = typeof preset === 'boolean' 
+        ? (preset ? 'critical' : 'healthy') 
+        : preset;
       
-      const newVitals: Vitals = {
-        heartRate: isCriticalEvent ? (Math.random() > 0.5 ? 130 + Math.random() * 20 : 40 + Math.random() * 10) : 70 + Math.random() * 10,
-        temperature: isCriticalEvent ? 39 + Math.random() * 1 : 36.5 + Math.random() * 0.5,
-        spo2: isCriticalEvent ? 85 + Math.random() * 5 : 97 + Math.random() * 2,
-        systolicBP: isCriticalEvent ? 190 + Math.random() * 20 : 115 + Math.random() * 10,
-        diastolicBP: isCriticalEvent ? 110 + Math.random() * 10 : 75 + Math.random() * 10,
-        respiratoryRate: isCriticalEvent ? 28 + Math.random() * 5 : 14 + Math.random() * 4,
-        timestamp: Date.now(),
-      };
+      let newVitals: Vitals;
+      if (condition === 'critical') {
+        newVitals = {
+          heartRate: Math.round(135 + Math.random() * 15),
+          temperature: parseFloat((39.4 + Math.random() * 0.8).toFixed(1)),
+          spo2: Math.max(65, Math.min(92, Math.round(83 + Math.random() * 4))),
+          systolicBP: Math.round(190 + Math.random() * 15),
+          diastolicBP: Math.round(110 + Math.random() * 8),
+          respiratoryRate: Math.round(28 + Math.random() * 4),
+          timestamp: Date.now(),
+        };
+      } else if (condition === 'warning') {
+        newVitals = {
+          heartRate: Math.round(102 + Math.random() * 8),
+          temperature: parseFloat((37.9 + Math.random() * 0.4).toFixed(1)),
+          spo2: Math.round(91 + Math.random() * 3),
+          systolicBP: Math.round(136 + Math.random() * 8),
+          diastolicBP: Math.round(86 + Math.random() * 5),
+          respiratoryRate: Math.round(21 + Math.random() * 3),
+          timestamp: Date.now(),
+        };
+      } else {
+        newVitals = {
+          heartRate: Math.round(68 + Math.random() * 8),
+          temperature: parseFloat((36.6 + Math.random() * 0.3).toFixed(1)),
+          spo2: Math.round(96 + Math.random() * 3),
+          systolicBP: Math.round(118 + Math.random() * 6),
+          diastolicBP: Math.round(78 + Math.random() * 4),
+          respiratoryRate: Math.round(14 + Math.random() * 3),
+          timestamp: Date.now(),
+        };
+      }
       updateVitals(newVitals);
       tickCount++;
     }, 2000);
@@ -661,7 +686,15 @@ export const useArduino = () => {
       setConnection({ connected: true, type: 'bluetooth', deviceName: device.name || 'Health Watch' });
     } catch (err: any) {
       console.error('Watch connection error:', err);
-      setError(`Watch Link Failed: ${err.message || 'Unknown protocol error'}`);
+      let friendlyError = err.message || 'Unknown protocol error';
+      if (err.name === 'SecurityError' || friendlyError.includes('SecurityError') || friendlyError.includes('iframe')) {
+        friendlyError = "Authentication or iframe restrictions blocked Bluetooth interface. Please open this app in a New Tab (using the top-right button in AI Studio) to allow secure Web Bluetooth hardware access.";
+      } else if (!(navigator as any).bluetooth) {
+        friendlyError = "Web Bluetooth is not supported by your browser or is blocked. Try using Google Chrome, Microsoft Edge, or Bluefy on iOS, and make sure the app is opened in a New Tab.";
+      } else if (err.name === 'NotFoundError' || friendlyError.includes('User cancelled')) {
+        friendlyError = "Connection cancelled. Please choose or select your real-time smartwatch / heart-rate sensor from the pairing menu.";
+      }
+      setError(`Watch Link Failed: ${friendlyError}`);
     }
   }, [disconnect, updateVitals]);
 

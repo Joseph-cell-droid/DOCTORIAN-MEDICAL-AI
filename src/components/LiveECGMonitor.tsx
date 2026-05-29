@@ -78,6 +78,7 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
   const [mode, setMode] = useState<WaveMode>('ecg');
   const [sweepSpeed, setSweepSpeed] = useState<number>(25); // 12.5, 25, 50 mm/s
   const [gain, setGain] = useState<number>(1.0); // 0.5x, 1.0x, 2.0x
+  const [filterProfile, setFilterProfile] = useState<'diagnostic' | 'monitor'>('diagnostic');
   const [isFrozen, setIsFrozen] = useState<boolean>(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
@@ -208,7 +209,7 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
   }, [dimensions.width]);
 
   // Mathematical Physiological Waveform Simulators
-  const getECGValue = (phase: number): number => {
+  const getECGValue = (phase: number, filter: 'diagnostic' | 'monitor'): number => {
     // Elegant Multi-segment P-Q-R-S-T Curve
     let val = 0;
 
@@ -238,12 +239,18 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
       val += 0.04 * Math.sin(((phase - 0.58) / 0.07) * Math.PI);
     }
 
-    // Baseline low-frequency noise & drift
-    val += (Math.random() - 0.5) * 0.012;
+    if (filter === 'diagnostic') {
+      // Diagnostic allows wide bandwidth (0.05-150Hz), meaning we show high frequency muscle twitch & baseline low-freq wander
+      val += (Math.random() - 0.5) * 0.018; // High freq jitter
+      val += 0.035 * Math.sin(phase * 2 * Math.PI); // Baseline drift/wander
+    } else {
+      // Monitor bandpass filter (0.5-40Hz) cleans up low-frequency wander and high frequency sparkles
+      val += (Math.random() - 0.5) * 0.003; // Smooth stabilized signal noise
+    }
     return val;
   };
 
-  const getPPGValue = (phase: number): number => {
+  const getPPGValue = (phase: number, filter: 'diagnostic' | 'monitor'): number => {
     // Simulated Arterial Pulse Waveform with Dicrotic Notch
     let val = 0;
     
@@ -267,16 +274,25 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
       val = 0.72 - 0.68 * norm;
     }
 
-    val += (Math.random() - 0.5) * 0.005;
+    if (filter === 'diagnostic') {
+      val += (Math.random() - 0.5) * 0.009; // Jitter
+      val += 0.015 * Math.sin(phase * 2 * Math.PI); // Drift
+    } else {
+      val += (Math.random() - 0.5) * 0.0015; // Filtered/Clean pulse wave
+    }
     return val * 0.75; // Normalized height scaling
   };
 
-  const getSpiroValue = (phase: number): number => {
+  const getSpiroValue = (phase: number, filter: 'diagnostic' | 'monitor'): number => {
     // Spirometer respiratory flow sine progression
     // Inhalation: upward bell
     // Exhalation: slight pause, downward bell
     const val = Math.sin(phase * 2 * Math.PI) * 0.6;
-    return val + (Math.random() - 0.5) * 0.008;
+    if (filter === 'diagnostic') {
+      return val + (Math.random() - 0.5) * 0.012 + 0.008 * Math.sin(phase * 2 * Math.PI);
+    } else {
+      return val + (Math.random() - 0.5) * 0.003;
+    }
   };
 
   // Main Sweep Engine & Drawing Loop
@@ -377,11 +393,11 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
         // Apply selected vital wave generator
         let signalVal = 0;
         if (mode === 'ecg') {
-          signalVal = getECGValue(interpolatedPhase);
+          signalVal = getECGValue(interpolatedPhase, filterProfile);
         } else if (mode === 'ppg') {
-          signalVal = getPPGValue(interpolatedPhase);
+          signalVal = getPPGValue(interpolatedPhase, filterProfile);
         } else {
-          signalVal = getSpiroValue(interpolatedPhase);
+          signalVal = getSpiroValue(interpolatedPhase, filterProfile);
         }
 
         // Save value scaled by height and requested gain
@@ -488,7 +504,7 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
 
     animFrameId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animFrameId);
-  }, [dimensions, mode, sweepSpeed, gain, isFrozen, showGrid, isSoundEnabled, hr, rr, spo2]);
+  }, [dimensions, mode, sweepSpeed, gain, isFrozen, showGrid, isSoundEnabled, hr, rr, spo2, filterProfile]);
 
   return (
     <div id="live-biometric-telemetry" className="flex flex-col gap-4 sm:gap-5 w-full bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 text-white shadow-2xl relative overflow-hidden transition-all duration-300">
@@ -544,6 +560,38 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest min-[410px]:block">Vitals Source</span>
               <span className="text-[10px] font-black text-emerald-400 tracking-wider">SECURE</span>
             </div>
+          </div>
+
+          {/* Signal Filter Profile Segmented Control */}
+          <div className="flex items-center bg-slate-950/80 p-1 rounded-2xl border border-slate-800/80 shrink-0 gap-1.5">
+            <button
+              id="filter-diag-btn"
+              type="button"
+              onClick={() => setFilterProfile('diagnostic')}
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex flex-col items-center justify-center ${
+                filterProfile === 'diagnostic'
+                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                  : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+              }`}
+              title="Wideband diagnostic mode (0.05 - 150 Hz) - captures raw details, baseline wander and high-frequency noise"
+            >
+              <span className="leading-none text-[9px]">Diagnostic</span>
+              <span className="text-[7px] font-bold text-slate-500 leading-none mt-0.5">0.05-150Hz</span>
+            </button>
+            <button
+              id="filter-mon-btn"
+              type="button"
+              onClick={() => setFilterProfile('monitor')}
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex flex-col items-center justify-center ${
+                filterProfile === 'monitor'
+                  ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-400'
+                  : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+              }`}
+              title="Filter profile monitor mode (0.5 - 40 Hz) - cleans out lower frequencies and high-frequency sparkles"
+            >
+              <span className="leading-none text-[9px]">Monitor</span>
+              <span className="text-[7px] font-bold text-slate-500 leading-none mt-0.5">0.5-40Hz</span>
+            </button>
           </div>
 
           <button
@@ -703,7 +751,9 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
             <div className="absolute top-3 left-4 flex gap-4 text-[9px] font-mono text-slate-400 bg-slate-950/80 px-2 py-1 rounded border border-slate-900 pointer-events-none select-none">
               <span>LEAD: II</span>
               <span className="text-slate-600 hidden min-[380px]:inline">|</span>
-              <span className="hidden min-[380px]:inline">FILTER: DIAG (0.05-150Hz)</span>
+              <span className="hidden min-[380px]:inline">
+                FILTER: {filterProfile === 'diagnostic' ? 'DIAG (0.05-150Hz)' : 'MON (0.5-40Hz)'}
+              </span>
               <span className="text-slate-600">|</span>
               <span>SENS: {gain * 10} mm/mV</span>
             </div>

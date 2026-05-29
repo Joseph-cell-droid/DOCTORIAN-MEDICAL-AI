@@ -25,13 +25,16 @@ export function NeuralVoiceCall({ onClose, user, vitals, healthStatus, onRefresh
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [transcripts, setTranscripts] = useState<{ text: string; isModel: boolean; id: string }[]>([]);
 
+  const safetyShort = localStorage.getItem('doctorian_voice_safety_short') !== 'false';
+  const safetyNoDiag = localStorage.getItem('doctorian_voice_safety_nodiag') !== 'false';
+  const safetyNoOutcome = localStorage.getItem('doctorian_voice_safety_nooutcome') !== 'false';
+  const safetyEncourage = localStorage.getItem('doctorian_voice_safety_encourage') !== 'false';
+
   const biometricContext = vitals ? `[VISUAL CONTEXT: Patient HR ${vitals.heartRate}, SpO2 ${vitals.spo2}. Overall Stability: ${healthStatus?.overall || 'Stable'}]` : '';
 
-  const { status, error, connect, stop, sendMessage, inputVolume, outputVolume } = useGeminiLive({
-    voiceName: 'Puck',
-    isMuted,
-    systemInstruction: `You are Doctorian (v2.4), a Universal Medical Intelligence Core. 
-    You are engaging in a real-time voice consultation with ${user.displayName || 'Authorized User'}.
+  const systemInstruction = useMemo(() => {
+    let rules = `You are Doctorian (v2.4), a Universal Medical Intelligence Core. 
+    You are engaging in a real-time voice consultation with ${user?.displayName || 'Authorized User'}.
     
     CORE DIRECTIVE:
     - You are warm, empathetic, and professional.
@@ -42,10 +45,35 @@ export function NeuralVoiceCall({ onClose, user, vitals, healthStatus, onRefresh
     CLINICAL CONTEXT:
     ${biometricContext}
     
-    INTERACTION RULES:
-    1. Keep responses very short (around 20-30 words) for voice flow.
-    2. Detect the user's language and match it instantly.
-    3. If the user sounds confused, use a village health worker tone with natural analogies.`,
+    INTERACTION RULES:`;
+
+    if (safetyShort) {
+      rules += `\n    - Keep responses extremely short (under 25 words total, single-sentence response where possible) for high-frequency voice streaming rate.`;
+    } else {
+      rules += `\n    - Keep responses short (around 20-30 words) for voice flow.`;
+    }
+
+    if (safetyNoDiag) {
+      rules += `\n    - NEVER diagnose conditions or label symptoms explicitly. Avoid medical classification labels. Instead, observe raw metrics.`;
+    }
+
+    if (safetyNoOutcome) {
+      rules += `\n    - NEVER predict, guarantee, or state clinical outcomes (e.g. do NOT say 'you will be fine' or make alarming outcome guesses).`;
+    }
+
+    if (safetyEncourage) {
+      rules += `\n    - ALWAYS encourage getting real offline clinical support and end with a standard directive like 'Medical attention is recommended.'`;
+    }
+
+    rules += `\n    - Detect the user's language and match it instantly.\n    - If the user sounds confused, use a village health worker tone with natural analogies.`;
+
+    return rules;
+  }, [user?.displayName, biometricContext, safetyShort, safetyNoDiag, safetyNoOutcome, safetyEncourage]);
+
+  const { status, error, connect, stop, sendMessage, inputVolume, outputVolume } = useGeminiLive({
+    voiceName: 'Puck',
+    isMuted,
+    systemInstruction,
     onTranscript: (text, isModel) => {
       setTranscripts(prev => {
         const last = prev[prev.length - 1];

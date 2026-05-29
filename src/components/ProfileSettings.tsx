@@ -28,6 +28,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
+  const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
   const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || '');
   const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'llama3.1');
   
@@ -49,6 +50,23 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+
+  // Voice Stack & Safety states
+  const [selectedVoiceStack, setSelectedVoiceStack] = useState<string>(() => {
+    return localStorage.getItem('doctorian_voice_stack') || 'cheapest';
+  });
+  const [voiceSafetyShort, setVoiceSafetyShort] = useState<boolean>(() => {
+    return localStorage.getItem('doctorian_voice_safety_short') !== 'false';
+  });
+  const [voiceSafetyNoDiag, setVoiceSafetyNoDiag] = useState<boolean>(() => {
+    return localStorage.getItem('doctorian_voice_safety_nodiag') !== 'false';
+  });
+  const [voiceSafetyNoOutcome, setVoiceSafetyNoOutcome] = useState<boolean>(() => {
+    return localStorage.getItem('doctorian_voice_safety_nooutcome') !== 'false';
+  });
+  const [voiceSafetyEncourageHelp, setVoiceSafetyEncourageHelp] = useState<boolean>(() => {
+    return localStorage.getItem('doctorian_voice_safety_encourage') !== 'false';
+  });
 
   // Billing History State
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
@@ -154,6 +172,7 @@ Verified by Joseph Akora - Development Lead.
       setPhotoURL(user.photoURL || '');
       setPhone(user.phone || '');
       setEnableExternalAI(user.enableExternalAI || false);
+      setEnableDeepHealthInsights(user.enableDeepHealthInsights || false);
       setOllamaUrl(user.ollamaUrl || '');
       setOllamaModel(user.ollamaModel || 'llama3.1');
     }
@@ -182,6 +201,13 @@ Verified by Joseph Akora - Development Lead.
     setIsSaving(true);
     setMessage(null);
     try {
+      // Commit voice settings to localStorage first
+      localStorage.setItem('doctorian_voice_stack', selectedVoiceStack);
+      localStorage.setItem('doctorian_voice_safety_short', String(voiceSafetyShort));
+      localStorage.setItem('doctorian_voice_safety_nodiag', String(voiceSafetyNoDiag));
+      localStorage.setItem('doctorian_voice_safety_nooutcome', String(voiceSafetyNoOutcome));
+      localStorage.setItem('doctorian_voice_safety_encourage', String(voiceSafetyEncourageHelp));
+
       const updatedUser = await api.auth.updateProfile({ 
         displayName, 
         photoURL,
@@ -195,6 +221,7 @@ Verified by Joseph Akora - Development Lead.
         doctorId,
         mentorId,
         enableExternalAI,
+        enableDeepHealthInsights,
         ollamaUrl,
         ollamaModel
       });
@@ -538,6 +565,36 @@ Verified by Joseph Akora - Development Lead.
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Advanced Analytic Controls */}
+                <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 space-y-6 relative z-10">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Advanced Analytics Configuration</h4>
+                  
+                  <div className="group p-6 bg-slate-50/55 dark:bg-slate-800/20 rounded-[2rem] border border-slate-100 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-6 transition-all hover:bg-white dark:hover:bg-slate-800/40 hover:shadow-xl hover:shadow-emerald-500/5">
+                    <div className="flex items-start gap-4">
+                      <div className="p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-sm text-emerald-500 dark:text-emerald-400 group-hover:scale-105 transition-transform shrink-0">
+                        <Zap size={24} />
+                      </div>
+                      <div className="max-w-md">
+                        <span id="deep-health-insights-toggle-title" className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight block mb-1">Deep Health Insights</span>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-normal mb-1">
+                          Predictive Metabolic Modeling & Biomarker Projection.
+                        </p>
+                        <p className="text-[9px] text-slate-500 leading-normal">
+                          Unlock deep neural projection overlays in the Vitality Matrix, enabling 7-day autonomic balance trending, glucose instability projections, and biological age calculations.
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      id="deep-health-insights-toggle-btn"
+                      onClick={() => setEnableDeepHealthInsights(!enableDeepHealthInsights)}
+                      className={`w-14 h-8 rounded-full transition-all relative shrink-0 cursor-pointer ${enableDeepHealthInsights ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
+                    >
+                      <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${enableDeepHealthInsights ? 'left-7' : 'left-1'}`} />
+                    </button>
                   </div>
                 </div>
 
@@ -985,6 +1042,106 @@ Verified by Joseph Akora - Development Lead.
                            <span>Recommended for complex multi-symptom analysis</span>
                         </li>
                      </ul>
+                  </div>
+
+                  {/* AI Voice Synthesis Stack Engine Configuration */}
+                  <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-8">
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">AI Voice Synthesis Stack</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                        Select and optimize the backend telecommunication and speech synthesis pathways for specific regional deployments, budgets, or privacy requirements.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { id: 'cheapest', label: 'Cheapest Base', desc: 'Twilio + basic TTS', info: 'Low-cost cloud speech core with premium global routing.', color: 'from-blue-600 to-indigo-600' },
+                        { id: 'human', label: 'Most Human Voice', desc: 'ElevenLabs Integration', info: 'Ultra-low latency human-realistic cloned emotions.', color: 'from-violet-600 to-purple-600' },
+                        { id: 'offline', label: 'Offline Native', desc: 'Coqui TTS Server', info: 'Run lightweight deep synthesis model inside local host.', color: 'from-emerald-600 to-teal-600' },
+                        { id: 'african', label: 'African Deployment', desc: "Africa's Talking + Twilio", info: 'Localized cellular handshake optimized for East African nodes.', color: 'from-amber-600 to-orange-600' },
+                        { id: 'fully_local', label: 'Fully Local AI', desc: 'Ollama + Whisper + Coqui', info: '完全 100% boundary-contained offline physical loop.', color: 'from-rose-600 to-pink-600' }
+                      ].map((stack) => (
+                        <button
+                          key={stack.id}
+                          type="button"
+                          onClick={() => setSelectedVoiceStack(stack.id)}
+                          className={`text-left p-6 rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between h-40 ${selectedVoiceStack === stack.id ? 'border-violet-600 bg-white dark:bg-slate-900 shadow-xl' : 'border-slate-150 dark:border-slate-800/60 bg-slate-100/30 dark:bg-slate-900/10 hover:border-slate-300 dark:hover:border-slate-705'}`}
+                        >
+                          {selectedVoiceStack === stack.id && (
+                            <div className={`absolute top-0 right-0 w-12 h-12 bg-linear-to-bl ${stack.color} text-white rounded-bl-3xl flex items-center justify-center`}>
+                              <CheckCircle2 size={16} />
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Goal: {stack.label}</span>
+                            <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mt-1">{stack.desc}</h5>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-normal mt-2">
+                            {stack.info}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AI Clinical Voice Safeties & Guardrails */}
+                  <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">AI Clinical Guardrails</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                        Strictly enforce medical voice and transcript policies to reduce physical liability and preserve absolute safety guidelines.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {[
+                        { 
+                          id: 'short', 
+                          state: voiceSafetyShort, 
+                          setter: setVoiceSafetyShort, 
+                          label: 'Stay Short & Ultra-Brief', 
+                          desc: 'Instructs the neural live voice model to strictly phrase answers under 25 words to avoid complex wordiness and optimize synthesis rate.' 
+                        },
+                        { 
+                          id: 'nodiag', 
+                          state: voiceSafetyNoDiag, 
+                          setter: setVoiceSafetyNoDiag, 
+                          label: 'Avoid AI Diagnoses', 
+                          desc: 'Blocks the voice intelligence core from labeling patterns or naming diseases. Redirects reasoning toward physiological observations.' 
+                        },
+                        { 
+                          id: 'nooutcome', 
+                          state: voiceSafetyNoOutcome, 
+                          setter: setVoiceSafetyNoOutcome, 
+                          label: 'Avoid Outcome Guarantees', 
+                          desc: 'Prohibits promising recovery rates or guaranteeing survival metrics. Directs focus towards real-time homeostatic stability index calculations.' 
+                        },
+                        { 
+                          id: 'encourage', 
+                          state: voiceSafetyEncourageHelp, 
+                          setter: setVoiceSafetyEncourageHelp, 
+                          label: 'Encourage Professional Medical Help', 
+                          desc: 'Directs the system to conclude advice statements with clear professional directives such as: "Medical attention is recommended." or similar instructions.' 
+                        }
+                      ].map((safeguard) => (
+                        <div 
+                          key={safeguard.id}
+                          className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex items-start justify-between gap-6"
+                        >
+                          <div className="space-y-1">
+                            <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{safeguard.label}</h5>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{safeguard.desc}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => safeguard.setter(!safeguard.state)}
+                            className={`w-14 h-7 rounded-full shrink-0 relative transition-all inline-block ${safeguard.state ? 'bg-violet-600 shadow-md shadow-violet-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
+                          >
+                            <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${safeguard.state ? 'left-8' : 'left-1'}`} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

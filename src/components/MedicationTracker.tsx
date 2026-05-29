@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { ClinicalProtocols } from './Tasks';
+import { MedicationAdherenceChart } from './MedicationAdherenceChart';
 
 interface Medicine {
   id: string;
@@ -41,6 +42,7 @@ export const MedicationTracker: React.FC = () => {
   const arduino = useArduinoContext();
   const [isLoading, setIsLoading] = React.useState(true);
   const [meds, setMeds] = useState<Medicine[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -93,6 +95,7 @@ export const MedicationTracker: React.FC = () => {
              });
              setMeds(prev => [created, ...prev]);
           }
+          fetchHistory();
         }
       } catch (err) {
         console.error("Prescription reading failed:", err);
@@ -117,6 +120,7 @@ export const MedicationTracker: React.FC = () => {
 
   useEffect(() => {
     fetchMeds();
+    fetchHistory();
   }, []);
 
   const fetchMeds = async () => {
@@ -131,6 +135,15 @@ export const MedicationTracker: React.FC = () => {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const data = await api.medications.history();
+      setHistory(data);
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+    }
+  };
+
   const handleAddMed = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMed.name) return;
@@ -140,6 +153,7 @@ export const MedicationTracker: React.FC = () => {
       setIsAdding(false);
       setShowLibrary(false);
       setNewMed({ name: '', dosage: '', frequency: 'Daily', time: '08:00', category: 'prescription', remindersEnabled: true });
+      fetchHistory();
     } catch (err) {
       console.error("Failed to add med:", err);
     }
@@ -149,6 +163,7 @@ export const MedicationTracker: React.FC = () => {
     try {
       await api.medications.take(id, currentlyTaken);
       setMeds(meds.map(m => m.id === id ? { ...m, takenToday: !currentlyTaken } : m));
+      fetchHistory();
     } catch (err) {
       console.error("Failed to update intake status:", err);
     }
@@ -158,6 +173,7 @@ export const MedicationTracker: React.FC = () => {
     try {
       await api.medications.delete(id);
       setMeds(meds.filter(m => m.id !== id));
+      fetchHistory();
     } catch (err) {
       console.error("Failed to delete med:", err);
     }
@@ -345,6 +361,10 @@ export const MedicationTracker: React.FC = () => {
                     </div>
                  </div>
               </section>
+            </div>
+
+            <div className="lg:col-span-12">
+              <MedicationAdherenceChart medications={meds} history={history} onRefresh={fetchHistory} />
             </div>
           </>
         ) : (

@@ -691,6 +691,8 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
   const [registryNotification, setRegistryNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  const currentCoupledPatientGlobal = registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0];
+
   const triggerRegistryNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setRegistryNotification({ message, type });
     setTimeout(() => setRegistryNotification(null), 4000);
@@ -735,13 +737,15 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
     // Connect simulator or direct update logic
     if (!arduino.connection.connected) {
-      arduino.startDemo(patient.vitalsPreset === 'critical');
+      arduino.startDemo(patient.vitalsPreset);
     }
     
-    // Feed preset instantly
-    setTimeout(() => {
-      arduino.updateVitals(simulatedVitals);
-    }, 150);
+    // Feed preset instantly only if using the simulated demo engine
+    if (!arduino.connection.connected || arduino.connection.type === 'demo') {
+      setTimeout(() => {
+        arduino.updateVitals(simulatedVitals);
+      }, 150);
+    }
 
     // Save selected state
     localStorage.setItem('doctorian_selected_patient_id', patient.id);
@@ -1361,7 +1365,8 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
       // Initiate Voice Call
       setIsEmergencyCalling(true);
-      const voiceMessage = `Critical alert for Patient: ${activePatient?.name || 'Joseph'} allocated in ${activePatient?.bedNumber || 'Assigned Bed'}, relaying via MTN 0787674140. Heart rate is ${Math.round(vitals?.heartRate || 0)} beats per minute. Oxygen saturation is ${Math.round(vitals?.spo2 || 0)} percent. Temperature is ${vitals?.temperature.toFixed(1)} degrees Celsius. Previous state reports ${activePatient?.conditions || 'stable parameters'}. Please check the patient immediately!`;
+      const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+      const voiceMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling with an urgent physiological update from ${hospitalName}. A critical biometric alarm has been triggered for Patient: ${activePatient?.name || 'Joseph Brian Obote'} in ${activePatient?.bedNumber || 'Bed B-01 (Ward A)'}. Currently, the patient's vitals are in a critical state. The heart rate is ${Math.round(vitals?.heartRate || 0)} beats per minute, the blood oxygen saturation level is at ${Math.round(vitals?.spo2 || 0)} percent, and the system reports pre-existing conditions: ${activePatient?.conditions || 'stable parameters'}. Immediate clinical intervention is required at ${hospitalName}. Please review the patient's telemetry and check on them immediately!`;
       
       api.alerts.makeCall(voiceMessage, doctorPhone, mentorPhone, patientPhone)
         .then(res => {
@@ -1413,7 +1418,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     }
   };
 
-  const MiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical' }> = ({ preset }) => {
+  const MiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = ({ preset, patientId }) => {
     const [vitals, setVitals] = useState({
       hr: preset === 'critical' ? 142 : preset === 'warning' ? 104 : 72,
       spo2: preset === 'critical' ? 84 : preset === 'warning' ? 92 : 98,
@@ -1464,6 +1469,17 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
     const statusColor = preset === 'critical' ? 'text-rose-500 bg-rose-500/10' : preset === 'warning' ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10';
 
+    const isMainCoupledPatient = patientId === selectedPatientId && arduino.connection.connected;
+    
+    const displayVitals = (isMainCoupledPatient && arduino.vitals) ? {
+      hr: Math.round(arduino.vitals.heartRate),
+      spo2: Math.round(arduino.vitals.spo2),
+      bpSys: Math.round(arduino.vitals.systolicBP),
+      bpDia: Math.round(arduino.vitals.diastolicBP),
+      rr: Math.round(arduino.vitals.respiratoryRate),
+      temp: parseFloat(arduino.vitals.temperature.toFixed(1))
+    } : vitals;
+
     return (
       <div className="mt-4 p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white space-y-3 font-sans shadow-inner">
         <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
@@ -1487,7 +1503,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               strokeLinejoin="round"
             />
           </svg>
-          <span className="absolute top-1 right-2 text-[8px] font-black font-mono text-slate-600">64HZ DIRECT</span>
+          <span className="absolute top-1 right-2 text-[8px] font-black font-mono text-slate-600">{isMainCoupledPatient ? 'REAL TIME FEED' : '64HZ DIRECT'}</span>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center">
@@ -1495,21 +1511,21 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             <div className="text-[7px] font-bold text-slate-500 uppercase">Heart Rate</div>
             <div className="text-xs font-black font-mono text-emerald-400 flex items-center justify-center gap-0.5 mt-0.5">
               <Heart size={8} className="text-red-500 animate-pulse fill-red-500 shrink-0" />
-              {vitals.hr} <span className="text-[7px] font-normal text-slate-500">BPM</span>
+              {displayVitals.hr} <span className="text-[7px] font-normal text-slate-500">BPM</span>
             </div>
           </div>
 
           <div className="p-1.5 bg-slate-950 rounded border border-slate-850">
             <div className="text-[7px] font-bold text-slate-500 uppercase">SPO2 Oxygen</div>
             <div className="text-xs font-black font-mono text-cyan-400 mt-0.5">
-              {vitals.spo2}%
+              {displayVitals.spo2}%
             </div>
           </div>
 
           <div className="p-1.5 bg-slate-950 rounded border border-slate-850">
             <div className="text-[7px] font-bold text-slate-500 uppercase">SYS/DIA BP</div>
             <div className="text-xs font-black font-mono text-amber-400 mt-0.5">
-              {vitals.bpSys}/{vitals.bpDia}
+              {displayVitals.bpSys}/{displayVitals.bpDia}
             </div>
           </div>
         </div>
@@ -1517,11 +1533,11 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
         <div className="grid grid-cols-2 gap-2 text-center">
           <div className="p-1.5 bg-slate-950 rounded border border-slate-850 flex items-center justify-between px-2">
             <span className="text-[7px] font-bold text-slate-500 uppercase">Temperature</span>
-            <span className="text-[10px] font-black font-mono text-orange-400">{vitals.temp}°C</span>
+            <span className="text-[10px] font-black font-mono text-orange-400">{displayVitals.temp}°C</span>
           </div>
           <div className="p-1.5 bg-slate-950 rounded border border-slate-850 flex items-center justify-between px-2">
             <span className="text-[7px] font-bold text-slate-500 uppercase">Resp. Rate</span>
-            <span className="text-[10px] font-black font-mono text-blue-400">{vitals.rr} RPM</span>
+            <span className="text-[10px] font-black font-mono text-blue-400">{displayVitals.rr} RPM</span>
           </div>
         </div>
       </div>
@@ -2675,7 +2691,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     </div>
 
                     {/* Individual Patient Live Health Monitors */}
-                    <MiniPatientMonitor preset={patient.vitalsPreset} />
+                    <MiniPatientMonitor preset={patient.vitalsPreset} patientId={patient.id} />
                   </div>
 
                   <div className="flex gap-2.5 mt-auto border-t border-slate-150 dark:border-slate-800 pt-5">
@@ -3806,7 +3822,12 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               </div>
             ) : activeTab === 'simulator' ? (
               <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
-                <BiomedicalSimulator arduino={arduino} />
+                <BiomedicalSimulator 
+                  arduino={arduino} 
+                  patientId={selectedPatientId} 
+                  patientName={currentCoupledPatientGlobal?.name} 
+                  patientPreset={currentCoupledPatientGlobal?.vitalsPreset} 
+                />
               </div>
             ) : (
               <>
@@ -4528,7 +4549,13 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               </div>
               
               <div className="flex-1 p-4 sm:p-8">
-                <BiomedicalSimulator arduino={arduino} className="border-0 shadow-none bg-transparent p-0" />
+                <BiomedicalSimulator 
+                  arduino={arduino} 
+                  className="border-0 shadow-none bg-transparent p-0" 
+                  patientId={selectedPatientId} 
+                  patientName={currentCoupledPatientGlobal?.name} 
+                  patientPreset={currentCoupledPatientGlobal?.vitalsPreset} 
+                />
               </div>
             </motion.div>
           </div>

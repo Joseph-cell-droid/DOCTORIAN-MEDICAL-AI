@@ -345,14 +345,15 @@ export const useArduino = () => {
     } catch (err: any) {
       console.error('Bluetooth error:', err);
       let friendlyMessage = 'Bluetooth connection failed.';
+      const msg = err.message || '';
       
-      if (err.name === 'NotFoundError') {
+      if (err.name === 'SecurityError' || msg.includes('SecurityError') || msg.includes('permissions policy') || msg.includes('disallowed') || msg.includes('iframe')) {
+        friendlyMessage = 'Access to Bluetooth is blocked by browser iframe permission rules. Please click the "Open in New Tab" button in the upper-right corner of Google AI Studio or use the simulated "Health Connect Sync" client to bridge telemetry data.';
+      } else if (err.name === 'NotFoundError') {
         friendlyMessage = 'Connection cancelled. Please select your Arduino device from the list.';
-      } else if (err.name === 'SecurityError') {
-        friendlyMessage = 'Bluetooth access denied. Please ensure Bluetooth is enabled on your computer and this site has permission to use it.';
       } else if (err.name === 'NetworkError') {
         friendlyMessage = 'Could not connect to the device. Ensure your Arduino is powered on, in pairing mode, and within range.';
-      } else if (err.message?.includes('User cancelled')) {
+      } else if (msg.includes('User cancelled')) {
         friendlyMessage = 'Connection cancelled. Please try again and select your device.';
       } else {
         friendlyMessage = `Bluetooth Error: ${err.message || 'Unknown error'}. Please check if your device is in pairing mode and Bluetooth is on.`;
@@ -687,8 +688,8 @@ export const useArduino = () => {
     } catch (err: any) {
       console.error('Watch connection error:', err);
       let friendlyError = err.message || 'Unknown protocol error';
-      if (err.name === 'SecurityError' || friendlyError.includes('SecurityError') || friendlyError.includes('iframe')) {
-        friendlyError = "Authentication or iframe restrictions blocked Bluetooth interface. Please open this app in a New Tab (using the top-right button in AI Studio) to allow secure Web Bluetooth hardware access.";
+      if (err.name === 'SecurityError' || friendlyError.includes('SecurityError') || friendlyError.includes('permissions policy') || friendlyError.includes('disallowed') || friendlyError.includes('iframe')) {
+        friendlyError = "Authentication or iframe restrictions blocked Bluetooth interface. Please open this app in a New Tab (using the top-right button in AI Studio) to allow secure Web Bluetooth hardware access, or utilize our premium Google Health Connect Integration Sync client to fetch watch biometrics.";
       } else if (!(navigator as any).bluetooth) {
         friendlyError = "Web Bluetooth is not supported by your browser or is blocked. Try using Google Chrome, Microsoft Edge, or Bluefy on iOS, and make sure the app is opened in a New Tab.";
       } else if (err.name === 'NotFoundError' || friendlyError.includes('User cancelled')) {

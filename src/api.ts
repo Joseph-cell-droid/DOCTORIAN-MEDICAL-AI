@@ -55,7 +55,14 @@ export interface Doctor {
 const API_BASE = "/api";
 
 // --- OFFLINE HUB INFRASTRUCTURE ---
-const isOffline = (): boolean => typeof navigator !== 'undefined' && !navigator.onLine;
+const isOffline = (): boolean => {
+  if (typeof window !== 'undefined') {
+    // Only go offline if explicitly forced by the user. 
+    // This prevents sandboxed iframes from incorrectly reporting navigator.onLine as false.
+    return localStorage.getItem("medical_forced_offline") === "true";
+  }
+  return false;
+};
 
 const generateOfflineMedicalResponse = (msg: string): string => {
   const norm = msg.toLowerCase();
@@ -1546,6 +1553,82 @@ export const api = {
         { title, content, category },
         "ai/knowledge" as any
       );
+    },
+    async listFineTuningJobs() {
+      if (isOffline()) {
+        const cached = localStorage.getItem("medical_offline_fine_tuning_jobs");
+        return cached ? JSON.parse(cached) : [];
+      }
+      try {
+        const res = await fetch(`${API_BASE}/ai/fine-tune/jobs`, { credentials: "include" });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("medical_offline_fine_tuning_jobs", JSON.stringify(data));
+          return data;
+        }
+        throw new Error(data.error || "Failed to list fine-tuning jobs");
+      } catch (err) {
+        const cached = localStorage.getItem("medical_offline_fine_tuning_jobs");
+        return cached ? JSON.parse(cached) : [];
+      }
+    },
+    async getActiveFineTunedModel() {
+      if (isOffline()) {
+        const cached = localStorage.getItem("medical_offline_active_model");
+        return cached ? JSON.parse(cached) : null;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/ai/fine-tune/active`, { credentials: "include" });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("medical_offline_active_model", JSON.stringify(data));
+          return data;
+        }
+        return null;
+      } catch (err) {
+        const cached = localStorage.getItem("medical_offline_active_model");
+        return cached ? JSON.parse(cached) : null;
+      }
+    },
+    async startFineTuning(baseModel: string, customName: string, epochs: number) {
+      if (isOffline()) {
+        throw new Error("Fine-tuning base models requires cloud infrastructure synchronization.");
+      }
+      const res = await fetch(`${API_BASE}/ai/fine-tune/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseModel, customName, epochs }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to start fine-tuning");
+      return data;
+    },
+    async activateFineTunedModel(id: string) {
+      if (isOffline()) {
+        throw new Error("Air-gapped model activation restricted.");
+      }
+      const res = await fetch(`${API_BASE}/ai/fine-tune/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to activate model");
+      return data;
+    },
+    async deactivateFineTunedModels() {
+      if (isOffline()) {
+        throw new Error("Air-gapped model deactivation restricted.");
+      }
+      const res = await fetch(`${API_BASE}/ai/fine-tune/deactivate`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to deactivate models");
+      return data;
     },
     async generateImage(prompt: string, aspectRatio: string = "1:1") {
       if (isOffline()) {

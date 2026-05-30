@@ -17,7 +17,14 @@ import {
   Lock,
   Workflow,
   Terminal,
-  Globe
+  Globe,
+  Play,
+  Check,
+  Loader2,
+  Activity,
+  FileText,
+  RefreshCw,
+  Sliders
 } from 'lucide-react';
 import { api } from '../api';
 
@@ -29,7 +36,27 @@ interface KnowledgeItem {
   createdAt: string;
 }
 
+interface FineTuningJob {
+  id: string;
+  userId: string;
+  baseModel: string;
+  customName: string;
+  datasetSize: number;
+  epochs: number;
+  status: 'training' | 'completed' | 'failed';
+  progress: number;
+  valLoss: number;
+  valAccuracy: number;
+  logs: string;
+  isActive: number;
+  createdAt: string;
+}
+
 export const NeuralTrainingHub: React.FC = () => {
+  // Navigation
+  const [activeTab, setActiveTab] = useState<'dataset' | 'finetune'>('dataset');
+
+  // Node (dataset) states
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,6 +73,15 @@ export const NeuralTrainingHub: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Fine tuning states
+  const [ftJobs, setFtJobs] = useState<FineTuningJob[]>([]);
+  const [ftIsLoading, setFtIsLoading] = useState(false);
+  const [ftBaseModel, setFtBaseModel] = useState('meta-llama/llama-3.1-8b-instruct');
+  const [ftCustomName, setFtCustomName] = useState('gloria-clinical-ft-v1');
+  const [ftEpochs, setFtEpochs] = useState(5);
+  const [ftIsStarting, setFtIsStarting] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<FineTuningJob | null>(null);
+
   const TRAINING_CATEGORIES = [
     { id: 'article', label: 'Health Article', icon: '📄' },
     { id: 'faq', label: 'Medical FAQ', icon: '❓' },
@@ -56,8 +92,14 @@ export const NeuralTrainingHub: React.FC = () => {
     { id: 'language', label: 'Language Translation', icon: '🌍' }
   ];
 
+  const BASE_MODELS = [
+    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Meta Llama 3.1 8B (Recommended)', desc: 'High logical reasoning and clinical guideline synthesis.' },
+    { id: 'google/gemma-2-9b-it', label: 'Google Gemma 2 9B (Ultra-Fine)', desc: 'Optimized translation and patient conversational tone.' },
+    { id: 'deepseek-ai/DeepSeek-R1', label: 'DeepSeek R1 (Deep Reasoner Labs)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
+  ];
+
   const handleLanguageGenerate = async () => {
-    const lang = prompt("Enter Ugandan Language (e.g., Luganda, Acholi):");
+    const lang = prompt("Enter Ugandan Language (e.g., Luganda, Acholi, Runyankole):");
     if (!lang) return;
     
     try {
@@ -82,7 +124,20 @@ export const NeuralTrainingHub: React.FC = () => {
 
   useEffect(() => {
     fetchKnowledge();
+    fetchFineTuningJobs();
   }, []);
+
+  // Poll for active jobs if any is in 'training' status
+  useEffect(() => {
+    const hasActiveTraining = ftJobs.some(j => j.status === 'training');
+    if (!hasActiveTraining) return;
+
+    const interval = setInterval(() => {
+      fetchFineTuningJobs(true);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [ftJobs]);
 
   const fetchKnowledge = async () => {
     try {
@@ -108,6 +163,24 @@ export const NeuralTrainingHub: React.FC = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchFineTuningJobs = async (silent = false) => {
+    try {
+      if (!silent) setFtIsLoading(true);
+      const data = await api.ai.listFineTuningJobs();
+      setFtJobs(data as FineTuningJob[]);
+      
+      // Keep selected job logs in sync
+      if (selectedJob) {
+        const updated = (data as FineTuningJob[]).find(j => j.id === selectedJob.id);
+        if (updated) setSelectedJob(updated);
+      }
+    } catch (err) {
+      console.error("Failed to load fine-tuning jobs:", err);
+    } finally {
+      if (!silent) setFtIsLoading(false);
     }
   };
 
@@ -146,13 +219,62 @@ export const NeuralTrainingHub: React.FC = () => {
     }
   };
 
+  const handleStartFineTuning = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ftCustomName.trim()) return;
+
+    try {
+      setFtIsStarting(true);
+      const res = await api.ai.startFineTuning(ftBaseModel, ftCustomName, ftEpochs);
+      setSuccessMsg("Fine-tuning optimization pipeline launched.");
+      setTimeout(() => setSuccessMsg(''), 4000);
+      
+      // Refresh jobs list
+      await fetchFineTuningJobs();
+      
+      // Auto-select latest launched job
+      if (res && res.jobId) {
+        const found = ftJobs.find(j => j.id === res.jobId);
+        if (found) setSelectedJob(found);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to establish fine-tuning protocol.");
+    } finally {
+      setFtIsStarting(false);
+    }
+  };
+
+  const handleActivateModel = async (jobId: string) => {
+    try {
+      setSuccessMsg("Synchronizing weights...");
+      await api.ai.activateFineTunedModel(jobId);
+      setSuccessMsg("Model prioritized active neural brain layer.");
+      setTimeout(() => setSuccessMsg(''), 4000);
+      await fetchFineTuningJobs(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to prioritize weights.");
+    }
+  };
+
+  const handleDeactivateModels = async () => {
+    try {
+      setSuccessMsg("Decoupling custom weights...");
+      await api.ai.deactivateFineTunedModels();
+      setSuccessMsg("Reverted neural brain to baseline Meta/Google cores.");
+      setTimeout(() => setSuccessMsg(''), 4000);
+      await fetchFineTuningJobs(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to decouple weights.");
+    }
+  };
+
   const filteredItems = items.filter(item => 
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
       {/* Header Profile Section */}
       <div className="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 sm:p-12 border border-slate-800 shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[100px]" />
@@ -172,21 +294,21 @@ export const NeuralTrainingHub: React.FC = () => {
               Intelligence <span className="text-blue-500">Training</span> Hub
             </h1>
             <p className="text-slate-400 text-lg max-w-2xl font-medium leading-relaxed">
-              Feed custom medical protocols, diagnostic standards, and <span className="text-blue-400">Ugandan local language translations with their meanings</span> directly into the Doctorian neural core. Evolves the logic with every node.
+              Feed custom medical protocols, diagnostics, and Ugandan language translations. Calibrate loss rates and accuracy by running private fine-tuning jobs on custom weights!
             </p>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 w-full md:w-auto">
             <button 
               onClick={() => setShowForm(true)}
-              className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
+              className="w-full md:w-auto px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
             >
               <Plus size={20} />
               Inject New Node
             </button>
             <button 
               onClick={handleLanguageGenerate}
-              className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-500/20"
+              className="w-full md:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-500/20"
             >
               <Zap size={18} className="animate-pulse" />
               Neural Lang Injector
@@ -195,144 +317,413 @@ export const NeuralTrainingHub: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Stats & Status */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                <Database size={18} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-wider">Neural Registry</h3>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Nodes</span>
-                <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{items.length}</span>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sync Priority</span>
-                <span className="text-sm font-black text-emerald-500 uppercase tracking-widest">L1 Clinical</span>
-              </div>
-              {isUsingCache && (
-                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertCircle size={12} className="text-amber-600" />
-                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Emergency Cache Mode</span>
-                  </div>
-                  <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest leading-tight">
-                    Displaying last saved protocols from {lastSync ? new Date(lastSync).toLocaleDateString() : 'unknown'}.
-                  </p>
+      {/* Tabs Menu Selector */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2">
+        <button
+          onClick={() => setActiveTab('dataset')}
+          id="btn-tab-dataset"
+          className={`px-6 py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'dataset'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
+              : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+          }`}
+        >
+          <Database size={16} />
+          Dataset Registry ({items.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('finetune')}
+          id="btn-tab-finetune"
+          className={`px-6 py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'finetune'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
+              : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+          }`}
+        >
+          <Cpu size={16} />
+          Clinician Weights Fine-Tuning
+        </button>
+      </div>
+
+      {activeTab === 'dataset' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all">
+          {/* Stats & Status Side panel */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-xl">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <Database size={18} className="text-blue-600 dark:text-blue-400" />
                 </div>
-              )}
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs">Dataset Properties</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Nodes</span>
+                  <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{items.length}</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Training Target</span>
+                  <span className="text-sm font-black text-emerald-500 uppercase tracking-widest">Fully Grounded</span>
+                </div>
+                {isUsingCache && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertCircle size={12} className="text-amber-600" />
+                      <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest font-extrabold">Offline Engine Cache active</span>
+                    </div>
+                    <p className="text-[9px] text-amber-500 font-bold uppercase tracking-widest leading-tight">
+                      Displaying synchronized datasets from {lastSync ? new Date(lastSync).toLocaleDateString() : 'offline memory'}.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 text-white shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <ShieldCheck size={20} className="text-blue-200" />
+                <h3 className="font-black uppercase tracking-widest text-xs">HIPAA Compliant</h3>
+              </div>
+              <p className="text-blue-100 text-sm leading-relaxed mb-6">
+                All injected node records undergo rigorous end-to-end symmetric encryption before synchronization.
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
+                  <Lock size={14} className="text-blue-200" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Strict Partitioning</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 text-white shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <ShieldCheck size={20} className="text-blue-200" />
-              <h3 className="font-black uppercase tracking-widest text-sm">Security Protocol</h3>
-            </div>
-            <p className="text-blue-100 text-sm leading-relaxed mb-6">
-              All injected nodes are encrypted and isolated per user instance. AI synthesis follows strict HIPAA and GDPR alignment during processing.
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
-                <Lock size={14} className="text-blue-200" />
-                <span className="text-[10px] font-black uppercase tracking-widest">End-to-End Encrypted</span>
+          {/* Knowledge Explorer Panel */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search trained clinical records or translations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-6 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 dark:text-white"
+                />
               </div>
-              <div className="p-4 bg-white/10 rounded-2xl border border-white/10 mt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Terminal size={14} className="text-blue-300" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Neural API Link</span>
+            </div>
+
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Syncing Nodes...</span>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-12 text-center border border-dashed border-slate-200 dark:border-slate-800">
+                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <BookOpen size={24} className="text-slate-400" />
                 </div>
-                <p className="text-[9px] text-blue-200/80 font-bold uppercase tracking-tight">
-                  These nodes are automatically exposed to your external applications via the Developer Portal.
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2 font-extrabold">Registry Empty</h3>
+                <p className="text-slate-500 max-w-xs mx-auto text-sm">
+                  No specialized nodes detected. Inject Ugandan language translations or clinical guidelines to configure training parameters.
                 </p>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Knowledge Explorer */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full sm:w-auto flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text"
-                placeholder="Search trained nodes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-6 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Synchronizing Neural Matrix...</span>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-12 text-center border border-dashed border-slate-200 dark:border-slate-800">
-              <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                <BookOpen size={24} className="text-slate-400" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Neural Core Empty</h3>
-              <p className="text-slate-500 max-w-xs mx-auto text-sm">
-                No custom knowledge nodes found. Start by injecting your first medical dataset.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <AnimatePresence mode="popLayout">
-                {filteredItems.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="group bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all shadow-lg hover:shadow-xl relative"
-                  >
-                    <button 
-                      onClick={() => handleDelete(item.id)}
-                      className="absolute top-4 right-4 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AnimatePresence mode="popLayout">
+                  {filteredItems.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="group bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all shadow-lg hover:shadow-xl relative"
                     >
-                      <Trash2 size={16} />
-                    </button>
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        className="absolute top-4 right-4 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
 
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className={`p-1.5 rounded-lg ${item.category === 'language' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'}`}>
-                        <span className="text-xs">
-                          {TRAINING_CATEGORIES.find(c => c.id === item.category)?.icon || '🔬'}
-                        </span>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className={`p-1.5 rounded-lg ${item.category === 'language' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'}`}>
+                          <span className="text-xs">
+                            {TRAINING_CATEGORIES.find(c => c.id === item.category)?.icon || '🔬'}
+                          </span>
+                        </div>
+                        <h4 className={`font-black uppercase tracking-tight line-clamp-1 text-xs ${item.category === 'language' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-900 dark:text-white font-extrabold'}`}>
+                          {item.title}
+                        </h4>
                       </div>
-                      <h4 className={`font-black uppercase tracking-tight line-clamp-1 ${item.category === 'language' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>
-                        {item.title}
-                      </h4>
-                    </div>
-                    
-                    <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6 line-clamp-4">
-                      {item.content}
-                    </p>
+                      
+                      <div className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed mb-6 whitespace-pre-line line-clamp-6">
+                        {item.content}
+                      </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        <History size={12} />
-                        {new Date(item.createdAt).toLocaleDateString()}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          <History size={12} />
+                          {new Date(item.createdAt).toLocaleDateString()}
+                        </div>
+                        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2. py-1 rounded-full uppercase tracking-widest">Synced</span>
                       </div>
-                      <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-full uppercase tracking-widest">Synched</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Fine Tuning Console Panel */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all">
+          {/* Left panel/form: Choose hyperparameters */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <Sliders size={18} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">Hyperparameters</h3>
+              </div>
+
+              <form onSubmit={handleStartFineTuning} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Base Neural Core</label>
+                  <select
+                    value={ftBaseModel}
+                    onChange={(e) => setFtBaseModel(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    {BASE_MODELS.map(model => (
+                      <option key={model.id} value={model.id}>{model.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-[9px] text-slate-400 italic">
+                    {BASE_MODELS.find(m => m.id === ftBaseModel)?.desc}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Custom Weights Tag</label>
+                  <input
+                    type="text"
+                    value={ftCustomName}
+                    onChange={(e) => setFtCustomName(e.target.value)}
+                    placeholder="e.g. gloria-malaria-v1"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Training Epochs</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[3, 5, 10, 20].map((ep) => (
+                      <button
+                        key={ep}
+                        type="button"
+                        onClick={() => setFtEpochs(ep)}
+                        className={`py-2 text-xs font-black rounded-lg border transition-all ${
+                          ftEpochs === ep
+                            ? 'bg-blue-600 text-white border-blue-700 shadow-md'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                        }`}
+                      >
+                        {ep} EP
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={ftIsStarting || items.length === 0}
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-lg col-span-3 disabled:opacity-50"
+                  >
+                    {ftIsStarting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={16} />
+                        Allocating weights...
+                      </>
+                    ) : (
+                      <>
+                        <Play size={14} />
+                        Run Weights Optimizers
+                      </>
+                    )}
+                  </button>
+                  {items.length === 0 && (
+                    <p className="text-[9px] text-rose-500 mt-2 font-bold uppercase tracking-tight text-center">
+                      * Inject at least 1 node in dataset registry before training
+                    </p>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Quick action back to defaults */}
+            <div className="bg-slate-900 border border-slate-800 text-slate-100 p-6 rounded-3xl space-y-4 shadow-xl">
+              <div className="flex items-center gap-3">
+                <RefreshCw size={18} className="text-emerald-400 animate-spin" />
+                <h4 className="font-extrabold uppercase tracking-widest text-[10px] text-emerald-400">Master Synapse Layer</h4>
+              </div>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Want to decouple all user weights and fall back back to clinical standard?
+              </p>
+              <button
+                onClick={handleDeactivateModels}
+                className="w-full py-2 bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+              >
+                Decouple All Weights Profiles
+              </button>
+            </div>
+          </div>
+
+          {/* Right panel: Jobs explorer & Active dynamic logs console terminal */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="font-extrabold uppercase tracking-widest text-slate-900 dark:text-white text-xs flex items-center gap-2">
+                <History size={16} />
+                Weights Convergence logs
+              </h3>
+              <button
+                onClick={() => fetchFineTuningJobs()}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-all bg-slate-100 dark:bg-slate-800 rounded-xl"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+
+            {ftIsLoading ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Querying GPU parameters...</p>
+              </div>
+            ) : ftJobs.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-800">
+                <Activity size={32} className="text-slate-300 mx-auto mb-4" />
+                <h4 className="text-sm font-extrabold text-slate-850 dark:text-white uppercase tracking-wider">No tuning files found</h4>
+                <p className="text-slate-500 text-xs max-w-xs mx-auto mt-2 leading-relaxed">
+                  Start your very first fine-tuning execution by selecting a model and pressing Run Weights Optimizers.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* List of runs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {ftJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      onClick={() => setSelectedJob(job)}
+                      className={`p-5 rounded-[2rem] border transition-all cursor-pointer relative flex flex-col justify-between ${
+                        selectedJob?.id === job.id
+                          ? 'bg-slate-50 dark:bg-slate-800/80 border-blue-500'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      {/* Active green indicator badge */}
+                      {job.isActive === 1 && (
+                        <span className="absolute top-4 right-4 bg-emerald-500 text-white text-[8px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
+                          <Check size={10} /> Active Brain
+                        </span>
+                      )}
+
+                      <div className="space-y-3">
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          ID: {job.id}
+                        </div>
+                        <h4 className="font-extrabold text-slate-900 dark:text-white tracking-tight leading-none text-base">
+                          {job.customName}
+                        </h4>
+                        <div className="flex flex-wrap gap-2 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-full">{job.epochs} Epochs</span>
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-full">{job.datasetSize} nodes</span>
+                        </div>
+                      </div>
+
+                      {/* Training status panel */}
+                      <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-extrabold uppercase text-slate-400">Progress</span>
+                          <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                            job.status === 'training'
+                              ? 'bg-amber-100 text-amber-700 animate-pulse'
+                              : job.status === 'completed'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-rose-100 text-rose-700'
+                          }`}>
+                            {job.status === 'training' ? `Optimizing: ${job.progress}%` : job.status}
+                          </span>
+                        </div>
+
+                        {job.status === 'training' && (
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${job.progress}%` }} />
+                          </div>
+                        )}
+
+                        <div className="flex gap-4 text-[10px] font-bold text-slate-500">
+                          <div>Acc: <span className="text-slate-800 dark:text-slate-200 font-extrabold">{job.valAccuracy}%</span></div>
+                          <div>Loss: <span className="text-slate-800 dark:text-slate-200 font-extrabold">{job.valLoss}</span></div>
+                        </div>
+
+                        {/* Activate controls for Completed job */}
+                        {job.status === 'completed' && job.isActive !== 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleActivateModel(job.id);
+                            }}
+                            className="mt-2 w-full py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-1"
+                          >
+                            <CheckCircle2 size={12} /> Activate Custom Layer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Selected Job Console logs */}
+                {selectedJob && (
+                  <div className="bg-slate-950 border border-slate-900 rounded-[2rem] p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Terminal size={16} className="text-blue-400" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                          Clinical Tensor Weights Optimizer Logs: {selectedJob.customName}
+                        </h4>
+                      </div>
+                      <span className="text-[8px] font-mono text-slate-500">{selectedJob.createdAt}</span>
+                    </div>
+
+                    <div className="h-64 overflow-y-auto bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 font-mono text-[9px] text-slate-300 space-y-1 scrollbar-thin scrollbar-thumb-slate-800">
+                      {selectedJob.logs.split('\n').map((line, ix) => (
+                        <div
+                          key={ix}
+                          className={
+                            line.includes('[SYSTEM]') 
+                              ? 'text-cyan-400 font-bold' 
+                              : line.includes('[Epoch') 
+                              ? 'text-amber-300 font-bold' 
+                              : line.includes('-->') 
+                              ? 'text-slate-400 pl-4' 
+                              : 'text-slate-300'
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Injection Modal Form */}
       <AnimatePresence>
@@ -359,7 +750,7 @@ export const NeuralTrainingHub: React.FC = () => {
                     <Workflow size={24} className="text-blue-400" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight">Node Injection</h2>
+                    <h2 className="text-2xl font-black uppercase tracking-tight font-extrabold">Node Injection</h2>
                     <p className="text-blue-300/60 text-[10px] font-black uppercase tracking-[0.2em]">Neural Synthesis Protocol</p>
                   </div>
                 </div>
@@ -367,7 +758,7 @@ export const NeuralTrainingHub: React.FC = () => {
 
               <form onSubmit={handleAddKnowledge} className="p-8 sm:p-10 space-y-6">
                 {formError && (
-                  <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-2xl flex items-center gap-3 text-rose-600 dark:text-rose-400 text-xs font-bold transition-all animate-shake">
+                  <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-2xl flex items-center gap-3 text-rose-600 dark:text-rose-400 text-xs font-bold font-extrabold">
                     <AlertCircle size={16} />
                     {formError}
                   </div>
@@ -398,7 +789,7 @@ export const NeuralTrainingHub: React.FC = () => {
                   <div className="space-y-4 p-6 bg-indigo-50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-800/50">
                     <div className="flex items-center gap-2 mb-2">
                        <Globe size={14} className="text-indigo-600" />
-                       <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Linguistic Matrix Input</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 font-extrabold">Linguistic Matrix Input</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -472,11 +863,11 @@ export const NeuralTrainingHub: React.FC = () => {
                   <button 
                     type="submit"
                     disabled={isSaving}
-                    className="flex-[2] px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50"
+                    className="flex-[2] px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50 font-extrabold"
                   >
                     {isSaving ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         Syncing...
                       </>
                     ) : (
@@ -503,7 +894,7 @@ export const NeuralTrainingHub: React.FC = () => {
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[110] px-6 py-3 bg-emerald-500 text-white rounded-2xl shadow-2xl flex items-center gap-3"
           >
             <CheckCircle2 size={20} />
-            <span className="text-xs font-black uppercase tracking-widest">{successMsg}</span>
+            <span className="text-xs font-black uppercase tracking-widest font-extrabold">{successMsg}</span>
           </motion.div>
         )}
       </AnimatePresence>

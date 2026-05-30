@@ -19,7 +19,8 @@ import {
   FileSearch,
   Sparkles,
   RefreshCw,
-  Zap
+  Zap,
+  Upload
 } from 'lucide-react';
 import { api } from '../api';
 import { ClinicalProtocols } from './Tasks';
@@ -45,6 +46,7 @@ export const MedicationTracker: React.FC = () => {
   const [history, setHistory] = useState<any[]>([]);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [registerMode, setRegisterMode] = useState<'manual' | 'library' | 'scan'>('manual');
   const [showLibrary, setShowLibrary] = useState(false);
   const [activeTab, setActiveTab] = useState<'meds' | 'protocols'>('meds');
   const [newMed, setNewMed] = useState({ 
@@ -57,20 +59,21 @@ export const MedicationTracker: React.FC = () => {
   });
   const [isReadingPrescription, setIsReadingPrescription] = useState(false);
   const [prescriptionImage, setPrescriptionImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [extractionResults, setExtractionResults] = useState<any[] | null>(null);
 
-  const handlePrescriptionRead = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processPrescriptionFile = async (file: File) => {
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64 = reader.result as string;
       setPrescriptionImage(base64);
       setIsReadingPrescription(true);
+      setExtractionResults(null);
       
       try {
         const prompt = `Act as a Clinical Pharmacologist. Read this prescription image and extract the medication data.
         Return ONLY a JSON array of objects with these keys: name, dosage, frequency, time (24h format), category ('prescription' or 'supplement').
+        Do not include markdown tags other than the JSON container. If you write markdown code block, ensure it is standard JSON inside.
         
         Example: [{"name": "Amoxicillin", "dosage": "500mg", "frequency": "3 times daily", "time": "08:00", "category": "prescription"}]`;
 
@@ -83,29 +86,37 @@ export const MedicationTracker: React.FC = () => {
         const extractedMeds = JSON.parse(text);
         
         if (Array.isArray(extractedMeds)) {
+          const addedArray: any[] = [];
           // Add them one by one or batch
           for (const m of extractedMeds) {
              const created = await api.medications.create({
                 name: m.name,
-                dosage: m.dosage,
-                frequency: m.frequency,
+                dosage: m.dosage || '500mg',
+                frequency: m.frequency || 'Daily',
                 time: m.time || '08:00',
                 category: m.category || 'prescription',
                 remindersEnabled: true
              });
              setMeds(prev => [created, ...prev]);
+             addedArray.push(created);
           }
+          setExtractionResults(addedArray);
           fetchHistory();
         }
       } catch (err) {
         console.error("Prescription reading failed:", err);
-        alert("Neural extraction failed. Please ensure the prescription photo is clear.");
+        alert("Neural extraction failed. Please ensure the prescription photo is clear and contains readable prescriptions.");
       } finally {
         setIsReadingPrescription(false);
-        setPrescriptionImage(null);
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handlePrescriptionRead = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processPrescriptionFile(file);
   };
 
   const commonMeds = [
@@ -248,13 +259,23 @@ export const MedicationTracker: React.FC = () => {
         </div>
 
         <div className="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          <label className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 hover:bg-emerald-700 active:scale-95 transition-all shadow-xl cursor-pointer">
-            {isReadingPrescription ? <RefreshCw className="animate-spin" size={16} /> : <Camera size={16} />}
-            {isReadingPrescription ? 'Reading...' : 'Scan'}
-            <input type="file" className="hidden" accept="image/*" onChange={handlePrescriptionRead} disabled={isReadingPrescription} />
-          </label>
           <button 
-            onClick={() => setIsAdding(true)}
+            onClick={() => {
+              setRegisterMode('scan');
+              setExtractionResults(null);
+              setPrescriptionImage(null);
+              setIsAdding(true);
+            }}
+            className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 hover:bg-emerald-700 active:scale-95 transition-all shadow-xl"
+          >
+            <Camera size={16} />
+            Scan Prescriptions
+          </button>
+          <button 
+            onClick={() => {
+              setRegisterMode('manual');
+              setIsAdding(true);
+            }}
             className="flex-1 sm:flex-none bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
           >
             <Plus size={16} />
@@ -383,18 +404,49 @@ export const MedicationTracker: React.FC = () => {
               exit={{ opacity: 0, scale: 0.9 }}
               className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
-               <div className="flex items-center justify-between mb-8">
+               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-3xl font-black uppercase tracking-tighter">Register <span className="text-rose-600">Molecule</span></h2>
                 <button 
-                  onClick={() => setShowLibrary(!showLibrary)}
-                  className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setExtractionResults(null);
+                    setPrescriptionImage(null);
+                  }}
+                  className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
                 >
-                  <Search size={14} />
-                  {showLibrary ? 'Custom Entry' : 'Molecular Library'}
+                  Close
                 </button>
                </div>
 
-               {showLibrary ? (
+               {/* Mode Switch Tabs */}
+               <div className="flex border-b border-slate-100 dark:border-slate-800 mb-6 font-black uppercase text-[10px] tracking-wider gap-2">
+                 <button
+                   onClick={() => {
+                     setRegisterMode('manual');
+                     setExtractionResults(null);
+                   }}
+                   className={`flex-1 pb-3 border-b-2 text-center transition-all ${registerMode === 'manual' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                 >
+                   Manual Entry
+                 </button>
+                 <button
+                   onClick={() => {
+                     setRegisterMode('library');
+                     setExtractionResults(null);
+                   }}
+                   className={`flex-1 pb-3 border-b-2 text-center transition-all ${registerMode === 'library' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                 >
+                   Library
+                 </button>
+                 <button
+                   onClick={() => setRegisterMode('scan')}
+                   className={`flex-1 pb-3 border-b-2 text-center transition-all ${registerMode === 'scan' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                 >
+                   Prescription OCR
+                 </button>
+               </div>
+
+               {registerMode === 'library' && (
                  <div className="space-y-3 mb-8">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Select from common molecules</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -403,7 +455,7 @@ export const MedicationTracker: React.FC = () => {
                           key={idx}
                           onClick={() => {
                             setNewMed({...newMed, name: m.name, dosage: m.dosage, frequency: m.frequency, category: m.category as any});
-                            setShowLibrary(false);
+                            setRegisterMode('manual');
                           }}
                           className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl transition-all text-left"
                          >
@@ -416,7 +468,9 @@ export const MedicationTracker: React.FC = () => {
                        ))}
                     </div>
                  </div>
-               ) : (
+               )}
+
+               {registerMode === 'manual' && (
                  <form onSubmit={handleAddMed} className="space-y-6">
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Molecular Name</label>
@@ -433,11 +487,11 @@ export const MedicationTracker: React.FC = () => {
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dosage</label>
                         <input 
-                          type="text" 
-                          placeholder="e.g. 500mg"
-                          className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold"
-                          value={newMed.dosage}
-                          onChange={(e) => setNewMed({...newMed, dosage: e.target.value})}
+                           type="text" 
+                           placeholder="e.g. 500mg"
+                           className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold"
+                           value={newMed.dosage}
+                           onChange={(e) => setNewMed({...newMed, dosage: e.target.value})}
                         />
                       </div>
                       <div>
@@ -479,6 +533,115 @@ export const MedicationTracker: React.FC = () => {
                       <button type="submit" className="flex-2 bg-rose-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Complete Registration</button>
                     </div>
                  </form>
+               )}
+
+               {registerMode === 'scan' && (
+                 <div className="space-y-6">
+                   {!isReadingPrescription && !extractionResults && (
+                     <div 
+                       className={`relative border-2 border-dashed rounded-[2rem] p-10 text-center transition-all duration-350 cursor-pointer ${
+                         isDragging 
+                         ? 'border-emerald-500 bg-emerald-500/15' 
+                         : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-605 bg-slate-50/50 dark:bg-slate-800/40'
+                       }`}
+                       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                       onDragLeave={() => setIsDragging(false)}
+                       onDrop={async (e) => {
+                         e.preventDefault();
+                         setIsDragging(false);
+                         const file = e.dataTransfer.files?.[0];
+                         if (file) {
+                           await processPrescriptionFile(file);
+                         }
+                       }}
+                       onClick={() => document.getElementById('prescription-file-elem')?.click()}
+                     >
+                       <input 
+                         type="file" 
+                         id="prescription-file-elem" 
+                         className="hidden" 
+                         accept="image/*" 
+                         onChange={handlePrescriptionRead} 
+                       />
+                       <div className="flex flex-col items-center">
+                         <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl mb-4">
+                           <Upload size={32} />
+                         </div>
+                         <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2">Drag & Drop prescription</h3>
+                         <p className="text-[10px] text-slate-400 font-bold uppercase mb-4">or click to browse local files</p>
+                         <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase leading-relaxed max-w-xs px-4">
+                           The clinical vision engine reads standard diagnostic certificates, automatically logs dosage matrices, and cross-checks allergen vectors.
+                         </p>
+                       </div>
+                     </div>
+                   )}
+
+                   {isReadingPrescription && (
+                     <div className="relative mt-4 flex flex-col items-center p-8 bg-slate-950 rounded-[2rem] border border-white/10 text-white overflow-hidden shadow-xl text-center">
+                       {prescriptionImage && (
+                         <div className="relative w-full max-w-[280px] h-[180px] bg-black/60 rounded-xl overflow-hidden mb-6 border border-white/5">
+                           <img src={prescriptionImage} alt="Prescription draft" className="w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
+                           {/* Dynamic scan line effect */}
+                           <div className="absolute left-0 right-0 h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-[bounce_2s_infinite]" />
+                         </div>
+                       )}
+                       <Loader2 className="animate-spin text-emerald-500 mb-4" size={32} />
+                       <h3 className="text-xs font-black uppercase tracking-[0.15em] text-emerald-400 mb-1">OCR Analysis Stream Active</h3>
+                       <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Parsing clinical chemical signatures...</p>
+                     </div>
+                   )}
+
+                   {extractionResults && !isReadingPrescription && (
+                     <div className="space-y-6">
+                       <div className="p-5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/20 rounded-[2rem] flex items-center gap-4">
+                         <div className="p-3 bg-emerald-500 text-white rounded-xl">
+                           <CheckCircle2 size={20} />
+                         </div>
+                         <div>
+                           <h4 className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400">Chemical Matrix Synthesized</h4>
+                           <p className="text-[10px] uppercase text-slate-400 font-bold mt-0.5">{extractionResults.length} molecules digitized from prescription image.</p>
+                         </div>
+                       </div>
+                       
+                       <div className="space-y-2">
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Registered Bio-Molecules</p>
+                         {extractionResults.map((r, i) => (
+                           <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                             <div>
+                               <p className="text-sm font-black uppercase text-slate-900 dark:text-white">{r.name}</p>
+                               <p className="text-[10px] text-slate-400 font-bold uppercase">{r.dosage} • {r.frequency}</p>
+                             </div>
+                             <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-xl">Success</span>
+                           </div>
+                         ))}
+                       </div>
+                       
+                       <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                         <button 
+                           type="button" 
+                           onClick={() => {
+                             setExtractionResults(null);
+                             setPrescriptionImage(null);
+                           }}
+                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                         >
+                           Scan Another
+                         </button>
+                         <button 
+                           type="button" 
+                           onClick={() => {
+                             setIsAdding(false);
+                             setExtractionResults(null);
+                             setPrescriptionImage(null);
+                           }}
+                           className="flex-1 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg"
+                         >
+                           Finished
+                         </button>
+                       </div>
+                     </div>
+                   )}
+                 </div>
                )}
             </motion.div>
           </div>

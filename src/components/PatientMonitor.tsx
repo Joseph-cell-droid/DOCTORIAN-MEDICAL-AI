@@ -16,6 +16,7 @@ import { NeuralHealthSummary } from './NeuralHealthSummary';
 import { VitalWaveform } from './VitalWaveform';
 import { LiveECGMonitor } from './LiveECGMonitor';
 import { AnomalyDetector } from './AnomalyDetector';
+import { ClinicalCoPilotPanel } from './ClinicalCoPilotPanel';
 import { EmergencyRegistry } from './EmergencyRegistry';
 import { AlarmHubView } from './AlarmHubView';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
@@ -37,7 +38,8 @@ const VitalCard: React.FC<{
   history?: { value: number; timestamp: number }[];
   maxVal?: number;
   highlight?: boolean;
-}> = ({ icon, label, value, unit, color, bgColor, status, isLive, history = [], maxVal, highlight }) => (
+  customIndicator?: React.ReactNode;
+}> = ({ icon, label, value, unit, color, bgColor, status, isLive, history = [], maxVal, highlight, customIndicator }) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
     animate={{ 
@@ -98,6 +100,11 @@ const VitalCard: React.FC<{
           }`} aria-live="polite">{value}</span>
           <span className={`text-xs sm:text-sm font-black uppercase tracking-widest ${highlight ? 'text-white/40' : 'text-slate-400'}`}>{unit}</span>
         </div>
+        {customIndicator && (
+          <div className="mt-1">
+            {customIndicator}
+          </div>
+        )}
       </div>
     </div>
 
@@ -245,10 +252,17 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
     return () => cancelAnimationFrame(animationFrame);
   }, [frame]);
 
-  const map = vitals ? Math.round((vitals.systolicBP + 2 * vitals.diastolicBP) / 3) : 0;
-  const pulsePressure = vitals ? Math.round(vitals.systolicBP - vitals.diastolicBP) : 0;
-  const shockIndex = vitals ? (vitals.heartRate / vitals.systolicBP).toFixed(2) : '0.00';
-  const cvLoad = vitals ? Math.round((vitals.heartRate * vitals.systolicBP) / 100) : 0;
+  const rawMap = vitals ? Math.round((vitals.systolicBP + 2 * vitals.diastolicBP) / 3) : 0;
+  const map = isNaN(rawMap) ? 0 : rawMap;
+
+  const rawPulsePressure = vitals ? Math.round(vitals.systolicBP - vitals.diastolicBP) : 0;
+  const pulsePressure = isNaN(rawPulsePressure) ? 0 : rawPulsePressure;
+
+  const rawShockIndex = (vitals && vitals.systolicBP) ? (vitals.heartRate / vitals.systolicBP) : 0;
+  const shockIndex = (isNaN(rawShockIndex) || !isFinite(rawShockIndex)) ? '0.00' : rawShockIndex.toFixed(2);
+
+  const rawCvLoad = vitals ? Math.round((vitals.heartRate * vitals.systolicBP) / 100) : 0;
+  const cvLoad = isNaN(rawCvLoad) ? 0 : rawCvLoad;
 
   const radarData = [
     { subject: 'Neural', A: vitals ? Math.min(100, Math.max(0, 100 - Math.abs(vitals.heartRate - 75))) : 50 },
@@ -870,6 +884,42 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   }, [timeRange, connection.connected]);
 
   const displayHistory = (timeRange === 'Day') ? history : historicalData;
+
+  const hrAnalysis = React.useMemo(() => {
+    // 1. Calculate Today's Average Heart Rate
+    let todayAvg = 74.2;
+    const todayHistory = history || [];
+    if (todayHistory.length > 0) {
+      const sum = todayHistory.reduce((acc, curr) => acc + curr.heartRate, 0);
+      todayAvg = sum / todayHistory.length;
+    } else if (vitals) {
+      todayAvg = vitals.heartRate;
+    }
+
+    // 2. Rolling 7-day average baseline based on selected patient's stable reference
+    const activePatient = registeredPatients.find(p => p.id === selectedPatientId);
+    let baselineHR = 72.5;
+    if (activePatient) {
+      if (activePatient.id === 'patient-sarah') {
+        baselineHR = 75.0; // Her stable non-distressed baseline
+      } else if (activePatient.id === 'patient-ronald') {
+        baselineHR = 70.0; // His stable cardiac pacemaker baseline
+      } else if (activePatient.id === 'patient-joseph') {
+        baselineHR = 72.0; // His standard healthy reference
+      }
+    }
+    
+    const diff = todayAvg - baselineHR;
+    const percentChange = baselineHR > 0 ? (diff / baselineHR) * 100 : 0;
+    const isIncreasedMoreThan10 = percentChange > 10;
+
+    return {
+      todayAvg,
+      baselineHR,
+      percentChange,
+      isIncreasedMoreThan10
+    };
+  }, [history, vitals, selectedPatientId, registeredPatients]);
 
   const getEmergencyContacts = () => {
     const activePatient = registeredPatients.find(p => p.id === selectedPatientId);
@@ -1565,6 +1615,22 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
     // Display configuration and interactive toggles
     const [registryDisplayMode, setRegistryDisplayMode] = useState<'cards' | 'floorplan'>('floorplan');
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSeverityFilter, setPatientSeverityFilter] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all');
+
+    const searchedAndFilteredPatients = (() => {
+      return registeredPatients.filter(patient => {
+        const query = patientSearchQuery.trim().toLowerCase();
+        const nameMatch = patient.name.toLowerCase().includes(query);
+        const bedMatch = patient.bedNumber.toLowerCase().includes(query);
+        const conditionMatch = patient.conditions.toLowerCase().includes(query);
+        const searchMatch = !query || nameMatch || bedMatch || conditionMatch;
+
+        const severityMatch = patientSeverityFilter === 'all' || patient.vitalsPreset === patientSeverityFilter;
+
+        return searchMatch && severityMatch;
+      });
+    })();
     const [isAutoCleanSmsEnabled, setIsAutoCleanSmsEnabled] = useState<boolean>(() => {
       const saved = localStorage.getItem('doctorian_auto_sms_clean');
       return saved !== 'false';
@@ -1704,12 +1770,15 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     }, [cleaningSchedules]);
 
     const findPatientForBed = (bedLabel: string, bedId: string) => {
-      return registeredPatients.find(p => {
+      const found = registeredPatients.find(p => {
         const pBed = p.bedNumber.toLowerCase();
         const bLabel = bedLabel.toLowerCase();
         const bId = bedId.toLowerCase();
         return pBed === bLabel || pBed.includes(bId) || bLabel.includes(pBed);
       });
+      if (!found) return undefined;
+      const isFiltered = searchedAndFilteredPatients.some(p => p.id === found.id);
+      return isFiltered ? found : undefined;
     };
 
     const QuickTransferForm: React.FC = () => {
@@ -2475,6 +2544,55 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
           </p>
         </div>
 
+        {/* Real-time Patient Search & Severity Filters Toolbar */}
+        <div className="mt-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-805 p-5 rounded-[2.2rem] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-sm">
+          {/* Search Input Box */}
+          <div className="relative flex-1">
+            <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400 font-bold text-xs select-none">
+              🔍
+            </span>
+            <input
+              type="text"
+              value={patientSearchQuery}
+              onChange={(e) => setPatientSearchQuery(e.target.value)}
+              placeholder="Search patients by name, bed index, diagnoses, or allergies..."
+              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800 rounded-2xl text-[11.5px] font-semibold text-slate-750 dark:text-slate-300 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none shadow-sm transition-all"
+            />
+          </div>
+
+          {/* Severity Filter Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-405 font-mono mr-1">
+              Severity:
+            </span>
+            {[
+              { id: 'all', label: 'All Beds', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:bg-slate-950 dark:hover:bg-slate-850 dark:text-slate-300 border-slate-150 dark:border-slate-800', activeColor: 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/10' },
+              { id: 'healthy', label: 'Stable', color: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:hover:bg-emerald-955/40 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40', activeColor: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/10' },
+              { id: 'warning', label: 'Warning', color: 'bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/20 dark:hover:bg-amber-955/40 dark:text-amber-450 border-amber-100 dark:border-amber-900/40', activeColor: 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/10' },
+              { id: 'critical', label: 'Critical', color: 'bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/20 dark:hover:bg-rose-955/40 dark:text-rose-450 border-rose-100 dark:border-rose-900/40', activeColor: 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/10' }
+            ].map(chip => {
+              const isActive = patientSeverityFilter === chip.id;
+              return (
+                <button
+                  type="button"
+                  key={chip.id}
+                  onClick={() => {
+                    setPatientSeverityFilter(chip.id as any);
+                    triggerRegistryNotification(`Severity Filter: Selected ${chip.label}`, 'info');
+                  }}
+                  className={`px-4 py-2.5 rounded-xl text-[9.5px] font-[1000] uppercase tracking-wider border cursor-pointer select-none transition-all ${
+                    isActive ? chip.activeColor : `${chip.color}`
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-8"></div>
+
         {registryDisplayMode === 'floorplan' ? (
           <div className="space-y-8">
             <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 sm:p-10 text-white space-y-6">
@@ -2629,107 +2747,116 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   );
                 })}
               </div>
-
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {registeredPatients.map(patient => {
-              const isCurrentlySelected = selectedPatientId === patient.id;
-              return (
-                <div 
-                  key={patient.id}
-                  className={`flex flex-col justify-between p-6 sm:p-8 rounded-[2.2rem] bg-white dark:bg-slate-900 border transition-all duration-300 relative overflow-hidden shadow-sm ${
-                    isCurrentlySelected 
-                      ? 'border-teal-500 dark:border-teal-800 ring-4 ring-teal-500/10 shadow-xl' 
-                      : 'border-slate-100 dark:border-slate-800 hover:shadow-md'
-                  }`}
-                >
-                  {/* Status indicator badge */}
-                  <div className="absolute top-0 right-0 p-6 flex items-center gap-2">
-                    <span className={`w-3 h-3 rounded-full animate-pulse ${
-                      patient.vitalsPreset === 'critical' ? 'bg-rose-500 shadow-lg shadow-rose-300 dark:shadow-rose-950' :
-                      patient.vitalsPreset === 'warning' ? 'bg-amber-500 shadow-lg shadow-amber-300 dark:shadow-amber-950' : 
-                      'bg-emerald-500 shadow-lg shadow-emerald-300 dark:shadow-emerald-950'
-                    }`} />
-                    <span className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-tighter bg-slate-50 dark:bg-slate-950 px-2 py-1 rounded">{patient.bedNumber}</span>
+            {searchedAndFilteredPatients.length === 0 ? (
+              <div className="col-span-full py-16 p-10 bg-slate-50 dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-805 text-center space-y-4 shadow-sm animate-in fade-in duration-300">
+                <p className="text-4xl select-none">🔬</p>
+                <h4 className="text-base font-black uppercase text-slate-800 dark:text-slate-200 tracking-tight">No Patients Match Active Search</h4>
+                <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
+                  Modify the severity filter chips above or adjust your medical keyword criteria to locate the desired beds.
+                </p>
+              </div>
+            ) : (
+              searchedAndFilteredPatients.map(patient => {
+                const isCurrentlySelected = selectedPatientId === patient.id;
+                return (
+                  <div 
+                    key={patient.id}
+                    className={`flex flex-col justify-between p-6 sm:p-8 rounded-[2.2rem] bg-white dark:bg-slate-900 border transition-all duration-300 relative overflow-hidden shadow-sm ${
+                      isCurrentlySelected 
+                        ? 'border-teal-500 dark:border-teal-800 ring-4 ring-teal-500/10 shadow-xl' 
+                        : 'border-slate-100 dark:border-slate-800 hover:shadow-md'
+                    }`}
+                  >
+                    {/* Status indicator badge */}
+                    <div className="absolute top-0 right-0 p-6 flex items-center gap-2">
+                      <span className={`w-3 h-3 rounded-full animate-pulse ${
+                        patient.vitalsPreset === 'critical' ? 'bg-rose-500 shadow-lg shadow-rose-300 dark:shadow-rose-950' :
+                        patient.vitalsPreset === 'warning' ? 'bg-amber-500 shadow-lg shadow-amber-300 dark:shadow-amber-950' : 
+                        'bg-emerald-500 shadow-lg shadow-emerald-300 dark:shadow-emerald-950'
+                      }`} />
+                      <span className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-tighter bg-slate-50 dark:bg-slate-950 px-2 py-1 rounded">{patient.bedNumber}</span>
+                    </div>
+
+                    <div className="space-y-5 relative z-10 w-full mb-6">
+                      <div>
+                        <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest font-sans">Patient Node</h4>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1 leading-tight">{patient.name}</h3>
+                        
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Age: {patient.age}</span>
+                          <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Gender: {patient.gender}</span>
+                          <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Type: {patient.bloodType}</span>
+                          {patient.weight && <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Wt: {patient.weight}kg</span>}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-dashed border-slate-100 dark:border-slate-800 pt-4 space-y-2">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-400 font-bold">Patient Cell:</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.phone}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-400 font-bold">Duty Physician:</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.doctorPhone}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-400 font-bold">Duty Mentor:</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.mentorPhone}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 bg-slate-50 dark:bg-slate-955 p-4 rounded-2xl text-[11px] border border-slate-100 dark:border-slate-800/80 leading-relaxed font-sans">
+                        <p className="text-[9px] font-black text-slate-405 uppercase tracking-widest pl-0.5 mb-1.5">Bioclinical Remarks</p>
+                        <div className="text-slate-600 dark:text-slate-400"><strong className="text-slate-800 dark:text-slate-200">Conditions:</strong> {patient.conditions}</div>
+                        <div className="text-slate-600 dark:text-slate-400"><strong className="text-slate-800 dark:text-slate-200">Allergies:</strong> {patient.allergies}</div>
+                        <div className="text-slate-500 dark:text-slate-500 text-[10px] italic mt-2">preset: {patient.vitalsPreset?.toUpperCase()} biometrics drift</div>
+                      </div>
+
+                      {/* Individual Patient Live Health Monitors */}
+                      <MiniPatientMonitor preset={patient.vitalsPreset} patientId={patient.id} />
+                    </div>
+
+                    <div className="flex gap-2.5 mt-auto border-t border-slate-100 dark:border-slate-800 pt-5">
+                      {isCurrentlySelected ? (
+                        <div className="flex-1 py-3 px-4 bg-teal-550/10 text-teal-600 dark:text-teal-400 rounded-xl text-center font-black text-[10px] uppercase tracking-[0.2em] border border-teal-200/40 flex items-center justify-center gap-2">
+                          <span className="w-2 h-2 bg-teal-550 rounded-full animate-ping" />
+                          Coupled & Live
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => couplePatientToMonitor(patient)}
+                          className="flex-grow py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 rounded-xl font-black text-[10.5px] uppercase tracking-widest transition-all shadow-md active:scale-95"
+                        >
+                          Couple Monitor
+                        </button>
+                      )}
+
+                      <div className="flex gap-1.5 justify-end shrink-0">
+                        <button
+                          onClick={() => handleEditInitiate(patient)}
+                          className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-605 dark:text-slate-300 rounded-xl hover:bg-slate-200 transition-colors"
+                          title="Edit Profile"
+                        >
+                          <Settings size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeregister(patient.id, patient.name)}
+                          className="p-3 bg-rose-50 dark:bg-rose-950/10 text-rose-605 rounded-xl hover:bg-rose-150 transition-colors"
+                          disabled={registeredPatients.length <= 1}
+                          title="Deregister / Discharge"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="space-y-5 relative z-10 w-full mb-6">
-                    <div>
-                      <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest font-sans">Patient Node</h4>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1 leading-tight">{patient.name}</h3>
-                      
-                      <div className="flex flex-wrap items-center gap-2 mt-3">
-                        <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Age: {patient.age}</span>
-                        <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Gender: {patient.gender}</span>
-                        <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Type: {patient.bloodType}</span>
-                        {patient.weight && <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Wt: {patient.weight}kg</span>}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-dashed border-slate-100 dark:border-slate-800 pt-4 space-y-2">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-slate-400 font-bold">Patient Cell:</span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.phone}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-slate-400 font-bold">Duty Physician:</span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.doctorPhone}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-slate-400 font-bold">Duty Mentor:</span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.mentorPhone}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl text-[11px] border border-slate-100 dark:border-slate-800 leading-relaxed font-sans">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-0.5 mb-1.5">Bioclinical Remarks</p>
-                      <div className="text-slate-600 dark:text-slate-400"><strong className="text-slate-800 dark:text-slate-200">Conditions:</strong> {patient.conditions}</div>
-                      <div className="text-slate-600 dark:text-slate-400"><strong className="text-slate-800 dark:text-slate-200">Allergies:</strong> {patient.allergies}</div>
-                      <div className="text-slate-500 dark:text-slate-500 text-[10px] italic mt-2">preset: {patient.vitalsPreset?.toUpperCase()} biometrics drift</div>
-                    </div>
-
-                    {/* Individual Patient Live Health Monitors */}
-                    <MiniPatientMonitor preset={patient.vitalsPreset} patientId={patient.id} />
-                  </div>
-
-                  <div className="flex gap-2.5 mt-auto border-t border-slate-150 dark:border-slate-800 pt-5">
-                    {isCurrentlySelected ? (
-                      <div className="flex-1 py-3 px-4 bg-teal-50 dark:bg-teal-950/20 text-teal-600 dark:text-teal-400 rounded-xl text-center font-black text-[10px] uppercase tracking-[0.2em] border border-teal-200/50 flex items-center justify-center gap-2">
-                        <span className="w-2 h-2 bg-teal-500 rounded-full animate-ping" />
-                        Coupled & Live
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => couplePatientToMonitor(patient)}
-                        className="flex-1 py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95"
-                      >
-                        Couple Monitor
-                      </button>
-                    )}
-
-                    <div className="flex gap-1.5 justify-end shrink-0">
-                      <button
-                        onClick={() => handleEditInitiate(patient)}
-                        className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-200 transition-colors"
-                        title="Edit Profile"
-                      >
-                        <Settings size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeregister(patient.id, patient.name)}
-                        className="p-3 bg-rose-50 dark:bg-rose-950/10 text-rose-600 rounded-xl hover:bg-rose-150 transition-colors"
-                        disabled={registeredPatients.length <= 1}
-                        title="Deregister / Discharge"
-                      >
-                        <XCircle size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         )}
 
@@ -4092,7 +4219,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             })()}
 
             {/* Health Status & Anomaly Detection Matrix */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-12">
               <div className="flex flex-col gap-8">
                 {healthStatus && <StatusBadge status={healthStatus} />}
                 <div className="bg-slate-900 dark:bg-slate-950 text-white p-10 rounded-[3rem] border border-white/5 relative overflow-hidden group shadow-2xl">
@@ -4125,7 +4252,46 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 </div>
               </div>
               <AnomalyDetector vitals={vitals} healthStatus={healthStatus} />
+              <ClinicalCoPilotPanel 
+                patient={currentCoupledPatientGlobal} 
+                vitals={vitals} 
+                healthStatus={healthStatus} 
+                onSendProtocol={(protocolName) => {
+                  triggerRegistryNotification(`Decision Support Action Dispatched: Successfully forwarded ${protocolName} parameters to telemetry routing node.`, "success");
+                }}
+              />
             </div>
+
+            {/* Heart Rate Rolling Average Alarm Banner */}
+            {hrAnalysis.isIncreasedMoreThan10 && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 p-6 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 rounded-[2.5rem] flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none transform rotate-12 text-amber-500">
+                  <Activity size={120} />
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="p-4 bg-amber-500 text-white dark:text-slate-950 rounded-2xl animate-pulse">
+                    <Activity size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-tight text-amber-605 dark:text-amber-400">
+                      Heart Rate Surge Detected (&gt;10% Shift)
+                    </h3>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                      The patient's daily average heart rate is currently <span className="font-black text-slate-800 dark:text-slate-100">{Math.round(hrAnalysis.todayAvg)} BPM</span>, which reflects a <span className="font-extrabold text-amber-600">{hrAnalysis.percentChange.toFixed(1)}%</span> increase compared to their rolling 7-day average baseline of <span className="font-black text-slate-800 dark:text-slate-100">{hrAnalysis.baselineHR.toFixed(1)} BPM</span>. Autonomic drift vector warrants immediate review.
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 flex gap-3">
+                  <div className="px-5 py-3 bg-amber-500/15 text-amber-602 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl">
+                    Trend Alert Active
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Vital Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
@@ -4141,6 +4307,26 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 history={displayHistory.map(h => ({ value: h.heartRate, timestamp: h.timestamp }))}
                 maxVal={200}
                 highlight={true}
+                customIndicator={
+                  hrAnalysis.isIncreasedMoreThan10 ? (
+                    <div className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider w-fit shrink-0 bg-amber-400 text-slate-900 animate-pulse">
+                      <TrendingUp size={12} className="shrink-0" />
+                      <span>+{hrAnalysis.percentChange.toFixed(1)}% vs 7d Avg</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider w-fit shrink-0 bg-white/10 text-white/80">
+                      {hrAnalysis.percentChange > 0 ? (
+                        <TrendingUp size={12} className="shrink-0" />
+                      ) : (
+                        <TrendingDown size={12} className="shrink-0" />
+                      )}
+                      <span>
+                        {hrAnalysis.percentChange > 0 ? '+' : ''}
+                        {hrAnalysis.percentChange.toFixed(1)}% vs 7d Avg
+                      </span>
+                    </div>
+                  )
+                }
               />
               <VitalCard
                 icon={<Droplets />}

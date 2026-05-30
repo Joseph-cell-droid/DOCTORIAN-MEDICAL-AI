@@ -128,6 +128,100 @@ STRUCTURE FOR DIAGNOSTICS:
 4. CONFIDENCE NODE 🛡️🧠: Diagnostic reliability rating and recommended professional tests.
 `;
 
+const expandClinicalAbbreviations = (text: string): string => {
+  if (!text) return text;
+  const mappings: [string, string][] = [
+    ["\\bbp\\b", "blood pressure"],
+    ["\\bhr\\b", "heart rate"],
+    ["\\bspo2\\b", "blood oxygen saturation (SpO2)"],
+    ["\\bbpm\\b", "beats per minute"],
+    ["\\bprn\\b", "pro re nata (as needed)"],
+    ["\\bqid\\b", "quater in die (four times daily)"],
+    ["\\btid\\b", "ter in die (three times daily)"],
+    ["\\bbid\\b", "bis in die (twice daily)"],
+    ["\\bqd\\b", "quaque die (once daily)"],
+    ["\\bsoap\\b", "SOAP chart note (Subjective, Objective, Assessment, and Plan)"],
+    ["\\bnpo\\b", "nil per os (nothing by mouth)"],
+    ["\\biv\\b", "intravenous"],
+    ["\\bcbc\\b", "complete blood count"],
+    ["\\bicu\\b", "intensive care unit"],
+    ["\\bstat\\b", "statim (immediately)"],
+    ["\\becg\\b", "electrocardiogram (ECG)"],
+    ["\\bekg\\b", "electrocardiogram (EKG)"],
+    ["\\brdt\\b", "Rapid Diagnostic Test (RDT)"],
+    ["\\bhtn\\b", "hypertension"]
+  ];
+  let result = text;
+  for (const [key, replacement] of mappings) {
+    const rx = new RegExp(key, 'gi');
+    result = result.replace(rx, replacement);
+  }
+  return result;
+};
+
+const VoiceOscillograph: React.FC<{ isRecording: boolean }> = ({ isRecording }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animFrame: number;
+    let phase = 0;
+
+    const render = () => {
+      if (!canvasRef.current) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const width = canvas.width;
+      const height = canvas.height;
+      const midY = height / 2;
+
+      ctx.lineWidth = 1.5;
+
+      // Draw three wave layers with shifting frequencies
+      for (let layer = 0; layer < 3; layer++) {
+        ctx.beginPath();
+        const opacity = (0.8 - layer * 0.25).toFixed(2);
+        ctx.strokeStyle = `rgba(239, 68, 68, ${opacity})`;
+        
+        const frequency = 0.02 + layer * 0.01;
+        const speed = 0.12 - layer * 0.03;
+        const amplitude = (height * 0.38) / (layer + 1);
+
+        for (let x = 0; x < width; x++) {
+          const y = midY + Math.sin(x * frequency + phase * speed) * amplitude * (Math.sin(x * Math.PI / width));
+          if (x === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
+
+      phase += 1;
+      animFrame = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => {
+      cancelAnimationFrame(animFrame);
+    };
+  }, [isRecording]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      width={180} 
+      height={28} 
+      className="opacity-90 shrink-0 w-[120px] sm:w-[160px] h-[28px] rounded-lg"
+    />
+  );
+};
+
 const isMedicalQuery = (text: string): boolean => {
   const keywords = ['diagnosis', 'treatment', 'symptoms', 'disease', 'condition', 'health', 'medical', 'doctor', 'patient', 'clinical', 'heart', 'blood', 'pill', 'pain'];
   return keywords.some(k => text.toLowerCase().includes(k));
@@ -170,6 +264,32 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [targetLanguage, setTargetLanguage] = useState('Auto Detect');
   const [isRecording, setIsRecording] = useState(false);
 
+  // Forced Offline Sim & Fine-tuned Model Cache States
+  const [isForcedOffline, setIsForcedOffline] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("medical_forced_offline") === "true";
+    }
+    return false;
+  });
+  const [activeFineTunedModel, setActiveFineTunedModel] = useState<any>(null);
+
+  const toggleForcedOffline = () => {
+    const nextVal = !isForcedOffline;
+    setIsForcedOffline(nextVal);
+    localStorage.setItem("medical_forced_offline", nextVal ? "true" : "false");
+    setTerminalLogs(prev => [...prev, `SYS: Local Air-Gap override state: ${nextVal ? 'ACTIVATED' : 'DEACTIVATED'}`]);
+  };
+
+  useEffect(() => {
+    const loadActiveFT = async () => {
+      try {
+        const active = await api.ai.getActiveFineTunedModel();
+        setActiveFineTunedModel(active);
+      } catch (e) {}
+    };
+    loadActiveFT();
+  }, []);
+
   // ==========================================
   // BRAND NEW COGNITIVE MATRIX SETTINGS STATE
   // ==========================================
@@ -183,8 +303,21 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // ==========================================
   // BRAND NEW CLINICAL TOOL HUB STATE
   // ==========================================
-  const [activeTool, setActiveTool] = useState<'case_intake' | 'lab_interpreter' | 'obstetric' | 'fluid_infusion'>('case_intake');
+  const [activeTool, setActiveTool] = useState<'case_intake' | 'lab_interpreter' | 'obstetric' | 'fluid_infusion' | 'rag_clinical_hub'>('rag_clinical_hub');
   const [patientWeight, setPatientWeight] = useState<number>(12); // in kg
+
+  // Custom AI-Generated Reports States & Options
+  const [reportTemplate, setReportTemplate] = useState<'soap_standard' | 'discharge_sum' | 'risk_assessment_guide'>('soap_standard');
+  const [includeLiveVitals, setIncludeLiveVitals] = useState<boolean>(true);
+  const [includeMOHGuidelines, setIncludeMOHGuidelines] = useState<boolean>(true);
+  const [includeDifferentialDiagnosis, setIncludeDifferentialDiagnosis] = useState<boolean>(true);
+  const [abbreviationExpansion, setAbbreviationExpansion] = useState<boolean>(true);
+
+  // 5. Clinical RAG Co-Pilot & Consultation Hub State
+  const [ragSelectedPatientId, setRagSelectedPatientId] = useState<string>('patient-joseph');
+  const [ragSubTool, setRagSubTool] = useState<'consultation_prep' | 'summary' | 'medical_report' | 'speech_note' | 'health_education'>('consultation_prep');
+  const [speechTranscript, setSpeechTranscript] = useState<string>('');
+  const [isSimulatingDictation, setIsSimulatingDictation] = useState<boolean>(false);
 
   // 1. Interactive Lab Interpreter State
   const [labHb, setLabHb] = useState<number>(11.5); // g/dL
@@ -222,6 +355,53 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [intakeSpO2, setIntakeSpO2] = useState<number>(96);
 
   const [showNewChatDropdown, setShowNewChatDropdown] = useState<boolean>(false);
+
+  const defaultPatients = [
+    {
+      id: 'patient-joseph',
+      name: 'Joseph Brian Obote',
+      bedNumber: 'Bed B-01 (Ward A)',
+      age: '35',
+      gender: 'Male',
+      weight: '74',
+      bloodType: 'O+',
+      conditions: 'Controlled Hypertension, Recovering malaria',
+      allergies: 'Sulfa Drugs',
+      vitalsPreset: 'healthy' as const
+    },
+    {
+      id: 'patient-sarah',
+      name: 'Nakato Sarah Mukasa',
+      bedNumber: 'Bed B-02 (ICU-Maternity)',
+      age: '29',
+      gender: 'Female',
+      weight: '68',
+      bloodType: 'A-',
+      conditions: 'Severe Postpartum Preeclampsia, Respiratory Distress',
+      allergies: 'Penicillin, NSAIDs',
+      vitalsPreset: 'critical' as const
+    },
+    {
+      id: 'patient-ronald',
+      name: 'Okello Ronald Ochieng',
+      bedNumber: 'Bed B-03 (Cardiac Wing)',
+      age: '62',
+      gender: 'Male',
+      weight: '82',
+      bloodType: 'B+',
+      conditions: 'Mitral Valve Regurgitation, Mitral Arrhythmia risk',
+      allergies: 'Aspirin',
+      vitalsPreset: 'warning' as const
+    }
+  ];
+
+  const [registeredPatients, setRegisteredPatients] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('doctorian_registered_patients');
+      return saved ? JSON.parse(saved) : defaultPatients;
+    }
+    return defaultPatients;
+  });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const micRecognitionRef = useRef<any>(null);
@@ -476,6 +656,86 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
 
     syncHealthData();
   }, [user, arduino?.vitals]);
+
+  const handleSimulateSpeechDictation = () => {
+    if (isSimulatingDictation) return;
+    setIsSimulatingDictation(true);
+    setSpeechTranscript("");
+    
+    let text = "";
+    if (ragSelectedPatientId === 'patient-joseph') {
+      text = "Doctor: Hello Joseph. Let's review your symptoms. Patient: I have had a continuous fever for the last three days. It comes and goes with severe chills, joint pain, and an excruciating headache. Doctor: Let's run a rapid diagnostic test for malaria. Your vitals show a temperature of 39.2 degrees. I will draft a malaria treatment protocol.";
+    } else if (ragSelectedPatientId === 'patient-sarah') {
+      text = "Doctor: Sarah, your postpartum preeclampsia metrics warrant close monitoring. Let's record. Patient: I have a pounding headache and occasional visual flashes of light. Doctor: Let's note. Systolic blood pressure is elevated at 170 over 110. Inform the team to execute Plan C with intravenous magnesium sulfate, 4 grams IV, and prepare an obstetric risk assessment.";
+    } else {
+      text = "Doctor: Ronald, we are setting up your cardiac telemetry. Patient: My chest feels extremely heavy, like a persistent fluttering sensation, and I am very short of breath. Doctor: This is consistent with mitral valve regurgitation flare-up or acute arrhythmia risk. Restrict all physical activity immediately, administer oxygen at 4 L/min, and prepare an ECG scan.";
+    }
+
+    let i = 0;
+    const interval = setInterval(() => {
+      i += 6;
+      if (i < text.length) {
+        setSpeechTranscript(text.substring(0, i));
+      } else {
+        setSpeechTranscript(text);
+        setIsSimulatingDictation(false);
+        clearInterval(interval);
+      }
+    }, 20);
+  };
+
+  const handleSubmitRAGQuery = () => {
+    let pObj = registeredPatients.find((p: any) => p.id === ragSelectedPatientId);
+    if (!pObj) pObj = defaultPatients[0];
+
+    let promptText = "";
+    
+    // Construct dynamic contextual modifiers
+    const vitalsPart = includeLiveVitals 
+      ? `\nInclude realistic physiological telemetry metrics matching critical preset "${pObj.vitalsPreset || 'healthy'}" inside diagnostic observations (e.g. detailed blood pressure readings, oxygen levels).` 
+      : '';
+      
+    const mohPart = includeMOHGuidelines 
+      ? `\nEnsure treatment categories and referral guidelines conform to the official Uganda Ministry of Health (MOH) clinical and therapeutic protocol compliance guidelines.` 
+      : '';
+      
+    const diffPart = includeDifferentialDiagnosis 
+      ? `\nOutline a clear Differential Diagnosis matrix, detailing 3 plausible diagnostic path vectors and their clinical rule-out criteria.` 
+      : '';
+
+    if (ragSubTool === 'consultation_prep') {
+      promptText = `Draft a pre-consultation diagnostic guide, check essential parameters, and provide clinical safety protocols for patient ${pObj.name} (Age: ${pObj.age}, Gender: ${pObj.gender}, Bed: ${pObj.bedNumber}). Conditions: ${pObj.conditions}. Allergies: ${pObj.allergies}. Vitals status: ${pObj.vitalsPreset || 'Stable'}.${vitalsPart}${mohPart}${diffPart}\nSuggest key diagnostic paths and patient checklists. Format clearly as a medical consultation roadmap.`;
+    } else if (ragSubTool === 'summary') {
+      promptText = `Summarize history of patient record for patient ${pObj.name} (Age: ${pObj.age}, Gender: ${pObj.gender}, Bed: ${pObj.bedNumber}). Retrieve and synthesize all background details, pre-existing conditions (${pObj.conditions}), known allergies (${pObj.allergies}), and provide a dense clinical summary with key risks.${vitalsPart}${mohPart}${diffPart}`;
+    } else if (ragSubTool === 'medical_report') {
+      let templLabel = 'Standard Clinical SOAP Note';
+      if (reportTemplate === 'discharge_sum') templLabel = 'Inpatient Medical Discharge Summary Sheet';
+      else if (reportTemplate === 'risk_assessment_guide') templLabel = 'Interventional Care and Risk Mitigations Blueprint';
+
+      promptText = `Draft Medical Report: Craft a formal, highly structured [${templLabel}] report for patient ${pObj.name} (Age: ${pObj.age}, Gender: ${pObj.gender}, Bed: ${pObj.bedNumber}). Main active diagnoses: ${pObj.conditions}. Clinical allergies: ${pObj.allergies}.${vitalsPart}${mohPart}${diffPart}\nFormat clearly with Markdown headers, bold terms, and specific clinical fields.`;
+    } else if (ragSubTool === 'speech_note') {
+      if (!speechTranscript.trim()) {
+        alert("Please enter or simulate a speech transcript first.");
+        return;
+      }
+      let finalTranscript = speechTranscript;
+      if (abbreviationExpansion) {
+        finalTranscript = expandClinicalAbbreviations(speechTranscript);
+      }
+      let templLabel = 'Standard Clinical SOAP Note';
+      if (reportTemplate === 'discharge_sum') templLabel = 'Inpatient Medical Discharge Summary Sheet';
+      else if (reportTemplate === 'risk_assessment_guide') templLabel = 'Clinical Intervention and Risk Mitigations Blueprint';
+
+      promptText = `Draft Medical Report from Speech: Convert verbal transcript into a highly structured clinical document style [${templLabel}] for patient ${pObj.name} (Age: ${pObj.age}, Gender: ${pObj.gender}, Bed: ${pObj.bedNumber}).\nRaw verbal consultation transcript: "${finalTranscript}"\nDiagnoses to track: ${pObj.conditions}. Clinical allergies: ${pObj.allergies}.${vitalsPart}${mohPart}${diffPart}\nDetail subjective symptoms, objective findings, assessment clinical categories, and intervention pathways clearly in output.`;
+    } else if (ragSubTool === 'health_education') {
+      promptText = `Provide Health Education Content: Fulfill patient wellness pamphlet request. Draft a patient-friendly care guide, advisory leaflet, and disease explanation sheet for patient ${pObj.name} (Admitted for: ${pObj.conditions}, Allergies: ${pObj.allergies}). Translate core pathology into simple human analogies and suggest local Ugandan nutritional support plans matching their medical profile.${mohPart}`;
+    }
+
+    setShowToolHub(false);
+    setInput(promptText);
+    handleSend(promptText);
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1344,7 +1604,26 @@ ${f.prescription}
         ? `\n\nATTACHED MEDICAL DOCUMENTS:\n${nonImageFiles.map(f => `FILE: ${f.name}\nCONTENT: ${f.content}`).join('\n---\n')}` 
         : '';
       
-      const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}\n\n${fileContext}`;
+      let autoMatchedPatientContext = "";
+      const matchedPatient = registeredPatients.find(p => {
+        const pNameLower = p.name.toLowerCase();
+        return promptLower.includes(pNameLower) || 
+               p.name.split(' ').some(part => part.length > 2 && promptLower.includes(part.toLowerCase()));
+      });
+      if (matchedPatient) {
+        autoMatchedPatientContext = `\n\n[RETRIEVAL-AUGMENTED GENERATION (RAG) MATCH]:
+Patient Registry Entry Found:
+- Name: ${matchedPatient.name}
+- Age/Gender: ${matchedPatient.age} / ${matchedPatient.gender}
+- Bed/Location: ${matchedPatient.bedNumber}
+- Biometrics: Weight ${matchedPatient.weight} kg, Blood Type ${matchedPatient.bloodType}
+- Pre-existing/Active Conditions: ${matchedPatient.conditions}
+- Clinical Allergies: ${matchedPatient.allergies}
+- Vitals Preset: ${matchedPatient.vitalsPreset}
+Please fulfill the user's request (e.g. summarize history, draft a medical report, check conditions) using this real retrieved data. Do not make up facts outside this profile context.`;
+      }
+
+      const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}`;
       
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map(m => ({
@@ -1602,6 +1881,29 @@ ${f.prescription}
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {/* Hybrid Online/Offline Network Director */}
+            <button
+              onClick={toggleForcedOffline}
+              id="btn-network-toggle"
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full border transition-all text-[9px] font-black uppercase tracking-wider ${
+                isForcedOffline
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/20 shadow-sm shadow-amber-500/10'
+                  : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+              }`}
+              title={isForcedOffline ? "Forced Offline: Working purely local (SQLite / offline-cache)" : "Online Mode: Connected to Clinical Cloud Synapse"}
+            >
+              <Zap size={11} className={isForcedOffline ? 'text-amber-500' : 'text-emerald-500'} />
+              <span>{isForcedOffline ? 'Offline' : 'Online'}</span>
+            </button>
+
+            {/* Active Fine-Tuned Weights Indicator Badge */}
+            {activeFineTunedModel && (
+              <div className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-500 text-[9px] font-black uppercase tracking-wider">
+                <Cpu size={11} className="animate-pulse text-blue-400" />
+                <span>FT: {activeFineTunedModel.customName}</span>
+              </div>
+            )}
+
             {/* EMR Case Intake & Formulator Trigger */}
             <button 
               onClick={() => setShowToolHub(!showToolHub)} 
@@ -1843,11 +2145,89 @@ ${f.prescription}
                              </div>
                            )}
 
-                           <div className={`prose prose-sm dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white/90 dark:text-slate-800' : ''}`}>
-                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                               {msg.text || (isLoading && i === messages.length - 1 ? '...' : '')}
-                             </ReactMarkdown>
-                           </div>
+                            <div className={`prose prose-sm dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white/90 dark:text-slate-800' : ''}`}>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {msg.text || (isLoading && i === messages.length - 1 ? '...' : '')}
+                              </ReactMarkdown>
+                            </div>
+
+                            {msg.role === 'bot' && (msg.text.includes('SOAP') || msg.text.includes('Report') || msg.text.includes('History') || msg.text.includes('Summary') || msg.text.includes('Assessment') || msg.text.includes('Education')) && (
+                              <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shadow-sm animate-in fade-in duration-300">
+                                <div className="flex items-center gap-1.5 font-sans animate-pulse">
+                                  <span className="w-1.5 h-1.5 bg-indigo-550 rounded-full animate-ping" />
+                                  <span className="text-[9px] font-[1000] uppercase text-indigo-600 dark:text-indigo-400 tracking-widest font-mono">Report Toolkit Active</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(msg.text);
+                                      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Clinical report copied in raw Markdown format']);
+                                      alert("Markdown blueprint copied to clipboard!");
+                                    }}
+                                    className="flex-1 sm:flex-initial px-3 py-1.5 bg-white dark:bg-slate-950 text-slate-705 dark:text-slate-300 border border-slate-150 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                                  >
+                                    📂 MD Copy
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const pFrame = document.createElement('iframe');
+                                      pFrame.style.position = 'fixed';
+                                      pFrame.style.right = '0';
+                                      pFrame.style.bottom = '0';
+                                      pFrame.style.width = '0';
+                                      pFrame.style.height = '0';
+                                      pFrame.style.border = '0';
+                                      document.body.appendChild(pFrame);
+                                      const pDoc = pFrame.contentWindow?.document || pFrame.contentDocument;
+                                      if (pDoc) {
+                                        pDoc.write(`
+                                          <html>
+                                            <head>
+                                              <title>Doctorian Clinical Report</title>
+                                              <style>
+                                                body { font-family: -apple-system, sans-serif; padding: 45px; color: #1e293b; max-width: 650px; margin: 0 auto; line-height: 1.6; }
+                                                h1, h2, h3 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 24px; }
+                                                pre { background: #f8fafc; padding: 16px; border-radius: 8px; font-size: 13px; }
+                                                .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; border-top: 1px solid #e1e8f0; padding-top: 10px; text-align: center; }
+                                              </style>
+                                            </head>
+                                            <body>
+                                              <h2>🩺 DOCTORIAN CLINICAL RECORD</h2>
+                                              <p style="font-size: 11px; color: #64748b; font-weight: bold;">Generated on: ${new Date().toLocaleString()} | Digital Signature Secured</p>
+                                              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;"/>
+                                              <div style="font-size: 13.5px; white-space: pre-wrap;">${msg.text}</div>
+                                              <div class="footer">Doctorian AI Assistant • Uganda MOH Standard Care protocol compliant &bull; Signed off by Duty Physician.</div>
+                                            </body>
+                                          </html>
+                                        `);
+                                        pDoc.close();
+                                        setTimeout(() => {
+                                          pFrame.contentWindow?.focus();
+                                          pFrame.contentWindow?.print();
+                                          document.body.removeChild(pFrame);
+                                        }, 400);
+                                      }
+                                    }}
+                                    className="flex-1 sm:flex-initial px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 border border-indigo-200/20 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-indigo-100/50 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                                  >
+                                    🖨️ PRINT
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setTerminalLogs(prev => [
+                                        ...prev.slice(-3),
+                                        "SYS: Initiating SSL socket link with Bed monitor terminals...",
+                                        `SYS: Synchronized clinical report payload for patient target successfully.`
+                                      ]);
+                                      alert("Clinical record transferred successfully to physical Ward EMR terminal.");
+                                    }}
+                                    className="flex-1 sm:flex-initial px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/45 text-emerald-650 dark:text-emerald-400 border border-emerald-200/20 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-emerald-100/50 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                                  >
+                                    📡 SYNC EMR
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
                            {streamingId === msg.id && (
                              <motion.span 
@@ -2043,12 +2423,15 @@ ${f.prescription}
                     </div>
                     
                     {/* Live Audio Waves Bars */}
-                    <div className="flex items-end gap-0.5 h-3 shrink-0">
-                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2.5 [animation-duration:0.6s]"></div>
-                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1.5 [animation-duration:0.4s]"></div>
-                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-3 [animation-duration:0.8s]"></div>
-                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2 [animation-duration:0.5s]"></div>
-                      <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1 [animation-duration:0.75s]"></div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <VoiceOscillograph isRecording={isRecording} />
+                      <div className="flex items-end gap-0.5 h-3">
+                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2.5 [animation-duration:0.6s]"></div>
+                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1.5 [animation-duration:0.4s]"></div>
+                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-3 [animation-duration:0.8s]"></div>
+                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2 [animation-duration:0.5s]"></div>
+                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1 [animation-duration:0.75s]"></div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -2155,6 +2538,13 @@ ${f.prescription}
             <div className="p-2.5 bg-slate-50/50 dark:bg-slate-950/30 flex flex-wrap border-b border-slate-100 dark:border-slate-800/50 gap-1.5 shrink-0">
               <button 
                 type="button"
+                onClick={() => setActiveTool('rag_clinical_hub')}
+                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'rag_clinical_hub' ? 'bg-indigo-650 dark:bg-indigo-950/80 text-white shadow-sm border border-indigo-500/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-800/10 border border-transparent'}`}
+              >
+                🩺 Clinical RAG
+              </button>
+              <button 
+                type="button"
                 onClick={() => setActiveTool('case_intake')}
                 className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'case_intake' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
@@ -2185,7 +2575,233 @@ ${f.prescription}
 
             {/* Scrollable Panels Container */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {activeTool === 'case_intake' ? (
+              {activeTool === 'rag_clinical_hub' ? (
+                <div className="space-y-6 text-left animate-in fade-in duration-300">
+                  {/* Select Patient Target */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">
+                      Select Patient Record Target (RAG)
+                    </label>
+                    <div className="space-y-2">
+                      {registeredPatients.map((patient: any) => {
+                        const isSelected = patient.id === ragSelectedPatientId;
+                        return (
+                          <button
+                            type="button"
+                            key={patient.id}
+                            onClick={() => setRagSelectedPatientId(patient.id)}
+                            className={`w-full p-3.5 rounded-2xl border text-left transition-all ${
+                              isSelected
+                                ? 'bg-indigo-50/70 border-indigo-500/70 dark:bg-indigo-500/10 dark:border-indigo-500/50 shadow-md ring-1 ring-indigo-500/20'
+                                : 'bg-white border-slate-100 hover:border-slate-350 dark:bg-slate-950 dark:border-slate-800'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+                                  {patient.name}
+                                </h4>
+                                <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+                                  {patient.gender}, Age {patient.age} • {patient.bedNumber}
+                                </p>
+                              </div>
+                              <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                patient.vitalsPreset === 'critical' ? 'bg-red-500/10 text-red-500' :
+                                patient.vitalsPreset === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                'bg-emerald-500/10 text-emerald-500'
+                              }`}>
+                                {patient.vitalsPreset || 'stable'}
+                              </span>
+                            </div>
+                            <div className="mt-2 text-[9px] text-slate-500 dark:text-slate-405 leading-relaxed font-semibold border-t border-slate-50 dark:border-slate-800/50 pt-2">
+                              <strong>Conditions:</strong> {patient.conditions}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Choose clinical sub-tool */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">
+                      Clinical AI Processing Task
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'consultation_prep', label: 'Consult Counsel', desc: 'Pre-consult checklist' },
+                        { id: 'summary', label: 'Summarize History', desc: 'Synthesizes past records' },
+                        { id: 'medical_report', label: 'Draft SOAP Report', desc: 'Generates chart note' },
+                        { id: 'speech_note', label: 'Verbal Note Convert', desc: 'Parses speech transcript' },
+                        { id: 'health_education', label: 'Health Education', desc: 'Patient guide leaflet' },
+                      ].map((tool) => {
+                        const isSubSelected = tool.id === ragSubTool;
+                        return (
+                          <button
+                            type="button"
+                            key={tool.id}
+                            onClick={() => setRagSubTool(tool.id as any)}
+                            className={`p-3 rounded-2xl border text-left transition-all ${
+                              isSubSelected
+                                ? 'bg-indigo-650 text-white border-indigo-650 shadow-lg shadow-indigo-500/20 font-black'
+                                : 'bg-white border-slate-100 hover:border-slate-200 dark:bg-slate-950 dark:border-slate-850 text-slate-800 dark:text-slate-250 font-bold'
+                            }`}
+                          >
+                            <span className="text-[10px] font-black uppercase tracking-wider block">
+                              {tool.label}
+                            </span>
+                            <span className={`text-[8px] font-medium leading-tight block mt-1 ${isSubSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                              {tool.desc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* AI Generated Reports Advanced Customization Options */}
+                  <div className="p-4 bg-slate-50/75 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl space-y-4 text-left">
+                    <h5 className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-2">
+                      ⚙️ REPORT CUSTOMIZATION ENGINE
+                    </h5>
+                    
+                    {/* Template Selector */}
+                    {(ragSubTool === 'medical_report' || ragSubTool === 'speech_note') && (
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-405 dark:text-slate-500 uppercase tracking-wider block">
+                          Premium Document Layout Template
+                        </label>
+                        <select
+                          value={reportTemplate}
+                          onChange={(e) => setReportTemplate(e.target.value as any)}
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800 focus:border-indigo-500 outline-none rounded-xl px-3 py-2 text-[10.5px] font-bold text-slate-700 dark:text-slate-305"
+                        >
+                          <option value="soap_standard">🩺 SOAP Clinical Chart Note (Standard)</option>
+                          <option value="discharge_sum">🏥 Hospital Inpatient Discharge Summary</option>
+                          <option value="risk_assessment_guide">⚡ Intervention & Differential Risks Mapping</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Checkboxes parameters */}
+                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                      <label className="flex items-start gap-2.5 cursor-pointer p-2 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800/80 hover:border-slate-200 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={includeLiveVitals}
+                          onChange={(e) => setIncludeLiveVitals(e.target.checked)}
+                          className="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0"
+                        />
+                        <div className="text-[9.5px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                          Live Vitals
+                          <span className="text-[8px] text-slate-400 block font-normal mt-0.5">Embed Monitor stats</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2.5 cursor-pointer p-2 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800/80 hover:border-slate-200 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={includeMOHGuidelines}
+                          onChange={(e) => setIncludeMOHGuidelines(e.target.checked)}
+                          className="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0"
+                        />
+                        <div className="text-[9.5px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                          MOH Compliance
+                          <span className="text-[8px] text-slate-400 block font-normal mt-0.5">Align Uganda rules</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2.5 cursor-pointer p-2 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800/80 hover:border-slate-200 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={includeDifferentialDiagnosis}
+                          onChange={(e) => setIncludeDifferentialDiagnosis(e.target.checked)}
+                          className="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0"
+                        />
+                        <div className="text-[9.5px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                          Differentials
+                          <span className="text-[8px] text-slate-400 block font-normal mt-0.5">Include risk pathing</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2.5 cursor-pointer p-2 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800/80 hover:border-slate-200 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={abbreviationExpansion}
+                          onChange={(e) => setAbbreviationExpansion(e.target.checked)}
+                          className="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0"
+                        />
+                        <div className="text-[9.5px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                          Shorthand Expander
+                          <span className="text-[8px] text-slate-400 block font-normal mt-0.5">Auto expand BP, SpO2</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Condition Fields based on subtool */}
+                  {ragSubTool === 'speech_note' && (
+                    <div className="space-y-3.5 border-t border-slate-100 dark:border-slate-800/65 pt-4 animate-in fade-in slide-in-from-top-1.5">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                          Consultation Speech Transcript
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!speechTranscript.trim()) return;
+                              const expanded = expandClinicalAbbreviations(speechTranscript);
+                              setSpeechTranscript(expanded);
+                              setTerminalLogs(prev => [...prev.slice(-3), "SYS: Custom clinical abbreviation translation complete!"]);
+                            }}
+                            className="px-2.5 py-1 bg-violet-50 dark:bg-violet-950/40 text-violet-650 dark:text-violet-405 border border-violet-200/40 rounded-xl text-[8.5px] font-black uppercase tracking-widest hover:bg-violet-100 transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            ✨ Expand Abbreviations
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSimulateSpeechDictation}
+                            disabled={isSimulatingDictation}
+                            className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-450 border border-indigo-200/50 rounded-xl text-[8.5px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            {isSimulatingDictation ? (
+                              <>
+                                <RefreshCw size={10} className="animate-spin" />
+                                Transcribing...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles size={10} className="text-indigo-500 animate-pulse" />
+                                Sim dictation
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <textarea
+                        rows={4}
+                        value={speechTranscript}
+                        onChange={(e) => setSpeechTranscript(e.target.value)}
+                        placeholder="Paste speech transcript or click 'Sim dictation' to simulate voice input session with current patient..."
+                        className="w-full p-3.5 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800 rounded-2xl text-[11.5px] font-semibold text-slate-700 dark:text-slate-300 leading-relaxed max-h-40 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* Submit Trigger Action */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                    <button
+                      type="button"
+                      onClick={handleSubmitRAGQuery}
+                      className="w-full py-4 bg-indigo-650 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/25 transition-all text-center flex items-center justify-center gap-2 cursor-pointer font-bold"
+                    >
+                       Fulfill clinical task via Llama RAG
+                    </button>
+                  </div>
+                </div>
+              ) : activeTool === 'case_intake' ? (
                 <div className="space-y-6 text-left">
                   {/* Case Presets Selector */}
                   <div className="space-y-2">

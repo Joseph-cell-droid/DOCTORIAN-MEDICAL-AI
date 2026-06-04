@@ -19,17 +19,26 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     
+    <!-- Preconnect to Google Fonts for efficient rendering -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet" />
+
     <!-- Apple Splash Screens -->
     <link rel="apple-touch-startup-image" href="/logo.svg" />
     
     <title>Doctorian Medical AI</title>
     <script>
-      // Clear legacy service workers that might interfere
+      // Register the active PWA Service Worker for full offline capabilities
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (const registration of registrations) {
-            registration.unregister();
-          }
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('[Doctorian PWA] Service Worker registered successfully:', registration.scope);
+            })
+            .catch((error) => {
+              console.error('[Doctorian PWA] Service Worker registration failed:', error);
+            });
         });
       }
     </script>

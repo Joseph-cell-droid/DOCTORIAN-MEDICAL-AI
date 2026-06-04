@@ -169,19 +169,22 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                     : "Loud Room Ringing & Manual Calling are disabled globally to prevent room disruption. Quiet automated background SMS/Call alerts remain 100% active."}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end gap-1.5">
                 {!isAdmin ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      placeholder="Enter Admin PIN to Unlock overrides"
-                      value={localPin}
-                      onChange={e => {
-                        setLocalPin(e.target.value);
-                        setLocalPinError('');
-                      }}
-                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-black placeholder:text-slate-500 outline-none w-48 text-slate-900 dark:text-white"
-                    />
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                    <div className="flex flex-col">
+                      <input
+                        type="password"
+                        placeholder="Enter Admin PIN to Unlock overrides"
+                        value={localPin}
+                        onChange={e => {
+                          setLocalPin(e.target.value);
+                          setLocalPinError('');
+                        }}
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-black placeholder:text-slate-500 outline-none w-48 text-slate-900 dark:text-white"
+                      />
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 text-right">Default Admin PIN: 1234</span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -196,7 +199,7 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                           addNotification("Protection Alert: Invalid PIN rejected.", "error");
                         }
                       }}
-                      className="px-4 py-2 bg-slate-950 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer shadow-sm border border-slate-700/50"
+                      className="px-4 py-2 bg-slate-950 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer shadow-sm border border-slate-700/50 self-start"
                     >
                       Unlock PIN
                     </button>

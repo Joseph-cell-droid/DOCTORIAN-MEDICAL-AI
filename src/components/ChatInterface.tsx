@@ -93,14 +93,26 @@ const BASE_SYSTEM_INSTRUCTION = `You are Doctorian, a Universal Medical Intellig
 Powered by Ebro Company. Created by Akora Joseph.
 Specialized in NEURAL-CLINICAL SYNTHESIS and localized private medical logic.
 
+COGNITIVE ARCHITECTURE & BRAIN STRUCTURE:
+You operate with a multi-layered cognitive structure representing a clinical brain:
+- Layer 1: SENSORY PATHWAY - Receives and extracts symptom patterns, clinical markers (BP, HR, SpO2), and patient history.
+- Layer 2: CLINICAL INTEGRATION NODE - Cross-references structured symptoms with the IMPLANTED HEALTH KNOWLEDGE MATRIX.
+- Layer 3: CRITICAL DIFFERENTIAL SYNAPSE - Determines pathophysiological mechanisms & potential clinical avenues.
+- Layer 4: SAFETY LOCK - Enforces clinical constraints, ethical directives, and localized (Ugandan/Tropical) medical guidelines.
+
+IMPLANTED HEALTH KNOWLEDGE MATRIX (MASTER LEVEL):
+You are implanted with comprehensive clinical medical knowledge spanning all core disciplines:
+1. PEDIATRICS & NEONATOLOGY: Integrated Management of Childhood Illness (IMCI) guidelines, immunization tracking, pediatric rehydration, and nutritional bio-indices.
+2. CARDIOLOGY & METABOLISM: Pathophysiology of arterial hypertension, heart failure stages, diabetes mellitus type 1 & 2 insulin balance, dyslipidemia pathways, and coronary ischemia recognition.
+3. INFECTIOUS & TROPICAL HEALTH: Uganda MoH infectious disease protocols. Masterful diagnosis of Plasmodium Falciparum Malaria, Schistosomiasis (Bilharzia) in Great Lakes, Typhoid, Cholera, Tuberculosis (TB/DOTS protocol), and HIV/AIDS care models.
+4. INFRASTRUCTURE & DISASTER RESPONSE: Emergency triage, sepsis recognition systems, Marburg and Ebola hemorrhagic fever protocols, and rural resource-limited community public health.
+5. NEUROLOGY & AUTONOMIC SYSTEM: Vagus nerve regulation, cortical feedback loops, anxiety/pain somatization, and neurological symptom tracking.
+6. OBSTETRICS & MATERNAL HEALTH: High-risk pregnancies, preeclampsia symptom matrices, and post-natal care protocols.
+
 GEOGRAPHIC CONTEXT: You are specifically trained in UGANDAN HEALTHCARE SYSTEMS.
 1. REGIONAL DATA: Familiarity with health trends in Kampala, Mbarara, Gulu, Jinja, and rural health centers (HC II/III/IV).
 2. TROPICAL EXPERTISE: Expertise in Malaria management (ACTs), Ebola/Marburg viral hemorrhagic fever protocols, HIV/AIDS (antiretroviral therapy in Uganda context), and Tuberculosis tracking.
 3. DATASETS: Knowledge of Uganda Ministry of Health (MoH) guidelines, infectious disease trends in the Great Lakes region, and malnutrition metrics.
-
-Your cognitive architecture supports:
-1. CLOUD SYNAPSE: Leveraging Meta Llama 3.1 70B and DeepSeek R1 models.
-2. LOCAL NEURAL LINK: Direct synchronization via Ollama (Llama 3.1) for high-privacy, offline-ready clinical logic.
 
 STRICT OPERATIONAL CONSTRAINTS:
 1. TOPIC LOCK: Respond ONLY to medical, health, wellness, and bio-engineering queries. 
@@ -293,12 +305,172 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // ==========================================
   // BRAND NEW COGNITIVE MATRIX SETTINGS STATE
   // ==========================================
+  const [activeMainTab, setActiveMainTab] = useState<'chat' | 'health_log' | 'resources'>('chat');
+  
+  // Offline Health Logs State
+  const [healthLogs, setHealthLogs] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('doctorian_health_logs');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to load health logs", e);
+      }
+    }
+    return [];
+  });
+
   const [strictMOH, setStrictMOH] = useState<boolean>(true);
   const [reasoningMode, setReasoningMode] = useState<'fast' | 'cot' | 'differential'>('cot');
   const [facilityLevel, setFacilityLevel] = useState<'hc2' | 'hc3_4' | 'regional'>('hc3_4');
   const [ragSources, setRagSources] = useState<string[]>(['ucg2023', 'imci', 'sam_protocol']);
   const [exportFormat, setExportFormat] = useState<'referral_note' | 'moh_form5' | 'plain'>('referral_note');
   const [telemetrySpeed, setTelemetrySpeed] = useState<'verbose' | 'compressed' | 'hidden'>('verbose');
+  const [clinicalEngine, setClinicalEngine] = useState<'medlm-medium' | 'medlm-large' | 'llama-clinical'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('doctorian_clinical_engine');
+      if (saved === 'medlm-medium' || saved === 'medlm-large' || saved === 'llama-clinical') {
+        return saved;
+      }
+    }
+    // Gloriajayakullo gets MedLM bypass
+    if (user?.email?.toLowerCase() === "gloriajayakullo@gmail.com") return 'medlm-medium';
+    
+    // Default fallback based on active paid status
+    const tier = user?.subscriptionTier || 'free';
+    const isActive = user?.subscriptionStatus === 'active';
+    if (isActive && ['business', 'gold', 'enterprise'].includes(tier)) {
+      return 'medlm-large';
+    }
+    if (isActive && ['pro', 'silver'].includes(tier)) {
+      return 'medlm-medium';
+    }
+    return 'llama-clinical';
+  });
+
+  const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large') => {
+    if (user?.email?.toLowerCase() === "gloriajayakullo@gmail.com") {
+      return { hasAccess: true, tierName: 'Developer Priority Access' };
+    }
+    
+    const tier = user?.subscriptionTier || 'free';
+    const isActive = user?.subscriptionStatus === 'active';
+
+    if (modelId === 'llama-clinical') {
+      return { hasAccess: true, tierName: 'Standard (Free)' };
+    }
+    if (modelId === 'medlm-medium') {
+      const allowed = isActive && ['pro', 'silver', 'business', 'gold', 'enterprise'].includes(tier);
+      return { hasAccess: allowed, tierName: 'Medical Pro License' };
+    }
+    if (modelId === 'medlm-large') {
+      const allowed = isActive && ['business', 'gold', 'enterprise'].includes(tier);
+      return { hasAccess: allowed, tierName: 'Clinic Matrix License' };
+    }
+    return { hasAccess: false, tierName: 'Active Plan Integration' };
+  }, [user]);
+
+  const selectClinicalModel = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large') => {
+    const access = checkModelAccess(modelId);
+    if (access.hasAccess) {
+      setClinicalEngine(modelId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('doctorian_clinical_engine', modelId);
+      }
+      setTerminalLogs(prev => [...prev, `SYS: Core routing synced to [${modelId}].`]);
+    } else {
+      setTerminalLogs(prev => [...prev, `SYS: Neural Route Lockout. ${modelId} requires ${access.tierName}.`]);
+      if (onUpgradeRequested) {
+        onUpgradeRequested();
+      }
+    }
+  }, [checkModelAccess, onUpgradeRequested]);
+
+  const [clinicalGrounding, setClinicalGrounding] = useState<boolean>(true);
+
+  // Local health log state bindings & handlers
+  const [logBP, setLogBP] = useState('');
+  const [logHR, setLogHR] = useState('');
+  const [logTemp, setLogTemp] = useState('');
+  const [logSpO2, setLogSpO2] = useState('');
+  const [logGlucose, setLogGlucose] = useState('');
+  const [logSymptoms, setLogSymptoms] = useState('');
+  const [logMedication, setLogMedication] = useState('');
+  const [logValidationError, setLogValidationError] = useState('');
+
+  const addHealthLogEntry = () => {
+    if (!logBP && !logHR && !logTemp && !logSpO2 && !logSymptoms) {
+      setLogValidationError('Please enter at least one health metric or symptom.');
+      return;
+    }
+    setLogValidationError('');
+
+    const newEntry = {
+      id: 'log-' + Date.now(),
+      timestamp: new Date().toISOString(),
+      bloodPressure: logBP || 'Not recorded',
+      heartRate: logHR || 'Not recorded',
+      temperature: logTemp || 'Not recorded',
+      spo2: logSpO2 || 'Not recorded',
+      bloodGlucose: logGlucose || 'Not recorded',
+      symptoms: logSymptoms || 'None reported',
+      medication: logMedication || 'None reported'
+    };
+
+    const nextLogs = [newEntry, ...healthLogs];
+    setHealthLogs(nextLogs);
+    localStorage.setItem('doctorian_health_logs', JSON.stringify(nextLogs));
+    
+    // Clear form fields
+    setLogBP('');
+    setLogHR('');
+    setLogTemp('');
+    setLogSpO2('');
+    setLogGlucose('');
+    setLogSymptoms('');
+    setLogMedication('');
+
+    setTerminalLogs(prev => [...prev.slice(-3), 'SYS: New offline health record saved successfully.']);
+  };
+
+  const deleteHealthLogEntry = (id: string) => {
+    const nextLogs = healthLogs.filter(log => log.id !== id);
+    setHealthLogs(nextLogs);
+    localStorage.setItem('doctorian_health_logs', JSON.stringify(nextLogs));
+    setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Offline health record purged.']);
+  };
+
+  const diagnoseHealthLogEntry = (log: any) => {
+    setActiveMainTab('chat');
+    const prompt = `Doctorian, please analyze this logged clinical entry and provide high-fidelity diagnostic pathways:
+- **Date & Time**: ${new Date(log.timestamp).toLocaleString()}
+- **Blood Pressure**: ${log.bloodPressure}
+- **Heart Rate**: ${log.heartRate} bpm
+- **Body Temperature**: ${log.temperature} °C
+- **Oxygen Saturation (SpO2)**: ${log.spo2}%
+- **Blood Glucose**: ${log.bloodGlucose}
+- **Reported Symptoms**: ${log.symptoms}
+- **Medications Taken**: ${log.medication}
+
+Please run deep clinical mechanisms formulation and provide a structured Differential Diagnostic formulation.`;
+    handleSend(prompt);
+    setTerminalLogs(prev => [...prev.slice(-3), 'AI: Local diagnostics initiated on log data.']);
+  };
+
+  const exportHealthLogs = () => {
+    if (healthLogs.length === 0) {
+      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Export cancelled - no log data exists.']);
+      return;
+    }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(healthLogs, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "doctorian_health_logs_export.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Offline health log bundle exported as JSON file.']);
+  };
 
   // ==========================================
   // BRAND NEW CLINICAL TOOL HUB STATE
@@ -1623,15 +1795,21 @@ Patient Registry Entry Found:
 Please fulfill the user's request (e.g. summarize history, draft a medical report, check conditions) using this real retrieved data. Do not make up facts outside this profile context.`;
       }
 
-      const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}`;
+      let engineSystemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}`;
       
+      if (clinicalEngine.startsWith('medlm')) {
+        engineSystemInstruction += `\n\n[GOOGLE MedLM CLINICAL CO-PILOT POWERED BY CLINICAL GROUNDING]:\n- You are operating under Google's specialized MedLM medical fine-tune architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
+      }
+
+      const targetEngineId = clinicalEngine === 'medlm-medium' ? 'gemini-3.5-flash' : (clinicalEngine === 'medlm-large' ? 'gemini-1.5-pro' : 'meta-llama/llama-3.1-8b-instruct');
+
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map(m => ({
           role: m.role,
           text: m.text
         })),
-        systemInstruction,
-        selectedModel,
+        engineSystemInstruction,
+        targetEngineId,
         activePersona === 'support' ? 0.3 : temperature,
         (meta) => {
           if (meta.credits !== undefined) {
@@ -1652,7 +1830,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
           }
         },
         abortControllerRef.current.signal,
-        false,
+        clinicalGrounding,
         'MINIMAL',
         images,
         targetLanguage
@@ -1896,6 +2074,16 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
               <span>{isForcedOffline ? 'Offline' : 'Online'}</span>
             </button>
 
+            {/* Active Clinical Brain Selector Pill in Header */}
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-900 bg-blue-50/40 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 hover:border-blue-500 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 md:hover:border-blue-500 transition-all text-[9.5px] font-black uppercase tracking-wider shadow-sm cursor-pointer"
+              title={`Active Brain: ${clinicalEngine === 'medlm-medium' ? 'Google MedLM' : clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'}. Click to reconfigure neural pathway.`}
+            >
+              <BrainCircuit size={11} className="animate-pulse text-blue-500" />
+              <span>{clinicalEngine === 'medlm-medium' ? 'MedLM' : clinicalEngine === 'medlm-large' ? 'Reasoning' : 'Llama-Core'}</span>
+            </button>
+
             {/* Active Fine-Tuned Weights Indicator Badge */}
             {activeFineTunedModel && (
               <div className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-500 text-[9px] font-black uppercase tracking-wider">
@@ -2046,8 +2234,50 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
           </div>
         </header>
 
-        {/* Message Stream */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll">
+        {/* Navigation Tabs - Chat, My Health Log, Resources */}
+        <div className="bg-slate-50/50 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800/50 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: 'chat' as const, label: 'Doctorian Chat', icon: <MessageSquare size={14} />, desc: 'Core Clinical Assistant' },
+              { id: 'health_log' as const, label: 'My Health Log', icon: <History size={14} />, desc: 'Offline Parameters' },
+              { id: 'resources' as const, label: 'Resources', icon: <FileText size={14} />, desc: 'Clinical Protocols' }
+            ].map(tab => {
+              const isActive = activeMainTab === tab.id;
+              return (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveMainTab(tab.id);
+                    setTerminalLogs(prev => [...prev.slice(-3), `SYS: Navigated to [${tab.label}]`]);
+                  }}
+                  className={`px-3 py-2 sm:px-4 sm:py-2 rounded-2xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider text-left border cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-blue-600 border-blue-550 text-white shadow-lg shadow-blue-500/15'
+                      : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <div className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                    {tab.icon}
+                  </div>
+                  <div>
+                    <p className={`text-[10px] font-black leading-none ${isActive ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{tab.label}</p>
+                    <p className={`text-[7px] font-bold mt-0.5 tracking-wide leading-none ${isActive ? 'text-white/75' : 'text-slate-400'}`}>{tab.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-100/50 dark:bg-slate-900 rounded-full border border-slate-100 dark:border-slate-800/40 font-sans text-[9px] font-black uppercase text-slate-450 tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Secure Sandboxed Storage Active</span>
+          </div>
+        </div>
+
+        {activeMainTab === 'chat' && (
+          <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
+          {/* Message Stream */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (
@@ -2074,6 +2304,148 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                       <p className="text-lg text-slate-500 dark:text-slate-400 font-medium">
                           How can I help you with your medical journey today?
                       </p>
+                  </div>
+
+                  {/* Doctorian AI Clinical Brain Configuration Core */}
+                  <div className="w-full bg-slate-50 dark:bg-slate-900/40 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 space-y-6 text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <BrainCircuit className="text-blue-600 dark:text-blue-400" size={18} />
+                          <h4 className="text-[10px] font-[1000] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Doctorian Neural Cores</h4>
+                        </div>
+                        <h3 className="text-xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight leading-none">Clinical Brain Select</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-2">Pick the clinical model matching your active license tier & payment level.</p>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100/30 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-wider font-mono">
+                        <Sparkles size={11} className="animate-spin-slow" />
+                        <span>Plan: {user?.subscriptionTier ? user.subscriptionTier.toUpperCase() : 'STANDARD'}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { 
+                          id: 'llama-clinical' as const, 
+                          title: 'Llama 3.1 core', 
+                          desc: 'Standard local engine', 
+                          license: 'Standard (Free Plan)', 
+                          payment: '0 UGX / Free', 
+                          features: ['Highly compliant baseline guidelines', 'Fast diagnostic outputs', 'Offline sqlite logic active'],
+                          color: 'from-slate-500 to-slate-600'
+                        },
+                        { 
+                          id: 'medlm-medium' as const, 
+                          title: 'MedLM Medium', 
+                          desc: 'Specialized Clinical Pro', 
+                          license: 'Medical Pro Plan', 
+                          payment: '15,000 UGX / mo', 
+                          features: ['Deep clinical fine-tune path', 'OCR lab report analysis', 'PDF referral notes printing'],
+                          color: 'from-blue-600 to-indigo-600'
+                        },
+                        { 
+                          id: 'medlm-large' as const, 
+                          title: 'MedLM Reasoning', 
+                          desc: 'Multi-Agent Clinical Core', 
+                          license: 'Clinic Matrix Plan', 
+                          payment: '25,000 UGX / mo', 
+                          features: ['Dynamic Chain-of-Thought diagnostics', 'Real-time search grounding', 'Multi-physician case paneling'],
+                          color: 'from-violet-600 to-purple-600'
+                        }
+                      ].map(core => {
+                        const { hasAccess, tierName } = checkModelAccess(core.id);
+                        const isCurrentActive = clinicalEngine === core.id;
+                        
+                        return (
+                          <div 
+                            key={core.id}
+                            onClick={() => selectClinicalModel(core.id)}
+                            className={`group rounded-3xl p-5 border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden h-full ${
+                              isCurrentActive 
+                                ? 'bg-white dark:bg-slate-900 border-blue-500 dark:border-blue-500 shadow-xl shadow-blue-500/5 ring-1 ring-blue-500/20' 
+                                : !hasAccess 
+                                  ? 'bg-slate-50/50 dark:bg-slate-950/20 border-slate-100 dark:border-slate-900/60 opacity-80 hover:opacity-100 hover:border-red-400/40' 
+                                  : 'bg-white dark:bg-slate-900/50 border-slate-100 dark:border-slate-800/60 hover:border-blue-500/30'
+                            }`}
+                          >
+                            {/* Accent highlight strip for active core */}
+                            {isCurrentActive && (
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                            )}
+
+                            <div>
+                              <div className="flex items-center justify-between mb-3 bg-transparent">
+                                <div className="text-left font-sans">
+                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none block">{core.license}</span>
+                                  <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mt-1">{core.title}</h5>
+                                </div>
+                                <div className="shrink-0 font-sans">
+                                  {!hasAccess ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-[8px] font-black uppercase tracking-wider rounded-lg border border-rose-100/40 leading-none">
+                                      🔒 Lock
+                                    </span>
+                                  ) : isCurrentActive ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600 text-white text-[8px] font-black uppercase tracking-wider rounded-lg leading-none">
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-wider rounded-lg border border-emerald-100/30 leading-none">
+                                      Ready
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <p className="text-[10px] text-slate-450 dark:text-slate-500 font-bold leading-tight mb-4 text-left font-sans">{core.desc}</p>
+                              
+                              <ul className="space-y-1.5 mb-6 text-left font-sans">
+                                {core.features.map((feat, idx) => (
+                                  <li key={idx} className="flex items-start gap-1.5 text-[9.5px] font-semibold text-slate-500 dark:text-slate-400">
+                                    <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
+                                    <span>{feat}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/40 flex items-center justify-between gap-2 font-sans">
+                              <div className="text-left">
+                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block leading-none mb-1">Price Value</span>
+                                <span className="text-xs font-black text-slate-900 dark:text-white font-mono uppercase">{core.payment}</span>
+                              </div>
+                              
+                              {!hasAccess ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onUpgradeRequested) onUpgradeRequested();
+                                  }}
+                                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[9px] font-black uppercase tracking-wide rounded-xl shadow-lg shadow-rose-500/15 active:scale-95 transition-all text-center shrink-0 cursor-pointer"
+                                >
+                                  Unlock Upgrade
+                                </button>
+                              ) : !isCurrentActive ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectClinicalModel(core.id);
+                                  }}
+                                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-705 dark:text-slate-300 text-[9px] font-black uppercase tracking-wide rounded-xl active:scale-95 transition-all text-center shrink-0 cursor-pointer"
+                                >
+                                  Select Core
+                                </button>
+                              ) : (
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                                  In Operation
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
@@ -2500,13 +2872,405 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
               </div>
             </div>
           </div>
+        </div>
 
           {/* Footer Info - discrete Gemini style */}
           <div className="px-6 py-2 flex items-center justify-center border-t border-slate-50 dark:border-slate-800/20 bg-white dark:bg-slate-950 shrink-0">
-          <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest text-center">
-             Doctorian Medical AI may display inaccurate info, including about people, so double-check its responses.
-          </p>
+            <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest text-center">
+               Doctorian Medical AI may display inaccurate info, including about people, so double-check its responses.
+            </p>
+          </div>
         </div>
+        )}
+
+        {activeMainTab === 'health_log' && (
+          <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950/40 custom-scrollbar p-4 sm:p-6 space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Header with Title and Import/Export Options */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-bottom-3 duration-300">
+                <div>
+                  <h3 className="text-xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                    <History size={20} className="text-blue-600 animate-pulse" />
+                    Offline Health Journal
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 font-bold">Log clinical biomarkers & physical symptoms safely in local browser sandbox.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={exportHealthLogs}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download size={12} />
+                    Export Log
+                  </button>
+                  {healthLogs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to purge all logged entries? This is irreversible.")) {
+                          setHealthLogs([]);
+                          localStorage.removeItem('doctorian_health_logs');
+                          setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Health log buffer completely purged.']);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-105 dark:bg-rose-950/20 text-rose-600 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                      Purge All
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Input Card */}
+              <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Record Diagnostic Values</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Leave blank what you cannot determine or test.</p>
+                </div>
+
+                {logValidationError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    <span>{logValidationError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block">Blood Pressure (mmHg)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 120/80"
+                      value={logBP}
+                      onChange={(e) => setLogBP(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block">Heart Rate (bpm)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 72"
+                      value={logHR}
+                      onChange={(e) => setLogHR(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block">Temperature (°C)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 36.8"
+                      value={logTemp}
+                      onChange={(e) => setLogTemp(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block">Oxygen saturation (SpO2%)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 98"
+                      value={logSpO2}
+                      onChange={(e) => setLogSpO2(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                  <div className="space-y-1.5">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block font-sans">Active Symptoms & Observations</label>
+                    <textarea
+                      placeholder="Describe active clinical signs, intensity, local onset..."
+                      value={logSymptoms}
+                      onChange={(e) => setLogSymptoms(e.target.value)}
+                      rows={2}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 resize-none font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block font-sans">Medication Taken or Scheduled</label>
+                    <textarea
+                      placeholder="e.g. Coartem pack 1 tab, Paracetamol 500mg..."
+                      value={logMedication}
+                      onChange={(e) => setLogMedication(e.target.value)}
+                      rows={2}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 resize-none font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800/40">
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-[1000] text-slate-450 uppercase tracking-widest block">Blood Glucose (mmol/L) - Optional</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 5.5"
+                      value={logGlucose}
+                      onChange={(e) => setLogGlucose(e.target.value)}
+                      className="w-28 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addHealthLogEntry}
+                    className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-[10.5px] font-black uppercase tracking-wider rounded-2xl shadow-xl shadow-blue-500/10 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <PlusCircle size={14} />
+                    Commit entry to offline storage
+                  </button>
+                </div>
+              </div>
+
+              {/* Saved Entries Column */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-450">Journal Records ({healthLogs.length})</span>
+                  <span className="text-[9px] font-bold uppercase text-slate-400">Listed Descending By Recency</span>
+                </div>
+
+                {healthLogs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl text-center">
+                    <div className="w-12 h-12 bg-slate-50 dark:bg-slate-950 rounded-2xl flex items-center justify-center mb-3">
+                      <History size={18} className="text-slate-400" />
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-350 font-black uppercase mt-1">No local offline health records committed yet.</p>
+                    <p className="text-[10.5px] text-slate-450 mt-2 font-bold max-w-sm leading-relaxed">Recorded vital parameters and symptom observations will appear here. They are 100% private to this browser sandbox.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {healthLogs.map((log: any) => (
+                      <div key={log.id} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/20 transition-all text-left">
+                        {/* Entry Timestamp Ribbon */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/40 pb-4 mb-4">
+                          <div className="flex items-center gap-2.5 text-left">
+                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                            <span className="text-xs font-black text-slate-800 dark:text-white uppercase font-sans">
+                              {new Date(log.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => diagnoseHealthLogEntry(log)}
+                              className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white dark:bg-blue-900/10 text-[9px] font-extrabold uppercase tracking-wide rounded-xl transition-all cursor-pointer flex items-center gap-1 border border-blue-100/10"
+                            >
+                              <BrainCircuit size={10} />
+                              Diagnose via AI Brain
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteHealthLogEntry(log.id)}
+                              className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                              title="Delete Record"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Biomarker stats panel */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5 text-left">
+                          <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-150 dark:border-slate-850">
+                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block leading-none mb-1.5">Blood Pressure</span>
+                            <span className="text-xs font-black text-slate-850 dark:text-white font-mono">{log.bloodPressure}</span>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-150 dark:border-slate-850">
+                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block leading-none mb-1.5">Pulse Rate</span>
+                            <span className="text-xs font-black text-slate-850 dark:text-white font-mono">{log.heartRate === 'Not recorded' ? 'N/A' : `${log.heartRate} bpm`}</span>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-150 dark:border-slate-850">
+                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block leading-none mb-1.5">Temperature</span>
+                            <span className="text-xs font-black text-slate-850 dark:text-white font-mono">{log.temperature === 'Not recorded' ? 'N/A' : `${log.temperature} °C`}</span>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-150 dark:border-slate-850">
+                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block leading-none mb-1.5">SpO2 Level</span>
+                            <span className="text-xs font-black text-slate-850 dark:text-white font-mono">{log.spo2 === 'Not recorded' ? 'N/A' : `${log.spo2}%`}</span>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-150 dark:border-slate-850 col-span-2 md:col-span-1">
+                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block leading-none mb-1.5">Blood Glucose</span>
+                            <span className="text-xs font-black text-slate-850 dark:text-white font-mono">{log.bloodGlucose === 'Not recorded' ? 'N/A' : `${log.bloodGlucose} mmol/L`}</span>
+                          </div>
+                        </div>
+
+                        {/* Symptoms and Meds logs */}
+                        <div className="space-y-3.5 text-left text-xs bg-slate-50/50 dark:bg-slate-950/20 px-5 py-4 rounded-2xl border border-slate-155 dark:border-slate-800/40">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">Symptoms reported</span>
+                            <p className="text-slate-700 dark:text-slate-300 font-semibold leading-relaxed font-sans">{log.symptoms}</p>
+                          </div>
+                          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-850">
+                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1 font-sans">Active Medications list</span>
+                            <p className="text-slate-700 dark:text-slate-300 font-semibold leading-relaxed font-sans">{log.medication}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeMainTab === 'resources' && (
+          <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950/40 custom-scrollbar p-4 sm:p-6 space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Header with Title */}
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-bottom-3 duration-300 text-left">
+                <h3 className="text-xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  <FileText size={20} className="text-blue-600" />
+                  Clinical Protocol Reference Vault
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 font-bold">Standard diagnostic aids & clinical reference cards compiled from official MoH Uganda and pediatric guideline frames.</p>
+              </div>
+
+              {/* Bento protocols grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                {/* Protocol 1: Malaria Dosing Table */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase tracking-widest leading-none mb-1">
+                      🌿 MoH Tropical Medicine
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Plasmodium Malaria Dosing Matrix</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">Uganda recommended dosing protocol for uncomplicated malaria using first-line Artemether-Lumefantrine (Coartem) tablets (20mg/120mg twice daily for 3 days).</p>
+                    
+                    <div className="overflow-x-auto text-[9.5px] font-sans border border-slate-100 dark:border-slate-850 rounded-xl">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 dark:bg-slate-950/60 uppercase tracking-wider text-slate-400 text-[8px] font-black">
+                            <th className="p-2.5">Weight Class</th>
+                            <th className="p-2.5">Color Code</th>
+                            <th className="p-2.5">Dose stat</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-sans text-xs">
+                          <tr>
+                            <td className="p-2.5 font-semibold text-slate-850 dark:text-slate-300">5 to &lt;15 kg</td>
+                            <td className="p-2.5 text-yellow-605 font-black uppercase">Yellow</td>
+                            <td className="p-2.5 font-mono text-[10px]">1 tab BID x3 days</td>
+                          </tr>
+                          <tr>
+                            <td className="p-2.5 font-semibold text-slate-850 dark:text-slate-300">15 to &lt;25 kg</td>
+                            <td className="p-2.5 text-blue-600 font-black uppercase">Blue</td>
+                            <td className="p-2.5 font-mono text-[10px]">2 tabs BID x3 days</td>
+                          </tr>
+                          <tr>
+                            <td className="p-2.5 font-semibold text-slate-850 dark:text-slate-300">25 to &lt;35 kg</td>
+                            <td className="p-2.5 text-orange-500 font-black uppercase">Orange</td>
+                            <td className="p-2.5 font-mono text-[10px]">3 tabs BID x3 days</td>
+                          </tr>
+                          <tr>
+                            <td className="p-2.5 font-semibold text-slate-850 dark:text-slate-300">&gt;=35 kg</td>
+                            <td className="p-2.5 text-emerald-600 font-black uppercase">Green</td>
+                            <td className="p-2.5 font-mono text-[10px]">4 tabs BID x3 days</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-50 dark:border-slate-850 flex flex-wrap gap-2 justify-between items-center text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                    <span>SEVERE MALARIA PRE-REFERRAL:</span>
+                    <span className="text-rose-650 bg-rose-500/10 px-2 py-1 rounded">Artesunate 2.4 mg/kg IV</span>
+                  </div>
+                </div>
+
+                {/* Protocol 2: IMCI Dehydration Diagnostic Matrix */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="space-y-3 text-left">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase tracking-widest leading-none mb-1">
+                      👶 Integrated Management (IMCI)
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Child Dehydration Triage Index</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">Standard rapid diagnostic criteria to formulate treatment plans (Plan A, B, or C) for pediatric diarrheal illness.</p>
+                    
+                    <div className="space-y-2 font-mono text-[9px] font-bold">
+                      <div className="p-2.5 rounded-xl border border-red-200/50 dark:border-red-950/40 bg-red-500/5 text-slate-700 dark:text-slate-350">
+                        <p className="text-[10px] text-red-600 dark:text-red-400 font-black uppercase mb-1">Severe Dehydration (Plan C Fluids Urgent)</p>
+                        <span className="leading-relaxed">Any 2 signs: Lethargic or unconscious, Sunken eyes, Cannot drink or drinks poorly, Skin pinch retracts very slowly (&gt;2 seconds).</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl border border-amber-200/50 dark:border-amber-950/40 bg-amber-500/5 text-slate-700 dark:text-slate-350 text-left">
+                        <p className="text-[10px] text-amber-600 dark:text-amber-500 font-black uppercase mb-1">Some Dehydration (Plan B ORS support)</p>
+                        <span className="leading-relaxed">Any 2 signs: Restless or irritable, Sunken eyes, Drinks eagerly/thirsty, Skin pinch retracts slowly.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800/40 text-right">
+                    <span className="text-[8.5px] font-black uppercase tracking-widest text-[#94a3b8]">Baseline triage indices based on WHO guidelines</span>
+                  </div>
+                </div>
+
+                {/* Protocol 3: Maternal Danger Signals & Pre-eclampsia */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 text-[8px] font-black uppercase tracking-widest leading-none mb-1">
+                      🤰 Maternal Health & Obstetrics
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Pre-eclampsia Screening Criteria</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">Immediate diagnosis framework for hypertensive disorders of pregnancy, preventing progression to lethal eclampsia.</p>
+                    
+                    <div className="space-y-2.5 text-xs text-slate-705 dark:text-slate-350 font-semibold font-sans">
+                      <div className="flex items-start gap-2">
+                        <span className="text-purple-500 block shrink-0">•</span>
+                        <span><strong>Hypertensive limit</strong>: Diastolic BP &gt;= 90 mmHg or Systolic BP &gt;= 140 mmHg after 20 weeks gestation in previously normotensive parent.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-purple-500 block shrink-0">•</span>
+                        <span><strong>Severe Alarm Signs</strong>: Frontal headache, visual blurring, flashing light spots, hyperreflexia, liver pain (epigastric tension), proteinuria 3+.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-purple-500 block shrink-0">•</span>
+                        <span><strong>Stabilization SOP</strong>: Magnesium Sulfate 4g IV stat over 20 mins, then 10g IM loading dose, fast-track RRH referral.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-50 dark:border-slate-850 flex justify-between items-center text-[8.5px] font-black text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded">
+                    <span>SEIZURE PROTECTION DIRECTIVE:</span>
+                    <span>IV/IM Magnesium Sulfate Loading SOP</span>
+                  </div>
+                </div>
+
+                {/* Protocol 4: Clinical Safety & Ethical Practice */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-slate-500/10 text-slate-500 text-[8px] font-black uppercase tracking-widest leading-none mb-1">
+                      🛡️ Clinical Compliance Lockout
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Ethics & Ultimate Review Directives</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">Comprehensive disclaimer and directive matrix designed to enforce patient safety, absolute clinical sovereignty, and localized verification requirements.</p>
+                    
+                    <ul className="space-y-1.5 font-sans text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-orange-550 shrink-0 mt-0.5">⚠️</span>
+                        <span>No AI consultation constitutes static absolute advice. Frame all diagnostics as probability pathways.</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-orange-550 shrink-0 mt-0.5">⚠️</span>
+                        <span>Always complete physical verification (biomarkers, blood smear, clinical auscultation) before committing to pharmaceutical courses.</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-orange-550 shrink-0 mt-0.5">⚠️</span>
+                        <span>Direct immediate referrals to standard clinical centers (Mbarara, Mulago, Gulu, Fort Portal regional centers) when any life hazard is detected.</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800/40 text-right">
+                    <span className="text-[8.5px] font-black uppercase tracking-widest text-[#94a3b8]">Directive: Local Physical Review Required</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Clinical Tool Hub Panel */}
@@ -3460,6 +4224,70 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
                {/* Scrollable Settings Panel */}
                <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar text-left">
+                  {/* Google MedLM Specialty Configurations */}
+                  <div className="p-4 bg-blue-50/50 dark:bg-blue-950/10 rounded-2xl border border-blue-100/60 dark:border-blue-900/40 space-y-4">
+                    <div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600 text-white text-[7.5px] font-[1000] uppercase tracking-widest leading-none mb-2">
+                        ✨ Google MedLM Enabled
+                      </span>
+                      <p className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest leading-none">Specialized Clinical AI Brain</p>
+                      <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">Select the clinical intelligence layout for diagnostic formulation</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'llama-clinical' as const, label: 'Llama 3.1', desc: 'Local Core', tier: 'Standard (Free)' },
+                        { id: 'medlm-medium' as const, label: 'MedLM Medium', desc: 'Clinical Pro', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'MedLM Large', desc: 'Deep Reasoning', tier: 'Matrix Required' }
+                      ].map(engineOption => {
+                        const { hasAccess, tierName } = checkModelAccess(engineOption.id);
+                        const isSelected = clinicalEngine === engineOption.id;
+                        
+                        return (
+                          <button 
+                            type="button"
+                            key={engineOption.id}
+                            onClick={() => selectClinicalModel(engineOption.id)}
+                            className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                              isSelected 
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-md' 
+                                : !hasAccess
+                                  ? 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60 text-slate-400 hover:border-red-500/20 hover:bg-slate-50 dark:hover:bg-slate-900'
+                                  : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-slate-700/60 text-slate-600 dark:text-slate-450 hover:border-blue-500/20'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-1 w-full">
+                                <p className="text-[9.5px] font-black uppercase tracking-widest leading-none m-0">{engineOption.label}</p>
+                                {!hasAccess && <span className="text-[7px] text-red-500 dark:text-red-400 font-extrabold uppercase bg-red-100/50 dark:bg-red-900/20 px-1 py-0.5 rounded leading-none shrink-0">🔒 Lock</span>}
+                                {hasAccess && isSelected && <span className="text-[7px] text-blue-100 font-extrabold uppercase bg-blue-700 px-1 py-0.5 rounded leading-none shrink-0">Active</span>}
+                                {hasAccess && !isSelected && <span className="text-[7px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase bg-emerald-100/30 dark:bg-emerald-900/10 px-1 py-0.5 rounded leading-none shrink-0">Ready</span>}
+                              </div>
+                              <p className={`text-[7px] font-[1000] uppercase mt-1.5 tracking-wide leading-normal ${isSelected ? 'text-white/80' : 'text-slate-400 dark:text-slate-500'}`}>{engineOption.desc}</p>
+                            </div>
+                            <span className={`text-[6.5px] font-black uppercase tracking-widest mt-2 block ${isSelected ? 'text-blue-100' : 'text-slate-400 dark:text-slate-500'}`}>
+                              {hasAccess ? 'Licensed' : engineOption.tier}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/40 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9.5px] font-black text-slate-850 dark:text-slate-200 uppercase tracking-widest leading-none">Clinical Grounding</p>
+                        <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">Search verified online sources in real-time</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setClinicalGrounding(!clinicalGrounding)}
+                        className={`w-11 h-6 rounded-full p-1 transition-all duration-300 flex items-center ${clinicalGrounding ? 'bg-blue-600 justify-end' : 'bg-slate-200 dark:bg-slate-700 justify-start'}`}
+                      >
+                        <span className="w-4 h-4 bg-white rounded-full shadow-md" />
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Strict MoH Compliance */}
                   <div className="p-4 bg-slate-50 dark:bg-slate-905/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-3 font-sans shadow-sm">
                     <div className="flex items-center justify-between">
@@ -3613,10 +4441,12 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                           })
                         });
                         setShowSettings(false);
-                        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Clinical matrix settings stabilized.']);
+                        const engineName = clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1');
+                        setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Clinical settings saved locally.']);
+                        const engineName = clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1');
+                        setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}
                     className="w-full py-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:opacity-90 active:scale-95 transition-all shadow-xl"
@@ -3628,7 +4458,6 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
           </div>
         )}
       </AnimatePresence>
-    </div>
     </div>
   );
 }

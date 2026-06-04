@@ -15,7 +15,9 @@ import {
   Globe,
   Info,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { api } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,10 +30,23 @@ export const DeveloperPortal: React.FC = () => {
   const [showKeyModal, setShowKeyModal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'keys' | 'docs'>('keys');
+  const [revealKeyId, setRevealKeyId] = useState<number | null>(null);
+  const [credentials, setCredentials] = useState<any>(null);
+  const [showCredentials, setShowCredentials] = useState(false);
 
   useEffect(() => {
     fetchKeys();
+    fetchCredentials();
   }, []);
+
+  const fetchCredentials = async () => {
+    try {
+      const data = await api.developer.getCredentials();
+      setCredentials(data);
+    } catch (err) {
+      console.error("Failed to load clinical keys context:", err);
+    }
+  };
 
   const fetchKeys = async () => {
     try {
@@ -306,39 +321,99 @@ console.log(data.choices[0].message.content);
                     <p className="text-xs text-slate-400">Generate a key to start integrating your trained AI.</p>
                   </div>
                 ) : (
-                  keys.map(key => (
-                    <div key={key.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-slate-900 dark:text-white capitalize">{key.label}</h3>
-                        <div className="flex items-center gap-3">
-                          <code className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">
-                            {key.apiKey.substring(0, 8)}...{key.apiKey.substring(key.apiKey.length - 4)}
-                          </code>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
-                            Created: {new Date(key.createdAt).toLocaleDateString()}
-                          </span>
+                  keys.map(key => {
+                    const isRevealed = revealKeyId === key.id;
+                    return (
+                      <div key={key.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-slate-900 dark:text-white capitalize">{key.label}</h3>
+                          <div className="flex items-center gap-3">
+                            <code className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">
+                              {isRevealed ? key.apiKey : `${key.apiKey.substring(0, 8)}...${key.apiKey.substring(key.apiKey.length - 4)}`}
+                            </code>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
+                              Created: {new Date(key.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => setRevealKeyId(isRevealed ? null : key.id)}
+                            className="p-2 text-slate-400 hover:text-blue-500 rounded-xl transition-all"
+                            title={isRevealed ? "Hide Key" : "Reveal Key"}
+                          >
+                            {isRevealed ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                          <button 
+                            onClick={() => copyToClipboard(key.apiKey)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all"
+                            title="Copy Key"
+                          >
+                            <Copy size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteKey(key.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                            title="Revoke Key"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => copyToClipboard(key.apiKey)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all"
-                          title="Copy Key"
-                        >
-                          <Copy size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteKey(key.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
-                          title="Revoke Key"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
+            </div>
+
+            {/* System Credentials Sharing Section */}
+            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 border border-slate-800 rounded-2xl p-6 shadow-md text-white">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-indigo-400" />
+                    <h2 className="font-black text-white uppercase tracking-tight text-sm">System AI API Credentials</h2>
+                  </div>
+                  <p className="text-xs text-slate-300 max-w-md">
+                    To enable other developers to consume your trained medical core model directly, you can copy the master AI orchestrator credentials below.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCredentials(!showCredentials)}
+                  className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-xl transition-all flex items-center gap-1.5"
+                >
+                  {showCredentials ? <EyeOff size={14} /> : <Eye size={14} />}
+                  <span>{showCredentials ? "Mask Keys" : "Reveal Keys"}</span>
+                </button>
+              </div>
+
+              {credentials && (
+                <div className="mt-6 space-y-4 pt-4 border-t border-white/10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-950/40 p-4 border border-white/5 rounded-xl space-y-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block">Active Neural Engine</span>
+                      <span className="text-white text-xs font-black block">{credentials.provider}</span>
+                    </div>
+                    <div className="bg-slate-950/40 p-4 border border-white/5 rounded-xl space-y-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block">Core Gemini Synapse API Key</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="text-xs font-mono select-all truncate max-w-[200px] text-indigo-200">
+                          {showCredentials ? credentials.apiKey : "sk-or-v1-be453e00fc...[masked]"}
+                        </code>
+                        {credentials.apiKey && credentials.apiKey.length > 10 && (
+                          <button
+                            onClick={() => copyToClipboard(credentials.apiKey)}
+                            className="p-1.5 text-indigo-300 hover:text-white hover:bg-white/10 rounded"
+                            title="Copy Master Key"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-slate-900 rounded-2xl p-6 shadow-xl relative overflow-hidden">

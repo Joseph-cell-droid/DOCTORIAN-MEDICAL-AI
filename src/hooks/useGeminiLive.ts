@@ -4,6 +4,7 @@ export interface GeminiLiveOptions {
   systemInstruction?: string;
   voiceName?: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
   isMuted?: boolean;
+  isSpeakerMuted?: boolean;
   onTranscript?: (text: string, isModel: boolean) => void;
   onStatusChange?: (status: 'idle' | 'connecting' | 'connected' | 'error') => void;
 }
@@ -22,6 +23,7 @@ export function useGeminiLive(options: GeminiLiveOptions = {}) {
   const recognitionRef = useRef<any>(null);
   const isSpeechSpeakingRef = useRef<boolean>(false);
   const isMutedRef = useRef<boolean>(false);
+  const isSpeakerMutedRef = useRef<boolean>(false);
   
   const [inputVolume, setInputVolume] = useState(0);
   const [outputVolume, setOutputVolume] = useState(0);
@@ -30,6 +32,7 @@ export function useGeminiLive(options: GeminiLiveOptions = {}) {
     systemInstruction = "You are a helpful assistant.",
     voiceName = "Puck",
     isMuted = false,
+    isSpeakerMuted = false,
     onTranscript,
     onStatusChange
   } = options;
@@ -47,6 +50,18 @@ export function useGeminiLive(options: GeminiLiveOptions = {}) {
       } catch (e) {}
     }
   }, [isMuted, status]);
+
+  // Sync speaker mute state
+  useEffect(() => {
+    isSpeakerMutedRef.current = isSpeakerMuted;
+    if (isSpeakerMuted) {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      isSpeechSpeakingRef.current = false;
+      setOutputVolume(0);
+    }
+  }, [isSpeakerMuted]);
 
   useEffect(() => {
     onStatusChange?.(status);
@@ -118,6 +133,11 @@ export function useGeminiLive(options: GeminiLiveOptions = {}) {
   // Trigger speech synthesis readback with real spectral visualizer simulation
   const speakAloud = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    
+    if (isSpeakerMutedRef.current) {
+      console.log("[DOCTORIAN-VOICE] Speaker is muted, skipping readback.");
+      return;
+    }
     
     // Temporarily pause Speech Recognition to prevent the mic from transcribing its own speakers
     if (recognitionRef.current) {

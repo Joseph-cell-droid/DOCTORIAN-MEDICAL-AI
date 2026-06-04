@@ -20,6 +20,7 @@ import { ClinicalCoPilotPanel } from './ClinicalCoPilotPanel';
 import { EmergencyRegistry } from './EmergencyRegistry';
 import { AlarmHubView } from './AlarmHubView';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
+import { HistoricalTelemetryChart } from './HistoricalTelemetryChart';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar,
@@ -4424,6 +4425,13 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             <div className="mb-8">
               <LiveECGMonitor vitals={vitals} addAlarmLog={addAlarmLog} />
             </div>
+
+            {/* Interactive 24-Hour Historical Dual-Axis Chart */}
+            <HistoricalTelemetryChart 
+              vitals={vitals} 
+              selectedPatientId={selectedPatientId} 
+              preset={currentCoupledPatientGlobal?.vitalsPreset || 'healthy'} 
+            />
 
             {/* Heart Rate Chart */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200 dark:shadow-none p-4 sm:p-8 mb-8 transition-colors">

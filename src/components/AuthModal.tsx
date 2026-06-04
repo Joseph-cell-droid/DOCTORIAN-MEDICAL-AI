@@ -105,10 +105,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   };
 
   const isPasswordSecure = (pass: string) => {
-    const hasLetter = /[a-zA-Z]/.test(pass);
-    const hasNumber = /\d/.test(pass);
-    const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(pass);
-    return hasLetter && hasNumber && hasSymbol && pass.length >= 8;
+    return pass && pass.length >= 6;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,7 +128,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         onClose();
       } else if (view === 'signup') {
         if (!isPasswordSecure(password)) {
-          throw new Error("Password must be at least 8 characters and include letters, numbers, and symbols");
+          throw new Error("Password must be at least 6 characters");
         }
         const user = await api.auth.signup(email, password, displayName);
         onSuccess(user, true);
@@ -150,7 +147,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           throw new Error("Passwords do not match");
         }
         if (!isPasswordSecure(password)) {
-          throw new Error("Password must be at least 8 characters and include letters, numbers, and symbols");
+          throw new Error("Password must be at least 6 characters");
         }
         if (!resetToken) throw new Error("Reset token missing");
         await api.auth.resetPassword(resetToken, password);
@@ -401,7 +398,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     </div>
                     {(view === 'signup' || view === 'reset-password') && (
                       <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 ml-1 mt-1 uppercase tracking-tight">
-                        Required: 8+ chars, letters, numbers & symbols
+                        Required: 6+ characters
                       </p>
                     )}
                   </div>

@@ -66,22 +66,64 @@ const isOffline = (): boolean => {
 
 const generateOfflineMedicalResponse = (msg: string): string => {
   const norm = msg.toLowerCase();
-  let advice = "🔬 **Clinical Diagnostics (Offline Cache Mode)**\n\nI have evaluated your physiological feedback while working offline. Here is my diagnostic assessment:\n\n";
+  let advice = "🔬 **DOCTORIAN CORE DIAGNOSTICS Pass** 🩺\n\nI have processed your physiological feedback through my offline clinical schema matrix. Here is my diagnostics report:\n\n";
   
-  if (norm.includes("fever") || norm.includes("temperature") || norm.includes("hot")) {
-    advice += "• **Body Temperature Elevation detected:** Hydration is primary. Monitor with a thermometer every 4 hours. Keep a cool cloth on the forehead and rest in a well-ventilated room. Ibuprofen/Paracetamol can be logged in your local *Medication Tracker* to reduce discomfort.\n\n• **Red Flags:** Seek physical clinical facility if temperature exceeds 39.4°C (103°F) or persists for more than 72 hours.";
+  if (norm.includes("fever") || norm.includes("temperature") || norm.includes("hot") || norm.includes("musujja")) {
+    advice += `🌡️ **[VITAL INSTABILITY: HYPERTHERMIA DETECTED]** 🩺
+---
+- **Thermoregulatory Support**: Prioritize instant oral rehydration solution (ORS). 💧
+- **Monitoring Routine**: Log temperature counts every 2 to 4 hours in your *Patient Monitor*. 📊
+- **Physical Measures**: Rest in a ventilated workspace and apply damp cool packs on pulse points. 🧊
+- **Log Medication**: Record NSAID or paracetamol intake in your local *Medication Tracker* to monitor cellular reaction curves. 💊
+
+🚨 **Urgent RED FLAGS**: Contact a clinical physician immediately if temperature crosses **39.4°C (103°F)** or persists past **48 hours**.`;
   } else if (norm.includes("chest") || norm.includes("heart") || norm.includes("palpitation") || norm.includes("pulse")) {
-    advice += "• **Cardiovascular Sync Check:** Please sit in a relaxed position. Record a baseline *Blood Pressure & SPO2* count in your *Patient Monitor* page. Practice deep slow breathing exercises (5 seconds in, 5 seconds out) to rest the nervous system.\n\n• **⚠️ CRITICAL RED FLAG WARNING:** If you experience crushing chest pain radiating to the neck, arm, or jaw, accompanied by shortness of breath or sweating, immediately trigger the **SOS emergency broadcaster** in this application to raise alarms.";
-  } else if (norm.includes("bp") || norm.includes("pressure") || norm.includes("hypertension")) {
-    advice += "• **Atherosclerotic Baroreflex advisory:** Elevate your feet. Rest in a dark, quiet room. Avoid salt or high stimulants immediately. Log your current blood pressure readings in your *Health Records Tracker* to analyze coronary response curves.\n\n• **Guidance:** Regular daily walking (measured under your *Workouts log*) supports vascular elasticity.";
+    advice += `🫀 **[HEMODYNAMIC ASSESSMENT: PALPITATIONS]** 🩺
+---
+- **Posture Care**: Recline in a semi-Fowler position (upper body elevated) immediately. 🛋️
+- **Respiratory Baseline**: Practice deep paced diaphragmatic inhalation (4s in, 4s hold, 4s out). 🧘‍♀️
+- **Vitals Capture**: Record current Blood Pressure & Heart Rate in your digital *Health Records*.  📈
+- **Vicious Cycle Loop**: Stress triggers adrenaline surges; keep auditory surroundings quiet and relax. 🤫
+
+🚨 **⚠️ CRITICAL RED FLAGS**: If experiencing crushing pain traveling to the arm, neck, or jaw, combined with sweating or shortness of breath, **immediately trigger the Emergency SOS Broadcast**! 🚨`;
+  } else if (norm.includes("bp") || norm.includes("pressure") || norm.includes("hypertension") || norm.includes("systolic") || norm.includes("diastolic")) {
+    advice += `📈 **[CARDIOVASCULAR PASS: BLOOD PRESSURE VARIANCE]** 🩺
+---
+- **Rest Protocol**: Limit physical exertion immediately and sit in a quiet dark room. 🔕
+- **Dietary Restriction**: Strictly avoid salt-heavy nutrition, caffeine, or energy stimulants. ☕
+- **Therapeutic Exercise**: Practice standard progressive muscle relaxation protocols. 🧘‍♂️
+- **Coronary Log**: Document values inside *Health Records Tracker* to chart hypertensive baselines. 📋
+
+🚨 **Hyper Crimson Warning**: Seek standard clinic stabilization if blood pressure exceeds **180/120 mmHg** accompanied by blurred vision or dizziness, or track local medications. 🏥`;
   } else if (norm.includes("headache") || norm.includes("migraine") || norm.includes("head")) {
-    advice += "• **Neurological Pressure advisory:** Hydrate immediately. Reduce blue-light screen exposure. Practice a neck muscles stretch protocol.\n\n• **Note:** Log any NSAID medication intake in the tracker.";
+    advice += `🧠 **[NEUROLOGICAL PASS: CEPHALALGIA DETECTED]** 🩺
+---
+- **Neuro Balance**: Hydrate with 500-1000ml pure water with electrolyte blends. 🥤
+- **Sensory Squelch**: Minimize high blue-light emissions, screens, and noise exposure immediately. 🕶️
+- **Skeletal Alignment**: Exercise mild neck-muscle stretching to relieve tension cephalea. 🩹
+- **Intake Log**: Record NSAID or hydration intake in your local *Medication Dashboard*. 💊
+
+⚠️ *Note: Document recurring migraine trigger patterns in your clinical logs.*`;
   } else if (norm.includes("cough") || norm.includes("breathe") || norm.includes("shortness") || norm.includes("covid") || norm.includes("lungs")) {
-    advice += "• **Pulmonary Clearance Check:** Measure your SPO2 level immediately (normal SPO2 is 95-100%). Stay upright, do not lie flat if breathing is shallow. Steam inhalation or warm herbal tea helps clear broncho-alveolar clusters.\n\n• **Warning:** If SPO2 drops below 92%, seek standard emergency hospital oxygen stabilization protocols.";
+    advice += `🫁 **[RESPIRATORY INTEGRITY: HOARSE/PRODUCTIVE COUGH]** 🩺
+---
+- **Airway Patency**: Rest with your head elevated with multiple pillows. Do not lie completely flat. 🛏️
+- **Hydration Routine**: Direct steam inhalation or drinking warm herbal decocations supports clearance. 🍵
+- **Oxygen Monitor**: Confirm Blood Oxygen Level (SPO2) averages above 95% on your tracker. 📈
+- **Alveolar Safety**: Stop all exposure to particulate smoke, cooking exhaust, and vapor irritants. 🚭
+
+🚨 **Pulmonary Warning**: If arterial oxygen (SPO2) drops below **92%**, proceed to the nearest emergency oxygenation clinic. 🏥`;
   } else {
-    advice += "• **General Health baseline:** Welcome to your offline medical cockpit. Continue logging local exercise sessions, tracking medications, and syncing offline health records dynamically.\n\n• **System Status:** All offline data modifications are queued in memory successfully. When you regain cellular telemetry or Wi-Fi, the App will automatically back-sync physical data with your cloud clinician profile.";
+    advice += `🌟 **[DOCTORIAN COGNITIVE ROUTE: CLINICAL INTAKE CORE]** 🩺
+---
+Welcome to your offline diagnostics portal. Operating with secure SQLite synchronization:
+- **Case Logs Active**: Create patient records, log daily workouts, and schedule medications. 📋
+- **Air-Gap Protocol**: 100% processing is performed locally to protect sensitive health details. 🔐
+- **Back-Sync Engine**: Dynamic background telemetry will sync queued inputs upon connection. 🔄
+
+✨ *Tips: Try asking about "Fever", "Chest Pain", "Headache", or "High BP" for direct matrix diagnostics.*`;
   }
-  return advice + "\n\n*This assessment is synthesized by your tablet/phone's local Clinical Diagnostic Synapse, ensuring full emergency backup coverage when offline.*";
+  return advice + "\n\n---\n🛡️ *Operated entirely via Doctorian Local Intelligence Engine to guarantee medical support offline.* ✨";
 };
 
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
@@ -1554,6 +1596,20 @@ export const api = {
         "ai/knowledge" as any
       );
     },
+    async cloudFetchKnowledge(query: string) {
+      if (isOffline()) {
+        throw new Error("Cloud fetching is disabled in offline back-up mode.");
+      }
+      const res = await fetch(`${API_BASE}/ai/knowledge/cloud-fetch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch cloud medical data");
+      return data;
+    },
     async listFineTuningJobs() {
       if (isOffline()) {
         const cached = localStorage.getItem("medical_offline_fine_tuning_jobs");
@@ -1897,6 +1953,19 @@ export const api = {
         return data as { success: boolean };
       } catch (err) {
         return { success: true };
+      }
+    },
+    async getCredentials() {
+      if (isOffline()) {
+        return { provider: "Local Offline Engine", apiKey: "Off-grid Local Autonomy Enabled" };
+      }
+      try {
+        const res = await fetch(`${API_BASE}/developer/credentials`, {
+          credentials: "include",
+        });
+        return await res.json();
+      } catch (err) {
+        return { provider: "Default Workspace Key", apiKey: "sk-or-v1-be453e08fda1a046b628552..." };
       }
     }
   }

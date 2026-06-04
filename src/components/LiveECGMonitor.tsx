@@ -17,13 +17,7 @@ interface LiveECGMonitorProps {
 type WaveMode = 'ecg' | 'ppg' | 'resp';
 
 export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarmLog }) => {
-  // Safe retrieve useArduinoContext
-  let arduino: any = null;
-  try {
-    arduino = useArduinoContext();
-  } catch (e) {
-    // optional safe fallthrough
-  }
+  const arduino = useArduinoContext();
 
   const [hasLoggedLowBattery, setHasLoggedLowBattery] = useState(false);
   const battery = arduino?.watchMetadata?.battery;

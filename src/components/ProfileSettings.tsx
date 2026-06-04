@@ -917,6 +917,46 @@ Verified by Joseph Akora - Development Lead.
                 </div>
 
                 <div className="space-y-8">
+                  {/* Hybrid Strategy Architecture Visual Guide */}
+                  <div className="bg-slate-50 dark:bg-slate-950 p-6 sm:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-6">
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">Active AI Brain Routing Architecture</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">The brain executes a clinical cascade. Primary tasks run on zero-cost cloud structures, falling back instantly to localized models when required.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-left">
+                      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
+                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest block mb-1">Primary Brain • Strat 2</span>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Cloud Online Core</h5>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 font-medium mt-1">Google Gemini (via dynamic tokens) and Together AI. Lightning response with full web search capability.</p>
+                        <div className="flex items-center gap-1.5 mt-2 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md text-[8px] font-extrabold text-blue-600 dark:text-blue-400 uppercase w-max">
+                          <CheckCircle2 size={9} /> Default Route
+                        </div>
+                      </div>
+
+                      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-violet-500" />
+                        <span className="text-[8px] font-black text-violet-500 uppercase tracking-widest block mb-1">Failover Brain • Strat 1</span>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Local Ollama Relay</h5>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 font-medium mt-1">Bound to your personal laptop Ollama endpoint (e.g., Llama 3.1 8B). Zero-credit offline execution.</p>
+                        <div className="flex items-center gap-1.5 mt-2 bg-violet-50 dark:bg-violet-900/20 px-2 py-0.5 rounded-md text-[8px] font-extrabold text-violet-600 dark:text-violet-400 uppercase w-max font-mono">
+                          Auto-Failover Active
+                        </div>
+                      </div>
+
+                      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400 dark:bg-slate-750" />
+                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest block mb-1">Emergency Brain • Strat 3</span>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Offline Bio-Synthesis</h5>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 font-medium mt-1">Client-side clinical dictionary, local rule engine, and cached diagnostic parameters.</p>
+                        <div className="flex items-center gap-1.5 mt-2 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[8px] font-extrabold text-slate-500 uppercase w-max">
+                          Air-Gapped Sync
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="group p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-violet-500/5">
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 relative z-10">
                       <div className="flex items-start gap-6">

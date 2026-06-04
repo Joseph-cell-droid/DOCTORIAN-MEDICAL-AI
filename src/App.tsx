@@ -98,6 +98,7 @@ const LearnMore = lazy(() => import("./components/LearnMore").then(m => ({ defau
 const AuthModal = lazy(() => import("./components/AuthModal").then(m => ({ default: m.AuthModal })));
 const AdminInfoModal = lazy(() => import("./components/AdminInfoModal").then(m => ({ default: m.AdminInfoModal })));
 const Footer = lazy(() => import("./components/Footer").then(m => ({ default: m.Footer })));
+const BiomaticSandbox = lazy(() => import("./components/BiomaticSandbox").then(m => ({ default: m.BiomaticSandbox })));
 
 import { HealthTip } from "./components/HealthTipModal";
 const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
@@ -114,11 +115,58 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-          <ShieldAlert size={48} className="text-rose-500 mb-6" />
-          <h1 className="text-2xl font-black text-white uppercase mb-2">Neural Link Collapsed</h1>
-          <p className="text-slate-400 max-w-md text-sm mb-8">{this.state.error?.toString()}</p>
-          <button onClick={() => window.location.reload()} className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest">Re-sync</button>
+        <div className="h-screen w-screen bg-slate-550 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center overflow-auto">
+          <div className="max-w-xl bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 md:p-12 relative overflow-hidden flex flex-col items-center">
+            
+            {/* Ambient Background Glow Decors */}
+            <div className="absolute -top-12 -left-12 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
+
+            {/* Shield Check / Health Heart Pulse Sign */}
+            <div className="w-20 h-20 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-8 animate-pulse relative z-10 border border-blue-100 dark:border-blue-900/30">
+              <Activity size={36} />
+            </div>
+
+            <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-4 relative z-10 tracking-tight leading-tight">
+              Calibrating Your Wellness Space
+            </h1>
+            
+            <p className="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed mb-8 relative z-10 max-w-md">
+              Doctorian is currently re-aligning your personalized clinical dashboard. 
+              Your active medical records, synced devices, and encrypted health data remain entirely secure.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full relative z-10 justify-center">
+              <button 
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.hash = "";
+                  window.location.reload();
+                }} 
+                className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:transform active:scale-[0.98] text-white rounded-2xl font-bold transition-all duration-200 cursor-pointer shadow-lg shadow-blue-500/20 text-sm tracking-wide"
+              >
+                Restore Workspace
+              </button>
+              <button 
+                onClick={() => {
+                  try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = "/";
+                  } catch (e) {
+                    window.location.reload();
+                  }
+                }} 
+                className="w-full sm:w-auto px-8 py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:transform active:scale-[0.98] text-slate-700 dark:text-slate-300 rounded-2xl font-bold transition-all duration-200 cursor-pointer text-sm"
+              >
+                Reset & Restart
+              </button>
+            </div>
+            
+            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-8 relative z-10 block">
+              Continuous Telemetry Active
+            </span>
+          </div>
         </div>
       );
     }
@@ -145,16 +193,31 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
   const setCurrentView = (view: any) => {
-    if (view === 'meds') {
-      const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
+    const isCurrentUserAdmin = user?.email?.toLowerCase() === "gloriajayakullo@gmail.com" || isAdminAuthenticated;
+    
+    if (view === 'meds' || view === 'monitor' || view === 'biomatic') {
+      const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true' || 
+                          isCurrentUserAdmin || 
+                          user?.role === 'doctor' || 
+                          user?.role === 'admin';
       if (!isDocAuthed) {
-        setPendingView('meds');
+        setPendingView(view);
         setIsDoctorVerifyOpen(true);
+        return;
+      }
+    }
+    if (view === 'admin') {
+      if (!isCurrentUserAdmin) {
+        addToast("Unauthorized tactical access attempt detected.", "error");
+        return;
+      }
+      if (!isAdminAuthenticated) {
+        setShowAdminLogin(true);
         return;
       }
     }
@@ -214,6 +277,10 @@ export default function App() {
   const arduino = useArduinoContext();
   useMedicationReminders(user);
   const isAdmin = user?.email?.toLowerCase() === "gloriajayakullo@gmail.com" || isAdminAuthenticated;
+  const isDoctor = sessionStorage.getItem('doctor_authenticated') === 'true' || 
+                   user?.role === 'doctor' || 
+                   user?.role === 'admin' || 
+                   isAdmin;
 
   const handleNeuralCoreAccess = () => {
     if (isAdminAuthenticated) {
@@ -850,8 +917,10 @@ export default function App() {
       items: [
         { id: 'home', label: 'Dashboard', icon: <Home size={15} /> },
         { id: 'ai_nexus', label: 'Doctorian Neural Core', icon: <Bot size={15} /> },
+        { id: 'voice_call', label: 'Neural Voice Consultation', icon: <Phone size={15} />, action: () => setIsVoiceCallOpen(true) },
         { id: 'illustrator', label: 'Medical Illustrator', icon: <Palette size={15} /> },
         { id: 'neuro', label: 'CognisHub Node', icon: <Brain size={15} /> },
+        { id: 'biomatic', label: 'Biomatic Sandbox', icon: <Cpu size={15} /> },
       ]
     },
     {
@@ -1553,14 +1622,18 @@ export default function App() {
               <SpecialistFinder />
             </motion.div>
           ) : currentView === 'monitor' ? (
-          <motion.div
-            key="monitor"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-          >
-            <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} />
-          </motion.div>
+            isDoctor ? (
+              <motion.div
+                key="monitor"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} />
+              </motion.div>
+            ) : (
+              <AccessRestriction />
+            )
         ) : currentView === 'features' ? (
           <motion.div
             key="features"
@@ -1678,32 +1751,36 @@ export default function App() {
             />
           </motion.div>
         ) : currentView === 'admin' ? (
-          isAdmin && isAdminAuthenticated ? (
-            <motion.div
-              key="admin"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
-            >
-              <AdminDashboard addToast={addToast} />
-            </motion.div>
+          isAdmin ? (
+            isAdmin && isAdminAuthenticated ? (
+              <motion.div
+                key="admin"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+              >
+                <AdminDashboard addToast={addToast} />
+              </motion.div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+                 <div className="w-24 h-24 bg-red-100 dark:bg-rose-900/20 rounded-full flex items-center justify-center">
+                   <Shield size={48} className="text-rose-600" />
+                 </div>
+                 <div className="space-y-2">
+                   <h2 className="text-2xl font-black uppercase tracking-tighter">Security Protocol Active</h2>
+                   <p className="text-slate-500 font-medium max-w-sm">Administrative terminal requires high-level neural authorization for biometric validation.</p>
+                 </div>
+                 <button 
+                  onClick={handleAdminAccess}
+                  className="px-10 py-4 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20"
+                 >
+                   Inhibit Lockdown
+                 </button>
+              </div>
+            )
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
-               <div className="w-24 h-24 bg-red-100 dark:bg-rose-900/20 rounded-full flex items-center justify-center">
-                 <Shield size={48} className="text-rose-600" />
-               </div>
-               <div className="space-y-2">
-                 <h2 className="text-2xl font-black uppercase tracking-tighter">Security Protocol Active</h2>
-                 <p className="text-slate-500 font-medium max-w-sm">Administrative terminal requires high-level neural authorization for biometric validation.</p>
-               </div>
-               <button 
-                onClick={handleAdminAccess}
-                className="px-10 py-4 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20"
-               >
-                 Inhibit Lockdown
-               </button>
-            </div>
+            <AccessRestriction />
           )
         ) : currentView === 'neuro' ? (
           <motion.div
@@ -1729,6 +1806,26 @@ export default function App() {
               <CognisHub />
             </div>
           </motion.div>
+        ) : currentView === 'biomatic' ? (
+          isDoctor ? (
+            <motion.div
+              key="biomatic"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="max-w-7xl mx-auto px-4 py-12 text-left"
+            >
+              <Suspense fallback={
+                <div className="flex h-64 items-center justify-center">
+                  <Loader2 size={32} className="text-blue-500 animate-spin" />
+                </div>
+              }>
+                <BiomaticSandbox />
+              </Suspense>
+            </motion.div>
+          ) : (
+            <AccessRestriction />
+          )
         ) : currentView === 'help' ? (
           <motion.div
             key="help"

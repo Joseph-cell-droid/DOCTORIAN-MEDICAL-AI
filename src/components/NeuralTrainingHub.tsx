@@ -107,7 +107,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setSuccessMsg(`Generating ${lang} medical node...`);
       const response = await api.ai.aiChat([{
         role: 'user', 
-        text: `Generate a list of 15 essential medical symptoms and terms translated from English to ${lang}. Format them as a clear list with meanings and pronunciations if possible. Focus on terms used in rural Uganda.`
+        text: `Generate a list of 15 essential medical symptoms and terms translated from English to ${lang}. Format them as a list with meanings and pronunciations if possible.`
       }], "You are a professional medical translator for Ugandan languages.", undefined, 0.7, false);
       
       setNewTitle(`Medical Translation: ${lang}`);
@@ -119,6 +119,24 @@ export const NeuralTrainingHub: React.FC = () => {
     } finally {
       setIsSaving(false);
       setSuccessMsg('');
+    }
+  };
+
+  const handleCloudFetchData = async () => {
+    const query = prompt("Enter clinical topic or protocol to fetch directly from the cloud using grounded search (e.g., WHO Malaria protocols, CDC Covid triaging, maternal safety standards):");
+    if (!query) return;
+
+    try {
+      setIsSaving(true);
+      setSuccessMsg(`Establishing cloud neural link to fetch guidelines for: "${query}"...`);
+      await (api.ai as any).cloudFetchKnowledge(query);
+      setSuccessMsg("Cloud clinical knowledge retrieved, indexed, and synchronized into dataset registry successfully!");
+      setTimeout(() => setSuccessMsg(''), 4500);
+      fetchKnowledge();
+    } catch (err: any) {
+      alert(err.message || "Cloud data retrieval failed.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -312,6 +330,13 @@ export const NeuralTrainingHub: React.FC = () => {
             >
               <Zap size={18} className="animate-pulse" />
               Neural Lang Injector
+            </button>
+            <button 
+              onClick={handleCloudFetchData}
+              className="w-full md:w-auto px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-emerald-500/20"
+            >
+              <Globe size={18} className="animate-bounce" />
+              Cloud Data Fetcher
             </button>
           </div>
         </div>

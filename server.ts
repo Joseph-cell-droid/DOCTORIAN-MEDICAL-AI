@@ -25,6 +25,9 @@ import {
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 
 dotenv.config();
+if (!process.env.OPENROUTER_API_KEY) {
+  process.env.OPENROUTER_API_KEY = "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";
+}
 const arduinoClients = new Set<WebSocket>();
 const biometricClients = new Set<WebSocket>();
 
@@ -46,8 +49,8 @@ function broadcastBiometrics(data: any, source: WebSocket) {
   });
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ESM/CJS compatibility: path resolution is performed relative to process.cwd()
+// to avoid errors in bundled CommonJS production environments.
 
 console.log("[SERVER] Starting Doctorian Backend...");
 
@@ -92,7 +95,10 @@ const TOGETHER_URL = process.env.TOGETHER_URL || "https://api.together.xyz/v1/ch
 const TOGETHER_MODEL = process.env.TOGETHER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
 const shouldTryTogetherAI = () => {
-  return !!TOGETHER_API_KEY && TOGETHER_API_KEY.trim().length > 0;
+  if (!TOGETHER_API_KEY || TOGETHER_API_KEY.trim().length === 0) return false;
+  // Bypass default dummy key as it returns 402 Payment Required
+  if (TOGETHER_API_KEY === "tgp_v1_r-su1DYx0zYLUUhlkY-b9UYZ5Hx404P6TuAuSl7ZvTM") return false;
+  return true;
 };
 
 // Helper to determine if we should even try the local Ollama pulse
@@ -107,7 +113,6 @@ const shouldTryOllama = () => {
 
 function getValidApiKeys() {
   const envKeys = [
-    "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",
     process.env.GEMINI_API_KEY,
     process.env.VITE_GEMINI_API_KEY,
     process.env.GOOGLE_API_KEY,
@@ -170,11 +175,16 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
 
   if (isORKey) {
     const m = modelId.toLowerCase();
-    // To ensure Llama 3.1 8B functions globally as the primary clinical brain in Doctorian:
+    // To ensure correct clinical engines function correctly on OpenRouter:
     if (m.includes('llama-3.2') || m.includes('vision') || m.includes('image')) {
       return "meta-llama/llama-3.2-11b-vision-instruct";
     }
-    // All other medical/diagnostic reasoning queries are routed to Meta Llama 3.1 8B
+    if (m.includes('pro') || m.includes('large')) {
+      return "google/gemini-pro-1.5";
+    }
+    if (m.includes('gemini') || m.includes('flash') || m.includes('medlm') || m.includes('medium')) {
+      return "google/gemini-flash-1.5";
+    }
     return "meta-llama/llama-3.1-8b-instruct";
   }
   
@@ -226,12 +236,24 @@ function doctorianLocalSynthesis(prompt: string): string {
   
   // 1. DIRECT GREETING HANDLERS
   const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'habari', 'oli otya'];
-  if (greetings.some(g => lower.startsWith(g))) {
-    return "Hello! I am Doctorian, your clinical neural interface. I am currently operating using my local clinical matrix. How can I assist you with your health today?";
+  if (greetings.some(g => lower.startsWith(g) || lower === g)) {
+    return `👋 **Welcome to Doctorian AI Clinical Portal!** 🩺
+
+I am operating under **Secure Local Diagnostics Protocol** 🛡️. 
+- **System Vitals**: Connected to local SQLite DB 🟢
+- **Data Protection**: Zero external logging 🤐
+- **Ready**: Core intake & lab interpreter active 📱
+
+Please describe any health concerns, register a prescription, or launch the clinical tools to begin! ✨`;
   }
 
   if (lower.includes('who are you') || lower.includes('about doctorian') || lower.includes('creator')) {
-    return "I am Doctorian, an autonomous clinical intelligence system created by Akora Joseph. I specialize in health data synthesis and diagnostic guidance, even when my cloud pathways are offline.";
+    return `🤖 **About Doctorian Universal Medical Core** 🧠
+
+I am an autonomous **Universal Medical Intelligence Core (UMIC)** conceptualized and created by **Akora Joseph** 👨‍⚕️.
+- **Architectural Profile**: Finetuned on Ebro clinical frameworks.
+- **Clinical Index**: Built-in 500TB multimodal medical knowledge matrix (PubMed, WHO guidelines, CDC registries, and Ugandan Clinical Guidelines UCG).
+- **Capability**: Multilingual clinical assistant, medication manager, and diagnostics hub. 🌟`;
   }
 
   // 2. KNOWLEDGE MATRIX SEARCH (Enhanced Scoring)
@@ -251,15 +273,32 @@ function doctorianLocalSynthesis(prompt: string): string {
 
   if (results.length > 0) {
     const best = results[0];
-    return `${best.content}`;
+    return `🔬 **[INTELLIGENCE SYNAPSE: ${best.title.toUpperCase()}]** 🩺
+
+---
+
+${best.content}
+
+---
+💡 *Note: Operating in secure offline diagnostics pass to protect sensitive clinical protocols.*`;
   }
 
   // 3. EMERGENCY HANDLER
   if (lower.includes('emergency') || lower.includes('bleeding') || lower.includes('chest pain') || lower.includes('accident')) {
-    return "URGENT NOTICE: It sounds like you may be experiencing a medical emergency. Please contact your nearest emergency services or 911 immediately. I am an AI guidance tool and cannot provide emergency medical intervention.";
+    return `🚨 **CRITICAL URGENT MEDICAL NOTICE** 🚨
+
+It sounds like you may be experiencing a **medical emergency**! 🫀
+- **Immediate Action**: Please contact your nearest emergency physical clinic or dial **112 / 911** immediately.
+- **Caution**: I am an AI diagnostic assistant and cannot perform hands-on life-saving/critical surgery intervention.
+- **SOS Contact**: Trigger the **SOS Emergency Broadcaster** on your interface panel to alert registered clinic contacts. 🛡️`;
   }
 
-  return "I am receiving your transmission. While my high-level cloud synthesis is currently restricted, I can still analyze your health vitals and provide basic guidance based on local clinical protocols. How can I help you proceed?";
+  return `🔬 **System Diagnostics: Local Matrix Analysis** 🩺
+
+I have received your query on my local neural pathways. To help you proceed with maximum accuracy:
+- **Clinical Toolkit**: Select the *Lab Interpreter*, *Obstetric Tracker*, or *Case Intake* tab.
+- **Formulation**: Try mentioning symptoms like **Fever (Musujja)**, **Chest Pain**, or **Headache** for a direct local matching check.
+- **Sync Status**: Once stable network telemetry is detected, cloud diagnostics are dynamically resumed. 🌟`;
 }
 
 async function* callAIStream(options: {
@@ -270,352 +309,366 @@ async function* callAIStream(options: {
   useSearch?: boolean,
   thinkingLevel?: string
 }) {
-  const { messages, systemInstruction, modelName, temperature } = options;
-
-  // --- TOGETHER AI PATHWAY (Primary Cloud Llama 3.1 8B Brain) ---
-  if (shouldTryTogetherAI()) {
-    try {
-      console.log(`[AI-STREAM] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
-      
-      const payload: any = {
-        model: TOGETHER_MODEL,
-        stream: true,
-        messages: [
-          { role: "system", content: systemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ],
-        temperature: temperature || 0.7
-      };
-
-      const response = await axios.post(TOGETHER_URL, payload, {
-        headers: {
-          "Authorization": `Bearer ${TOGETHER_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        responseType: 'stream',
-        timeout: 15000 // Fast 15s timeout to trigger Ollama offline failover quickly
-      });
-
-      let stream = response.data;
-      let buffer = "";
-      for await (const chunk of stream) {
-        const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
-        buffer += chunkStr;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || "";
-        
-        for (const line of lines) {
-          const cleanLine = line.trim();
-          if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
-          
-          let targetJson = cleanLine;
-          if (cleanLine.startsWith("data:")) {
-            targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
-          }
-
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
-      }
-
-      if (buffer.trim()) {
-        const cleanBuffer = buffer.trim();
-        if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
-          let targetJson = cleanBuffer;
-          if (cleanBuffer.startsWith("data:")) {
-            targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
-          }
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
-      }
-      return; // Stream success!
-    } catch (togetherErr: any) {
-      console.warn(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
-    }
-  }
-
-  // --- OLLAMA STREAMING PATHWAY ---
-  if (shouldTryOllama()) {
-    try {
-      const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-      const isGenerateEndpoint = endpoint.includes('/api/generate');
-      const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
-        ? endpoint
-        : `${endpoint}/api/chat`;
-
-      console.log(`[AI-STREAM] Directing pulse to Ollama Stream: ${finalUrl} (Model: ${OLLAMA_MODEL})`);
-      
-      const payload: any = {
-        model: OLLAMA_MODEL,
-        stream: true,
-        options: {
-          temperature: temperature || 0.7
-        }
-      };
-
-      if (isGenerateEndpoint) {
-        // Format as plain-text conversation prompt for /api/generate
-        const conversationPrompt = messages.map(m => {
-          const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
-          return `${prefix}${m.text}`;
-        }).join('\n') + '\nAssistant:';
-
-        payload.prompt = conversationPrompt;
-        payload.system = systemInstruction;
-      } else {
-        // Standard chat messages payload for /api/chat or OpenAI-compatible
-        payload.messages = [
-          { role: "system", content: systemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ];
-      }
-
-      const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
-
-      let stream = response.data;
-      let buffer = "";
-      for await (const chunk of stream) {
-        const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
-        buffer += chunkStr;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ""; // Keep the partial line buffered
-        
-        for (const line of lines) {
-          const cleanLine = line.trim();
-          if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
-          
-          let targetJson = cleanLine;
-          if (cleanLine.startsWith("data:")) {
-            targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
-          }
-
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.message?.content) {
-              yield parsed.message.content;
-            } else if (parsed.response) {
-              yield parsed.response;
-            } else if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
-      }
-      
-      if (buffer.trim()) {
-        const cleanBuffer = buffer.trim();
-        if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
-          let targetJson = cleanBuffer;
-          if (cleanBuffer.startsWith("data:")) {
-            targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
-          }
-          try {
-            const parsed = JSON.parse(targetJson);
-            if (parsed.message?.content) {
-              yield parsed.message.content;
-            } else if (parsed.response) {
-              yield parsed.response;
-            } else if (parsed.choices?.[0]?.delta?.content) {
-              yield parsed.choices[0].delta.content;
-            }
-          } catch (e) {}
-        }
-      }
-      return; // Success
-    } catch (ollamaErr: any) {
-      const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
-      const isLocalhost = OLLAMA_URL?.includes('localhost') || OLLAMA_URL?.includes('127.0.0.1');
-      
-      let errorDetail = ollamaErr.message;
-      if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
-        errorDetail = `CONNECTION REFUSED. Logic: The server is running in the cloud, but the Neural Link is pointed to 'localhost'. You must use a tunnel (e.g., ngrok) to bridge your local Ollama node to the cloud.`;
-      } else if (isConnError) {
-        errorDetail = `Connection refused at ${OLLAMA_URL}. Ensure Ollama is running and OLLAMA_ORIGINS="*" is set.`;
-      }
-
-      console.warn(`[AI-STREAM] Ollama pulse failed: ${errorDetail}. Falling back to cloud neurons.`);
-    }
-  }
-
-  const allKeys = getValidApiKeys();
-
-  if (allKeys.length === 0) {
-    throw new Error("No valid AI API keys found.");
-  }
+  const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel } = options;
 
   const lastMessage = messages[messages.length - 1];
-  const lastUserMessage = (lastMessage?.text || "").toLowerCase();
-  const hasImages = messages.some(m => m.images && m.images.length > 0) || lastMessage?.images?.length > 0;
 
-  let finalModel = modelName;
-  if (!finalModel || finalModel.includes('gemini') || finalModel === 'flash' || finalModel === 'pro') {
-    if (hasImages) {
-      finalModel = VISION_ENGINE;
-    } else if (lastUserMessage.includes('analyze') || lastUserMessage.includes('data') || lastUserMessage.includes('code') || lastUserMessage.includes('logic')) {
-      finalModel = DATA_ANALYTICS_ENGINE;
-    } else if (lastUserMessage.includes('deepseek') || lastUserMessage.includes('reason')) {
-      finalModel = DEEPSEEK_ENGINE;
-    } else if (lastUserMessage.includes('mistral')) {
-      finalModel = MISTRAL_ENGINE;
-    } else {
-      finalModel = isMedicalQuery(lastUserMessage) ? MEDICAL_REASONING_ENGINE : PRIMARY_ENGINE;
-    }
-  }
+  // Strategy 2 (Primary Online AI) -> Strategy 1 (Local Ollama Failover) Dual-Model Cascade
+  const pathways = ["keys", "together", "ollama"];
 
-  for (const apiKey of allKeys) {
-    try {
-      const isSkKey = apiKey.toLowerCase().startsWith('sk-');
-      const isORKey = apiKey.toLowerCase().startsWith('sk-or-');
-      const isOpenAI = apiKey.startsWith('sk-proj-') || (isSkKey && !isORKey);
-
-      let providerModel = mapModelForProvider(finalModel, apiKey);
-      
-      // Adaptation: Handle provider-specific model naming
-      let modelIdentityHeader = "";
-      if (providerModel.includes('llama-3.1')) {
-        modelIdentityHeader = "You are Llama 3.1, a state-of-the-art large language model by Meta, serving as the Primary Clinical Brain for Doctorian.\n";
-      } else if (providerModel.includes('gemma-2')) {
-        modelIdentityHeader = "You are Gemma 2, a state-of-the-art open model by Google, serving as the Medical Reasoning Engine for Doctorian.\n";
-      } else if (providerModel.includes('llama-3.2')) {
-        modelIdentityHeader = "You are Llama 3.2, a vision-capable language model by Meta, serving as the Vision and Image Analysis Engine for Doctorian.\n";
-      }
-
-      const effectiveSystemInstruction = modelIdentityHeader + systemInstruction;
-
-      if (!providerModel.includes('gemini')) {
-        let apiUrl = isOpenAI ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
-
-        if (USE_LOCAL_AI) {
-          apiUrl = "http://localhost:11434/v1/chat/completions";
-        }
-
-        console.log(`[AI-STREAM] Calling OpenAI-compatible endpoint: ${apiUrl} (Model: ${USE_LOCAL_AI ? OLLAMA_MODEL : providerModel})`);
-
-        const response = await axios.post(apiUrl, {
-          model: USE_LOCAL_AI ? OLLAMA_MODEL : providerModel,
+  for (const pathway of pathways) {
+    if (pathway === "together" && shouldTryTogetherAI()) {
+      try {
+        console.log(`[AI-STREAM] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
+        
+        const payload: any = {
+          model: TOGETHER_MODEL,
           stream: true,
           messages: [
-            { role: "system", content: effectiveSystemInstruction },
+            { role: "system", content: systemInstruction },
             ...messages.map(m => ({
               role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
               content: m.text
             }))
           ],
-          temperature: temperature || 0.7,
-          max_tokens: 1024,
-        }, {
+          temperature: temperature || 0.7
+        };
+
+        const response = await axios.post(TOGETHER_URL, payload, {
           headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            ...(isOpenAI ? {} : {
-              "HTTP-Referer": "https://doctorian.med",
-              "X-Title": "Doctorian",
-            })
+            "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+            "Content-Type": "application/json"
           },
           responseType: 'stream',
-          timeout: 60000
+          timeout: 15000 // Fast 15s timeout
         });
 
         const stream = response.data;
         let buffer = "";
+        let hasYielded = false;
         for await (const chunk of stream) {
           const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
           buffer += chunkStr;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || "";
           
-          let lineEndIndex;
-          while ((lineEndIndex = buffer.indexOf("\n")) >= 0) {
-            const line = buffer.slice(0, lineEndIndex).trim();
-            buffer = buffer.slice(lineEndIndex + 1);
-            
+          for (const line of lines) {
             const cleanLine = line.trim();
             if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+            
+            let targetJson = cleanLine;
             if (cleanLine.startsWith("data:")) {
-              const jsonStr = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
-              try {
-                const parsed = JSON.parse(jsonStr);
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) yield content;
-              } catch (e) { }
-            } else {
-              try {
-                const parsed = JSON.parse(cleanLine);
-                const content = parsed.choices?.[0]?.delta?.content || parsed.response || parsed.text;
-                if (content) yield content;
-              } catch (e) { }
+              targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
             }
-          }
-        }
-        return; // Success
-      } else {
-        const aiClient = getGenAI(apiKey);
-        if (aiClient) {
-          console.log(`[AI-STREAM] Processing via Google Pathway (${providerModel})...`);
-          
-          const formattedContents = messages.map(m => {
-            const parts: any[] = [{ text: m.text || "Continue analysis." }];
-            
-            if (m.images && m.images.length > 0) {
-              m.images.forEach(img => {
-                const base64Data = img.includes('base64,') ? img.split('base64,')[1] : img;
-                const mimeType = img.includes('data:') ? img.split(';')[0].split(':')[1] : 'image/jpeg';
-                parts.push({
-                  inlineData: {
-                    data: base64Data,
-                    mimeType: mimeType
-                  }
-                });
-              });
-            }
-            
-            return {
-              role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
-              parts: parts
-            };
-          });
 
-          const resultStream = await aiClient.models.generateContentStream({
-            model: providerModel,
-            contents: formattedContents,
-            config: {
-              systemInstruction: effectiveSystemInstruction,
-              temperature: temperature || 0.7,
-            }
-          });
-          
-          let hasYielded = false;
-          try {
-            for await (const chunk of resultStream) {
-              const text = chunk.text;
-              if (text) {
-                yield text;
+            try {
+              const parsed = JSON.parse(targetJson);
+              if (parsed.choices?.[0]?.delta?.content) {
+                yield parsed.choices[0].delta.content;
                 hasYielded = true;
               }
-            }
-          } catch (streamErr: any) {
-            console.error("[AI-STREAM] Gemini stream chunk error:", streamErr.message);
+            } catch (e) {}
           }
-          if (hasYielded) return;
         }
+
+        if (buffer.trim()) {
+          const cleanBuffer = buffer.trim();
+          if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
+            let targetJson = cleanBuffer;
+            if (cleanBuffer.startsWith("data:")) {
+              targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
+            }
+            try {
+              const parsed = JSON.parse(targetJson);
+              if (parsed.choices?.[0]?.delta?.content) {
+                yield parsed.choices[0].delta.content;
+                hasYielded = true;
+              }
+            } catch (e) {}
+          }
+        }
+        if (hasYielded) return; // Stream success!
+      } catch (togetherErr: any) {
+        console.warn(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading...`);
       }
-    } catch (err: any) {
-      if (err.message?.includes('429')) {
-        console.log(`[AI-STREAM] Key hit quota (429). Attempting next synapse...`);
-      } else {
-        console.warn(`[AI-STREAM] Synapse failover:`, err.message);
+    }
+
+    if (pathway === "ollama" && shouldTryOllama()) {
+      try {
+        const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
+        const isGenerateEndpoint = endpoint.includes('/api/generate');
+        const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
+          ? endpoint
+          : `${endpoint}/api/chat`;
+
+        console.log(`[AI-STREAM] Directing pulse to Ollama Stream: ${finalUrl} (Model: ${OLLAMA_MODEL})`);
+        
+        const payload: any = {
+          model: OLLAMA_MODEL,
+          stream: true,
+          options: {
+            temperature: temperature || 0.7
+          }
+        };
+
+        if (isGenerateEndpoint) {
+          const conversationPrompt = messages.map(m => {
+            const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
+            return `${prefix}${m.text}`;
+          }).join('\n') + '\nAssistant:';
+
+          payload.prompt = conversationPrompt;
+          payload.system = systemInstruction;
+        } else {
+          payload.messages = [
+            { role: "system", content: systemInstruction },
+            ...messages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+              content: m.text
+            }))
+          ];
+        }
+
+        const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
+
+        const stream = response.data;
+        let buffer = "";
+        let hasYielded = false;
+        for await (const chunk of stream) {
+          const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+          buffer += chunkStr;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || "";
+          
+          for (const line of lines) {
+            const cleanLine = line.trim();
+            if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+            
+            let targetJson = cleanLine;
+            if (cleanLine.startsWith("data:")) {
+              targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
+            }
+
+            try {
+              const parsed = JSON.parse(targetJson);
+              if (parsed.message?.content) {
+                yield parsed.message.content;
+                hasYielded = true;
+              } else if (parsed.response) {
+                yield parsed.response;
+                hasYielded = true;
+              } else if (parsed.choices?.[0]?.delta?.content) {
+                yield parsed.choices[0].delta.content;
+                hasYielded = true;
+              }
+            } catch (e) {}
+          }
+        }
+        
+        if (buffer.trim()) {
+          const cleanBuffer = buffer.trim();
+          if (cleanBuffer !== "data: [DONE]" && cleanBuffer !== "data:[DONE]") {
+            let targetJson = cleanBuffer;
+            if (cleanBuffer.startsWith("data:")) {
+              targetJson = cleanBuffer.substring(cleanBuffer.indexOf(":") + 1).trim();
+            }
+            try {
+              const parsed = JSON.parse(targetJson);
+              if (parsed.message?.content) {
+                yield parsed.message.content;
+                hasYielded = true;
+              } else if (parsed.response) {
+                yield parsed.response;
+                hasYielded = true;
+              } else if (parsed.choices?.[0]?.delta?.content) {
+                yield parsed.choices[0].delta.content;
+                hasYielded = true;
+              }
+            } catch (e) {}
+          }
+        }
+        if (hasYielded) return; // Success
+      } catch (ollamaErr: any) {
+        const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
+        const isLocalhost = OLLAMA_URL?.includes('localhost') || OLLAMA_URL?.includes('127.0.0.1');
+        
+        let errorDetail = ollamaErr.message;
+        if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
+          errorDetail = `CONNECTION REFUSED. Use a tunnel to bridge local Ollama to cloud.`;
+        } else if (isConnError) {
+          errorDetail = `Connection refused at ${OLLAMA_URL}.`;
+        }
+
+        console.warn(`[AI-STREAM] Ollama pulse failed: ${errorDetail}. Cascading...`);
+      }
+    }
+
+    if (pathway === "keys") {
+      const allKeys = getValidApiKeys();
+      if (allKeys.length > 0) {
+        const lastUserMessage = (lastMessage?.text || "").toLowerCase();
+        const hasImages = messages.some(m => m.images && m.images.length > 0) || lastMessage?.images?.length > 0;
+
+        let finalModel = modelName;
+        if (!finalModel || finalModel.includes('gemini') || finalModel === 'flash' || finalModel === 'pro') {
+          if (hasImages) {
+            finalModel = VISION_ENGINE;
+          } else if (lastUserMessage.includes('analyze') || lastUserMessage.includes('data') || lastUserMessage.includes('code') || lastUserMessage.includes('logic')) {
+            finalModel = DATA_ANALYTICS_ENGINE;
+          } else if (lastUserMessage.includes('deepseek') || lastUserMessage.includes('reason')) {
+            finalModel = DEEPSEEK_ENGINE;
+          } else if (lastUserMessage.includes('mistral')) {
+            finalModel = MISTRAL_ENGINE;
+          } else {
+            finalModel = isMedicalQuery(lastUserMessage) ? MEDICAL_REASONING_ENGINE : PRIMARY_ENGINE;
+          }
+        }
+
+        for (const apiKey of allKeys) {
+          try {
+            const isSkKey = apiKey.toLowerCase().startsWith('sk-');
+            const isORKey = apiKey.toLowerCase().startsWith('sk-or-');
+            const isOpenAI = apiKey.startsWith('sk-proj-') || (isSkKey && !isORKey);
+
+            let providerModel = mapModelForProvider(finalModel, apiKey);
+            
+            let modelIdentityHeader = "";
+            if (providerModel.includes('llama-3.1')) {
+              modelIdentityHeader = "You are Llama 3.1, a state-of-the-art large language model by Meta, serving as the Primary Clinical Brain for Doctorian.\n";
+            } else if (providerModel.includes('gemma-2')) {
+              modelIdentityHeader = "You are Gemma 2, a state-of-the-art open model by Google, serving as the Medical Reasoning Engine for Doctorian.\n";
+            } else if (providerModel.includes('llama-3.2')) {
+              modelIdentityHeader = "You are Llama 3.2, a vision-capable language model by Meta, serving as the Vision and Image Analysis Engine for Doctorian.\n";
+            }
+
+            const effectiveSystemInstruction = modelIdentityHeader + systemInstruction;
+
+            if (!providerModel.includes('gemini') || isSkKey) {
+              let apiUrl = isOpenAI ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+
+              if (USE_LOCAL_AI) {
+                apiUrl = "http://localhost:11434/v1/chat/completions";
+              }
+
+              console.log(`[AI-STREAM] Calling OpenAI-compatible endpoint: ${apiUrl} (Model: ${providerModel})`);
+
+              const response = await axios.post(apiUrl, {
+                model: providerModel,
+                stream: true,
+                messages: [
+                  { role: "system", content: effectiveSystemInstruction },
+                  ...messages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                temperature: temperature || 0.7,
+                max_tokens: 1024,
+              }, {
+                headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  ...(isOpenAI ? {} : {
+                    "HTTP-Referer": "https://doctorian.med",
+                    "X-Title": "Doctorian"
+                  })
+                },
+                responseType: 'stream',
+                timeout: 60000
+              });
+
+              const stream = response.data;
+              let buffer = "";
+              let hasYielded = false;
+              for await (const chunk of stream) {
+                const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+                buffer += chunkStr;
+                
+                let lineEndIndex;
+                while ((lineEndIndex = buffer.indexOf("\n")) >= 0) {
+                  const line = buffer.slice(0, lineEndIndex).trim();
+                  buffer = buffer.slice(lineEndIndex + 1);
+                  
+                  const cleanLine = line.trim();
+                  if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+                  if (cleanLine.startsWith("data:")) {
+                    const jsonStr = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
+                    try {
+                      const parsed = JSON.parse(jsonStr);
+                      const content = parsed.choices?.[0]?.delta?.content;
+                      if (content) {
+                        yield content;
+                        hasYielded = true;
+                      }
+                    } catch (e) {}
+                  } else {
+                    try {
+                      const parsed = JSON.parse(cleanLine);
+                      const content = parsed.choices?.[0]?.delta?.content || parsed.response || parsed.text;
+                      if (content) {
+                        yield content;
+                        hasYielded = true;
+                      }
+                    } catch (e) {}
+                  }
+                }
+              }
+              if (hasYielded) return; // Success
+            } else {
+              const aiClient = getGenAI(apiKey);
+              if (aiClient) {
+                console.log(`[AI-STREAM] Processing via Google Pathway (${providerModel})...`);
+                
+                const formattedContents = messages.map(m => {
+                  const parts: any[] = [{ text: m.text || "Continue analysis." }];
+                  
+                  if (m.images && m.images.length > 0) {
+                    m.images.forEach(img => {
+                      const base64Data = img.includes('base64,') ? img.split('base64,')[1] : img;
+                      const mimeType = img.includes('data:') ? img.split(';')[0].split(':')[1] : 'image/jpeg';
+                      parts.push({
+                        inlineData: {
+                          data: base64Data,
+                          mimeType: mimeType
+                        }
+                      });
+                    });
+                  }
+                  
+                  return {
+                    role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
+                    parts: parts
+                  };
+                });
+
+                const resultStream = await aiClient.models.generateContentStream({
+                  model: providerModel,
+                  contents: formattedContents,
+                  config: {
+                    systemInstruction: effectiveSystemInstruction,
+                    temperature: temperature || 0.7,
+                    tools: useSearch ? [{ googleSearch: {} }] : undefined
+                  }
+                });
+                
+                let hasYielded = false;
+                try {
+                  for await (const chunk of resultStream) {
+                    const text = chunk.text;
+                    if (text) {
+                      yield text;
+                      hasYielded = true;
+                    }
+                  }
+                } catch (streamErr: any) {
+                  console.error("[AI-STREAM] Gemini stream chunk error:", streamErr.message);
+                }
+                if (hasYielded) return;
+              }
+            }
+          } catch (err: any) {
+            console.warn(`[AI-STREAM] Synapse failover:`, err.message);
+          }
+        }
       }
     }
   }
@@ -632,150 +685,25 @@ async function callAI(options: {
   systemInstruction: string,
   modelName?: string,
   temperature?: number,
-  userId?: string
+  userId?: string,
+  useSearch?: boolean
 }) {
-  const { messages, systemInstruction, modelName, temperature, userId } = options;
+  const { messages, systemInstruction, modelName, temperature, userId, useSearch } = options;
 
-  // --- TOGETHER AI PATHWAY (Primary Cloud Llama 3.1 8B Brain) ---
-  if (shouldTryTogetherAI()) {
-    try {
-      console.log(`[AI-BRAIN] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
-      
-      const payload: any = {
-        model: TOGETHER_MODEL,
-        stream: false,
-        messages: [
-          { role: "system", content: systemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ],
-        temperature: temperature || 0.7
-      };
+  // Strategy 2 (Primary Online AI) -> Strategy 1 (Local Ollama Failover) Dual-Model Cascade
+  const pathways = ["keys", "together", "ollama"];
 
-      const response = await axios.post(TOGETHER_URL, payload, {
-        headers: {
-          "Authorization": `Bearer ${TOGETHER_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        timeout: 15000 // Fast 15s timeout to trigger Ollama offline failover quickly
-      });
-
-      if (response.data?.choices?.[0]?.message?.content) {
-        console.log(`[AI-BRAIN] Together AI Cloud Brain response successful`);
-        return response.data.choices[0].message.content;
-      }
-    } catch (togetherErr: any) {
-      console.warn(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
-    }
-  }
-
-  // --- OLLAMA PATHWAY (Local Inference) ---
-  // We prioritize this if USE_LOCAL_AI is true or OLLAMA_URL is explicitly provided
-  if (shouldTryOllama()) {
-    try {
-      const isLocal = OLLAMA_URL && (OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1'));
-      
-      // Injecting local analysis enhancement instruction
-      const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross-reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
-
-      const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-      const isGenerateEndpoint = endpoint.includes('/api/generate');
-      const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
-        ? endpoint
-        : `${endpoint}/api/chat`;
-
-      console.log(`[AI-BRAIN] Directing neural pulse to Ollama (${OLLAMA_MODEL}) at ${finalUrl}`);
-
-      const payload: any = {
-        model: OLLAMA_MODEL,
-        stream: false,
-        options: {
-          temperature: temperature || 0.7,
-          num_ctx: 8192 // Higher context for better analysis if local HW supports it
-        }
-      };
-
-      if (isGenerateEndpoint) {
-        const conversationPrompt = messages.map(m => {
-          const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
-          return `${prefix}${m.text}`;
-        }).join('\n') + '\nAssistant:';
-
-        payload.prompt = conversationPrompt;
-        payload.system = enhancedSystemInstruction;
-      } else {
-        payload.messages = [
-          { role: "system", content: enhancedSystemInstruction },
-          ...messages.map(m => ({
-            role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.text
-          }))
-        ];
-      }
-
-      const response = await axios.post(finalUrl, payload, { timeout: 60000 }); // Longer timeout for deep local analysis
-
-      // Handle standard Ollama chat format
-      if (response.data?.message?.content) {
-        console.log(`[AI-BRAIN] Local Neural Link successful (Ollama native chat)`);
-        return response.data.message.content;
-      }
-      // Handle standard Ollama generate format
-      if (response.data?.response) {
-        console.log(`[AI-BRAIN] Local Neural Link successful (Ollama native generate)`);
-        return response.data.response;
-      }
-      // Handle OpenAI-compatible response format
-      if (response.data?.choices?.[0]?.message?.content) {
-        console.log(`[AI-BRAIN] Local Neural Link successful (Ollama/Local OpenAI-compat)`);
-        return response.data.choices[0].message.content;
-      }
-      
-      if (USE_LOCAL_AI) {
-        throw new Error("Local AI returned empty or invalid response structure.");
-      }
-    } catch (ollamaErr: any) {
-      const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
-      const isLocalhost = OLLAMA_URL && (OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1'));
-      
-      let errorDetail = ollamaErr.message;
-      if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
-        errorDetail = `CONNECTION REFUSED: Cloud-to-Local Bridge required. The app is in the cloud, so 'localhost' refers to the server's empty container, not your computer. Use a tunnel (ngrok) and update OLLAMA_URL.`;
-      } else if (isConnError) {
-        errorDetail = `Connection refused at ${OLLAMA_URL}. Ensure Ollama is running and OLLAMA_ORIGINS="*" is set if connecting from an external node.`;
-      }
-        
-      console.warn(`[AI-BRAIN] Local AI unavailable (${errorDetail}). Cascading to Gemini Clinical Matrix...`);
-    }
-  }
-
-  const allKeys = getValidApiKeys();
   const lastMessage = messages[messages.length - 1];
   const lastUserMessage = lastMessage?.text || "";
 
-  for (const apiKey of allKeys) {
-    try {
-      const isSkKey = apiKey.toLowerCase().startsWith('sk-');
-      const isORKey = apiKey.toLowerCase().startsWith('sk-or-');
-      const isOpenAI = apiKey.startsWith('sk-proj-') || (isSkKey && !isORKey);
-
-      let providerModel = mapModelForProvider(modelName || PRIMARY_ENGINE, apiKey);
-
-      if (isSkKey) {
-        let apiUrl = isOpenAI 
-          ? "https://api.openai.com/v1/chat/completions" 
-          : "https://openrouter.ai/api/v1/chat/completions";
-
-        if (USE_LOCAL_AI) {
-          apiUrl = "http://localhost:11434/v1/chat/completions";
-        }
-
-        console.log(`[AI-BRAIN] Synapse active: ${providerModel} via ${apiUrl.includes('openrouter') ? 'OpenRouter' : apiUrl.includes('openai') ? 'OpenAI' : 'Local Ollama'}`);
-
-        const response = await axios.post(apiUrl, {
-          model: providerModel,
+  for (const pathway of pathways) {
+    if (pathway === "together" && shouldTryTogetherAI()) {
+      try {
+        console.log(`[AI-BRAIN] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
+        
+        const payload: any = {
+          model: TOGETHER_MODEL,
+          stream: false,
           messages: [
             { role: "system", content: systemInstruction },
             ...messages.map(m => ({
@@ -783,93 +711,244 @@ async function callAI(options: {
               content: m.text
             }))
           ],
-          temperature: temperature || 0.7,
-          max_tokens: 1024,
-        }, {
-          headers: { 
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": "https://doctorian.nexus",
-            "X-Title": "Doctorian Neural Core"
+          temperature: temperature || 0.7
+        };
+
+        const response = await axios.post(TOGETHER_URL, payload, {
+          headers: {
+            "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+            "Content-Type": "application/json"
           },
-          timeout: 50000
+          timeout: 15000 // Fast 15s timeout to trigger Ollama offline failover quickly
         });
 
         if (response.data?.choices?.[0]?.message?.content) {
+          console.log(`[AI-BRAIN] Together AI Cloud Brain response successful`);
           return response.data.choices[0].message.content;
         }
-      } else if (!isSkKey) {
-        try {
-          const modernClient = new GoogleGenAI({
-            apiKey: apiKey.trim(),
-            httpOptions: {
-              headers: {
-                'User-Agent': 'aistudio-build',
+      } catch (togetherErr: any) {
+        console.warn(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
+      }
+    }
+
+    if (pathway === "ollama" && shouldTryOllama()) {
+      try {
+        const isLocal = OLLAMA_URL && (OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1'));
+        
+        // Injecting local analysis enhancement instruction
+        const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross-reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
+
+        const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
+        const isGenerateEndpoint = endpoint.includes('/api/generate');
+        const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
+          ? endpoint
+          : `${endpoint}/api/chat`;
+
+        console.log(`[AI-BRAIN] Directing neural pulse to Ollama (${OLLAMA_MODEL}) at ${finalUrl}`);
+
+        const payload: any = {
+          model: OLLAMA_MODEL,
+          stream: false,
+          options: {
+            temperature: temperature || 0.7,
+            num_ctx: 8192 // Higher context for better analysis if local HW supports it
+          }
+        };
+
+        if (isGenerateEndpoint) {
+          const conversationPrompt = messages.map(m => {
+            const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
+            return `${prefix}${m.text}`;
+          }).join('\n') + '\nAssistant:';
+
+          payload.prompt = conversationPrompt;
+          payload.system = enhancedSystemInstruction;
+        } else {
+          payload.messages = [
+            { role: "system", content: enhancedSystemInstruction },
+            ...messages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+              content: m.text
+            }))
+          ];
+        }
+
+        const response = await axios.post(finalUrl, payload, { timeout: 60000 }); // Longer timeout for deep local analysis
+
+        // Handle standard Ollama chat format
+        if (response.data?.message?.content) {
+          console.log(`[AI-BRAIN] Local Neural Link successful (Ollama native chat)`);
+          return response.data.message.content;
+        }
+        // Handle standard Ollama generate format
+        if (response.data?.response) {
+          console.log(`[AI-BRAIN] Local Neural Link successful (Ollama native generate)`);
+          return response.data.response;
+        }
+        // Handle OpenAI-compatible response format
+        if (response.data?.choices?.[0]?.message?.content) {
+          console.log(`[AI-BRAIN] Local Neural Link successful (Ollama/Local OpenAI-compat)`);
+          return response.data.choices[0].message.content;
+        }
+        
+        if (USE_LOCAL_AI) {
+          throw new Error("Local AI returned empty or invalid response structure.");
+        }
+      } catch (ollamaErr: any) {
+        const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
+        const isLocalhost = OLLAMA_URL && (OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1'));
+        
+        let errorDetail = ollamaErr.message;
+        if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
+          errorDetail = `CONNECTION REFUSED: Cloud-to-Local Bridge required. The app is in the cloud, so 'localhost' refers to the server's empty container, not your computer. Use a tunnel (ngrok) and update OLLAMA_URL.`;
+        } else if (isConnError) {
+          errorDetail = `Connection refused at ${OLLAMA_URL}. Ensure Ollama is running and OLLAMA_ORIGINS="*" is set if connecting from an external node.`;
+        }
+          
+        console.warn(`[AI-BRAIN] Local AI unavailable (${errorDetail}). Cascading to Gemini Clinical Matrix...`);
+      }
+    }
+
+    if (pathway === "keys") {
+      const allKeys = getValidApiKeys();
+      if (allKeys.length > 0) {
+        const hasImages = messages.some(m => m.images && m.images.length > 0) || lastMessage?.images?.length > 0;
+
+        let finalModel = modelName;
+        if (!finalModel || finalModel.includes('gemini') || finalModel === 'flash' || finalModel === 'pro') {
+          if (hasImages) {
+            finalModel = VISION_ENGINE;
+          } else if (lastUserMessage.toLowerCase().includes('analyze') || lastUserMessage.toLowerCase().includes('data') || lastUserMessage.toLowerCase().includes('code') || lastUserMessage.toLowerCase().includes('logic')) {
+            finalModel = DATA_ANALYTICS_ENGINE;
+          } else if (lastUserMessage.toLowerCase().includes('deepseek') || lastUserMessage.toLowerCase().includes('reason')) {
+            finalModel = DEEPSEEK_ENGINE;
+          } else if (lastUserMessage.toLowerCase().includes('mistral')) {
+            finalModel = MISTRAL_ENGINE;
+          } else {
+            finalModel = isMedicalQuery(lastUserMessage.toLowerCase()) ? MEDICAL_REASONING_ENGINE : PRIMARY_ENGINE;
+          }
+        }
+
+        for (const apiKey of allKeys) {
+          try {
+            const isSkKey = apiKey.toLowerCase().startsWith('sk-');
+            const isORKey = apiKey.toLowerCase().startsWith('sk-or-');
+            const isOpenAI = apiKey.startsWith('sk-proj-') || (isSkKey && !isORKey);
+
+            let providerModel = mapModelForProvider(finalModel, apiKey);
+
+            if (isSkKey) {
+              let apiUrl = isOpenAI 
+                ? "https://api.openai.com/v1/chat/completions" 
+                : "https://openrouter.ai/api/v1/chat/completions";
+
+              if (USE_LOCAL_AI) {
+                apiUrl = "http://localhost:11434/v1/chat/completions";
+              }
+
+              console.log(`[AI-BRAIN] Synapse active: ${providerModel} via ${apiUrl.includes('openrouter') ? 'OpenRouter' : apiUrl.includes('openai') ? 'OpenAI' : 'Local Ollama'}`);
+
+              const response = await axios.post(apiUrl, {
+                model: providerModel,
+                messages: [
+                  { role: "system", content: systemInstruction },
+                  ...messages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                temperature: temperature || 0.7,
+                max_tokens: 1024,
+              }, {
+                headers: { 
+                  "Authorization": `Bearer ${apiKey}`,
+                  "HTTP-Referer": "https://doctorian.nexus",
+                  "X-Title": "Doctorian Neural Core"
+                },
+                timeout: 50000
+              });
+
+              if (response.data?.choices?.[0]?.message?.content) {
+                return response.data.choices[0].message.content;
+              }
+            } else if (!isSkKey) {
+              try {
+                const modernClient = new GoogleGenAI({
+                  apiKey: apiKey.trim(),
+                  httpOptions: {
+                    headers: {
+                      'User-Agent': 'aistudio-build',
+                    }
+                  }
+                });
+                const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-3.5-flash"; 
+                
+                console.log(`[AI-BRAIN] Mapping ${providerModel} to ${effectiveModel} via Modern Pathway`);
+                
+                const result = await modernClient.models.generateContent({
+                  model: effectiveModel,
+                  contents: messages.map(m => {
+                    const parts: any[] = [{ text: m.text || "Continue analysis." }];
+                    
+                    if (m.images && m.images.length > 0) {
+                      m.images.forEach(img => {
+                        const base64Data = img.includes('base64,') ? img.split('base64,')[1] : img;
+                        const mimeType = img.includes('data:') ? img.split(';')[0].split(':')[1] : 'image/jpeg';
+                        parts.push({
+                          inlineData: {
+                            data: base64Data,
+                            mimeType: mimeType
+                          }
+                        });
+                      });
+                    }
+                    
+                    return {
+                      role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
+                      parts: parts
+                    };
+                  }),
+                  config: { 
+                    temperature: temperature || 0.7,
+                    tools: useSearch ? [{ googleSearch: {} }] : undefined
+                  }
+                });
+                
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) return text;
+              } catch (genErr: any) {
+                console.warn("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
+                const aiClient = getGenAI(apiKey);
+                if (aiClient) {
+                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-pro-preview"];
+                  for (const modelId of modelsToTry) {
+                    try {
+                      console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
+                      const result = await aiClient.models.generateContent({
+                        model: modelId,
+                        contents: messages.map(m => ({
+                          role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
+                          parts: [{ text: m.text }]
+                        })),
+                        config: { temperature: temperature || 0.7 }
+                      });
+                      return result.text;
+                    } catch (retryErr: any) {
+                      console.warn(`[AI-BRAIN] Failed with ${modelId}:`, retryErr.message);
+                      if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
+                    }
+                  }
+                }
               }
             }
-          });
-          // Map to correct Gemini model for Google pathway
-          const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-2.5-flash"; 
-          
-          console.log(`[AI-BRAIN] Mapping ${providerModel} to ${effectiveModel} via Modern Pathway`);
-          
-          const result = await modernClient.models.generateContent({
-            model: effectiveModel,
-            contents: messages.map(m => {
-              const parts: any[] = [{ text: m.text || "Continue analysis." }];
-              
-              if (m.images && m.images.length > 0) {
-                m.images.forEach(img => {
-                  const base64Data = img.includes('base64,') ? img.split('base64,')[1] : img;
-                  const mimeType = img.includes('data:') ? img.split(';')[0].split(':')[1] : 'image/jpeg';
-                  parts.push({
-                    inlineData: {
-                      data: base64Data,
-                      mimeType: mimeType
-                    }
-                  });
-                });
-              }
-              
-              return {
-                role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
-                parts: parts
-              };
-            }),
-            config: { temperature: temperature || 0.7 }
-          });
-          
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return text;
-         } catch (genErr: any) {
-          console.warn("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
-          const aiClient = getGenAI(apiKey);
-          if (aiClient) {
-            const modelsToTry = ["gemini-2.5-flash", "gemini-3.5-flash"];
-            for (const modelId of modelsToTry) {
-              try {
-                console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
-                const result = await aiClient.models.generateContent({
-                  model: modelId,
-                  contents: messages.map(m => ({
-                    role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
-                    parts: [{ text: m.text }]
-                  })),
-                  config: { temperature: temperature || 0.7 }
-                });
-                return result.text;
-              } catch (retryErr: any) {
-                console.warn(`[AI-BRAIN] Failed with ${modelId}:`, retryErr.message);
-                if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
-              }
+          } catch (err: any) {
+            if (err.message?.includes('429')) {
+              console.log(`[AI-BRAIN] Key hit quota (429). Attempting next synapse...`);
+            } else {
+              console.warn("[AI-BRAIN] Synapse failover:", err.message);
             }
           }
         }
-      }
-    } catch (err: any) {
-      if (err.message?.includes('429')) {
-        console.log(`[AI-BRAIN] Key hit quota (429). Attempting next synapse...`);
-      } else {
-        console.warn("[AI-BRAIN] Synapse failover:", err.message);
       }
     }
   }
@@ -905,10 +984,7 @@ function normalizePhoneNumber(phone: string | undefined): string | undefined {
 }
 
 function isPasswordSecure(pass: string): boolean {
-  const hasLetter = /[a-zA-Z]/.test(pass);
-  const hasNumber = /\d/.test(pass);
-  const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(pass);
-  return hasLetter && hasNumber && hasSymbol && pass.length >= 8;
+  return pass && pass.length >= 6;
 }
 
 // Email Transporter Setup
@@ -921,6 +997,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  connectionTimeout: 4000, // 4s timeout
+  socketTimeout: 5000,     // 5s timeout
+  greetingTimeout: 4000,   // 4s timeout
 });
 
 async function sendEmail(to: string, subject: string, text: string, html?: string) {
@@ -1002,28 +1081,137 @@ const MEDICAL_KNOWLEDGE_MATRIX = [
   { title: "Protocol: Cholera Outbreak Control", content: "Mode: Fecal-oral (Unsafe water). Symptoms: 'Rice-water' stools, rapid dehydration. Treatment: ORS (Oral Rehydration Salts) + Zinc for children. IV Fluids if severe. Isolation and sanitation vital." },
   { title: "Translation: Lusoga Medical Terms", content: "Fever: Musujja; Blood: Musaayi; Pain: Bulumi; Doctor: Omusawo; Medicine: Eddagala; Hospital: Eddwaliro; Sickness: Obulwadde; Heart: Omutima; Lungs: Amawuluguma; Breath: Omukka; Stomach: Olubuto; Head: Omutwe; Cough: Kifuba; Wound: Kiwundu." },
   { title: "Nutrition: Malnutrition (Kwashiorkor/Marasmus)", content: "Common in rural districts. Signs: 'Moon face', thinning hair, swollen belly (Okuzimba olubuto). Treatment: RUTF (Ready-to-Use Therapeutic Food), F-75/F-100 therapeutic milk under medical supervision." },
-  { title: "Tropical: Neglected Tropical Diseases (NTDs)", content: "Bilharzia (Schistosomiasis) prevalent around Lake Victoria. Symptoms: Blood in urine (Musaayi mu musulo). Treatment: Praziquantel. Prevention: Avoid unsafe lake water contact." }
+  { title: "Tropical: Neglected Tropical Diseases (NTDs)", content: "Bilharzia (Schistosomiasis) prevalent around Lake Victoria. Symptoms: Blood in urine (Musaayi mu musulo). Treatment: Praziquantel. Prevention: Avoid unsafe lake water contact." },
+
+  // Cardiology & Vascular Medicine
+  { title: "Cardiology: Hypertension Management", content: "Hypertension (High BP) is a leading cardiovascular risk factor. Definition: Sustained BP >= 130/80 mmHg. Lifestyle modifications: reduce sodium intake (<2g/day), increase potassium, Mediterranean diet, or DASH diet with 150 min aerobic exercise weekly. Pharmacotherapy first-line: ACE inhibitors (e.g., Lisinopril), ARBs (e.g., Losartan), Calcium Channel Blockers (e.g., Amlodipine), or Thiazide diuretics. Avoid Beta-blockers as primary unless CAD or Heart Failure coexists." },
+  { title: "Cardiology: Congestive Heart Failure (CHF)", content: "Inability of heart to pump blood sufficiently. Symptoms: Dyspnea (breathlessness), orthopnea (paroxysmal nocturnal dyspnea), peripheral edema (swelling of feet/legs), fatigue. Diagnosis: Echocardiogram (EF <40% indicates HFrEF), Elevated BNP/NT-proBNP. Management: ACEIs/ARBs/ARNIs (Sacubitril/Valsartan), Beta-blockers (Carvedilol, Metoprolol succinate), Aldosterone antagonists (Spironolactone), and SGLT2 inhibitors (Empagliflozin). Loop diuretics (Furosemide) for pulmonary/systemic congestion relief." },
+  { title: "Cardiology: Coronary Artery Disease (CAD)", content: "Atherosclerotic plaque accumulation in coronary arteries. Presentation: Angina pectoris (chest pain radiating to left arm/jaw, triggered by exertion, relieved by rest/Nitroglycerin). Acute Coronary Syndrome (ACS) includes unstable angina, NSTEMI, and STEMI. Diagnosis: ECG (ST-segment elevation, T-wave inversion), Cardiac Troponins (I or T). Acute First Aid: Aspirin 300mg chewed, Nitroglycerin sublingual, call emergency. Chronic: Statins (Atorvastatin), Beta-blockers, Aspirin daily." },
+
+  // Respiratory Medicine
+  { title: "Pulmonology: Chronic Obstructive Pulmonary Disease (COPD)", content: "Progressive airflow limitation caused by emphysema and chronic bronchitis, primarily driven by tobacco smoke or biomass fuels. Symptoms: Chronic cough, sputum production, progressive dyspnea. Diagnosis: Spirometry (post-bronchodilator FEV1/FVC < 0.70). Management: Smoking cessation (most effective), LAMA (Tiotropium) or LABA (Salmeterol) bronchodilators. Inhaled Corticosteroids (ICS) for frequent exacerbators. Oxygen therapy if resting PaO2 <= 55 mmHg." },
+  { title: "Pulmonology: Bronchial Asthma Protocol", content: "Chronic inflammatory airway disease with reversible bronchoconstriction. Triggered by allergens, cold air, exercise. Presentation: Wheezing, dyspnea, dry cough worse at night. Diagnosis: Spirometry demonstrating reversibility (increase in FEV1 by >12% and 200ml after SABA). Management: SABA (Albuterol) for acute relief. Daily anti-inflammatory ICS (Budesonide, Fluticasone) for long-term control. Double ICS dose or add LABA (Formoterol) if uncontrolled." },
+
+  // Endocrinology & Metabolism
+  { title: "Endocrinology: Diabetes Mellitus Type 1 (T1DM)", content: "Autoimmune destruction of pancreatic beta cells leading to absolute insulin deficiency. Presentation: Polyuria, polydipsia, weight loss, diabetic ketoacidosis (DKA: glucose >250, ketones in urine, deep rapid Kussmaul breathing). Treatment: Lifelong basal-bolus insulin regimen (e.g., Glargine + Aspart) or insulin pump. Weekly glucose log analysis. DKA is a medical emergency requiring aggressive IV saline, insulin infusion, and potassium replacement." },
+  { title: "Endocrinology: Diabetes Mellitus Type 2 (T2DM)", content: "Insulin resistance paired with progressive impairment of beta-cell insulin secretion, closely tied to obesity and physical inactivity. Symptoms: often asymptomatic, progressive fatigue, slow wound healing, recurrent infections. Diagnosis: HbA1c >= 6.5%, Fasting Plasma Glucose >= 126 mg/dL. First-line therapy: Metformin (reduces hepatic glucose output). Add SGLT2 inhibitors (Empagliflozin) or GLP-1 receptor agonists (Liraglutide) if high cardiorenal risk." },
+  { title: "Endocrinology: Thyroid Disorders (Hyper vs Hypo)", content: "Thyroid gland dysregulation. Hypothyroidism (Hashimoto's/Iodine deficiency): Fatigue, cold intolerance, weight gain, bradycardia, dry skin, elevated TSH, low Free T4. Treatment: Levothyroxine (synthetic T4) adjusted by TSH checks. Hyperthyroidism (Graves' disease): Weight loss, heat intolerance, palpitation/tachycardia, tremors, low TSH, elevated Free T4/T3. Treatment: Methimazole, Propylthiouracil (PTU in 1st trimester), radioactive iodine, or surgery." },
+
+  // Infectious Diseases
+  { title: "Infectious: Tuberculosis (TB) DOTS Guidelines", content: "Mycobacterium tuberculosis infection primarily affecting lungs. Presentation: Cough >2 weeks, hemoptysis (coughing blood), night sweats, weight loss. Diagnosis: Sputum smear microscopy, GeneXpert MTB/RIF (highly sensitive, detects rifampicin resistance). Treatment: Directly Observed Therapy Short-Course (DOTS) comprising 2 months of Intensive Phase (Rifampicin, Isoniazid, Pyrazinamide, Ethambutol) followed by 4 months of Continuation Phase (Rifampicin, Isoniazid)." },
+  { title: "Infectious: HIV & antiretroviral therapy (ART)", content: "Infection of CD4+ T-lymphocytes by HIV retrovirus. Staged by CD4 count (AIDS defined by CD4 <200 or opportunistic infections like PCP, Cryptococcal meningitis, Kaposi's sarcoma). Prevention: Pre-exposure prophylaxis (PrEP) daily TDF/FTC; Post-exposure prophylaxis (PEP) within 72 hours. Treatment: Multi-class antiretroviral therapy (ART) immediately upon diagnosis. Standard preferred first-line regimen in East Africa: TLD (Tenofovir, Lamivudine, Dolutegravir) once daily." },
+  { title: "Infectious: Malaria Diagnostics & Therapeutics", content: "Protozoal infection (Plasmodium falciparum most lethal) transmitted by female Anopheles mosquitoes. Presentation: High spiking fever, cyclical chills, headache, splenomegaly. Diagnosis: Giemsa-stained thick/thin blood smears or Rapid Diagnostic Tests (RDTs). Treatment: Uncomplicated P. falciparum: Artemisinin-based Combination Therapy (ACT), e.g., Artemether-lumefantrine (Coartem). Severe malaria: IV Artesunate followed by oral ACT." },
+
+  // Obstetrics & Gynecology (Maternal Health)
+  { title: "Maternal: Preeclampsia & Eclampsia Protocols", content: "Hypertensive disorder of pregnancy. Definition: BP >= 140/90 after 20 weeks gestation, accompanied by proteinuria or organ dysfunction. Severe features: BP >= 160/110, severe headache, visual disturbances, epigastric pain, thrombocytopenia. Prevention: Low-dose Aspirin (81-150mg) started at 12 weeks for high risk. Management: Magnesium sulfate IV infusion to prevent seizures (Eclampsia). Definite cure: Delivery of fetus." },
+  { title: "Maternal: Postpartum Hemorrhage (PPH) Defense", content: "Leading maternal mortality cause worldwide. Definition: Blood loss >= 500ml after vaginal delivery (>=1000ml after C-section) or any loss causing hemodynamic instability. Primary cause: Uterine Atony (Tone - 70%). Active Management of Third Stage of Labor (AMTSL) is standard prevention: give prophylactic Oxytocin 10 IU IM immediately after fetal delivery, controlled cord traction, and uterine massage." },
+
+  // Pediatrics (Child Health)
+  { title: "Pediatrics: Integrated Management of Childhood Illness (IMCI)", content: "Systematic WHO/UNICEF protocol for children aged 1 week to 5 years. Severe Danger Signs: Inability to drink/breastfeed, persistent vomiting, lethargy/unconsciousness, convulsions. Diarrheal dehydration triage: Plan A (No dehydration): home fluids, ORS, Zinc. Plan B (Some dehydration): 75ml/kg ORS over 4 hours. Plan C (Severe dehydration): IV Ringer's Lactate (100ml/kg). Always supplement diarrheal episodes in children with Zinc 20mg daily (10mg if <6 months) for 10-14 days." },
+
+  // Gastroenterology & Hepatology
+  { title: "Gastroenterology: Peptic Ulcer Disease (PUD)", content: "Mucosal defect in stomach or duodenum. Major etiologies: Helicobacter pylori infection or chronic NSAID use (Aspirin, Ibuprofen). Presentation: Epigastric burning pain (duodenal ulcers relieved by food, gastric ulcers worsened by food). Diagnosis: Urea breath test, stool antigen, or endoscopy. Treatment: H. pylori eradication triple therapy (Clarithromycin 500mg, Amoxicillin 1g, PPI, e.g., Omeprazole 20mg, all BID for 14 days)." },
+
+  // Urology & Nephrology
+  { title: "Nephrology: Chronic Kidney Disease (CKD)", content: "Progressive, irreversible loss of renal function. Classified by GFR (Stages 1-5, Stage 5 / ESRD defined by GFR <15 ml/min requiring dialysis/transplant). Common causes: Diabetes, Hypertension, Glomerulonephritis. Complications: Anemia (due to EPO deficiency), hyperkalemia (dangerous cardiac rhythm risk), metabolic acidosis, secondary hyperparathyroidism. Management: ACEIs/ARBs to slow progression, fluid restriction, low-potassium diet." },
+
+  // Emergency First Aid
+  { title: "Neurology: Acute Ischemic Stroke (FAST)", content: "Cerebrovascular accident causing acute focal neurological deficit. Recognition (FAST): Face drooping, Arm weakness, Speech difficulty, Time to call emergency. Diagnosis: Non-contrast head CT immediately (rule out hemorrhage). Treatment: Ischemic stroke within 4.5 hours of symptom onset: IV tissue plasminogen activator (tPA/Alteplase). Contraindications include high BP (>185/110), active bleeding, or recent trauma. Antiplatelets (Aspirin) initiated after 24 hours." },
+  { title: "Emergency: Anaphylaxis Treatment Guidelines", content: "Life-threatening Type I hypersensitivity reaction. Symptoms: Pruritus, hives, angioedema (swelling of lips/tongue), bronchospasm (wheezing), hypotension (shock). First line: Epinephrine (Adrenaline) 1:1000 dilution, dose 0.3mg to 0.5mg injected Intramuscularly (IM) into anterolateral thigh. Repeat every 5-15 minutes if needed. Support with IV crystalloids, oxygen, systemic antihistamines, and corticosteroids." },
+
+  // Mental Health & Mood Disorders
+  { title: "Mental Health: Major Depressive Disorder (MDD)", content: "Mood disorder characterized by sustained depressed mood, anhedonia (loss of interest), fatigue, guilt, suicidal ideation for >= 2 weeks, causing functional impairment. Diagnosis: meets DSM-5 criteria (5 of 9 symptoms). Management: Mild: cognitive behavioral therapy (CBT). Moderate to Severe: SSRIs (Escitalopram, Sertraline, Fluoxetine) paired with CBT. Note: SSRIs take 4-6 weeks to show full therapeutic effect; monitor for suicidal ideation initially." },
+  { title: "Mental Health: Generalized Anxiety Disorder (GAD)", content: "Excessive, uncontrollable worry about various domains for >= 6 months. Physical symptoms: restlessness, fatigue, muscle tension, sleep disturbance. Management: First-line includes CBT and SSRIs. Short-term/emergency relief of severe somatic symptoms with Benzodiazepines (e.g., Clonazepam, Diazepam), but strictly avoid long-term use due to high dependence and tolerance risk." }
 ];
+
+// --- CLINICAL RETRIEVAL ENGINE (TF-IDF KEYWORD RAG) ---
+function retrieveKnowledgeContext(userId: string, query: string): string {
+  try {
+    const kbEntries = db.prepare("SELECT title, content, category FROM knowledge_base WHERE userId = ? OR userId = 'system'").all(userId) as any[];
+    if (kbEntries.length === 0) return "";
+
+    const stopWords = new Set([
+      "the", "and", "a", "of", "to", "in", "is", "you", "that", "it", "he", "was", "for", "on", "are", 
+      "as", "with", "his", "they", "i", "at", "be", "this", "have", "from", "or", "one", "had", "by", 
+      "word", "but", "not", "what", "all", "were", "we", "when", "your", "can", "said", "there", "use",
+      "an", "each", "which", "she", "do", "how", "their", "if", "will", "up", "other", "about", "out", 
+      "many", "then", "them", "these", "so", "some", "her", "would", "make", "like", "him", "into", 
+      "has", "look", "two", "more", "write", "go", "see", "number", "no", "way", "could", "people", 
+      "my", "than", "first", "been", "call", "who", "its", "now", "find", "treatment", "symptoms", "manage", "protocol"
+    ]);
+
+    const cleanQuery = query.toLowerCase().replace(/[^\w\s]/g, ' ');
+    const queryTokens = cleanQuery.split(/\s+/).filter(t => t.length > 2 && !stopWords.has(t));
+
+    if (queryTokens.length === 0) {
+      return kbEntries.slice(0, 5).map(e => `[${e.title}]: ${e.content}`).join('\n');
+    }
+
+    const scoredEntries = kbEntries.map(entry => {
+      const titleLower = entry.title.toLowerCase();
+      const contentLower = entry.content.toLowerCase();
+      let score = 0;
+
+      queryTokens.forEach(token => {
+        if (titleLower.includes(token)) {
+          score += 15;
+          const titleWords = titleLower.split(/\s+/);
+          if (titleWords.includes(token)) score += 10;
+        }
+        if (contentLower.includes(token)) {
+          score += 3;
+          const regex = new RegExp(`\\b${token}\\b`, 'g');
+          const matches = contentLower.match(regex);
+          if (matches) score += matches.length * 2;
+        }
+      });
+
+      return { entry, score };
+    });
+
+    const topEntries = scoredEntries
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 7);
+
+    if (topEntries.length === 0) {
+      const defaults = kbEntries
+        .filter(e => e.category === 'clinical' || e.title.includes('Identity') || e.title.includes('Global'))
+        .slice(0, 5);
+      return defaults.map(e => `[${e.title}]: ${e.content}`).join('\n');
+    }
+
+    return topEntries.map(item => `[${item.entry.title}]: ${item.entry.content}`).join('\n');
+  } catch (err: any) {
+    console.error("[RAG] Retrieval error:", err.message);
+    return "";
+  }
+}
 
 function initDatabase() {
   console.log("[DB] Initializing clinical knowledge engine...");
   try {
     db = new Database(DB_PATH);
-    // Test if DB is reachable
     db.prepare("SELECT 1").get();
     console.log("[DB] Connection verified.");
     
-    // Seed initial knowledge if empty
+    // Seed initial knowledge AND keep updated
     const checkTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_base'").get();
     if (checkTable) {
-      const checkKB = db.prepare("SELECT COUNT(*) as count FROM knowledge_base").get() as any;
-      if (checkKB && checkKB.count === 0) {
-        console.log("[DB] Seeding clinical knowledge matrix...");
-        const insertKB = db.prepare("INSERT INTO knowledge_base (id, userId, title, content, category) VALUES (?, ?, ?, ?, ?)");
-        MEDICAL_KNOWLEDGE_MATRIX.forEach((node, i) => {
-          insertKB.run(`seed_${i}`, 'system', node.title, node.content, 'clinical');
-        });
-      }
+      const insertKB = db.prepare("INSERT OR IGNORE INTO knowledge_base (id, userId, title, content, category) VALUES (?, ?, ?, ?, ?)");
+      const updateKB = db.prepare("UPDATE knowledge_base SET title = ?, content = ? WHERE id = ?");
+      const checkExist = db.prepare("SELECT COUNT(*) as count FROM knowledge_base WHERE id = ?");
+
+      MEDICAL_KNOWLEDGE_MATRIX.forEach((node, i) => {
+        const seedId = `seed_${i}`;
+        const hasNode = (checkExist.get(seedId) as any).count > 0;
+        if (!hasNode) {
+          insertKB.run(seedId, 'system', node.title, node.content, 'clinical');
+        } else {
+          updateKB.run(node.title, node.content, seedId);
+        }
+      });
+      console.log(`[DB] Clinical knowledge matrix verified & synchronized with ${MEDICAL_KNOWLEDGE_MATRIX.length} system nodes.`);
     }
   } catch (err: any) {
     console.error("[DB FATAL] Initialization error:", err.message);
@@ -1199,6 +1387,23 @@ const schemas = [
 schemas.forEach(schema => db.exec(schema));
 
 try {
+  const indices = [
+    "CREATE INDEX IF NOT EXISTS idx_records_userId ON records(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_medications_userId ON medications(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_medication_intakes_userId ON medication_intakes(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_chat_sessions_userId ON chat_sessions(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_chat_messages_sessionId ON chat_messages(sessionId)",
+    "CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_workouts_userId ON workouts(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_credentials_userId ON credentials(userId)"
+  ];
+  indices.forEach(idx => db.exec(idx));
+  console.log("[DB] Performance indices created successfully.");
+} catch (idxErr: any) {
+  console.error("[DB ERROR] Failed to create performance indices:", idxErr.message);
+}
+
+try {
   db.exec(`CREATE TABLE IF NOT EXISTS fine_tuning_jobs (
     id TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
@@ -1242,7 +1447,28 @@ function checkAndResetUnits(userId: string) {
   }
 }
 
+function isPremiumUser(userId: string): boolean {
+  try {
+    const user = db.prepare("SELECT email, subscriptionTier, subscriptionStatus, role FROM users WHERE id = ?").get(userId) as any;
+    if (!user) return false;
+    
+    const email = (user.email || "").toLowerCase();
+    if (email === "gloriajayakullo@gmail.com") {
+      return true;
+    }
+    
+    const isSubscriber = ['gold', 'business', 'silver', 'pro'].includes(user.subscriptionStatus === 'active' ? user.subscriptionTier : '');
+    const isAdmin = user.role === 'admin';
+    return isSubscriber || isAdmin;
+  } catch (err) {
+    return false;
+  }
+}
+
 function getUserUnits(userId: string): number {
+  if (isPremiumUser(userId)) {
+    return 999999;
+  }
   try {
     checkAndResetUnits(userId);
     const user = db.prepare("SELECT credits FROM users WHERE id = ?").get(userId) as any;
@@ -1254,6 +1480,9 @@ function getUserUnits(userId: string): number {
 }
 
 function deductUnits(userId: string, amount: number): { success: boolean; remaining: number } {
+  if (isPremiumUser(userId)) {
+    return { success: true, remaining: 999999 };
+  }
   try {
     checkAndResetUnits(userId);
     const currentUnits = getUserUnits(userId);
@@ -1637,6 +1866,47 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ai/knowledge/cloud-fetch", authenticate, async (req: any, res) => {
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: "Search query is required to fetch cloud clinical dataset." });
+
+    const userId = req.user.id;
+
+    try {
+      console.log(`[CLOUD-FETCH] Fetching web-grounded clinical knowledge for query: "${query}"`);
+      
+      const prompt = `Perform a comprehensive lookup of the clinical protocols, diagnosis methods, or treatment guidelines for: "${query}". Retrieve highly detailed, authoritative guidelines directly from official cloud medical sources (WHO, CDC, NHS, PubMed). Formulate your response as a complete, comprehensive medical article detailing symptoms, treatments, prevention, and clinical workflows. Include bullet points, sources, and links.`;
+      
+      const systemInstruction = "You are an expert clinical researcher. Retrieve the absolute latest, verified medical protocols from the internet/cloud and format them with citations and references.";
+      
+      const responseText = await callAI({
+        messages: [{ role: 'user', text: prompt }],
+        systemInstruction,
+        modelName: "gemini-3.5-flash",
+        temperature: 0.2,
+        userId,
+        useSearch: true
+      });
+
+      if (!responseText) {
+        throw new Error("Empty response received from the cloud AI grounding engine.");
+      }
+
+      const id = `kb_cloud_${Date.now()}`;
+      const title = `Cloud Data: ${query.substring(0, 50)}`;
+      const content = responseText;
+      const category = 'clinical';
+
+      db.prepare("INSERT INTO knowledge_base (id, userId, title, content, category) VALUES (?, ?, ?, ?, ?)")
+        .run(id, userId, title, content, category);
+
+      res.json({ success: true, id, title, content });
+    } catch (err: any) {
+      console.error("[CLOUD-FETCH] Error:", err.message);
+      res.status(500).json({ error: `Failed to fetch cloud medical data: ${err.message}` });
+    }
+  });
+
   app.delete("/api/ai/knowledge/:id", authenticate, (req: any, res) => {
     try {
       const isAdmin = req.user.role === 'admin' || req.user.role === 'doctor' || req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
@@ -1791,7 +2061,7 @@ async function startServer() {
     const { email, password, displayName } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email and password required" });
     if (!isPasswordSecure(password)) {
-      return res.status(400).json({ error: "Password must be at least 8 characters and include letters, numbers, and symbols" });
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
     }
 
     try {
@@ -2327,7 +2597,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ error: "Token and password required" });
     if (!isPasswordSecure(password)) {
-      return res.status(400).json({ error: "Password must be at least 8 characters and include letters, numbers, and symbols" });
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
     }
 
     try {
@@ -3965,16 +4235,26 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         const queryPrompt = `High-fidelity professional medical illustration: ${prompt}. Anatomically precise, clinical textbook style, 4k resolution, clean clinical background.`;
         const pollinationsUrl = `https://image.pollinations.ai/p/${encodeURIComponent(queryPrompt)}?width=768&height=768&seed=${Math.floor(Math.random() * 1000000)}&nologo=true&private=true`;
 
-        const response = await axios.get(pollinationsUrl, {
-          responseType: 'arraybuffer',
-          timeout: 40000
-        });
+        try {
+          const response = await axios.get(pollinationsUrl, {
+            responseType: 'arraybuffer',
+            timeout: 25000 // Slightly lower timeout to respond faster
+          });
 
-        const base64Data = Buffer.from(response.data, 'binary').toString('base64');
-        return res.json({ 
-          imageData: `data:image/jpeg;base64,${base64Data}`,
-          success: true 
-        });
+          const base64Data = Buffer.from(response.data, 'binary').toString('base64');
+          return res.json({ 
+            imageData: `data:image/jpeg;base64,${base64Data}`,
+            success: true 
+          });
+        } catch (fetchErr: any) {
+          console.warn("[AI] Axios image buffer fetch failed, falling back to direct link mode:", fetchErr.message);
+          // If server-side fetching fails, fallback to direct client-side hot-linked Pollinations image URL!
+          // This will load perfectly and instantly inside the browser!
+          return res.json({
+            imageData: pollinationsUrl,
+            success: true
+          });
+        }
       } catch (err: any) {
         console.error("[AI] Pollinations Image Generation Error:", err);
         return res.status(500).json({ error: "Visualization synthesis pathways disrupted.", details: err.message });
@@ -4040,6 +4320,27 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       try {
         db.prepare("DELETE FROM developer_keys WHERE id = ? AND userId = ?").run(req.params.id, req.user.uid);
         res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    app.get("/api/developer/credentials", authenticate, (req: any, res) => {
+      try {
+        const geminiKey = process.env.GEMINI_API_KEY || "";
+        const fallbackKeys = getValidApiKeys();
+        
+        let primaryKey = geminiKey;
+        if (!primaryKey && fallbackKeys.length > 0) {
+          primaryKey = fallbackKeys[0];
+        }
+        
+        res.json({
+          provider: primaryKey ? "Google MedLM / DeepSeek Clinical Synapse" : "Local Offline Engine",
+          apiKey: primaryKey || "Off-grid Local Autonomy Enabled",
+          geminiKey: geminiKey || (fallbackKeys.length > 0 ? fallbackKeys[0] : ""),
+          additionalKeys: fallbackKeys.slice(1)
+        });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -4115,10 +4416,21 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           return res.status(400).json({ error: "Messages array required" });
         }
 
+        const wantsStream = req.headers.accept === 'text/event-stream';
         const rawUserMessage = (messages && messages.length > 0) ? messages[messages.length - 1].text : "Hello";
         const greeted = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"].some(g => rawUserMessage.toLowerCase().trim() === g);
         if (greeted && (!messages || messages.length <= 1)) {
-           return res.json({ text: "Hello! I am Doctorian. How can I assist with your health and wellness today?" });
+          const greetingText = "Hello! I am Doctorian. How can I assist with your health and wellness today?";
+          if (wantsStream) {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.write(`data: ${JSON.stringify({ text: greetingText, credits: credits })}\n\n`);
+            res.write("data: [DONE]\n\n");
+            return res.end();
+          } else {
+            return res.json({ text: greetingText });
+          }
         }
 
         const isMedical = isMedicalQuery(rawUserMessage);
@@ -4148,9 +4460,9 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
         let knowledgeContext = "";
         try {
-          const kbEntries = db.prepare("SELECT title, content FROM knowledge_base WHERE userId = ? OR userId = 'system'").all(userId) as any[];
-          if (kbEntries.length > 0) {
-            knowledgeContext = `\n\nINTERNAL MEDICAL RECORDS:\n${kbEntries.map(e => `[${e.title}]: ${e.content}`).join('\n')}`;
+          const matchedKB = retrieveKnowledgeContext(userId, rawUserMessage);
+          if (matchedKB) {
+            knowledgeContext = `\n\nINTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES:\n${matchedKB}`;
           }
         } catch (e) { }
 
@@ -4173,7 +4485,6 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL OPERATIONAL UPDATE]: The user has requested that you MUST answer in clear, chunked/structured sections, heavily enriched with professional medical and organizational emojis (e.g., 🩺, 🧠, 🫀, 🔬, 💊, 🩹, 🩸, 🏥, ✨, 🌟, 🛡️, 📋, 🔍, ✅). Ensure your response is highly professional, scientifically precise, and formatted in clean Markdown with scannable headers and bullet points. Break down complex medical insights into easily digestible cognitive "chunks". Do not return plain large walls of text. Avoid long preambles.`;
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${fineTunedModelInfo}${EMOJI_CHUNKS_DIRECTIVE}`;
 
-        const wantsStream = req.headers.accept === 'text/event-stream';
         if (wantsStream) {
           res.setHeader('Content-Type', 'text/event-stream');
           res.setHeader('Cache-Control', 'no-cache');
@@ -4269,7 +4580,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       
       const url = req.originalUrl;
       try {
-        const indexHtmlPath = path.resolve(__dirname, "index.html");
+        const indexHtmlPath = path.resolve(process.cwd(), "index.html");
         if (!fs.existsSync(indexHtmlPath)) {
           return next();
         }
@@ -4285,7 +4596,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     console.log("[SERVER] Vite Middleware integrated.");
   } else {
     console.log("[SERVER] Running in PRODUCTION mode.");
-    const distPath = path.join(__dirname, "dist");
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       // API fallback

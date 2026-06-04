@@ -73,6 +73,7 @@ export function NeuralVoiceCall({ onClose, user, vitals, healthStatus, onRefresh
   const { status, error, connect, stop, sendMessage, inputVolume, outputVolume } = useGeminiLive({
     voiceName: 'Puck',
     isMuted,
+    isSpeakerMuted: isSpeakerOff,
     systemInstruction,
     onTranscript: (text, isModel) => {
       setTranscripts(prev => {

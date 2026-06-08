@@ -188,15 +188,15 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        if (localPin === '1234') {
+                        if (localPin === '1234' || localPin === 'DOC@Protocol2') {
                           if (setIsAdmin) {
                             setIsAdmin(true);
                           }
                           setLocalPin('');
-                          addNotification("Override authorized. Manual communication override open.", "success");
+                          addNotification(`Override authorized. ${localPin === '1234' ? 'Admin' : 'Doctor Protocol'} override open.`, "success");
                         } else {
-                          setLocalPinError("Invalid PIN");
-                          addNotification("Protection Alert: Invalid PIN rejected.", "error");
+                          setLocalPinError("Invalid PIN / Passkey");
+                          addNotification("Protection Alert: Invalid PIN/Passkey rejected.", "error");
                         }
                       }}
                       className="px-4 py-2 bg-slate-950 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer shadow-sm border border-slate-700/50 self-start"

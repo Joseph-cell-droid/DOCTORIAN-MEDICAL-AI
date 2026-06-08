@@ -1291,21 +1291,43 @@ export default function App() {
             )}
           </AnimatePresence>
 
-        <header className="sticky top-0 z-[100] bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-all overflow-visible shadow-sm">
+        <motion.header 
+          layout
+          initial={false}
+          animate={{
+            backgroundColor: isEyeCareMode 
+              ? (isDarkMode ? 'rgba(69, 26, 3, 0.95)' : 'rgba(254, 243, 199, 0.95)')
+              : (isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'),
+            borderColor: isEyeCareMode
+              ? (isDarkMode ? 'rgba(217, 119, 6, 0.4)' : 'rgba(251, 191, 36, 0.4)')
+              : (isDarkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(226, 232, 240, 1)'),
+            boxShadow: isEyeCareMode
+              ? '0 10px 15px -3px rgba(245, 158, 11, 0.15), 0 4px 6px -4px rgba(245, 158, 11, 0.15)'
+              : (isDarkMode ? '0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1)' : '0 1px 3px 0 rgba(0, 0, 0, 0.05)'),
+          }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 140, 
+            damping: 22 
+          }}
+          className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible"
+        >
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-8">
             <div className="flex items-center py-3 sm:py-4 gap-2 sm:gap-4 w-full">
               <div className="flex items-center gap-2 sm:gap-6 shrink-0">
-                <button 
+                <motion.button 
+                  layout
                   className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0 p-1"
                   onClick={() => setCurrentView('home')}
                   aria-label="Go to Home"
                 >
                   <Logo size="sm" className="scale-[0.8] sm:scale-90 lg:scale-100 shrink-0 [&_.logo-text]:hidden sm:[&_.logo-text]:flex" />
-                </button>
+                </motion.button>
               </div>
 
               <div className="flex flex-1 justify-center px-1 sm:px-4 items-center gap-1.5 sm:gap-4 overflow-visible min-w-0">
-                <button 
+                <motion.button 
+                  layout
                   onClick={() => setIsSearchOpen(true)}
                   className="flex flex-1 md:w-full md:max-w-md items-center gap-2 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-2 sm:px-4 sm:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[85px] h-11 sm:h-auto shadow-sm"
                   aria-label="Open search"
@@ -1313,7 +1335,7 @@ export default function App() {
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
                   <span className="text-[10px] sm:text-xs font-black md:inline text-high-visibility truncate uppercase tracking-widest hidden sm:block">Search System...</span>
                   <span className="text-[10px] font-black sm:hidden truncate uppercase tracking-widest text-slate-900 dark:text-slate-100">Search</span>
-                </button>
+                </motion.button>
                 
                 <button
                   onClick={() => {
@@ -1345,7 +1367,8 @@ export default function App() {
 
                 <VoiceCommandToggle onNavigate={setCurrentView} />
 
-                <button
+                <motion.button
+                  layout
                   onClick={() => setIsEyeCareMode(!isEyeCareMode)}
                   className={`p-2 sm:p-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm shrink-0 w-11 sm:w-auto h-11 sm:h-auto justify-center ${
                     isEyeCareMode 
@@ -1356,9 +1379,20 @@ export default function App() {
                   aria-pressed={isEyeCareMode}
                   title={isEyeCareMode ? "Disable Legibility Mode" : "Enable Legibility Mode"}
                 >
-                  {isEyeCareMode ? <Eye aria-hidden="true" size={18} className="shrink-0 text-amber-900 dark:text-amber-300" /> : <EyeOff aria-hidden="true" size={18} className="shrink-0" />}
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={isEyeCareMode ? 'eye' : 'eye-off'}
+                      initial={{ scale: 0.8, rotate: -15, opacity: 0 }}
+                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                      exit={{ scale: 0.8, rotate: 15, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center gap-2"
+                    >
+                      {isEyeCareMode ? <Eye aria-hidden="true" size={18} className="shrink-0 text-amber-900 dark:text-amber-300" /> : <EyeOff aria-hidden="true" size={18} className="shrink-0" />}
+                    </motion.div>
+                  </AnimatePresence>
                   <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline text-high-visibility whitespace-nowrap shrink-0">Legibility Mode</span>
-                </button>
+                </motion.button>
               </div>
               
               <div className="flex items-center gap-1.5 sm:gap-4 ml-auto shrink-0">
@@ -1541,14 +1575,26 @@ export default function App() {
               )}
               {user && (
                 <>
-                  <button 
+                  <motion.button 
+                    layout
                     onClick={() => setIsDarkMode(!isDarkMode)}
                     className="p-2 sm:p-2.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all group shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center"
                     aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                   >
-                    {isDarkMode ? <Sun aria-hidden="true" size={18} className="shrink-0" /> : <Moon aria-hidden="true" size={18} className="shrink-0" />}
-                  </button>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div
+                        key={isDarkMode ? 'sun' : 'moon'}
+                        initial={{ rotate: -90, scale: 0.8, opacity: 0 }}
+                        animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                        exit={{ rotate: 90, scale: 0.8, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex items-center justify-center"
+                      >
+                        {isDarkMode ? <Sun aria-hidden="true" size={18} className="shrink-0 text-amber-500" /> : <Moon aria-hidden="true" size={18} className="shrink-0 text-indigo-400" />}
+                      </motion.div>
+                    </AnimatePresence>
+                  </motion.button>
                   <button 
                     onClick={handleOpenAdminInfo}
                     className="p-2 sm:p-2.5 text-slate-400 hover:text-slate-900 transition-colors relative group shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center"
@@ -1573,7 +1619,7 @@ export default function App() {
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
       </div>
 
       <main className="flex-1 pb-20 relative flex flex-col pt-0 w-full" id="main-content">
@@ -1683,6 +1729,7 @@ export default function App() {
               vitals={arduino.vitals}
               healthStatus={arduino.healthStatus}
               history={arduino.history}
+              onUpdateUser={(u) => setUser(u)}
             />
           ) : currentView === 'ai_nexus' ? (
             <MedicalAI 
@@ -2007,6 +2054,7 @@ export default function App() {
             vitals={arduino.vitals}
             healthStatus={arduino.healthStatus}
             history={arduino.history}
+            onUpdateUser={(u) => setUser(u)}
           />
         )}
               </AnimatePresence>

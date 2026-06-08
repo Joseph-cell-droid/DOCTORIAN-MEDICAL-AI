@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   ListTodo,
   Sparkles, Lightbulb, Quote, Cpu, Wind, Shield, Download, Fingerprint,
-  Terminal, Code2
+  Terminal, Code2, Flame, Trophy, CalendarDays, Gift, Check
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -44,6 +44,7 @@ interface DashboardProps {
   vitals: Vitals | null;
   healthStatus: HealthStatus | null;
   history: Vitals[];
+  onUpdateUser?: (u: any) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -55,7 +56,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onInstall,
   vitals,
   healthStatus,
-  history
+  history,
+  onUpdateUser
 }) => {
   const vitalStats = [
     { label: 'Cognis Load', value: '42%', trend: '-4%', icon: <Brain size={16} />, color: 'blue' },
@@ -63,6 +65,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
     { label: 'Neural Energy', value: `${Math.round(user?.credits || 0)} Units`, trend: 'Resets Daily', icon: <Battery size={16} />, color: 'emerald' },
     { label: 'Hydration', value: '2.4L', trend: '+0.4', icon: <Droplets size={16} />, color: 'cyan' },
   ];
+
+  const [meds, setMeds] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('medical_offline_medications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [workouts, setWorkouts] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('medical_offline_workouts');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [streakDays, setStreakDays] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_vitality_streak');
+      return saved ? parseInt(saved, 10) : 5;
+    } catch {
+      return 5;
+    }
+  });
+
+  const [lastClaimedDate, setLastClaimedDate] = useState<string>(() => {
+    return localStorage.getItem('doctorian_streak_claimed_date') || '';
+  });
+
+  const [claimedMilestones, setClaimedMilestones] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_claimed_milestones');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [weeklyStatus, setWeeklyStatus] = useState<boolean[]>([true, true, true, true, true, false, false]);
+
   const [tasks, setTasks] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('doctorian_tasks');
@@ -91,10 +136,123 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (savedTasks) setTasks(JSON.parse(savedTasks));
       const savedAppts = localStorage.getItem('doctorian_appointments');
       if (savedAppts) setAppointments(JSON.parse(savedAppts));
+      const savedMeds = localStorage.getItem('medical_offline_medications');
+      if (savedMeds) setMeds(JSON.parse(savedMeds));
+      const savedWorkouts = localStorage.getItem('medical_offline_workouts');
+      if (savedWorkouts) setWorkouts(JSON.parse(savedWorkouts));
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  useEffect(() => {
+    const loadMedsAndWorkouts = async () => {
+      try {
+        const medsData = await api.medications.list();
+        if (medsData) setMeds(medsData);
+      } catch (err) {
+        console.error("Failed to load meds for streak calculation", err);
+      }
+      try {
+        const workoutsData = await api.workouts.list();
+        if (workoutsData) setWorkouts(workoutsData);
+      } catch (err) {
+        console.error("Failed to load workouts for streak calculation", err);
+      }
+    };
+    loadMedsAndWorkouts();
+  }, []);
+
+  useEffect(() => {
+    if (meds.length === 0 && workouts.length === 0) {
+      return;
+    }
+
+    const medsCount = meds.length;
+    const medsTakenTodayCount = meds.filter((m: any) => m.takenToday).length;
+    
+    const today = new Date();
+    const workoutToday = workouts.some((w: any) => {
+      if (!w.date) return false;
+      const d = new Date(w.date);
+      return d.getDate() === today.getDate() &&
+             d.getMonth() === today.getMonth() &&
+             d.getFullYear() === today.getFullYear();
+    });
+
+    const medAdherenceToday = medsCount > 0 ? (medsTakenTodayCount / medsCount >= 0.5) : false;
+    const adheredToday = medAdherenceToday || workoutToday;
+
+    const complianceDates = new Set<string>();
+
+    workouts.forEach((w: any) => {
+      if (w.date) {
+        complianceDates.add(new Date(w.date).toDateString());
+      }
+    });
+
+    meds.forEach((m: any) => {
+      if (Array.isArray(m.takenTimes)) {
+        m.takenTimes.forEach((t: any) => {
+          if (t) {
+            complianceDates.add(new Date(t).toDateString());
+          }
+        });
+      }
+      if (m.takenToday) {
+        complianceDates.add(new Date().toDateString());
+      }
+    });
+
+    let computedStreak = 0;
+    let checker = new Date();
+    const todayString = checker.toDateString();
+
+    let hasTodayCompliance = complianceDates.has(todayString) || adheredToday;
+
+    if (hasTodayCompliance) {
+      computedStreak = 1;
+      checker.setDate(checker.getDate() - 1);
+      while (complianceDates.has(checker.toDateString())) {
+        computedStreak++;
+        checker.setDate(checker.getDate() - 1);
+      }
+    } else {
+      checker.setDate(checker.getDate() - 1);
+      while (complianceDates.has(checker.toDateString())) {
+        computedStreak++;
+        checker.setDate(checker.getDate() - 1);
+      }
+    }
+
+    const finalStreak = Math.max(computedStreak, streakDays);
+    if (finalStreak !== streakDays && finalStreak > 0) {
+      setStreakDays(finalStreak);
+      localStorage.setItem('doctorian_vitality_streak', finalStreak.toString());
+    }
+
+    const dowIndices = [1, 2, 3, 4, 5, 6, 0];
+    const currentDow = new Date().getDay();
+    const activeDowIndex = dowIndices.indexOf(currentDow);
+
+    const updatedWeekly = [true, true, true, true, true, false, false];
+    if (activeDowIndex !== -1) {
+      updatedWeekly[activeDowIndex] = adheredToday;
+      for (let idx = 0; idx < 7; idx++) {
+        const offset = idx - activeDowIndex;
+        const targetDayDate = new Date();
+        targetDayDate.setDate(targetDayDate.getDate() + offset);
+        
+        if (offset > 0) {
+          updatedWeekly[idx] = false;
+        } else if (offset < 0) {
+          updatedWeekly[idx] = complianceDates.has(targetDayDate.toDateString());
+        }
+      }
+    }
+    setWeeklyStatus(updatedWeekly);
+
+  }, [meds, workouts]);
 
   const pendingTasks = tasks.filter(t => !t.completed).sort((a, b) => {
     if (a.priority === 'high' && b.priority !== 'high') return -1;
@@ -172,6 +330,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const addNotification = (text: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [...prev, { id, text, type }]);
+    
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setDiagnosticLogs(prev => [`[${timeStr}] VITALITY: ${text}`, ...prev.slice(0, 5)]);
+
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 4000);
@@ -492,6 +654,294 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="mt-8">
                 <h4 className="font-black uppercase tracking-tighter text-white text-2xl">Access <span className="text-blue-400">Bio-Core</span></h4>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 group-hover:text-white transition-colors">Strategic Simulation Protocol v9.4</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* VITALITY STREAK & CLINICAL COMPLIANCE REWARD HQ */}
+      <div className="bg-slate-50 dark:bg-slate-950 rounded-[2.5rem] p-6 sm:p-10 border border-slate-200 dark:border-slate-800 shadow-md">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 border-b border-slate-200 dark:border-slate-800 pb-6">
+          <div className="flex items-center gap-4 text-left">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 flex items-center justify-center relative select-none">
+              <Flame size={28} className="animate-pulse" />
+              <div className="absolute inset-0 bg-amber-500/20 rounded-2xl blur-md animate-ping -z-10" />
+            </div>
+            <div>
+              <span className="text-[10px] sm:text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] block leading-none mb-1">Adherence Engine v1.8</span>
+              <h2 className="text-xl sm:text-2xl font-[950] text-slate-900 dark:text-white uppercase tracking-tight">Vitality Adherence Streak</h2>
+            </div>
+          </div>
+
+          {/* SIMULATION TRUNK (For review and verification purposes) */}
+          <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-150 dark:border-slate-850 justify-center">
+            <p className="text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-1">Enclave Simulator</p>
+            <button 
+              id="sim-meds-btn"
+              onClick={() => {
+                const updatedMeds = meds.map(m => ({ ...m, takenToday: true }));
+                setMeds(updatedMeds);
+                localStorage.setItem('medical_offline_medications', JSON.stringify(updatedMeds));
+                addNotification("Simulated medication intake for today! 💊", "success");
+              }}
+              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+            >
+              + Meds Today
+            </button>
+            <button 
+              id="sim-workout-btn"
+              onClick={async () => {
+                try {
+                  const demoWorkout = {
+                    type: 'Cardio Fusion',
+                    duration: 45,
+                    calories: 320,
+                    intensity: 'Moderate' as const,
+                    date: new Date().toISOString()
+                  };
+                  await api.workouts.create(demoWorkout);
+                  const updatedWorkouts = await api.workouts.list();
+                  setWorkouts(updatedWorkouts);
+                  addNotification("Simulated workout logged for today! 🏃‍♂️", "success");
+                } catch {
+                  addNotification("Failed to add demo activity.", "warning");
+                }
+              }}
+              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+            >
+              + Exercise Today
+            </button>
+            <button 
+              id="sim-boost-streak-btn"
+              onClick={() => {
+                const next = streakDays + 1;
+                setStreakDays(next);
+                localStorage.setItem('doctorian_vitality_streak', next.toString());
+                addNotification(`Streak boosted manually to ${next} Days! 🔥`, 'success');
+              }}
+              className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 dark:text-amber-400 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-bold"
+            >
+              Boost Streak +1
+            </button>
+            <button 
+              id="sim-clear-streak-btn"
+              onClick={() => {
+                setStreakDays(0);
+                localStorage.setItem('doctorian_vitality_streak', '0');
+                localStorage.removeItem('doctorian_streak_claimed_date');
+                setLastClaimedDate('');
+                setClaimedMilestones([]);
+                localStorage.setItem('doctorian_claimed_milestones', JSON.stringify([]));
+                addNotification("Streak reset to 0 Days for testing.", "info");
+              }}
+              className="px-2 py-1 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all font-bold"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          {/* LEFT: Streak Fire HUD */}
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-[2rem] p-6 text-center flex flex-col items-center justify-center relative group overflow-hidden shadow-sm">
+            <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 to-transparent pointer-events-none" />
+            <div className="relative mb-6">
+              {/* Flame Ring SVG */}
+              <div className="w-36 h-36 rounded-full border-4 border-amber-500/15 flex items-center justify-center relative select-none">
+                <div className="absolute inset-2 rounded-full border-2 border-dashed border-amber-500/30 animate-spin-slow" />
+                <div className="absolute inset-4 bg-amber-500/5 dark:bg-amber-500/10 rounded-full flex flex-col items-center justify-center">
+                  <motion.div
+                    animate={{ scale: [1, 1.08, 1], rotate: [0, -3, 3, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="text-amber-500"
+                  >
+                    <Flame size={44} />
+                  </motion.div>
+                </div>
+              </div>
+              <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg border border-amber-400 whitespace-nowrap">
+                STREAK ACTIVE
+              </span>
+            </div>
+
+            <h3 className="text-4xl sm:text-5xl font-[1000] text-slate-900 dark:text-white tracking-tighter leading-none mt-2">
+              {streakDays} <span className="text-lg font-black uppercase tracking-tight text-slate-400 dark:text-slate-500">Days</span>
+            </h3>
+            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-widest mt-3 max-w-xs mx-auto leading-relaxed">
+              Consistently taking medications or completing workouts strengthens your vitality loop.
+            </p>
+
+            <div className="mt-5 w-full bg-slate-100 dark:bg-slate-850 p-3 rounded-xl border border-slate-150 dark:border-slate-750 flex items-center justify-between text-[10px] font-black uppercase tracking-wide">
+              <span className="text-slate-400">Status Today:</span>
+              {(meds.some(m => m.takenToday) || workouts.some(w => {
+                if(!w.date) return false;
+                const d = new Date(w.date);
+                return d.getDate() === new Date().getDate() && d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
+              })) ? (
+                <span className="text-emerald-500 flex items-center gap-1">Adhered & Verified <Check size={12} strokeWidth={3} /></span>
+              ) : (
+                <span className="text-amber-500">Action Required</span>
+              )}
+            </div>
+          </div>
+
+          {/* MIDDLE: Weekly Compliance Compass */}
+          <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-[2rem] p-6 sm:p-8 flex flex-col justify-between shadow-sm">
+            <div className="text-left">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compliance Timeline</span>
+                <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-md">Mon - Sun</span>
+              </div>
+              <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-lg sm:text-xl mb-1">Weekly Adherence Map</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold leading-relaxed mb-6">
+                Fulfilling daily protocols lights up your neural nexus. Check medication intakes and logs to complete current days.
+              </p>
+
+              {/* Day slots */}
+              <div className="grid grid-cols-7 gap-2.5 sm:gap-4 mt-2">
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                  const completed = weeklyStatus[idx];
+                  const d = new Date();
+                  const currentDay = d.getDay();
+                  const dowMap = [1, 2, 3, 4, 5, 6, 0];
+                  const todayIdx = dowMap.indexOf(currentDay);
+                  const isToday = todayIdx === idx;
+                  const isFuture = idx > todayIdx;
+
+                  return (
+                    <div key={idx} className="flex flex-col items-center gap-2">
+                      <div className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all border ${
+                        completed 
+                          ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/15'
+                          : isFuture
+                            ? 'bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-850 text-slate-300'
+                            : isToday
+                              ? 'bg-amber-500/10 dark:bg-amber-500/20 border-amber-500 text-amber-500 animate-pulse'
+                              : 'bg-rose-500/10 dark:bg-rose-500/20 border-rose-400/30 text-rose-500'
+                      }`}>
+                        {completed ? (
+                          <Check size={18} strokeWidth={3} />
+                        ) : (
+                          <span className="text-xs font-black">{day}</span>
+                        )}
+                        {isToday && (
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border border-white dark:border-slate-800" />
+                        )}
+                      </div>
+                      <span className={`text-[9px] font-black uppercase tracking-wider ${isToday ? 'text-blue-500' : isFuture ? 'text-slate-300' : completed ? 'text-emerald-500' : 'text-rose-400'}`}>
+                        {isToday ? "TODAY" : completed ? "DONE" : isFuture ? "PEND" : "MISS"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-450">
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Full Support Logged</span>
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div> Current Checklist Day</span>
+            </div>
+          </div>
+
+          {/* RIGHT: Rewards Larder / Ledger */}
+          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-[2rem] p-6 flex flex-col justify-between shadow-sm relative overflow-hidden group">
+            <div className="text-left w-full">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adherence Rewards</span>
+                <Trophy size={16} className="text-amber-500" />
+              </div>
+              
+              <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-lg mb-4">Rewards Station</h3>
+              
+              {/* Daily Claim Box */}
+              <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-center space-y-3">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Daily Adherence Bonus</p>
+                <div className="text-xl font-black text-slate-900 dark:text-white leading-none">+50 Neural Energy</div>
+                {lastClaimedDate === new Date().toDateString() ? (
+                  <button 
+                    disabled 
+                    className="w-full py-2 bg-slate-200 dark:bg-slate-850 text-slate-450 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-not-allowed"
+                  >
+                    Claimed Today
+                  </button>
+                ) : (
+                  <button 
+                    id="claim-daily-reward-btn"
+                    onClick={() => {
+                      if (localStorage.getItem('doctorian_streak_claimed_date') === new Date().toDateString()) {
+                        addNotification("Daily bonus already processed today.", "warning");
+                        return;
+                      }
+
+                      const updatedCredits = (user?.credits || 0) + 50;
+                      const updatedUser = { ...user, credits: updatedCredits };
+                      
+                      localStorage.setItem('medical_user', JSON.stringify(updatedUser));
+                      localStorage.setItem('doctorian_streak_claimed_date', new Date().toDateString());
+                      setLastClaimedDate(new Date().toDateString());
+
+                      if (onUpdateUser) {
+                        onUpdateUser(updatedUser);
+                      }
+                      addNotification("🏆 Daily Adherence Confirmed! +50 Credits successfully loaded.", "success");
+                    }}
+                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:scale-[1.03] active:scale-95 text-slate-950 text-[10px] font-[1000] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer"
+                  >
+                    Claim 50 Credits
+                  </button>
+                )}
+              </div>
+
+              {/* Milestones list */}
+              <div className="space-y-3 mt-5">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-505 uppercase tracking-widest leading-none block mb-1">Streak Milestones</p>
+                
+                {[
+                  { days: 3, reward: 100, badge: 'Ignition Beacon' },
+                  { days: 5, reward: 200, badge: 'Cellular Synergy' },
+                  { days: 7, reward: 500, badge: 'Quantum Mastery' }
+                ].map((milestone) => {
+                  const isClaimed = claimedMilestones.includes(milestone.days.toString());
+                  const canClaim = streakDays >= milestone.days && !isClaimed;
+                  
+                  return (
+                    <div key={milestone.days} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-850 text-xs">
+                      <div className="flex flex-col text-left">
+                        <span className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{milestone.days} Days ({milestone.badge})</span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">+{milestone.reward} Credits</span>
+                      </div>
+                      
+                      {isClaimed ? (
+                        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-wider bg-emerald-50 dark:bg-emerald-900/15 px-2 py-0.5 rounded-md border border-emerald-500/20">Claimed</span>
+                      ) : canClaim ? (
+                        <button 
+                          id={`claim-milestone-${milestone.days}`}
+                          onClick={() => {
+                            if (claimedMilestones.includes(milestone.days.toString())) return;
+                            const next = [...claimedMilestones, milestone.days.toString()];
+                            setClaimedMilestones(next);
+                            localStorage.setItem('doctorian_claimed_milestones', JSON.stringify(next));
+
+                            const updatedCredits = (user?.credits || 0) + milestone.reward;
+                            const updatedUser = { ...user, credits: updatedCredits };
+                            
+                            localStorage.setItem('medical_user', JSON.stringify(updatedUser));
+                            if (onUpdateUser) {
+                              onUpdateUser(updatedUser);
+                            }
+                            addNotification(`🎉 Milestone Adhered! Completed ${milestone.days}-day run. +${milestone.reward} Credits!`, 'success');
+                          }}
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Claim
+                        </button>
+                      ) : (
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">Locked</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -21,8 +21,13 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
   const [error, setError] = useState('');
 
   const handleVerify = () => {
-    if (password === 'DOC@Protocol2') {
-      sessionStorage.setItem('doctor_authenticated', 'true');
+    if (password === 'DOC@Protocol2' || password === '1234') {
+      if (password === 'DOC@Protocol2') {
+        sessionStorage.setItem('doctor_authenticated', 'true');
+      } else {
+        localStorage.setItem('doctorian_is_admin', 'true');
+        sessionStorage.setItem('doctor_authenticated', 'true');
+      }
       setError('');
       setPassword('');
       onSuccess();
@@ -89,7 +94,7 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
                   className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold text-center text-slate-900 dark:text-white"
-                  placeholder="Enter Doctor Passkey (DOC@...)"
+                  placeholder="Enter Doctor Key (DOC@...) or Admin PIN (1234)"
                 />
               </div>
 

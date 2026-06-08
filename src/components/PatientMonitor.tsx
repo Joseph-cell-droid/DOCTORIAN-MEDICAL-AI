@@ -9,6 +9,7 @@ import {
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
 import { motion, AnimatePresence } from 'motion/react';
 import { api, User } from '../api';
+import { ClinicalPatientRegistry as ClinicalPatientRegistryStandalone, RegisteredPatient, BedTransferRecord } from './ClinicalPatientRegistry';
 import { DoctorVerificationModal } from './DoctorVerificationModal';
 import BioSimulation from './BioSimulation';
 import CognisAnalytics from './CognisAnalytics';
@@ -22,10 +23,45 @@ import { AlarmHubView } from './AlarmHubView';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
 import { HistoricalTelemetryChart } from './HistoricalTelemetryChart';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar,
   BarChart, Bar, Cell, Legend
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
+
+// Helper function to check if a specific vital data point deviates by more than 20% from the 7-day rolling average
+const checkVitalDeviation = (
+  field: 'heartRate' | 'temperature' | 'spo2' | 'systolicBP' | 'diastolicBP' | 'respiratoryRate',
+  currentVal: number,
+  currentTimestamp: number,
+  allHistory: Vitals[]
+): { isDeviated: boolean; avg: number; diffPercent: number } => {
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  
+  // Back-test window looking 7 days back from the sample timestamp
+  const windowPoints = allHistory.filter(h => 
+    h.timestamp >= currentTimestamp - sevenDaysMs && 
+    h.timestamp <= currentTimestamp
+  );
+  
+  if (windowPoints.length === 0) {
+    return { isDeviated: false, avg: currentVal, diffPercent: 0 };
+  }
+  
+  const sum = windowPoints.reduce((s, item) => s + (item[field] || 0), 0);
+  const avg = sum / windowPoints.length;
+  
+  if (avg === 0) {
+    return { isDeviated: false, avg: 0, diffPercent: 0 };
+  }
+  
+  const diffPercent = Math.abs(currentVal - avg) / avg;
+  return {
+    isDeviated: diffPercent > 0.20,
+    avg,
+    diffPercent
+  };
+};
 
 const VitalCard: React.FC<{
   icon: React.ReactNode;
@@ -284,7 +320,7 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">System-Wide Cross-Correlation Matrix</p>
               
               <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <SafeResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                     <PolarGrid stroke="#e2e8f0" />
                     <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} />
@@ -296,7 +332,7 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
                       fillOpacity={0.4}
                     />
                   </RadarChart>
-                </ResponsiveContainer>
+                </SafeResponsiveContainer>
               </div>
            </div>
            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
@@ -630,21 +666,6 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [activeTab, setActiveTab] = useState<'realtime' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator'>('realtime');
   
   // Custom Patient & Bed Allocator Registry System
-  interface RegisteredPatient {
-    id: string;
-    name: string;
-    bedNumber: string;
-    age: string;
-    gender: string;
-    weight: string;
-    bloodType: string;
-    phone: string;
-    doctorPhone: string;
-    mentorPhone: string;
-    conditions: string;
-    allergies: string;
-    vitalsPreset: 'healthy' | 'warning' | 'critical';
-  }
 
   const defaultPatients: RegisteredPatient[] = [
     {
@@ -803,14 +824,6 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   }, [user?.id, registeredPatients]);
 
   // Bed Transfer Tracking System
-  interface BedTransferRecord {
-    id: string;
-    patientName: string;
-    fromBed: string;
-    toBed: string;
-    timestamp: string;
-    reason: string;
-  }
 
   const defaultTransfers: BedTransferRecord[] = [
     {
@@ -921,6 +934,50 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
       isIncreasedMoreThan10
     };
   }, [history, vitals, selectedPatientId, registeredPatients]);
+
+  const baselines = React.useMemo(() => {
+    const activePatient = registeredPatients.find(p => p.id === selectedPatientId);
+    let hr = 72.5;
+    let temp = 36.8;
+    let spo2 = 98.0;
+    let sbp = 120.0;
+    let dbp = 80.0;
+    let rr = 14.0;
+
+    if (activePatient) {
+      if (activePatient.id === 'patient-sarah') {
+        hr = 75.0;
+        temp = 37.1;
+        spo2 = 96.0;
+        sbp = 130.0;
+        dbp = 85.0;
+        rr = 18.0;
+      } else if (activePatient.id === 'patient-ronald') {
+        hr = 70.0;
+        temp = 36.6;
+        spo2 = 97.0;
+        sbp = 125.0;
+        dbp = 82.0;
+        rr = 15.0;
+      } else if (activePatient.id === 'patient-joseph') {
+        hr = 72.0;
+        temp = 36.8;
+        spo2 = 98.0;
+        sbp = 120.0;
+        dbp = 80.0;
+        rr = 14.0;
+      }
+    }
+
+    return {
+      heartRate: hr,
+      temperature: temp,
+      spo2,
+      systolicBP: sbp,
+      diastolicBP: dbp,
+      respiratoryRate: rr
+    };
+  }, [selectedPatientId, registeredPatients]);
 
   const getEmergencyContacts = () => {
     const activePatient = registeredPatients.find(p => p.id === selectedPatientId);
@@ -1470,6 +1527,10 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   };
 
   const MiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = ({ preset, patientId }) => {
+    return null;
+  };
+
+  const DeadMiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = ({ preset, patientId }) => {
     const [vitals, setVitals] = useState({
       hr: preset === 'critical' ? 142 : preset === 'warning' ? 104 : 72,
       spo2: preset === 'critical' ? 84 : preset === 'warning' ? 92 : 98,
@@ -1596,6 +1657,28 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   };
 
   const ClinicalPatientRegistry: React.FC = () => {
+    return (
+      <ClinicalPatientRegistryStandalone
+        user={user}
+        onUpdateUser={onUpdateUser}
+        registeredPatients={registeredPatients}
+        setRegisteredPatients={setRegisteredPatients}
+        selectedPatientId={selectedPatientId}
+        setSelectedPatientId={setSelectedPatientId}
+        registryNotification={registryNotification}
+        setRegistryNotification={setRegistryNotification}
+        transferHistory={transferHistory}
+        setTransferHistory={setTransferHistory}
+        isAdmin={isAdmin}
+        setIsAdmin={setIsAdmin}
+        couplePatientToMonitor={couplePatientToMonitor}
+        triggerRegistryNotification={triggerRegistryNotification}
+        arduino={arduino}
+      />
+    );
+  };
+
+  const DeadClinicalPatientRegistry: React.FC = () => {
     const [regName, setRegName] = useState('');
     const [regBed, setRegBed] = useState('');
     const [regAge, setRegAge] = useState('');
@@ -2200,7 +2283,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
               {/* Bar Chart representing Ward occupancy */}
               <div className="h-[210px] w-full mt-2 relative">
-                <ResponsiveContainer width="100%" height="100%">
+                <SafeResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} layout="horizontal">
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.08)" />
                     <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
@@ -2218,7 +2301,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     </Bar>
                     <Bar dataKey="Available" stackId="a" fill="rgba(148, 163, 184, 0.12)" name="Available / Empty" radius={[4, 4, 0, 0]} />
                   </BarChart>
-                </ResponsiveContainer>
+                </SafeResponsiveContainer>
               </div>
             </div>
           </div>
@@ -4454,6 +4537,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       maxVal={180}
                       label="Heart Rate"
                       unit="BPM"
+                      baselineValue={baselines.heartRate}
                     />
                   </div>
                 ) : (
@@ -4488,20 +4572,31 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     const sysHeight = Math.max(5, ((h.systolicBP - 40) / 180) * 100);
                     const diaHeight = Math.max(5, ((h.diastolicBP - 40) / 180) * 100);
                     
+                    const sbpCheck = checkVitalDeviation('systolicBP', h.systolicBP, h.timestamp, displayHistory);
+                    const dbpCheck = checkVitalDeviation('diastolicBP', h.diastolicBP, h.timestamp, displayHistory);
+                    
                     return (
                       <div key={i} className="flex-1 flex flex-col justify-end gap-1 group relative">
                         {/* Systolic Part */}
                         <motion.div
                           initial={{ height: 0 }}
                           animate={{ height: `${sysHeight}%` }}
-                          className={`w-full rounded-t-md transition-all duration-500 hover:brightness-110 shadow-sm ${h.systolicBP > 140 ? 'bg-rose-500' : 'bg-purple-500'}`}
+                          className={`w-full rounded-t-md transition-all duration-500 hover:brightness-110 shadow-sm ${
+                            sbpCheck.isDeviated 
+                              ? 'bg-red-500 ring-2 ring-red-400 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse' 
+                              : h.systolicBP > 140 ? 'bg-rose-500' : 'bg-purple-500'
+                          }`}
                           style={{ opacity: 0.5 + (i / displayHistory.length) * 0.5 }}
                         />
                         {/* Diastolic Part */}
                         <motion.div
                           initial={{ height: 0 }}
                           animate={{ height: `${diaHeight}%` }}
-                          className={`w-full rounded-t-md transition-all duration-500 hover:brightness-110 shadow-sm ${h.diastolicBP > 90 ? 'bg-rose-600' : 'bg-indigo-600'}`}
+                          className={`w-full rounded-t-md transition-all duration-500 hover:brightness-110 shadow-sm ${
+                            dbpCheck.isDeviated 
+                              ? 'bg-red-650 ring-2 ring-red-500 shadow-[0_0_8px_rgba(220,38,38,0.6)] animate-pulse' 
+                              : h.diastolicBP > 90 ? 'bg-rose-600' : 'bg-indigo-600'
+                          }`}
                           style={{ opacity: 0.5 + (i / displayHistory.length) * 0.5 }}
                         />
                         
@@ -4560,6 +4655,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                         maxVal={100}
                         label="Oxygen Saturation"
                         unit="%"
+                        baselineValue={baselines.spo2}
                       />
                     </div>
                   ) : (
@@ -4588,12 +4684,18 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       const height = Math.max(10, ((h.temperature - 34) / 8) * 100);
                       const isHigh = h.temperature > 37.5;
                       const isWarm = h.temperature > 37;
+                      const tCheck = checkVitalDeviation('temperature', h.temperature, h.timestamp, displayHistory);
+                      
                       return (
                         <div key={i} className="flex-1 group relative h-full flex flex-col justify-end">
                           <motion.div
                             initial={{ height: 0 }}
                             animate={{ height: `${height}%` }}
-                            className={`w-full rounded-t-lg transition-all duration-300 shadow-sm ${isHigh ? 'bg-rose-500' : isWarm ? 'bg-orange-500' : 'bg-emerald-500'}`}
+                            className={`w-full rounded-t-lg transition-all duration-300 shadow-sm ${
+                              tCheck.isDeviated 
+                                ? 'bg-red-500 ring-2 ring-red-400 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse' 
+                                : isHigh ? 'bg-rose-500' : isWarm ? 'bg-orange-500' : 'bg-emerald-500'
+                            }`}
                             style={{
                               opacity: 0.4 + (i / displayHistory.length) * 0.6,
                             }}
@@ -4637,24 +4739,72 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                    {displayHistory.slice().reverse().slice(0, 20).map((h, i) => (
-                      <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-4 pr-4 text-xs font-bold text-slate-400">
-                          {timeRange === 'Day' ? new Date(h.timestamp).toLocaleTimeString() : new Date(h.timestamp).toLocaleDateString()}
-                        </td>
-                        <td className={`py-4 pr-4 text-sm font-black ${h.heartRate > 100 ? 'text-rose-600' : h.heartRate < 60 ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>
-                          {Math.round(h.heartRate)}
-                        </td>
-                        <td className={`py-4 pr-4 text-sm font-black ${h.temperature > 37.5 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
-                          {h.temperature.toFixed(1)}
-                        </td>
-                        <td className={`py-4 pr-4 text-sm font-black ${h.spo2 < 95 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
-                          {Math.round(h.spo2)}
-                        </td>
-                        <td className="py-4 pr-4 text-sm font-black text-slate-900 dark:text-white">{Math.round(h.systolicBP)}/{Math.round(h.diastolicBP)}</td>
-                        <td className="py-4 text-sm font-black text-slate-900 dark:text-white">{Math.round(h.respiratoryRate)}</td>
-                      </tr>
-                    ))}
+                    {displayHistory.slice().reverse().slice(0, 20).map((h, i) => {
+                      const hrCheck = checkVitalDeviation('heartRate', h.heartRate, h.timestamp, displayHistory);
+                      const tCheck = checkVitalDeviation('temperature', h.temperature, h.timestamp, displayHistory);
+                      const sCheck = checkVitalDeviation('spo2', h.spo2, h.timestamp, displayHistory);
+                      const sbpCheck = checkVitalDeviation('systolicBP', h.systolicBP, h.timestamp, displayHistory);
+                      const dbpCheck = checkVitalDeviation('diastolicBP', h.diastolicBP, h.timestamp, displayHistory);
+                      const rrCheck = checkVitalDeviation('respiratoryRate', h.respiratoryRate, h.timestamp, displayHistory);
+
+                      return (
+                        <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="py-4 pr-4 text-xs font-bold text-slate-400">
+                            {timeRange === 'Day' ? new Date(h.timestamp).toLocaleTimeString() : new Date(h.timestamp).toLocaleDateString()}
+                          </td>
+                          <td className="py-4 pr-4 text-sm font-black">
+                            <span className={`inline-flex items-center gap-1.5 ${
+                              hrCheck.isDeviated 
+                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                : h.heartRate > 100 ? 'text-rose-600' : h.heartRate < 60 ? 'text-amber-600' : 'text-slate-900 dark:text-white'
+                            }`} title={hrCheck.isDeviated ? `Warning: Heart Rate deviates by ${(hrCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${Math.round(hrCheck.avg)})` : undefined}>
+                              {Math.round(h.heartRate)}
+                              {hrCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                            </span>
+                          </td>
+                          <td className="py-4 pr-4 text-sm font-black">
+                            <span className={`inline-flex items-center gap-1.5 ${
+                              tCheck.isDeviated 
+                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                : h.temperature > 37.5 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
+                            }`} title={tCheck.isDeviated ? `Warning: Temperature deviates by ${(tCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${tCheck.avg.toFixed(1)}°C)` : undefined}>
+                              {h.temperature.toFixed(1)}
+                              {tCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                            </span>
+                          </td>
+                          <td className="py-4 pr-4 text-sm font-black">
+                            <span className={`inline-flex items-center gap-1.5 ${
+                              sCheck.isDeviated 
+                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                : h.spo2 < 95 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
+                            }`} title={sCheck.isDeviated ? `Warning: SpO2 deviates by ${(sCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${Math.round(sCheck.avg)}%)` : undefined}>
+                              {Math.round(h.spo2)}
+                              {sCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                            </span>
+                          </td>
+                          <td className="py-4 pr-4 text-sm font-black">
+                            <span className={`inline-flex items-center gap-1.5 ${
+                              (sbpCheck.isDeviated || dbpCheck.isDeviated)
+                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                : 'text-slate-900 dark:text-white'
+                            }`} title={(sbpCheck.isDeviated || dbpCheck.isDeviated) ? `Warning: Systolic BP deviates by ${(sbpCheck.diffPercent * 100).toFixed(0)}% (avg ${Math.round(sbpCheck.avg)}), Diastolic BP by ${(dbpCheck.diffPercent * 100).toFixed(0)}% (avg ${Math.round(dbpCheck.avg)})` : undefined}>
+                              {Math.round(h.systolicBP)}/{Math.round(h.diastolicBP)}
+                              {(sbpCheck.isDeviated || dbpCheck.isDeviated) && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                            </span>
+                          </td>
+                          <td className="py-4 text-sm font-black">
+                            <span className={`inline-flex items-center gap-1.5 ${
+                              rrCheck.isDeviated 
+                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                : 'text-slate-900 dark:text-white'
+                            }`} title={rrCheck.isDeviated ? `Warning: Respiratory Rate deviates by ${(rrCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${Math.round(rrCheck.avg)})` : undefined}>
+                              {Math.round(h.respiratoryRate)}
+                              {rrCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

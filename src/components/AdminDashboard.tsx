@@ -35,7 +35,7 @@ import {
   RefreshCw,
   ShieldAlert
 } from 'lucide-react';
-import { api, User, HealthRecord, Doctor } from '../api';
+import { api, User, HealthRecord, Doctor, syncOfflineActions } from '../api';
 import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 
@@ -70,6 +70,11 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   // Doctor Registration State
   const [newDoctor, setNewDoctor] = useState({ name: '', whatsappNumber: '', specialization: '', location: '', imageUrl: '', active: true });
   const [isRegisteringDoctor, setIsRegisteringDoctor] = useState(false);
+
+  // Background Synchronization Queue State
+  const [syncQueue, setSyncQueue] = useState<any[]>([]);
+  const [isSyncingEngine, setIsSyncingEngine] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   const [filterInstitution, setFilterInstitution] = useState('');
 
@@ -226,6 +231,167 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     } finally {
       setLoadingTwilio(false);
     }
+  };
+
+  // Load and subscribe to Background Synchronization Queue
+  useEffect(() => {
+    const loadQueue = () => {
+      try {
+        const raw = localStorage.getItem("medical_offline_actions_queue");
+        if (raw) {
+          setSyncQueue(JSON.parse(raw));
+        } else {
+          setSyncQueue([]);
+        }
+      } catch (e) {
+        console.error("Failed to load offline actions queue:", e);
+      }
+    };
+
+    loadQueue();
+
+    const handleConnectionChange = () => {
+      setNetworkStatus(navigator.onLine);
+    };
+
+    window.addEventListener('offline_action_queued', loadQueue);
+    window.addEventListener('offline_actions_synced', loadQueue);
+    window.addEventListener('online', handleConnectionChange);
+    window.addEventListener('offline', handleConnectionChange);
+
+    return () => {
+      window.removeEventListener('offline_action_queued', loadQueue);
+      window.removeEventListener('offline_actions_synced', loadQueue);
+      window.removeEventListener('online', handleConnectionChange);
+      window.removeEventListener('offline', handleConnectionChange);
+    };
+  }, []);
+
+  const handleForceSync = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (addToast) addToast("Device is offline. Cannot initiate secure sync.", "error");
+      return;
+    }
+    setIsSyncingEngine(true);
+    try {
+      setLogs(prev => [
+        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Sync Engine] Initiating out-of-band force synchronization handshake...`, type: 'system' },
+        ...prev
+      ]);
+      const success = await syncOfflineActions();
+      if (success) {
+        if (addToast) addToast("All offline background backlog elements synced successfully!", "success");
+        setLogs(prev => [
+          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Sync Engine] Synced all background backlog packets securely with Firestore server.`, type: 'success' },
+          ...prev
+        ]);
+      } else {
+        if (addToast) addToast("Background sync concluded with some lingering items deferred.", "info");
+      }
+    } catch (e: any) {
+      if (addToast) addToast(`Sync failed: ${e.message}`, "error");
+    } finally {
+      setIsSyncingEngine(false);
+      // Reload local queue
+      try {
+        const raw = localStorage.getItem("medical_offline_actions_queue");
+        setSyncQueue(raw ? JSON.parse(raw) : []);
+      } catch (err) {}
+    }
+  };
+
+  const handleInjectMockSyncAction = (type: 'vitals' | 'medication' | 'task') => {
+    try {
+      const raw = localStorage.getItem("medical_offline_actions_queue") || '[]';
+      const queue = JSON.parse(raw);
+      
+      let newAction: any = {
+        id: "act_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5)
+      };
+
+      if (type === 'vitals') {
+        newAction = {
+          ...newAction,
+          type: 'create',
+          endpoint: 'records',
+          payload: {
+            type: 'Blood Pressure',
+            value: `${Math.floor(Math.random() * 20) + 110}/${Math.floor(Math.random() * 10) + 75}`,
+            unit: 'mmHg',
+            notes: 'Simulated offline vital intake from supervisor',
+            date: new Date().toISOString()
+          }
+        };
+      } else if (type === 'medication') {
+        newAction = {
+          ...newAction,
+          type: 'take',
+          endpoint: 'medications',
+          targetId: 'med_simulated_' + Math.floor(Math.random() * 100),
+          payload: {
+            medicationId: 'med_simulated_33',
+            medicationName: 'Amoxicillin 500mg',
+            takenAt: new Date().toISOString()
+          }
+        };
+      } else {
+        newAction = {
+          ...newAction,
+          type: 'update',
+          endpoint: 'tasks',
+          targetId: 'task_simulated_44',
+          payload: {
+            title: 'Diagnostic Blood Draw Sync',
+            status: 'completed',
+            updatedAt: new Date().toISOString()
+          }
+        };
+      }
+
+      queue.push(newAction);
+      localStorage.setItem("medical_offline_actions_queue", JSON.stringify(queue));
+      setSyncQueue(queue);
+      
+      // Trigger event to notify any external listener
+      window.dispatchEvent(new CustomEvent("offline_action_queued", { detail: newAction }));
+      
+      if (addToast) addToast(`Injected simulated offline action for endpoint: /api/${newAction.endpoint}`, "info");
+      
+      setLogs(prev => [
+        { 
+          id: Math.random().toString(), 
+          time: new Date().toLocaleTimeString(), 
+          msg: `[Offline Queue] Outbound offline action queued: [${newAction.type.toUpperCase()}] to /api/${newAction.endpoint}`, 
+          type: 'system' 
+        },
+        ...prev
+      ]);
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const handleClearSyncQueue = () => {
+    try {
+      localStorage.setItem("medical_offline_actions_queue", "[]");
+      setSyncQueue([]);
+      if (addToast) addToast("Offline actions queue backlog cleared successfully.", "success");
+      setLogs(prev => [
+        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Sync Engine] Offline actions queue was manually truncated and flushed.`, type: 'warn' },
+        ...prev
+      ]);
+    } catch (e) {}
+  };
+
+  const handleDeleteQueueItem = (id: string) => {
+    try {
+      const raw = localStorage.getItem("medical_offline_actions_queue") || '[]';
+      const queue = JSON.parse(raw);
+      const updated = queue.filter((item: any) => item.id !== id);
+      localStorage.setItem("medical_offline_actions_queue", JSON.stringify(updated));
+      setSyncQueue(updated);
+      if (addToast) addToast("Item removed from offline synchronized backlog.", "info");
+    } catch (e) {}
   };
 
   const fetchDoctors = async () => {
@@ -466,80 +632,108 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
         </div>
       </div>
 
-      {/* Real-time Administrative Command Operations Console */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Metric Card 1: Patients & Specialists */}
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md hover:border-blue-200/50 dark:hover:border-blue-900/30 group">
-          <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-blue-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-all">
-              <Users size={22} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Registered Nodes</p>
-              <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
-                {users.length} <span className="text-xs font-bold text-slate-400">Patients</span>
-              </h3>
-              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{doctors.length} Specialist Doctors Active</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric Card 2: Live Biometric Sockets */}
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md hover:border-violet-200/50 dark:hover:border-violet-900/30 group">
-          <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-violet-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
-          <div className="flex items-center gap-4">
-            <div className="relative w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover:scale-105 transition-all">
-              <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <Fingerprint size={22} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Live Active Pulse</p>
-              <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight flex items-center gap-1.5 font-mono">
-                {telemetry.activeConnections} <span className="text-xs font-black text-emerald-500 uppercase tracking-wider animate-pulse">Live</span>
-              </h3>
-              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Biometric hardware telemetry feeds</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric Card 3: Queries & Latency */}
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md hover:border-emerald-200/50 dark:hover:border-emerald-900/30 group">
-          <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-all font-mono">
-              <Cpu size={22} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Core Response Latency</p>
-              <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
-                {telemetry.dbQueryLatency}ms <span className="text-xs font-bold text-slate-400">Query Speed</span>
-              </h3>
-              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">API: {telemetry.apiResponseSpeed}s • SQLite 3 Active</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric Card 4: Agent Core Remaining Balance */}
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md hover:border-amber-200/50 dark:hover:border-amber-900/30 group">
-          <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-all">
-              <Zap size={22} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Compute Energy Quota</p>
-              <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
-                ${telemetry.creditRemaining.toFixed(2)}
-              </h3>
-              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{telemetry.tokenThroughput.toLocaleString()} Tokens/min active</p>
-            </div>
-          </div>
-        </div>
-      </div>
+       {/* Real-time Administrative Command Operations Console */}
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+         {/* Metric Card 1: Patients & Specialists */}
+         <motion.div 
+           initial={{ opacity: 0, y: 15 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.4, delay: 0.05 }}
+           whileHover={{ y: -4, scale: 1.015, boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.08)' }}
+           whileTap={{ scale: 0.985 }}
+           className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-blue-200/50 dark:hover:border-blue-900/30 group cursor-pointer"
+         >
+           <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-blue-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
+           <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-all">
+               <Users size={22} />
+             </div>
+             <div>
+               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Registered Nodes</p>
+               <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
+                 {users.length} <span className="text-xs font-bold text-slate-400">Patients</span>
+               </h3>
+               <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{doctors.length} Specialist Doctors Active</p>
+             </div>
+           </div>
+         </motion.div>
+ 
+         {/* Metric Card 2: Live Biometric Sockets */}
+         <motion.div 
+           initial={{ opacity: 0, y: 15 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.4, delay: 0.12 }}
+           whileHover={{ y: -4, scale: 1.015, boxShadow: '0 10px 25px -5px rgba(139, 92, 246, 0.08)' }}
+           whileTap={{ scale: 0.985 }}
+           className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-violet-200/50 dark:hover:border-violet-900/30 group cursor-pointer"
+         >
+           <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-violet-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
+           <div className="flex items-center gap-4">
+             <div className="relative w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover:scale-105 transition-all">
+               <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+               </span>
+               <Fingerprint size={22} />
+             </div>
+             <div>
+               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Live Active Pulse</p>
+               <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight flex items-center gap-1.5 font-mono">
+                 {telemetry.activeConnections} <span className="text-xs font-black text-emerald-500 uppercase tracking-wider animate-pulse">Live</span>
+               </h3>
+               <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Biometric hardware telemetry feeds</p>
+             </div>
+           </div>
+         </motion.div>
+ 
+         {/* Metric Card 3: Queries & Latency */}
+         <motion.div 
+           initial={{ opacity: 0, y: 15 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.4, delay: 0.19 }}
+           whileHover={{ y: -4, scale: 1.015, boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.08)' }}
+           whileTap={{ scale: 0.985 }}
+           className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-emerald-200/50 dark:hover:border-emerald-900/30 group cursor-pointer"
+         >
+           <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
+           <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-all font-mono">
+               <Cpu size={22} />
+             </div>
+             <div>
+               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Core Response Latency</p>
+               <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
+                 {telemetry.dbQueryLatency}ms <span className="text-xs font-bold text-slate-400">Query Speed</span>
+               </h3>
+               <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">API: {telemetry.apiResponseSpeed}s • SQLite 3 Active</p>
+             </div>
+           </div>
+         </motion.div>
+ 
+         {/* Metric Card 4: Agent Core Remaining Balance */}
+         <motion.div 
+           initial={{ opacity: 0, y: 15 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.4, delay: 0.26 }}
+           whileHover={{ y: -4, scale: 1.015, boxShadow: '0 10px 25px -5px rgba(245, 158, 11, 0.08)' }}
+           whileTap={{ scale: 0.985 }}
+           className="relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-amber-200/50 dark:hover:border-amber-900/30 group cursor-pointer"
+         >
+           <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:scale-125 transition-all duration-500" />
+           <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-all">
+               <Zap size={22} />
+             </div>
+             <div>
+               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Compute Energy Quota</p>
+               <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
+                 ${telemetry.creditRemaining.toFixed(2)}
+               </h3>
+               <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{telemetry.tokenThroughput.toLocaleString()} Tokens/min active</p>
+             </div>
+           </div>
+         </motion.div>
+       </div>
 
       <AnimatePresence mode="wait">
         {activeTab === 'users' ? (
@@ -848,6 +1042,114 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
+            {/* Background Sync Queue Status Banner */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 overflow-hidden relative"
+            >
+              <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5 z-10">
+                <div className={`p-4 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                  isSyncingEngine ? 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400' :
+                  syncQueue.length === 0 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' :
+                  syncQueue.length <= 5 ? 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400' :
+                  'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
+                }`}>
+                  <Radio size={24} className={isSyncingEngine ? "animate-pulse" : ""} />
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Background Link Synchronizer
+                    </h4>
+                    <span className={`inline-block w-2 h-2 rounded-full ${
+                      isSyncingEngine ? 'bg-blue-500 animate-ping' :
+                      syncQueue.length === 0 ? 'bg-emerald-500' :
+                      syncQueue.length <= 5 ? 'bg-amber-500' :
+                      'bg-rose-500 animate-pulse'
+                    }`} />
+                  </div>
+                  
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <p className="text-xl font-black text-slate-950 dark:text-white leading-none">
+                      {syncQueue.length === 0 ? 'Queue Fully Synced' : `${syncQueue.length} Pending Actions`}
+                    </p>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      ({syncQueue.length > 0 ? "offline storage cache active" : "link status secure"})
+                    </span>
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
+                    Doctorian dynamically batches transaction packets created while offline. Commits automatically with Firestore server once connection is stable.
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress Bar & Actions */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 grow lg:max-w-md z-10 w-full lg:w-auto">
+                <div className="flex flex-col gap-1.5 grow">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span>Queue load</span>
+                    <span className={
+                      syncQueue.length === 0 ? 'text-emerald-500 font-bold' :
+                      syncQueue.length <= 5 ? 'text-amber-500 font-bold' :
+                      'text-rose-500 font-bold animate-pulse'
+                    }>
+                      {syncQueue.length === 0 ? '0%' : syncQueue.length >= 20 ? '100% Core Limit' : `${Math.min(100, Math.round((syncQueue.length / 20) * 100))}%`}
+                    </span>
+                  </div>
+                  {/* Colored progress bar scale */}
+                  <div className="h-3 w-full bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-200/40 dark:border-slate-700/40">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ 
+                        width: syncQueue.length === 0 ? "0%" : `${Math.min(100, Math.max(8, Math.round((syncQueue.length / 20) * 100)))}%` 
+                      }}
+                      transition={{ type: "spring", stiffness: 80, damping: 15 }}
+                      className={`h-full rounded-full ${
+                        isSyncingEngine ? 'bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse' :
+                        syncQueue.length === 0 ? 'bg-emerald-500' :
+                        syncQueue.length <= 5 ? 'bg-gradient-to-r from-amber-500 to-yellow-500' :
+                        'bg-gradient-to-r from-rose-500 to-red-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleForceSync}
+                    disabled={isSyncingEngine || syncQueue.length === 0}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-blue-500/10"
+                    title="Initiate full synchronization handshake"
+                  >
+                    {isSyncingEngine ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                    Sync
+                  </button>
+                  {syncQueue.length > 0 && (
+                    <button
+                      onClick={() => {
+                        localStorage.setItem("medical_offline_actions_queue", "[]");
+                        setSyncQueue([]);
+                        if (addToast) addToast("Backlog queue cleared and purged.", "info");
+                        setLogs(prev => [
+                          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Sync Engine] Offline actions queue was manually truncated and flushed.`, type: 'warn' },
+                          ...prev
+                        ]);
+                      }}
+                      className="flex items-center justify-center p-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-800/80 dark:hover:bg-rose-950/40 text-slate-500 dark:text-slate-400 rounded-2xl transition-all"
+                      title="Purge pending backlog cache"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
             <div className="grid md:grid-cols-3 gap-8">
               {/* Create Notification Form */}
               <div className="md:col-span-1">
@@ -1279,6 +1581,177 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     <span className="text-xs font-bold text-blue-600">Cloud Scaling</span>
                     <span className="text-xs font-black text-blue-700 dark:text-blue-400">Firebase (50k+ Capacity)</span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Background Synchronization Queue Tracker Card */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl mt-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-10 h-10 rounded-xl bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <Database size={20} className={isSyncingEngine ? "animate-spin" : ""} />
+                    {syncQueue.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-sm animate-bounce">
+                        {syncQueue.length}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Background Sync Queue Status</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium font-sans">Verify outbound data queues, offline transaction cached records, and local synchronization tasks</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    networkStatus ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800' : 'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800 animate-pulse'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${networkStatus ? 'bg-emerald-500' : 'bg-amber-500 animate-ping'}`} />
+                    Host State: {networkStatus ? 'Online' : 'Offline Mode'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status and Actions Strip */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-800 rounded-2xl">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Queue Backlog Length</p>
+                  <p className="text-2xl font-black text-slate-950 dark:text-white font-mono">{syncQueue.length} <span className="text-xs font-bold text-slate-400">elements</span></p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-800 rounded-2xl">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Processor State</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`h-2.5 w-2.5 rounded-full ${isSyncingEngine ? 'bg-blue-500 animate-ping' : syncQueue.length > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    <span className="text-xs font-black text-slate-705 dark:text-slate-300 uppercase tracking-wider">
+                      {isSyncingEngine ? 'Syncing...' : syncQueue.length > 0 ? 'Cache Pending' : 'Synced'}
+                    </span>
+                  </div>
+                </div>
+                <div className="md:col-span-2 p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-mono">Sync Handshake Gateway</p>
+                    <p className="text-[10px] text-slate-550 dark:text-slate-400 font-medium leading-relaxed">Commit transaction stream or discard current cache.</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={handleForceSync}
+                      disabled={isSyncingEngine || syncQueue.length === 0}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 disabled:opacity-40 active:scale-95"
+                    >
+                      {isSyncingEngine ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <RefreshCw size={12} />
+                      )}
+                      Flush Sync
+                    </button>
+                    <button
+                      onClick={handleClearSyncQueue}
+                      disabled={syncQueue.length === 0}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 active:scale-95 border border-slate-250 dark:border-slate-700"
+                    >
+                      Empty Backlog
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Simulation Signal Injector Strip */}
+              <div className="p-5 bg-blue-50/20 dark:bg-slate-800/20 border border-blue-500/10 dark:border-slate-800 rounded-2xl mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h5 className="text-xs font-black text-blue-900 dark:text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                      <Zap size={14} className="text-amber-500 fill-amber-500" />
+                      Offline Backlog Simulator & Stress Terminal
+                    </h5>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 animate-pulse">Inject synthesized offline actions to stress-test transactional syncing flow safely.</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleInjectMockSyncAction('medication')}
+                    className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-95"
+                  >
+                    + Mock Dosage Take
+                  </button>
+                  <button
+                    onClick={() => handleInjectMockSyncAction('vitals')}
+                    className="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-95"
+                  >
+                    + Mock Vital Record
+                  </button>
+                  <button
+                    onClick={() => handleInjectMockSyncAction('task')}
+                    className="px-3.5 py-2 bg-blue-500/10 hover:bg-blue-500 hover:text-white border border-blue-500/20 text-blue-650 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-95"
+                  >
+                    + Mock Diagnostic Task
+                  </button>
+                </div>
+              </div>
+
+              {/* Queue Items Table */}
+              <div className="border border-slate-205 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-slate-50/10 dark:bg-slate-950/20">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/30 border-b border-slate-200 dark:border-slate-800">
+                        <th className="px-5 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Transaction / ID</th>
+                        <th className="px-5 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Operation</th>
+                        <th className="px-5 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Target Endpoint</th>
+                        <th className="px-5 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Payload Preview</th>
+                        <th className="px-5 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right font-sans">Prune</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {syncQueue.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <CheckCircle2 className="text-emerald-500" size={24} />
+                              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">System Synced & Backlog Clear</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Any diagnostic tasks or dosage reports made offline will queue here automatically before committing.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        syncQueue.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-850/20 transition-all font-mono">
+                            <td className="px-5 py-4">
+                              <span className="text-[10px] font-black text-slate-900 dark:text-white">{item.id}</span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                item.type === 'create' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800' :
+                                item.type === 'update' ? 'bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800' :
+                                item.type === 'delete' ? 'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800' :
+                                'bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-800'
+                              }`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                                /api/{item.endpoint}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 max-w-xs sm:max-w-md truncate text-[10px] text-slate-500 dark:text-slate-400">
+                              {JSON.stringify(item.payload)}
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <button
+                                onClick={() => handleDeleteQueueItem(item.id)}
+                                className="p-1 px-2.5 bg-rose-50 hover:bg-rose-500 hover:text-white border border-rose-200 text-rose-500 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all scale-95"
+                                title="Prune custom entry"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

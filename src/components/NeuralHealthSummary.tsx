@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Brain, Loader2, ClipboardCheck, Activity, ShieldCheck, Zap, X, ChevronRight, Share2 } from 'lucide-react';
+import { Sparkles, Brain, Loader2, ClipboardCheck, Activity, ShieldCheck, Zap, X, ChevronRight, Share2, Printer, Download, RefreshCw } from 'lucide-react';
 import { api } from '../api';
 import { Vitals } from '../hooks/useArduino';
+import { exportMedicalReportPDF } from '../utils/pdfGenerator';
 
 interface NeuralHealthSummaryProps {
   vitals: Vitals | null;
@@ -15,6 +16,27 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDownloadPDF = () => {
+    try {
+      const storedUser = localStorage.getItem("medical_user");
+      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "gloriajayakullo@gmail.com" };
+
+      const storedMedications = localStorage.getItem("medical_offline_medications");
+      const medsObj = storedMedications ? JSON.parse(storedMedications) : [];
+
+      exportMedicalReportPDF({
+        user: userObj,
+        vitals: vitals,
+        vitalsHistory: history,
+        aiInsight: summary,
+        medications: medsObj,
+      });
+    } catch (err: any) {
+      console.error("PDF compiling failed:", err);
+      setError("Failed to compile and download clinical PDF report.");
+    }
+  };
 
   const generateSummary = async () => {
     if (!vitals && history.length === 0 && records.length === 0) {
@@ -176,7 +198,7 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={generateSummary}
                 className="flex-1 py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
@@ -184,8 +206,13 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
                 <RefreshCw size={14} className={isGenerating ? "animate-spin" : ""} />
                 Re-Synthesize Insights
               </button>
-              <button className="px-8 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
-                <Share2 size={20} />
+              <button 
+                onClick={handleDownloadPDF}
+                className="px-8 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-blue-600/20"
+                title="Download Printable PDF Report for Appointments"
+              >
+                <Download size={20} />
+                <span className="text-xs font-black uppercase tracking-widest">Download PDF Report</span>
               </button>
             </div>
           </motion.div>
@@ -200,22 +227,3 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
     </div>
   );
 };
-
-const RefreshCw: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-    <path d="M21 3v5h-5" />
-    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-    <path d="M3 21v-5h5" />
-  </svg>
-);

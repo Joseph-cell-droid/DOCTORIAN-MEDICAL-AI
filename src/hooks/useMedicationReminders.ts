@@ -36,6 +36,46 @@ export const useMedicationReminders = (user: User | null) => {
             const message = `REMEDIAL ALERT: Time for your medication: ${names}. Please take your dosage now.`;
             await api.alerts.sendSms(message, undefined, undefined, user.phone);
             await api.alerts.makeCall(message, undefined, undefined, user.phone);
+
+            // Trigger Local Push Notification for background/offline support
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                if ('serviceWorker' in navigator) {
+                  const registration = await navigator.serviceWorker.ready;
+                  if (registration && 'showNotification' in registration) {
+                    await registration.showNotification('💊 Medication Reminder', {
+                      body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
+                      icon: '/logo.svg',
+                      badge: '/logo.svg',
+                      tag: `med-reminder-${currentTime}`,
+                      renotify: true,
+                      vibrate: [200, 100, 200, 100, 200],
+                      data: { url: '/?view=meds' }
+                    } as any);
+                  } else {
+                    new Notification('💊 Medication Reminder', {
+                      body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
+                      icon: '/logo.svg'
+                    });
+                  }
+                } else {
+                  new Notification('💊 Medication Reminder', {
+                    body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
+                    icon: '/logo.svg'
+                  });
+                }
+              } catch (err) {
+                console.error('[LOCAL REMINDERS] Native notification failed:', err);
+                try {
+                  new Notification('💊 Medication Reminder', {
+                    body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
+                    icon: '/logo.svg'
+                  });
+                } catch (e) {
+                  // Ignore
+                }
+              }
+            }
           }
         } catch (err) {
           console.error('[REMINDERS] Medication check failed:', err);

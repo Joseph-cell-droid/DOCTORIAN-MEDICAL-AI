@@ -987,7 +987,7 @@ Verified by Joseph Akora - Development Lead.
                     <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2 mb-4 ml-1">
                         <Globe size={14} className="text-violet-500" />
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Neural Link (Ollama)</h4>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Neural Link (Ollama / LM Studio)</h4>
                       </div>
                       <div className="space-y-4">
                         <div className="relative group">
@@ -999,7 +999,7 @@ Verified by Joseph Akora - Development Lead.
                             value={ollamaUrl}
                             onChange={e => setOllamaUrl(e.target.value)}
                             className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
-                            placeholder="http://localhost:11434"
+                            placeholder="http://localhost:11434 or http://localhost:1234"
                           />
                         </div>
 
@@ -1012,12 +1012,12 @@ Verified by Joseph Akora - Development Lead.
                             value={ollamaModel}
                             onChange={e => setOllamaModel(e.target.value)}
                             className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
-                            placeholder="llama3.1"
+                            placeholder="llama3.1 or a custom model identifier"
                           />
                         </div>
 
                         <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
-                          Connect to your laptop's Ollama instance. Ensure CORS is allowed. Example: <span className="text-slate-900 dark:text-white">http://localhost:11434</span> and model <span className="text-slate-900 dark:text-white">llama3.1</span>
+                          Connect to your laptop's local instance. Ollama runs on <span className="text-slate-900 dark:text-white">http://localhost:11434</span>. LM Studio runs on <span className="text-slate-900 dark:text-white">http://localhost:1234</span>.
                         </p>
 
                         <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
@@ -1029,11 +1029,23 @@ Verified by Joseph Akora - Development Lead.
                              <button
                                onClick={async () => {
                                  try {
-                                   const res = await fetch(`${ollamaUrl}/api/tags`).catch(() => null);
+                                   const isLMStudioCheck = ollamaUrl.includes(':1234') || ollamaUrl.includes('/v1') || ollamaUrl.toLowerCase().includes('lmstudio');
+                                   const checkPath = isLMStudioCheck 
+                                     ? (ollamaUrl.includes('/v1') ? `${ollamaUrl}/models` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`)
+                                     : `${ollamaUrl.replace(/\/$/, '')}/api/tags`;
+                                   
+                                   const res = await fetch(checkPath).catch(() => null);
                                    if (res && res.ok) {
-                                     setMessage({ text: 'Neural pulse confirmed! Ollama is reachable.', type: 'success' });
+                                     setMessage({ text: `Neural pulse confirmed! ${isLMStudioCheck ? 'LM Studio/OpenAI API' : 'Ollama'} is reachable.`, type: 'success' });
                                    } else {
-                                     throw new Error('Neural port closed. Check URL and CORS.');
+                                     // Fallback try secondary endpoint check
+                                     const secondaryPath = isLMStudioCheck ? `${ollamaUrl.replace(/\/$/, '')}/api/tags` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`;
+                                     const resSec = await fetch(secondaryPath).catch(() => null);
+                                     if (resSec && resSec.ok) {
+                                        setMessage({ text: 'Neural pulse confirmed! Local server is reachable.', type: 'success' });
+                                     } else {
+                                        throw new Error('Neural port closed.');
+                                     }
                                    }
                                  } catch {
                                    setMessage({ text: 'Neural pulse failed. Ensure local tunnel is active or CORS is enabled.', type: 'error' });
@@ -1045,17 +1057,18 @@ Verified by Joseph Akora - Development Lead.
                              </button>
                           </div>
                           <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed mb-4">
-                            Since this app runs in the cloud, it cannot directly "see" your laptop unless you use a tunnel. 
-                            Use <span className="text-blue-600">ngrok</span> or <span className="text-blue-600">localtunnel</span> to get a direct link.
+                            Since this app runs in the cloud, it cannot directly "see" your laptop's localhost url unless you open a public tunnel.
+                            Use <span className="text-blue-600">ngrok</span> or <span className="text-blue-600">localtunnel</span> to get a public link.
                           </p>
                           <div className="bg-slate-900 rounded-xl p-3 font-mono text-[8px] text-blue-300 overflow-x-auto no-scrollbar">
-                            # 1. Allow Cross-Origin Requests<br/>
-                            export OLLAMA_ORIGINS="*"<br/>
-                            # 2. Start a Tunnel<br/>
-                            npx localtunnel --port 11434
+                            # 1. Allow Cross-Origin Requests (CORS)<br/>
+                            # For Ollama: export OLLAMA_ORIGINS="*"<br/>
+                            # For LM Studio: Turn on the CORS toggle in LM Studio Server Settings<br/>
+                            # 2. Start a Tunnel (e.g. for LM Studio port 1234)<br/>
+                            npx localtunnel --port 1234
                           </div>
                           <p className="text-[8px] font-medium text-slate-400 mt-2 italic">
-                            * Paste the resulting "https://..." link into the Ollama URL field above.
+                            * Paste the resulting "https://..." link into the Local Neural Link URL field above.
                           </p>
                         </div>
                       </div>

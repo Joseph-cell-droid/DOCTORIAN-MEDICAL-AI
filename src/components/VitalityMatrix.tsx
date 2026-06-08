@@ -29,13 +29,13 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
   Radar,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 
 export const VitalityMatrix: React.FC = () => {
   const arduino = useArduinoContext();
@@ -385,7 +385,7 @@ export const VitalityMatrix: React.FC = () => {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">System-Wide Cross-Correlation Matrix</p>
             
             <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <SafeResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={systemHealthData}>
                   <PolarGrid stroke="#e2e8f0" />
                   <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} />
@@ -397,7 +397,7 @@ export const VitalityMatrix: React.FC = () => {
                     fillOpacity={0.5}
                   />
                 </RadarChart>
-              </ResponsiveContainer>
+              </SafeResponsiveContainer>
             </div>
           </div>
           <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
@@ -646,7 +646,7 @@ export const VitalityMatrix: React.FC = () => {
             </div>
 
             <div className="h-80 w-full pr-4">
-              <ResponsiveContainer width="100%" height="100%">
+              <SafeResponsiveContainer width="100%" height="100%">
                 <AreaChart data={hrvHistory}>
                   <defs>
                     <linearGradient id="hrvGradient" x1="0" y1="0" x2="0" y2="1">
@@ -695,10 +695,10 @@ export const VitalityMatrix: React.FC = () => {
                     </defs>
                   )}
                 </AreaChart>
-              </ResponsiveContainer>
+              </SafeResponsiveContainer>
             </div>
             
-            <div className="mt-8 grid grid-cols-3 gap-6">
+            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               {[
                 { label: viewMode === 'predictive' ? 'Projected Avg' : 'Weekly Avg', value: viewMode === 'predictive' ? '76.2ms' : '70.4ms' },
                 { label: viewMode === 'predictive' ? 'Future Peak' : 'Highest Peak', value: viewMode === 'predictive' ? '82ms' : '75ms' },
@@ -932,7 +932,7 @@ export const VitalityMatrix: React.FC = () => {
                 </div>
 
                 <div className="h-[380px] w-full relative">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <SafeResponsiveContainer width="100%" height="100%">
                     <AreaChart data={predictiveData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="metabolicGradient" x1="0" y1="0" x2="0" y2="1">
@@ -987,7 +987,7 @@ export const VitalityMatrix: React.FC = () => {
                         animationDuration={1500}
                       />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </SafeResponsiveContainer>
                 </div>
               </div>
 

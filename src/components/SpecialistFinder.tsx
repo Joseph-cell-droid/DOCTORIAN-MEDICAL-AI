@@ -955,7 +955,7 @@ export const SpecialistFinder: React.FC = () => {
                       </div>
 
                       {/* Vital stats review tracker */}
-                      <div className="grid grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-center mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-center mb-4">
                         <div>
                           <p className="text-[7px] font-black text-slate-400">VITALS TEMP</p>
                           <p className="text-[10px] font-mono font-black text-slate-900 dark:text-white leading-none mt-1">{ref.temp}°C</p>
@@ -1198,7 +1198,7 @@ export const SpecialistFinder: React.FC = () => {
                   {/* Vitals metrics box */}
                   <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block ml-1">Handover Vitals Baseline</span>
-                    <div className="grid grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       <div>
                         <label className="text-[7px] font-black text-slate-400">TEMP (°C)</label>
                         <input type="text" value={soapData.temp} onChange={(e) => setSoapData(prev => ({ ...prev, temp: e.target.value }))} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 px-2 text-center text-xs font-bold" />

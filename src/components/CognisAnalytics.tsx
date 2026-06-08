@@ -6,9 +6,9 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+  Tooltip 
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 import { 
   Activity, 
   Brain, 
@@ -154,7 +154,7 @@ export default function CognisAnalytics() {
           </div>
           
           <div className="flex-1 min-h-[300px] w-full">
-             <ResponsiveContainer width="100%" height="100%">
+             <SafeResponsiveContainer width="100%" height="100%">
                 <LineChart data={forecastData}>
                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                    <XAxis dataKey="time" hide />
@@ -166,7 +166,7 @@ export default function CognisAnalytics() {
                    <Line type="monotone" dataKey="load" stroke="#2563eb" strokeWidth={3} dot={false} strokeLinecap="round" />
                    <Line type="monotone" dataKey="capacity" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                 </LineChart>
-             </ResponsiveContainer>
+             </SafeResponsiveContainer>
           </div>
 
           <div className="mt-8 space-y-6">

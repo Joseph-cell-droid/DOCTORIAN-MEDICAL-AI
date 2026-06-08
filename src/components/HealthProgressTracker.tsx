@@ -14,9 +14,10 @@ import { WearableConnector } from './WearableConnector';
 import confetti from 'canvas-confetti';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, AreaChart, Area,
+  Tooltip, AreaChart, Area,
   ComposedChart, Bar, Scatter, BarChart
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 
 interface HealthProgressTrackerProps {
   user: User | null;
@@ -1174,7 +1175,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
 
             {chartMode === 'vitals' ? (
               <div className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <SafeResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorHR" x1="0" y1="0" x2="0" y2="1">
@@ -1197,12 +1198,12 @@ Provide a clean array or scannable markdown blocks containing these structured a
                     <Area type="monotone" dataKey="heartRate" stroke="#3b82f6" fillOpacity={1} fill="url(#colorHR)" strokeWidth={3} />
                     <Area type="monotone" dataKey="spo2" stroke="#10b981" fillOpacity={0} strokeWidth={3} />
                   </AreaChart>
-                </ResponsiveContainer>
+                </SafeResponsiveContainer>
               </div>
             ) : chartMode === 'consistency' ? (
               <div className="space-y-8">
                 <div className="h-[380px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <SafeResponsiveContainer width="100%" height="100%">
                     <BarChart data={consistencyData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorWorkouts" x1="0" y1="0" x2="0" y2="1">
@@ -1243,7 +1244,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                       <Bar yAxisId="left" dataKey="workoutsDuration" name="Workout Duration (Min)" fill="url(#colorWorkouts)" radius={[6, 6, 0, 0]} maxBarSize={30} />
                       <Bar yAxisId="right" dataKey="tasksCompleted" name="Tasks Completed" fill="url(#colorTasksCompleted)" radius={[6, 6, 0, 0]} maxBarSize={30} />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </SafeResponsiveContainer>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800/60">
@@ -1281,7 +1282,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
             ) : (
               <div className="space-y-8 animate-fadeIn">
                 <div className="h-[380px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <SafeResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={sleepChartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorSleepDuration" x1="0" y1="0" x2="0" y2="1">
@@ -1319,7 +1320,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                       <Bar yAxisId="left" dataKey="duration" name="Sleep Duration" fill="url(#colorSleepDuration)" radius={[6, 6, 0, 0]} maxBarSize={30} />
                       <Line yAxisId="right" type="monotone" dataKey="quality" name="Sleep Quality Score" stroke="#F59E0B" strokeWidth={3.5} dot={{ stroke: '#F59E0B', strokeWidth: 2, r: 4, fill: '#fff' }} activeDot={{ r: 6 }} />
                     </ComposedChart>
-                  </ResponsiveContainer>
+                  </SafeResponsiveContainer>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800/60">

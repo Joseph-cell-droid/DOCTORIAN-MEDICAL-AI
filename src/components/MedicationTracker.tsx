@@ -41,6 +41,67 @@ import { useArduinoContext } from '../ArduinoContext';
 
 export const MedicationTracker: React.FC = () => {
   const arduino = useArduinoContext();
+  const [notificationState, setNotificationState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+
+  useEffect(() => {
+    if (!('Notification' in window)) {
+      setNotificationState('unsupported');
+    } else {
+      setNotificationState(Notification.permission as any);
+    }
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    if (!('Notification' in window)) return;
+    
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationState(permission as any);
+      
+      if (permission === 'granted') {
+        const title = '💊 Doctorian Push Engine';
+        const options = {
+          body: 'Local push reminders and clinical alerts successfully active!',
+          icon: '/logo.svg',
+          badge: '/logo.svg',
+          tag: 'doctorian-registration'
+        };
+        
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          if (registration && 'showNotification' in registration) {
+            await registration.showNotification(title, options);
+            return;
+          }
+        }
+        new Notification(title, options);
+      }
+    } catch (err) {
+      console.error('[NOTIFICATIONS] Request failed:', err);
+    }
+  };
+
+  const handleTriggerTestNotification = async () => {
+    if (notificationState !== 'granted') {
+      alert('Please authorize local push permissions first.');
+      return;
+    }
+    const title = '🧪 Local Notification Test';
+    const options = {
+      body: 'This is a simulator test. Your local push reminders are fully functional background & offline.',
+      icon: '/logo.svg',
+      badge: '/logo.svg',
+    };
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && 'showNotification' in registration) {
+        await registration.showNotification(title, options);
+        return;
+      }
+    }
+    new Notification(title, options);
+  };
+
   const [isLoading, setIsLoading] = React.useState(true);
   const [meds, setMeds] = useState<Medicine[]>([]);
   const [history, setHistory] = useState<any[]>([]);
@@ -362,6 +423,69 @@ export const MedicationTracker: React.FC = () => {
                      <p className="text-xs font-bold text-emerald-500">OPTIMAL RANGE</p>
                   </div>
                 </div>
+              </section>
+
+              {/* Local Push Notifications Control Panel */}
+              <section className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+                 <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                     <Bell size={18} className="text-blue-500" />
+                     Push Core
+                   </h3>
+                   <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                     notificationState === 'granted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                     notificationState === 'denied' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
+                     notificationState === 'unsupported' ? 'bg-amber-50 text-amber-500 border border-amber-100' :
+                     'bg-slate-50 text-slate-500 border border-slate-100'
+                   }`}>
+                     {notificationState === 'granted' ? 'Active' : notificationState === 'denied' ? 'Blocked' : notificationState === 'unsupported' ? 'Unsupported' : 'Pending'}
+                   </span>
+                 </div>
+                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-6 leading-relaxed">
+                   Receive ambient, offline, and background dosage reminders on your device terminal instantly.
+                 </p>
+                 
+                 {notificationState === 'default' && (
+                   <button
+                     onClick={handleEnableNotifications}
+                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-600/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                   >
+                     <Sparkles size={14} />
+                     Authorize Notifications
+                   </button>
+                 )}
+                 
+                 {notificationState === 'granted' && (
+                   <div className="space-y-3">
+                     <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/5 border border-emerald-500/10 text-emerald-600 rounded-2xl">
+                       <CheckCircle2 size={16} />
+                       <span className="text-[10px] font-black uppercase tracking-wider">Device Synced & Ready</span>
+                     </div>
+                     <button
+                       onClick={handleTriggerTestNotification}
+                       className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-705 text-slate-700 dark:text-slate-300 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95"
+                     >
+                       <Zap size={12} className="text-amber-500 fill-amber-500" />
+                       Send Test Push Alert
+                     </button>
+                   </div>
+                 )}
+                 
+                 {notificationState === 'denied' && (
+                   <div className="p-4 bg-rose-50 dark:bg-rose-950/10 border border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-center">
+                     <p className="text-[11px] font-bold leading-relaxed">
+                       Notification access is blocked. Please reset your browser site settings to enable offline dosage alerts.
+                     </p>
+                   </div>
+                 )}
+                 
+                 {notificationState === 'unsupported' && (
+                   <div className="p-4 bg-amber-50 dark:bg-amber-950/10 border border-amber-500/20 rounded-2xl text-amber-600 dark:text-amber-400 text-center">
+                     <p className="text-[11px] font-bold leading-relaxed">
+                       This browser environment does not support background push alerts.
+                     </p>
+                   </div>
+                 )}
               </section>
 
               <section className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm">

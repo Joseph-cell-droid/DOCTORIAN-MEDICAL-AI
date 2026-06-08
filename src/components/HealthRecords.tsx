@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { NeuralHealthSummary } from './NeuralHealthSummary';
+import { exportMedicalReportPDF } from '../utils/pdfGenerator';
 
 // ─── Types ────────────────────────────────────────────────
 interface Medication {
@@ -335,6 +336,45 @@ export const HealthRecords: React.FC = () => {
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
+
+  const handleDownloadAppointmentReport = useCallback(() => {
+    try {
+      showToast("Initializing clinical metric compilations...", "info");
+
+      const storedUser = localStorage.getItem("medical_user");
+      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "gloriajayakullo@gmail.com" };
+
+      let lastVitals = null;
+      try {
+        const storedVitals = localStorage.getItem("medical_offline_vitals");
+        if (storedVitals) lastVitals = JSON.parse(storedVitals);
+      } catch (err) {}
+
+      let medsList = [];
+      try {
+        const storedMeds = localStorage.getItem("medical_offline_medications");
+        if (storedMeds) {
+          medsList = JSON.parse(storedMeds);
+        } else {
+          medsList = savedPrescriptions.flatMap(p => p.medications || []);
+        }
+      } catch (err) {}
+
+      const aiInsightStored = localStorage.getItem("doctorian_ai_insight") || sessionStorage.getItem("doctorian_ai_insight");
+
+      exportMedicalReportPDF({
+        user: userObj,
+        vitals: lastVitals,
+        aiInsight: aiInsightStored,
+        medications: medsList,
+      });
+
+      showToast("Physician appointment summary document compiled successfully.", "success");
+    } catch (e: any) {
+      console.error(e);
+      showToast(`Compilation error: ${e.message}`, "error");
+    }
+  }, [savedPrescriptions, showToast]);
 
   // Fetch records on mount
   useEffect(() => {
@@ -988,9 +1028,18 @@ export const HealthRecords: React.FC = () => {
                   </div>
                   <h3 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-6">Clinical <br /><span className="text-blue-500">Passport</span></h3>
                   <p className="text-slate-400 font-bold mb-8">Verified health status for international travel and specialized medical consults.</p>
-                  <button className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-100 transition-all flex items-center gap-2 mx-auto md:mx-0">
-                     <Download size={16} /> Export Passport
-                  </button>
+                  <div className="flex flex-col gap-3">
+                    <button className="w-full px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
+                       <Download size={16} /> Export Passport
+                    </button>
+                    <button 
+                       onClick={handleDownloadAppointmentReport}
+                       className="w-full px-8 py-4 bg-blue-600 text-white hover:bg-blue-700 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"
+                       title="Download printable medical summary PDF for appointments"
+                    >
+                       <FileText size={16} /> Physician PDF Summary
+                    </button>
+                  </div>
                </div>
 
                <div className="md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">

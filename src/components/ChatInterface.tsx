@@ -302,6 +302,17 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     loadActiveFT();
   }, []);
 
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const forced = localStorage.getItem("medical_forced_offline") === "true";
+      setIsForcedOffline(forced);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   // ==========================================
   // BRAND NEW COGNITIVE MATRIX SETTINGS STATE
   // ==========================================
@@ -577,12 +588,22 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const micRecognitionRef = useRef<any>(null);
+  const isExplicitlyRecordingStoppedRef = useRef<boolean>(false);
+  const latestInputRef = useRef<string>('');
+  const sessionBaseTextRef = useRef<string>('');
+
+  useEffect(() => {
+    latestInputRef.current = input;
+  }, [input]);
 
   const UGANDAN_LANGUAGES = [
     'Auto Detect', 'English', 'Luganda', 'Swahili', 'Runyankole', 'Acholi', 'Ateso', 'Lusoga', 'Luo'
   ];
 
   const startRecording = async () => {
+    isExplicitlyRecordingStoppedRef.current = false;
+    sessionBaseTextRef.current = latestInputRef.current; // Store current input text
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       try {
@@ -602,27 +623,49 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
 
         recognition.onstart = () => {
           setIsRecording(true);
-          setTerminalLogs(prev => [...prev.slice(-3), `SYS: Listening in ${targetLanguage === 'Auto Detect' ? 'English' : targetLanguage}...`]);
+          setTerminalLogs(prev => [...prev.slice(-3), `SYS: Hands-free listening active. Speak your symptoms continuously...`]);
         };
 
         recognition.onresult = async (event: any) => {
-          let transcriptText = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcriptText += event.results[i][0].transcript;
+          let sessionTranscript = '';
+          for (let i = 0; i < event.results.length; i++) {
+            sessionTranscript += event.results[i][0].transcript;
           }
-          if (transcriptText) {
-            setInput(transcriptText);
-            setTerminalLogs(prev => [...prev.slice(-3), `AI: Transcribed: "${transcriptText}"`]);
+          if (sessionTranscript) {
+            const separator = sessionBaseTextRef.current ? ' ' : '';
+            setInput(sessionBaseTextRef.current + separator + sessionTranscript);
+            setTerminalLogs(prev => [...prev.slice(-3), `AI: Hands-free continuous transcript: "${sessionTranscript}"`]);
           }
         };
 
         recognition.onerror = (err: any) => {
           console.error("Speech recognition error:", err);
-          setTerminalLogs(prev => [...prev.slice(-3), 'ERR: Voice interpretation disrupted']);
+          if (err.error === 'no-speech') {
+            setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Listening... (No speech detected yet)']);
+            return; // Don't stop entirely
+          }
+          setTerminalLogs(prev => [...prev.slice(-3), `ERR: Voice link error: ${err.error}`]);
         };
 
         recognition.onend = () => {
-          setIsRecording(false);
+          // If the user did NOT click "Stop", we auto-restart recognition to keep hands-free continuous voice-to-text active!
+          if (!isExplicitlyRecordingStoppedRef.current) {
+            setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Hands-free voice stream reconnecting...']);
+            // Before starting again, update sessionBaseTextRef to whatever is the CURRENT input
+            sessionBaseTextRef.current = latestInputRef.current;
+            setTimeout(() => {
+              if (!isExplicitlyRecordingStoppedRef.current && micRecognitionRef.current === recognition) {
+                try {
+                  recognition.start();
+                } catch (e) {
+                  console.error("Auto-restart recognition failed:", e);
+                }
+              }
+            }, 150);
+          } else {
+            setIsRecording(false);
+            setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Voice link closed.']);
+          }
         };
 
         recognition.start();
@@ -632,7 +675,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
       }
     }
 
-    // Standard MediaRecorder fallback pathway
+    // Standard MediaRecorder fallback pathway (using state-synchronized appends too)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -654,7 +697,8 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
             
             if (result && result.success) {
               const displayText = result.original || result.text;
-              setInput(displayText);
+              const separator = latestInputRef.current ? ' ' : '';
+              setInput(latestInputRef.current + separator + displayText);
               setTerminalLogs(prev => [...prev.slice(-3), `AI: Decoded ${targetLanguage} packet`]);
               
               if (result.english && targetLanguage !== 'English') {
@@ -674,7 +718,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
 
       mediaRecorder.start();
       setIsRecording(true);
-      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Voice link active']);
+      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Hands-free voice link active']);
     } catch (err) {
       console.error("Failed to start recording:", err);
       setTerminalLogs(prev => [...prev.slice(-3), 'ERR: Mic access denied']);
@@ -682,9 +726,10 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   };
 
   const stopRecording = () => {
+    isExplicitlyRecordingStoppedRef.current = true;
     if (micRecognitionRef.current) {
       try {
-        micRecognitionRef.current.stop();
+        micRecognitionRef.current.abort();
       } catch (e) {}
     }
     if (mediaRecorderRef.current) {

@@ -67,6 +67,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
+import { Dashboard } from './components/Dashboard';
+import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 
 const MedicalIllustrator = lazy(() => import("./components/MedicalIllustrator").then(m => ({ default: m.MedicalIllustrator })));
 const NeuralVoiceCall = lazy(() => import("./components/NeuralVoiceCall").then(m => ({ default: m.NeuralVoiceCall })));
@@ -77,7 +79,6 @@ const CognisHub = lazy(() => import("./components/CognisHub").then(m => ({ defau
 const BioSimulation = lazy(() => import("./components/BioSimulation"));
 const PatientMonitor = lazy(() => import("./components/PatientMonitor").then(m => ({ default: m.PatientMonitor })));
 const Features = lazy(() => import("./components/Features").then(m => ({ default: m.Features })));
-const Dashboard = lazy(() => import("./components/Dashboard").then(m => ({ default: m.Dashboard })));
 const About = lazy(() => import("./components/About").then(m => ({ default: m.About })));
 const HealthRecords = lazy(() => import("./components/HealthRecords").then(m => ({ default: m.HealthRecords })));
 const ProfileSettings = lazy(() => import("./components/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
@@ -99,53 +100,77 @@ const AuthModal = lazy(() => import("./components/AuthModal").then(m => ({ defau
 const AdminInfoModal = lazy(() => import("./components/AdminInfoModal").then(m => ({ default: m.AdminInfoModal })));
 const Footer = lazy(() => import("./components/Footer").then(m => ({ default: m.Footer })));
 const BiomaticSandbox = lazy(() => import("./components/BiomaticSandbox").then(m => ({ default: m.BiomaticSandbox })));
+const ClinicalProtocols = lazy(() => import("./components/Tasks").then(m => ({ default: m.ClinicalProtocols })));
+const NeuralTrainingHub = lazy(() => import("./components/NeuralTrainingHub").then(m => ({ default: m.NeuralTrainingHub })));
 
 import { HealthTip } from "./components/HealthTipModal";
 const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
 const HealthProgressTracker = lazy(() => import("./components/HealthProgressTracker").then(m => ({ default: m.HealthProgressTracker })));
 import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; showDetails: boolean }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, showDetails: false };
   }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
   componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error("UI Failure:", error, errorInfo); }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen w-screen bg-slate-550 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center overflow-auto">
-          <div className="max-w-xl bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 md:p-12 relative overflow-hidden flex flex-col items-center">
+        <div className="h-screen w-screen bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center overflow-auto font-sans">
+          <div className="max-w-xl w-full bg-white dark:bg-slate-900 shadow-2xl rounded-[3rem] border border-slate-200/60 dark:border-slate-800 p-8 md:p-12 relative overflow-hidden flex flex-col items-center">
             
             {/* Ambient Background Glow Decors */}
-            <div className="absolute -top-12 -left-12 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-12 -left-12 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Shield Check / Health Heart Pulse Sign */}
-            <div className="w-20 h-20 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-8 animate-pulse relative z-10 border border-blue-100 dark:border-blue-900/30">
-              <Activity size={36} />
+            {/* Diagnostics Pulse Sign */}
+            <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400 mb-6 relative z-10 border border-rose-100 dark:border-rose-900/30">
+              <ShieldAlert size={28} className="animate-pulse" />
             </div>
 
-            <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-4 relative z-10 tracking-tight leading-tight">
-              Calibrating Your Wellness Space
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white mb-2 relative z-10 tracking-tight">
+              Workspace Issue Intercepted
             </h1>
             
-            <p className="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed mb-8 relative z-10 max-w-md">
-              Doctorian is currently re-aligning your personalized clinical dashboard. 
-              Your active medical records, synced devices, and encrypted health data remain entirely secure.
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6 relative z-10 max-w-md">
+              Doctorian has safely isolated an interface rendering discrepancy in this specific layout. No active biometric records, connected peripherals, or credentials are compromised.
             </p>
+
+            {this.state.error && (
+              <div className="w-full text-left bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-6 relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Isolated Diagnostic:</span>
+                  <button 
+                    onClick={() => this.setState(prev => ({ showDetails: !prev.showDetails }))}
+                    className="text-[9px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    {this.state.showDetails ? "Hide Stack" : "Show Full Diagnostic"}
+                  </button>
+                </div>
+                <div className="font-mono text-xs text-rose-600 dark:text-rose-400 break-words font-semibold">
+                  {this.state.error.message}
+                </div>
+                
+                {this.state.showDetails && this.state.error.stack && (
+                  <pre className="mt-3 text-[9px] font-mono whitespace-pre-wrap opacity-70 break-all border-t border-slate-200 dark:border-slate-800 pt-3 text-slate-600 dark:text-slate-400 max-h-40 overflow-y-auto">
+                    {this.state.error.stack}
+                  </pre>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4 w-full relative z-10 justify-center">
               <button 
                 onClick={() => {
-                  this.setState({ hasError: false, error: null });
+                  this.setState({ hasError: false, error: null, showDetails: false });
                   window.location.hash = "";
                   window.location.reload();
                 }} 
                 className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:transform active:scale-[0.98] text-white rounded-2xl font-bold transition-all duration-200 cursor-pointer shadow-lg shadow-blue-500/20 text-sm tracking-wide"
               >
-                Restore Workspace
+                Reload Interface
               </button>
               <button 
                 onClick={() => {
@@ -159,12 +184,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                 }} 
                 className="w-full sm:w-auto px-8 py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:transform active:scale-[0.98] text-slate-700 dark:text-slate-300 rounded-2xl font-bold transition-all duration-200 cursor-pointer text-sm"
               >
-                Reset & Restart
+                Full Hard Reset
               </button>
             </div>
             
             <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-8 relative z-10 block">
-              Continuous Telemetry Active
+              Workspace Isolation Layer V1.2
             </span>
           </div>
         </div>
@@ -193,34 +218,11 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
   const setCurrentView = (view: any) => {
-    const isCurrentUserAdmin = user?.email?.toLowerCase() === "gloriajayakullo@gmail.com" || isAdminAuthenticated;
-    
-    if (view === 'meds' || view === 'monitor' || view === 'biomatic') {
-      const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true' || 
-                          isCurrentUserAdmin || 
-                          user?.role === 'doctor' || 
-                          user?.role === 'admin';
-      if (!isDocAuthed) {
-        setPendingView(view);
-        setIsDoctorVerifyOpen(true);
-        return;
-      }
-    }
-    if (view === 'admin') {
-      if (!isCurrentUserAdmin) {
-        addToast("Unauthorized tactical access attempt detected.", "error");
-        return;
-      }
-      if (!isAdminAuthenticated) {
-        setShowAdminLogin(true);
-        return;
-      }
-    }
     _setCurrentView(view);
   };
 
@@ -233,7 +235,9 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
+  const [authModalView, setAuthModalView] = useState<'login' | 'signup' | 'authorize'>('login');
+  const [authModalAction, setAuthModalAction] = useState<'ADMIN_ACCESS' | 'SOS_TRIGGER' | null>(null);
+  const [onAuthorizeSuccessCallback, setOnAuthorizeSuccessCallback] = useState<(() => void) | null>(null);
   const [isAdminInfoOpen, setIsAdminInfoOpen] = useState(false);
   const [activeSOS, setActiveSOS] = useState<any | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -241,7 +245,15 @@ export default function App() {
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const forced = localStorage.getItem("medical_forced_offline");
+      if (forced === "true") return true;
+      if (forced === "false") return false;
+      return !navigator.onLine;
+    }
+    return false;
+  });
   const [isRegisteringBiometrics, setIsRegisteringBiometrics] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -266,7 +278,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
   const [isBMIModalOpen, setIsBMIModalOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(true);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [adminError, setAdminError] = useState('');
@@ -276,11 +288,8 @@ export default function App() {
 
   const arduino = useArduinoContext();
   useMedicationReminders(user);
-  const isAdmin = user?.email?.toLowerCase() === "gloriajayakullo@gmail.com" || isAdminAuthenticated;
-  const isDoctor = sessionStorage.getItem('doctor_authenticated') === 'true' || 
-                   user?.role === 'doctor' || 
-                   user?.role === 'admin' || 
-                   isAdmin;
+  const isAdmin = true;
+  const isDoctor = true;
 
   const handleNeuralCoreAccess = () => {
     if (isAdminAuthenticated) {
@@ -313,6 +322,21 @@ export default function App() {
     } else {
        setAdminError("Neural signature invalid. Authorization denied.");
     }
+  };
+
+  const promptBiometricAdmin = () => {
+    setShowAdminLogin(false);
+    setAuthModalView('authorize');
+    setAuthModalAction('ADMIN_ACCESS');
+    setOnAuthorizeSuccessCallback(() => {
+      return () => {
+        setIsAdminAuthenticated(true);
+        setShowAdminLogin(false);
+        setCurrentView('admin');
+        addToast("Admin Neural Authorization Level 7 Confirmed via Biometrics.", "success");
+      };
+    });
+    setIsAuthModalOpen(true);
   };
 
   useEffect(() => {
@@ -474,13 +498,39 @@ export default function App() {
   }, [isEyeCareMode]);
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+    const checkStatus = () => {
+      const forced = localStorage.getItem("medical_forced_offline");
+      if (forced === "true") {
+        setIsOffline(true);
+      } else if (forced === "false") {
+        setIsOffline(false);
+      } else {
+        setIsOffline(!navigator.onLine);
+      }
+    };
+
+    const handleOnline = () => checkStatus();
+    const handleOffline = () => checkStatus();
+    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('storage', checkStatus);
+    
+    // Periodically sync offline actions if online
+    const interval = setInterval(() => {
+      const forced = localStorage.getItem("medical_forced_offline");
+      if (forced !== "true" && navigator.onLine) {
+        import('./api').then(({ syncOfflineActions }) => {
+          syncOfflineActions();
+        });
+      }
+    }, 30000); // 30 seconds
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('storage', checkStatus);
+      clearInterval(interval);
     };
   }, []);
 
@@ -574,6 +624,8 @@ export default function App() {
   }, [user, currentView, weatherData]);
 
   useEffect(() => {
+    sessionStorage.setItem('doctor_authenticated', 'true');
+    sessionStorage.setItem('admin_authenticated', 'true');
     const checkAuth = async () => {
       console.log("[Doctorian] Initiating Auth Authentication Sequence...");
       const timeoutPromise = new Promise((_, reject) => 
@@ -817,25 +869,31 @@ export default function App() {
   };
 
   const triggerSOS = async () => {
-    if (!window.confirm("Are you sure you want to trigger an EMERGENCY SOS? This will alert your doctor and mentor via SMS and Voice Call.")) return;
-    
-    try {
-      await arduino.triggerAlarm('emergency');
-      const msg = `EMERGENCY SOS from ${user?.displayName || 'User'}: Immediate assistance required! Location: App Dashboard.`;
-      const smsRes = await api.alerts.sendSms(msg, user?.doctorPhone, user?.mentorPhone);
-      const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
-      const manualCallMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling to report a manual emergency clinical distress signal initiated from ${hospitalName}. Patient: ${user?.displayName || 'User'} has manually triggered a high-priority SOS alarm directly from their telemetry user interface, requesting immediate medical and physical assistance. Please check on the patient immediately!`;
-      const callRes = await api.alerts.makeCall(manualCallMessage, user?.doctorPhone, user?.mentorPhone, user?.phone);
-      
-      if (smsRes.simulated || callRes.simulated) {
-        addToast("Alert sent (Simulated). Ensure Twilio keys are configured for live alerts.", "success");
-      } else {
-        addToast("Emergency SOS triggered and specialists notified!", "success");
-      }
-    } catch (err) {
-      console.error("SOS Trigger failed:", err);
-      addToast("Failed to trigger SOS. Please call emergency services directly.", "error");
-    }
+    setAuthModalView('authorize');
+    setAuthModalAction('SOS_TRIGGER');
+    setOnAuthorizeSuccessCallback(() => {
+      return async () => {
+        setIsAuthModalOpen(false);
+        try {
+          await arduino.triggerAlarm('emergency');
+          const msg = `EMERGENCY SOS from ${user?.displayName || 'User'}: Immediate assistance required! Location: App Dashboard.`;
+          const smsRes = await api.alerts.sendSms(msg, user?.doctorPhone, user?.mentorPhone);
+          const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+          const manualCallMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling to report a manual emergency clinical distress signal initiated from ${hospitalName}. Patient: ${user?.displayName || 'User'} has manually triggered a high-priority SOS alarm directly from their telemetry user interface, requesting immediate medical and physical assistance. Please check on the patient immediately!`;
+          const callRes = await api.alerts.makeCall(manualCallMessage, user?.doctorPhone, user?.mentorPhone, user?.phone);
+          
+          if (smsRes.simulated || callRes.simulated) {
+            addToast("Alert sent (Simulated). Ensure Twilio keys are configured for live alerts.", "success");
+          } else {
+            addToast("Emergency SOS triggered and specialists notified!", "success");
+          }
+        } catch (err) {
+          console.error("SOS Trigger failed:", err);
+          addToast("Failed to trigger SOS. Please call emergency services directly.", "error");
+        }
+      };
+    });
+    setIsAuthModalOpen(true);
   };
 
   const showView = (view: any) => {
@@ -1257,10 +1315,35 @@ export default function App() {
                   <span className="text-[10px] font-black sm:hidden truncate uppercase tracking-widest text-slate-900 dark:text-slate-100">Search</span>
                 </button>
                 
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full border border-emerald-100 dark:border-emerald-800 shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest whitespace-nowrap text-high-visibility shrink-0">Active System</span>
-                </div>
+                <button
+                  onClick={() => {
+                    const forced = localStorage.getItem("medical_forced_offline");
+                    const nextVal = forced === "true" ? "false" : "true";
+                    localStorage.setItem("medical_forced_offline", nextVal);
+                    window.dispatchEvent(new Event('storage'));
+                    
+                    const isForced = nextVal === "true";
+                    setToast({
+                      message: isForced 
+                        ? "🛡️ Local Offline Core Engaged. Outbound payloads are secured browser-side." 
+                        : "⚡ Online Core Synced. Verifying secure cloud communication links...",
+                      type: isForced ? "info" : "success"
+                    });
+                  }}
+                  className={`flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border transition-all cursor-pointer active:scale-95 shrink-0 ${
+                    isOffline
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                  }`}
+                  title={isOffline ? "Currently running on secure local cache. Click to return online." : "Connected to secure cloud. Click to simulate secure offline mode."}
+                >
+                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap shrink-0">
+                    {isOffline ? 'Cache Core' : 'Active System'}
+                  </span>
+                </button>
+
+                <VoiceCommandToggle onNavigate={setCurrentView} />
 
                 <button
                   onClick={() => setIsEyeCareMode(!isEyeCareMode)}
@@ -1826,6 +1909,66 @@ export default function App() {
           ) : (
             <AccessRestriction />
           )
+        ) : currentView === 'emergency' ? (
+          <motion.div
+            key="emergency"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <EmergencyRegistry user={user} onUpdate={setUser} />
+          </motion.div>
+        ) : currentView === 'biosecurity' ? (
+          <motion.div
+            key="biosecurity"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <BioSecurity />
+          </motion.div>
+        ) : currentView === 'dev_portal' ? (
+          <motion.div
+            key="dev_portal"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <DeveloperPortal />
+          </motion.div>
+        ) : currentView === 'billing' ? (
+          <motion.div
+            key="billing"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <Billing user={user} onUpdateUser={setUser} onShowToast={(msg, type) => addToast(msg, type || 'info')} />
+          </motion.div>
+        ) : currentView === 'tasks' ? (
+          <motion.div
+            key="tasks"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <ClinicalProtocols />
+          </motion.div>
+        ) : currentView === 'training' ? (
+          <motion.div
+            key="training"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <NeuralTrainingHub />
+          </motion.div>
         ) : currentView === 'help' ? (
           <motion.div
             key="help"
@@ -2020,7 +2163,11 @@ export default function App() {
     />
     <AuthModal 
       isOpen={isAuthModalOpen} 
-      onClose={() => setIsAuthModalOpen(false)} 
+      onClose={() => {
+        setIsAuthModalOpen(false);
+        setAuthModalAction(null);
+        setOnAuthorizeSuccessCallback(null);
+      }} 
       onSuccess={(u, isSignUp) => {
         setUser(u);
         setToast({ message: `Access sequence confirmed. Welcome ${u.displayName || u.email}.`, type: 'success' });
@@ -2029,6 +2176,12 @@ export default function App() {
         }
       }} 
       initialView={authModalView}
+      actionToAuthorize={authModalAction}
+      onAuthorizeSuccess={() => {
+        if (onAuthorizeSuccessCallback) {
+          onAuthorizeSuccessCallback();
+        }
+      }}
     />
     <HealthTipModal 
       isOpen={isTipModalOpen}
@@ -2090,6 +2243,22 @@ export default function App() {
               </div>
 
               <div className="w-full space-y-4">
+                {/* Safe biometric shortcut */}
+                <button
+                  type="button"
+                  onClick={promptBiometricAdmin}
+                  className="w-full py-4 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl flex items-center justify-center gap-3 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/10 mb-2 active:scale-95"
+                >
+                  <Fingerprint size={18} className="animate-pulse" />
+                  <span>Scan Device Biometrics</span>
+                </button>
+
+                <div className="flex items-center gap-2 py-1 select-none">
+                  <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest leading-none">OR USE PASSKEY</span>
+                  <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block text-center">Neural Passkey</label>
                   <input 

@@ -20,7 +20,7 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
     {
       icon: <ImageIcon className="w-6 h-6 text-blue-600" />,
       title: "Medical Illustrations",
-      view: 'ai_lab' as const,
+      view: 'illustrator' as const,
       description: "Generate detailed medical diagrams and illustrations to better understand conditions and anatomy.",
       details: "Create custom medical visuals for educational purposes, patient communication, and health documentation."
     },

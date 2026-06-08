@@ -57,9 +57,13 @@ const API_BASE = "/api";
 // --- OFFLINE HUB INFRASTRUCTURE ---
 const isOffline = (): boolean => {
   if (typeof window !== 'undefined') {
-    // Only go offline if explicitly forced by the user. 
-    // This prevents sandboxed iframes from incorrectly reporting navigator.onLine as false.
-    return localStorage.getItem("medical_forced_offline") === "true";
+    // Support real offline (system offline) OR user forced offline.
+    // If inside iframe or sandbox, navigator.onLine might report false incorrectly.
+    // Setting "medical_forced_offline" to "false" allows bypassing iframe false-negatives.
+    const forced = localStorage.getItem("medical_forced_offline");
+    if (forced === "true") return true;
+    if (forced === "false") return false;
+    return !navigator.onLine;
   }
   return false;
 };
@@ -125,6 +129,24 @@ Welcome to your offline diagnostics portal. Operating with secure SQLite synchro
   }
   return advice + "\n\n---\n🛡️ *Operated entirely via Doctorian Local Intelligence Engine to guarantee medical support offline.* ✨";
 };
+
+export function getLocalLLMEndpoint(baseUrl: string): { url: string; isOpenAI: boolean } {
+  const cleanUrl = baseUrl.trim().replace(/\/$/, "");
+  if (cleanUrl.includes("/v1/chat/completions")) {
+    return { url: cleanUrl, isOpenAI: true };
+  }
+  if (cleanUrl.includes("/v1") && !cleanUrl.includes("/chat/completions")) {
+    return { url: `${cleanUrl}/chat/completions`, isOpenAI: true };
+  }
+  const isOpenAIDetected = cleanUrl.includes(":1234") || cleanUrl.toLowerCase().includes("lmstudio") || cleanUrl.toLowerCase().includes("openai") || cleanUrl.toLowerCase().includes("v1");
+  if (isOpenAIDetected) {
+    return { url: `${cleanUrl}/v1/chat/completions`, isOpenAI: true };
+  }
+  if (cleanUrl.includes("/api/chat")) {
+    return { url: cleanUrl, isOpenAI: false };
+  }
+  return { url: `${cleanUrl}/api/chat`, isOpenAI: false };
+}
 
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
   if (typeof localStorage === 'undefined') return defaultValue;
@@ -1332,38 +1354,58 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Failed to get AI response");
         return data as { text: string; imageData?: string; creditsRemaining?: number | string };
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing local PC Ollama failover...");
+        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing local PC local LLM failover...");
         
-        // Failover handle: Local Ollama on User's PC if configured
+        // Failover handle: Local Ollama or LM Studio on User's PC if configured
         const userStr = localStorage.getItem('medical_user');
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
-              console.log(`[Neural Link] Directing failover pulse to PC Local Ollama: ${user.ollamaUrl} (Model: ${user.ollamaModel || 'llama3.1'})`);
-              const ollamaRes = await fetch(`${user.ollamaUrl}/api/chat`, {
+              const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
+              console.log(`[Neural Link] Directing failover pulse to PC Local LLM: ${localUrl} (Model: ${user.ollamaModel || 'llama3.1'}, isOpenAI: ${isOpenAI})`);
+              
+              const requestBody = isOpenAI ? {
+                model: user.ollamaModel || 'llama3.1',
+                messages: [
+                  { role: 'system', content: systemInstruction },
+                  ...payloadMessages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                stream: false,
+                temperature: temperature || 0.7
+              } : {
+                model: user.ollamaModel || 'llama3.1', 
+                messages: [
+                  { role: 'system', content: systemInstruction },
+                  ...payloadMessages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                stream: false,
+                options: { temperature: temperature || 0.7 }
+              };
+
+              const localRes = await fetch(localUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  model: user.ollamaModel || 'llama3.1', 
-                  messages: [
-                    { role: 'system', content: systemInstruction },
-                    ...payloadMessages.map(m => ({
-                      role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-                      content: m.text
-                    }))
-                  ],
-                  stream: false,
-                  options: { temperature: temperature || 0.7 }
-                })
+                body: JSON.stringify(requestBody)
               });
 
-              if (ollamaRes.ok) {
-                const ollamaData = await ollamaRes.json();
-                //@ts-ignore
-                if (ollamaData.message?.content) {
-                  //@ts-ignore
-                  return { text: ollamaData.message.content as string, creditsRemaining: 'Unlimited (Offline Failover)' };
+              if (localRes.ok) {
+                const localData = await localRes.json();
+                if (isOpenAI) {
+                  const text = localData.choices?.[0]?.message?.content;
+                  if (text) {
+                    return { text: text as string, creditsRemaining: 'Unlimited (Offline Failover - LM Studio)' };
+                  }
+                } else {
+                  if (localData.message?.content) {
+                    return { text: localData.message.content as string, creditsRemaining: 'Unlimited (Offline Failover - Ollama)' };
+                  }
                 }
               }
             }
@@ -1372,7 +1414,7 @@ export const api = {
           }
         }
         
-        console.warn("[Neural Link] Local Ollama failover missed. Initiating emergency offline diagnostic synapse fallback...");
+        console.warn("[Neural Link] Local LLM failover missed. Initiating emergency offline diagnostic synapse fallback...");
         const text = generateOfflineMedicalResponse(userPrompt);
         return { text, creditsRemaining: "Unlimited (Emergency Diagnostic Fallback)" };
       }
@@ -1500,52 +1542,114 @@ export const api = {
           }
         }
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend stream failed or offline. Checking local PC Ollama failover...");
+        console.warn("[Neural Link] Backend stream failed or offline. Checking local PC local LLM failover...");
         
-        // Local Ollama stream failover for offline use
+        // Local Ollama or LM Studio stream failover for offline use
         const userStr = localStorage.getItem('medical_user');
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
-              console.log(`[Neural Link] Directing stream failover pulse to Local Ollama: ${user.ollamaUrl} (Model: ${user.ollamaModel || 'llama3.1'})`);
-              const ollamaRes = await fetch(`${user.ollamaUrl}/api/chat`, {
+              const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
+              console.log(`[Neural Link] Directing stream failover pulse to Local LLM: ${localUrl} (Model: ${user.ollamaModel || 'llama3.1'}, isOpenAI: ${isOpenAI})`);
+              
+              const requestBody = isOpenAI ? {
+                model: user.ollamaModel || 'llama3.1',
+                messages: [
+                  { role: 'system', content: systemInstruction },
+                  ...messages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                stream: true,
+                temperature: temperature || 0.7
+              } : {
+                model: user.ollamaModel || 'llama3.1', 
+                messages: [
+                  { role: 'system', content: systemInstruction },
+                  ...messages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                stream: true,
+                options: { temperature: temperature || 0.7 }
+              };
+
+              const localRes = await fetch(localUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  model: user.ollamaModel || 'llama3.1', 
-                  messages: [
-                    { role: 'system', content: systemInstruction },
-                    ...messages.map(m => ({
-                      role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-                      content: m.text
-                    }))
-                  ],
-                  stream: true,
-                  options: { temperature: temperature || 0.7 }
-                }),
+                body: JSON.stringify(requestBody),
                 signal
               });
 
-              if (ollamaRes.ok && ollamaRes.body) {
-                const reader = ollamaRes.body.getReader();
+              if (localRes.ok && localRes.body) {
+                const reader = localRes.body.getReader();
                 const decoder = new TextDecoder();
+                let accumulatedBuffer = '';
+                
                 while (true) {
                   const { done, value } = await reader.read();
                   if (done) break;
-                  const chunk = decoder.decode(value, { stream: true });
-                  const lines = chunk.split('\n');
+                  
+                  accumulatedBuffer += decoder.decode(value, { stream: true });
+                  const lines = accumulatedBuffer.split('\n');
+                  accumulatedBuffer = lines.pop() || ''; // save the last unfinished line back to the buffer
+                  
                   for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                      const data = JSON.parse(line);
-                      if (data.message?.content) yield data.message.content;
-                      if (data.done && onMetadata) onMetadata({ credits: 'Unlimited (Offline Failover)' });
-                    } catch (e) {
-                      // Ignore partial JSON
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+                    
+                    if (isOpenAI) {
+                      if (trimmedLine.startsWith('data: ')) {
+                        const dataStr = trimmedLine.slice(6).trim();
+                        if (dataStr === '[DONE]') {
+                          if (onMetadata) onMetadata({ credits: 'Unlimited (Offline Failover - LM Studio)' });
+                          continue;
+                        }
+                        try {
+                          const data = JSON.parse(dataStr);
+                          const text = data.choices?.[0]?.delta?.content;
+                          if (text) yield text;
+                        } catch (e) {
+                          // ignore partial line JSON parse errors
+                        }
+                      }
+                    } else {
+                      try {
+                        const data = JSON.parse(trimmedLine);
+                        if (data.message?.content) yield data.message.content;
+                        if (data.done && onMetadata) onMetadata({ credits: 'Unlimited (Offline Failover - Ollama)' });
+                      } catch (e) {
+                        // ignore parsing error for streaming chunks
+                      }
                     }
                   }
                 }
+                
+                // Flush remaining buffer if it doesn't end with newline
+                if (accumulatedBuffer.trim()) {
+                  const trimmedLine = accumulatedBuffer.trim();
+                  if (isOpenAI) {
+                    if (trimmedLine.startsWith('data: ')) {
+                      const dataStr = trimmedLine.slice(6).trim();
+                      if (dataStr !== '[DONE]') {
+                        try {
+                          const data = JSON.parse(dataStr);
+                          const text = data.choices?.[0]?.delta?.content;
+                          if (text) yield text;
+                        } catch (e) {}
+                      }
+                    }
+                  } else {
+                    try {
+                      const data = JSON.parse(trimmedLine);
+                      if (data.message?.content) yield data.message.content;
+                    } catch (e) {}
+                  }
+                }
+                
                 return;
               }
             }
@@ -1554,7 +1658,7 @@ export const api = {
           }
         }
         
-        console.warn("[Neural Link] Ollama fallback missed. Triggering organic diagnostic streaming synthesis...");
+        console.warn("[Neural Link] Local LLM fallback missed. Triggering organic diagnostic streaming synthesis...");
         const text = generateOfflineMedicalResponse(lastPrompt);
         const words = text.split(" ");
         for (let i = 0; i < words.length; i++) {

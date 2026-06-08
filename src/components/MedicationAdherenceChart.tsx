@@ -6,11 +6,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
   Legend,
   BarChart,
   Bar
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 import { 
   TrendingUp, 
   CheckCircle2, 
@@ -372,7 +372,7 @@ export const MedicationAdherenceChart: React.FC<MedicationAdherenceChartProps> =
           </div>
 
           <div className="w-full h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <SafeResponsiveContainer width="100%" height="100%">
               <AreaChart data={adherenceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="adherenceGrad" x1="0" y1="0" x2="0" y2="1">
@@ -423,7 +423,7 @@ export const MedicationAdherenceChart: React.FC<MedicationAdherenceChartProps> =
                   activeDot={{ r: 6, strokeWidth: 0, fill: '#f43f5e' }}
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </SafeResponsiveContainer>
           </div>
         </div>
 
@@ -441,7 +441,7 @@ export const MedicationAdherenceChart: React.FC<MedicationAdherenceChartProps> =
             </div>
 
             <div className="w-full h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <SafeResponsiveContainer width="100%" height="100%">
                 <BarChart data={adherenceData.slice(-10)} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
                   <XAxis 
@@ -487,7 +487,7 @@ export const MedicationAdherenceChart: React.FC<MedicationAdherenceChartProps> =
                   <Bar dataKey="Supplements" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="Missed" stackId="a" fill="#475569" radius={[4, 4, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </SafeResponsiveContainer>
             </div>
           </div>
 

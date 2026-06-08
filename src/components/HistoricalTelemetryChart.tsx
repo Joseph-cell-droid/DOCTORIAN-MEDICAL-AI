@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { 
   LineChart, Line, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 import { Heart, Activity, Sliders, Eye, EyeOff, LayoutGrid } from 'lucide-react';
 
 interface HistoricalTelemetryChartProps {
@@ -281,7 +282,7 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
             <p className="text-xs font-black uppercase tracking-wider">Select HR or SpO2 telemetry above to render</p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <SafeResponsiveContainer width="100%" height="100%">
             {chartType === 'area' ? (
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
@@ -433,7 +434,7 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
                 )}
               </BarChart>
             )}
-          </ResponsiveContainer>
+          </SafeResponsiveContainer>
         )}
       </div>
 

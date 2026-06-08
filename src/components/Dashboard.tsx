@@ -12,8 +12,9 @@ import {
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, BarChart, Bar, Cell 
+  Tooltip, BarChart, Bar, Cell 
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 import BioSimulation from './BioSimulation';
 import { BioSecurity } from './BioSecurity';
 import { api } from '../api';
@@ -586,7 +587,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           
           <div className="flex-1 p-4 sm:p-8 min-h-[250px] sm:min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <SafeResponsiveContainer width="100%" height="100%">
               <AreaChart data={getDynamicData()}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -603,7 +604,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 />
                 <Area type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
               </AreaChart>
-            </ResponsiveContainer>
+            </SafeResponsiveContainer>
           </div>
 
           <div className="p-5 sm:p-8 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-4">
@@ -1080,7 +1081,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-widest">Quantum Simulation</span>
             </div>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <SafeResponsiveContainer width="100%" height="100%">
                 <AreaChart data={getDynamicData().map(d => ({ ...d, pred: d.value + (Math.random() * 10 - 5) }))}>
                   <defs>
                     <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
@@ -1095,7 +1096,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
                   <Area type="monotone" dataKey="pred" stroke="#10b981" fill="url(#colorPred)" strokeWidth={3} />
                 </AreaChart>
-              </ResponsiveContainer>
+              </SafeResponsiveContainer>
             </div>
             <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-800">
               <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">AI Prediction</p>
@@ -1293,7 +1294,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
             <div className="h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <SafeResponsiveContainer width="100%" height="100%">
                 <AreaChart data={getDynamicData()}>
                   <defs>
                     <linearGradient id="colorBio" x1="0" y1="0" x2="0" y2="1">
@@ -1303,7 +1304,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </defs>
                   <Area type="monotone" dataKey="value" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBio)" strokeWidth={4} />
                 </AreaChart>
-              </ResponsiveContainer>
+              </SafeResponsiveContainer>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ interface VitalWaveformProps {
   maxVal?: number;
   label?: string;
   unit?: string;
+  baselineValue?: number;
 }
 
 export const VitalWaveform: React.FC<VitalWaveformProps> = ({ 
@@ -20,7 +21,8 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
   minVal = 0,
   maxVal = 200,
   label,
-  unit
+  unit,
+  baselineValue
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -117,6 +119,99 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
       .attr("stroke-linecap", "round")
       .attr("d", line);
 
+    // Deviating Points Marker Logic
+    // Marks historical points in red if they deviate by >20% from their 7-day rolling average
+    const deviatingPoints: { index: number; value: number; timestamp: number; avg: number; deviation: number }[] = [];
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    
+    data.forEach((d, idx) => {
+      // Prioritize baselineValue if provided, fallback to dynamically calculated 7-day rolling average
+      let avg = baselineValue && baselineValue > 0 ? baselineValue : 0;
+      
+      if (!avg) {
+        const windowPoints = data.filter(p => 
+          p.timestamp >= d.timestamp - sevenDaysMs && 
+          p.timestamp <= d.timestamp
+        );
+        if (windowPoints.length > 0) {
+          avg = windowPoints.reduce((sum, p) => sum + p.value, 0) / windowPoints.length;
+        }
+      }
+      
+      if (avg > 0) {
+        const deviation = Math.abs(d.value - avg) / avg;
+        if (deviation > 0.20) {
+          deviatingPoints.push({
+            index: idx,
+            value: d.value,
+            timestamp: d.timestamp,
+            avg,
+            deviation
+          });
+        }
+      }
+    });
+
+    // Draw baselineValue line if available
+    if (baselineValue !== undefined && baselineValue >= minVal && baselineValue <= maxVal) {
+      g.append("line")
+        .attr("class", "baseline-value-line")
+        .attr("x1", 0)
+        .attr("x2", innerWidth)
+        .attr("y1", y(baselineValue))
+        .attr("y2", y(baselineValue))
+        .attr("stroke", "#ef4444")
+        .attr("stroke-width", 1.5)
+        .attr("stroke-opacity", 0.6)
+        .attr("stroke-dasharray", "3,3");
+
+      g.append("text")
+        .attr("x", innerWidth - 8)
+        .attr("y", y(baselineValue) - 5)
+        .attr("text-anchor", "end")
+        .attr("fill", "#ef4444")
+        .attr("fill-opacity", 0.8)
+        .attr("font-size", "7.5px")
+        .attr("font-weight", "black")
+        .attr("font-family", "monospace")
+        .text(`7D AVG BASELINE (${baselineValue.toFixed(1)})`);
+    }
+
+    const dotsGroup = g.append("g")
+      .attr("class", "deviating-dots-group");
+
+    // Pulsing outer glow for deviating points
+    dotsGroup.selectAll(".deviating-dot-pulse")
+      .data(deviatingPoints)
+      .enter()
+      .append("circle")
+      .attr("class", "deviating-dot-pulse")
+      .attr("cx", d => x(d.index))
+      .attr("cy", d => y(d.value))
+      .attr("r", 8)
+      .attr("fill", "#ef4444")
+      .attr("opacity", 0.4)
+      .append("animate")
+      .attr("attributeName", "r")
+      .attr("values", "5;10;5")
+      .attr("dur", "2s")
+      .attr("repeatCount", "indefinite");
+
+    // Solid red circle with white border
+    dotsGroup.selectAll(".deviating-dot")
+      .data(deviatingPoints)
+      .enter()
+      .append("circle")
+      .attr("class", "deviating-dot")
+      .attr("cx", d => x(d.index))
+      .attr("cy", d => y(d.value))
+      .attr("r", 4.5)
+      .attr("fill", "#ef4444")
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 2)
+      .append("title")
+      .text(d => `Deviates by ${(d.deviation * 100).toFixed(1)}% from rolling avg (${d.value.toFixed(1)} vs avg ${d.avg.toFixed(1)})`);
+
     // Add grid lines (horizontal)
     const yTicks = [
       minVal + (maxVal - minVal) * 0.25,
@@ -181,7 +276,7 @@ export const VitalWaveform: React.FC<VitalWaveformProps> = ({
         .attr("opacity", 0.5);
     }
 
-  }, [data, color, dimensions, minVal, maxVal, tooltip]);
+  }, [data, color, dimensions, minVal, maxVal, tooltip, baselineValue]);
 
   return (
     <div ref={containerRef} className="w-full h-full min-h-[40px] relative">

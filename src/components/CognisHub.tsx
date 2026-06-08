@@ -9,10 +9,10 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
   AreaChart,
   Area
 } from 'recharts';
+import { SafeResponsiveContainer } from './SafeResponsiveContainer';
 import { 
   Brain, 
   Timer, 
@@ -730,7 +730,7 @@ export const CognisHub: React.FC = () => {
                 </div>
 
                 <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <SafeResponsiveContainer width="100%" height="100%">
                     <AreaChart data={analysisData}>
                       <defs>
                         <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
@@ -794,7 +794,7 @@ export const CognisHub: React.FC = () => {
                         fill="url(#colorDuration)" 
                       />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </SafeResponsiveContainer>
                 </div>
               </div>
 
@@ -807,7 +807,7 @@ export const CognisHub: React.FC = () => {
                 <h3 className="text-lg font-black text-white uppercase tracking-tight mb-8">Cognis Speed</h3>
                 
                 <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <SafeResponsiveContainer width="100%" height="100%">
                     <BarChart data={analysisData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                       <XAxis 
@@ -840,7 +840,7 @@ export const CognisHub: React.FC = () => {
                         barSize={12}
                       />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </SafeResponsiveContainer>
                 </div>
 
                 <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10">

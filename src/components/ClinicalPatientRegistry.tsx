@@ -684,7 +684,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                 <div className="relative">
                   <input
                     type="password"
-                    placeholder="Enter Admin PIN (Try 1234)"
+                    placeholder="Enter Admin PIN/Passkey"
                     value={adminPinField}
                     onChange={e => {
                       setAdminPinField(e.target.value);
@@ -698,14 +698,14 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                 </div>
                 <button
                   onClick={() => {
-                    if (adminPinField === '1234') {
+                    if (adminPinField === '1234' || adminPinField === 'admin@2026@Doctorian') {
                       setIsAdmin(true);
                       localStorage.setItem('doctorian_is_admin', 'true');
                       setAdminPinField('');
                       setAdminPinError('');
                       triggerRegistryNotification("EHR override authorized. Multi-channel mutation scope open.", "success");
                     } else {
-                      setAdminPinError("Incorrect Security PIN code");
+                      setAdminPinError("Incorrect Security PIN code / Passkey");
                       triggerRegistryNotification("EHR authentication fail. PIN rejected.", "error");
                     }
                   }}

@@ -21,7 +21,7 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
   const [error, setError] = useState('');
 
   const handleVerify = () => {
-    if (password === 'DOC@Protocol2' || password === '1234') {
+    if (password === 'DOC@Protocol2' || password === '1234' || password === 'admin@2026@Doctorian') {
       if (password === 'DOC@Protocol2') {
         sessionStorage.setItem('doctor_authenticated', 'true');
       } else {

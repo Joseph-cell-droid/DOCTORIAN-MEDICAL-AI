@@ -38,6 +38,7 @@ import {
   UserPlus,
   Fingerprint,
   Moon,
+  Mic,
   Settings,
   ListTodo,
   Sun,
@@ -63,6 +64,7 @@ import {
   Github,
   Palette,
   Database,
+  Dna,
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -71,7 +73,7 @@ import { Dashboard } from './components/Dashboard';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 
 const MedicalIllustrator = lazy(() => import("./components/MedicalIllustrator").then(m => ({ default: m.MedicalIllustrator })));
-const NeuralVoiceCall = lazy(() => import("./components/NeuralVoiceCall").then(m => ({ default: m.NeuralVoiceCall })));
+const GenomicLongevityCore = lazy(() => import("./components/GenomicLongevityCore").then(m => ({ default: m.GenomicLongevityCore })));
 const ImageGenerator = lazy(() => import("./components/ImageGenerator").then(m => ({ default: m.ImageGenerator })));
 const ChatInterface = lazy(() => import("./components/ChatInterface").then(m => ({ default: m.ChatInterface })));
 const MedicalAI = lazy(() => import("./components/MedicalAI").then(m => ({ default: m.MedicalAI })));
@@ -218,7 +220,7 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -284,6 +286,7 @@ export default function App() {
   const [adminError, setAdminError] = useState('');
   const [dailyTip, setDailyTip] = useState<HealthTip>(HEALTH_TIPS[0]);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
+  const [isWindowsMenuOpen, setIsWindowsMenuOpen] = useState(false);
   const [weatherData, setWeatherData] = useState<any>(null);
 
   const arduino = useArduinoContext();
@@ -313,7 +316,7 @@ export default function App() {
 
   const verifyAdminAuth = () => {
     // Administrative passkey validation
-    if (adminPassInput === "Haxzy20Joseph21") {
+    if (adminPassInput === "Haxzy20Joseph21" || adminPassInput === "admin@2026@Doctorian") {
        setIsAdminAuthenticated(true);
        setShowAdminLogin(false);
        setCurrentView('admin');
@@ -766,23 +769,92 @@ export default function App() {
         prompt += ` Contextual vitals: HR ${arduino.vitals.heartRate} bpm, SpO2 ${arduino.vitals.spo2}%.`;
       }
 
-      const response = await api.ai.aiChat(
-        [{ role: "user", text: prompt }], 
-        "You are a helpful medical assistant specialized in wellness and preventive longevity protocols.",
-        "gemma-2-27b-it", 
-        0.7
-      );
+      const systemInstruction = "You are a helpful medical assistant specialized in wellness and preventive longevity protocols.";
+      let responseText = "";
+      let sourceAttribution = "";
+
+      // 1. Try local Gemma4 first (prioritizing PC Local LM Studio on User's PC / local Ollama)
+      const localUrlStr = user?.ollamaUrl || 'http://localhost:1234';
+      const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
       
-      const responseText = response.text;
+      const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
+      const finalUrl = isLMStudio
+        ? (cleanLocalUrl.includes('/v1') ? `${cleanLocalUrl}/chat/completions` : `${cleanLocalUrl}/v1/chat/completions`)
+        : (cleanLocalUrl.includes('/api/chat') ? cleanLocalUrl : `${cleanLocalUrl}/api/chat`);
+
+      const modelToUse = "gemma4";
+
+      console.log(`[Insight Fallback Route] Querying local PC LLM for model '${modelToUse}' at ${finalUrl}...`);
+      try {
+        const bodyPayload = isLMStudio ? {
+          model: modelToUse,
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: prompt }
+          ],
+          stream: false,
+          temperature: 0.7
+        } : {
+          model: modelToUse,
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: prompt }
+          ],
+          stream: false,
+          options: { temperature: 0.7 }
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s fast timeout for local PC retry path
+
+        const localRes = await fetch(finalUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bodyPayload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!localRes.ok) throw new Error(`HTTP status ${localRes.status}`);
+
+        const localData = await localRes.json();
+        if (isLMStudio) {
+          responseText = localData?.choices?.[0]?.message?.content || "";
+        } else {
+          responseText = localData?.message?.content || localData?.response || "";
+        }
+
+        if (responseText) {
+          sourceAttribution = "Gemma4 (Local LM Studio)";
+          responseText = `${responseText} \n\n[Model: ${sourceAttribution}]`;
+        } else {
+          throw new Error("No text content from local Gemma4 model");
+        }
+      } catch (localErr: any) {
+        console.warn(`[Insight Fallback] Local Gemma4 on PC failed or is unreachable (${localErr?.message || localErr}). Escalating request to cloud provider backup...`);
+        
+        // 2. Cascade fallback to Cloud provider as backup
+        const response = await api.ai.aiChat(
+          [{ role: "user", text: prompt }], 
+          systemInstruction, 
+          "gemma-2-27b-it", // Cloud Gemma model
+          0.7
+        );
+        responseText = response.text;
+        sourceAttribution = "Gemma 2 (Cloud Neural Link)";
+        if (responseText) {
+          responseText = `${responseText} \n\n[Model Backup: ${sourceAttribution}]`;
+        }
+      }
+
       if (responseText) {
         setAiInsight(responseText);
         setLastInsightFetchAt(Date.now());
       } else {
-        throw new Error("Empty response");
+        throw new Error("Empty response from both local and cloud AI providers");
       }
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
-      const isQuotaError = errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
       const isTransientError = errorMsg.includes('500') || errorMsg.includes('503') || errorMsg.includes('fetch') || errorMsg.includes('NetworkError');
 
       if (isTransientError && retryCount < 2) {
@@ -791,8 +863,7 @@ export default function App() {
         return fetchAiInsight(retryCount + 1);
       }
 
-      console.warn("Failed to fetch AI insight, using local fallbacks.", err);
-      // Fallback tips
+      console.warn("Failed completely to fetch AI insight, using general system protocol clinical guidelines.", err);
       const fallbacks = [
         "Coordinate with VHTs for rural support. Use Boda-Boda vouchers for obstetric transport. Pregnancy: Olubuto (Luganda), Mimba (Swahili).",
         "Monitor for preeclampsia: BP >140/90, headache, or blurred vision. Use emergency Boda transport if these symptoms occur.",
@@ -975,7 +1046,7 @@ export default function App() {
       items: [
         { id: 'home', label: 'Dashboard', icon: <Home size={15} /> },
         { id: 'ai_nexus', label: 'Doctorian Neural Core', icon: <Bot size={15} /> },
-        { id: 'voice_call', label: 'Neural Voice Consultation', icon: <Phone size={15} />, action: () => setIsVoiceCallOpen(true) },
+        { id: 'genomic_longevity', label: 'Genomic Longevity Core', icon: <Dna size={15} /> },
         { id: 'illustrator', label: 'Medical Illustrator', icon: <Palette size={15} /> },
         { id: 'neuro', label: 'CognisHub Node', icon: <Brain size={15} /> },
         { id: 'biomatic', label: 'Biomatic Sandbox', icon: <Cpu size={15} /> },
@@ -1312,9 +1383,9 @@ export default function App() {
           }}
           className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible"
         >
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-8">
-            <div className="flex items-center py-3 sm:py-4 gap-2 sm:gap-4 w-full">
-              <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+          <div className="max-w-7xl mx-auto w-full px-2 sm:px-8">
+            <div className="flex items-center py-2.5 sm:py-4 gap-1.5 sm:gap-4 w-full">
+              <div className="flex items-center gap-1.5 sm:gap-6 shrink-0">
                 <motion.button 
                   layout
                   className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0 p-1"
@@ -1325,16 +1396,15 @@ export default function App() {
                 </motion.button>
               </div>
 
-              <div className="flex flex-1 justify-center px-1 sm:px-4 items-center gap-1.5 sm:gap-4 overflow-visible min-w-0">
+              <div className="flex flex-1 justify-center px-0.5 sm:px-4 items-center gap-1 sm:gap-3 overflow-visible min-w-0">
                 <motion.button 
                   layout
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex flex-1 md:w-full md:max-w-md items-center gap-2 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-2 sm:px-4 sm:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[85px] h-11 sm:h-auto shadow-sm"
+                  className="flex flex-1 md:w-full md:max-w-md items-center gap-1.5 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-1.5 sm:px-4 sm:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[36px] sm:min-w-[85px] h-9 sm:h-11 shadow-sm justify-center sm:justify-start"
                   aria-label="Open search"
                 >
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
                   <span className="text-[10px] sm:text-xs font-black md:inline text-high-visibility truncate uppercase tracking-widest hidden sm:block">Search System...</span>
-                  <span className="text-[10px] font-black sm:hidden truncate uppercase tracking-widest text-slate-900 dark:text-slate-100">Search</span>
                 </motion.button>
                 
                 <button
@@ -1352,7 +1422,7 @@ export default function App() {
                       type: isForced ? "info" : "success"
                     });
                   }}
-                  className={`flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border transition-all cursor-pointer active:scale-95 shrink-0 ${
+                  className={`hidden md:flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 shrink-0 h-9 sm:h-11 justify-center ${
                     isOffline
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
                       : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
@@ -1360,17 +1430,19 @@ export default function App() {
                   title={isOffline ? "Currently running on secure local cache. Click to return online." : "Connected to secure cloud. Click to simulate secure offline mode."}
                 >
                   <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
-                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap shrink-0">
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap shrink-0 hidden sm:inline">
                     {isOffline ? 'Cache Core' : 'Active System'}
                   </span>
                 </button>
 
-                <VoiceCommandToggle onNavigate={setCurrentView} />
+                <div className="hidden md:block shrink-0">
+                  <VoiceCommandToggle onNavigate={setCurrentView} />
+                </div>
 
                 <motion.button
                   layout
                   onClick={() => setIsEyeCareMode(!isEyeCareMode)}
-                  className={`p-2 sm:p-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm shrink-0 w-11 sm:w-auto h-11 sm:h-auto justify-center ${
+                  className={`hidden md:flex p-1.5 sm:p-2.5 rounded-xl transition-all items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 ${
                     isEyeCareMode 
                       ? 'bg-amber-100 border-amber-400 text-amber-900 dark:bg-amber-950 dark:border-amber-600 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-amber-100' 
                       : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
@@ -1386,13 +1458,207 @@ export default function App() {
                       animate={{ scale: 1, rotate: 0, opacity: 1 }}
                       exit={{ scale: 0.8, rotate: 15, opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className="flex items-center gap-2"
+                      className="flex items-center justify-center shrink-0"
                     >
-                      {isEyeCareMode ? <Eye aria-hidden="true" size={18} className="shrink-0 text-amber-900 dark:text-amber-300" /> : <EyeOff aria-hidden="true" size={18} className="shrink-0" />}
+                      {isEyeCareMode ? <Eye aria-hidden="true" size={16} className="shrink-0 text-amber-900 dark:text-amber-300" /> : <EyeOff aria-hidden="true" size={16} className="shrink-0" />}
                     </motion.div>
                   </AnimatePresence>
-                  <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline text-high-visibility whitespace-nowrap shrink-0">Legibility Mode</span>
                 </motion.button>
+
+                {/* Unified Systems Launchpad / Windows dropdown button - Always Visible */}
+                <div className="relative overflow-visible shrink-0">
+                  <motion.button
+                    layout
+                    onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
+                    className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer ${
+                      isWindowsMenuOpen 
+                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
+                        : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
+                    }`}
+                    aria-label="Systems Launchpad"
+                    title="Systems Launchpad"
+                  >
+                    <LayoutGrid size={16} className="shrink-0" />
+                    {hasNotification && (
+                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
+                    )}
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {isWindowsMenuOpen && (
+                      <>
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-40 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none"
+                          onClick={() => setIsWindowsMenuOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 15, scale: 0.95, filter: 'blur(8px)' }}
+                          animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                          exit={{ opacity: 0, y: 15, scale: 0.95, filter: 'blur(8px)' }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="fixed inset-x-4 max-w-[440px] left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:-right-4 sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:mt-3 w-auto sm:w-[460px] bg-white dark:bg-slate-900 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-200/60 dark:border-slate-800/80 p-5 z-50 overflow-visible"
+                        >
+                          <div className="flex flex-col space-y-4">
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="p-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg">
+                                  <LayoutGrid size={16} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-100">Windows Systems Hub</span>
+                                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Clinical Node Panel Launcher</span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => setIsWindowsMenuOpen(false)}
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl transition-all cursor-pointer"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+
+                            {/* Unified Scrollable Container for System Actions & Launcher */}
+                            <div className="max-h-[360px] sm:max-h-[480px] overflow-y-auto pr-1.5 smooth-scroll custom-scrollbar space-y-4">
+                              
+                              {/* Operational Controls Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pb-3.5 border-b border-slate-100 dark:border-slate-800/80">
+                                <div className="sm:col-span-2">
+                                  <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Operational Controls</span>
+                                </div>
+                                
+                                <button
+                                  onClick={() => {
+                                    const forced = localStorage.getItem("medical_forced_offline");
+                                    const nextVal = forced === "true" ? "false" : "true";
+                                    localStorage.setItem("medical_forced_offline", nextVal);
+                                    window.dispatchEvent(new Event('storage'));
+                                    const isForced = nextVal === "true";
+                                    setToast({
+                                      message: isForced 
+                                        ? "🛡️ Local Offline Core Engaged. Outbound payloads are secured browser-side." 
+                                        : "⚡ Online Core Synced. Verifying secure cloud communication links...",
+                                      type: isForced ? "info" : "success"
+                                    });
+                                  }}
+                                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left border border-slate-100 dark:border-slate-800/60 cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-850 dark:text-slate-100 truncate leading-none mb-1">Cache Sync</span>
+                                      <span className="text-[8px] font-bold text-slate-400 uppercase truncate leading-none">{isOffline ? 'Off-Grid Core' : 'Live Sync'}</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[8px] font-extrabold text-blue-500 uppercase tracking-widest shrink-0">Toggle</span>
+                                </button>
+
+                                <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/60 font-sans">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Mic size={14} className="text-violet-500 shrink-0" />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-850 dark:text-slate-100 truncate leading-none mb-1">Voice Core</span>
+                                      <span className="text-[8px] font-bold text-slate-400 uppercase truncate leading-none font-sans">Hands-Free</span>
+                                    </div>
+                                  </div>
+                                  <VoiceCommandToggle onNavigate={(v) => { setCurrentView(v); setIsWindowsMenuOpen(false); }} />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2 sm:col-span-2">
+                                  <button
+                                    onClick={() => setIsEyeCareMode(!isEyeCareMode)}
+                                    className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
+                                      isEyeCareMode 
+                                        ? 'bg-amber-100/80 border-amber-400 text-amber-955 dark:bg-amber-950/40 dark:border-amber-600 dark:text-amber-200' 
+                                        : 'bg-slate-50 dark:bg-slate-850 border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    {isEyeCareMode ? <Eye size={14} className="text-amber-500 animate-pulse" /> : <EyeOff size={14} />}
+                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Legibility</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => setIsDarkMode(!isDarkMode)}
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-830 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                                  >
+                                    {isDarkMode ? <Sun size={14} className="text-amber-500" /> : <Moon size={14} className="text-indigo-400" />}
+                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">{isDarkMode ? 'Light' : 'Dark'}</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => { handleOpenAdminInfo(); setIsWindowsMenuOpen(false); }}
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-830 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all relative cursor-pointer"
+                                  >
+                                    <Bell size={14} className={hasNotification ? "text-blue-500 animate-bounce" : ""} />
+                                    {hasNotification && (
+                                      <span className="absolute top-2.5 right-5 w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                    )}
+                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Alerts</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Systems Launcher Core */}
+                              <div className="space-y-2">
+                                <span className="text-[8px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest block">Clinical Systems Launcher</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {[
+                                    { id: 'home', title: "Dashboard", category: "Analyses", icon: <Home size={14} />, color: "text-blue-500 hover:text-blue-600" },
+                                    { id: 'ai_nexus', title: "Neural Core", category: "Cognition", icon: <Bot size={14} />, color: "text-purple-500 hover:text-purple-600" },
+                                    { id: 'genomic_longevity', title: "Genomics", category: "DNA Core", icon: <Dna size={14} />, color: "text-rose-500 hover:text-rose-600" },
+                                    { id: 'illustrator', title: "Illustrator", category: "Visuals", icon: <Palette size={14} />, color: "text-amber-500 hover:text-amber-600" },
+                                    { id: 'neuro', title: "CognisHub", category: "Brain AI", icon: <Brain size={14} />, color: "text-violet-500 hover:text-violet-600" },
+                                    { id: 'biomatic', title: "Sandbox", category: "Sim-Lab", icon: <Cpu size={14} />, color: "text-cyan-500 hover:text-cyan-600" },
+                                    { id: 'diagnostic_lab', title: "Labs Node", category: "Clinical", icon: <Stethoscope size={14} />, color: "text-emerald-500 hover:text-emerald-600" },
+                                    { id: 'monitor', title: "Bio-Monitor", category: "Real-time", icon: <Monitor size={14} />, color: "text-indigo-500 hover:text-indigo-600" },
+                                    { id: 'health_trace', title: "Trace Node", category: "Logbooks", icon: <TrendingUp size={14} />, color: "text-blue-500 hover:text-blue-600" },
+                                    { id: 'vitality', title: "Vitality Matrix", category: "Bio-Energy", icon: <Zap size={14} />, color: "text-orange-500 hover:text-orange-600" },
+                                    { id: 'meds', title: "Pharmacy", category: "Chemicals", icon: <Pill size={14} />, color: "text-rose-500 hover:text-rose-600" },
+                                    { id: 'specialist', title: "Clinicians", category: "Network", icon: <Stethoscope size={14} />, color: "text-purple-500 hover:text-purple-600" },
+                                    { id: 'about', title: "System Info", category: "Specs", icon: <Info size={14} />, color: "text-slate-500 hover:text-slate-650" },
+                                    { id: 'help', title: "Help Center", category: "Support", icon: <Info size={14} />, color: "text-teal-500 hover:text-teal-600" },
+                                    { id: 'privacy', title: "Privacy Vault", category: "Secure", icon: <Shield size={14} />, color: "text-red-500 hover:text-red-650" },
+                                    { id: 'terms', title: "Terms & Legal", category: "Licence", icon: <FileText size={14} />, color: "text-slate-500 hover:text-slate-600" }
+                                  ].map((item) => {
+                                    const isSelected = currentView === item.id;
+                                    return (
+                                      <button
+                                        key={item.id}
+                                        onClick={() => {
+                                          setCurrentView(item.id as any);
+                                          setIsWindowsMenuOpen(false);
+                                          setToast({
+                                            message: `Loaded ${item.title} node successfully.`,
+                                            type: "success"
+                                          });
+                                        }}
+                                        className={`flex items-center gap-2 p-1.5 rounded-xl border text-left cursor-pointer transition-all ${
+                                          isSelected 
+                                            ? 'border-blue-500 bg-blue-50/75 dark:bg-blue-900/35 text-blue-800 dark:text-blue-300 font-bold' 
+                                            : 'border-slate-50 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-350 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        }`}
+                                      >
+                                        <div className={`p-1 shrink-0 ${item.color}`}>
+                                          {item.icon}
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="text-[9px] font-black uppercase tracking-tight truncate leading-none mb-0.5">{item.title}</span>
+                                          <span className="text-[7px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest leading-none">{item.category}</span>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
               
               <div className="flex items-center gap-1.5 sm:gap-4 ml-auto shrink-0">
@@ -1405,13 +1671,13 @@ export default function App() {
                     </div>
                     <div className="relative shrink-0">
                       <button 
-                        className="group flex items-center gap-1.5 pl-1 pr-2 sm:pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 min-h-[40px]"
+                        className="group flex items-center gap-1.5 pl-1 pr-1.5 sm:pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-9 sm:h-11 min-h-[36px] sm:min-h-[40px] items-center"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         aria-label="User profile menu"
                         aria-haspopup="true"
                         aria-expanded={isProfileOpen}
                       >
-                        <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 overflow-hidden flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-blue-500/50 transition-all">
+                        <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 overflow-hidden flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-blue-500/50 transition-all">
                           {user.photoURL ? (
                             <img src={user.photoURL} alt={`Profile of ${user.displayName || user.email}`} className="w-full h-full object-cover shrink-0" referrerPolicy="no-referrer" />
                           ) : (
@@ -1428,7 +1694,7 @@ export default function App() {
                             {user.subscriptionTier || 'Free'} Core
                           </span>
                         </div>
-                        <ChevronDown size={12} className={`text-slate-400 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`text-slate-400 transition-transform duration-300 hidden sm:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
                       </button>
 
                       <AnimatePresence>
@@ -1578,7 +1844,7 @@ export default function App() {
                   <motion.button 
                     layout
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="p-2 sm:p-2.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all group shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    className="hidden md:flex p-1.5 sm:p-2.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all group shrink-0 h-9 w-9 sm:h-11 sm:w-11 items-center justify-center"
                     aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                   >
@@ -1589,15 +1855,15 @@ export default function App() {
                         animate={{ rotate: 0, scale: 1, opacity: 1 }}
                         exit={{ rotate: 90, scale: 0.8, opacity: 0 }}
                         transition={{ duration: 0.15 }}
-                        className="flex items-center justify-center"
+                        className="flex items-center justify-center shrink-0"
                       >
-                        {isDarkMode ? <Sun aria-hidden="true" size={18} className="shrink-0 text-amber-500" /> : <Moon aria-hidden="true" size={18} className="shrink-0 text-indigo-400" />}
+                        {isDarkMode ? <Sun aria-hidden="true" size={16} className="shrink-0 text-amber-500" /> : <Moon aria-hidden="true" size={16} className="shrink-0 text-indigo-400" />}
                       </motion.div>
                     </AnimatePresence>
                   </motion.button>
                   <button 
                     onClick={handleOpenAdminInfo}
-                    className="p-2 sm:p-2.5 text-slate-400 hover:text-slate-900 transition-colors relative group shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    className="hidden md:flex p-1.5 sm:p-2.5 text-slate-400 hover:text-slate-900 transition-colors relative group shrink-0 h-9 w-9 sm:h-11 sm:w-11 items-center justify-center"
                     aria-label={hasNotification ? "View notifications (new available)" : "View notifications"}
                     title="Notifications"
                   >
@@ -1607,11 +1873,12 @@ export default function App() {
                         scale: [1, 1.1, 1.1, 1.1, 1.1, 1]
                       } : {}}
                       transition={{ repeat: hasNotification ? Infinity : 0, duration: 0.5 }}
+                      className="shrink-0 flex items-center justify-center"
                     >
-                      <Bell aria-hidden="true" size={18} className={`shrink-0 ${hasNotification ? "text-blue-600" : ""}`} />
+                      <Bell aria-hidden="true" size={16} className={`shrink-0 ${hasNotification ? "text-blue-600" : ""}`} />
                     </motion.div>
                     {hasNotification && (
-                      <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full border-2 border-white bg-rose-500 shrink-0" aria-hidden="true"></span>
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border-2 border-white bg-rose-500 shrink-0 animate-pulse" aria-hidden="true"></span>
                     )}
                   </button>
                 </>
@@ -1622,8 +1889,8 @@ export default function App() {
       </motion.header>
       </div>
 
-      <main className="flex-1 pb-20 relative flex flex-col pt-0 w-full" id="main-content">
-          <div className="flex-1 flex flex-col items-center relative py-6 w-full max-w-7xl mx-auto">
+      <main className="flex-1 pb-20 relative flex flex-col pt-0 w-full animate-fadeIn" id="main-content">
+          <div className="flex-1 flex flex-col items-stretch relative py-6 w-full max-w-7xl mx-auto px-2 sm:px-8">
             <Suspense fallback={
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
                 <div className="relative">
@@ -1740,6 +2007,21 @@ export default function App() {
               arduino={arduino} 
               onUpgradeRequested={() => setIsSubscriptionModalOpen(true)}
             />
+          ) : currentView === 'genomic_longevity' ? (
+            <motion.div
+              role="main"
+              key="genomic_longevity"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="w-full max-w-[1600px] mx-auto py-8"
+            >
+              <GenomicLongevityCore 
+                user={user} 
+                onUpdateUser={setUser} 
+                onShowToast={(msg, type) => addToast(msg, type || 'info')}
+              />
+            </motion.div>
           ) : currentView === 'specialist' ? (
             <motion.div
               role="main"
@@ -1747,7 +2029,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8"
+              className="w-full max-w-[1600px] mx-auto py-8"
             >
               <SpecialistFinder />
             </motion.div>
@@ -1779,6 +2061,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <HealthRecords />
           </motion.div>
@@ -1788,6 +2071,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 1.1 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
+            className="w-full"
           >
             <VitalityMatrix />
           </motion.div>
@@ -1797,6 +2081,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <DiagnosticLab user={user} onUpdateUser={setUser} />
           </motion.div>
@@ -1816,6 +2101,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <SymptomChecker user={user} onUpdateUser={setUser} />
           </motion.div>
@@ -1825,6 +2111,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <MedicationTracker />
           </motion.div>
@@ -1834,7 +2121,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
-            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+            className="w-full max-w-7xl mx-auto py-8 sm:py-12"
           >
             <WorkoutTracker user={user} />
           </motion.div>
@@ -1844,6 +2131,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <About />
           </motion.div>
@@ -1853,6 +2141,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <LearnMore onBack={() => setCurrentView('home')} />
           </motion.div>
@@ -1862,6 +2151,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
           >
             <HealthProgressTracker user={user} />
           </motion.div>
@@ -1871,6 +2161,7 @@ export default function App() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="w-full"
           >
             <ProfileSettings 
               user={user} 
@@ -1888,7 +2179,7 @@ export default function App() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+                className="w-full max-w-7xl mx-auto py-8 sm:py-12"
               >
                 <AdminDashboard addToast={addToast} />
               </motion.div>
@@ -1918,7 +2209,7 @@ export default function App() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="max-w-7xl mx-auto px-4 py-12"
+            className="w-full max-w-7xl mx-auto py-12"
           >
             <div className="mb-8 flex items-center justify-between">
               <div>
@@ -1943,7 +2234,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.05 }}
-              className="max-w-7xl mx-auto px-4 py-12 text-left"
+              className="w-full max-w-7xl mx-auto py-12 text-left"
             >
               <Suspense fallback={
                 <div className="flex h-64 items-center justify-center">
@@ -2022,6 +2313,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full"
           >
             <HelpCenter user={user} onNavigate={setCurrentView} onStartTutorial={() => setIsTutorialOpen(true)} />
           </motion.div>
@@ -2031,6 +2323,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full"
           >
             <PrivacyVault user={user} onNavigate={setCurrentView} />
           </motion.div>
@@ -2040,6 +2333,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full"
           >
             <TermsAndData user={user} onNavigate={setCurrentView} vitals={arduino.vitals} />
           </motion.div>
@@ -2250,16 +2544,7 @@ export default function App() {
         />
       )}
     </AnimatePresence>
-    <AnimatePresence>
-      {isVoiceCallOpen && (
-        <NeuralVoiceCall 
-          onClose={() => setIsVoiceCallOpen(false)}
-          user={user}
-          vitals={arduino.vitals}
-          healthStatus={arduino.healthStatus}
-        />
-      )}
-    </AnimatePresence>
+
   </Suspense>
 
   <AppTutorial 

@@ -285,12 +285,7 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
   const getToggleButtonContent = () => {
     if (!isSupported) {
       return (
-        <>
-          <MicOff size={18} className="shrink-0 text-slate-400 dark:text-slate-555" />
-          <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline text-high-visibility whitespace-nowrap shrink-0">
-            Console Fallback
-          </span>
-        </>
+        <MicOff size={18} className="shrink-0 text-slate-400 dark:text-slate-555" />
       );
     }
     if (isListening) {
@@ -298,19 +293,11 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
         <>
           <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
           <Mic size={18} className="shrink-0 text-rose-500 dark:text-rose-400 relative animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline text-high-visibility whitespace-nowrap shrink-0">
-            Voice Listen
-          </span>
         </>
       );
     }
     return (
-      <>
-        <Mic size={18} className="shrink-0 text-slate-500 dark:text-slate-400" />
-        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline text-high-visibility whitespace-nowrap shrink-0">
-          Voice Control
-        </span>
-      </>
+      <Mic size={18} className="shrink-0 text-slate-500 dark:text-slate-400" />
     );
   };
 
@@ -319,7 +306,7 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
       {/* Listening Glow */}
       <button
         onClick={handleToggle}
-        className={`p-2.5 sm:p-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm shrink-0 w-11 sm:w-auto h-11 sm:h-auto justify-center cursor-pointer relative ${
+        className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer relative ${
           isListening
             ? 'bg-rose-100 border-rose-400 text-rose-900 dark:bg-rose-950/80 dark:border-rose-600 dark:text-rose-300 ring-2 ring-rose-500/20 shadow-rose-150'
             : !isSupported

@@ -30,7 +30,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
   const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
   const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || '');
-  const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'llama3.1');
+  const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'gemma4');
   
   // Emergency Contact Info
   const [doctorPhone, setDoctorPhone] = useState(user?.doctorPhone || '');
@@ -174,7 +174,7 @@ Verified by Joseph Akora - Development Lead.
       setEnableExternalAI(user.enableExternalAI || false);
       setEnableDeepHealthInsights(user.enableDeepHealthInsights || false);
       setOllamaUrl(user.ollamaUrl || '');
-      setOllamaModel(user.ollamaModel || 'llama3.1');
+      setOllamaModel(user.ollamaModel || 'gemma4');
     }
   }, [user]);
 
@@ -1012,7 +1012,7 @@ Verified by Joseph Akora - Development Lead.
                             value={ollamaModel}
                             onChange={e => setOllamaModel(e.target.value)}
                             className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
-                            placeholder="llama3.1 or a custom model identifier"
+                            placeholder="gemma4 or custom model identifier"
                           />
                         </div>
 

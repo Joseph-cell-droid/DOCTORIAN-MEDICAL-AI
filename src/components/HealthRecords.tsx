@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { NeuralHealthSummary } from './NeuralHealthSummary';
 import { exportMedicalReportPDF } from '../utils/pdfGenerator';
+import { DoctorVerificationModal } from './DoctorVerificationModal';
 
 // ─── Types ────────────────────────────────────────────────
 interface Medication {
@@ -288,6 +289,8 @@ export const HealthRecords: React.FC = () => {
   const [savedPrescriptions, setSavedPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
+  const [isDoctorAuthed, setIsDoctorAuthed] = useState(() => sessionStorage.getItem('doctor_authenticated') === 'true');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showNeuralSummary, setShowNeuralSummary] = useState(false);
@@ -686,7 +689,14 @@ export const HealthRecords: React.FC = () => {
         {(['compose', 'saved', 'templates'] as const).map(tab => (
           <button
             key={tab} 
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              const isAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
+              if (!isAuthed) {
+                setIsDoctorVerifyOpen(true);
+              } else {
+                setActiveTab(tab);
+              }
+            }}
             role="tab"
             aria-selected={activeTab === tab}
             aria-controls={`${tab}-panel`}
@@ -705,10 +715,29 @@ export const HealthRecords: React.FC = () => {
         ))}
       </nav>
 
-      {/* ═══════════════════════════════════════════════════
-          COMPOSE TAB
-          ═══════════════════════════════════════════════════ */}
-      {activeTab === 'compose' && (
+      {/* ─── Prescription Content Lock Guard ─── */}
+      {!isDoctorAuthed ? (
+        <div id="prescription-locked-matrix" className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 sm:p-12 text-center shadow-xl flex flex-col items-center justify-center space-y-6 max-w-xl mx-auto py-16 animate-fade-in my-8">
+          <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/25 rounded-3xl flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30">
+            <Shield className="w-10 h-10 animate-pulse text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">Prescription Engine Locked</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold max-w-sm leading-relaxed">
+              Formulating clinical prescriptions, drug-drug compatibility analysis, and medical templates are restricted to verified clinical personnel to ensure patient safety.
+            </p>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setIsDoctorVerifyOpen(true)}
+            className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black uppercase text-[10px] tracking-widest transition-all shadow-xl shadow-blue-500/20 hover:shadow-blue-600/30 active:scale-95 cursor-pointer border-0"
+          >
+            Authenticate Credentials
+          </button>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'compose' && (
         <section 
           id="compose-panel"
           role="tabpanel"
@@ -1248,6 +1277,8 @@ export const HealthRecords: React.FC = () => {
           ))}
         </section>
       )}
+        </>
+      )}
 
       {/* Print Preview Modal */}
       <AnimatePresence>
@@ -1313,6 +1344,18 @@ export const HealthRecords: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DoctorVerificationModal
+        isOpen={isDoctorVerifyOpen}
+        onClose={() => setIsDoctorVerifyOpen(false)}
+        onSuccess={() => {
+          setIsDoctorAuthed(true);
+          sessionStorage.setItem('doctor_authenticated', 'true');
+          showToast("Doctor clinical access validated", "success");
+        }}
+        title="Doctor Access Control"
+        description="Prescription formulated databases and registries require verified Doctorian protocol auth key."
+      />
     </main>
   );
 };

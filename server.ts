@@ -79,11 +79,11 @@ const DEEPSEEK_ENGINE = GEMINI_PRIMARY;
 const MISTRAL_ENGINE = GEMINI_PRIMARY;
 const DEFAULT_GEMINI_ENGINE = "gemini-3.5-flash";
 const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
-const DEFAULT_GEMMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
+const DEFAULT_GEMMA_ENGINE = "gemma-2-27b-it";
 const BACKUP_ENGINE = "google gemma2";
 
 const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL;
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma";
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
 const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
@@ -396,30 +396,21 @@ async function* callAIStream(options: {
     if (pathway === "ollama" && shouldTryOllama()) {
       try {
         const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-        const isGenerateEndpoint = endpoint.includes('/api/generate');
-        const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
-          ? endpoint
-          : `${endpoint}/api/chat`;
+        const isLMStudio = OLLAMA_URL.includes(':1234') || OLLAMA_URL.toLowerCase().includes('lmstudio') || OLLAMA_URL.includes('/v1');
+        const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
+        const finalUrl = isLMStudio
+          ? (endpoint.includes('/v1') ? (endpoint.includes('/chat/completions') ? endpoint : `${endpoint}/chat/completions`) : `${endpoint}/v1/chat/completions`)
+          : (endpoint.includes('/api/') || endpoint.includes('/v1/') ? endpoint : `${endpoint}/api/chat`);
 
-        console.log(`[AI-STREAM] Directing pulse to Ollama Stream: ${finalUrl} (Model: ${OLLAMA_MODEL})`);
+        console.log(`[AI-STREAM] Directing pulse to Local AI: ${finalUrl} (Model: ${OLLAMA_MODEL}, Type: ${isLMStudio ? 'LM Studio' : 'Ollama'})`);
         
         const payload: any = {
           model: OLLAMA_MODEL,
           stream: true,
-          options: {
-            temperature: temperature || 0.7
-          }
+          temperature: temperature || 0.7
         };
 
-        if (isGenerateEndpoint) {
-          const conversationPrompt = messages.map(m => {
-            const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
-            return `${prefix}${m.text}`;
-          }).join('\n') + '\nAssistant:';
-
-          payload.prompt = conversationPrompt;
-          payload.system = systemInstruction;
-        } else {
+        if (isLMStudio) {
           payload.messages = [
             { role: "system", content: systemInstruction },
             ...messages.map(m => ({
@@ -427,6 +418,27 @@ async function* callAIStream(options: {
               content: m.text
             }))
           ];
+        } else {
+          payload.options = {
+            temperature: temperature || 0.7
+          };
+          if (isGenerateEndpoint) {
+            const conversationPrompt = messages.map(m => {
+              const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
+              return `${prefix}${m.text}`;
+            }).join('\n') + '\nAssistant:';
+
+            payload.prompt = conversationPrompt;
+            payload.system = systemInstruction;
+          } else {
+            payload.messages = [
+              { role: "system", content: systemInstruction },
+              ...messages.map(m => ({
+                role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.text
+              }))
+            ];
+          }
         }
 
         const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
@@ -739,31 +751,22 @@ async function callAI(options: {
         const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross-reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
 
         const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-        const isGenerateEndpoint = endpoint.includes('/api/generate');
-        const finalUrl = endpoint.includes('/api/') || endpoint.includes('/v1/')
-          ? endpoint
-          : `${endpoint}/api/chat`;
+        const isLMStudio = OLLAMA_URL.includes(':1234') || OLLAMA_URL.toLowerCase().includes('lmstudio') || OLLAMA_URL.includes('/v1');
+        const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
+        
+        const finalUrl = isLMStudio
+          ? (endpoint.includes('/v1') ? (endpoint.includes('/chat/completions') ? endpoint : `${endpoint}/chat/completions`) : `${endpoint}/v1/chat/completions`)
+          : (endpoint.includes('/api/') || endpoint.includes('/v1/') ? endpoint : `${endpoint}/api/chat`);
 
-        console.log(`[AI-BRAIN] Directing neural pulse to Ollama (${OLLAMA_MODEL}) at ${finalUrl}`);
+        console.log(`[AI-BRAIN] Directing neural pulse to Local AI (${OLLAMA_MODEL}) at ${finalUrl} (Type: ${isLMStudio ? 'LM Studio' : 'Ollama'})`);
 
         const payload: any = {
           model: OLLAMA_MODEL,
           stream: false,
-          options: {
-            temperature: temperature || 0.7,
-            num_ctx: 8192 // Higher context for better analysis if local HW supports it
-          }
+          temperature: temperature || 0.7
         };
 
-        if (isGenerateEndpoint) {
-          const conversationPrompt = messages.map(m => {
-            const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
-            return `${prefix}${m.text}`;
-          }).join('\n') + '\nAssistant:';
-
-          payload.prompt = conversationPrompt;
-          payload.system = enhancedSystemInstruction;
-        } else {
+        if (isLMStudio) {
           payload.messages = [
             { role: "system", content: enhancedSystemInstruction },
             ...messages.map(m => ({
@@ -771,6 +774,28 @@ async function callAI(options: {
               content: m.text
             }))
           ];
+        } else {
+          payload.options = {
+            temperature: temperature || 0.7,
+            num_ctx: 8192 // Higher context for better analysis if local HW supports it
+          };
+          if (isGenerateEndpoint) {
+            const conversationPrompt = messages.map(m => {
+              const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
+              return `${prefix}${m.text}`;
+            }).join('\n') + '\nAssistant:';
+
+            payload.prompt = conversationPrompt;
+            payload.system = enhancedSystemInstruction;
+          } else {
+            payload.messages = [
+              { role: "system", content: enhancedSystemInstruction },
+              ...messages.map(m => ({
+                role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.text
+              }))
+            ];
+          }
         }
 
         const response = await axios.post(finalUrl, payload, { timeout: 60000 }); // Longer timeout for deep local analysis

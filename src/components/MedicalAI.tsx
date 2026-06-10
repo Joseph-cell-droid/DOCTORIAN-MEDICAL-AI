@@ -12,7 +12,6 @@ import { ChatInterface } from './ChatInterface';
 import { api, User } from '../api';
 import { UpgradeModal } from './UpgradeModal';
 import { NeuralVisualizer } from './NeuralVisualizer';
-import { NeuralVoiceCall } from './NeuralVoiceCall';
 import BioSimulation from './BioSimulation';
 
 interface MedicalAIProps {
@@ -179,11 +178,11 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
 
           <div className="flex items-center gap-2 sm:gap-3 ml-auto">
             <button 
-              onClick={() => setShowVoiceCall(true)}
+              onClick={() => onNavigate?.('genomic_longevity')}
               className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 flex items-center gap-2 font-mono"
             >
-              <Phone size={14} />
-              <span className="hidden sm:inline">Voice Call</span>
+              <Dna size={14} />
+              <span className="hidden sm:inline">Genomic Omics</span>
             </button>
           </div>
         </div>
@@ -217,17 +216,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showVoiceCall && (
-          <NeuralVoiceCall 
-            user={user} 
-            onClose={() => setShowVoiceCall(false)} 
-            vitals={arduino?.vitals}
-            healthStatus={arduino?.healthStatus}
-            onRefreshUser={onRefreshUser}
-          />
-        )}
-      </AnimatePresence>
+
 
       <AnimatePresence>
         {showBioSim && (

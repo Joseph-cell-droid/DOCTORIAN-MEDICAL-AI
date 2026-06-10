@@ -616,7 +616,7 @@ export const api = {
         email,
         displayName: displayName || email.split("@")[0],
         role: "user",
-        credits: 100,
+        credits: 400,
         subscriptionTier: "free",
         createdAt: new Date().toISOString()
       };
@@ -681,7 +681,7 @@ export const api = {
             email,
             displayName: "Clinical Specialist",
             role: "admin",
-            credits: 500,
+            credits: 400,
             subscriptionTier: "pro",
             createdAt: new Date().toISOString()
           };
@@ -723,7 +723,7 @@ export const api = {
             email,
             displayName: "Clinical Specialist",
             role: "admin",
-            credits: 500,
+            credits: 400,
             subscriptionTier: "pro",
             createdAt: new Date().toISOString()
           };
@@ -1363,10 +1363,12 @@ export const api = {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
               const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-              console.log(`[Neural Link] Directing failover pulse to PC Local LLM: ${localUrl} (Model: ${user.ollamaModel || 'llama3.1'}, isOpenAI: ${isOpenAI})`);
+              const defaultLocalModel = isOpenAI ? 'gemma4' : 'gemma';
+              const activeLocalModel = user.ollamaModel || defaultLocalModel;
+              console.log(`[Neural Link] Directing failover pulse to PC Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI})`);
               
               const requestBody = isOpenAI ? {
-                model: user.ollamaModel || 'llama3.1',
+                model: activeLocalModel,
                 messages: [
                   { role: 'system', content: systemInstruction },
                   ...payloadMessages.map(m => ({
@@ -1377,7 +1379,7 @@ export const api = {
                 stream: false,
                 temperature: temperature || 0.7
               } : {
-                model: user.ollamaModel || 'llama3.1', 
+                model: activeLocalModel, 
                 messages: [
                   { role: 'system', content: systemInstruction },
                   ...payloadMessages.map(m => ({
@@ -1551,10 +1553,12 @@ export const api = {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
               const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-              console.log(`[Neural Link] Directing stream failover pulse to Local LLM: ${localUrl} (Model: ${user.ollamaModel || 'llama3.1'}, isOpenAI: ${isOpenAI})`);
+              const defaultLocalModel = isOpenAI ? 'gemma4' : 'gemma';
+              const activeLocalModel = user.ollamaModel || defaultLocalModel;
+              console.log(`[Neural Link] Directing stream failover pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI})`);
               
               const requestBody = isOpenAI ? {
-                model: user.ollamaModel || 'llama3.1',
+                model: activeLocalModel,
                 messages: [
                   { role: 'system', content: systemInstruction },
                   ...messages.map(m => ({
@@ -1565,7 +1569,7 @@ export const api = {
                 stream: true,
                 temperature: temperature || 0.7
               } : {
-                model: user.ollamaModel || 'llama3.1', 
+                model: activeLocalModel, 
                 messages: [
                   { role: 'system', content: systemInstruction },
                   ...messages.map(m => ({

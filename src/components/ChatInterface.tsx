@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
-import { NeuralVoiceCall } from './NeuralVoiceCall';
 
 const SUGGESTIONS = [
   "What are the benefits of cold exposure?",
@@ -4229,15 +4228,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
       </AnimatePresence>
       </div>
 
-      {/* Voice Call Modal Integration */}
-      <AnimatePresence>
-        {showVoiceCallModal && (
-          <NeuralVoiceCall 
-            user={user} 
-            onClose={() => setShowVoiceCallModal(false)} 
-          />
-        )}
-      </AnimatePresence>
+
 
       {/* Doctorian AI Core Matrix Settings Modal */}
       <AnimatePresence>

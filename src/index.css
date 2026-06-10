@@ -170,7 +170,7 @@
     margin-bottom: 0.5rem !important;
   }
 
-  /* Shrink borders and large card rounded corners */
+  /* Shrink borders and large card rounded corners for a cohesive fit */
   .rounded-\[3rem\], .rounded-\[4rem\], .rounded-\[2\.5rem\], .rounded-3xl {
     border-radius: 1rem !important;
   }
@@ -201,10 +201,10 @@
     -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Keep layout wrapping safe inside containers */
+  /* Keep layout wrapping safe inside containers using word-wrap instead of ugly break-all */
   h1, h2, h3, h4, span, p, label {
     overflow-wrap: break-word !important;
-    word-break: break-all !important;
+    word-break: break-word !important;
   }
   
   /* Buttons can wrap their text cleanly instead of forcing overflow */

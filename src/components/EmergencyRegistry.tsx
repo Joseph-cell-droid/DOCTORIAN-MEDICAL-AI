@@ -175,7 +175,7 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                     <div className="flex flex-col">
                       <input
                         type="password"
-                        placeholder="Enter Admin PIN to Unlock overrides"
+                        placeholder="Enter Admin PIN/Passkey to Unlock overrides"
                         value={localPin}
                         onChange={e => {
                           setLocalPin(e.target.value);
@@ -183,17 +183,17 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                         }}
                         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-black placeholder:text-slate-500 outline-none w-48 text-slate-900 dark:text-white"
                       />
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 text-right">Default Admin PIN: 1234</span>
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 text-right">Default Admin PIN: 1234 / admin@2026@Doctorian</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
-                        if (localPin === '1234' || localPin === 'DOC@Protocol2') {
+                        if (localPin === '1234' || localPin === 'admin@2026@Doctorian' || localPin === 'DOC@Protocol2') {
                           if (setIsAdmin) {
                             setIsAdmin(true);
                           }
                           setLocalPin('');
-                          addNotification(`Override authorized. ${localPin === '1234' ? 'Admin' : 'Doctor Protocol'} override open.`, "success");
+                          addNotification(`Override authorized. ${localPin === 'DOC@Protocol2' ? 'Doctor Protocol' : 'Admin'} override open.`, "success");
                         } else {
                           setLocalPinError("Invalid PIN / Passkey");
                           addNotification("Protection Alert: Invalid PIN/Passkey rejected.", "error");

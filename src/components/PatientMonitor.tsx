@@ -2205,7 +2205,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   <div className="relative">
                     <input
                       type="password"
-                      placeholder="Enter Admin PIN (Try 1234)"
+                      placeholder="Enter Admin PIN/Passkey"
                       value={adminPin}
                       onChange={e => {
                         setAdminPin(e.target.value);
@@ -2219,14 +2219,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   </div>
                   <button
                     onClick={() => {
-                      if (adminPin === '1234') {
+                      if (adminPin === '1234' || adminPin === 'admin@2026@Doctorian') {
                         setIsAdmin(true);
                         localStorage.setItem('doctorian_is_admin', 'true');
                         setAdminPin('');
                         setAdminPinError('');
                         triggerRegistryNotification("EHR override authorized. Multi-channel mutation scope open.", "success");
                       } else {
-                        setAdminPinError("Incorrect Security PIN code");
+                        setAdminPinError("Incorrect Security PIN code / Passkey");
                         triggerRegistryNotification("EHR authentication fail. PIN rejected.", "error");
                       }
                     }}

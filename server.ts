@@ -64,8 +64,8 @@ console.log("[SERVER] Configuring AI Engines...");
 const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 
 // Option Two Engines (Google Gemini mapped to modern standard models)
-const GEMINI_PRIMARY = "gemini-3.5-flash"; 
-const GEMINI_VISION = "gemini-3.5-flash";
+const GEMINI_PRIMARY = "gemini-2.5-flash"; 
+const GEMINI_VISION = "gemini-2.5-flash";
 
 // Option One Engines (OpenRouter / Llama)
 const LLAMA_PRIMARY = "meta-llama/llama-3.1-8b-instruct";
@@ -77,7 +77,7 @@ const DATA_ANALYTICS_ENGINE = GEMINI_PRIMARY;
 const VISION_ENGINE = GEMINI_PRIMARY;
 const DEEPSEEK_ENGINE = GEMINI_PRIMARY;
 const MISTRAL_ENGINE = GEMINI_PRIMARY;
-const DEFAULT_GEMINI_ENGINE = "gemini-3.5-flash";
+const DEFAULT_GEMINI_ENGINE = "gemini-2.5-flash";
 const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const DEFAULT_GEMMA_ENGINE = "gemma-2-27b-it";
 const BACKUP_ENGINE = "google gemma2";
@@ -195,7 +195,7 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   }
 
   // Native Google Gemini key (AIza...)
-  return "gemini-3.5-flash";
+  return "gemini-2.5-flash";
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
@@ -906,7 +906,7 @@ async function callAI(options: {
                     }
                   }
                 });
-                const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-3.5-flash"; 
+                const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-2.5-flash"; 
                 
                 console.log(`[AI-BRAIN] Mapping ${providerModel} to ${effectiveModel} via Modern Pathway`);
                 
@@ -945,7 +945,7 @@ async function callAI(options: {
                 console.warn("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-pro-preview"];
+                  const modelsToTry = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-pro-preview"];
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
@@ -1811,7 +1811,14 @@ async function startServer() {
 
   // Auth Middleware
   const authenticate = (req: any, res: any, next: any) => {
-    const token = req.cookies.token;
+    let token = req.cookies.token;
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(" ");
+      if (parts.length === 2 && parts[0] === "Bearer") {
+        token = parts[1];
+      }
+    }
+
     if (!token) {
       // Don't warn for common background checks to avoid log noise, just 401
       if (!['/api/notifications', '/api/medications', '/api/tasks', '/api/auth/me'].includes(req.path)) {
@@ -1907,7 +1914,7 @@ async function startServer() {
       const responseText = await callAI({
         messages: [{ role: 'user', text: prompt }],
         systemInstruction,
-        modelName: "gemini-3.5-flash",
+        modelName: "gemini-2.5-flash",
         temperature: 0.2,
         userId,
         useSearch: true
@@ -2135,7 +2142,8 @@ async function startServer() {
           subscriptionTier: "free",
           subscriptionStatus: "none",
           createdAt 
-        } 
+        },
+        token
       });
     } catch (err: any) {
       if (err.message.includes("UNIQUE constraint failed")) {
@@ -2194,7 +2202,7 @@ async function startServer() {
       });
 
       const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      res.json({ user: userWithoutPassword, token });
     } catch (err: any) {
       console.error("Social login backend error:", err);
       res.status(500).json({ error: "External authentication failed" });
@@ -2392,7 +2400,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           <body style="background: #020617; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; margin: 0;">
             <script>
               if (window.opener) {
-                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}' }, '*');
                 window.close();
               } else {
                 window.location.href = '/';
@@ -2500,7 +2508,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           <body style="background: #020617; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; margin: 0;">
             <script>
               if (window.opener) {
-                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}' }, '*');
                 window.close();
               } else {
                 window.location.href = '/';
@@ -2559,7 +2567,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       );
 
       const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      res.json({ user: userWithoutPassword, token });
     } catch (err) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -3077,7 +3085,13 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   });
 
   app.get("/api/auth/me", (req, res) => {
-    const token = req.cookies.token;
+    let token = req.cookies.token;
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(" ");
+      if (parts.length === 2 && parts[0] === "Bearer") {
+        token = parts[1];
+      }
+    }
     if (!token) return res.json({ user: null });
 
     try {
@@ -3843,7 +3857,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       - "detectedLanguage": the language identified.`;
 
       const result = await aiClient.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: [
           prompt,
           {

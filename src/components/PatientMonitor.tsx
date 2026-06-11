@@ -1207,20 +1207,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
         if (this.currentAlarmMode === 'high') return;
         this.stopAlarm();
         this.currentAlarmMode = 'high';
-        
-        const playPattern = () => {
-          const delays = [0, 150, 300, 550, 700];
-          delays.forEach((delay) => {
-            setTimeout(() => {
-              if (this.currentAlarmMode === 'high') {
-                this.playPulse(920, 0.08, 0.22, 'triangle');
-              }
-            }, delay);
-          });
-        };
-
-        playPattern();
-        this.alarmInterval = setInterval(playPattern, 2500);
+        console.log('[ClinicalAlarmSynth] High priority alarm active silently.');
       }
 
       // IEC 60601-1-8 Medium Priority alarm sequence: repeating slow 3-beep group every 5s
@@ -1228,20 +1215,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
         if (this.currentAlarmMode === 'medium') return;
         this.stopAlarm();
         this.currentAlarmMode = 'medium';
-        
-        const playPattern = () => {
-          const delays = [0, 300, 600];
-          delays.forEach((delay) => {
-            setTimeout(() => {
-              if (this.currentAlarmMode === 'medium') {
-                this.playPulse(680, 0.15, 0.15, 'sine');
-              }
-            }, delay);
-          });
-        };
-
-        playPattern();
-        this.alarmInterval = setInterval(playPattern, 5000);
+        console.log('[ClinicalAlarmSynth] Medium priority alarm active silently.');
       }
 
       playTestTone(pitch: number, duration: number, wave: OscillatorType) {
@@ -3379,51 +3353,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Alarm Overlay */}
-      <AnimatePresence>
-        {shouldShowAlarm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
-          >
-            <div className="absolute inset-0 bg-red-600/20 animate-pulse pointer-events-none" />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl border-4 border-red-600 pointer-events-auto flex flex-col items-center gap-6 max-w-md mx-4 text-center"
-              role="alertdialog"
-              aria-labelledby="alarm-title"
-              aria-describedby="alarm-desc"
-            >
-              <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center animate-bounce">
-                <AlertTriangle className="w-10 h-10 text-red-600 dark:text-red-400" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 id="alarm-title" className="text-3xl font-black text-red-600 dark:text-red-400 mb-2">CRITICAL ALARM</h2>
-                <p id="alarm-desc" className="text-slate-600 dark:text-slate-400 font-bold">Patient vitals are in critical range! SMS alerts and emergency voice calls have been initiated to the doctor and mentor.</p>
-              </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                <a
-                  href="tel:+256787674140"
-                  className="w-full bg-emerald-600 text-white py-3 rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 text-sm"
-                >
-                  <Signal className="w-4 h-4" />
-                  Call Doctor
-                </a>
-                <a
-                  href="sms:+256787674140?body=CRITICAL%20ALERT:%20Patient%20condition%20has%20worsened.%20Please%20check%20immediately."
-                  className="w-full bg-blue-600 text-white py-3 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 text-sm"
-                >
-                  <Droplets className="w-4 h-4" />
-                  SMS Doctor
-                </a>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Alarm Overlay disabled per clinical request. Alerts are signaled silently via background triggers and direct network relays. */}
 
       {/* Reset Mute Button removed as alarm is automatic */}
 

@@ -246,6 +246,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
 
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        if (event.data.token) {
+          localStorage.setItem("doctorian_token", event.data.token);
+        }
         const checkUser = async () => {
            try {
              // We need to trigger the onSuccess in the app after callback completes

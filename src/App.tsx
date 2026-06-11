@@ -689,12 +689,8 @@ export default function App() {
             await arduino.triggerAlarm('emergency');
             const msg = `URGENT SOS [MTN RELAY: 0787674140]: for ${user.displayName || user.email}: CRITICAL Vitals Detected! HR: ${arduino.vitals?.heartRate}, SpO2: ${arduino.vitals?.spo2}. Immediate assistance required.`;
             
-            if ('speechSynthesis' in window && user.subscriptionTier !== 'free') {
-              const utterance = new SpeechSynthesisUtterance("EMERGENCY. Critical vital baseline reached. Automated SOS protocols active. Contacting clinical nodes immediately.");
-              utterance.rate = 0.9;
-              utterance.pitch = 0.8;
-              window.speechSynthesis.speak(utterance);
-            }
+            // Processed silently without local audible speech synthesis alerts per clinical request (relayed directly through network & Arduino)
+            console.log("[Doctorian] Silent automated SOS protocol triggered.");
 
             await api.alerts.sendSms(msg, user.doctorPhone, user.mentorPhone);
             const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
@@ -1887,6 +1883,51 @@ export default function App() {
           </div>
         </div>
       </motion.header>
+
+      {/* Visual Offline Mode Banner */}
+      <AnimatePresence>
+        {isOffline && (
+          <motion.div
+            initial={{ height: 0, opacity: 0, y: -10 }}
+            animate={{ height: "auto", opacity: 1, y: 0 }}
+            exit={{ height: 0, opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            className="w-full bg-amber-500/15 dark:bg-amber-500/5 border-b border-amber-500/25 text-amber-800 dark:text-amber-400 backdrop-blur-md overflow-hidden shrink-0"
+          >
+            <div className="max-w-7xl mx-auto px-4 py-3 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0 flex items-center justify-center">
+                  <span className="absolute inline-flex h-3.5 w-3.5 rounded-full bg-amber-500 opacity-75 animate-ping" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                </div>
+                <div className="text-[10px] sm:text-xs">
+                  <span className="font-extrabold uppercase tracking-widest mr-2 bg-amber-500/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px]">
+                    Offline Core Recovery
+                  </span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    You are currently in off-grid simulation. Bio-telemetry is processing browser-side. Cloud-dependent AI engines (fine-tuning, speech translation, clinical reasoning) are in automated local fallback state.
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.setItem("medical_forced_offline", "false");
+                  window.dispatchEvent(new Event('storage'));
+                  setIsOffline(false);
+                  setToast({
+                    message: "⚡ Online Core Synced. Verifying secure cloud communication links...",
+                    type: "success"
+                  });
+                }}
+                className="shrink-0 bg-amber-650 hover:bg-amber-700 text-white font-black uppercase text-[9px] sm:text-[10px] tracking-widest px-4 py-2 rounded-xl transition-all shadow-md shadow-amber-600/10 cursor-pointer border border-amber-500/50"
+              >
+                Enable Cloud
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       </div>
 
       <main className="flex-1 pb-20 relative flex flex-col pt-0 w-full animate-fadeIn" id="main-content">

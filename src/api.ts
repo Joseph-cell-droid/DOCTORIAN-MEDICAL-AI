@@ -54,6 +54,69 @@ export interface Doctor {
 
 const API_BASE = "/api";
 
+// --- JWT AND AUTHORIZATION INTERCEPTOR ---
+// To handle situations where the app runs in an iframe and session cookies get blocked
+const originalBrowserFetch = typeof window !== "undefined" ? window.fetch.bind(window) : (typeof globalThis !== "undefined" && (globalThis as any).fetch ? (globalThis as any).fetch : undefined);
+
+const customFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const typeofInput = typeof input;
+  let url = typeofInput === "string" ? (input as string) : "";
+  if (typeofInput === "object" && input !== null) {
+    url = (input as any).url || "";
+  }
+
+  // Capture token and include in outgoing authorization headers
+  if (url.startsWith("/api/") || url.includes("/api/")) {
+    const token = typeof window !== "undefined" ? localStorage.getItem("doctorian_token") : null;
+    if (token) {
+      init = init || {};
+      const headers = new Headers(init.headers || {});
+      if (!headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+        init.headers = headers;
+      }
+    }
+  }
+
+  const response = await originalBrowserFetch(input, init);
+
+  // If login, signup, or social endpoints return successfully, extract token and store it
+  if (url.includes("/api/auth/login") || url.includes("/api/auth/signup") || url.includes("/api/auth/social")) {
+    try {
+      const clone = response.clone();
+      const data = await clone.json();
+      if (data && data.token && typeof window !== "undefined") {
+        localStorage.setItem("doctorian_token", data.token);
+      }
+    } catch (err) {
+      // Safe lock
+    }
+  }
+
+  return response;
+};
+
+// Expose on window safely if environment permits without throwing any TypeError
+if (typeof window !== "undefined") {
+  try {
+    (window as any).fetch = customFetch;
+  } catch (err) {
+    try {
+      Object.defineProperty(window, 'fetch', {
+        value: customFetch,
+        writable: true,
+        configurable: true,
+        enumerable: true
+      });
+    } catch (defErr) {
+      console.warn("[Doctorian] Could not patch window.fetch globally. Using lexical fallback.", defErr);
+    }
+  }
+}
+
+// Scoped lexical bind so any direct fetch() invocation inside this file resolves to customFetch
+const fetch = customFetch;
+
 // --- OFFLINE HUB INFRASTRUCTURE ---
 const isOffline = (): boolean => {
   if (typeof window !== 'undefined') {
@@ -735,6 +798,7 @@ export const api = {
     },
     async logout() {
       setStorageItem("medical_user", null);
+      localStorage.removeItem("doctorian_token");
       if (isOffline()) return;
       try {
         await fetch(`${API_BASE}/auth/logout`, { 

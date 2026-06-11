@@ -64,26 +64,26 @@ console.log("[SERVER] Configuring AI Engines...");
 const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 
 // Option Two Engines (Google Gemini mapped to modern standard models)
-const GEMINI_PRIMARY = "gemini-2.5-flash"; 
+const GEMINI_PRIMARY = "gemma-4"; 
 const GEMINI_VISION = "gemini-2.5-flash";
 
 // Option One Engines (OpenRouter / Llama)
 const LLAMA_PRIMARY = "meta-llama/llama-3.1-8b-instruct";
 const LLAMA_VISION = "meta-llama/llama-3.2-11b-vision-instruct";
 
-const PRIMARY_ENGINE = GEMINI_PRIMARY;
-const MEDICAL_REASONING_ENGINE = GEMINI_PRIMARY;
-const DATA_ANALYTICS_ENGINE = GEMINI_PRIMARY;
-const VISION_ENGINE = GEMINI_PRIMARY;
-const DEEPSEEK_ENGINE = GEMINI_PRIMARY;
-const MISTRAL_ENGINE = GEMINI_PRIMARY;
-const DEFAULT_GEMINI_ENGINE = "gemini-2.5-flash";
+const PRIMARY_ENGINE = "gemma-4";
+const MEDICAL_REASONING_ENGINE = "gemma-4";
+const DATA_ANALYTICS_ENGINE = "gemma-4";
+const VISION_ENGINE = GEMINI_VISION;
+const DEEPSEEK_ENGINE = "gemma-4";
+const MISTRAL_ENGINE = "mistral";
+const DEFAULT_GEMINI_ENGINE = "gemma-4";
 const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
-const DEFAULT_GEMMA_ENGINE = "gemma-2-27b-it";
-const BACKUP_ENGINE = "google gemma2";
+const DEFAULT_GEMMA_ENGINE = "gemma-4";
+const BACKUP_ENGINE = "mistral";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL;
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma";
+const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL || "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "mistral";
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
 const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
@@ -101,15 +101,23 @@ const shouldTryTogetherAI = () => {
   return true;
 };
 
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN || "";
+const HUGGINGFACE_MODEL = process.env.HUGGINGFACE_MODEL || "meta-llama/Llama-3.1-8B-Instruct";
+
+const shouldTryHuggingFace = (customToken?: string) => {
+  const token = customToken || HUGGINGFACE_API_KEY;
+  return token && token.trim().length > 0;
+};
+
 // Helper to determine if we should even try the local Ollama pulse
-const shouldTryOllama = () => {
-  if (!OLLAMA_URL) return false;
+const shouldTryOllama = (customUrl?: string) => {
   if (SILENT_OLLAMA) return false;
-  const isLocalhost = OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1');
-  // If we are in production (Cloud Run) and URL is localhost, only try if USE_LOCAL_AI is strictly true
-  if (!IS_LOCAL_ENV && isLocalhost && !USE_LOCAL_AI) return false;
   return true;
 };
+
+// Smart Local/Cloud AI Response Cache to instantly complete repeated non-streaming queries
+const aiQueryCache = new Map<string, { response: string; timestamp: number }>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache TTL for instant reuse
 
 function getValidApiKeys() {
   const envKeys = [
@@ -173,11 +181,18 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   const isORKey = apiKey.toLowerCase().startsWith('sk-or-');
   const isOpenAI = apiKey.startsWith('sk-proj-') || (isSkKey && !isORKey);
 
+  const m = modelId.toLowerCase();
+
   if (isORKey) {
-    const m = modelId.toLowerCase();
     // To ensure correct clinical engines function correctly on OpenRouter:
     if (m.includes('llama-3.2') || m.includes('vision') || m.includes('image')) {
       return "meta-llama/llama-3.2-11b-vision-instruct";
+    }
+    if (m.includes('gemma')) {
+      return "google/gemma-2-27b-it";
+    }
+    if (m.includes('mistral')) {
+      return "mistralai/mistral-7b-instruct";
     }
     if (m.includes('pro') || m.includes('large')) {
       return "google/gemini-pro-1.5";
@@ -189,12 +204,14 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   }
   
   if (isOpenAI) {
-    const m = modelId.toLowerCase();
     if (m.includes('gpt-') || m.includes('chatgpt')) return modelId;
     return "gpt-4o-mini";
   }
 
   // Native Google Gemini key (AIza...)
+  if (m.includes('gemma')) {
+    return "models/gemma-2-27b-it";
+  }
   return "gemini-2.5-flash";
 }
 
@@ -307,16 +324,107 @@ async function* callAIStream(options: {
   modelName?: string,
   temperature?: number,
   useSearch?: boolean,
-  thinkingLevel?: string
+  thinkingLevel?: string,
+  userId?: string
 }) {
-  const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel } = options;
+  const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, userId } = options;
+
+  let activeOllamaUrl = OLLAMA_URL || "http://localhost:11434";
+  let activeOllamaModel = OLLAMA_MODEL || "mistral";
+  let activeHFToken = HUGGINGFACE_API_KEY;
+  let activeHFModel = HUGGINGFACE_MODEL;
+
+  if (userId) {
+    try {
+      let userRow: any = null;
+      try {
+        userRow = db.prepare("SELECT ollamaUrl, ollamaModel, huggingfaceToken, huggingfaceModel FROM users WHERE id = ?").get(userId) as any;
+      } catch (colErr) {
+        userRow = db.prepare("SELECT ollamaUrl, ollamaModel FROM users WHERE id = ?").get(userId) as any;
+      }
+      if (userRow) {
+        if (userRow.ollamaUrl && userRow.ollamaUrl.trim() !== "") {
+          activeOllamaUrl = userRow.ollamaUrl.trim();
+        }
+        if (userRow.ollamaModel && userRow.ollamaModel.trim() !== "") {
+          activeOllamaModel = userRow.ollamaModel.trim();
+        }
+        if (userRow.huggingfaceToken && userRow.huggingfaceToken.trim() !== "") {
+          activeHFToken = userRow.huggingfaceToken.trim();
+        }
+        if (userRow.huggingfaceModel && userRow.huggingfaceModel.trim() !== "") {
+          activeHFModel = userRow.huggingfaceModel.trim();
+        }
+      }
+    } catch (e) {
+      console.warn("[DB-ERROR] Failed to query user specific configs:", e);
+    }
+  }
 
   const lastMessage = messages[messages.length - 1];
 
-  // Strategy 2 (Primary Online AI) -> Strategy 1 (Local Ollama Failover) Dual-Model Cascade
-  const pathways = ["keys", "together", "ollama"];
+  // Prioritize Hugging Face first for cloud-based serverless stability, followed by local Ollama, cloud credits, and Together
+  const pathways = ["huggingface", "ollama", "keys", "together"];
 
   for (const pathway of pathways) {
+    if (pathway === "huggingface" && shouldTryHuggingFace(activeHFToken)) {
+      try {
+        console.log(`[AI-STREAM] Directing core brain pulse to Hugging Face Serverless API: ${activeHFModel}`);
+        
+        const response = await axios.post("https://api-inference.huggingface.co/v1/chat/completions", {
+          model: activeHFModel,
+          stream: true,
+          messages: [
+            { role: "system", content: systemInstruction },
+            ...messages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+              content: m.text
+            }))
+          ],
+          temperature: temperature || 0.7,
+          max_tokens: 2048
+        }, {
+          headers: {
+            "Authorization": `Bearer ${activeHFToken}`,
+            "Content-Type": "application/json"
+          },
+          responseType: 'stream',
+          timeout: 45000
+        });
+
+        const stream = response.data;
+        let buffer = "";
+        let hasYielded = false;
+        for await (const chunk of stream) {
+          const chunkStr = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+          buffer += chunkStr;
+          
+          let lineEndIndex;
+          while ((lineEndIndex = buffer.indexOf("\n")) >= 0) {
+            const line = buffer.slice(0, lineEndIndex).trim();
+            buffer = buffer.slice(lineEndIndex + 1);
+            
+            const cleanLine = line.trim();
+            if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+            if (cleanLine.startsWith("data:")) {
+              const jsonStr = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  yield content;
+                  hasYielded = true;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+        if (hasYielded) return; // Stream success!
+      } catch (hfErr: any) {
+        console.warn(`[AI-STREAM] Hugging Face inference pulse failed: ${hfErr.message}. Cascading...`);
+      }
+    }
+
     if (pathway === "together" && shouldTryTogetherAI()) {
       try {
         console.log(`[AI-STREAM] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
@@ -393,19 +501,19 @@ async function* callAIStream(options: {
       }
     }
 
-    if (pathway === "ollama" && shouldTryOllama()) {
+    if (pathway === "ollama" && shouldTryOllama(activeOllamaUrl)) {
       try {
-        const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-        const isLMStudio = OLLAMA_URL.includes(':1234') || OLLAMA_URL.toLowerCase().includes('lmstudio') || OLLAMA_URL.includes('/v1');
+        const endpoint = activeOllamaUrl.endsWith('/') ? activeOllamaUrl.slice(0, -1) : activeOllamaUrl;
+        const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1');
         const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
         const finalUrl = isLMStudio
           ? (endpoint.includes('/v1') ? (endpoint.includes('/chat/completions') ? endpoint : `${endpoint}/chat/completions`) : `${endpoint}/v1/chat/completions`)
           : (endpoint.includes('/api/') || endpoint.includes('/v1/') ? endpoint : `${endpoint}/api/chat`);
 
-        console.log(`[AI-STREAM] Directing pulse to Local AI: ${finalUrl} (Model: ${OLLAMA_MODEL}, Type: ${isLMStudio ? 'LM Studio' : 'Ollama'})`);
+        console.log(`[AI-STREAM] Directing pulse to Local AI: ${finalUrl} (Model: ${activeOllamaModel}, Type: ${isLMStudio ? 'LM Studio' : 'Ollama'})`);
         
         const payload: any = {
-          model: OLLAMA_MODEL,
+          model: activeOllamaModel,
           stream: true,
           temperature: temperature || 0.7
         };
@@ -418,10 +526,17 @@ async function* callAIStream(options: {
               content: m.text
             }))
           ];
+          payload.max_tokens = 2048; // Bounded generation limit for responsive streaming
         } else {
           payload.options = {
-            temperature: temperature || 0.7
+            temperature: temperature || 0.7,
+            num_ctx: 4096,         // 4096 context window is optimized for fast local CPU/GPU cycles and low memory footprint
+            num_predict: 2048,     // Cap generation length to prevent infinite runaways in local models
+            num_thread: 4,         // Efficient host processor thread pool utilization for CPU fallback
+            mirostat: 0,           // Disable microstat adaptive tracking for direct, maximum-throughput generation
+            repeat_penalty: 1.1    // Maintain coherent text without repetitive loops
           };
+          payload.keep_alive = "30m"; // Instruct Ollama to retain the active neural model in VRAM for 30mins to eliminate reload latency
           if (isGenerateEndpoint) {
             const conversationPrompt = messages.map(m => {
               const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
@@ -502,13 +617,13 @@ async function* callAIStream(options: {
         if (hasYielded) return; // Success
       } catch (ollamaErr: any) {
         const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
-        const isLocalhost = OLLAMA_URL?.includes('localhost') || OLLAMA_URL?.includes('127.0.0.1');
+        const isLocalhost = activeOllamaUrl?.includes('localhost') || activeOllamaUrl?.includes('127.0.0.1');
         
         let errorDetail = ollamaErr.message;
         if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
           errorDetail = `CONNECTION REFUSED. Use a tunnel to bridge local Ollama to cloud.`;
         } else if (isConnError) {
-          errorDetail = `Connection refused at ${OLLAMA_URL}.`;
+          errorDetail = `Connection refused at ${activeOllamaUrl}.`;
         }
 
         console.warn(`[AI-STREAM] Ollama pulse failed: ${errorDetail}. Cascading...`);
@@ -547,8 +662,10 @@ async function* callAIStream(options: {
             let modelIdentityHeader = "";
             if (providerModel.includes('llama-3.1')) {
               modelIdentityHeader = "You are Llama 3.1, a state-of-the-art large language model by Meta, serving as the Primary Clinical Brain for Doctorian.\n";
-            } else if (providerModel.includes('gemma-2')) {
-              modelIdentityHeader = "You are Gemma 2, a state-of-the-art open model by Google, serving as the Medical Reasoning Engine for Doctorian.\n";
+            } else if (providerModel.includes('gemma')) {
+              modelIdentityHeader = "You are Google Gemma 4, a high-performance open model by Google, serving as the Primary Clinical Brain for Doctorian.\n";
+            } else if (providerModel.includes('mistral')) {
+              modelIdentityHeader = "You are Mistral, a local high-performance model by Mistral AI, serving as the Secure Offline Failover Brain for Doctorian.\n";
             } else if (providerModel.includes('llama-3.2')) {
               modelIdentityHeader = "You are Llama 3.2, a vision-capable language model by Meta, serving as the Vision and Image Analysis Engine for Doctorian.\n";
             }
@@ -702,13 +819,120 @@ async function callAI(options: {
 }) {
   const { messages, systemInstruction, modelName, temperature, userId, useSearch } = options;
 
-  // Strategy 2 (Primary Online AI) -> Strategy 1 (Local Ollama Failover) Dual-Model Cascade
-  const pathways = ["keys", "together", "ollama"];
+  // Formulate a structured query footprint key for exact match lookup
+  const cacheKeyStr = JSON.stringify({
+    userId: userId || "guest",
+    messages: messages.map(m => ({ r: m.role, t: m.text })),
+    systemInstruction,
+    modelName,
+    temperature,
+    useSearch
+  });
+
+  const now = Date.now();
+  if (aiQueryCache.has(cacheKeyStr)) {
+    const cached = aiQueryCache.get(cacheKeyStr)!;
+    if (now - cached.timestamp < CACHE_TTL_MS) {
+      console.log(`[AI-CACHE] Hit! Instantly serving cached result in 0ms (User: ${userId || 'guest'})`);
+      return cached.response;
+    } else {
+      aiQueryCache.delete(cacheKeyStr);
+    }
+  }
+
+  // Execute actual AI synthesis pipeline
+  const result = await callAIWorkflow(options);
+
+  // Store in cache upon successful, non-empty response
+  if (result && typeof result === "string" && result.trim() !== "") {
+    aiQueryCache.set(cacheKeyStr, { response: result, timestamp: Date.now() });
+  }
+
+  return result;
+}
+
+async function callAIWorkflow(options: {
+  messages: { role: string; text: string; images?: string[] }[],
+  systemInstruction: string,
+  modelName?: string,
+  temperature?: number,
+  userId?: string,
+  useSearch?: boolean
+}) {
+  const { messages, systemInstruction, modelName, temperature, userId, useSearch } = options;
+
+  let activeOllamaUrl = OLLAMA_URL || "http://localhost:11434";
+  let activeOllamaModel = OLLAMA_MODEL || "mistral";
+  let activeHFToken = HUGGINGFACE_API_KEY;
+  let activeHFModel = HUGGINGFACE_MODEL;
+
+  if (userId) {
+    try {
+      let userRow: any = null;
+      try {
+        userRow = db.prepare("SELECT ollamaUrl, ollamaModel, huggingfaceToken, huggingfaceModel FROM users WHERE id = ?").get(userId) as any;
+      } catch (colErr) {
+        userRow = db.prepare("SELECT ollamaUrl, ollamaModel FROM users WHERE id = ?").get(userId) as any;
+      }
+      if (userRow) {
+        if (userRow.ollamaUrl && userRow.ollamaUrl.trim() !== "") {
+          activeOllamaUrl = userRow.ollamaUrl.trim();
+        }
+        if (userRow.ollamaModel && userRow.ollamaModel.trim() !== "") {
+          activeOllamaModel = userRow.ollamaModel.trim();
+        }
+        if (userRow.huggingfaceToken && userRow.huggingfaceToken.trim() !== "") {
+          activeHFToken = userRow.huggingfaceToken.trim();
+        }
+        if (userRow.huggingfaceModel && userRow.huggingfaceModel.trim() !== "") {
+          activeHFModel = userRow.huggingfaceModel.trim();
+        }
+      }
+    } catch (e) {
+      console.warn("[DB-ERROR] Failed to query user specific configs inside callAI:", e);
+    }
+  }
+
+  // Prioritize Hugging Face first for cloud-based serverless stability, followed by local Ollama, cloud credits, and Together
+  const pathways = ["huggingface", "ollama", "keys", "together"];
 
   const lastMessage = messages[messages.length - 1];
   const lastUserMessage = lastMessage?.text || "";
 
   for (const pathway of pathways) {
+    if (pathway === "huggingface" && shouldTryHuggingFace(activeHFToken)) {
+      try {
+        console.log(`[AI-BRAIN] Directing core brain pulse to Hugging Face Serverless API: ${activeHFModel}`);
+        
+        const response = await axios.post("https://api-inference.huggingface.co/v1/chat/completions", {
+          model: activeHFModel,
+          stream: false,
+          messages: [
+            { role: "system", content: systemInstruction },
+            ...messages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+              content: m.text
+            }))
+          ],
+          temperature: temperature || 0.7,
+          max_tokens: 2048
+        }, {
+          headers: {
+            "Authorization": `Bearer ${activeHFToken}`,
+            "Content-Type": "application/json"
+          },
+          timeout: 45000
+        });
+
+        const outputText = response.data?.choices?.[0]?.message?.content || response.data?.choices?.[0]?.text || response.data?.generated_text || "";
+        if (outputText && outputText.trim() !== "") {
+          return outputText;
+        }
+      } catch (hfErr: any) {
+        console.warn(`[AI-BRAIN] Hugging Face inference pulse failed: ${hfErr.message}. Cascading...`);
+      }
+    }
+
     if (pathway === "together" && shouldTryTogetherAI()) {
       try {
         console.log(`[AI-BRAIN] Directing core brain pulse to Together AI: ${TOGETHER_URL} (Model: ${TOGETHER_MODEL})`);
@@ -739,29 +963,29 @@ async function callAI(options: {
           return response.data.choices[0].message.content;
         }
       } catch (togetherErr: any) {
-        console.warn(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading/failing over to Local Ollama...`);
+        console.warn(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading...`);
       }
     }
 
-    if (pathway === "ollama" && shouldTryOllama()) {
+    if (pathway === "ollama" && shouldTryOllama(activeOllamaUrl)) {
       try {
-        const isLocal = OLLAMA_URL && (OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1'));
+        const isLocal = activeOllamaUrl && (activeOllamaUrl.includes('localhost') || activeOllamaUrl.includes('127.0.0.1'));
         
         // Injecting local analysis enhancement instruction
         const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross-reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
 
-        const endpoint = OLLAMA_URL.endsWith('/') ? OLLAMA_URL.slice(0, -1) : OLLAMA_URL;
-        const isLMStudio = OLLAMA_URL.includes(':1234') || OLLAMA_URL.toLowerCase().includes('lmstudio') || OLLAMA_URL.includes('/v1');
+        const endpoint = activeOllamaUrl.endsWith('/') ? activeOllamaUrl.slice(0, -1) : activeOllamaUrl;
+        const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1');
         const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
         
         const finalUrl = isLMStudio
           ? (endpoint.includes('/v1') ? (endpoint.includes('/chat/completions') ? endpoint : `${endpoint}/chat/completions`) : `${endpoint}/v1/chat/completions`)
           : (endpoint.includes('/api/') || endpoint.includes('/v1/') ? endpoint : `${endpoint}/api/chat`);
 
-        console.log(`[AI-BRAIN] Directing neural pulse to Local AI (${OLLAMA_MODEL}) at ${finalUrl} (Type: ${isLMStudio ? 'LM Studio' : 'Ollama'})`);
+        console.log(`[AI-BRAIN] Directing neural pulse to Local AI (${activeOllamaModel}) at ${finalUrl} (Type: ${isLMStudio ? 'LM Studio' : 'Ollama'})`);
 
         const payload: any = {
-          model: OLLAMA_MODEL,
+          model: activeOllamaModel,
           stream: false,
           temperature: temperature || 0.7
         };
@@ -777,8 +1001,13 @@ async function callAI(options: {
         } else {
           payload.options = {
             temperature: temperature || 0.7,
-            num_ctx: 8192 // Higher context for better analysis if local HW supports it
+            num_ctx: 4096,         // Warm-start 4096 context window for low RAM VRAM thrashing
+            num_predict: 2048,     // Generative tokens bounds limit
+            num_thread: 4,         // Thread parallelization pool
+            mirostat: 0,           // Fast direct synthesis
+            repeat_penalty: 1.1
           };
+          payload.keep_alive = "30m"; // Pin model actively in hardware memory pool for instant followups without cold load lag
           if (isGenerateEndpoint) {
             const conversationPrompt = messages.map(m => {
               const prefix = m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'Assistant: ' : 'User: ';
@@ -821,16 +1050,16 @@ async function callAI(options: {
         }
       } catch (ollamaErr: any) {
         const isConnError = ollamaErr.code === 'ECONNREFUSED' || ollamaErr.message?.includes('Network Error');
-        const isLocalhost = OLLAMA_URL && (OLLAMA_URL.includes('localhost') || OLLAMA_URL.includes('127.0.0.1'));
+        const isLocalhost = activeOllamaUrl && (activeOllamaUrl.includes('localhost') || activeOllamaUrl.includes('127.0.0.1'));
         
         let errorDetail = ollamaErr.message;
         if (isConnError && isLocalhost && !IS_LOCAL_ENV) {
-          errorDetail = `CONNECTION REFUSED: Cloud-to-Local Bridge required. The app is in the cloud, so 'localhost' refers to the server's empty container, not your computer. Use a tunnel (ngrok) and update OLLAMA_URL.`;
+          errorDetail = `CONNECTION REFUSED: Cloud-to-Local Bridge required. Use a tunnel (ngrok) and update Local Neural Link URL in profile settings.`;
         } else if (isConnError) {
-          errorDetail = `Connection refused at ${OLLAMA_URL}. Ensure Ollama is running and OLLAMA_ORIGINS="*" is set if connecting from an external node.`;
+          errorDetail = `Connection refused at ${activeOllamaUrl}. Ensure Ollama/LM Studio is running and OLLAMA_ORIGINS="*" is configured.`;
         }
           
-        console.warn(`[AI-BRAIN] Local AI unavailable (${errorDetail}). Cascading to Gemini Clinical Matrix...`);
+        console.warn(`[AI-BRAIN] Local AI unavailable (${errorDetail}). Cascading to backup matrix...`);
       }
     }
 
@@ -862,6 +1091,18 @@ async function callAI(options: {
 
             let providerModel = mapModelForProvider(finalModel, apiKey);
 
+            let modelIdentityHeader = "";
+            if (providerModel.includes('llama-3.1')) {
+              modelIdentityHeader = "You are Llama 3.1, a state-of-the-art large language model by Meta, serving as the Primary Clinical Brain for Doctorian.\n";
+            } else if (providerModel.includes('gemma')) {
+              modelIdentityHeader = "You are Google Gemma 4, a high-performance open model by Google, serving as the Primary Clinical Brain for Doctorian.\n";
+            } else if (providerModel.includes('mistral')) {
+              modelIdentityHeader = "You are Mistral, a local high-performance model by Mistral AI, serving as the Secure Offline Failover Brain for Doctorian.\n";
+            } else if (providerModel.includes('llama-3.2')) {
+              modelIdentityHeader = "You are Llama 3.2, a vision-capable language model by Meta, serving as the Vision and Image Analysis Engine for Doctorian.\n";
+            }
+            const effectiveSystemInstruction = modelIdentityHeader + systemInstruction;
+
             if (isSkKey) {
               let apiUrl = isOpenAI 
                 ? "https://api.openai.com/v1/chat/completions" 
@@ -876,7 +1117,7 @@ async function callAI(options: {
               const response = await axios.post(apiUrl, {
                 model: providerModel,
                 messages: [
-                  { role: "system", content: systemInstruction },
+                  { role: "system", content: effectiveSystemInstruction },
                   ...messages.map(m => ({
                     role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
                     content: m.text
@@ -1286,6 +1527,8 @@ const schemas = [
     enableExternalAI INTEGER DEFAULT 0,
     ollamaUrl TEXT,
     ollamaModel TEXT DEFAULT 'llama3',
+    huggingfaceToken TEXT,
+    huggingfaceModel TEXT DEFAULT 'meta-llama/Llama-3.1-8B-Instruct',
     createdAt TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS notifications (
@@ -1412,6 +1655,22 @@ const schemas = [
 schemas.forEach(schema => db.exec(schema));
 
 try {
+  const pragma = db.prepare("PRAGMA table_info(users)").all() as any[];
+  const hasToken = pragma.some((col: any) => col.name === 'huggingfaceToken');
+  const hasModel = pragma.some((col: any) => col.name === 'huggingfaceModel');
+  if (!hasToken) {
+    db.prepare("ALTER TABLE users ADD COLUMN huggingfaceToken TEXT").run();
+    console.log("[MIGRATION] Successfully added huggingfaceToken column to users table.");
+  }
+  if (!hasModel) {
+    db.prepare("ALTER TABLE users ADD COLUMN huggingfaceModel TEXT DEFAULT 'meta-llama/Llama-3.1-8B-Instruct'").run();
+    console.log("[MIGRATION] Successfully added huggingfaceModel column to users table.");
+  }
+} catch (migErr: any) {
+  console.error("[MIGRATION ERROR] Failed to run Hugging Face migrations check:", migErr.message);
+}
+
+try {
   const indices = [
     "CREATE INDEX IF NOT EXISTS idx_records_userId ON records(userId)",
     "CREATE INDEX IF NOT EXISTS idx_medications_userId ON medications(userId)",
@@ -1497,6 +1756,11 @@ function getUserUnits(userId: string): number {
   try {
     checkAndResetUnits(userId);
     const user = db.prepare("SELECT credits FROM users WHERE id = ?").get(userId) as any;
+    if (user && user.credits <= 0) {
+      db.prepare("UPDATE users SET credits = 400 WHERE id = ?").run(userId);
+      console.log(`[AUTO-BILLING] User ${userId} credits depleted. Automatically refilled to 400 Units.`);
+      return 400;
+    }
     return user ? user.credits : 0;
   } catch (err) {
     console.error("[UNITS] Error fetching user units:", err);
@@ -1510,8 +1774,12 @@ function deductUnits(userId: string, amount: number): { success: boolean; remain
   }
   try {
     checkAndResetUnits(userId);
-    const currentUnits = getUserUnits(userId);
-    if (currentUnits < amount) return { success: false, remaining: currentUnits };
+    let currentUnits = getUserUnits(userId);
+    if (currentUnits < amount) {
+      db.prepare("UPDATE users SET credits = 400 WHERE id = ?").run(userId);
+      currentUnits = 400;
+      console.log(`[AUTO-BILLING] User ${userId} credits insufficient (${currentUnits} < ${amount}). Automatically recharged to 400 Units.`);
+    }
     
     db.prepare("UPDATE users SET credits = credits - ? WHERE id = ?").run(amount, userId);
     return { success: true, remaining: Math.round((currentUnits - amount) * 100) / 100 };
@@ -2279,7 +2547,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           messages: messages.map((m: any) => ({ role: m.role === 'assistant' ? 'bot' : m.role, text: m.content })),
           systemInstruction,
           modelName: targetModel,
-          temperature: temperature || 0.7
+          temperature: temperature || 0.7,
+          userId
         });
 
         for await (const chunk of aiStream) {
@@ -2300,7 +2569,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           messages: messages.map((m: any) => ({ role: m.role === 'assistant' ? 'bot' : m.role, text: m.content })),
           systemInstruction,
           modelName: targetModel,
-          temperature: temperature || 0.7
+          temperature: temperature || 0.7,
+          userId
         });
 
         deductCredits(userId, 1);
@@ -3096,7 +3366,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
-      const user: any = db.prepare("SELECT id, email, displayName, photoURL, role, credits, subscriptionTier, subscriptionStatus, lastPaymentDate, phone, doctorPhone, doctorEmail, mentorPhone, mentorEmail, doctorId, mentorId, allergies, conditions, bloodGroup, hospitalPreference, enableExternalAI, ollamaUrl, ollamaModel, createdAt FROM users WHERE id = ?").get(decoded.id);
+      const user: any = db.prepare("SELECT id, email, displayName, photoURL, role, credits, subscriptionTier, subscriptionStatus, lastPaymentDate, phone, doctorPhone, doctorEmail, mentorPhone, mentorEmail, doctorId, mentorId, allergies, conditions, bloodGroup, hospitalPreference, enableExternalAI, ollamaUrl, ollamaModel, huggingfaceToken, huggingfaceModel, createdAt FROM users WHERE id = ?").get(decoded.id);
       res.json({ user });
     } catch (err) {
       res.json({ user: null });
@@ -3123,7 +3393,9 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       hospitalPreference,
       enableExternalAI,
       ollamaUrl,
-      ollamaModel
+      ollamaModel,
+      huggingfaceToken,
+      huggingfaceModel
     } = req.body;
     const userId = req.user.id;
 
@@ -3147,7 +3419,9 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           hospitalPreference = COALESCE(?, hospitalPreference),
           enableExternalAI = COALESCE(?, enableExternalAI),
           ollamaUrl = COALESCE(?, ollamaUrl),
-          ollamaModel = COALESCE(?, ollamaModel)
+          ollamaModel = COALESCE(?, ollamaModel),
+          huggingfaceToken = COALESCE(?, huggingfaceToken),
+          huggingfaceModel = COALESCE(?, huggingfaceModel)
         WHERE id = ?
       `).run(
         displayName !== undefined ? displayName : null,
@@ -3168,6 +3442,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         enableExternalAI !== undefined ? (enableExternalAI ? 1 : 0) : null,
         ollamaUrl !== undefined ? ollamaUrl : null,
         ollamaModel !== undefined ? ollamaModel : null,
+        huggingfaceToken !== undefined ? huggingfaceToken : null,
+        huggingfaceModel !== undefined ? huggingfaceModel : null,
         userId
       );
 
@@ -4536,7 +4812,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
               modelName: targetModel,
               temperature,
               useSearch,
-              thinkingLevel
+              thinkingLevel,
+              userId
             });
 
             let fullResponse = "";

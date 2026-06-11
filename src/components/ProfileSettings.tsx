@@ -6,7 +6,8 @@ import {
   X, RefreshCw, QrCode, Download, Share2,
   Activity, Zap, Crown, CreditCard,
   Syringe as Pill, ChevronLeft, ChevronRight,
-  FileText, ShieldAlert, Phone, ShieldCheck, Cpu
+  FileText, ShieldAlert, Phone, ShieldCheck, Cpu,
+  Key, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -31,6 +32,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
   const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
   const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || '');
   const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'gemma4');
+  const [huggingfaceToken, setHuggingfaceToken] = useState(user?.huggingfaceToken || '');
+  const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'meta-llama/Llama-3.1-8B-Instruct');
   
   // Emergency Contact Info
   const [doctorPhone, setDoctorPhone] = useState(user?.doctorPhone || '');
@@ -175,6 +178,8 @@ Verified by Joseph Akora - Development Lead.
       setEnableDeepHealthInsights(user.enableDeepHealthInsights || false);
       setOllamaUrl(user.ollamaUrl || '');
       setOllamaModel(user.ollamaModel || 'gemma4');
+      setHuggingfaceToken(user.huggingfaceToken || '');
+      setHuggingfaceModel(user.huggingfaceModel || 'meta-llama/Llama-3.1-8B-Instruct');
     }
   }, [user]);
 
@@ -223,7 +228,9 @@ Verified by Joseph Akora - Development Lead.
         enableExternalAI,
         enableDeepHealthInsights,
         ollamaUrl,
-        ollamaModel
+        ollamaModel,
+        huggingfaceToken,
+        huggingfaceModel
       });
       onUpdate(updatedUser);
       setMessage({ text: 'Profile updated successfully!', type: 'success' });
@@ -985,6 +992,43 @@ Verified by Joseph Akora - Development Lead.
                     </div>
 
                     <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2 mb-4 ml-1">
+                        <Cpu size={14} className="text-blue-500 animate-pulse" />
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
+                      </div>
+                      
+                      <div className="space-y-4 mb-8">
+                        <div className="relative group">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
+                            <Key size={18} />
+                          </div>
+                          <input
+                            type="password"
+                            value={huggingfaceToken}
+                            onChange={e => setHuggingfaceToken(e.target.value)}
+                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
+                            placeholder="Hugging Face API Access Token (hf_...)"
+                          />
+                        </div>
+
+                        <div className="relative group">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
+                            <Sparkles size={18} />
+                          </div>
+                          <input
+                            type="text"
+                            value={huggingfaceModel}
+                            onChange={e => setHuggingfaceModel(e.target.value)}
+                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
+                            placeholder="Model, e.g. meta-llama/Llama-3.1-8B-Instruct"
+                          />
+                        </div>
+
+                        <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
+                          Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">meta-llama/Llama-3.1-8B-Instruct</span> if left empty.
+                        </p>
+                      </div>
+
                       <div className="flex items-center gap-2 mb-4 ml-1">
                         <Globe size={14} className="text-violet-500" />
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Neural Link (Ollama / LM Studio)</h4>

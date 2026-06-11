@@ -28,6 +28,8 @@ export interface User {
   enableDeepHealthInsights?: boolean;
   ollamaUrl?: string;
   ollamaModel?: string;
+  huggingfaceToken?: string;
+  huggingfaceModel?: string;
 }
 
 export interface HealthRecord {
@@ -1427,7 +1429,7 @@ export const api = {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
               const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-              const defaultLocalModel = isOpenAI ? 'gemma4' : 'gemma';
+              const defaultLocalModel = 'mistral';
               const activeLocalModel = user.ollamaModel || defaultLocalModel;
               console.log(`[Neural Link] Directing failover pulse to PC Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI})`);
               
@@ -1617,7 +1619,7 @@ export const api = {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
               const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-              const defaultLocalModel = isOpenAI ? 'gemma4' : 'gemma';
+              const defaultLocalModel = 'mistral';
               const activeLocalModel = user.ollamaModel || defaultLocalModel;
               console.log(`[Neural Link] Directing stream failover pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI})`);
               

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '../api';
+import { parseResponseCredits } from '../utils/creditUtils';
 
 export default function BioSimulation({ user, onUpdateUser }: { user?: any, onUpdateUser?: (u: any) => void }) {
   const [frame, setFrame] = useState(0);
@@ -31,7 +32,7 @@ export default function BioSimulation({ user, onUpdateUser }: { user?: any, onUp
       const res = await api.ai.aiChat(prompt, "You are the Bio-Core Intelligence node.");
       setSyncInsight(res.text);
       if (res && 'creditsRemaining' in res && res.creditsRemaining !== undefined && user && onUpdateUser) {
-        onUpdateUser({ ...user, credits: Number(res.creditsRemaining) });
+        onUpdateUser({ ...user, credits: parseResponseCredits(res.creditsRemaining) });
       }
     } catch (err) {
       console.error("Bio-sync failed:", err);

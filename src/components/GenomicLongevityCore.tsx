@@ -13,6 +13,7 @@ import {
   PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar 
 } from 'recharts';
 import { api } from '../api';
+import { isCreditsUnlimited, parseCreditsToNumber, formatCredits, safeDeductCredits } from '../utils/creditUtils';
 
 interface GenomicLongevityCoreProps {
   user: any;
@@ -156,17 +157,18 @@ export const GenomicLongevityCore: React.FC<GenomicLongevityCoreProps> = ({
     if (isOfflineMode) {
       return true;
     }
-    const currentCredits = Number(user?.credits || 0);
-    if (currentCredits < amount) {
+    const currentCredits = parseCreditsToNumber(user?.credits);
+    const isUnlimited = isCreditsUnlimited(user?.credits);
+    if (currentCredits < amount && !isUnlimited) {
       if (onShowToast) {
-        onShowToast(`Insufficient credit balance. ${operationName} requires ${amount} Neural credits (Remaining: ${currentCredits}).`, 'error');
+        onShowToast(`Insufficient credit balance. ${operationName} requires ${amount} Neural credits (Remaining: ${formatCredits(user?.credits)}).`, 'error');
       }
       return false;
     }
     
     try {
       if (onUpdateUser) {
-        const nextCredits = Math.max(0, currentCredits - amount);
+        const nextCredits = safeDeductCredits(user?.credits, amount);
         onUpdateUser({ ...user, credits: nextCredits });
       }
       return true;
@@ -562,7 +564,7 @@ No network calls were dispatching to cloud nodes.`;
             </div>
             <div className="mt-1 flex items-baseline justify-center sm:justify-end gap-1">
               <span className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono leading-none">
-                {isOfflineMode ? 'INFINITE' : Math.round(user?.credits || 0)}
+                {isOfflineMode ? 'INFINITE' : formatCredits(user?.credits)}
               </span>
               <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 {isOfflineMode ? 'Local Simulation Mode' : '/ 400 Tokens Available'}
@@ -1226,7 +1228,7 @@ No network calls were dispatching to cloud nodes.`;
                       {isOfflineMode ? 'Cost: 0 (Offline)' : 'Cost: 50 Tokens'}
                     </span>
                     <span className="text-[10px] text-slate-400 font-bold font-mono">
-                      {isOfflineMode ? 'Local System Simulation Active' : `Current Wallet Balance: ${user?.credits || 0}`}
+                      {isOfflineMode ? 'Local System Simulation Active' : `Current Wallet Balance: ${formatCredits(user?.credits)}`}
                     </span>
                   </div>
 

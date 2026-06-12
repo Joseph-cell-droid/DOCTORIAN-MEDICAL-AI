@@ -22,6 +22,7 @@ import { WeatherWidget } from './WeatherWidget';
 import { AnomalyDetector } from './AnomalyDetector';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { VitalWaveform } from './VitalWaveform';
+import { isCreditsUnlimited, parseCreditsToNumber, formatCredits } from '../utils/creditUtils';
 
 const performanceData = [
   { time: '00:00', value: 82 },
@@ -62,7 +63,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const vitalStats = [
     { label: 'Cognis Load', value: '42%', trend: '-4%', icon: <Brain size={16} />, color: 'blue' },
     { label: 'Cardiac Flux', value: '72 BPM', trend: '+2%', icon: <Heart size={16} />, color: 'rose' },
-    { label: 'Neural Energy', value: `${Math.round(user?.credits || 0)} Units`, trend: 'Resets Daily', icon: <Battery size={16} />, color: 'emerald' },
+    { label: 'Neural Energy', value: `${formatCredits(user?.credits)} Units`, trend: 'Resets Daily', icon: <Battery size={16} />, color: 'emerald' },
     { label: 'Hydration', value: '2.4L', trend: '+0.4', icon: <Droplets size={16} />, color: 'cyan' },
   ];
 
@@ -874,7 +875,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         return;
                       }
 
-                      const updatedCredits = (user?.credits || 0) + 50;
+                      const updatedCredits = isCreditsUnlimited(user?.credits) ? "Unlimited" : parseCreditsToNumber(user?.credits) + 50;
                       const updatedUser = { ...user, credits: updatedCredits };
                       
                       localStorage.setItem('medical_user', JSON.stringify(updatedUser));
@@ -923,7 +924,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             setClaimedMilestones(next);
                             localStorage.setItem('doctorian_claimed_milestones', JSON.stringify(next));
 
-                            const updatedCredits = (user?.credits || 0) + milestone.reward;
+                            const updatedCredits = isCreditsUnlimited(user?.credits) ? "Unlimited" : parseCreditsToNumber(user?.credits) + milestone.reward;
                             const updatedUser = { ...user, credits: updatedCredits };
                             
                             localStorage.setItem('medical_user', JSON.stringify(updatedUser));

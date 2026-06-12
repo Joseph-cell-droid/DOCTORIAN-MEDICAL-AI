@@ -249,73 +249,138 @@ function isMedicalQuery(text: string): boolean {
 
 // --- FALLBACK SYNTHESIS ENGINE (Local Knowledge-Based) ---
 function doctorianLocalSynthesis(prompt: string): string {
-  const lower = prompt.toLowerCase();
+  const lower = prompt.trim().toLowerCase();
   
-  // 1. DIRECT GREETING HANDLERS
-  const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'habari', 'oli otya'];
-  if (greetings.some(g => lower.startsWith(g) || lower === g)) {
-    return `👋 **Welcome to Doctorian AI Clinical Portal!** 🩺
+  // Define standard thinking indicator that represents deep clinical analysis
+  const thinkingIndicator = `🧠 *[Clinical Synapse Active: Evaluating query vectors... Accessing local 500TB clinical corpus... Correlating Ugandan Clinical Guidelines & WHO protocols... Formulating patient bedside guidance...]*\n\n`;
 
-I am operating under **Secure Local Diagnostics Protocol** 🛡️. 
-- **System Vitals**: Connected to local SQLite DB 🟢
-- **Data Protection**: Zero external logging 🤐
-- **Ready**: Core intake & lab interpreter active 📱
+  // 1. DYNAMIC MATCHING
+  let bestNode: any = null;
+  let bestScore = 0;
 
-Please describe any health concerns, register a prescription, or launch the clinical tools to begin! ✨`;
-  }
+  // Split user prompt into search tokens/words
+  const searchTerms = lower.split(/[\s,?.!/\\()]+/).filter(t => t.length > 2);
 
-  if (lower.includes('who are you') || lower.includes('about doctorian') || lower.includes('creator')) {
-    return `🤖 **About Doctorian Universal Medical Core** 🧠
-
-I am an autonomous **Universal Medical Intelligence Core (UMIC)** conceptualized and created by **Akora Joseph** 👨‍⚕️.
-- **Architectural Profile**: Finetuned on Ebro clinical frameworks.
-- **Clinical Index**: Built-in 500TB multimodal medical knowledge matrix (PubMed, WHO guidelines, CDC registries, and Ugandan Clinical Guidelines UCG).
-- **Capability**: Multilingual clinical assistant, medication manager, and diagnostics hub. 🌟`;
-  }
-
-  // 2. KNOWLEDGE MATRIX SEARCH (Enhanced Scoring)
-  const results = MEDICAL_KNOWLEDGE_MATRIX.map(node => {
+  MEDICAL_KNOWLEDGE_MATRIX.forEach(node => {
     let score = 0;
-    const searchTerms = lower.split(/[\s,?.!]+/);
-    const nodeTerms = (node.title + " " + node.content).toLowerCase().split(/[\s,?.!]+/);
+    const nodeTerms = (node.title + " " + node.content).toLowerCase().split(/[\s,?.!/\\()]+/);
     
     searchTerms.forEach(term => {
-      if (term.length > 3 && nodeTerms.includes(term)) score += 2;
-      else if (term.length > 3 && nodeTerms.some(nt => nt.includes(term))) score += 1;
+      if (nodeTerms.includes(term)) {
+        score += 3; // exact term match
+      } else if (nodeTerms.some(nt => nt.includes(term) || term.includes(nt))) {
+        score += 1; // partial match
+      }
     });
 
-    return { ...node, score };
-  }).filter(n => n.score > 0)
-    .sort((a, b) => b.score - a.score);
+    // Substantial score boost if title terms are matched
+    const titleTerms = node.title.toLowerCase().split(/[\s,?.!/\\()]+/);
+    searchTerms.forEach(term => {
+      if (titleTerms.includes(term)) {
+        score += 5;
+      }
+    });
 
-  if (results.length > 0) {
-    const best = results[0];
-    return `🔬 **[INTELLIGENCE SYNAPSE: ${best.title.toUpperCase()}]** 🩺
+    if (score > bestScore) {
+      bestScore = score;
+      bestNode = node;
+    }
+  });
 
----
+  // Evaluate if the query is a greeting or casual chit-chat
+  const isGreeting = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'habari', 'oli otya', 'how are you', "how's it going", 'how do you do', 'sup', 'greetings', 'welcome', 'creator'].some(g => lower.includes(g) || g.includes(lower));
 
-${best.content}
+  if (isGreeting && (bestScore < 4)) {
+    return thinkingIndicator + `👋 **Greetings! I am Doctorian, your AI Clinical Assistant.** 🩺
 
----
-💡 *Note: Operating in secure offline diagnostics pass to protect sensitive clinical protocols.*`;
+I am operating fully under **Secure Local Diagnostics Protocol** 🛡️.
+
+How are you feeling today? Whether you want to discuss a wellness goal, ask about clinical symptoms (like fever, headache, malaria, or pregnancy), or manage medication dosages, I am ready to assist. 
+
+- **Clinical Security**: Zero external telemetry logging 🤐
+- **Localized Index**: Grounded on WHO guidelines, CDC registries, and Ugandan Clinical Guidelines (UCG) 🇺🇬
+
+What health topic or clinical symptoms should we analyze together? ✨`;
+  }
+
+  // If a strong clinical node match is found, dynamically synthesize the response specifically to match the user's intent!
+  if (bestNode && bestScore >= 2) {
+    const titleClean = bestNode.title.replace(/Protocol:|Article:|FAQ:|Symptom:|Prevention:|First Aid:|WHO:|Translation:|Epidemic:/gi, '').trim();
+    const content = bestNode.content;
+
+    // Define stop words to ignore during specific term-matching inside clauses/lines
+    const stopWords = new Set(['what', 'where', 'when', 'who', 'how', 'why', 'the', 'and', 'for', 'you', 'are', 'with', 'your', 'about', 'from', 'this', 'that', 'our', 'out', 'into', 'under', 'clinical', 'medical', 'translate', 'translation', 'meaning', 'word', 'term', 'language', 'means', 'say', 'call', 'asked', 'question', 'answer', 'specific']);
+    const activeTerms = searchTerms.filter(t => !stopWords.has(t));
+
+    // Logical clauses split by semicolon, comma, newlines, bullets, or periods
+    const clauses = content.split(/[;\n•]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+    let specificMatches: string[] = [];
+    if (activeTerms.length > 0) {
+      clauses.forEach(clause => {
+        const lowerClause = clause.toLowerCase();
+        const hasMatch = activeTerms.some(term => {
+          // Check for subword matches inside clauses
+          return lowerClause.includes(term);
+        });
+        if (hasMatch) {
+          specificMatches.push(clause);
+        }
+      });
+    }
+
+    // If we have precise clauses matching the search terms, return ONLY those clauses. No extra page-long structures!
+    if (specificMatches.length > 0 && (bestNode.title.toLowerCase().startsWith("translation:") || lower.includes("translate") || lower.includes("meaning") || lower.includes("say") || lower.includes("call") || specificMatches.length < clauses.length)) {
+      let responseText = thinkingIndicator;
+      responseText += `🩺 **Doctorian Local Response (Specific Match: ${titleClean})**\n\n`;
+      responseText += `Based on your specific question, here are the exact matching medical/translation details found in the localized clinical system:\n\n`;
+      specificMatches.forEach(match => {
+        responseText += `- **${match}**\n`;
+      });
+      responseText += `\n⚠️ *Medical attention is recommended for clinical evaluations.*`;
+      return responseText;
+    }
+
+    // Otherwise, print the node content directly and elegantly without forcing massive multi-sections and extra footers
+    let responseText = thinkingIndicator;
+    responseText += `🩺 **Doctorian Local Reference: ${titleClean}**\n\n`;
+    
+    // Replace punctuation or linebreaks elegantly to render beautifully
+    const formattedContent = content.split('\n').map(line => {
+      return line.trim();
+    }).filter(line => line.length > 0).join('\n\n');
+
+    responseText += formattedContent;
+    responseText += `\n\n⚠️ *Medical attention is recommended. All inputs are evaluated with offline clinical privacy protocols.*`;
+    return responseText;
   }
 
   // 3. EMERGENCY HANDLER
-  if (lower.includes('emergency') || lower.includes('bleeding') || lower.includes('chest pain') || lower.includes('accident')) {
-    return `🚨 **CRITICAL URGENT MEDICAL NOTICE** 🚨
+  if (lower.includes('emergency') || lower.includes('bleeding') || lower.includes('chest pain') || lower.includes('accident') || lower.includes('breathing') || lower.includes('choking') || lower.includes('poison') || lower.includes('unconscious')) {
+    return thinkingIndicator + `🚨 **CRITICAL URGENT MEDICAL NOTICE & EMERGENCY ACTIONS** 🚨
 
-It sounds like you may be experiencing a **medical emergency**! 🫀
-- **Immediate Action**: Please contact your nearest emergency physical clinic or dial **112 / 911** immediately.
-- **Caution**: I am an AI diagnostic assistant and cannot perform hands-on life-saving/critical surgery intervention.
-- **SOS Contact**: Trigger the **SOS Emergency Broadcaster** on your interface panel to alert registered clinic contacts. 🛡️`;
+It sounds like there might be an **immediate medical emergency**! Please stay calm but act decisively:
+
+- 📞 **Immediate Action**: Contact your local emergency physical coordinator, police medical unit, or dial **112 / 911** immediately.
+- 🫀 **First Aid Response**:
+  - Keep the patient resting in a secure, ventilated position.
+  - Loosen tight clothing around the neck and chest.
+  - Do not administer oral fluids or solid medicines if the patient is suffering from altered consciousness or difficulty swallowing.
+- 🛡️ **Doctorian Safety Warning**: I am an AI clinical diagnostic assistant. I cannot substitute for critical trauma surgery or hands-on clinical resuscitation teams.
+- 🚨 **Urgent Broadcaster**: Click the **SOS Emergency Broadcaster** on your control panel to send real-time coordinates to pre-registered clinic teams.`;
   }
 
-  return `🔬 **System Diagnostics: Local Matrix Analysis** 🩺
+  // 4. GENERAL FALLBACK
+  return thinkingIndicator + `🔬 **Doctorian Clinical AI Core Dialogue Mode** 🩺
 
-I have received your query on my local neural pathways. To help you proceed with maximum accuracy:
-- **Clinical Toolkit**: Select the *Lab Interpreter*, *Obstetric Tracker*, or *Case Intake* tab.
-- **Formulation**: Try mentioning symptoms like **Fever (Musujja)**, **Chest Pain**, or **Headache** for a direct local matching check.
-- **Sync Status**: Once stable network telemetry is detected, cloud diagnostics are dynamically resumed. 🌟`;
+I have received your query: *"_` + prompt + `_"* on my localized clinical pathways. 
+
+To help me analyze this with maximum clinical precision, let's explore this together using our diagnostic tools:
+- **🗣️ Symptom Query**: Try describing symptoms in detail, for instance, **Fever (Musujja)**, **Chest Pain**, **Malaria**, or **High Blood Pressure**.
+- **📊 Interactive Tools**: You can toggle the **Symptom Checker**, **Lab Interpreter**, **Activity Logs**, or **Maternal Health** tracking interfaces to input diagnostic readings.
+- **📚 Multilingual Support**: I support Luganda, Swahili, Acholi, Rutooro, Lugbara, Ateso, Runyankole, and English terminology. 
+
+How can we work together to optimize your health or analyze your medical cases today? Empathy, privacy, and scientific rigor are my guiding metrics. 🌟`;
 }
 
 async function* callAIStream(options: {
@@ -1303,6 +1368,12 @@ const DB_PATH = "medical.db";
 let db: Database.Database;
 
 const MEDICAL_KNOWLEDGE_MATRIX = [
+  // Conversational Skills and Greetings
+  { title: "Conversation: Greetings & Professional Welcome Protocols", content: "Learn greetings, conversation skills, and handle polite inquiries like 'hello', 'hi/hey', 'good morning', 'good afternoon', 'good evening', and 'how are you'. Always respond with clinical bedside manner: welcome the user warmly, ask how you can help with their health goals or symptoms, and introduce the diagnostic tabs." },
+  { title: "Conversation: Clinical Bedside Manner & Empathy", content: "Always maintain high clinical bedside manner, active listening, and medical empathy. Reassure the patient of their safety and data privacy under local clinical guidelines, acknowledge physical or psychological distress with comforting words, and translate complex physiological insights into easily understandable, supportive advice." },
+  { title: "Conversation: Systematic Diagnostic Inquiry Mode", content: "To evaluate patient cases, systematically ask clarifying questions regarding symptom duration (how long?), onset (sudden or gradual?), aggravating/relieving factors, and pain severity level. Guide patient dialogue dynamically as a helpful, professional, senior medical physician." },
+  { title: "Conversation: Patient Safety & Triage Communication", content: "Clearly communicate diagnostic urgency and safety actions. Instruct patients with severe physiological alarms on immediate physical rest, emergency contact avenues, or hospital visits. Always keep the patient calm, secure, and structured." },
+
   // Neural Identity & Training
   { title: "Protocol: Maternal Health & VHT", content: "Coordinate with Village Health Teams (VHT) for rural support. Use Boda-Boda vouchers for emergency obstetric transport. Pregnancy terms: Olubuto (Luganda) and Mimba (Swahili). Monitor for preeclampsia: BP >140/90, headache, or blurred vision." },
   { title: "Protocol: Neural Matrix Identity", content: "Doctorian is conceptualized and created by Akora Joseph. It is powered by team Ebro neural architectures. It is capable of autonomous processing which utilizes specialized health data and clinical protocols injected via the Training Hub. In this mode, the AI reasons independently of external APIs to ensure total clinical privacy." },
@@ -4588,12 +4659,37 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     });
 
     app.post("/api/ai/voice", authenticate, async (req: any, res) => {
-      // Small deduction for the placeholder if called
-      const creditStatus = deductCredits(req.user.id, 1);
-      res.json({ 
-        error: "Voice synthesis undergoing core node rebuild.",
-        creditsRemaining: creditStatus.remaining
-      });
+      const { text, voiceName } = req.body;
+      const userId = req.user.id;
+
+      const creditStatus = deductCredits(userId, CREDIT_COSTS.VOICE_CALL);
+      if (!creditStatus.success) {
+        return res.status(402).json({ 
+          error: "Insufficient Neural Energy", 
+          details: `Voice consultation requires ${CREDIT_COSTS.VOICE_CALL} credits. Balance: ${creditStatus.remaining}.` 
+        });
+      }
+
+      try {
+        console.log(`[AI-VOICE] Processing voice session with "${voiceName}" for user: "${text}"`);
+        const responseText = await callAI({
+          messages: [{ role: 'user', text: text || "Hello Doctorian" }],
+          systemInstruction: "You are Doctorian clinical voice core, simulating high-fidelity Coqui XTTS-v2 synthesis combined with whisper transcribing. Keep answers warm, clinical, and extremely brief (under 30 words total) for immediate audio flow. Direct the user to seek professional aid if necessary. Conclude with supportive words.",
+          modelName: PRIMARY_ENGINE,
+          userId
+        });
+
+        res.json({
+          text: responseText,
+          creditsRemaining: creditStatus.remaining,
+          engine: "Coqui XTTS v2 + Whisper Active",
+          voiceName: voiceName || "Charon",
+          status: "synthesized"
+        });
+      } catch (err: any) {
+        console.error("[AI-VOICE] Synthetic Error:", err);
+        res.status(500).json({ error: "Failed to synthesize voice session stream", details: err.message });
+      }
     });
 
     app.post("/api/ai/operational-ideas", authenticate, async (req: any, res) => {
@@ -4797,7 +4893,9 @@ Focus on providing high-fidelity clinical and technical insights related to medi
           }
         } catch (ftErr) { }
 
-        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL OPERATIONAL UPDATE]: The user has requested that you MUST answer in clear, chunked/structured sections, heavily enriched with professional medical and organizational emojis (e.g., 🩺, 🧠, 🫀, 🔬, 💊, 🩹, 🩸, 🏥, ✨, 🌟, 🛡️, 📋, 🔍, ✅). Ensure your response is highly professional, scientifically precise, and formatted in clean Markdown with scannable headers and bullet points. Break down complex medical insights into easily digestible cognitive "chunks". Do not return plain large walls of text. Avoid long preambles.`;
+        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with absolute specificity. Directly address the exact question asked without pouring irrelevant medical facts, unrequested lists, or high-volume templated tables. Cut out long preambles and avoid pouring everything you know.
+- For focused, specific, translation, or direct questions (e.g., "translate x", "what translates to y", "first-line treatment for z", or single specific terms): Answer with 1-2 direct sentences, highly precise, with exact clinical or translation details and 1-2 appropriate emojis. Do NOT use the 4-section diagnostic template or provide unrelated tables/lists unless specifically prompted for a full diagnostic differential analysis or complete symptom review.
+- For complex, multi-system clinic symptom case reviews: Provide clear, chunked, and beautifully structured sections grounded in clinical science and Ministry of Health protocols. Keep all text highly professional, scientific, precise, and safe. Always conclude with "Medical attention is recommended."`;
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${fineTunedModelInfo}${EMOJI_CHUNKS_DIRECTIVE}`;
 
         if (wantsStream) {

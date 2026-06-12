@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   HelpCircle, BookOpen, MessageSquare, Key, ShieldAlert, FileText, CheckCircle2,
   Search, ExternalLink, UserCheck, PhoneCall, Send, Shield, Activity, 
   Settings, LogIn, Lock, Loader2, Download, Upload, AlertTriangle, Play, Check, 
-  Clock, Database, Users, Users2, Mail, MapPin, Sparkles, RefreshCw, X, MessageCircle, Smile
+  Clock, Database, Users, Users2, Mail, MapPin, Sparkles, RefreshCw, X, MessageCircle, Smile,
+  Volume2, VolumeX, Music
 } from 'lucide-react';
+
+import { Soundscape, SOUNDSCAPE_PRESETS, SoundscapeType } from '../utils/soundscape';
 
 interface SubViewProps {
   user: any;
@@ -24,6 +27,39 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
   const [ticketMessage, setTicketMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticketSuccess, setTicketSuccess] = useState(false);
+
+  // Ambient Soundscape local UI states, synchronized with the singleton engine
+  const [soundscapeEnabled, setSoundscapeEnabled] = useState(() => Soundscape.getEnabled());
+  const [soundscapePreset, setSoundscapePreset] = useState<SoundscapeType>(() => Soundscape.getPreset());
+  const [soundscapeVolume, setSoundscapeVolume] = useState(() => Soundscape.getVolume());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setSoundscapeEnabled(Soundscape.getEnabled());
+      setSoundscapePreset(Soundscape.getPreset());
+      setSoundscapeVolume(Soundscape.getVolume());
+    };
+    window.addEventListener('doctorian:soundscape_setting_update', handleSync);
+    return () => {
+      window.removeEventListener('doctorian:soundscape_setting_update', handleSync);
+    };
+  }, []);
+
+  const toggleSoundscape = () => {
+    const nextVal = !soundscapeEnabled;
+    setSoundscapeEnabled(nextVal);
+    Soundscape.setEnabled(nextVal);
+  };
+
+  const changePreset = (preset: SoundscapeType) => {
+    setSoundscapePreset(preset);
+    Soundscape.setPreset(preset);
+  };
+
+  const changeVolume = (vol: number) => {
+    setSoundscapeVolume(vol);
+    Soundscape.setVolume(vol);
+  };
 
   // Clinician feedback states
   const [feedbackText, setFeedbackText] = useState('');
@@ -336,6 +372,148 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
 
               <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 mt-6 leading-normal">
                 Audio streams rely directly on browser audio synthesis APIs. For best results, ensure system volume is unmuted.
+              </div>
+            </div>
+
+            {/* Ambient Soundscape Control Center */}
+            <div className="md:col-span-3 bg-white dark:bg-slate-900 rounded-[3rem] p-8 sm:p-10 border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 mt-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-slate-100 dark:border-slate-800/80 pb-6">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Music className={`${soundscapeEnabled ? 'animate-spin' : ''}`} style={{ animationDuration: '6s' }} size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Neural Audio Sync</span>
+                  </div>
+                  <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-white">Cognis Ambient Soundscape</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-2 font-semibold">
+                    Inoculate yourself from mental fatigue. Priming the soundscape triggers gentle background binaural beats when interacting with <span className="text-blue-600 dark:text-blue-500 font-bold">CognisHub Node</span> or <span className="text-blue-600 dark:text-blue-500 font-bold">Neural Training Hub</span>.
+                  </p>
+                </div>
+
+                {/* Sleek Custom Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={toggleSoundscape}
+                  className={`relative flex items-center justify-between px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 border cursor-pointer active:scale-95 shrink-0 ${
+                    soundscapeEnabled 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white border-transparent shadow-lg shadow-blue-500/20' 
+                      : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900 border-slate-100 dark:border-slate-805/85 text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-2.5 h-2.5 rounded-full ${soundscapeEnabled ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+                    <span>{soundscapeEnabled ? 'SOUNDSCAPE ACTIVE' : 'SOUNDSCAPE DISABLED'}</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Advanced Soundscape Configuration Panel */}
+              <div className={`grid grid-cols-1 lg:grid-cols-3 gap-8 transition-opacity duration-300 ${soundscapeEnabled ? 'opacity-100' : 'opacity-65 pointer-events-none'}`}>
+                {/* 1. Presets Panel */}
+                <div className="lg:col-span-2 space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Select Cognitive Focus Wave</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {Object.entries(SOUNDSCAPE_PRESETS).map(([key, preset]) => {
+                      const isSelected = soundscapePreset === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => changePreset(key as SoundscapeType)}
+                          className={`flex flex-col justify-between p-5 rounded-[2rem] border transition-all duration-300 hover:shadow-md cursor-pointer text-left space-y-4 ${
+                            isSelected 
+                              ? 'bg-gradient-to-br from-slate-900 to-slate-950 dark:from-white dark:to-slate-50 border-transparent text-white dark:text-slate-900 shadow-lg scale-[1.02]' 
+                              : 'bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-950/40 dark:hover:bg-slate-950 border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+                          }`}
+                        >
+                          <div>
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                              isSelected 
+                                ? 'bg-blue-500 text-white' 
+                                : 'bg-slate-100 dark:bg-slate-900 text-slate-500'
+                            }`}>
+                              {preset.binauralBeatFreq} Hz Delta
+                            </span>
+                            <h5 className="text-[13px] font-black uppercase tracking-tight mt-3 leading-snug">{preset.name}</h5>
+                          </div>
+                          <p className={`text-[10px] font-semibold leading-relaxed ${
+                            isSelected ? 'text-slate-405 dark:text-slate-500' : 'text-slate-530 dark:text-slate-450'
+                          }`}>
+                            {preset.desc}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Audio Gain Engine Controls */}
+                <div className="bg-slate-50 dark:bg-slate-950/50 rounded-[2.5rem] p-6 sm:p-8 border border-slate-100 dark:border-slate-800 flex flex-col justify-between space-y-6">
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Volume Level Control</h4>
+                    
+                    <div className="flex items-center gap-4">
+                      <button 
+                        type="button"
+                        onClick={() => changeVolume(soundscapeVolume > 0 ? 0 : 0.45)}
+                        className="p-3 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-full border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-transform active:scale-90 cursor-pointer"
+                      >
+                        {soundscapeVolume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      </button>
+                      
+                      <div className="flex-1 space-y-1">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={soundscapeVolume}
+                          onChange={(e) => changeVolume(parseFloat(e.target.value))}
+                          className="w-full accent-blue-600 dark:accent-blue-500 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full appearance-none cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[8px] font-bold text-slate-400 uppercase tracking-widest px-0.5">
+                          <span>Mute</span>
+                          <span>{Math.round(soundscapeVolume * 100)}%</span>
+                          <span>Max</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active dynamic state tracker & beautiful wave animation */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block font-sans">Active Synthesis</span>
+                      <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                        {soundscapeEnabled ? 'Sync: Auto-Trigger Live' : 'Soundscape Inactive'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-end gap-1 h-5 px-1">
+                      {[1, 2, 3, 4, 5].map((bar) => (
+                        <div
+                          key={bar}
+                          className={`w-1 bg-blue-500 dark:bg-blue-450 rounded-full transition-all duration-300 ${
+                            soundscapeEnabled ? 'animate-pulse' : 'h-1 py-0'
+                          }`}
+                          style={{
+                            height: soundscapeEnabled ? `${25 + (bar * 15) % 75}%` : '4px',
+                            animationDelay: `${bar * 120}ms`,
+                            animationDuration: '0.8s'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explanatory footer */}
+              <div className="p-4 bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 dark:border-blue-500/20 rounded-2xl flex items-start gap-3">
+                <span className="text-xs">💡</span>
+                <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-wider leading-relaxed">
+                  Binaural beats achieve peak brain synchronization when using stereophonic headphones. The two phase-shifted audio paths deliver slightly varying carrier signals to the left and right ears, allowing the brainstem to auto-generate the low-frequency binaural delta beat internally.
+                </p>
               </div>
             </div>
           </motion.div>

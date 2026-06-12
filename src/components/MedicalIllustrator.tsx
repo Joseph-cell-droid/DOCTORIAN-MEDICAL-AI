@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, ImageIcon, Download, Share2, ArrowLeft, RefreshCw, 
@@ -36,7 +36,18 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
   const [chatInput, setChatInput] = useState('');
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
 
-  const credits = user?.credits || 0;
+  const isUnlimited = React.useMemo(() => {
+    const credString = String(user?.credits || "").toLowerCase();
+    return credString.includes("unlimited") || Number(user?.credits) >= 99999;
+  }, [user]);
+
+  const numericCredits = React.useMemo(() => {
+    if (isUnlimited) return 999999;
+    const creditsVal = user?.credits;
+    if (typeof creditsVal === "number") return creditsVal;
+    const parsed = parseFloat(String(creditsVal || ""));
+    return isNaN(parsed) ? 0 : parsed;
+  }, [user, isUnlimited]);
 
   useEffect(() => {
     localStorage.setItem('doctorian_gallery', JSON.stringify(gallery));
@@ -57,7 +68,7 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
   const triggerIllustrationGeneration = async (generationPrompt: string) => {
     if (!generationPrompt.trim() || isGenerating) return;
 
-    if (credits < 10) {
+    if (numericCredits < 10 && !isUnlimited) {
       setError("Insufficient Neural Energy. 10 credits required for image synthesis.");
       return;
     }
@@ -236,7 +247,9 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800">
               <Battery size={14} className="text-emerald-600" />
-              <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">{Math.round(Number(credits))} Units</span>
+              <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">
+                {isUnlimited ? "Unlimited" : `${Math.round(numericCredits)}`} Units
+              </span>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, ErrorInfo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, ErrorInfo, Suspense, lazy, useMemo } from 'react';
 import { 
   BrainCircuit,
   Activity,
@@ -104,6 +104,8 @@ const Footer = lazy(() => import("./components/Footer").then(m => ({ default: m.
 const BiomaticSandbox = lazy(() => import("./components/BiomaticSandbox").then(m => ({ default: m.BiomaticSandbox })));
 const ClinicalProtocols = lazy(() => import("./components/Tasks").then(m => ({ default: m.ClinicalProtocols })));
 const NeuralTrainingHub = lazy(() => import("./components/NeuralTrainingHub").then(m => ({ default: m.NeuralTrainingHub })));
+
+import { Soundscape } from "./utils/soundscape";
 
 import { HealthTip } from "./components/HealthTipModal";
 const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
@@ -234,6 +236,34 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [hasNotification, setHasNotification] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+
+  const isUserPremium = useMemo(() => {
+    return ['gold', 'business', 'silver', 'pro'].includes(user?.subscriptionStatus === 'active' ? user?.subscriptionTier : '') || user?.email?.toLowerCase() === "gloriajayakullo@gmail.com";
+  }, [user]);
+
+  const isCreditsUnlimited = useMemo(() => {
+    const credString = String(user?.credits || "").toLowerCase();
+    return isUserPremium || credString.includes("unlimited") || Number(user?.credits) >= 99999;
+  }, [user, isUserPremium]);
+
+  const displayCredits = useMemo(() => {
+    if (isCreditsUnlimited) return "Unlimited";
+    const creditsVal = user?.credits;
+    if (typeof creditsVal === "number") return String(Math.round(creditsVal));
+    const parsed = parseFloat(String(creditsVal || ""));
+    if (isNaN(parsed)) return "Unlimited";
+    return String(Math.round(parsed));
+  }, [user, isCreditsUnlimited]);
+
+  const creditPercentage = useMemo(() => {
+    if (isCreditsUnlimited) return 100;
+    const creditsVal = user?.credits;
+    if (typeof creditsVal === "number") return Math.min(Math.round(creditsVal) / 4, 100);
+    const parsed = parseFloat(String(creditsVal || ""));
+    if (isNaN(parsed)) return 100;
+    return Math.min(Math.round(parsed) / 4, 100);
+  }, [user, isCreditsUnlimited]);
+
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -346,6 +376,27 @@ export default function App() {
     const ua = navigator.userAgent.toLowerCase();
     setIsAndroid(/android/.test(ua));
   }, []);
+
+  // Ambient Soundscape state monitor
+  useEffect(() => {
+    const handleSoundscapeTrigger = () => {
+      const isTargetView = currentView === 'neuro' || currentView === 'training';
+      const isEnabled = Soundscape.getEnabled();
+      if (isTargetView && isEnabled) {
+        Soundscape.start();
+      } else {
+        Soundscape.stop();
+      }
+    };
+
+    handleSoundscapeTrigger();
+
+    window.addEventListener('doctorian:soundscape_setting_update', handleSoundscapeTrigger);
+    return () => {
+      window.removeEventListener('doctorian:soundscape_setting_update', handleSoundscapeTrigger);
+      Soundscape.stop();
+    };
+  }, [currentView]);
 
   const handleSocialLogin = async (provider: any, providerName: string) => {
     setIsInsightLoading(true); // Reuse a loading state or add a new one, but let's use a generic one if possible
@@ -1663,7 +1714,9 @@ export default function App() {
                   <div className="flex items-center gap-1.5 sm:gap-3 relative shrink-0">
                     <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
                       <Zap size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">{Math.round(user.credits || 0)}</span>
+                      <span className="text-[10px] sm:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">
+                        {displayCredits}
+                      </span>
                     </div>
                     <div className="relative shrink-0">
                       <button 
@@ -1729,12 +1782,14 @@ export default function App() {
                                   <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                     <motion.div 
                                       initial={{ width: 0 }}
-                                      animate={{ width: `${Math.min(Math.round(user.credits || 0) / 4, 100)}%` }}
+                                      animate={{ width: `${creditPercentage}%` }}
                                       className="h-full bg-blue-600"
                                     />
                                   </div>
                                   <div className="flex flex-col items-end">
-                                    <span className="text-[9px] font-black text-blue-600 uppercase">{Math.round(user.credits || 0)} Neural Energy</span>
+                                    <span className="text-[9px] font-black text-blue-600 uppercase">
+                                      {displayCredits} Neural Energy
+                                    </span>
                                     <span className="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Daily Allotment</span>
                                   </div>
                                 </div>

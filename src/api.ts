@@ -5,7 +5,7 @@ export interface User {
   displayName: string;
   photoURL?: string;
   role: string;
-  credits: number;
+  credits: number | string;
   institutionId?: string;
   doctorName?: string;
   mentorName?: string;
@@ -123,12 +123,13 @@ const fetch = customFetch;
 const isOffline = (): boolean => {
   if (typeof window !== 'undefined') {
     // Support real offline (system offline) OR user forced offline.
-    // If inside iframe or sandbox, navigator.onLine might report false incorrectly.
-    // Setting "medical_forced_offline" to "false" allows bypassing iframe false-negatives.
+    // Sandboxed iframes or specific container layers might report navigator.onLine as false incorrectly.
+    // To solve this, we default to false and try the api request, which automatically
+    // catches connection errors and falls back to offline modes dynamically.
     const forced = localStorage.getItem("medical_forced_offline");
     if (forced === "true") return true;
     if (forced === "false") return false;
-    return !navigator.onLine;
+    return false; // Dynamic network-based failover (try online first, fallback on error)
   }
   return false;
 };
@@ -869,6 +870,8 @@ export const api = {
       enableDeepHealthInsights?: boolean;
       ollamaUrl?: string;
       ollamaModel?: string;
+      huggingfaceToken?: string;
+      huggingfaceModel?: string;
     }) {
       const activeUser = getStorageItem<User | null>("medical_user", null);
       if (activeUser) {

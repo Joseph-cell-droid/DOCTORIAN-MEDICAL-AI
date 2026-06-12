@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ChatInterface } from './ChatInterface';
 import { api, User } from '../api';
+import { parseResponseCredits } from '../utils/creditUtils';
 import { UpgradeModal } from './UpgradeModal';
 import { NeuralVisualizer } from './NeuralVisualizer';
 import BioSimulation from './BioSimulation';
@@ -83,7 +84,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
       const data = await api.auth.generateOperationalIdea();
       setOperationalIdea(data.idea);
       if (data.creditsRemaining !== undefined && user && onUpdate) {
-        onUpdate({ ...user, credits: data.creditsRemaining });
+        onUpdate({ ...user, credits: parseResponseCredits(data.creditsRemaining) });
       }
     } catch (err) {
       console.error("Operational idea failed:", err);

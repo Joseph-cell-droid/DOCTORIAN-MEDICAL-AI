@@ -1455,7 +1455,7 @@ Verified by Joseph Akora - Development Lead.
                       <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-4 px-1">Available Neurals</span>
                       <div className="flex items-baseline gap-4">
                         <h4 className="text-7xl font-black tracking-[-0.08em] leading-none">
-                          {['pro', 'enterprise', 'business', 'gold', 'silver'].includes(user.subscriptionTier) ? '∞' : user.credits || 0}
+                          {['pro', 'enterprise', 'business', 'gold', 'silver'].includes(user.subscriptionTier) || String(user.credits || "").toLowerCase().includes("unlimited") ? '∞' : Math.round(Number(user.credits) || 400)}
                         </h4>
                         <span className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Credits</span>
                       </div>

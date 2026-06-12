@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
+import { isCreditsUnlimited, parseCreditsToNumber, parseResponseCredits, formatCredits } from '../utils/creditUtils';
 import { 
   Dna, 
   Search, 
@@ -91,7 +92,8 @@ export const SymptomChecker: React.FC<SymptomCheckerProps> = ({ user, onUpdateUs
   const [activeSymptoms, setActiveSymptoms] = useState<Symptom[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  const credits = user?.credits || 0;
+  const numericCredits = parseCreditsToNumber(user?.credits);
+  const isUnlimited = isCreditsUnlimited(user?.credits);
   const [analysisResult, setAnalysisResult] = useState<{
     assessment: string;
     riskLevel: 'low' | 'elevated' | 'critical';
@@ -130,7 +132,7 @@ export const SymptomChecker: React.FC<SymptomCheckerProps> = ({ user, onUpdateUs
   const runAnalysis = async () => {
     if (activeSymptoms.length === 0) return;
     
-    if (credits < 0.5) {
+    if (numericCredits < 0.5 && !isUnlimited) {
        setAnalysisResult({
          assessment: "Neural energy levels critical. Please upgrade your diagnostic protocol to continue with AI synthesis.",
          riskLevel: 'low',
@@ -172,7 +174,7 @@ Return ONLY the raw JSON.`;
       );
       
       if (response && 'creditsRemaining' in response && response.creditsRemaining !== undefined && user && onUpdateUser) {
-        onUpdateUser({ ...user, credits: Number(response.creditsRemaining) });
+        onUpdateUser({ ...user, credits: parseResponseCredits(response.creditsRemaining) });
       }
 
       const responseText = response.text;

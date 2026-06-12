@@ -34,6 +34,7 @@ import {
   Binary
 } from 'lucide-react';
 import { SymptomChecker } from './SymptomChecker';
+import { isCreditsUnlimited, parseCreditsToNumber, parseResponseCredits, formatCredits } from '../utils/creditUtils';
 
 interface LabTest {
   id: string;
@@ -58,7 +59,8 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
   const [genomicSequence, setGenomicSequence] = useState<string>('');
   const [sequencingProgress, setSequencingProgress] = useState(0);
 
-  const credits = user?.credits || 0;
+  const numericCredits = parseCreditsToNumber(user?.credits);
+  const isUnlimited = isCreditsUnlimited(user?.credits);
 
   const startSequencing = () => {
     setIsAnalyzing(true);
@@ -175,7 +177,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
       
       setImagingScan(analysis);
       if (response && 'creditsRemaining' in response && response.creditsRemaining !== undefined && user && onUpdateUser) {
-        onUpdateUser({ ...user, credits: Number(response.creditsRemaining) });
+        onUpdateUser({ ...user, credits: parseResponseCredits(response.creditsRemaining) });
       }
     } catch (err: any) {
       console.error("Imaging analysis failed:", err);
@@ -207,7 +209,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
   const [aiSynthesisResult, setAiSynthesisResult] = useState<string | null>(null);
 
   const runClinicalSynthesis = async () => {
-    if (credits < 0.5) {
+    if (numericCredits < 0.5 && !isUnlimited) {
        setAiSynthesisResult("Neural energy levels critical. Please upgrade your diagnostic protocol to continue.");
        return;
     }
@@ -231,7 +233,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
       const response = await api.ai.aiChat(prompt, "You are a clinical synthesis engine.");
       setAiSynthesisResult(response.text);
       if (response && 'creditsRemaining' in response && response.creditsRemaining !== undefined && user && onUpdateUser) {
-        onUpdateUser({ ...user, credits: Number(response.creditsRemaining) });
+        onUpdateUser({ ...user, credits: parseResponseCredits(response.creditsRemaining) });
       }
     } catch (err: any) {
       setAiSynthesisResult(err.message || "Synthesis failed to achieve neural synchronization. Please verify biometric data stream integrity.");

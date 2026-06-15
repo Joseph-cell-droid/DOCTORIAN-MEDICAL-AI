@@ -112,6 +112,7 @@ import { HealthTip } from "./components/HealthTipModal";
 const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
 const HealthProgressTracker = lazy(() => import("./components/HealthProgressTracker").then(m => ({ default: m.HealthProgressTracker })));
 import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
+import { translate } from './utils/translations';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; showDetails: boolean }> {
   constructor(props: { children: React.ReactNode }) {
@@ -223,6 +224,7 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState(() => localStorage.getItem("app_lang") || 'English (US)');
   const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
@@ -1383,8 +1385,8 @@ export default function App() {
                       ? "bg-slate-50 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 font-semibold border-l-4 border-slate-400 dark:border-slate-600 rounded-l-none"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:text-slate-900 dark:hover:text-slate-200"
                   }`}
-                  aria-label="Clinical Systems Hub"
-                  title="Systems Hub"
+                  aria-label={translate("Clinical Systems Hub", currentLanguage)}
+                  title={translate("Systems Hub", currentLanguage)}
                 >
                   <motion.div
                     animate={isResourcesOpen ? { rotate: 90, scale: 1.1 } : { rotate: 0, scale: 1 }}
@@ -1399,7 +1401,7 @@ export default function App() {
 
                   {!isSidebarCollapsed && (
                     <span className="text-sm font-semibold truncate flex-1 leading-none tracking-tight">
-                      Systems Hub
+                      {translate("Systems Hub", currentLanguage)}
                     </span>
                   )}
                 </button>
@@ -1635,6 +1637,41 @@ export default function App() {
 
                 <div className="hidden md:block shrink-0">
                   <VoiceCommandToggle onNavigate={setCurrentView} />
+                </div>
+
+                {/* Language Quick Dropdown */}
+                <div className="relative shrink-0">
+                  <select
+                    value={currentLanguage}
+                    onChange={(e) => {
+                      const lang = e.target.value;
+                      setCurrentLanguage(lang);
+                      localStorage.setItem("app_lang", lang);
+                      setToast({
+                        message: `🌐 Language updated to ${lang}. Re-indexing clinical interface lexicon...`,
+                        type: 'success'
+                      });
+                    }}
+                    className="appearance-none bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 rounded-xl px-2.5 py-1.5 text-[10px] font-black text-slate-900 dark:text-white transition-all cursor-pointer shadow-sm outline-none shrink-0 h-9 sm:h-11 flex items-center text-center pr-2"
+                    title="Change UI Language instantly"
+                  >
+                    <option value="English (US)">🇺🇸 EN</option>
+                    <option value="English (UK)">🇬🇧 UK</option>
+                    <option value="Luganda">🇺🇬 LG</option>
+                    <option value="Swahili">🇰🇪 SW</option>
+                    <option value="Spanish">🇪🇸 ES</option>
+                    <option value="French">🇫🇷 FR</option>
+                    <option value="German">🇩🇪 DE</option>
+                    <option value="Chinese">🇨🇳 中</option>
+                    <option value="Hindi">🇮🇳 हि</option>
+                    <option value="Arabic">🇸🇦 ع</option>
+                    <option value="Portuguese">🇧🇷 PT</option>
+                    <option value="Russian">🇷🇺 RU</option>
+                    <option value="Japanese">🇯🇵 日</option>
+                    <option value="Korean">🇰🇷 한</option>
+                    <option value="Italian">🇮🇹 IT</option>
+                    <option value="Turkish">🇹🇷 TR</option>
+                  </select>
                 </div>
 
                 <motion.button
@@ -2416,6 +2453,15 @@ export default function App() {
               onLogout={handleLogout}
               onBack={() => setCurrentView('home')}
               onNavigate={setCurrentView}
+              currentLanguage={currentLanguage}
+              onLanguageChange={(lang) => {
+                setCurrentLanguage(lang);
+                localStorage.setItem("app_lang", lang);
+                setToast({
+                  message: `🌐 Language updated to ${lang}. Re-indexing clinical interface lexicon...`,
+                  type: 'success'
+                });
+              }}
             />
           </motion.div>
         ) : currentView === 'admin' ? (
@@ -2565,7 +2611,7 @@ export default function App() {
             {/* Systems Hub Header */}
             <div className="mb-8 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
               <div>
-                <h1 className="text-3xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter">Clinical Systems Hub</h1>
+                <h1 className="text-3xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter">{translate("Clinical Systems Hub", currentLanguage)}</h1>
                 <p className="text-slate-500 dark:text-slate-400 font-medium font-sans">Access system guides, sandboxed security vaults, and regulatory clinical definitions.</p>
               </div>
               <div className="flex flex-wrap gap-2">

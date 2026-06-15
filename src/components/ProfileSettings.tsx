@@ -21,9 +21,19 @@ interface ProfileSettingsProps {
   onLogout: () => void;
   onBack: () => void;
   onNavigate?: (view: any) => void;
+  currentLanguage?: string;
+  onLanguageChange?: (lang: string) => void;
 }
 
-export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate, onLogout, onBack, onNavigate }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ 
+  user, 
+  onUpdate, 
+  onLogout, 
+  onBack, 
+  onNavigate,
+  currentLanguage,
+  onLanguageChange
+}) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'emergency' | 'security' | 'notifications' | 'language' | 'medical-id' | 'billing' | 'neural'>('profile');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
@@ -139,8 +149,21 @@ Verified by Joseph Akora - Development Lead.
     marketing: false
   });
 
-  // Language settings (mock)
-  const [language, setLanguage] = useState('English (US)');
+  // Language settings (parent-synchronized)
+  const [language, setLanguage] = useState(currentLanguage || 'English (US)');
+
+  useEffect(() => {
+    if (currentLanguage) {
+      setLanguage(currentLanguage);
+    }
+  }, [currentLanguage]);
+
+  const handleLanguageChange = (langName: string) => {
+    setLanguage(langName);
+    if (onLanguageChange) {
+      onLanguageChange(langName);
+    }
+  };
 
   const languages = [
     { code: 'en-US', name: 'English (US)', flag: '🇺🇸', native: 'English' },
@@ -1426,7 +1449,7 @@ Verified by Joseph Akora - Development Lead.
                   {languages.map(lang => (
                     <button 
                       key={lang.code}
-                      onClick={() => setLanguage(lang.name)}
+                      onClick={() => handleLanguageChange(lang.name)}
                       className={`group flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all ${language === lang.name ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-600 shadow-xl shadow-blue-500/5 scale-[1.02]' : 'bg-slate-50 dark:bg-slate-800/50 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
                     >
                       <div className="flex items-center gap-5">

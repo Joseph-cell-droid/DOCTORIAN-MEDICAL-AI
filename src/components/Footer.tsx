@@ -15,7 +15,10 @@ import {
   Phone,
   Radio,
   Server,
-  Users
+  Users,
+  Bot,
+  Dna,
+  Pill
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -30,6 +33,65 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [systemTime, setSystemTime] = useState('');
   const [activeClinicians, setActiveClinicians] = useState(14);
+
+  const footerFeatures = [
+    {
+      title: "Real-time Bio-Monitor",
+      description: "Direct telemetry connection via Arduino, BLE, and Smartwatch status.",
+      status: "Synced",
+      color: "from-blue-500 to-indigo-600 bg-blue-500",
+      icon: <Activity className="w-5 h-5 text-white" />,
+      view: "monitor"
+    },
+    {
+      title: "AI Diagnostic Suite",
+      description: "Advanced neurological & diagnostic assistance powered by the medical core.",
+      status: "Ready",
+      color: "from-violet-500 to-purple-600 bg-violet-600",
+      icon: <Bot className="w-5 h-5 text-white" />,
+      view: "diagnostic_lab"
+    },
+    {
+      title: "Genomic Longevity Sequence",
+      description: "Helix sequence tracking, bio-aging indices, and life optimization parameters.",
+      status: "Optimized",
+      color: "from-rose-500 to-pink-600 bg-rose-500",
+      icon: <Dna className="w-5 h-5 text-white" />,
+      view: "genomic_longevity"
+    },
+    {
+      title: "E-Pharmacy Vault",
+      description: "MOH medicine catalog syncing and dispatch status records.",
+      status: "Active",
+      color: "from-emerald-500 to-teal-600 bg-emerald-500",
+      icon: <Pill className="w-5 h-5 text-white" />,
+      view: "meds"
+    },
+    {
+      title: "VHT Logbook & Registry",
+      description: "Aggregated community health logs, diagnostic templates, and physical files.",
+      status: "Online",
+      color: "from-amber-500 to-orange-600 bg-amber-500",
+      icon: <Server className="w-5 h-5 text-white" />,
+      view: "records"
+    },
+    {
+      title: "Clinician Specialists Hub",
+      description: "Instant connection to experts, pediatricians, cardiologists, and local nodes.",
+      status: "Active VHT",
+      color: "from-cyan-500 to-blue-600 bg-cyan-500",
+      icon: <Users className="w-5 h-5 text-white" />,
+      view: "specialist"
+    },
+    {
+      title: "Interactive Sandbox Sim-Lab",
+      description: "Simulate complex cardiological situations, calibrate triggers, and plot alerts.",
+      status: "Ready",
+      color: "from-teal-500 to-emerald-600 bg-teal-500",
+      icon: <Sparkles className="w-5 h-5 text-white" />,
+      view: "biomatic"
+    }
+  ];
 
   // Dynamic status updates for realism
   useEffect(() => {
@@ -154,7 +216,86 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </div>
           </div>
         </div>
-        
+
+        {/* Interactive Horizontally Scrollable Feature Rail */}
+        <div className="mb-16 p-6 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 rounded-[2.5rem] space-y-5 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Sparkles size={14} className="text-blue-500 animate-spin-slow" /> Interactive Clinical Modules
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1">
+                Scroll horizontally to explore advanced subsystems and check live module integration statuses.
+              </p>
+            </div>
+            <div className="flex gap-2 self-end sm:self-auto">
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById('footer-features-rail');
+                  if (el) el.scrollBy({ left: -300, behavior: 'smooth' });
+                }}
+                className="w-9 h-9 rounded-xl bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 flex items-center justify-center text-slate-650 dark:text-slate-350 hover:text-blue-600 dark:hover:text-cyan-400 hover:border-blue-200 dark:hover:border-cyan-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90"
+                title="Scroll Left"
+              >
+                <span className="font-bold text-sm">←</span>
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById('footer-features-rail');
+                  if (el) el.scrollBy({ left: 300, behavior: 'smooth' });
+                }}
+                className="w-9 h-9 rounded-xl bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 flex items-center justify-center text-slate-655 dark:text-slate-355 hover:text-blue-600 dark:hover:text-cyan-400 hover:border-blue-200 dark:hover:border-cyan-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90"
+                title="Scroll Right"
+              >
+                <span className="font-bold text-sm">→</span>
+              </button>
+            </div>
+          </div>
+
+          <div 
+            id="footer-features-rail"
+            className="flex flex-row flex-nowrap gap-5 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory overflow-y-hidden custom-scrollbar relative"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {footerFeatures.map((item, idx) => (
+              <div 
+                key={idx}
+                onClick={() => onNavigate(item.view)}
+                className="min-w-[280px] md:min-w-[316px] max-w-[316px] shrink-0 snap-start bg-white dark:bg-slate-955 p-5 rounded-[2rem] border border-slate-155 dark:border-slate-800/70 hover:border-blue-500/30 dark:hover:border-cyan-500/30 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+              >
+                {/* Background soft glow on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent dark:from-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                
+                <div className="space-y-4 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <div className={`p-3 bg-gradient-to-tr ${item.color} rounded-2xl shadow-md group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300`}>
+                      {item.icon}
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-full text-slate-500 dark:text-slate-400 group-hover:bg-blue-600 group-hover:text-white dark:group-hover:bg-cyan-500 transition-all duration-150">
+                      {item.status}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider group-hover:text-blue-650 dark:group-hover:text-cyan-400 transition-colors">
+                      {item.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1.5 leading-relaxed whitespace-normal">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-5 pt-3 border-t border-slate-50 dark:border-slate-900 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-cyan-405 transition-colors relative z-10">
+                  <span>Activate Pipeline</span>
+                  <ArrowRight size={12} className="group-hover:translate-x-1.5 transition-transform duration-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Main Grid: Branding, Links, Bulletin */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 pb-16 border-b border-slate-200 dark:border-slate-800/40">
           

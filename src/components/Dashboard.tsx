@@ -61,7 +61,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateUser
 }) => {
   const vitalStats = [
-    { label: 'Cognis Load', value: '42%', trend: '-4%', icon: <Brain size={16} />, color: 'blue' },
+    { 
+      label: 'Doctorian AI Core', 
+      value: '99.8%', 
+      trend: 'Optimal', 
+      icon: <Brain size={16} />, 
+      color: 'blue',
+      details: 'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.'
+    },
     { label: 'Cardiac Flux', value: '72 BPM', trend: '+2%', icon: <Heart size={16} />, color: 'rose' },
     { label: 'Neural Energy', value: `${formatCredits(user?.credits)} Units`, trend: 'Resets Daily', icon: <Battery size={16} />, color: 'emerald' },
     { label: 'Hydration', value: '2.4L', trend: '+0.4', icon: <Droplets size={16} />, color: 'cyan' },

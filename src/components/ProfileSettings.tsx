@@ -1031,90 +1031,186 @@ Verified by Joseph Akora - Development Lead.
 
                       <div className="flex items-center gap-2 mb-4 ml-1">
                         <Globe size={14} className="text-violet-500" />
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Neural Link (Ollama / LM Studio)</h4>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Doctorian Cloud Neural Synapse Pipeline</h4>
                       </div>
+
                       <div className="space-y-4">
-                        <div className="relative group">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-violet-600 transition-colors">
-                            <Activity size={18} />
+                        {/* Premium Managed Synapse Status Dashboard */}
+                        <div className="p-6 bg-gradient-to-br from-violet-500/10 via-blue-500/5 to-transparent rounded-3xl border border-violet-500/25 dark:border-violet-500/15 relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Cpu size={80} className="text-violet-500 animate-pulse" />
                           </div>
-                          <input
-                            type="text"
-                            value={ollamaUrl}
-                            onChange={e => setOllamaUrl(e.target.value)}
-                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
-                            placeholder="http://localhost:11434 or http://localhost:1234"
-                          />
+                          
+                          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+                              Active Synapse Online
+                            </span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                              Active License: <span className="text-blue-600 dark:text-blue-400">{(user?.subscriptionTier || "Free").toUpperCase()}</span>
+                            </span>
+                          </div>
+
+                          <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">
+                            {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "")
+                              ? "Google MedLM Large & Deep Reasoning Core"
+                              : ['pro', 'silver'].includes(user?.subscriptionTier || "")
+                              ? "Google MedLM Medium & Clinical Pro Core"
+                              : "Meta LLaMA 3.1 & Doctorian Local Core"
+                            }
+                          </h5>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide leading-relaxed mb-4">
+                            Hosted model is configured directly in the codes. Performance, diagnostic speeds, and neural layers automatically scale with your active subscription layer & payment credentials.
+                          </p>
+
+                          {/* Dynamic Progress Matrices based on Tier */}
+                          <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/85 pt-4">
+                            <div>
+                              <div className="flex justify-between text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                <span>Diagnostic Reasoning Depth</span>
+                                <span className="text-slate-900 dark:text-white">
+                                  {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? "100% (Ultimate)" : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? "75% (Catalyst)" : "35% (Base)"}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-violet-600 rounded-full transition-all duration-1000"
+                                  style={{ width: ['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? '100%' : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? '75%' : '35%' }}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                <span>Complex Medical Grounding (MoH / ICD-11)</span>
+                                <span className="text-slate-900 dark:text-white">
+                                  {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? "98% (Multi-System)" : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? "90% (Guideline-Linked)" : "45% (Symptom-Matched)"}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-blue-500 rounded-full transition-all duration-1000"
+                                  style={{ width: ['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? '98%' : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? '90%' : '45%' }}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                <span>Context Bandwidth Capacity</span>
+                                <span className="text-slate-900 dark:text-white">
+                                  {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? "128K Token Layer" : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? "32K Token Layer" : "8K Token Layer"}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                                  style={{ width: ['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? '100%' : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? '65%' : '20%' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="relative group">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-violet-600 transition-colors">
-                            <Cpu size={18} />
-                          </div>
-                          <input
-                            type="text"
-                            value={ollamaModel}
-                            onChange={e => setOllamaModel(e.target.value)}
-                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
-                            placeholder="gemma4 or custom model identifier"
-                          />
-                        </div>
+                        {/* Collapsible Advanced Developer Manual Bypass Accordion */}
+                        <details className="group border border-slate-100 dark:border-slate-800 rounded-[2rem] p-5 bg-slate-50/50 dark:bg-slate-900/10 [&_summary::-webkit-details-marker]:hidden transition-all">
+                          <summary className="flex items-center justify-between gap-2 font-black uppercase text-[9px] text-slate-400 tracking-widest cursor-pointer outline-none select-none">
+                            <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-300">
+                              <Cpu size={12} className="text-violet-500" />
+                              Advanced: Manual Developer Overrides (Bypass Local Ollama/LM Studio)
+                            </span>
+                            <span className="text-xs transition-transform group-open:rotate-180">▼</span>
+                          </summary>
 
-                        <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
-                          Connect to your laptop's local instance. Ollama runs on <span className="text-slate-900 dark:text-white">http://localhost:11434</span>. LM Studio runs on <span className="text-slate-900 dark:text-white">http://localhost:1234</span>.
-                        </p>
+                          <div className="space-y-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 pt-4">
+                            <p className="text-[9px] text-slate-400 hover:text-slate-500 font-bold uppercase leading-relaxed m-0">
+                              For power developers who wish to route diagnostic tokens to custom local models on their PC instead of using the fully premium managed cloud pipeline.
+                            </p>
+                            
+                            <div className="relative group">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-violet-600 transition-colors">
+                                <Activity size={18} />
+                              </div>
+                              <input
+                                type="text"
+                                value={ollamaUrl}
+                                onChange={e => setOllamaUrl(e.target.value)}
+                                className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
+                                placeholder="http://localhost:11434 or http://localhost:1234"
+                              />
+                            </div>
 
-                        <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
-                          <div className="flex items-center justify-between gap-3 mb-2">
-                             <div className="flex items-center gap-3">
-                                <Zap size={14} className="text-blue-600" />
-                                <span className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest">Public Neural Link Helper</span>
-                             </div>
-                             <button
-                               onClick={async () => {
-                                 try {
-                                   const isLMStudioCheck = ollamaUrl.includes(':1234') || ollamaUrl.includes('/v1') || ollamaUrl.toLowerCase().includes('lmstudio');
-                                   const checkPath = isLMStudioCheck 
-                                     ? (ollamaUrl.includes('/v1') ? `${ollamaUrl}/models` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`)
-                                     : `${ollamaUrl.replace(/\/$/, '')}/api/tags`;
-                                   
-                                   const res = await fetch(checkPath).catch(() => null);
-                                   if (res && res.ok) {
-                                     setMessage({ text: `Neural pulse confirmed! ${isLMStudioCheck ? 'LM Studio/OpenAI API' : 'Ollama'} is reachable.`, type: 'success' });
-                                   } else {
-                                     // Fallback try secondary endpoint check
-                                     const secondaryPath = isLMStudioCheck ? `${ollamaUrl.replace(/\/$/, '')}/api/tags` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`;
-                                     const resSec = await fetch(secondaryPath).catch(() => null);
-                                     if (resSec && resSec.ok) {
-                                        setMessage({ text: 'Neural pulse confirmed! Local server is reachable.', type: 'success' });
-                                     } else {
-                                        throw new Error('Neural port closed.');
+                            <div className="relative group">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-violet-600 transition-colors">
+                                <Cpu size={18} />
+                              </div>
+                              <input
+                                type="text"
+                                value={ollamaModel}
+                                onChange={e => setOllamaModel(e.target.value)}
+                                className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
+                                placeholder="gemma4 or custom model identifier"
+                              />
+                            </div>
+
+                            <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
+                              Connect to your laptop's local instance. Ollama runs on <span className="text-slate-900 dark:text-white">http://localhost:11434</span>. LM Studio runs on <span className="text-slate-900 dark:text-white">http://localhost:1234</span>. Requires a public tunnel endpoint.
+                            </p>
+
+                            <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                 <div className="flex items-center gap-3">
+                                    <Zap size={14} className="text-blue-600" />
+                                    <span className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest">Public Neural Link Helper</span>
+                                 </div>
+                                 <button
+                                   onClick={async () => {
+                                     try {
+                                       const isLMStudioCheck = ollamaUrl.includes(':1234') || ollamaUrl.includes('/v1') || ollamaUrl.toLowerCase().includes('lmstudio');
+                                       const checkPath = isLMStudioCheck 
+                                         ? (ollamaUrl.includes('/v1') ? `${ollamaUrl}/models` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`)
+                                         : `${ollamaUrl.replace(/\/$/, '')}/api/tags`;
+                                       
+                                       const res = await fetch(checkPath).catch(() => null);
+                                       if (res && res.ok) {
+                                         setMessage({ text: `Neural pulse confirmed! ${isLMStudioCheck ? 'LM Studio/OpenAI API' : 'Ollama'} is reachable.`, type: 'success' });
+                                       } else {
+                                         // Fallback try secondary endpoint check
+                                         const secondaryPath = isLMStudioCheck ? `${ollamaUrl.replace(/\/$/, '')}/api/tags` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`;
+                                         const resSec = await fetch(secondaryPath).catch(() => null);
+                                         if (resSec && resSec.ok) {
+                                            setMessage({ text: 'Neural pulse confirmed! Local server is reachable.', type: 'success' });
+                                         } else {
+                                            throw new Error('Neural port closed.');
+                                         }
+                                       }
+                                     } catch {
+                                       setMessage({ text: 'Neural pulse failed. Ensure local tunnel is active or CORS is enabled.', type: 'error' });
                                      }
-                                   }
-                                 } catch {
-                                   setMessage({ text: 'Neural pulse failed. Ensure local tunnel is active or CORS is enabled.', type: 'error' });
-                                 }
-                               }}
-                               className="px-3 py-1 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg text-[8px] font-black uppercase text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                             >
-                               Check Connection
-                             </button>
+                                   }}
+                                   type="button"
+                                   className="px-3 py-1 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg text-[8px] font-black uppercase text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                 >
+                                   Check Connection
+                                 </button>
+                              </div>
+                              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed mb-4">
+                                Since this app runs in the cloud, it cannot directly "see" your laptop's localhost url unless you open a public tunnel.
+                                Use <span className="text-blue-600">ngrok</span> or <span className="text-blue-600">localtunnel</span> to get a public link.
+                              </p>
+                              <div className="bg-slate-900 rounded-xl p-3 font-mono text-[8px] text-blue-300 overflow-x-auto no-scrollbar">
+                                # 1. Allow Cross-Origin Requests (CORS)<br/>
+                                # For Ollama: export OLLAMA_ORIGINS="*"<br/>
+                                # For LM Studio: Turn on the CORS toggle in LM Studio Server Settings<br/>
+                                # 2. Start a Tunnel (e.g. for LM Studio port 1234)<br/>
+                                npx localtunnel --port 1234
+                              </div>
+                              <p className="text-[8px] font-medium text-slate-400 mt-2 italic">
+                                * Paste the resulting "https://..." link into the Local Neural Link URL field above.
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed mb-4">
-                            Since this app runs in the cloud, it cannot directly "see" your laptop's localhost url unless you open a public tunnel.
-                            Use <span className="text-blue-600">ngrok</span> or <span className="text-blue-600">localtunnel</span> to get a public link.
-                          </p>
-                          <div className="bg-slate-900 rounded-xl p-3 font-mono text-[8px] text-blue-300 overflow-x-auto no-scrollbar">
-                            # 1. Allow Cross-Origin Requests (CORS)<br/>
-                            # For Ollama: export OLLAMA_ORIGINS="*"<br/>
-                            # For LM Studio: Turn on the CORS toggle in LM Studio Server Settings<br/>
-                            # 2. Start a Tunnel (e.g. for LM Studio port 1234)<br/>
-                            npx localtunnel --port 1234
-                          </div>
-                          <p className="text-[8px] font-medium text-slate-400 mt-2 italic">
-                            * Paste the resulting "https://..." link into the Local Neural Link URL field above.
-                          </p>
-                        </div>
+                        </details>
                       </div>
                     </div>
                   </div>

@@ -1491,22 +1491,22 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">MTN API Key</p>
                         <div className="flex items-center gap-2">
-                          {twilioStatus?.details?.hasApiKey ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{twilioStatus?.details?.hasApiKey ? 'Present' : 'Missing'}</span>
+                          {twilioStatus?.details && twilioStatus.details.hasApiKey ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{twilioStatus?.details && twilioStatus.details.hasApiKey ? 'Present' : 'Missing'}</span>
                         </div>
                       </div>
                       <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender ID</p>
                         <div className="flex items-center gap-2">
-                          {twilioStatus?.details?.hasSenderId ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{twilioStatus?.details?.senderId || 'Missing'}</span>
+                          {twilioStatus?.details && twilioStatus.details.hasSenderId ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{(twilioStatus?.details && twilioStatus.details.senderId) || 'Missing'}</span>
                         </div>
                       </div>
                       <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Doctor Number</p>
                         <div className="flex items-center gap-2">
-                          {twilioStatus?.details?.hasDoctorNumber ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{twilioStatus?.details?.doctorNumber || 'Missing'}</span>
+                          {twilioStatus?.details && twilioStatus.details.hasDoctorNumber ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{(twilioStatus?.details && twilioStatus.details.doctorNumber) || 'Missing'}</span>
                         </div>
                       </div>
                     </div>

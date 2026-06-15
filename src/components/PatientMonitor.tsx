@@ -4,7 +4,7 @@ import {
   Heart, Droplets, Wind, Activity, AlertTriangle,
   CheckCircle, Info, Radio, Signal, XCircle, Monitor, Stethoscope, WifiOff,
   Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3,
-  Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle
+  Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2
 } from 'lucide-react';
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1033,14 +1033,147 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   }, [healthStatus?.overall]);
   
   // Alert Thresholds Configuration
-  const [thresholds, setThresholds] = useState({
-    heartRate: { min: 50, max: 120, warningMin: 60, warningMax: 100 },
-    temperature: { max: 38.5, warningMax: 37.5 },
-    spo2: { min: 90, warningMin: 95 },
-    systolicBP: { max: 180, warningMax: 140 },
-    diastolicBP: { max: 110, warningMax: 90 },
-    respiratoryRate: { min: 12, max: 25, warningMax: 20 }
+  const [thresholds, setThresholds] = useState(() => {
+    const saved = localStorage.getItem('doctorian_alert_thresholds');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      heartRate: { min: 50, max: 120, warningMin: 60, warningMax: 100 },
+      temperature: { max: 38.5, warningMax: 37.5 },
+      spo2: { min: 90, warningMin: 95 },
+      systolicBP: { max: 180, warningMax: 140 },
+      diastolicBP: { max: 110, warningMax: 90 },
+      respiratoryRate: { min: 12, max: 25, warningMax: 20 }
+    };
   });
+
+  const [autoSosThresholds, setAutoSosThresholds] = useState(() => {
+    const saved = localStorage.getItem('doctorian_auto_sos_thresholds');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      heartRateMin: 45,
+      heartRateMax: 140,
+      spo2Min: 85
+    };
+  });
+
+  // Preset Manager default and custom profiles
+  const baseDefaultPresets = [
+    {
+      id: 'default_safety',
+      name: 'General Safety (Standard)',
+      isDefault: true,
+      thresholds: {
+        heartRate: { min: 50, max: 120, warningMin: 60, warningMax: 100 },
+        temperature: { max: 38.5, warningMax: 37.5 },
+        spo2: { min: 90, warningMin: 95 },
+        systolicBP: { max: 180, warningMax: 140 },
+        diastolicBP: { max: 110, warningMax: 90 },
+        respiratoryRate: { min: 12, max: 25, warningMax: 20 }
+      },
+      autoSosThresholds: {
+        heartRateMin: 45,
+        heartRateMax: 140,
+        spo2Min: 85
+      }
+    },
+    {
+      id: 'cardiac_focus',
+      name: 'Cardiac Focus (Tighter HR)',
+      isDefault: true,
+      thresholds: {
+        heartRate: { min: 55, max: 110, warningMin: 65, warningMax: 90 },
+        temperature: { max: 38.5, warningMax: 37.5 },
+        spo2: { min: 90, warningMin: 95 },
+        systolicBP: { max: 160, warningMax: 135 },
+        diastolicBP: { max: 100, warningMax: 85 },
+        respiratoryRate: { min: 12, max: 25, warningMax: 20 }
+      },
+      autoSosThresholds: {
+        heartRateMin: 50,
+        heartRateMax: 120,
+        spo2Min: 86
+      }
+    },
+    {
+      id: 'respiratory_focus',
+      name: 'Respiratory Focus (High SpO2 Alert)',
+      isDefault: true,
+      thresholds: {
+        heartRate: { min: 48, max: 130, warningMin: 55, warningMax: 105 },
+        temperature: { max: 38.5, warningMax: 37.5 },
+        spo2: { min: 92, warningMin: 96 },
+        systolicBP: { max: 180, warningMax: 140 },
+        diastolicBP: { max: 110, warningMax: 90 },
+        respiratoryRate: { min: 14, max: 28, warningMax: 22 }
+      },
+      autoSosThresholds: {
+        heartRateMin: 40,
+        heartRateMax: 150,
+        spo2Min: 90
+      }
+    }
+  ];
+
+  type PresetProfile = typeof baseDefaultPresets[0];
+
+  const [customPresets, setCustomPresets] = useState<PresetProfile[]>(() => {
+    const saved = localStorage.getItem('doctorian_custom_sos_presets');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('default_safety');
+  const [newPresetName, setNewPresetName] = useState('');
+
+  const handleSelectPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    const found = [...baseDefaultPresets, ...customPresets].find(p => p.id === presetId);
+    if (found) {
+      setThresholds(found.thresholds);
+      setAutoSosThresholds(found.autoSosThresholds);
+    }
+  };
+
+  const handleSaveCustomPreset = () => {
+    if (!newPresetName.trim()) return;
+    const cleanName = newPresetName.trim();
+    
+    const newPreset: PresetProfile = {
+      id: 'preset_' + Date.now().toString(36),
+      name: cleanName,
+      isDefault: false,
+      thresholds: JSON.parse(JSON.stringify(thresholds)),
+      autoSosThresholds: JSON.parse(JSON.stringify(autoSosThresholds))
+    };
+
+    const updated = [newPreset, ...customPresets];
+    setCustomPresets(updated);
+    localStorage.setItem('doctorian_custom_sos_presets', JSON.stringify(updated));
+    setSelectedPresetId(newPreset.id);
+    setNewPresetName('');
+  };
+
+  const handleDeleteCustomPreset = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = customPresets.filter(p => p.id !== id);
+    setCustomPresets(updated);
+    localStorage.setItem('doctorian_custom_sos_presets', JSON.stringify(updated));
+    if (selectedPresetId === id) {
+      setSelectedPresetId('default_safety');
+    }
+  };
 
   const handleConnectBluetooth = async () => {
     setIsConnecting('bluetooth');
@@ -3284,6 +3417,101 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               </div>
 
               <div className="space-y-8 max-h-[60vh] overflow-y-auto px-2 custom-scrollbar">
+                {/* Preset Profile Manager */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Folder size={15} className="text-blue-500" /> SOS Preset Manager
+                    </h3>
+                    <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                      {customPresets.length + baseDefaultPresets.length} Profiles
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                      Active Telemetry Profile
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedPresetId}
+                        onChange={(e) => handleSelectPreset(e.target.value)}
+                        className="flex-1 text-xs font-bold bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-3 rounded-xl border border-slate-150 dark:border-slate-800/80 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                      >
+                        <optgroup label="Default Clinical Presets">
+                          {baseDefaultPresets.map(preset => (
+                            <option key={preset.id} value={preset.id}>
+                              {preset.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        {customPresets.length > 0 && (
+                          <optgroup label="Custom User Profiles">
+                            {customPresets.map(preset => (
+                              <option key={preset.id} value={preset.id}>
+                                {preset.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Preset Badges for easy one-click switching */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...baseDefaultPresets, ...customPresets].map(preset => {
+                      const isActive = selectedPresetId === preset.id;
+                      return (
+                        <div 
+                          key={preset.id}
+                          onClick={() => handleSelectPreset(preset.id)}
+                          className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-wider transition-all border ${
+                            isActive
+                              ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/10'
+                              : 'bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                        >
+                          <span>{preset.name}</span>
+                          {!preset.isDefault && (
+                            <button
+                              onClick={(e) => handleDeleteCustomPreset(preset.id, e)}
+                              className={`p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 ${isActive ? 'text-white hover:text-red-200' : 'text-red-500'}`}
+                              title="Delete profile"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Create Custom Preset Form */}
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                      Save Current Configuration as Preset
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. Elderly Care, Runner Focus..."
+                        value={newPresetName}
+                        onChange={(e) => setNewPresetName(e.target.value)}
+                        className="flex-1 text-xs font-semibold bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 px-3 py-2.5 rounded-xl border border-slate-150 dark:border-slate-800/80 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={handleSaveCustomPreset}
+                        disabled={!newPresetName.trim()}
+                        className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-slate-100 disabled:opacity-40 transition-all cursor-pointer active:scale-95 shrink-0 animate-fade-in"
+                      >
+                        <Plus size={12} />
+                        <span>Save</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Heart Rate */}
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -3339,11 +3567,54 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     unit="°C"
                   />
                 </div>
+
+                {/* Automatic SOS Trigger */}
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                  <h3 className="text-xs font-black text-red-500 dark:text-red-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <ShieldAlert size={15} className="text-red-500 animate-pulse" /> Automatic SOS Config
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold leading-relaxed">
+                    Set specific physiologic bounds at or below which an emergency alert cellular broadcast & automated doctor call is initiated.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <ThresholdInput
+                      label="SOS Heart Rate Min"
+                      value={autoSosThresholds.heartRateMin}
+                      onChange={(v) => setAutoSosThresholds(prev => ({ ...prev, heartRateMin: v }))}
+                      min={30}
+                      max={80}
+                      unit=" bpm"
+                    />
+                    <ThresholdInput
+                      label="SOS Heart Rate Max"
+                      value={autoSosThresholds.heartRateMax}
+                      onChange={(v) => setAutoSosThresholds(prev => ({ ...prev, heartRateMax: v }))}
+                      min={100}
+                      max={200}
+                      unit=" bpm"
+                    />
+                  </div>
+                  <div>
+                    <ThresholdInput
+                      label="SOS Critical SpO2 Min"
+                      value={autoSosThresholds.spo2Min}
+                      onChange={(v) => setAutoSosThresholds(prev => ({ ...prev, spo2Min: v }))}
+                      min={70}
+                      max={95}
+                      unit="%"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="mt-10">
                 <button
-                  onClick={() => setShowSettings(false)}
+                  onClick={() => {
+                    localStorage.setItem('doctorian_alert_thresholds', JSON.stringify(thresholds));
+                    localStorage.setItem('doctorian_auto_sos_thresholds', JSON.stringify(autoSosThresholds));
+                    localStorage.setItem('doctorian_selected_preset_id', selectedPresetId);
+                    setShowSettings(false);
+                  }}
                   className="w-full bg-slate-900 dark:bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-blue-700 transition-all shadow-xl active:scale-95"
                 >
                   Apply Settings

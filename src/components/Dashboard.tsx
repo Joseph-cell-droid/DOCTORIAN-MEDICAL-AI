@@ -23,6 +23,7 @@ import { AnomalyDetector } from './AnomalyDetector';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { VitalWaveform } from './VitalWaveform';
 import { isCreditsUnlimited, parseCreditsToNumber, formatCredits } from '../utils/creditUtils';
+import { translate } from '../utils/translations';
 
 const performanceData = [
   { time: '00:00', value: 82 },
@@ -46,6 +47,7 @@ interface DashboardProps {
   healthStatus: HealthStatus | null;
   history: Vitals[];
   onUpdateUser?: (u: any) => void;
+  currentLanguage?: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -58,20 +60,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
   vitals,
   healthStatus,
   history,
-  onUpdateUser
+  onUpdateUser,
+  currentLanguage = 'English (US)'
 }) => {
   const vitalStats = [
     { 
-      label: 'Doctorian AI Core', 
+      label: translate('Doctorian AI Core', currentLanguage), 
       value: '99.8%', 
-      trend: 'Optimal', 
+      trend: translate('Optimal', currentLanguage), 
       icon: <Brain size={16} />, 
       color: 'blue',
-      details: 'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.'
+      details: translate('Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.', currentLanguage)
     },
-    { label: 'Cardiac Flux', value: '72 BPM', trend: '+2%', icon: <Heart size={16} />, color: 'rose' },
-    { label: 'Neural Energy', value: `${formatCredits(user?.credits)} Units`, trend: 'Resets Daily', icon: <Battery size={16} />, color: 'emerald' },
-    { label: 'Hydration', value: '2.4L', trend: '+0.4', icon: <Droplets size={16} />, color: 'cyan' },
+    { label: translate('Cardiac Flux', currentLanguage), value: '72 BPM', trend: '+2%', icon: <Heart size={16} />, color: 'rose' },
+    { label: translate('Neural Energy', currentLanguage), value: `${formatCredits(user?.credits)} Units`, trend: translate('Resets Daily', currentLanguage), icon: <Battery size={16} />, color: 'emerald' },
+    { label: translate('Hydration', currentLanguage), value: '2.4L', trend: '+0.4', icon: <Droplets size={16} />, color: 'cyan' },
   ];
 
   const [meds, setMeds] = useState<any[]>(() => {

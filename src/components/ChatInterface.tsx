@@ -248,7 +248,7 @@ const isMedicalQuery = (text: string): boolean => {
   return keywords.some(k => text.toLowerCase().includes(k));
 };
 
-export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void }) {
+export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -1242,6 +1242,85 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     if (showSearch) setSearchHistory('');
   };
 
+  const lastLangRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!currentLanguage) return;
+    
+    // Initial load: assign without trigger
+    if (lastLangRef.current === null) {
+      lastLangRef.current = currentLanguage;
+      return;
+    }
+    
+    // Check if changed
+    if (lastLangRef.current !== currentLanguage) {
+      const prevLang = lastLangRef.current;
+      lastLangRef.current = currentLanguage;
+      setTargetLanguage(currentLanguage);
+      setTerminalLogs(prev => [...prev.slice(-3), `SYS: Language changed to ${currentLanguage}. Recalibrating language center...`]);
+      
+      const triggerLanguageSwitchAcknowledge = async () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        const botMessageId = (Date.now() + 2).toString();
+        const botMessagePlaceholder: Message = {
+          id: botMessageId,
+          role: 'bot',
+          text: '',
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, botMessagePlaceholder]);
+        setStreamingId(botMessageId);
+
+        try {
+          setIsThinking(true);
+          abortControllerRef.current = new AbortController();
+          
+          const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\n${PERSONAS[activePersona].instruction}\n\nCURRENT_CONTEXT: ${JSON.stringify(neuralContext)}\n\nCRITICAL LANGUAGE INSTRUCTION: The user has just switched their active language from "${prevLang}" to "${currentLanguage}". You MUST write your response and all subsequent dialogue/clinical advice in "${currentLanguage}".\n\nTASK: Acknowledge the language switch with a warm, friendly and brief greeting/acceptance message in "${currentLanguage}" to show that you have successfully calibrated to this language, and ask how you can help them in "${currentLanguage}". Keep it concise, natural and authentic, limited to 1-2 sentences.`;
+
+          const stream = api.ai.aiChatStream(
+            [{ role: 'user', text: `Please switch to ${currentLanguage} and greet me.` }],
+            systemInstruction,
+            undefined, 
+            0.8,
+            (meta) => {
+              if (meta.credits !== undefined) setCredits(meta.credits);
+            },
+            abortControllerRef.current.signal,
+            false,
+            'MINIMAL',
+            undefined,
+            currentLanguage
+          );
+
+          let fullResponseText = "";
+          for await (const chunk of stream) {
+            if (isThinking) setIsThinking(false);
+            fullResponseText += chunk;
+            setMessages(prev => prev.map(m => 
+              m.id === botMessageId ? { ...m, text: fullResponseText } : m
+            ));
+          }
+
+          if (currentSessionId && fullResponseText) {
+            api.ai.saveMessage(currentSessionId, 'bot', fullResponseText).catch(console.error);
+          }
+        } catch (error) {
+          console.error("Failed to stream language switch:", error);
+          setIsThinking(false);
+          setIsLoading(false);
+        } finally {
+          setIsThinking(false);
+          setIsLoading(false);
+          setStreamingId(null);
+        }
+      };
+
+      triggerLanguageSwitchAcknowledge();
+    }
+  }, [currentLanguage]);
+
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -1668,6 +1747,7 @@ ${intakeResult.action}
     setInput(text);
     setShowToolHub(false);
     setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Clinical Case Intake injected.']);
+    handleSend(text);
   };
 
   const injectLabIntoChat = () => {
@@ -1692,6 +1772,7 @@ ${lab.action}
     setInput(text);
     setShowToolHub(false);
     setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Lab report injected.']);
+    handleSend(text);
   };
 
   // 2. Obstetric Risk Calculator
@@ -1782,6 +1863,7 @@ ${obs.directive}
     setInput(text);
     setShowToolHub(false);
     setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Perinatal report injected.']);
+    handleSend(text);
   };
 
   // 3. Intravenous Fluid Infusion Calculator
@@ -1859,6 +1941,7 @@ ${f.prescription}
     setInput(text);
     setShowToolHub(false);
     setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Resuscitation workflow injected.']);
+    handleSend(text);
   };
 
   const isUserPremium = useMemo(() => {
@@ -1918,7 +2001,7 @@ ${f.prescription}
       setIsThinking(true);
       abortControllerRef.current = new AbortController();
       
-      const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\n${PERSONAS[activePersona].instruction}\n\nCURRENT_CONTEXT: ${JSON.stringify(neuralContext)}\n\nURGENT: Initiate GREETING_PROTOCOL. Provide a warm, personalized greeting.`;
+      const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\n${PERSONAS[activePersona].instruction}\n\nCURRENT_CONTEXT: ${JSON.stringify(neuralContext)}\n\nCRITICAL LANGUAGE INSTRUCTION: The user's active UI language is set to "${currentLanguage || 'English (US)'}". You MUST formulate all subsequent dialogue, clinical diagnoses, medical summaries, and advice in this language (${currentLanguage || 'English (US)'}).\n\nURGENT: Initiate GREETING_PROTOCOL. Provide a warm, personalized greeting.`;
 
       const stream = api.ai.aiChatStream(
         [],
@@ -2041,7 +2124,7 @@ Patient Registry Entry Found:
 Please fulfill the user's request (e.g. summarize history, draft a medical report, check conditions) using this real retrieved data. Do not make up facts outside this profile context.`;
       }
 
-      let engineSystemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}`;
+      let engineSystemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}\n\nCRITICAL LANGUAGE INSTRUCTION: The user's active UI language is set to "${currentLanguage || 'English (US)'}". You MUST formulate all subsequent answers, explanations, clinical advices, and responses in this language (${currentLanguage || 'English (US)'}).`;
       
       if (clinicalEngine.startsWith('medlm')) {
         engineSystemInstruction += `\n\n[GOOGLE MedLM CLINICAL CO-PILOT POWERED BY CLINICAL GROUNDING]:\n- You are operating under Google's specialized MedLM medical fine-tune architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;

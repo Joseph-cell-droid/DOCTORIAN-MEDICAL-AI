@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;750;800;900&family=Outfit:wght@300;450;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@400;600;750;800&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Playfair+Display:ital,wght@0,400..950;1,400..950&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Sans+Devanagari:wght@300;400;500;700;900&family=Poppins:ital,wght@0,100..900;1,100..900&display=swap');
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -322,6 +323,136 @@
 #app-scroll-viewport {
   overflow-y: auto !important;
   overflow-x: hidden !important;
+}
+
+/* ========================================================
+   DYNAMIC LANGUAGE-LOCALIZED TYPOGRAPHY SYSTEM
+   Changes all content, card, and page fonts dynamically
+   while fully preserving technical / code elements.
+   ======================================================== */
+
+/* Hide Google Translate native frame, offset, bar and widget overlays */
+iframe.goog-te-banner-frame,
+.goog-te-banner-frame,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+.goog-te-gadget,
+.goog-logo-link,
+.goog-te-gadget-simple,
+#google_translate_element {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.font-eng,
+.font-eng :not(.font-mono, .font-mono *) {
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-african,
+.font-african :not(.font-mono, .font-mono *) {
+  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-euro,
+.font-euro :not(.font-mono, .font-mono *) {
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-arabic,
+.font-arabic :not(.font-mono, .font-mono *) {
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-cyrillic,
+.font-cyrillic :not(.font-mono, .font-mono *) {
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-chinese,
+.font-chinese :not(.font-mono, .font-mono *) {
+  font-family: "Noto Sans SC", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-japanese,
+.font-japanese :not(.font-mono, .font-mono *) {
+  font-family: "Noto Sans JP", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-korean,
+.font-korean :not(.font-mono, .font-mono *) {
+  font-family: "Noto Sans KR", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.font-hindi,
+.font-hindi :not(.font-mono, .font-mono *) {
+  font-family: "Poppins", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* Specialized Language-sensitive Headings & Display Typographies */
+.font-eng h1, .font-eng h2, .font-eng h3, .font-eng h4, .font-eng .font-heading {
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: -0.03em !important;
+}
+
+.font-african h1, .font-african h2, .font-african h3, .font-african h4, .font-african .font-heading {
+  font-family: "Syne", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: -0.04em !important;
+}
+
+.font-euro h1, .font-euro h2, .font-euro h3, .font-euro h4, .font-euro .font-heading {
+  font-family: "Playfair Display", ui-serif, Georgia, serif !important;
+}
+
+.font-arabic h1, .font-arabic h2, .font-arabic h3, .font-arabic h4, .font-arabic .font-heading {
+  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: normal !important;
+}
+
+.font-cyrillic h1, .font-cyrillic h2, .font-cyrillic h3, .font-cyrillic h4, .font-cyrillic .font-heading {
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 955 !important;
+  letter-spacing: -0.04em !important;
+}
+
+.font-chinese h1, .font-chinese h2, .font-chinese h3, .font-chinese h4, .font-chinese .font-heading {
+  font-family: "Noto Sans SC", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: normal !important;
+}
+
+.font-japanese h1, .font-japanese h2, .font-japanese h3, .font-japanese h4, .font-japanese .font-heading {
+  font-family: "Noto Sans JP", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: normal !important;
+}
+
+.font-korean h1, .font-korean h2, .font-korean h3, .font-korean h4, .font-korean .font-heading {
+  font-family: "Noto Sans KR", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: normal !important;
+}
+
+.font-hindi h1, .font-hindi h2, .font-hindi h3, .font-hindi h4, .font-hindi .font-heading {
+  font-family: "Poppins", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: normal !important;
 }
 
 

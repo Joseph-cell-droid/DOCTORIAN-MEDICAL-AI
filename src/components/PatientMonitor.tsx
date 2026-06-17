@@ -3812,20 +3812,45 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
       {/* Connection Panel */}
       {!connection.connected && (
-        <motion.div 
-          id="connection-panel"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl shadow-slate-200 dark:shadow-blue-900/10 p-6 sm:p-10 mb-8 overflow-hidden relative"
-        >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
-          
-          <h2 className="text-xl font-black text-slate-900 dark:text-white mb-8 flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
-              <Radio className="w-5 h-5" />
+        !(user?.role === 'doctor' || user?.role === 'admin') ? (
+          <motion.div 
+            id="connection-panel"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl shadow-slate-200 dark:shadow-blue-900/10 p-6 sm:p-10 mb-8 overflow-hidden relative"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3 relative z-10">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                <Radio className="w-5 h-5" />
+              </div>
+              Connect to Arduino
+            </h2>
+            <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 relative z-10 flex flex-col items-center text-center max-w-xl mx-auto py-8">
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-full mb-4">
+                <ShieldAlert size={28} />
+              </div>
+              <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white mb-2">Ward Telemetry Setup Restricted</h3>
+              <p className="text-xs text-slate-550 text-slate-500 leading-relaxed font-bold uppercase">
+                Active transponder socket connection channels are managed securely by medical personnel and network administrators directly within the Doctor's Command Dashboard.
+              </p>
             </div>
-            Connect to Arduino
-          </h2>
+          </motion.div>
+        ) : (
+          <motion.div 
+            id="connection-panel"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl shadow-slate-200 dark:shadow-blue-900/10 p-6 sm:p-10 mb-8 overflow-hidden relative"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+            
+            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-8 flex items-center gap-3 relative z-10">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                <Radio className="w-5 h-5" />
+              </div>
+              Connect to Arduino
+            </h2>
 
           {/* Tabs */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6 sm:mb-8 relative z-10">
@@ -4067,6 +4092,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             )}
           </div>
         </motion.div>
+        )
       )}
 
       {/* Vitals Dashboard */}

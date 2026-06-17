@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, User as UserType } from '../api';
 import { UpgradeModal } from './UpgradeModal';
+import { translate } from '../utils/translations';
 import { useRef } from 'react';
 
 interface ProfileSettingsProps {
@@ -34,7 +35,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   currentLanguage,
   onLanguageChange
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'emergency' | 'security' | 'notifications' | 'language' | 'medical-id' | 'billing' | 'neural'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'emergency' | 'security' | 'notifications' | 'medical-id' | 'billing'>('profile');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -413,10 +414,8 @@ Verified by Joseph Akora - Development Lead.
               { id: 'medical-id', label: 'Clinical ID', icon: <QrCode size={18} />, color: 'blue' },
               { id: 'emergency', label: 'SOS Nodes', icon: <ShieldAlert size={18} />, color: 'rose' },
               { id: 'security', label: 'Neural Lock', icon: <Lock size={18} />, color: 'indigo' },
-              { id: 'neural', label: 'Neural Core', icon: <Cpu size={18} />, color: 'violet' },
               { id: 'billing', label: 'Credit Bank', icon: <CreditCard size={18} />, color: 'emerald' },
               { id: 'notifications', label: 'Channels', icon: <Bell size={18} />, color: 'amber' },
-              { id: 'language', label: 'Linguistics', icon: <Globe size={18} />, color: 'slate' },
             ].map(item => (
               <button
                 key={item.id}
@@ -927,7 +926,7 @@ Verified by Joseph Akora - Development Lead.
           )}
 
           {/* Neural Core Section */}
-          {activeTab === 'neural' && (
+          {false && (
             <motion.section 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1421,50 +1420,6 @@ Verified by Joseph Akora - Development Lead.
                         <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${notifications[item.id as keyof typeof notifications] ? 'left-7' : 'left-1'}`} />
                       </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </motion.section>
-          )}
-
-          {/* Language Section */}
-          {activeTab === 'language' && (
-            <motion.section 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-8"
-            >
-              <div className="bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-4 mb-10">
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-slate-600 dark:text-slate-400 shadow-inner border border-slate-100 dark:border-slate-700">
-                    <Globe size={28} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Linguistic Matrix</h3>
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">Select primary interface dialect</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {languages.map(lang => (
-                    <button 
-                      key={lang.code}
-                      onClick={() => handleLanguageChange(lang.name)}
-                      className={`group flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all ${language === lang.name ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-600 shadow-xl shadow-blue-500/5 scale-[1.02]' : 'bg-slate-50 dark:bg-slate-800/50 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
-                    >
-                      <div className="flex items-center gap-5">
-                        <span className="text-3xl grayscale group-hover:grayscale-0 transition-all duration-500">{lang.flag}</span>
-                        <div className="text-left">
-                          <p className={`text-sm font-black uppercase tracking-tight ${language === lang.name ? 'text-blue-700 dark:text-blue-400' : 'text-slate-900 dark:text-white'}`}>{lang.name}</p>
-                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em]">{lang.native}</p>
-                        </div>
-                      </div>
-                      {language === lang.name && (
-                        <div className="bg-blue-600 p-1.5 rounded-full text-white">
-                          <CheckCircle2 size={14} />
-                        </div>
-                      )}
-                    </button>
                   ))}
                 </div>
               </div>

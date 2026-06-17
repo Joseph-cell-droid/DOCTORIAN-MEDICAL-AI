@@ -66,7 +66,8 @@ import {
   Database,
   Dna,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -97,6 +98,7 @@ const MedicationTracker = lazy(() => import("./components/MedicationTracker").th
 const WorkoutTracker = lazy(() => import("./components/WorkoutTracker").then(m => ({ default: m.WorkoutTracker })));
 const BioSecurity = lazy(() => import("./components/BioSecurity").then(m => ({ default: m.BioSecurity })));
 const DeveloperPortal = lazy(() => import("./components/DeveloperPortal").then(m => ({ default: m.DeveloperPortal })));
+const DoctorsDashboard = lazy(() => import("./components/DoctorsDashboard").then(m => ({ default: m.DoctorsDashboard })));
 const BMICalculator = lazy(() => import("./components/BMICalculator").then(m => ({ default: m.BMICalculator })));
 const LearnMore = lazy(() => import("./components/LearnMore").then(m => ({ default: m.LearnMore })));
 const AuthModal = lazy(() => import("./components/AuthModal").then(m => ({ default: m.AuthModal })));
@@ -225,7 +227,7 @@ export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(() => localStorage.getItem("app_lang") || 'English (US)');
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -341,6 +343,7 @@ export default function App() {
   const [dailyTip, setDailyTip] = useState<HealthTip>(HEALTH_TIPS[0]);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
   const [isWindowsMenuOpen, setIsWindowsMenuOpen] = useState(false);
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [weatherData, setWeatherData] = useState<any>(null);
 
   const arduino = useArduinoContext();
@@ -567,6 +570,155 @@ export default function App() {
     }
     localStorage.setItem('doctorian_eye_care', isEyeCareMode.toString());
   }, [isEyeCareMode]);
+
+  useEffect(() => {
+    // 1. Ensure a hidden Translate widget container is present in DOM
+    let translateCont = document.getElementById('google_translate_element');
+    if (!translateCont) {
+      translateCont = document.createElement('div');
+      translateCont.id = 'google_translate_element';
+      translateCont.style.display = 'none';
+      document.body.appendChild(translateCont);
+    }
+
+    // 2. Load Google Translate script if it is not already loaded
+    if (!document.getElementById('google-translate-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-translate-script';
+      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      script.async = true;
+      document.body.appendChild(script);
+
+      (window as any).googleTranslateElementInit = () => {
+        new (window as any).google.translate.TranslateElement({
+          pageLanguage: 'en',
+          layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE,
+          autoDisplay: false
+        }, 'google_translate_element');
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    const getFontClass = (lang: string) => {
+      switch (lang) {
+        case 'Luganda':
+        case 'Swahili':
+        case 'Runyankole-Rukiga':
+        case 'Acholi-Luo':
+        case 'Langi':
+        case 'Iteso':
+        case 'Lusoga':
+        case 'Lugbara':
+        case 'Runyoro-Rutooro':
+        case 'Rukonjo':
+        case 'Samia':
+        case 'Karamojong':
+          return 'font-african';
+        case 'Spanish':
+        case 'French':
+        case 'German':
+        case 'Italian':
+        case 'Portuguese':
+        case 'Turkish':
+          return 'font-euro';
+        case 'Chinese':
+          return 'font-chinese';
+        case 'Hindi':
+          return 'font-hindi';
+        case 'Arabic':
+          return 'font-arabic';
+        case 'Russian':
+          return 'font-cyrillic';
+        case 'Japanese':
+          return 'font-japanese';
+        case 'Korean':
+          return 'font-korean';
+        default:
+          return 'font-eng';
+      }
+    };
+
+    const fontClasses = [
+      'font-eng', 'font-african', 'font-euro', 'font-chinese', 
+      'font-hindi', 'font-arabic', 'font-cyrillic', 'font-japanese', 'font-korean'
+    ];
+    document.body.classList.remove(...fontClasses);
+    document.body.classList.add(getFontClass(currentLanguage));
+
+    // Programmatic live translation of all card contents & pages
+    const getGoogleLangCode = (lang: string) => {
+      switch (lang) {
+        case 'Luganda':
+        case 'Runyankole-Rukiga':
+        case 'Iteso':
+        case 'Lusoga':
+        case 'Lugbara':
+        case 'Runyoro-Rutooro':
+        case 'Rukonjo':
+        case 'Samia':
+        case 'Karamojong':
+          return 'lg';
+        case 'Swahili':
+          return 'sw';
+        case 'Acholi-Luo':
+        case 'Langi':
+          return 'luo';
+        case 'Spanish':
+          return 'es';
+        case 'French':
+          return 'fr';
+        case 'German':
+          return 'de';
+        case 'Chinese':
+          return 'zh-CN';
+        case 'Hindi':
+          return 'hi';
+        case 'Arabic':
+          return 'ar';
+        case 'Portuguese':
+          return 'pt';
+        case 'Russian':
+          return 'ru';
+        case 'Japanese':
+          return 'ja';
+        case 'Korean':
+          return 'ko';
+        case 'Italian':
+          return 'it';
+        case 'Turkish':
+          return 'tr';
+        default:
+          return 'en';
+      }
+    };
+
+    const targetCode = getGoogleLangCode(currentLanguage);
+
+    // Inject matching Google Translate Cookie configurations
+    document.cookie = `googtrans=/en/${targetCode}; path=/;`;
+    document.cookie = `googtrans=/en/${targetCode}; path=/; domain=${window.location.hostname};`;
+
+    // Attempt translation trigger on native select widget
+    const triggerTranslation = () => {
+      const selectEl = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+      if (selectEl) {
+        selectEl.value = targetCode;
+        selectEl.dispatchEvent(new Event('change'));
+      }
+    };
+
+    triggerTranslation();
+    const t1 = setTimeout(triggerTranslation, 300);
+    const t2 = setTimeout(triggerTranslation, 1000);
+    const t3 = setTimeout(triggerTranslation, 2500);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [currentLanguage]);
 
   useEffect(() => {
     const checkStatus = () => {
@@ -1229,6 +1381,7 @@ export default function App() {
         bar: "bg-purple-500"
       },
       items: [
+        { id: 'doctors_dashboard', label: "Doctors' Dashboard", icon: <FileText size={15} /> },
         { id: 'meds', label: 'Bio-Pharmacy Depot', icon: <Pill size={15} /> },
         { id: 'specialist', label: 'Connect Specialists', icon: <Stethoscope size={15} /> },
         { id: 'about', label: 'Systems Information', icon: <Info size={15} /> },
@@ -1311,7 +1464,7 @@ export default function App() {
                 <div key={section.title} className="flex flex-col gap-1.5 shrink-0">
                   <div className={`px-3 pb-0.5 ${isSidebarCollapsed ? 'text-center' : ''}`}>
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase select-none">
-                      {isSidebarCollapsed ? "•" : section.title}
+                      {isSidebarCollapsed ? "•" : translate(section.title, currentLanguage)}
                     </span>
                   </div>
 
@@ -1335,7 +1488,7 @@ export default function App() {
                               ? section.accent.active
                               : section.accent.hover
                           }`}
-                          title={isSidebarCollapsed ? link.label : undefined}
+                          title={isSidebarCollapsed ? translate(link.label, currentLanguage) : undefined}
                         >
                           <div className={`shrink-0 flex items-center justify-center w-8.5 h-8.5 rounded-lg transition-all duration-300 ease-out group-hover:scale-115 group-hover:rotate-6 ${
                             isActive 
@@ -1354,7 +1507,7 @@ export default function App() {
 
                           {!isSidebarCollapsed && (
                             <span className="text-sm font-bold truncate flex-1 leading-none tracking-tight">
-                              {link.label}
+                              {translate(link.label, currentLanguage)}
                             </span>
                           )}
 
@@ -1627,78 +1780,109 @@ export default function App() {
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
                       : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
                   }`}
-                  title={isOffline ? "Currently running on secure local cache. Click to return online." : "Connected to secure cloud. Click to simulate secure offline mode."}
+                  title={isOffline ? translate("Cache Core", currentLanguage) : translate("Active System", currentLanguage)}
                 >
                   <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
                   <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap shrink-0 hidden lg:inline">
-                    {isOffline ? 'Cache Core' : 'Active System'}
+                    {isOffline ? translate('Cache Core', currentLanguage) : translate('Active System', currentLanguage)}
                   </span>
                 </button>
 
-                <div className="hidden md:block shrink-0">
-                  <VoiceCommandToggle onNavigate={setCurrentView} />
-                </div>
-
                 {/* Language Quick Dropdown */}
                 <div className="relative shrink-0">
-                  <select
-                    value={currentLanguage}
-                    onChange={(e) => {
-                      const lang = e.target.value;
-                      setCurrentLanguage(lang);
-                      localStorage.setItem("app_lang", lang);
-                      setToast({
-                        message: `🌐 Language updated to ${lang}. Re-indexing clinical interface lexicon...`,
-                        type: 'success'
-                      });
+                  <motion.button
+                    layout
+                    onClick={() => {
+                      setIsLanguageMenuOpen(!isLanguageMenuOpen);
+                      setIsWindowsMenuOpen(false);
+                      setIsProfileOpen(false);
                     }}
-                    className="appearance-none bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 rounded-xl px-2.5 py-1.5 text-[10px] font-black text-slate-900 dark:text-white transition-all cursor-pointer shadow-sm outline-none shrink-0 h-9 sm:h-11 flex items-center text-center pr-2"
-                    title="Change UI Language instantly"
+                    className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer ${
+                      isLanguageMenuOpen 
+                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
+                        : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
+                    }`}
+                    aria-label="Change UI Language"
+                    title={translate("Change UI Language", currentLanguage)}
                   >
-                    <option value="English (US)">🇺🇸 EN</option>
-                    <option value="English (UK)">🇬🇧 UK</option>
-                    <option value="Luganda">🇺🇬 LG</option>
-                    <option value="Swahili">🇰🇪 SW</option>
-                    <option value="Spanish">🇪🇸 ES</option>
-                    <option value="French">🇫🇷 FR</option>
-                    <option value="German">🇩🇪 DE</option>
-                    <option value="Chinese">🇨🇳 中</option>
-                    <option value="Hindi">🇮🇳 हि</option>
-                    <option value="Arabic">🇸🇦 ع</option>
-                    <option value="Portuguese">🇧🇷 PT</option>
-                    <option value="Russian">🇷🇺 RU</option>
-                    <option value="Japanese">🇯🇵 日</option>
-                    <option value="Korean">🇰🇷 한</option>
-                    <option value="Italian">🇮🇹 IT</option>
-                    <option value="Turkish">🇹🇷 TR</option>
-                  </select>
-                </div>
+                    <Globe size={16} className="shrink-0" />
+                  </motion.button>
 
-                <motion.button
-                  layout
-                  onClick={() => setIsEyeCareMode(!isEyeCareMode)}
-                  className={`hidden md:flex p-1.5 sm:p-2.5 rounded-xl transition-all items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 ${
-                    isEyeCareMode 
-                      ? 'bg-amber-100 border-amber-400 text-amber-900 dark:bg-amber-950 dark:border-amber-600 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-amber-100' 
-                      : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
-                  }`}
-                  aria-label={isEyeCareMode ? "Disable Legibility Mode" : "Enable Legibility Mode"}
-                  aria-pressed={isEyeCareMode}
-                  title={isEyeCareMode ? "Disable Legibility Mode" : "Enable Legibility Mode"}
-                >
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                      key={isEyeCareMode ? 'eye' : 'eye-off'}
-                      initial={{ scale: 0.8, rotate: -15, opacity: 0 }}
-                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                      exit={{ scale: 0.8, rotate: 15, opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="flex items-center justify-center shrink-0"
-                    >
-                      {isEyeCareMode ? <Eye aria-hidden="true" size={16} className="shrink-0 text-amber-900 dark:text-amber-300" /> : <EyeOff aria-hidden="true" size={16} className="shrink-0" />}
-                    </motion.div>
+                  <AnimatePresence>
+                    {isLanguageMenuOpen && (
+                      <>
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-40 bg-transparent"
+                          onClick={() => setIsLanguageMenuOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                          className="absolute right-0 mt-3 w-56 max-h-[320px] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-200/60 dark:border-slate-800/80 p-3 z-50 scrollbar-none"
+                        >
+                          <div className="flex flex-col gap-1">
+                            {[
+                              { code: 'en-US', name: 'English (US)', flag: '🇺🇸', native: 'English' },
+                              { code: 'en-GB', name: 'English (UK)', flag: '🇬🇧', native: 'English' },
+                              { code: 'lg', name: 'Luganda', flag: '🇺🇬', native: 'Luganda' },
+                              { code: 'nyn', name: 'Runyankole-Rukiga', flag: '🇺🇬', native: 'Runyankore-Rukiga' },
+                              { code: 'ach', name: 'Acholi-Luo', flag: '🇺🇬', native: 'Lwo / Acholi' },
+                              { code: 'laj', name: 'Langi', flag: '🇺🇬', native: 'Leb Lango' },
+                              { code: 'teo', name: 'Iteso', flag: '🇺🇬', native: 'Ateso' },
+                              { code: 'xog', name: 'Lusoga', flag: '🇺🇬', native: 'Olusoga' },
+                              { code: 'lgg', name: 'Lugbara', flag: '🇺🇬', native: 'Lugbarati' },
+                              { code: 'nyr', name: 'Runyoro-Rutooro', flag: '🇺🇬', native: 'Runyoro-Rutooro' },
+                              { code: 'koo', name: 'Rukonjo', flag: '🇺🇬', native: 'Olukonjo' },
+                              { code: 'samia', name: 'Samia', flag: '🇺🇬', native: 'Lusamia' },
+                              { code: 'kdj', name: 'Karamojong', flag: '🇺🇬', native: 'Ngakarimojong' },
+                              { code: 'sw-KE', name: 'Swahili', flag: '🇰🇪', native: 'Kiswahili' },
+                              { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
+                              { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
+                              { code: 'de', name: 'German', flag: '🇩🇪', native: 'Deutsch' },
+                              { code: 'zh', name: 'Chinese', flag: '🇨🇳', native: '中文' },
+                              { code: 'hi', name: 'Hindi', flag: '🇮🇳', native: 'हिन्दी' },
+                              { code: 'ar', name: 'Arabic', flag: '🇸🇦', native: 'العربية' },
+                              { code: 'pt', name: 'Portuguese', flag: '🇧🇷', native: 'Português' },
+                              { code: 'ru', name: 'Russian', flag: '🇷🇺', native: 'Русский' },
+                              { code: 'ja', name: 'Japanese', flag: '🇯🇵', native: '日本語' },
+                              { code: 'ko', name: 'Korean', flag: '🇰🇷', native: '한국어' },
+                              { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
+                              { code: 'tr', name: 'Turkish', flag: '🇹🇷', native: 'Türkçe' }
+                            ].map((lang) => (
+                              <button
+                                key={lang.code}
+                                onClick={() => {
+                                  setCurrentLanguage(lang.name);
+                                  localStorage.setItem("app_lang", lang.name);
+                                  setIsLanguageMenuOpen(false);
+                                  setToast({
+                                    message: `🌐 Language updated to ${lang.name}. Re-indexing clinical interface lexicon...`,
+                                    type: 'success'
+                                  });
+                                }}
+                                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-left transition-all ${
+                                  currentLanguage === lang.name
+                                    ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold'
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <span className="text-xl shrink-0">{lang.flag}</span>
+                                <div className="min-w-0 flex-1 leading-tight">
+                                  <div className="text-[11px] font-black uppercase tracking-tight truncate">{lang.name}</div>
+                                  <div className="text-[8px] opacity-70 uppercase tracking-widest truncate">{lang.native}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
                   </AnimatePresence>
-                </motion.button>
+                </div>
 
                 {/* Unified Systems Launchpad / Windows dropdown button - Always Visible */}
                 <div className="relative overflow-visible shrink-0">
@@ -2281,6 +2465,7 @@ export default function App() {
               healthStatus={arduino.healthStatus}
               history={arduino.history}
               onUpdateUser={(u) => setUser(u)}
+              currentLanguage={currentLanguage}
             />
           ) : currentView === 'ai_nexus' ? (
             <MedicalAI 
@@ -2290,6 +2475,7 @@ export default function App() {
               onNavigate={setCurrentView} 
               arduino={arduino} 
               onUpgradeRequested={() => setIsSubscriptionModalOpen(true)}
+              currentLanguage={currentLanguage}
             />
           ) : currentView === 'genomic_longevity' ? (
             <motion.div
@@ -2305,6 +2491,17 @@ export default function App() {
                 onUpdateUser={setUser} 
                 onShowToast={(msg, type) => addToast(msg, type || 'info')}
               />
+            </motion.div>
+          ) : currentView === 'doctors_dashboard' ? (
+            <motion.div
+              role="main"
+              key="doctors_dashboard"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="w-full max-w-[1600px] mx-auto py-8"
+            >
+              <DoctorsDashboard addToast={(msg, type) => addToast(msg, type || 'info')} />
             </motion.div>
           ) : currentView === 'specialist' ? (
             <motion.div
@@ -2716,6 +2913,7 @@ export default function App() {
             healthStatus={arduino.healthStatus}
             history={arduino.history}
             onUpdateUser={(u) => setUser(u)}
+            currentLanguage={currentLanguage}
           />
         )}
               </AnimatePresence>
@@ -3062,7 +3260,7 @@ export default function App() {
                 <div key={section.title} className="space-y-4">
                   <div className="flex items-center gap-2 px-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${section.accent.bar} animate-ping`} />
-                    <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{section.title}</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{translate(section.title, currentLanguage)}</h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3.5">
                     {section.items.map((item) => {
@@ -3101,7 +3299,7 @@ export default function App() {
                           
                           <div className="flex-1 min-w-0">
                             <span className="text-xs font-black leading-tight uppercase tracking-tight line-clamp-2 transition-colors">
-                              {item.label.split(' Hub')[0].split(' Node')[0].split(' Console')[0].split(' Trace')[0].split(' Core')[0].split(' Depot')[0]}
+                              {translate(item.label, currentLanguage)}
                             </span>
                             {isActive && (
                               <span className="block text-[7px] font-bold text-white/70 uppercase tracking-widest mt-0.5 animate-pulse">

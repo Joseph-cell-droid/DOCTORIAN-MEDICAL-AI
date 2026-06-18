@@ -347,10 +347,21 @@ body {
 
 .goog-te-gadget,
 .goog-logo-link,
-.goog-te-gadget-simple,
-#google_translate_element {
+.goog-te-gadget-simple {
   display: none !important;
   visibility: hidden !important;
+}
+
+#google_translate_element {
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: visible !important;
 }
 
 .goog-text-highlight {

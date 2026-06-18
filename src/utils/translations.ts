@@ -37,6 +37,7 @@ export interface TranslationKeys {
   'Settings': string;
   'Emergency SOS': string;
   'Clinical Systems Information': string;
+  [key: string]: string;
 }
 
 export type LanguageCode = 
@@ -171,7 +172,17 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kiseera kya bulamu',
     'Settings': 'Ntegeka',
     'Emergency SOS': 'Amangu ddaala SOS',
-    'Clinical Systems Information': 'Ebyemiganyulo eby’Eddagala'
+    'Clinical Systems Information': 'Ebyemiganyulo eby’Eddagala',
+    'Doctorian AI Core': 'Omutima gwa Doctorian AI',
+    'Optimal': 'Etuuse bulungi',
+    'Cardiac Flux': 'Okukuba kw’Omutima',
+    'Neural Energy': 'Amaanyi g’Omubiri',
+    'Resets Daily': 'Kizzebwawo Bulijjo',
+    'Hydration': 'Okunywamu Amaazzi',
+    'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.': 'Ekiini ekikulu eky’okuwabula ekituuse. Kikoleddwamu dda pulotokolo z’Obulamu eza Minisitule y’Obulamu eya Uganda, ebiwandiiko bya VHT, ebyuma bya stethoscope, ne mikutu gy’abarwadde mu dakiika mbu.',
+    'Change UI Language': 'Kyusa Olulimi lw’Ekyuma',
+    'Core Operations': 'Okukola Okusookera ddala',
+    "Doctors' Dashboard": 'Wwebbulaasi y’Omusawo'
   },
   'Swahili': {
     'Dashboard': 'Mwangaza',
@@ -206,7 +217,17 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kipindi Kinachoendelea',
     'Settings': 'Mipangilio',
     'Emergency SOS': 'Dharura ya SOS',
-    'Clinical Systems Information': 'Habari za Mifumo ya Kliniki'
+    'Clinical Systems Information': 'Habari za Mifumo ya Kliniki',
+    'Doctorian AI Core': 'Kiini cha Doctorian AI',
+    'Optimal': 'Bora Kabisa',
+    'Cardiac Flux': 'Kasi ya Moyo',
+    'Neural Energy': 'Nguvu ya Ubongo',
+    'Resets Daily': 'Hurejeeshwa Kila Siku',
+    'Hydration': 'Kiwango cha Maji',
+    'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.': 'Kiini kikuu cha uchambuzi wa matibabu. Kimeunganishwa kikamilifu na miongozo ya Wizara ya Afya ya Uganda, kumbukumbu za VHT, vipimo vya stethoscope, na telemetry kwa sekunde chache.',
+    'Change UI Language': 'Badili Lugha ya Kiolesura',
+    'Core Operations': 'Shughuli Kuu',
+    "Doctors' Dashboard": 'Mwangaza wa Madaktari'
   },
   'Spanish': {
     'Dashboard': 'Panel Control',
@@ -241,7 +262,17 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Sesión Activa',
     'Settings': 'Ajustes',
     'Emergency SOS': 'SOS de Emergencia',
-    'Clinical Systems Information': 'Información Clínica de Sistemas'
+    'Clinical Systems Information': 'Información Clínica de Sistemas',
+    'Doctorian AI Core': 'Núcleo AI Doctorian',
+    'Optimal': 'Óptimo',
+    'Cardiac Flux': 'Flujo Cardíaco',
+    'Neural Energy': 'Energía Neuronal',
+    'Resets Daily': 'Se reinicia diariamente',
+    'Hydration': 'Hidratación',
+    'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.': 'Capa principal de razonamiento clínico. Integrada con éxito y sincronizando protocolos de orientación del Ministerio de Salud de Uganda en tiempo real, registros de VHT, diagnósticos de bioestetoscopio y telemetría de pacientes regionales con latencias de submiliseis.',
+    'Change UI Language': 'Cambiar idioma de la interfaz',
+    'Core Operations': 'Operaciones principales',
+    "Doctors' Dashboard": 'Panel de Médicos'
   },
   'French': {
     'Dashboard': 'Tableau de Bord',
@@ -276,7 +307,17 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Session Active',
     'Settings': 'Paramètres',
     'Emergency SOS': 'SOS Urgence',
-    'Clinical Systems Information': 'Informations Cliniques Systèmes'
+    'Clinical Systems Information': 'Informations Cliniques Systèmes',
+    'Doctorian AI Core': 'Noyau IA Doctorian',
+    'Optimal': 'Optimal',
+    'Cardiac Flux': 'Flux Cardiaque',
+    'Neural Energy': 'Énergie Neuronale',
+    'Resets Daily': 'Réinitialisation quotidienne',
+    'Hydration': 'Hydratation',
+    'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.': 'Couche principale de raisonnement clinique. Intégrée avec succès et synchronisant les protocoles du ministère de la Santé de l’Ouganda, les journaux VHT, les diagnostics de biostéthoscope et la télémétrie des patients.',
+    'Change UI Language': 'Changer la langue d’interface',
+    'Core Operations': 'Opérations Principales',
+    "Doctors' Dashboard": 'Tableau de bord des médecins'
   },
   'German': {
     'Dashboard': 'Dashboard',
@@ -980,11 +1021,99 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
   }
 };
 
-export const translate = (text: keyof TranslationKeys | string, selectedLanguage: string): string => {
+// Background translation query cache to avoid repeating requests
+const pendingTranslations = new Set<string>();
+
+const fetchTranslationInBackground = (text: string, targetLanguage: string) => {
+  const cacheKey = `${targetLanguage}:::${text}`;
+  if (pendingTranslations.has(cacheKey)) return;
+  pendingTranslations.add(cacheKey);
+
+  fetch('/api/public/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, targetLang: targetLanguage })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data && data.text) {
+      let cache: any = {};
+      try {
+        cache = JSON.parse(localStorage.getItem("local_translations_cache") || '{}');
+      } catch (_) {}
+
+      if (!cache[targetLanguage]) {
+        cache[targetLanguage] = {};
+      }
+      cache[targetLanguage][text] = data.text;
+      localStorage.setItem("local_translations_cache", JSON.stringify(cache));
+
+      // Trigger page translation traversal re-evaluation
+      window.dispatchEvent(new CustomEvent("local_translations_updated", {
+        detail: { text, targetLanguage, translation: data.text }
+      }));
+    }
+  })
+  .catch(err => {
+    console.warn("[Auto-translate background fetch bypassed]", text, err);
+  })
+  .finally(() => {
+    setTimeout(() => pendingTranslations.delete(cacheKey), 8000);
+  });
+};
+
+export const translate = (text: string, selectedLanguage: string): string => {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+
+  // Simple quick guard to avoid auto-translating things that are numeric values
+  if (/^\d+(\.\d+)?%?$/.test(trimmed)) return text;
+
   const langKey = selectedLanguage as LanguageCode;
-  const systemTranslations = translations[langKey];
-  if (systemTranslations && text in systemTranslations) {
-    return systemTranslations[text as keyof TranslationKeys];
+  
+  // English does not require further parsing
+  if (selectedLanguage.startsWith('English')) {
+    return text;
   }
+
+  const systemTranslations = translations[langKey];
+  
+  // 1. Check Pre-compiled static translations
+  if (systemTranslations) {
+    if (trimmed in systemTranslations) {
+      return systemTranslations[trimmed];
+    }
+
+    // Case-insensitive static check
+    const lowerTrimmed = trimmed.toLowerCase();
+    for (const key of Object.keys(systemTranslations)) {
+      if (key.toLowerCase() === lowerTrimmed) {
+        return systemTranslations[key];
+      }
+    }
+  }
+
+  // 2. Check local dynamically downloaded translations cache
+  let localCache: any = {};
+  try {
+    localCache = JSON.parse(localStorage.getItem("local_translations_cache") || '{}');
+  } catch (_) {}
+
+  if (localCache[selectedLanguage] && localCache[selectedLanguage][trimmed]) {
+    return localCache[selectedLanguage][trimmed];
+  }
+
+  // 3. Dynamic Prefix Translation (e.g. "Welcome Dr. Jane Doe" -> Translation of "Welcome Dr." + " Jane Doe")
+  if (trimmed.toLowerCase().startsWith('welcome dr.')) {
+    const welcomeTrans = (systemTranslations && systemTranslations['Welcome Dr.']) || 
+                         (localCache[selectedLanguage] && localCache[selectedLanguage]['Welcome Dr.']) || 
+                         'Welcome Dr.';
+    const doctorName = trimmed.substring(12);
+    return `${welcomeTrans} ${doctorName}`;
+  }
+
+  // 4. Trigger Dynamic Automatic Background Translation
+  fetchTranslationInBackground(trimmed, selectedLanguage);
+
   return text;
 };

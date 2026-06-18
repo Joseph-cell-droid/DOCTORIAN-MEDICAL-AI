@@ -4372,6 +4372,24 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
+  app.post("/api/public/translate", async (req, res) => {
+    const { text, targetLang } = req.body;
+    if (!text || !targetLang) {
+      return res.status(400).json({ error: "Text and target language are required" });
+    }
+
+    try {
+      const response = await callAI({
+        messages: [{ role: 'user', text: `Translate the following word, short phrase or sentence into ${targetLang}. Output ONLY the precise translated text without any footnotes, prefaces, explanations or quotes around the output. Phrase: "${text}"` }],
+        systemInstruction: "You are an automated medical translator. Maintain clinical context for world languages (Luganda, Swahili, Runyankole, Acholi, Ateso, Lusoga, Luo, Spanish, French, German, Chinese, Hindi, Arabic, Portuguese, Korean, Japanese, Italian, Turkish, Russian). Keep the response as short and precise as the original text."
+      });
+      res.json({ text: response ? response.trim() : text, success: true });
+    } catch (err: any) {
+      console.error("[PUBLIC TRANSLATE ERROR]", err.message);
+      res.json({ text, error: "Dynamic translate bypassed", success: false });
+    }
+  });
+
   app.post("/api/alerts/medication", authenticate, async (req: any, res) => {
     const { medName, time } = req.body;
     const userId = req.user.id;

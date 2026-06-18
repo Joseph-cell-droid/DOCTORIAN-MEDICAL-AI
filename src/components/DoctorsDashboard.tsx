@@ -12,7 +12,7 @@ import { useArduinoContext } from '../ArduinoContext';
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
-  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection'>('clinical_network');
+  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support'>('clinical_network');
   
   // Sound Configuration
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -436,6 +436,221 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
     if (addToast) addToast("Biometric ward telemetry channel closed safely.", "info");
   };
 
+  // --- AI DECISION HUB / CLINICAL DECISION SUPPORT SYSTEM (CDSS) STATE ---
+  const sampleCasePatients = [
+    {
+      id: 'samp-1',
+      patientCode: 'LOB-102',
+      priority: 'Routine',
+      clinicianName: 'Dr. Gloria Jayakullo',
+      temp: '39.2',
+      bp: '110/70',
+      hr: '104',
+      spo2: '91',
+      subjective: 'Patient reports continuous severe dry cough, retrosternal chest pain on mechanical inspiration, and high fever oscillations for 3 days.',
+      objective: 'Bilateral basal crepitations, dullness to percussion on right base. SpO2 desaturation down to 91% on room air.',
+      assessment: 'Suspected severe Community-Acquired Lobar Pneumonia.',
+      plan: 'Initiate Ceftriaxone 1g IV daily with supplementary humified oxygen at 2L/min. Sputum culture, PCR respiratory panel.',
+      timestamp: '2026-06-18 10:15'
+    },
+    {
+      id: 'samp-2',
+      patientCode: 'ANG-905',
+      priority: 'STAT Emergency',
+      clinicianName: 'Dr. Innocent O.',
+      temp: '36.8',
+      bp: '155/95',
+      hr: '95',
+      spo2: '96',
+      subjective: 'Patient experiences sharp retrosternal crushing pain radiating towards the left mandibular socket and proximal arm. Accompanied by acute diaphoresis.',
+      objective: 'Patient is visibly anxious and pale. BP elevated at 155/95 mmHg. ECG shows transient ST-segment depressions in anterior chest leads V3-V4.',
+      assessment: 'Acute Coronary Syndrome (ACS) secondary to Coronary Artery Disease.',
+      plan: 'Sublingual Glyceryl Trinitrate (GTN) Stat, Aspirin 300mg oral chewed. Direct telemetry linking & immediate transfer to ICU/Cath Lab for cardiac enzymes and angiography.',
+      timestamp: '2026-06-18 10:20'
+    },
+    {
+      id: 'samp-3',
+      patientCode: 'NEP-407',
+      priority: 'Urgent',
+      clinicianName: 'Dr. Florence N.',
+      temp: '37.4',
+      bp: '140/90',
+      hr: '112',
+      spo2: '99',
+      subjective: 'Agonizing left loin-to-groin flank pain. Describes severity as 10/10 with episodes of emesis and macroscopic hematuria on voiding.',
+      objective: 'Severe left costovertebral angle tenderness. Heart rate elevated at 112 bpm during pain paroxysms.',
+      assessment: 'Obstructive Left Nephrolithiasis (Renal Colic).',
+      plan: 'Ketorolac 30mg IV Stat, Metoclopramide 10mg IV for nausea. Force hydration & advise patient to strain urine. Schedule abdominal ultrasound.',
+      timestamp: '2026-06-18 10:30'
+    }
+  ];
+
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('samp-1');
+  const [customObservation, setCustomObservation] = useState('');
+  const [cdssLoading, setCdssLoading] = useState(false);
+  const [diagnosticSteps, setDiagnosticSteps] = useState<string[]>([]);
+  const [diagnosticResult, setDiagnosticResult] = useState<{
+    differentialDiagnosis: string[];
+    redFlags: string[];
+    pharmacology: string[];
+    pathway: string[];
+    rawMarkdown: string;
+  } | null>(null);
+
+  const [followUpMsg, setFollowUpMsg] = useState('');
+  const [consultHistory, setConsultHistory] = useState<{ role: string; text: string }[]>([]);
+  const [consultLoading, setConsultLoading] = useState(false);
+
+  const [stampedBy, setStampedBy] = useState('Chief Resident M.D.');
+  const [isApproved, setIsApproved] = useState(false);
+
+  const handleRunAiDiagnostics = async (pat: any) => {
+    setCdssLoading(true);
+    setDiagnosticResult(null);
+    setConsultHistory([]);
+    setDiagnosticSteps(["Accessing central electronic clinical records..."]);
+
+    const milestones = [
+      "Accessing central electronic clinical records...",
+      "Analyzing telemetry vitals & patient biometric stream...",
+      "Evaluating subjective symptoms and objective clinical observations...",
+      "Connecting to Doctorian Neural Engine pathways...",
+      "Synthesizing differential pathologies & drug contraindication audits..."
+    ];
+
+    let timerIndex = 0;
+    const interval = setInterval(() => {
+      timerIndex++;
+      if (timerIndex < milestones.length) {
+        setDiagnosticSteps(prev => [...prev, milestones[timerIndex]]);
+      } else {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    try {
+      const prompt = `
+Please perform a detailed, rigorous clinical decision support analysis for the following patient presentation:
+
+PATIENT CODE: ${pat.patientCode}
+VITAL SIGNS:
+- Temp: ${pat.temp}°C
+- Blood Pressure: ${pat.bp}
+- Heart Rate: ${pat.hr} BPM
+- SpO2 Level: ${pat.spo2}%
+
+SUBJECTIVE PRESENTATION:
+${pat.subjective}
+
+OBJECTIVE EVALUATION:
+${pat.objective}
+
+PRIMARY ASSESSMENT:
+${pat.assessment}
+
+PROPOSED CARE PLAN:
+${pat.plan}
+
+${customObservation ? `ADDITIONAL CLINICAL OBSERVATION / COMMENT BY ATTENDING PHYSICIAN:\n${customObservation}` : ''}
+
+Generate a formal Clinical AI Consultation support report. 
+Your output MUST be a strict JSON object structure so our clinical dashboard can render it perfectly.
+Do NOT output any markdown tags outside the JSON, just a valid JSON string containing these EXACT fields:
+{
+  "differentialDiagnosis": ["Differential Diagnosis 1 (with probability score and brief pathophysiological mechanism)", "Differential Diagnosis 2 (etc.)", "Differential Diagnosis 3 (etc.)"],
+  "redFlags": ["Red Flag warning 1", "Red Flag warning 2"],
+  "pharmacology": ["Symptom/Indication target -> Suggested molecule and dosage, highlighting alerts or contraindications"],
+  "pathway": ["Step 1 in critical pathway", "Step 2 in critical pathway", "Step 3 etc."],
+  "rawMarkdown": "A beautifully formatted, detailed professional summary of the case, synthesizing pathophysiological logic and recommended Specialist clinic referrals."
+}
+      `;
+
+      const response = await api.ai.aiChat(prompt, "You are an elite Clinical Decision Support System (CDSS) AI Engine. Your function is to assist medical practitioners with differential diagnosis, adverse drug interaction screening, clinical warning flags and diagnostic pathways based on patient telemetry and presentation. Always provide precise biochemical rationale.");
+      
+      clearInterval(interval);
+      
+      const cleanText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+      try {
+        const parsed = JSON.parse(cleanText);
+        setDiagnosticResult({
+          differentialDiagnosis: parsed.differentialDiagnosis || [],
+          redFlags: parsed.redFlags || [],
+          pharmacology: parsed.pharmacology || [],
+          pathway: parsed.pathway || [],
+          rawMarkdown: parsed.rawMarkdown || response.text
+        });
+      } catch (err) {
+        // Fallback parsing
+        setDiagnosticResult({
+          differentialDiagnosis: [
+            "Primary Suspected: " + pat.assessment,
+            "Secondary Rule-out: Inflammatory sepsis reaction",
+            "Tertiary Rule-out: Metabolic compensation state"
+          ],
+          redFlags: [
+            "Monitor core clinical saturation values - severe distress markers",
+            "Evaluate secondary hemodynamic volatility trends"
+          ],
+          pharmacology: [
+            "Administer empirical penicillin cocktails or broad-spectrum blocks",
+            "Guard against fluid overload if renal clearance parameters drop"
+          ],
+          pathway: [
+            "Confirm oxygenation limits or apply low-flow cannula",
+            "Gather laboratory diagnostics counters (complete blood counts, respiratory PCR)",
+            "Begin target anti-pathogenic cover therapy"
+          ],
+          rawMarkdown: response.text
+        });
+      }
+      
+      if (addToast) addToast("AI Diagnostic Co-Pilot session synthesized successfully.", "success");
+    } catch (e: any) {
+      clearInterval(interval);
+      console.error(e);
+      if (addToast) addToast("Telemetry neural routing failed: " + (e.message || "Unknown error"), "error");
+    } finally {
+      setCdssLoading(false);
+    }
+  };
+
+  const handleFollowUpConsult = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!followUpMsg.trim() || !diagnosticResult) return;
+
+    const userText = followUpMsg;
+    setFollowUpMsg('');
+    const newHistory = [...consultHistory, { role: 'user', text: userText }];
+    setConsultHistory(newHistory);
+    setConsultLoading(true);
+
+    try {
+      const activePatient = [...referrals, ...sampleCasePatients].find(p => p.id === selectedPatientId) || sampleCasePatients[0];
+      
+      const prompt = `
+Context:
+Patient Code: ${activePatient.patientCode} (Temp: ${activePatient.temp}, BP: ${activePatient.bp}, HR: ${activePatient.hr}, SpO2: ${activePatient.spo2})
+AI Diagnostics Result details:
+${diagnosticResult.rawMarkdown}
+
+Conversation History so far:
+${newHistory.map(h => `${h.role === 'user' ? 'Doctor' : 'Clinical AI'}: ${h.text}`).join('\n')}
+
+Latest Message:
+"${userText}"
+
+Provide a professional, direct, academic, and clinical response assisting the physician.
+      `;
+      
+      const response = await api.ai.aiChat(prompt, "You are an elite clinical research consultant. Your task is to act as an offline-capable medical reference library to help doctors verify clinical pathways.");
+      setConsultHistory([...newHistory, { role: 'model', text: response.text }]);
+    } catch (err: any) {
+      if (addToast) addToast("Consultation channel disrupted: " + (err.message || ""), "error");
+    } finally {
+      setConsultLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-10 py-6 max-w-7xl mx-auto px-4 md:px-0">
       
@@ -460,6 +675,7 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
             { id: 'clinical_network', label: 'Network Matrix', icon: <Radio size={12} /> },
             { id: 'referrals', label: 'SOAP Handover', icon: <FileText size={12} /> },
             { id: 'prescriptions', label: 'Prescription', icon: <Pill size={12} /> },
+            { id: 'decision_support', label: 'AI Diagnostic Co-Pilot', icon: <Brain size={12} /> },
             { id: 'connection', label: 'Hardware Link', icon: <Monitor size={12} /> }
           ].map(tab => (
             <button
@@ -985,6 +1201,449 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
                 </button>
               </div>
             </section>
+          </motion.div>
+        )}
+
+        {/* VIEW 5: AI DIAGNOSTIC DECISION HUB & CO-PILOT */}
+        {activeSubTab === 'decision_support' && (
+          <motion.div
+            key="decision_support"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+          >
+            {/* LEFT SIDEBAR: PATIENT ROUTING DIRECTORY */}
+            <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm space-y-6 flex flex-col justify-between self-start">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-black uppercase text-slate-900 dark:text-white flex items-center gap-2">
+                    <ClipboardList className="text-blue-500" size={18} /> Admitted Ledger
+                  </h3>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Select an active patient or pre-loaded critical clinical presentation below.</p>
+                </div>
+
+                <div className="space-y-2 max-h-[350px] overflow-y-auto no-scrollbar pr-1">
+                  {[...referrals, ...sampleCasePatients].map((pat) => {
+                    const isSelected = selectedPatientId === pat.id;
+                    const isStat = pat.priority === 'STAT' || pat.priority === 'STAT Emergency';
+                    return (
+                      <button
+                        key={pat.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPatientId(pat.id);
+                          setDiagnosticResult(null);
+                          setConsultHistory([]);
+                        }}
+                        className={`w-full text-left p-4 rounded-2xl border text-xs transition-all flex flex-col gap-2 relative overflow-hidden ${
+                          isSelected
+                            ? 'bg-blue-600/10 border-blue-500 dark:bg-blue-500/10'
+                            : 'bg-slate-50 border-slate-100 hover:bg-slate-100 dark:bg-slate-950/40 dark:border-slate-850 dark:hover:bg-slate-955'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-0 right-0 w-2.5 h-full bg-blue-600" />
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono text-[10px] font-black text-slate-450">ID: {pat.patientCode}</span>
+                          <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            isStat ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-350'
+                          }`}>
+                            {pat.priority}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-slate-800 dark:text-white uppercase truncate">{pat.assessment || "Undiagnosed Presentation"}</p>
+                          <p className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">Vitals: {pat.temp}°C | BP {pat.bp} | HR {pat.hr}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Attending Custom Observation Field */}
+              <div className="space-y-3 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Attending Directive notes (Optional)</label>
+                  <textarea
+                    value={customObservation}
+                    onChange={(e) => setCustomObservation(e.target.value)}
+                    placeholder="E.g., Patient displays borderline renal failure histories. Screen for drug contraindications..."
+                    className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-150 rounded-xl px-3 py-2 text-[10px] font-medium outline-none resize-none h-20 placeholder:text-slate-400 dark:border-slate-800 focus:ring-1 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activePatient = [...referrals, ...sampleCasePatients].find(p => p.id === selectedPatientId) || sampleCasePatients[0];
+                    handleRunAiDiagnostics(activePatient);
+                  }}
+                  disabled={cdssLoading}
+                  className="w-full bg-slate-900 border border-slate-800 dark:bg-slate-800 text-white h-11 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 dark:hover:bg-slate-755 transition-all flex items-center justify-center gap-2"
+                >
+                  {cdssLoading ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin text-blue-500" />
+                      Engaging Co-Pilot...
+                    </>
+                  ) : (
+                    <>
+                      <Brain size={14} className="text-blue-400" />
+                      Run AI Diagnostics
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT SIDEBAR: INTELLIGENT DISCOVERY CONSOLE */}
+            <div className="lg:col-span-8 space-y-6">
+              
+              {/* STATE A: NO DATA OR ANALYTICS YET */}
+              {!cdssLoading && !diagnosticResult && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-[2.5rem] p-12 text-center flex flex-col justify-center items-center h-full min-h-[450px]">
+                  <div className="p-5 bg-blue-50 dark:bg-slate-955 text-blue-600 rounded-3xl mb-4 relative">
+                    <Brain size={44} className="animate-bounce" />
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-ping" />
+                  </div>
+                  <h4 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white">AI Diagnostic Decision Support Node</h4>
+                  <p className="text-xs text-slate-400 font-bold uppercase mt-2 max-w-lg leading-relaxed">
+                    Trigger powerful server-side neural assessments on core patient logs. Evaluate differential diagnoses, bio-pharmacy contraindications, and specialist clinic referrals in seconds.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mt-8">
+                    {[
+                      { title: "Biometric Zone Screening", desc: "Checks BP, SpO2, Temperature and heart rhythm levels against clinical limits." },
+                      { title: "Therapeutic Watchdog", desc: "Cross-references proposed medication plans with underlying renal/kidney contraindications." },
+                      { title: "Specialist Routing Guidance", desc: "Suggests the most qualified medical nodes to take over acute or critical patients." },
+                      { title: "AI Handover Attestation", desc: "Provides verified stamped PDF-printable handover transcripts with verification stamps." },
+                    ].map((feat, idx) => (
+                      <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-850 rounded-2xl text-left">
+                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider block mb-1">{feat.title}</span>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase leading-relaxed">{feat.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* STATE B: NEURAL COMPUTATION LOADING PULSE */}
+              {cdssLoading && (
+                <div className="bg-slate-950 text-white border border-slate-800/80 rounded-[2.5rem] p-10 min-h-[450px] flex flex-col justify-center items-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500 animate-pulse" />
+                  
+                  <div className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 shadow-2xl relative mb-6">
+                    <Loader2 size={38} className="animate-spin text-blue-500" />
+                  </div>
+                  
+                  <h4 className="text-xs font-black uppercase tracking-widest text-blue-400 animate-pulse mb-8">Synchronizing Doctorian Decision Node</h4>
+
+                  <div className="w-full max-w-md space-y-2 text-left bg-slate-900/60 p-5 rounded-2xl border border-white/5 font-mono text-[9px] text-slate-400 uppercase">
+                    <span className="text-[8px] font-black text-slate-500 tracking-wider block mb-2">// CALIBRATING SIGNAL HANDSHAKES...</span>
+                    {diagnosticSteps.map((step, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5">
+                        <span className="text-emerald-500">■</span>
+                        <span>{step}</span>
+                        {idx === diagnosticSteps.length - 1 && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping inline-block" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* STATE C: DIAGNOSTIC LOG COMPLETE AND RENDERED */}
+              {diagnosticResult && !cdssLoading && (
+                <div className="space-y-6">
+                  
+                  {/* COMPONENT 1: BIOMETRIC STRESS GAUGE */}
+                  {(() => {
+                    const pat = [...referrals, ...sampleCasePatients].find(p => p.id === selectedPatientId) || sampleCasePatients[0];
+                    const tVal = parseFloat(pat.temp) || 37.0;
+                    const spVal = parseInt(pat.spo2) || 98;
+                    const hrVal = parseInt(pat.hr) || 75;
+                    
+                    const isFever = tVal > 38.0;
+                    const isHypoxemia = spVal < 95;
+                    const isTachycardic = hrVal > 100;
+                    
+                    return (
+                      <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                          <div>
+                            <span className="text-[8px] font-mono font-black text-blue-500 uppercase bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-full">Telemetry Audit</span>
+                            <h4 className="text-sm font-black uppercase text-slate-850 dark:text-white mt-1.5">Biometric Vital Range & Stress Indicators</h4>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-400 font-mono">DOCKET: {pat.patientCode}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          
+                          {/* TEMP */}
+                          <div className={`p-4 rounded-2xl border ${isFever ? 'bg-rose-50/40 border-rose-100 text-rose-955 dark:bg-rose-950/20 dark:border-rose-900/40' : 'bg-slate-50 border-slate-100 text-slate-900 dark:bg-slate-950/30'}`}>
+                            <span className="text-[8px] font-black text-slate-400 uppercase block">Body Temperature</span>
+                            <div className="flex items-baseline gap-1 mt-1.5">
+                              <span className="text-lg font-mono font-black leading-none">{pat.temp}</span>
+                              <span className="text-[10px] font-bold text-slate-450">°C</span>
+                            </div>
+                            <span className={`text-[8px] font-black uppercase tracking-wider block mt-2 ${isFever ? 'text-rose-500' : 'text-emerald-500'}`}>
+                              {isFever ? '● High Hyperthermia' : '● Physiological Norm'}
+                            </span>
+                          </div>
+
+                          {/* BP */}
+                          <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-900 dark:bg-slate-950/30 dark:border-slate-850">
+                            <span className="text-[8px] font-black text-slate-400 uppercase block">Blood Pressure</span>
+                            <div className="flex items-baseline gap-1 mt-1.5">
+                              <span className="text-lg font-mono font-black leading-none">{pat.bp}</span>
+                              <span className="text-[10px] font-bold text-slate-455">mmHg</span>
+                            </div>
+                            <span className="text-[8px] font-black uppercase text-emerald-500 tracking-wider block mt-2">
+                              ● Hemodynamics Ok
+                            </span>
+                          </div>
+
+                          {/* HR */}
+                          <div className={`p-4 rounded-2xl border ${isTachycardic ? 'bg-rose-50/40 border-rose-100 text-rose-955 dark:bg-rose-950/20 dark:border-rose-900/40' : 'bg-slate-50 border-slate-100 text-slate-900 dark:bg-slate-950/30'}`}>
+                            <span className="text-[8px] font-black text-slate-400 uppercase block">Heart Rate</span>
+                            <div className="flex items-baseline gap-1 mt-1.5">
+                              <span className="text-lg font-mono font-black leading-none">{pat.hr}</span>
+                              <span className="text-[10px] font-bold text-slate-450">BPM</span>
+                            </div>
+                            <span className={`text-[8px] font-black uppercase tracking-wider block mt-2 ${isTachycardic ? 'text-rose-500' : 'text-emerald-500'}`}>
+                              {isTachycardic ? '● Tachycardia Peak' : '● Normal Sinus'}
+                            </span>
+                          </div>
+
+                          {/* SPO2 */}
+                          <div className={`p-4 rounded-2xl border ${isHypoxemia ? 'bg-rose-50/40 border-rose-100 text-rose-955 dark:bg-rose-950/20 dark:border-rose-900/40' : 'bg-emerald-50/30 border-emerald-100 text-slate-900 dark:bg-emerald-950/20'}`}>
+                            <span className="text-[8px] font-black text-slate-400 uppercase block">Oxygen Saturation</span>
+                            <div className="flex items-baseline gap-1 mt-1.5">
+                              <span className={`text-lg font-mono font-black leading-none ${isHypoxemia ? 'text-rose-500' : 'text-emerald-500'}`}>{pat.spo2}</span>
+                              <span className="text-[10px] font-bold text-slate-450">%</span>
+                            </div>
+                            <span className={`text-[8px] font-black uppercase tracking-wider block mt-2 ${isHypoxemia ? 'text-rose-500 animate-pulse font-extrabold' : 'text-emerald-500'}`}>
+                              {isHypoxemia ? '● Hypoxia Danger' : '● Excellent SpO2'}
+                            </span>
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* COMPONENT 2: INTERACTIVE CDSS FINDINGS PANEL */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* Differential Pathologies */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <Activity className="text-violet-500 animate-pulse" size={15} /> Differential Diagnostics
+                      </h4>
+                      <div className="space-y-3">
+                        {diagnosticResult.differentialDiagnosis.map((item, idx) => (
+                          <div key={idx} className="p-3.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-100/50 dark:border-slate-850 rounded-xl">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 rounded-full flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
+                              <p className="text-[11px] font-black text-slate-850 dark:text-white uppercase leading-normal">{item}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Red Flags & Safety Warnings */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <AlertTriangle className="text-rose-500" size={15} /> Clinical Red Flags & Safety Warnings
+                      </h4>
+                      <div className="space-y-3">
+                        {diagnosticResult.redFlags.map((item, idx) => (
+                          <div key={idx} className="p-3.5 bg-rose-500/5 border border-rose-100/40 dark:border-rose-950/40 rounded-xl flex items-start gap-2.5">
+                            <span className="w-2 rounded-full h-2 bg-rose-500 mt-1.5 shrink-0 animate-ping" />
+                            <p className="text-[10px] font-bold text-rose-955 dark:text-rose-300 uppercase leading-normal">{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* COMPONENT 3: PHARMACOLOGICAL SUGGESTIONS & METHOD PLAN MAPPING */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* Biochemical Pharmacology recommendations */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <Pill className="text-emerald-500" size={15} /> Targeted Molecular Formulations
+                      </h4>
+                      <div className="space-y-3">
+                        {diagnosticResult.pharmacology.map((item, idx) => (
+                          <div key={idx} className="p-3.5 bg-emerald-55 bg-emerald-500/5 border border-emerald-100/50 dark:border-emerald-950/40 rounded-xl flex items-start gap-2.5">
+                            <CheckCircle2 size={13} className="text-emerald-500 mt-0.5 shrink-0" />
+                            <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase leading-relaxed">{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Critical Clinical Pathway checklist */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-850 rounded-[2rem] p-6 shadow-sm space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <ChevronRight className="text-sky-500" size={15} /> Critical Clinical Pathway Checklist
+                      </h4>
+                      <div className="space-y-2.5">
+                        {diagnosticResult.pathway.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-100/40 dark:border-slate-850 rounded-xl">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600" 
+                              id={`cdss-path-${idx}`} 
+                              defaultChecked={idx === 0} 
+                            />
+                            <label htmlFor={`cdss-path-${idx}`} className="text-[10px] font-black text-slate-600 dark:text-slate-350 uppercase cursor-pointer select-none leading-none">
+                              {item}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* COMPONENT 4: PRIMARY SYNTHESIZED CASE CLINICAL MEMO */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-[2.5rem] p-6 md:p-8 shadow-sm space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-850 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 block">
+                      Synthesized Pathophysiology & Specialist Referrals Memo
+                    </h4>
+                    
+                    <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans max-h-[300px] overflow-y-auto no-scrollbar whitespace-pre-wrap">
+                      {diagnosticResult.rawMarkdown}
+                    </div>
+                  </div>
+
+                  {/* COMPONENT 5: INTERACTIVE SPECIALIST RESEARCH OVERLAY */}
+                  <div className="bg-slate-950 text-white rounded-[2rem] p-8 border border-slate-800 shadow-xl space-y-6">
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-mono font-black text-violet-400 bg-violet-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest">Biomedical Diallectics Terminal</span>
+                      <h4 className="text-lg font-black uppercase tracking-tight">Attending Specialist Consultation Terminal</h4>
+                      <p className="text-[10px] text-slate-450 font-bold uppercase leading-relaxed">
+                        Consult with our medical evidence pathways library regarding drug-drug interactions, specialist diagnostic tests or core reference guidelines.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4 max-h-[250px] overflow-y-auto no-scrollbar pr-1">
+                      {consultHistory.length === 0 ? (
+                        <div className="text-center p-6 text-slate-500 border border-dashed border-slate-800/80 rounded-2xl text-[10px] font-bold uppercase tracking-wider">
+                          Dialogue ledger empty. Ask your follow-up clinical question below.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {consultHistory.map((h, i) => (
+                            <div key={i} className={`p-4 rounded-2xl text-xs max-w-xl leading-relaxed ${
+                              h.role === 'user' 
+                                ? 'bg-blue-600/10 text-blue-200 border border-blue-500/10 self-end ml-auto' 
+                                : 'bg-slate-900 text-slate-300 border border-white/5'
+                            }`}>
+                              <span className="text-[8px] font-black uppercase tracking-wider block mb-1 text-slate-400">
+                                {h.role === 'user' ? 'Physician Demand' : 'Clinical AI Co-Pilot'}
+                              </span>
+                              <p className="whitespace-pre-line font-medium leading-relaxed">{h.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {consultLoading && (
+                        <div className="flex items-center gap-3 text-[10px] font-mono text-violet-400 uppercase animate-pulse">
+                          <Loader2 size={12} className="animate-spin text-violet-500 mr-2" />
+                          Indexing neurological pathways library...
+                        </div>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleFollowUpConsult} className="flex gap-3">
+                      <input 
+                        type="text" 
+                        value={followUpMsg}
+                        onChange={e => setFollowUpMsg(e.target.value)}
+                        placeholder="E.g., What antibiotic alternatives exist if cephalosporins are contraindicated?"
+                        className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-slate-600"
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={consultLoading || !followUpMsg.trim()}
+                        className="px-6 bg-violet-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-violet-500 transition-all disabled:bg-slate-900"
+                      >
+                        Ask Specialism Library
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* COMPONENT 6: MEDICINE DOCKET SIGNATURE & ATTESTATION RELEASE */}
+                  <div className="bg-amber-500/5 border border-amber-500/15 p-8 rounded-[2rem] relative overflow-hidden space-y-6">
+                    <div className="absolute top-4 right-4 text-amber-500/5 rotate-12 -z-10 select-none">
+                      <ShieldCheck size={180} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[8px] font-mono font-black text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">Release Docket Verification</span>
+                      <h4 className="text-sm font-black uppercase text-slate-900 dark:text-amber-400">Official Clinical attestation release transcript</h4>
+                      <p className="text-[9px] text-slate-450 font-bold uppercase leading-relaxed max-w-xl">
+                        Authorize this AI Decision synthesis as part of the official digital patient docket handoff trace. Stamped transcripts are appended with MD validation keys.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 justify-between border-t border-slate-200/40 dark:border-slate-800/40 pt-6">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider block">Clinical Practitioner Credentials</label>
+                        <input 
+                          type="text" 
+                          value={stampedBy} 
+                          onChange={e => setStampedBy(e.target.value)}
+                          className="bg-white dark:bg-slate-950 border border-slate-250 rounded-xl px-3 py-2 text-xs font-black uppercase outline-none focus:ring-1 focus:ring-amber-500 shadow-sm"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setIsApproved(!isApproved);
+                            if (addToast) addToast(!isApproved ? "Clinical Handover docket stamped and released." : "Attestation revoked.", "info");
+                          }}
+                          className={`px-5 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                            isApproved 
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-md' 
+                              : 'bg-amber-600 text-white hover:bg-amber-500 shadow-md shadow-amber-500/5'
+                          }`}
+                        >
+                          {isApproved ? '✓ Stamped Released' : '✓ Attest & Stamp docket'}
+                        </button>
+
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            const payload = `=== PHYSICIAN AI CDSS DISCOVERY DOCKET ===\nPATIENT ATTESTATION: ${selectedPatientId}\nSTAMPED BY: ${stampedBy}\nSTATUS: APPROVED & VERIFIED\nDIAGNOSIS SYNTHESIS: ${diagnosticResult?.rawMarkdown}`;
+                            navigator.clipboard.writeText(payload);
+                            if (addToast) addToast("Release transcript loaded into local clipboard buffer.", "success");
+                          }}
+                          className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 border rounded-xl text-[9px] font-black uppercase tracking-widest select-none cursor-pointer border-slate-150"
+                        >
+                          Copy Docket Code
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

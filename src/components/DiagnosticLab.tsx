@@ -1088,6 +1088,85 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
                       </div>
                     </div>
                   </div>
+
+                  {/* Hybrid TF.js + Ollama/Gemma-3 Integration Card */}
+                  <div className="mt-8 bg-slate-950/5 dark:bg-slate-950/40 p-6 md:p-8 rounded-[2.5rem] border border-blue-500/10 space-y-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 text-cyan-400 rounded-2xl border border-blue-500/20">
+                          <Brain size={22} className="text-blue-400 animate-pulse" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Hybrid Intelligence Gateway</h4>
+                          <span className="text-[9px] font-extrabold text-blue-500 uppercase tracking-widest block mt-0.5">Edge TensorFlow.js Predictor + Local LLM Core</span>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full text-[8px] font-black uppercase tracking-wider font-mono self-start md:self-center">
+                        Active Cross-Pipe Link
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                      This advanced pipeline merges <strong>localized regression math (TensorFlow.js)</strong> with <strong>natural language interaction</strong>. TensorFlow.js computes raw biometric risk vectors inside your browser's execution thread, and feeds them into the local clinical LLM to obtain interpretive, actionable suggestions and custom-tailored medical education.
+                    </p>
+
+                    {/* Architectural pipeline visualizer */}
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-900 font-mono text-[9px] text-slate-400 text-center relative overflow-hidden">
+                      <div className="flex flex-col items-center justify-center p-2.5 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                        <span className="text-blue-400 font-extrabold mb-1">I. PATIENT INDICES</span>
+                        <span className="text-slate-500 text-[8px]">Age, BP, HR, SpO2, BMI</span>
+                      </div>
+                      <div className="flex items-center justify-center text-slate-700 font-bold">
+                        <ChevronRight className="rotate-90 md:rotate-0 w-4 h-4 shrink-0" />
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-2.5 bg-blue-950/25 rounded-xl border border-blue-500/20">
+                        <span className="text-blue-400 font-extrabold mb-1">II. TENSORFLOW.JS</span>
+                        <span className="text-emerald-400 font-bold text-[8px]">Weights Fit Matrix Math</span>
+                      </div>
+                      <div className="flex items-center justify-center text-slate-700 font-bold">
+                        <ChevronRight className="rotate-90 md:rotate-0 w-4 h-4 shrink-0" />
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-2.5 bg-purple-950/25 rounded-xl border border-purple-500/20">
+                        <span className="text-purple-400 font-extrabold mb-1">III. CHAT CORE</span>
+                        <span className="text-slate-400 text-[8px]">Natural Language Sync</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row gap-4">
+                      <button
+                        onClick={() => {
+                          if (!isTrained) {
+                            alert("Please train the neural weights of the local model first!");
+                            return;
+                          }
+                          const payload = `Evaluate the following local clinical telemetry values computed by our client-side TensorFlow.js model:
+- Patient Age: ${age} years old
+- Blood Pressure: ${systolicBP} mmHg (Systolic)
+- Fasting Glucose: ${fastingGlucose} mg/dL
+- Mean Heart Rate: ${heartRate} BPM
+- Blood Oxygenation (SpO2): ${spo2}%
+- Measured BMI: ${bmi}
+
+[Local TensorFlow.js Deep Risk Classifier Results]:
+- Cardiac Pathology Risk Index: ${cardiacRiskVal}%
+- Metabolic/Diabetes Complications: ${diabetesRiskVal}%
+- Severe Malaria progression danger: ${malariaSeverityRiskVal}%
+- Cognitive neuro-decline sensitivity: ${cognitiveDeclineRiskVal}%
+
+Can you synthesize these probabilistic mathematical outcomes, describe potential physiological pathways, and translate them into a clear medical report outline with recommendations?`;
+                          
+                          // Dispatch custom events
+                          window.dispatchEvent(new CustomEvent('tfjs_to_chat', { detail: { text: payload } }));
+                          window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'ai_nexus' } }));
+                        }}
+                        disabled={!isTrained}
+                        className="flex-1 py-4.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest shadow-xl shadow-blue-500/10 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-40"
+                      >
+                        <Zap size={14} />
+                        Feed to Clinical Co-Pilot Chat
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

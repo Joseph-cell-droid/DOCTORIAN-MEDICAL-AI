@@ -1037,6 +1037,18 @@ const fetchTranslationInBackground = (text: string, targetLanguage: string) => {
   .then(res => res.json())
   .then(data => {
     if (data && data.text) {
+      const cleanedText = data.text.trim();
+      if (
+        cleanedText.includes('Clinical Synapse') ||
+        cleanedText.includes('Doctorian') ||
+        cleanedText.includes('🧠') ||
+        cleanedText.includes('🩺') ||
+        cleanedText.length > 80
+      ) {
+        console.warn("[Auto-translate] Bypassed corrupted translation string:", cleanedText);
+        return;
+      }
+
       let cache: any = {};
       try {
         cache = JSON.parse(localStorage.getItem("local_translations_cache") || '{}');
@@ -1045,12 +1057,12 @@ const fetchTranslationInBackground = (text: string, targetLanguage: string) => {
       if (!cache[targetLanguage]) {
         cache[targetLanguage] = {};
       }
-      cache[targetLanguage][text] = data.text;
+      cache[targetLanguage][text] = cleanedText;
       localStorage.setItem("local_translations_cache", JSON.stringify(cache));
 
       // Trigger page translation traversal re-evaluation
       window.dispatchEvent(new CustomEvent("local_translations_updated", {
-        detail: { text, targetLanguage, translation: data.text }
+        detail: { text, targetLanguage, translation: cleanedText }
       }));
     }
   })
@@ -1095,9 +1107,38 @@ export const translate = (text: string, selectedLanguage: string): string => {
 
   // 2. Check local dynamically downloaded translations cache
   let localCache: any = {};
+  let cacheModified = false;
   try {
     localCache = JSON.parse(localStorage.getItem("local_translations_cache") || '{}');
   } catch (_) {}
+
+  // Sanitize local cache to discard corrupted, AI-synapsed translations
+  for (const lang of Object.keys(localCache)) {
+    if (localCache[lang] && typeof localCache[lang] === 'object') {
+      for (const key of Object.keys(localCache[lang])) {
+        const val = localCache[lang][key];
+        if (typeof val === 'string' && (
+          val.includes('Clinical Synapse') ||
+          val.includes('Doctorian') ||
+          val.includes('🧠') ||
+          val.includes('🩺') ||
+          val.length > 80
+        )) {
+          delete localCache[lang][key];
+          cacheModified = true;
+        }
+      }
+    } else {
+      delete localCache[lang];
+      cacheModified = true;
+    }
+  }
+
+  if (cacheModified) {
+    try {
+      localStorage.setItem("local_translations_cache", JSON.stringify(localCache));
+    } catch (_) {}
+  }
 
   if (localCache[selectedLanguage] && localCache[selectedLanguage][trimmed]) {
     return localCache[selectedLanguage][trimmed];
@@ -1117,3 +1158,43 @@ export const translate = (text: string, selectedLanguage: string): string => {
 
   return text;
 };
+
+// Immediately clean up and sanitize the localStorage cache on load to remove any previously corrupted dynamic entries
+(() => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const cachedStr = localStorage.getItem("local_translations_cache");
+      if (cachedStr) {
+        let cacheObj = JSON.parse(cachedStr);
+        let hasPoison = false;
+
+        for (const lang of Object.keys(cacheObj)) {
+          if (cacheObj[lang] && typeof cacheObj[lang] === 'object') {
+            for (const key of Object.keys(cacheObj[lang])) {
+              const val = cacheObj[lang][key];
+              if (typeof val === 'string' && (
+                val.includes('Clinical Synapse') ||
+                val.includes('Doctorian') ||
+                val.includes('🧠') ||
+                val.includes('🩺') ||
+                val.length > 80
+              )) {
+                hasPoison = true;
+                break;
+              }
+            }
+          }
+          if (hasPoison) break;
+        }
+
+        if (hasPoison) {
+          console.warn("[Translations Cleanser] Poisoned translation cache detected! Purging local_translations_cache immediately to restore correct UI.");
+          localStorage.removeItem("local_translations_cache");
+        }
+      }
+    } catch (e) {
+      console.error("[Translations Cleanser] Failed to cleanse local_translations_cache on startup:", e);
+    }
+  }
+})();
+

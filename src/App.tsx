@@ -77,10 +77,10 @@ import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 const MedicalIllustrator = lazy(() => import("./components/MedicalIllustrator").then(m => ({ default: m.MedicalIllustrator })));
 const GenomicLongevityCore = lazy(() => import("./components/GenomicLongevityCore").then(m => ({ default: m.GenomicLongevityCore })));
 const ImageGenerator = lazy(() => import("./components/ImageGenerator").then(m => ({ default: m.ImageGenerator })));
-const ChatInterface = lazy(() => import("./components/ChatInterface").then(m => ({ default: m.ChatInterface })));
+import { ChatInterface } from "./components/ChatInterface";
 const MedicalAI = lazy(() => import("./components/MedicalAI").then(m => ({ default: m.MedicalAI })));
 const CognisHub = lazy(() => import("./components/CognisHub").then(m => ({ default: m.CognisHub })));
-const BioSimulation = lazy(() => import("./components/BioSimulation"));
+import BioSimulation from "./components/BioSimulation";
 const PatientMonitor = lazy(() => import("./components/PatientMonitor").then(m => ({ default: m.PatientMonitor })));
 const Features = lazy(() => import("./components/Features").then(m => ({ default: m.Features })));
 const About = lazy(() => import("./components/About").then(m => ({ default: m.About })));
@@ -90,23 +90,23 @@ const AdminDashboard = lazy(() => import("./components/AdminDashboard").then(m =
 const AccessRestriction = lazy(() => import("./components/AccessRestriction").then(m => ({ default: m.AccessRestriction })));
 const SpecialistFinder = lazy(() => import("./components/SpecialistFinder").then(m => ({ default: m.SpecialistFinder })));
 const VitalityMatrix = lazy(() => import("./components/VitalityMatrix").then(m => ({ default: m.VitalityMatrix })));
-const SymptomChecker = lazy(() => import("./components/SymptomChecker").then(m => ({ default: m.SymptomChecker })));
-const DiagnosticLab = lazy(() => import("./components/DiagnosticLab").then(m => ({ default: m.DiagnosticLab })));
-const EmergencyRegistry = lazy(() => import("./components/EmergencyRegistry").then(m => ({ default: m.EmergencyRegistry })));
-const Billing = lazy(() => import("./components/Billing").then(m => ({ default: m.Billing })));
+import { SymptomChecker } from "./components/SymptomChecker";
+import { DiagnosticLab } from "./components/DiagnosticLab";
+import { EmergencyRegistry } from "./components/EmergencyRegistry";
+import { Billing } from "./components/Billing";
 const MedicationTracker = lazy(() => import("./components/MedicationTracker").then(m => ({ default: m.MedicationTracker })));
 const WorkoutTracker = lazy(() => import("./components/WorkoutTracker").then(m => ({ default: m.WorkoutTracker })));
-const BioSecurity = lazy(() => import("./components/BioSecurity").then(m => ({ default: m.BioSecurity })));
+import { BioSecurity } from "./components/BioSecurity";
 const DeveloperPortal = lazy(() => import("./components/DeveloperPortal").then(m => ({ default: m.DeveloperPortal })));
 const DoctorsDashboard = lazy(() => import("./components/DoctorsDashboard").then(m => ({ default: m.DoctorsDashboard })));
 const BMICalculator = lazy(() => import("./components/BMICalculator").then(m => ({ default: m.BMICalculator })));
 const LearnMore = lazy(() => import("./components/LearnMore").then(m => ({ default: m.LearnMore })));
-const AuthModal = lazy(() => import("./components/AuthModal").then(m => ({ default: m.AuthModal })));
+import { AuthModal } from "./components/AuthModal";
 const AdminInfoModal = lazy(() => import("./components/AdminInfoModal").then(m => ({ default: m.AdminInfoModal })));
 const Footer = lazy(() => import("./components/Footer").then(m => ({ default: m.Footer })));
 const BiomaticSandbox = lazy(() => import("./components/BiomaticSandbox").then(m => ({ default: m.BiomaticSandbox })));
-const ClinicalProtocols = lazy(() => import("./components/Tasks").then(m => ({ default: m.ClinicalProtocols })));
-const NeuralTrainingHub = lazy(() => import("./components/NeuralTrainingHub").then(m => ({ default: m.NeuralTrainingHub })));
+import { ClinicalProtocols } from "./components/Tasks";
+import { NeuralTrainingHub } from "./components/NeuralTrainingHub";
 
 import { Soundscape } from "./utils/soundscape";
 
@@ -114,6 +114,7 @@ import { HealthTip } from "./components/HealthTipModal";
 const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
 const HealthProgressTracker = lazy(() => import("./components/HealthProgressTracker").then(m => ({ default: m.HealthProgressTracker })));
 import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
+import { TerminalSecureGate } from "./components/TerminalSecureGate";
 import { translate } from './utils/translations';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; showDetails: boolean }> {
@@ -298,12 +299,16 @@ export default function App() {
   const translatedLanguagesMap = useRef(new WeakMap<Node, string>());
 
   useEffect(() => {
+    let isTranslating = false;
+
     if (currentLanguage.startsWith('English')) {
       // Restore all translated text nodes in the DOM to English
       const restoreNode = (node: Node) => {
         const originalText = originalTextMap.current.get(node);
         if (originalText !== undefined && node.textContent !== originalText) {
+          isTranslating = true;
           node.textContent = originalText;
+          isTranslating = false;
         }
         translatedLanguagesMap.current.set(node, currentLanguage);
       };
@@ -324,12 +329,19 @@ export default function App() {
         parent.childNodes.forEach(walkRestore);
       };
 
-      walkRestore(document.body);
+      isTranslating = true;
+      try {
+        walkRestore(document.body);
+      } finally {
+        isTranslating = false;
+      }
       return;
     }
 
     // Function to translate a single text node
     const translateTextNode = (node: Node) => {
+      if (isTranslating) return;
+
       const parent = node.parentElement;
       if (!parent) return;
 
@@ -343,18 +355,24 @@ export default function App() {
         tagName === 'pre'
       ) return;
 
+      if (parent.closest('svg') || tagName === 'svg') return;
+
       if (
         (parent.closest && parent.closest('[data-no-translate]')) || 
         parent.id === 'google_translate_element' ||
         (parent.closest && parent.closest('#google_translate_element')) ||
         (parent.closest && parent.closest('.language-menu-btn')) || 
-        (parent.closest && parent.closest('.language-dropdown-container'))
+        (parent.closest && parent.closest('.language-dropdown-container')) ||
+        (parent.closest && parent.closest('.recharts-wrapper')) ||
+        (parent.closest && parent.closest('.chart-container')) ||
+        (parent.closest && parent.closest('.ecg-chart')) ||
+        (parent.closest && parent.closest('.no-translate'))
       ) return;
 
       const text = node.textContent;
       if (!text) return;
       const trimmed = text.trim();
-      if (trimmed.length < 2 || /^\d+$/.test(trimmed)) return; // skip numbers or extremely short items
+      if (trimmed.length < 2 || trimmed.length > 200 || /^\d+$/.test(trimmed)) return; // skip numbers, short tokens or very long paragraphs
 
       // Check WeakMap for original text
       let original = originalTextMap.current.get(node);
@@ -371,13 +389,19 @@ export default function App() {
       if (translated && translated !== original.trim()) {
         const leadingSpace = original.match(/^\s*/)?.[0] || '';
         const trailingSpace = original.match(/\s*$/)?.[0] || '';
+        
+        isTranslating = true;
         node.textContent = leadingSpace + translated + trailingSpace;
+        isTranslating = false;
+        
         translatedLanguagesMap.current.set(node, currentLanguage);
       }
     };
 
     // Translate the entire page body recursively
     const translatePage = (startNode: Node) => {
+      if (isTranslating) return;
+      
       const walker = document.createTreeWalker(
         startNode,
         NodeFilter.SHOW_TEXT,
@@ -389,12 +413,19 @@ export default function App() {
             if (tagName === 'script' || tagName === 'style' || tagName === 'textarea' || tagName === 'code' || tagName === 'pre') {
               return NodeFilter.FILTER_REJECT;
             }
+            if (parent.closest('svg') || tagName === 'svg') {
+              return NodeFilter.FILTER_REJECT;
+            }
             if (
               parent.id === 'google_translate_element' ||
               (parent.closest && parent.closest('[data-no-translate]')) || 
               (parent.closest && parent.closest('#google_translate_element')) ||
               (parent.closest && parent.closest('.language-menu-btn')) ||
-              (parent.closest && parent.closest('.language-dropdown-container'))
+              (parent.closest && parent.closest('.language-dropdown-container')) ||
+              (parent.closest && parent.closest('.recharts-wrapper')) ||
+              (parent.closest && parent.closest('.chart-container')) ||
+              (parent.closest && parent.closest('.ecg-chart')) ||
+              (parent.closest && parent.closest('.no-translate'))
             ) {
               return NodeFilter.FILTER_REJECT;
             }
@@ -410,7 +441,12 @@ export default function App() {
         currentNode = walker.nextNode();
       }
 
-      nodesToTranslate.forEach(translateTextNode);
+      isTranslating = true;
+      try {
+        nodesToTranslate.forEach(translateTextNode);
+      } finally {
+        isTranslating = false;
+      }
     };
 
     // Run first-pass translation
@@ -418,6 +454,8 @@ export default function App() {
 
     // Watch for dynamic elements added to DOM
     const observer = new MutationObserver((mutations) => {
+      if (isTranslating) return;
+      
       let shouldTranslate = false;
       for (const mutation of mutations) {
         if (mutation.type === 'childList') {
@@ -441,15 +479,21 @@ export default function App() {
       characterData: true
     });
 
+    let debounceTimer: any = null;
     const handleUpdatedTranslation = () => {
-      translatedLanguagesMap.current = new WeakMap<Node, string>();
-      translatePage(document.body);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (isTranslating) return;
+        translatedLanguagesMap.current = new WeakMap<Node, string>();
+        translatePage(document.body);
+      }, 350);
     };
 
     window.addEventListener("local_translations_updated", handleUpdatedTranslation);
 
     return () => {
       observer.disconnect();
+      if (debounceTimer) clearTimeout(debounceTimer);
       window.removeEventListener("local_translations_updated", handleUpdatedTranslation);
     };
   }, [currentLanguage]);
@@ -563,7 +607,8 @@ export default function App() {
   };
   const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
   const [isBMIModalOpen, setIsBMIModalOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(true);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isDoctorAuthenticated, setIsDoctorAuthenticated] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [adminError, setAdminError] = useState('');
@@ -582,12 +627,11 @@ export default function App() {
     if (isAdminAuthenticated) {
       setCurrentView('admin');
     } else {
-      setShowAdminLogin(true);
+      setCurrentView('admin');
     }
   };
 
   const handleAdminAccess = () => {
-    setIsAdminAuthenticated(true);
     setCurrentView('admin');
   };
 
@@ -941,8 +985,14 @@ export default function App() {
         type: 'success'
       });
     };
+    const handleNavigateView = (e: any) => {
+      if (e && e.detail && e.detail.view) {
+        showView(e.detail.view);
+      }
+    };
     window.addEventListener('offline_action_queued', handleActionQueued);
     window.addEventListener('offline_actions_synced', handleActionsSynced);
+    window.addEventListener('navigate_view', handleNavigateView);
     
     // Also trigger initial sync check on mount if online
     if (navigator.onLine) {
@@ -954,6 +1004,7 @@ export default function App() {
     return () => {
       window.removeEventListener('offline_action_queued', handleActionQueued);
       window.removeEventListener('offline_actions_synced', handleActionsSynced);
+      window.removeEventListener('navigate_view', handleNavigateView);
     };
   }, []);
 
@@ -995,15 +1046,16 @@ export default function App() {
         }
       }
 
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Auth Synchronization Timeout")), 15000)
-      );
-
       let attempts = 0;
       const maxAttempts = 2;
       let authenticatedUser: User | null = null;
 
       while (attempts < maxAttempts) {
+        // Instantiate a separate timeout promise per retry attempt to avoid instant timeout on second attempt
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Auth Synchronization Timeout")), 30000)
+        );
+
         try {
           authenticatedUser = await Promise.race([
             api.auth.me(),
@@ -1040,7 +1092,7 @@ export default function App() {
           return; // Success, exit completely
         } catch (error: any) {
           attempts++;
-          console.error(`[Doctorian] Auth Error (Attempt ${attempts}):`, error);
+          console.warn(`[Doctorian] Auth Handshake Notice (Attempt ${attempts}):`, error?.message || error);
           if (attempts === maxAttempts) {
             setAuthError(error.message || "Neural link synchronization failure");
             if (!user) {
@@ -1618,7 +1670,7 @@ export default function App() {
                           }`}
                           title={isSidebarCollapsed ? translate(link.label, currentLanguage) : undefined}
                         >
-                          <div className={`shrink-0 flex items-center justify-center w-8.5 h-8.5 rounded-lg transition-all duration-300 ease-out group-hover:scale-115 group-hover:rotate-6 ${
+                          <div className={`shrink-0 flex items-center justify-center w-8.5 h-8.5 rounded-lg transition-all duration-300 ease-out group-hover:scale-115 group-hover:rotate-6 relative ${
                             isActive 
                               ? 'bg-white/10 shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.15)] ring-1 ring-white/10' 
                               : 'bg-slate-50 dark:bg-slate-900/60 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border border-slate-100/50 dark:border-slate-800/30'
@@ -1631,6 +1683,36 @@ export default function App() {
                                   : section.accent.iconInactive
                               }` 
                             })}
+
+                            {/* Neural Core Real-time Flicker status indicator */}
+                            {link.id === 'ai_nexus' && (
+                              <div className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                                <motion.span 
+                                  animate={{
+                                    scale: [1, 1.8, 1.2, 2.2, 1],
+                                    opacity: [0.7, 0.2, 0.8, 0.1, 0.7]
+                                  }}
+                                  transition={{
+                                    duration: 2.5,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                  className="absolute inline-flex h-full w-full rounded-full bg-violet-450 dark:bg-violet-400 opacity-75"
+                                />
+                                <motion.span 
+                                  animate={{
+                                    opacity: [1, 0.35, 0.9, 0.25, 0.8, 1, 0.4, 0.95, 1],
+                                    scale: [1, 0.9, 1.1, 0.85, 1, 1.05, 0.95, 1.1, 1]
+                                  }}
+                                  transition={{
+                                    duration: 3.2,
+                                    repeat: Infinity,
+                                    ease: "linear"
+                                  }}
+                                  className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]"
+                                />
+                              </div>
+                            )}
                           </div>
 
                           {!isSidebarCollapsed && (
@@ -2642,16 +2724,28 @@ export default function App() {
               />
             </motion.div>
           ) : currentView === 'doctors_dashboard' ? (
-            <motion.div
-              role="main"
-              key="doctors_dashboard"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-[1600px] mx-auto py-8"
-            >
-              <DoctorsDashboard addToast={(msg, type) => addToast(msg, type || 'info')} />
-            </motion.div>
+            isDoctorAuthenticated ? (
+              <motion.div
+                role="main"
+                key="doctors_dashboard"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="w-full max-w-[1600px] mx-auto py-8"
+              >
+                <DoctorsDashboard addToast={(msg, type) => addToast(msg, type || 'info')} />
+              </motion.div>
+            ) : (
+              <TerminalSecureGate 
+                role="doctor"
+                onUnlock={() => {
+                  setIsDoctorAuthenticated(true);
+                }}
+                onCancel={() => {
+                  setCurrentView('home');
+                }}
+              />
+            )
           ) : currentView === 'specialist' ? (
             <motion.div
               role="main"
@@ -2812,7 +2906,7 @@ export default function App() {
           </motion.div>
         ) : currentView === 'admin' ? (
           isAdmin ? (
-            isAdmin && isAdminAuthenticated ? (
+            isAdminAuthenticated ? (
               <motion.div
                 key="admin"
                 initial={{ opacity: 0, x: 20 }}
@@ -2823,21 +2917,15 @@ export default function App() {
                 <AdminDashboard addToast={addToast} />
               </motion.div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
-                 <div className="w-24 h-24 bg-red-100 dark:bg-rose-900/20 rounded-full flex items-center justify-center">
-                   <Shield size={48} className="text-rose-600" />
-                 </div>
-                 <div className="space-y-2">
-                   <h2 className="text-2xl font-black uppercase tracking-tighter">Security Protocol Active</h2>
-                   <p className="text-slate-500 font-medium max-w-sm">Administrative terminal requires high-level neural authorization for biometric validation.</p>
-                 </div>
-                 <button 
-                  onClick={handleAdminAccess}
-                  className="px-10 py-4 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20"
-                 >
-                   Inhibit Lockdown
-                 </button>
-              </div>
+              <TerminalSecureGate 
+                role="admin"
+                onUnlock={() => {
+                  setIsAdminAuthenticated(true);
+                }}
+                onCancel={() => {
+                  setCurrentView('home');
+                }}
+              />
             )
           ) : (
             <AccessRestriction />
@@ -3431,7 +3519,7 @@ export default function App() {
                               : 'bg-white dark:bg-slate-800/40 border-slate-100/80 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
                           }`}
                         >
-                          <div className={`p-2.5 rounded-xl shrink-0 transition-all ${
+                          <div className={`p-2.5 rounded-xl shrink-0 transition-all relative ${
                             isActive 
                               ? 'bg-white/20 text-white shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.15)] ring-1 ring-white/10' 
                               : 'bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 shadow-sm border border-slate-100 dark:border-slate-800/50 group-hover:scale-110'
@@ -3444,6 +3532,36 @@ export default function App() {
                                   : section.accent.iconInactive
                               }`
                             })}
+
+                            {/* Mobile Neural Core Real-time Flicker status indicator */}
+                            {item.id === 'ai_nexus' && (
+                              <div className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                                <motion.span 
+                                  animate={{
+                                    scale: [1, 1.8, 1.2, 2.2, 1],
+                                    opacity: [0.7, 0.2, 0.8, 0.1, 0.7]
+                                  }}
+                                  transition={{
+                                    duration: 2.5,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                  className="absolute inline-flex h-full w-full rounded-full bg-violet-450 dark:bg-violet-400 opacity-75"
+                                />
+                                <motion.span 
+                                  animate={{
+                                    opacity: [1, 0.35, 0.9, 0.25, 0.8, 1, 0.4, 0.95, 1],
+                                    scale: [1, 0.9, 1.1, 0.85, 1, 1.05, 0.95, 1.1, 1]
+                                  }}
+                                  transition={{
+                                    duration: 3.2,
+                                    repeat: Infinity,
+                                    ease: "linear"
+                                  }}
+                                  className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]"
+                                />
+                              </div>
+                            )}
                           </div>
                           
                           <div className="flex-1 min-w-0">

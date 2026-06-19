@@ -456,6 +456,21 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     };
   }, []);
 
+  // Listen for client-side TensorFlow.js medical prediction outcomes
+  useEffect(() => {
+    const handleTfjsEvent = (e: any) => {
+      if (e && e.detail && e.detail.text) {
+        setInput(e.detail.text);
+        showLocalToast("TensorFlow.js clinical predictions successfully piped to Neural Core!", "success");
+        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Received client-side TensorFlow.js metrics mapping into query buffer.']);
+      }
+    };
+    window.addEventListener('tfjs_to_chat', handleTfjsEvent);
+    return () => {
+      window.removeEventListener('tfjs_to_chat', handleTfjsEvent);
+    };
+  }, []);
+
   // ==========================================
   // BRAND NEW COGNITIVE MATRIX SETTINGS STATE
   // ==========================================
@@ -1010,7 +1025,6 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
       const msgs = await api.ai.getSessionMessages(id);
       if (msgs.length === 0) {
         setMessages([]);
-        triggerGreeting();
       } else {
         setMessages(msgs.map(m => ({
           id: m.id,
@@ -1035,7 +1049,6 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
       setMessages([]);
       setSessions(prev => [{ id, title, persona: activePersona, createdAt: new Date().toISOString() }, ...prev]);
       setTerminalLogs(prev => [...prev.slice(-3), `SYS: New neural session allocated: ${id}`]);
-      triggerGreeting();
     } catch (err) {
       console.error("Failed to allocate neural session:", err);
     }
@@ -1259,69 +1272,9 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     
     // Check if changed
     if (lastLangRef.current !== currentLanguage) {
-      const prevLang = lastLangRef.current;
       lastLangRef.current = currentLanguage;
       setTargetLanguage(currentLanguage);
       setTerminalLogs(prev => [...prev.slice(-3), `SYS: Language changed to ${currentLanguage}. Recalibrating language center...`]);
-      
-      const triggerLanguageSwitchAcknowledge = async () => {
-        if (isLoading) return;
-        setIsLoading(true);
-        const botMessageId = (Date.now() + 2).toString();
-        const botMessagePlaceholder: Message = {
-          id: botMessageId,
-          role: 'bot',
-          text: '',
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, botMessagePlaceholder]);
-        setStreamingId(botMessageId);
-
-        try {
-          setIsThinking(true);
-          abortControllerRef.current = new AbortController();
-          
-          const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\n${PERSONAS[activePersona].instruction}\n\nCURRENT_CONTEXT: ${JSON.stringify(neuralContext)}\n\nCRITICAL LANGUAGE INSTRUCTION: The user has just switched their active language from "${prevLang}" to "${currentLanguage}". You MUST write your response and all subsequent dialogue/clinical advice in "${currentLanguage}".\n\nTASK: Acknowledge the language switch with a warm, friendly and brief greeting/acceptance message in "${currentLanguage}" to show that you have successfully calibrated to this language, and ask how you can help them in "${currentLanguage}". Keep it concise, natural and authentic, limited to 1-2 sentences.`;
-
-          const stream = api.ai.aiChatStream(
-            [{ role: 'user', text: `Please switch to ${currentLanguage} and greet me.` }],
-            systemInstruction,
-            undefined, 
-            0.8,
-            (meta) => {
-              if (meta.credits !== undefined) setCredits(meta.credits);
-            },
-            abortControllerRef.current.signal,
-            false,
-            'MINIMAL',
-            undefined,
-            currentLanguage
-          );
-
-          let fullResponseText = "";
-          for await (const chunk of stream) {
-            if (isThinking) setIsThinking(false);
-            fullResponseText += chunk;
-            setMessages(prev => prev.map(m => 
-              m.id === botMessageId ? { ...m, text: fullResponseText } : m
-            ));
-          }
-
-          if (currentSessionId && fullResponseText) {
-            api.ai.saveMessage(currentSessionId, 'bot', fullResponseText).catch(console.error);
-          }
-        } catch (error) {
-          console.error("Failed to stream language switch:", error);
-          setIsThinking(false);
-          setIsLoading(false);
-        } finally {
-          setIsThinking(false);
-          setIsLoading(false);
-          setStreamingId(null);
-        }
-      };
-
-      triggerLanguageSwitchAcknowledge();
     }
   }, [currentLanguage]);
 
@@ -1989,57 +1942,27 @@ ${f.prescription}
   }, [isThinking]);
 
   const triggerGreeting = async () => {
-    if (isLoading) return;
-    setIsLoading(true);
-    const botMessageId = (Date.now() + 1).toString();
+    const defaultGreetings: Record<string, string> = {
+      general: "Hello! I am Doctorian, your general health companion. How can I assist you with your wellness today?",
+      diagnostic: "Diagnostics mode online. Please provide any symptoms, biomarkers, or record details you would like me to interpret.",
+      neuro: "Neural network synced. Autonomic and nervous health channels are active. How can I assist with your neuro-physiology today?",
+      cardio: "Hemodynamic systems active. How can I assist you with your cardiovascular health or metrics?",
+      emergency: "CRISIS MODE ACTIVE. State any urgent symptoms or physiological distress immediately.",
+      support: "Med-Ops Support channel connected. State your platform, sync, or documentation inquiry.",
+      engineering: "Developer console active. Ready for API query validation or configuration logs."
+    };
+
+    const text = defaultGreetings[activePersona] || "Hello! How can I assist you with your clinical queries today?";
     const botMessagePlaceholder: Message = {
-      id: botMessageId,
+      id: (Date.now() + 1).toString(),
       role: 'bot',
-      text: '',
+      text: text,
       timestamp: new Date(),
     };
     setMessages([botMessagePlaceholder]);
-    setStreamingId(botMessageId);
-
-    try {
-      setIsThinking(true);
-      abortControllerRef.current = new AbortController();
-      
-      const systemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\n${PERSONAS[activePersona].instruction}\n\nCURRENT_CONTEXT: ${JSON.stringify(neuralContext)}\n\nCRITICAL LANGUAGE INSTRUCTION: The user's active UI language is set to "${currentLanguage || 'English (US)'}". You MUST formulate all subsequent dialogue, clinical diagnoses, medical summaries, and advice in this language (${currentLanguage || 'English (US)'}).\n\nURGENT: Initiate GREETING_PROTOCOL. Provide a warm, personalized greeting.`;
-
-      const stream = api.ai.aiChatStream(
-        [],
-        systemInstruction,
-        undefined, // Default to Brain Engine (Llama 3.1 / Gemma 2)
-        0.8,
-        (meta) => {
-          if (meta.credits !== undefined) setCredits(meta.credits);
-        },
-        abortControllerRef.current.signal,
-        false,
-        'MINIMAL',
-        undefined,
-        targetLanguage
-      );
-
-      let fullResponseText = "";
-      for await (const chunk of stream) {
-        if (isThinking) setIsThinking(false);
-        fullResponseText += chunk;
-        setMessages(prev => prev.map(m => 
-          m.id === botMessageId ? { ...m, text: fullResponseText } : m
-        ));
-      }
-
-      if (currentSessionId && fullResponseText) {
-        api.ai.saveMessage(currentSessionId, 'bot', fullResponseText).catch(console.error);
-      }
-    } catch (error) {
-      console.error('Greeting error:', error);
-    } finally {
-      setIsLoading(false);
-      setIsThinking(false);
-      setStreamingId(null);
+    
+    if (currentSessionId) {
+      api.ai.saveMessage(currentSessionId, 'bot', text).catch(console.error);
     }
   };
 

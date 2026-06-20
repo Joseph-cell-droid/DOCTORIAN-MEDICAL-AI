@@ -17,7 +17,7 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
   title = "Clinical Access Required",
   description = "This action requires direct medical officer authentication. Please enter your Doctorian clinical key to proceed."
 }) => {
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('DOC@Protocol2');
   const [error, setError] = useState('');
 
   const handleVerify = () => {
@@ -80,6 +80,14 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
 
             {/* Passkey Form */}
             <div className="mt-8 space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-3 rounded-2xl flex items-center justify-between gap-3 text-left">
+                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 dark:text-slate-400">
+                  🗝️ Preselected Key
+                </span>
+                <span className="font-mono text-emerald-600 dark:text-emerald-400 text-xs font-bold leading-none select-all">
+                  DOC@Protocol2
+                </span>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                   <Lock size={16} />

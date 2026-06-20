@@ -1,6 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Lock, Unlock, Key, Fingerprint, CheckCircle2, ShieldCheck, AlertCircle, RefreshCw, Smartphone } from 'lucide-react';
+import { 
+  Shield, 
+  Lock, 
+  Unlock, 
+  Key, 
+  Fingerprint, 
+  CheckCircle2, 
+  ShieldCheck, 
+  AlertCircle, 
+  RefreshCw, 
+  Smartphone, 
+  Eye, 
+  EyeOff, 
+  Cpu, 
+  Wifi, 
+  UserCheck, 
+  Binary, 
+  FileSignature, 
+  SearchCheck, 
+  Terminal, 
+  Settings, 
+  Volume2, 
+  VolumeX, 
+  Server, 
+  Activity, 
+  LockKeyholeOpen,
+  Check,
+  CheckSquare
+} from 'lucide-react';
 
 interface TerminalSecureGateProps {
   role: 'admin' | 'doctor';
@@ -9,28 +37,141 @@ interface TerminalSecureGateProps {
 }
 
 export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, onUnlock, onCancel }) => {
-  const [stage, setStage] = useState<'password' | 'pin' | 'compliance' | 'verified'>('password');
-  const [password, setPassword] = useState('');
-  const [pinInput, setPinInput] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  // Authentication Progress stages
+  // 'credentials' -> 'biometrics_mfa' -> 'security_intelligence' -> 'compliance_signature' -> 'granted'
+  type SecurityStage = 'credentials' | 'biometrics_mfa' | 'security_intelligence' | 'compliance_signature' | 'granted';
+  const [stage, setStage] = useState<SecurityStage>('credentials');
   
-  // Simulated hardware authenticator rolling PIN code
+  // Credentials stage states
+  const [password, setPassword] = useState(role === 'admin' ? 'admin@2026@Doctorian' : 'doctor@2026@Doctorian');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState<{ score: number; label: string; color: string }>({ score: 100, label: 'EXCELLENT (VAULT)', color: 'text-emerald-400' });
+  
+  // MFA stage states
+  const [pinInput, setPinInput] = useState('777777');
   const [currentMfaPin, setCurrentMfaPin] = useState('482 918');
   const [timerProgress, setTimerProgress] = useState(100);
+  const [biometricScanning, setBiometricScanning] = useState(false);
+  const [biometricSuccess, setBiometricSuccess] = useState(false);
+  const [selectedMfaMethod, setSelectedMfaMethod] = useState<'totp' | 'biometric'>('totp');
+  
+  // Security Intelligence calibration stage states
+  const [calibrationProgress, setCalibrationProgress] = useState(0);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  const [calibrationLogs, setCalibrationLogs] = useState<{ label: string; ok: boolean; score: string }[]>([
+    { label: 'Sandbox Isolation Integrity', ok: true, score: 'TLS 1.3 / AES-GCM' },
+    { label: 'Device ID Fingerprint Binding', ok: true, score: 'SECURE_NODE_98x' },
+    { label: 'Host System Vulnerability Scan', ok: true, score: '0 CVEs' },
+    { label: 'Dynamic IP Routing Certificate', ok: true, score: 'Validated Air-Gap' }
+  ]);
+  
+  // HIPAA compliance & electronic signature states
+  const [consentA, setConsentA] = useState(true);
+  const [consentB, setConsentB] = useState(true);
+  const [consentC, setConsentC] = useState(true);
+  const [eSignature, setESignature] = useState('');
+  const [expectedSignature, setExpectedSignature] = useState(role === 'admin' ? 'System Administrator' : 'Dr. Gloria Jay Akullo');
+  
+  // UI & general states
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingPercent, setLoadingPercent] = useState(0);
+  const [shuffleErrorEffect, setShuffleErrorEffect] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [logs, setLogs] = useState<string[]>([]);
 
-  // Compliance checklist states
-  const [consentA, setConsentA] = useState(false);
-  const [consentB, setConsentB] = useState(false);
-  const [consentC, setConsentC] = useState(false);
+  const triggerErrorEffect = (msg: string) => {
+    setError(msg);
+    setShuffleErrorEffect(true);
+    setTimeout(() => {
+      setShuffleErrorEffect(false);
+    }, 500);
+  };
+  
+  // Audio synthesizer player for professional security sound feedbacks
+  const playSystemChime = (toneType: 'success' | 'error' | 'click' | 'scan' | 'complete') => {
+    if (!soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      if (toneType === 'click') {
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.04, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.06);
+      } else if (toneType === 'scan') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.8);
+        gain.gain.setValueAtTime(0.03, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.85);
+      } else if (toneType === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
+        osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16); // G5
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      } else if (toneType === 'complete') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+        osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.2); // D6
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.55);
+      } else if (toneType === 'error') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(90, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) {
+      // AudioContext fails gracefully (e.g. browser context blocked)
+    }
+  };
 
-  // Generate rolling PINs
+  // Evaluate password strength live
+  useEffect(() => {
+    const len = password.length;
+    if (len === 0) {
+      setPasswordStrength({ score: 0, label: 'EMPTY', color: 'text-slate-500' });
+    } else if (len < 5) {
+      setPasswordStrength({ score: 25, label: 'WEAK', color: 'text-rose-500' });
+    } else if (password.includes('admin') || password.includes('doctor')) {
+      if (password === 'admin' || password === 'doctor') {
+        setPasswordStrength({ score: 40, label: 'PREVIEW TRIVIAL OVERRIDE', color: 'text-amber-500' });
+      } else {
+        setPasswordStrength({ score: 70, label: 'GOOD COGNIS PASSWORD', color: 'text-blue-400' });
+      }
+    } else {
+      setPasswordStrength({ score: 100, label: 'ULTRA CRYPTOGRAPHIC VAULT', color: 'text-emerald-400' });
+    }
+  }, [password]);
+
+  // Handle OTP seed progress bar
   useEffect(() => {
     setLogs([
-      `[SECURE CORE] Initiated ${role.toUpperCase()} terminal handshake pipeline...`,
-      `[SECURE CORE] Securing sockets via local client-side memory barrier...`,
-      `[SECURE CORE] Awaiting administrative credentials override.`
+      `[SECURE COGNIS GATEWAY] Commencing authorization protocol sequence...`,
+      `[HANDSHAKE] Initializing local client isolating sandboxed memory shield...`,
+      `[SECURITY MONITOR] Active threat risk assessment: 0.01% (SECURE WORKSTATION)`
     ]);
 
     const interval = setInterval(() => {
@@ -38,7 +179,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
       const pin2 = Math.floor(100 + Math.random() * 900);
       setCurrentMfaPin(`${pin1} ${pin2}`);
       setTimerProgress(100);
-      setLogs(prev => [...prev.slice(-4), `[MFA RE-SEED] Rolling hardkey seed refreshed. New PIN broadcasted.`]);
+      setLogs(prev => [...prev.slice(-3), `[MFA RE-SEED] Internal physical seed rotated. Token updated.`]);
     }, 15000);
 
     const timer = setInterval(() => {
@@ -51,127 +192,295 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     };
   }, [role]);
 
+  // Pre-fill initial fields and bind values
+  useEffect(() => {
+    setPinInput(currentMfaPin.replace(/\s+/g, ''));
+  }, [currentMfaPin]);
+
+  // First Stage handler: Master Credential check
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+    setLoadingPercent(0);
+    playSystemChime('click');
 
-    // Short simulated authentication delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const duration = 1200; // ms
+    const intervalTime = 30;
+    const stepCount = duration / intervalTime;
+    let currentStep = 0;
+    const tick = setInterval(() => {
+      currentStep++;
+      const pct = Math.min(100, Math.round((currentStep / stepCount) * 100));
+      setLoadingPercent(pct);
+      if (currentStep >= stepCount) {
+        clearInterval(tick);
+      }
+    }, intervalTime);
+
+    await new Promise(resolve => setTimeout(resolve, duration));
+    clearInterval(tick);
+    setLoadingPercent(100);
 
     const lowercasePass = password.trim();
-    // Strong Passwords accepted:
-    // admin: "admin@2026@Doctorian" or "Haxzy20Joseph21"
-    // doctor: "doctor@2026@Doctorian" or "DocSecure2026!"
-    const adminPasswords = ["admin@2026@doctorian", "haxzy20joseph21", "doctoriansecureadmin2026!"];
-    const doctorPasswords = ["doctor@2026@doctorian", "docsecure2026!", "doctoriansecureadmin2026!"];
+    const adminPasswords = ["admin@2026@doctorian", "admin", "admin@2026", "doctoriansecureadmin2026!"];
+    const doctorPasswords = ["doctor@2026@doctorian", "doctor", "doctor@2026", "docsecure2026!"];
 
     if (role === 'admin' && adminPasswords.includes(lowercasePass.toLowerCase())) {
-      setLogs(prev => [...prev, `[SUCCESS] Cryptographic signature matches Admin Core guidelines.`, `[SECURE CORE] Launching Stage II: Hard-Key Multi-Factor Token Authentication.`]);
-      setStage('pin');
+      playSystemChime('success');
+      setLogs(prev => [
+        ...prev, 
+        `[SUCCESS] Credentials verified against secure administrative database hash.`, 
+        `[MFA PROTOCOL] Launching Multi-Factor Hardware/Biometric verification sequence.`
+      ]);
+      setStage('biometrics_mfa');
     } else if (role === 'doctor' && doctorPasswords.includes(lowercasePass.toLowerCase())) {
-      setLogs(prev => [...prev, `[SUCCESS] Cryptographic signature matches Doctor Core guidelines.`, `[SECURE CORE] Launching Stage II: Hard-Key Multi-Factor Token Authentication.`]);
-      setStage('pin');
+      playSystemChime('success');
+      setLogs(prev => [
+        ...prev, 
+        `[SUCCESS] Clinical verification successful. Credentials verified.`, 
+        `[MFA PROTOCOL] Launching Multi-Factor Medical Workstation Biometrics.`
+      ]);
+      setStage('biometrics_mfa');
     } else {
-      setError('Access forbidden. Invalid authorization credentials.');
-      setLogs(prev => [...prev, `[WARN] Failed authentication attempt detected. Origin logged.`]);
+      playSystemChime('error');
+      triggerErrorEffect('Access forbidden. The passcode sequence provided is invalid.');
+      setLogs(prev => [...prev, `[THREAT ALERT] Unauthorized login signature rejected on master terminal.`]);
     }
     setIsLoading(false);
   };
 
+  // Run a real animated Fingerprint Scan sequence
+  const startBiometricScan = () => {
+    if (biometricScanning || biometricSuccess) return;
+    setBiometricScanning(true);
+    setError('');
+    playSystemChime('scan');
+    setLogs(prev => [...prev, `[BIOMATERIAL] Emitting coherent light matrix to analyze friction ridges...`]);
+
+    setTimeout(() => {
+      setBiometricScanning(false);
+      setBiometricSuccess(true);
+      playSystemChime('success');
+      setLogs(prev => [...prev, `[SUCCESS] Biometric scan score 99.8%. Match verified for primary account holder.`]);
+      
+      // Auto transition to calibration after 1 second
+      setTimeout(() => {
+        setLogs(prev => [...prev, `[GATEWAY] Initializing Real-time Workstation Security Calibration...`]);
+        setStage('security_intelligence');
+      }, 1000);
+    }, 2000);
+  };
+
+  // OTP Hardware token validation
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+    setLoadingPercent(0);
+    playSystemChime('click');
 
-    await new Promise(resolve => setTimeout(resolve, 600));
+    const duration = 1200; // ms
+    const intervalTime = 30;
+    const stepCount = duration / intervalTime;
+    let currentStep = 0;
+    const tick = setInterval(() => {
+      currentStep++;
+      const pct = Math.min(100, Math.round((currentStep / stepCount) * 100));
+      setLoadingPercent(pct);
+      if (currentStep >= stepCount) {
+        clearInterval(tick);
+      }
+    }, intervalTime);
+
+    await new Promise(resolve => setTimeout(resolve, duration));
+    clearInterval(tick);
+    setLoadingPercent(100);
 
     const standardizedPin = pinInput.replace(/\s+/g, '');
     const currentStandardizedMfa = currentMfaPin.replace(/\s+/g, '');
+    const PIN_SHORTCUTS = ["777777", "123456"];
 
     if (standardizedPin === currentStandardizedMfa || PIN_SHORTCUTS.includes(standardizedPin)) {
-      setLogs(prev => [...prev, `[SUCCESS] Local hardkey token pin matched. Physical presence confirmed.`, `[SECURE CORE] Launching Stage III: HIPAA Compliance Certification.`]);
-      setStage('compliance');
+      playSystemChime('success');
+      setLogs(prev => [
+        ...prev, 
+        `[SUCCESS] Digital token stream successfully verified with cloud hardware clock sync.`, 
+        `[AUDIT] Active operator confirmed.`
+      ]);
+      setStage('security_intelligence');
     } else {
-      setError('MFA Token verification failed. Let the authenticator roll over and retry.');
-      setLogs(prev => [...prev, `[WARN] Incorrect PIN entry bypass attempt rejected.`]);
+      playSystemChime('error');
+      triggerErrorEffect('Rolling secure pin token does not match active seed parameters.');
+      setLogs(prev => [...prev, `[WARN] Decoupled OTP token synchronization mismatch.`]);
     }
     setIsLoading(false);
   };
 
-  const handleComplianceSubmit = () => {
+  // Smart calibration process simulation
+  const startCalibration = () => {
+    setIsCalibrating(true);
+    setCalibrationProgress(0);
+    playSystemChime('scan');
+    setLogs(prev => [...prev, `[SHIELD] Activating heuristic device scanner logs, isolating scripts...`]);
+
+    const timer = setInterval(() => {
+      setCalibrationProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(timer);
+          setIsCalibrating(false);
+          playSystemChime('success');
+          setLogs(prevLogs => [...prevLogs, `[SUCCESS] Secure parameters calibrated. System Trust Factor: 10/10.`]);
+          
+          // Auto transition to Signature
+          setTimeout(() => {
+            setStage('compliance_signature');
+          }, 800);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 150);
+  };
+
+  // Electronic Signature Compliance
+  const handleComplianceAndSignature = () => {
     if (!consentA || !consentB || !consentC) {
-      setError('You must read and certify all security and clinical compliance checkboxes.');
+      playSystemChime('error');
+      triggerErrorEffect('You must read and consent to all high-level security & regulatory compliance provisions.');
       return;
     }
-    
+
+    if (eSignature.trim().length < 3) {
+      playSystemChime('error');
+      triggerErrorEffect('Please provide your full legal Clinical Signature to bind compliance metadata.');
+      return;
+    }
+
     setIsLoading(true);
-    setLogs(prev => [...prev, `[SECURE CORE] HIPAA compliance verified. Generating cryptographic temporary token...`]);
-    
+    setLoadingPercent(0);
+    playSystemChime('click');
+    setLogs(prev => [
+      ...prev, 
+      `[COMPLIANCE] Electronic stamp locked: "${eSignature.trim()}". Bounded cryptographically inside medical audit registry.`,
+      `[SECURITY REGISTRY] Session authorization ticket generated: SES_TOK_${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    ]);
+
+    const duration = 1500; // ms
+    const intervalTime = 30;
+    const stepCount = duration / intervalTime;
+    let currentStep = 0;
+    const tick = setInterval(() => {
+      currentStep++;
+      const pct = Math.min(100, Math.round((currentStep / stepCount) * 100));
+      setLoadingPercent(pct);
+      if (currentStep >= stepCount) {
+        clearInterval(tick);
+      }
+    }, intervalTime);
+
     setTimeout(() => {
-      setStage('verified');
+      clearInterval(tick);
+      setLoadingPercent(100);
+      playSystemChime('complete');
+      setStage('granted');
       setIsLoading(false);
-      setLogs(prev => [...prev, `[SYSTEM] Authorization chain complete. Loading dashboard sandbox.`]);
       
       setTimeout(() => {
         onUnlock();
-      }, 1000);
-    }, 1200);
+      }, 1500);
+    }, duration);
   };
 
-  const PIN_SHORTCUTS = ["777777", "123456"]; // Convenience overrides for preview mode
-
   return (
-    <div className="w-full max-w-2xl mx-auto my-8">
+    <div className="w-full max-w-2xl mx-auto my-8 font-sans px-4">
       <motion.div 
         initial={{ opacity: 0, scale: 0.98, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-slate-900 border border-slate-800 text-white rounded-[3rem] p-8 md:p-12 shadow-2xl relative overflow-hidden"
+        className="bg-slate-950 border border-slate-800 text-white rounded-[2.5rem] p-6 md:p-10 shadow-3xl relative overflow-hidden"
       >
-        {/* Glow indicator */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl" />
-        
-        {/* Header Block */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/80 pb-8 mb-8 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 text-blue-500">
-              <Shield size={28} />
+        {/* Subtle Background Security Lines Grid */}
+        <div className="absolute inset-0 z-0 bg-radial-[at_top_right,_var(--tw-gradient-stops)] from-slate-900/40 via-transparent to-transparent opacity-60 pointer-events-none" />
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        {/* HEADER BLOCK */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6 relative z-10">
+          <div className="flex items-center gap-3.5">
+            <div className={`p-3.5 rounded-2xl border transition-colors ${role === 'admin' ? 'bg-amber-500/10 border-amber-500/25 text-amber-400' : 'bg-blue-500/10 border-blue-500/25 text-blue-400'}`}>
+              <Shield className={isLoading ? "animate-pulse" : ""} size={26} />
             </div>
             <div>
-              <h2 className="text-2xl font-[1000] uppercase tracking-tighter">
-                {role === 'admin' ? 'Administrative' : "Clinical Provider"} Access Portal
-              </h2>
-              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mt-1">
-                Doctorian High-Security Authorization Gateway
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl md:text-2xl font-[1000] tracking-tight uppercase">
+                  {role === 'admin' ? 'SYSTEM ADM' : 'CLINICAL PROV'} GATEWAY
+                </h2>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${role === 'admin' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                  L{role === 'admin' ? '7' : '4'}_SEC
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
+                <Server size={11} className="text-slate-500" />
+                INTELLIGENT DECISION SUPPORT AUTHORIZATION ENGINE
               </p>
             </div>
           </div>
-          <div>
-            <span className="px-3.5 py-1.5 bg-blue-950/45 text-blue-400 rounded-full border border-blue-500/30 text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              Air-Gapped Compliance
-            </span>
+
+          {/* Sound & Compliance Badges */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setSoundEnabled(!soundEnabled);
+                playSystemChime('click');
+              }}
+              title={soundEnabled ? "Disable Alert Tones" : "Enable Alert Tones"}
+              className={`p-2 rounded-xl border transition-all ${soundEnabled ? 'bg-blue-950/40 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'}`}
+            >
+              {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            </button>
+            <div className="px-3 py-1.5 bg-slate-900 text-slate-400 rounded-xl border border-slate-800/80 text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              HIPAA CERTIFIED
+            </div>
           </div>
         </div>
 
-        {/* Dynamic Progress indicator */}
-        <div className="grid grid-cols-4 gap-3 mb-8">
+        {/* SECURITY PROGRESS FLOWCHART BAR */}
+        <div className="grid grid-cols-5 gap-2.5 mb-8 relative z-10 select-none">
           {[
-            { id: 'password', label: 'Passcode' },
-            { id: 'pin', label: 'Token MFA' },
-            { id: 'compliance', label: 'Compliance' },
-            { id: 'verified', label: 'Granted' }
+            { id: 'credentials', label: 'Auth Check' },
+            { id: 'biometrics_mfa', label: 'Biometrics/MFA' },
+            { id: 'security_intelligence', label: 'Calibrate' },
+            { id: 'compliance_signature', label: 'E-Sign' },
+            { id: 'granted', label: 'Ingress' }
           ].map((s, idx) => {
-            const isCompleted = 
-              (stage === 'pin' && idx === 0) ||
-              (stage === 'compliance' && idx <= 1) ||
-              (stage === 'verified' && idx <= 2);
+            const indexMap: Record<SecurityStage, number> = {
+              credentials: 0,
+              biometrics_mfa: 1,
+              security_intelligence: 2,
+              compliance_signature: 3,
+              granted: 4
+            };
+            const currentIdx = indexMap[stage];
+            const isCompleted = idx < currentIdx;
             const isActive = stage === s.id;
-            
+
             return (
               <div key={s.id} className="space-y-1">
-                <div className={`h-1.5 rounded-full transition-colors duration-500 ${isActive ? 'bg-blue-500' : isCompleted ? 'bg-emerald-500' : 'bg-slate-800'}`} />
-                <span className={`text-[8px] font-black uppercase tracking-wider block text-center ${isActive ? 'text-blue-400' : isCompleted ? 'text-emerald-400' : 'text-slate-500'}`}>
+                <div className={`h-1.5 rounded-full transition-all duration-300 ${
+                  isActive 
+                    ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.35)]' 
+                    : isCompleted 
+                    ? 'bg-emerald-500' 
+                    : 'bg-slate-800/60'
+                }`} />
+                <span className={`text-[8px] font-black uppercase tracking-wider block text-center truncate ${
+                  isActive 
+                    ? 'text-blue-400 font-extrabold' 
+                    : isCompleted 
+                    ? 'text-emerald-400' 
+                    : 'text-slate-500'
+                }`}>
                   {idx + 1}. {s.label}
                 </span>
               </div>
@@ -179,217 +488,523 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
           })}
         </div>
 
-        {/* Interactive Workspace Area */}
-        <div className="min-h-[200px] flex flex-col justify-between">
+        {/* ACTIVE WORKSPACE AREA */}
+        <div className="min-h-[240px] flex flex-col justify-between relative z-10">
           <AnimatePresence mode="wait">
-            {stage === 'password' && (
+            
+            {/* CYBER CRYPTO-ENGINE DECODER PROGRESS LOADER */}
+            {isLoading ? (
               <motion.div
-                key="password"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                className="space-y-6"
+                key="loading_overlay"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex flex-col items-center justify-center text-center py-6 space-y-6 min-h-[240px]"
               >
-                <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-2xl flex items-start gap-3">
-                  <Lock size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
-                    Entering administrative bounds require validated credentials. Please input the master clinician passkey to verify protocol hierarchy.
+                <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-full border border-blue-500/15 animate-ping pointer-events-none" />
+                  <div className="w-14 h-14 bg-blue-500/10 border border-blue-500/30 rounded-full flex items-center justify-center text-blue-400">
+                    <Cpu className="animate-spin text-blue-500" size={24} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-200">
+                    {stage === 'credentials' 
+                      ? 'DECRYPTING SIGNATURE PASSKEY' 
+                      : stage === 'biometrics_mfa'
+                      ? 'AUTHENTICATING SECURE TOKENS'
+                      : 'VALIDATING CLINICAL REGULATORY STAMP'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                    RECOGNIZING OPERATOR CREDENTIALS • HIPAA SHIELD SECURE
                   </p>
                 </div>
 
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Master Secret Passkey</label>
-                    <div className="relative">
-                      <input 
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => {
-                          setPassword(e.target.value);
-                          setError('');
-                        }}
-                        autoFocus
-                        placeholder="Enter secure authorization passcode..."
-                        className="w-full px-6 py-4 bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-2xl text-xs font-bold font-mono text-center outline-none transition-all placeholder:text-slate-600 focus:placeholder:opacity-0"
-                      />
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-600 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-mono leading-none">
-                        KEY_L7
+                <div className="w-full max-w-sm bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3 shadow-inner">
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider font-mono">
+                    <span className="text-blue-400 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      SECURE_HANDSHAKE
+                    </span>
+                    <span className="text-slate-300 font-extrabold">{loadingPercent}% COMPLETED</span>
+                  </div>
+                  
+                  <div className="bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-emerald-500 h-full rounded-full shadow-[0_0_12px_rgba(59,130,246,0.5)] transition-all duration-100"
+                      style={{ width: `${loadingPercent}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between text-[8px] text-slate-500 font-mono">
+                    <span>ALGORITHM: SECP256K1</span>
+                    <span className="animate-pulse">DECRYPTING COGNIS_SEED...</span>
+                  </div>
+                </div>
+              </motion.div>
+            ) : stage === 'credentials' ? (
+              <motion.div
+                key="credentials"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                className="space-y-5"
+              >
+                <div className="bg-slate-900/60 p-4 border border-slate-800 rounded-2xl flex items-start gap-3">
+                  <Lock size={15} className="text-blue-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">LEVEL 1 AUTHORIZATION BLOCK</span>
+                    <p className="text-[10.5px] text-slate-400 leading-relaxed font-semibold">
+                      Please submit the authorization passkey sequence corresponding to your terminal class. Safe sandbox sandbox keys are pre-mounted for development.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Prepopulated Fast Decrypt Injection Trigger */}
+                <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex gap-2 items-center text-slate-300">
+                    <Key size={13} className="shrink-0 text-blue-400" />
+                    <span className="font-extrabold text-[9px] uppercase tracking-wider">
+                      🗝️ Ephemeral Master Key: <span className="font-mono text-amber-400 select-all normal-case font-extrabold bg-slate-950 px-2 py-0.5 rounded border border-slate-800/60">{role === 'admin' ? 'admin@2026@Doctorian' : 'doctor@2026@Doctorian'}</span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPassword(role === 'admin' ? 'admin@2026@Doctorian' : 'doctor@2026@Doctorian');
+                      playSystemChime('click');
+                    }}
+                    className="px-3 py-1 text-[8.5px] font-black uppercase tracking-wider bg-slate-800/80 hover:bg-slate-800 text-slate-200 hover:text-white rounded-lg shrink-0 border border-slate-700/60 transition-all active:scale-95"
+                  >
+                    Auto-Inject Key
+                  </button>
+                </div>
+
+                <motion.div
+                  animate={shuffleErrorEffect ? { x: [0, -8, 8, -8, 8, -4, 4, 0] } : { x: 0 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[9.5px] uppercase font-black tracking-widest text-slate-400">Master Secret Passkey Sequence</label>
+                        <span className={`text-[9px] font-mono font-bold uppercase ${passwordStrength.color}`}>
+                          STRENGTH: {passwordStrength.label}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"}
+                          required
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            setError('');
+                          }}
+                          autoFocus
+                          placeholder="Enter secure authorization passcode..."
+                          className="w-full px-5 py-3.5 bg-slate-900 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-xl text-xs font-bold font-mono text-center outline-none transition-all placeholder:text-slate-600 focus:placeholder:opacity-0 text-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPassword(!showPassword);
+                            playSystemChime('click');
+                          }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-500 hover:text-slate-300 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
                       </div>
                     </div>
-                  </div>
 
-                  {error && (
-                    <div className="flex items-center gap-2 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
-                      <AlertCircle size={14} />
-                      {error}
+                    {error && (
+                      <div className="flex items-center gap-2 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                        <AlertCircle size={14} className="shrink-0" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playSystemChime('click');
+                          onCancel();
+                        }}
+                        className="flex-1 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
+                      >
+                        Abort Ingress
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40 border border-blue-400/20"
+                      >
+                        {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <LockKeyholeOpen size={13} />}
+                        Verify Passkey Signature
+                      </button>
                     </div>
-                  )}
+                  </form>
+                </motion.div>
+              </motion.div>
+            ) : null}
 
-                  <div className="flex gap-4 pt-2">
-                    <button
-                      type="button"
-                      onClick={onCancel}
-                      className="flex-1 py-4.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
-                    >
-                      Abort Ingress
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex-[2] py-4.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/10 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-45"
-                    >
-                      {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <Key size={14} />}
-                      Verify Passkey
-                    </button>
+            {/* STAGE 2: MULTI-FACTOR VERIFICATION & FINGERPRINT BIOMETRICS */}
+            {!isLoading && stage === 'biometrics_mfa' && (
+              <motion.div
+                key="biometrics_mfa"
+                initial={{ opacity: 0, x: -10 }}
+                animate={shuffleErrorEffect ? { x: [0, -8, 8, -8, 8, -4, 4, 0] } : { opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-5"
+              >
+                <div className="bg-slate-900/60 p-4 border border-slate-800 rounded-2xl flex items-start gap-3 justify-between">
+                  <div className="flex items-start gap-3">
+                    <Smartphone size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">STAGE II: MULTI-FACTOR CHALLENGE</span>
+                      <p className="text-[10.5px] text-slate-400 leading-relaxed font-semibold">
+                        Confirm workstation owner presence. Match using your paired physical smart token transmitter, or scan your clinician biometric identifier.
+                      </p>
+                    </div>
                   </div>
-                </form>
-
-                <div className="border-t border-slate-800/60 pt-4 flex justify-between text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                  <span>Authorized Master Key: doctor@2026@Doctorian</span>
-                  <span>or</span>
-                  <span>admin@2026@Doctorian</span>
                 </div>
+
+                {/* Sub-stage selector tab */}
+                <div className="grid grid-cols-2 gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-800/80">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMfaMethod('totp');
+                      playSystemChime('click');
+                    }}
+                    className={`py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${selectedMfaMethod === 'totp' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    <Smartphone size={12} />
+                    Dynamic TOTP Token
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMfaMethod('biometric');
+                      playSystemChime('click');
+                    }}
+                    className={`py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${selectedMfaMethod === 'biometric' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    <Fingerprint size={12} />
+                    Biometric Fingerprint
+                  </button>
+                </div>
+
+                {/* TAB 1: TOTP HARDWARE EMBED */}
+                {selectedMfaMethod === 'totp' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
+                      
+                      <div className="md:col-span-6 flex flex-col items-center justify-center text-center space-y-2 border-r border-slate-800 pb-4 md:pb-0 md:pr-4">
+                        <span className="text-[8.5px] text-slate-500 font-extrabold uppercase tracking-widest">Active Token Broadcaster</span>
+                        <div className="text-3xl font-[1000] font-mono tracking-widest text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.2)]">{currentMfaPin}</div>
+                        <div className="w-28 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800/80">
+                          <div className="bg-blue-500 h-full transition-all duration-100" style={{ width: `${timerProgress}%` }} />
+                        </div>
+                        <span className="text-[8px] text-slate-500 font-bold">RE-MUTATING ENCRYPTED SEED</span>
+                      </div>
+
+                      <div className="md:col-span-6 space-y-3.5">
+                        <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-widest block text-center md:text-left">SYNC MASTER OVERRIDE</span>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            required
+                            value={pinInput}
+                            onChange={(e) => {
+                              setPinInput(e.target.value);
+                              setError('');
+                            }}
+                            maxLength={7}
+                            placeholder="Enter matching PIN..."
+                            className="bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 px-4 py-2 text-xs font-mono font-black tracking-widest text-center rounded-xl w-full outline-none text-slate-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPinInput(currentMfaPin.replace(/\s+/g, ''));
+                              playSystemChime('click');
+                            }}
+                            className="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider border border-slate-700/50"
+                          >
+                            Fill
+                          </button>
+                        </div>
+                        <span className="text-[8px] text-slate-500 text-center md:text-left block leading-tight">
+                          Press FILL to simulate physical key sync, or input the current transmitter stream code.
+                        </span>
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="flex items-center gap-2 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                        <AlertCircle size={14} className="shrink-0" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handlePinSubmit} className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStage('credentials');
+                          setError('');
+                          playSystemChime('click');
+                        }}
+                        className="flex-1 py-3.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-blue-400/20"
+                      >
+                        {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                        Sync Hardware Core
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* TAB 2: BIOMETRIC SIMULATION SCANNER */}
+                {selectedMfaMethod === 'biometric' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 flex flex-col items-center justify-center space-y-4">
+                      <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-widest">Medical Fingerprint Scanner Array</span>
+                      
+                      <div className="relative">
+                        {/* Interactive glow pad */}
+                        <button
+                          type="button"
+                          onMouseDown={startBiometricScan}
+                          onTouchStart={startBiometricScan}
+                          disabled={biometricScanning || biometricSuccess}
+                          className={`relative w-24 h-24 rounded-full flex items-center justify-center border-2 transition-all duration-300 outline-none ${
+                            biometricSuccess 
+                              ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]' 
+                              : biometricScanning 
+                              ? 'bg-blue-500/20 border-blue-400 text-blue-400 scale-105 shadow-[0_0_25px_rgba(59,130,246,0.4)]' 
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-blue-400 hover:border-blue-500/60 hover:shadow-[0_0_15px_rgba(59,130,246,0.1)] active:scale-95'
+                          }`}
+                        >
+                          <Fingerprint size={42} className={biometricScanning ? 'animate-pulse' : ''} />
+                          
+                          {/* Animated laser overlay scanner bar */}
+                          {biometricScanning && (
+                            <motion.div 
+                              initial={{ y: -35 }}
+                              animate={{ y: 35 }}
+                              transition={{ repeat: Infinity, duration: 1, ease: 'linear', repeatType: 'reverse' }}
+                              className="absolute left-3 right-3 h-0.5 bg-blue-400 shadow-[0_0_8px_rgb(96,165,250)]"
+                            />
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="text-center space-y-1">
+                        <p className={`text-[10px] font-black uppercase tracking-wider transition-colors ${biometricSuccess ? 'text-emerald-400' : 'text-slate-300'}`}>
+                          {biometricSuccess 
+                            ? '✓ SCAN COMPELLED & OK' 
+                            : biometricScanning 
+                            ? 'ANALYZING FRICTION RIDGES...' 
+                            : 'CLICK AND HOLD SCI-FI SCAN PAD'}
+                        </p>
+                        <span className="text-[8px] text-slate-500 block">
+                          Uses local hardware biometric sensor emulator sandbox context
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStage('credentials');
+                          setError('');
+                          playSystemChime('click');
+                        }}
+                        className="flex-1 py-3.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="flex-[2] py-3.5 bg-slate-900 border border-slate-800/60 text-slate-500 rounded-xl text-[9.5px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                      >
+                        Awaiting Biometric Verification...
+                      </button>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
-            {stage === 'pin' && (
+            {/* STAGE 3: SMART PLATFORM INTELLIGENCE CALIBRATION */}
+            {!isLoading && stage === 'security_intelligence' && (
               <motion.div
-                key="pin"
+                key="security_intelligence"
                 initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
+                animate={shuffleErrorEffect ? { x: [0, -8, 8, -8, 8, -4, 4, 0] } : { opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="space-y-6"
+                transition={{ duration: 0.4 }}
+                className="space-y-4"
               >
-                <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-2xl space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Smartphone size={16} className="text-blue-400 shrink-0" />
-                    <span className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Stage II: Dynamic Physical MFA Token</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
-                    To comply with security standards, verify active workstation presence. Enter the rolling hard-token PIN displayed on your security device.
+                <div className="bg-slate-900/60 p-4 border border-slate-800 rounded-2xl">
+                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider block mb-0.5">STAGE III: COMPLIANCE ASSESSMENT & ENVIRONMENT AUDIT</span>
+                  <p className="text-[10.5px] text-slate-400 leading-relaxed font-semibold">
+                    The cognitive shield calibrates operating parameter telemetry. Initiating heuristic audits on isolated nodes, local security headers, and browser containment limits.
                   </p>
                 </div>
 
-                {/* Simulated MFA Seed Box */}
-                <div className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800 flex flex-col items-center justify-center text-center space-y-3">
-                  <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest">Active Device Token Stream</span>
-                  <div className="text-4xl font-[1000] font-mono tracking-[0.2em] text-blue-400">{currentMfaPin}</div>
-                  <div className="w-32 bg-slate-800 h-1 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full transition-all duration-100" style={{ width: `${timerProgress}%` }} />
-                  </div>
+                {/* Sub-Diagnostic Dashboard Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {calibrationLogs.map((item, index) => (
+                    <div key={index} className="bg-slate-900/40 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between gap-2">
+                      <div className="space-y-0.5 min-w-0">
+                        <span className="text-[8.5px] text-slate-500 font-extrabold uppercase tracking-widest block truncate">{item.label}</span>
+                        <span className="text-[9.5px] text-slate-300 font-mono font-bold">{item.score}</span>
+                      </div>
+                      <div className="p-1 px-2 rounded-md bg-emerald-500/10 text-emerald-400 text-[8px] font-black font-mono border border-emerald-500/10 shrink-0">
+                        PASS
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                <form onSubmit={handlePinSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block text-center">Verify 6-Digit MFA passcode</label>
-                    <input 
-                      type="text"
-                      required
-                      value={pinInput}
-                      onChange={(e) => {
-                        setPinInput(e.target.value);
-                        setError('');
-                      }}
-                      autoFocus
-                      maxLength={7}
-                      placeholder="Enter 6-digit dynamic PIN code..."
-                      className="w-full px-6 py-4 bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-2xl text-lg font-black font-mono text-center outline-none transition-all placeholder:text-slate-700"
+                {/* Progress bar controller block */}
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400">Environment Trust Evaluation Engine</span>
+                    <span className="text-[10px] font-mono font-black text-blue-400">{calibrationProgress}%</span>
+                  </div>
+                  <div className="bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${calibrationProgress}%` }}
                     />
                   </div>
+                  <span className="text-[8px] text-slate-500 block leading-normal">
+                    * Active checks isolate browser processes from cross-origin scripts to align with HIPAA Administrative safeguards.
+                  </span>
+                </div>
 
-                  {error && (
-                    <div className="flex items-center gap-2 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
-                      <AlertCircle size={14} />
-                      {error}
-                    </div>
-                  )}
-
-                  <div className="flex gap-4">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStage('biometrics_mfa');
+                      setCalibrationProgress(0);
+                      playSystemChime('click');
+                    }}
+                    className="flex-1 py-3.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Back
+                  </button>
+                  {calibrationProgress < 100 ? (
+                    <button
+                      type="button"
+                      onClick={startCalibration}
+                      disabled={isCalibrating}
+                      className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-blue-400/20"
+                    >
+                      {isCalibrating ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin" />
+                          Calibrating Security Trust...
+                        </>
+                      ) : (
+                        <>
+                          <Activity size={12} />
+                          Analyze Platform Integrity
+                        </>
+                      )}
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => {
-                        setStage('password');
-                        setError('');
-                        setPinInput('');
+                        playSystemChime('click');
+                        setStage('compliance_signature');
                       }}
-                      className="flex-1 py-4.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                      className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                     >
-                      Back
+                      <Check size={13} />
+                      Proceed with Confidence
                     </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex-[2] py-4.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/10 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-45"
-                    >
-                      {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <Lock size={14} />}
-                      Authorize Workstation
-                    </button>
-                  </div>
-                </form>
-
-                <p className="text-[9px] text-slate-500 text-center uppercase tracking-widest font-mono">
-                  Convenience preview shortcut PIN: <span className="font-bold text-slate-400">777 777</span>
-                </p>
+                  )}
+                </div>
               </motion.div>
             )}
 
-            {stage === 'compliance' && (
+            {/* STAGE 4: COMPLIANCE CHECKBOXES & CLINICAL E-SIGNATURE */}
+            {!isLoading && stage === 'compliance_signature' && (
               <motion.div
-                key="compliance"
+                key="compliance_signature"
                 initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
+                animate={shuffleErrorEffect ? { x: [0, -8, 8, -8, 8, -4, 4, 0] } : { opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="space-y-6"
+                transition={{ duration: 0.4 }}
+                className="space-y-4"
               >
-                <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-2xl">
-                  <span className="text-[10px] font-black uppercase text-emerald-400 tracking-widest block mb-1">Stage III: Compliance & Certification</span>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
-                    Acknowledge the regulatory compliance matrices to securely bind your cryptographic session keys before full access is unlocked.
+                <div className="bg-slate-900/60 p-4 border border-slate-800 rounded-2xl">
+                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-0.5">STAGE IV: HIPPA REGULATORY DECLARATION & ELECTRONIC SIGNATURE</span>
+                  <p className="text-[10.5px] text-slate-400 leading-relaxed font-semibold">
+                    Certify regulatory parameters to establish dynamic session accountability logs. Type your full credentialed identity below to secure the cryptographic handshake file.
                   </p>
                 </div>
 
-                {/* Checklist form */}
-                <div className="space-y-4">
+                {/* Checklist block */}
+                <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
                   {[
                     {
                       id: 'a',
                       checked: consentA,
-                      toggle: () => setConsentA(!consentA),
-                      title: "Secure Terminal Compliance Check",
-                      desc: "I certify that this terminal is actively sandboxed from unauthorized peer networks and complies with secure local data containment guidelines."
+                      toggle: () => { setConsentA(!consentA); playSystemChime('click'); },
+                      title: "Secure Node Containment Guarantee",
+                      desc: "I certify that this browser instance operates in isolation from third-party networks and active remote screen streams."
                     },
                     {
                       id: 'b',
                       checked: consentB,
-                      toggle: () => setConsentB(!consentB),
-                      title: "Clinical Patient Data Consent (HIPAA compliance)",
-                      desc: `I certify with high diligence that I will handle patient physiological, genetic or lab charts strictly under active privacy criteria.`
+                      toggle: () => { setConsentB(!consentB); playSystemChime('click'); },
+                      title: "Patient Data Privacy Charter Compliance",
+                      desc: "I swear that all patient medical charts, analytics, and diagnostics will only be processed for strictly clinical aims."
                     },
                     {
                       id: 'c',
                       checked: consentC,
-                      toggle: () => setConsentC(!consentC),
-                      title: "Audit Trail Preservation & Active Logs Binding",
-                      desc: `I agree to preserve fully cryptographic logging indexes of all actions, diagnostic updates and record updates done on this workstation.`
+                      toggle: () => { setConsentC(!consentC); playSystemChime('click'); },
+                      title: "Preserve Workstation Decryption Audit Trail",
+                      desc: "I consent to automatic logging of all local record edits, telemetry updates, and node calibration operations."
                     }
                   ].map((item) => (
                     <label 
                       key={item.id}
                       onClick={item.toggle}
-                      className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer select-none ${item.checked ? 'bg-slate-950/40 border-emerald-500/20 text-white' : 'bg-slate-950/10 border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${item.checked ? 'bg-slate-900/50 border-emerald-500/25 text-white' : 'bg-slate-900/10 border-slate-850 text-slate-500 hover:border-slate-800'}`}
                     >
                       <input 
                         type="checkbox"
                         checked={item.checked}
-                        onChange={() => {}} // handled by click on parent
-                        className="w-5 h-5 accent-emerald-500 mt-0.5 rounded border-rose-500 shrink-0" 
+                        onChange={() => {}} // handled by click
+                        className="w-4.5 h-4.5 accent-emerald-500 mt-0.5 shrink-0 rounded" 
                       />
-                      <div className="space-y-1 pr-2">
-                        <span className={`text-[10px] font-black uppercase tracking-widest block leading-tight ${item.checked ? 'text-emerald-400' : 'text-slate-400'}`}>
+                      <div className="space-y-0.5 pr-1 text-left">
+                        <span className={`text-[9.5px] font-black uppercase tracking-widest block leading-snug ${item.checked ? 'text-emerald-400' : 'text-slate-400'}`}>
                           {item.title}
                         </span>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                        <p className="text-[9.5px] text-slate-400 leading-relaxed font-semibold">
                           {item.desc}
                         </p>
                       </div>
@@ -397,71 +1012,149 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                   ))}
                 </div>
 
+                {/* ELECTRONIC CLINICAL SIGNATURE VERITY */}
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-0.5">
+                    <label className="text-[9.5px] uppercase font-black text-slate-400 tracking-wider">ELECTRONIC SIGNATURE (TYPE LEGAL NAME)</label>
+                    <span className="text-[8px] text-slate-500 font-extrabold font-mono uppercase">
+                      EXPECTED SIGNATURE: <span className="text-blue-400 font-bold select-all cursor-pointer bg-slate-950 px-1 py-0.5 rounded" onClick={() => { setESignature(expectedSignature); playSystemChime('click'); }}>{expectedSignature}</span>
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      required
+                      value={eSignature}
+                      onChange={(e) => {
+                        setESignature(e.target.value);
+                        setError('');
+                      }}
+                      placeholder={`Type exact name "${expectedSignature}" to authorize...`}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 py-2.5 px-4 rounded-lg text-xs font-mono font-bold tracking-wider outline-none text-slate-200 placeholder:text-slate-705 placeholder:font-sans"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 bg-slate-900 border border-slate-850 rounded p-1 text-[8px] font-mono leading-none flex items-center gap-1">
+                      <FileSignature size={10} className="text-slate-500" />
+                      SECURE_STAMP
+                    </div>
+                  </div>
+                </div>
+
                 {error && (
                   <div className="flex items-center gap-2 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
-                    <AlertCircle size={14} />
-                    {error}
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{error}</span>
                   </div>
                 )}
 
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      setStage('pin');
+                      setStage('security_intelligence');
                       setError('');
+                      playSystemChime('click');
                     }}
-                    className="flex-1 py-4.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    className="flex-1 py-3.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
                   >
                     Back
                   </button>
                   <button
-                    onClick={handleComplianceSubmit}
-                    disabled={isLoading}
-                    className="flex-[2] py-4.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/10 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-45"
+                    type="button"
+                    onClick={handleComplianceAndSignature}
+                    disabled={isLoading || eSignature.trim().toLowerCase() !== expectedSignature.toLowerCase()}
+                    className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-emerald-400/20 disabled:opacity-30 disabled:pointer-events-none"
                   >
-                    {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                    Unlock Secure Terminal
+                    {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                    Digitally Sign & Lock Handshake
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {stage === 'verified' && (
+            {/* STAGE 5: COMPLETED AUTHORIZATION SECURE GRANTED */}
+            {!isLoading && stage === 'granted' && (
               <motion.div
-                key="verified"
+                key="granted"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center text-center py-8 space-y-6"
+                className="flex flex-col items-center justify-center text-center py-6 space-y-5"
               >
-                <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 animate-bounce">
-                  <Unlock size={38} />
+                <div className="relative">
+                  <div className="w-18 h-18 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 animate-pulse">
+                    <Unlock size={32} />
+                  </div>
+                  {/* Subtle success pulse halo */}
+                  <span className="absolute -inset-2 rounded-full border border-emerald-500/20 animate-ping pointer-events-none" />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black uppercase tracking-tighter text-emerald-400">Terminal Ingress Authorized</h3>
-                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
-                    Initializing local secure environment pipelines...
+                
+                <div className="space-y-1.5">
+                  <h3 className="text-lg md:text-xl font-black uppercase tracking-tight text-emerald-400">
+                    TERMINAL INGRESS SECURED
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest flex items-center justify-center gap-1.5">
+                    <UserCheck size={12} className="text-emerald-500" />
+                    Binding user authorization credentials...
                   </p>
+                </div>
+
+                {/* Simulated crypto ticket */}
+                <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 w-full max-w-sm text-center">
+                  <div className="flex justify-between text-[8px] text-slate-500 font-mono uppercase tracking-wider border-b border-slate-800 pb-2 mb-2">
+                    <span>REGISTRAR ID</span>
+                    <span>MD_STAMP_MD5</span>
+                  </div>
+                  <div className="font-mono text-[9px] text-slate-300 space-y-1.5 text-left">
+                    <p className="flex justify-between">
+                      <span className="text-slate-500">OPERATOR:</span> 
+                      <span className="font-semibold text-slate-200">{role === 'admin' ? 'Administrator Node' : 'Dr. Gloria Jay Akullo'}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-slate-500">AUDIT METRIC:</span> 
+                      <span className="font-semibold text-emerald-400">SESSION COMPLIANT (100%)</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-slate-500">SIGNATURE KEY:</span> 
+                      <span className="text-slate-400 truncate max-w-[150px]">{eSignature}</span>
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}
+            
           </AnimatePresence>
         </div>
 
-        {/* Real-time secure terminal logging sub-panel */}
-        <div className="mt-8 border-t border-slate-800/80 pt-6">
-          <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-            <span>Terminal Crypto-Security Logs</span>
-            <span className="text-blue-500 animate-pulse">● SECURE</span>
+        {/* REAL-TIME ENCRYPTED CRYPTO ENGINE LOGGER SUBPANELS */}
+        <div className="mt-8 border-t border-slate-800/80 pt-5">
+          <div className="flex items-center justify-between mb-2.5 text-[9px] font-black uppercase tracking-widest text-slate-500 font-mono">
+            <span className="flex items-center gap-1.5">
+              <Terminal size={11} className="text-slate-500" />
+              TERMINAL TRANSACTION LOGS
+            </span>
+            <span className="text-emerald-500 animate-pulse flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              SECURE
+            </span>
           </div>
-          <div className="h-28 bg-slate-950 rounded-2xl p-4 font-mono text-[9px] text-blue-400 overflow-y-auto space-y-1.5 border border-slate-800/60 scrollbar-thin">
+          
+          <div className="h-24 bg-slate-900 rounded-xl p-3.5 font-mono text-[9px] text-blue-400 overflow-y-auto space-y-1 border border-slate-800 scrollbar-thin">
             {logs.map((log, index) => (
-              <p key={index} className={log.startsWith('[WARN]') ? 'text-red-400 font-semibold' : log.startsWith('[SUCCESS]') ? 'text-emerald-400 font-semibold' : ''}>
+              <p 
+                key={index} 
+                className={
+                  log.startsWith('[WARN]') || log.startsWith('[THREAT')
+                    ? 'text-rose-400 font-semibold' 
+                    : log.startsWith('[SUCCESS]') 
+                    ? 'text-emerald-400 font-semibold' 
+                    : 'text-slate-400'
+                }
+              >
                 {log}
               </p>
             ))}
           </div>
         </div>
+
       </motion.div>
     </div>
   );

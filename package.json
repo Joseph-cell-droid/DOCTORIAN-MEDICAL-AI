@@ -46,7 +46,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "recharts": "^3.8.1",
+    "recharts": "^2.15.0",
     "remark-gfm": "^4.0.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
@@ -58,8 +58,8 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "react": "$react",
-    "react-dom": "$react-dom"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

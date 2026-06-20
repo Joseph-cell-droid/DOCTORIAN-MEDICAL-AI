@@ -396,9 +396,10 @@ async function* callAIStream(options: {
   temperature?: number,
   useSearch?: boolean,
   thinkingLevel?: string,
-  userId?: string
+  userId?: string,
+  localApiKey?: string
 }) {
-  const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, userId } = options;
+  const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, userId, localApiKey } = options;
 
   let activeOllamaUrl = OLLAMA_URL || "http://localhost:11434";
   let activeOllamaModel = OLLAMA_MODEL || "mistral";
@@ -433,9 +434,15 @@ async function* callAIStream(options: {
   }
 
   const lastMessage = messages[messages.length - 1];
-
-  // Prioritize Hugging Face first for cloud-based serverless stability, followed by local Ollama, cloud credits, and Together
-  const pathways = ["huggingface", "ollama", "keys", "together"];
+  
+  // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
+  let pathways = ["huggingface", "ollama", "keys", "together"];
+  if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
+    const isLocalhost = activeOllamaUrl.includes("localhost") || activeOllamaUrl.includes("127.0.0.1");
+    if (!isLocalhost || IS_LOCAL_ENV) {
+      pathways = ["ollama", "huggingface", "keys", "together"];
+    }
+  }
 
   for (const pathway of pathways) {
     if (pathway === "huggingface" && shouldTryHuggingFace(activeHFToken)) {
@@ -627,7 +634,16 @@ async function* callAIStream(options: {
           }
         }
 
-        const response = await axios.post(finalUrl, payload, { responseType: 'stream', timeout: 30000 });
+        const localHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (localApiKey && localApiKey.trim() !== '') {
+          localHeaders["Authorization"] = `Bearer ${localApiKey.trim()}`;
+        }
+
+        const response = await axios.post(finalUrl, payload, { 
+          headers: localHeaders,
+          responseType: 'stream', 
+          timeout: 30000 
+        });
 
         const stream = response.data;
         let buffer = "";
@@ -886,9 +902,10 @@ async function callAI(options: {
   modelName?: string,
   temperature?: number,
   userId?: string,
-  useSearch?: boolean
+  useSearch?: boolean,
+  localApiKey?: string
 }) {
-  const { messages, systemInstruction, modelName, temperature, userId, useSearch } = options;
+  const { messages, systemInstruction, modelName, temperature, userId, useSearch, localApiKey } = options;
 
   // Formulate a structured query footprint key for exact match lookup
   const cacheKeyStr = JSON.stringify({
@@ -928,9 +945,10 @@ async function callAIWorkflow(options: {
   modelName?: string,
   temperature?: number,
   userId?: string,
-  useSearch?: boolean
+  useSearch?: boolean,
+  localApiKey?: string
 }) {
-  const { messages, systemInstruction, modelName, temperature, userId, useSearch } = options;
+  const { messages, systemInstruction, modelName, temperature, userId, useSearch, localApiKey } = options;
 
   let activeOllamaUrl = OLLAMA_URL || "http://localhost:11434";
   let activeOllamaModel = OLLAMA_MODEL || "mistral";
@@ -964,8 +982,14 @@ async function callAIWorkflow(options: {
     }
   }
 
-  // Prioritize Hugging Face first for cloud-based serverless stability, followed by local Ollama, cloud credits, and Together
-  const pathways = ["huggingface", "ollama", "keys", "together"];
+  // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
+  let pathways = ["huggingface", "ollama", "keys", "together"];
+  if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
+    const isLocalhost = activeOllamaUrl.includes("localhost") || activeOllamaUrl.includes("127.0.0.1");
+    if (!isLocalhost || IS_LOCAL_ENV) {
+      pathways = ["ollama", "huggingface", "keys", "together"];
+    }
+  }
 
   const lastMessage = messages[messages.length - 1];
   const lastUserMessage = lastMessage?.text || "";
@@ -1098,7 +1122,15 @@ async function callAIWorkflow(options: {
           }
         }
 
-        const response = await axios.post(finalUrl, payload, { timeout: 60000 }); // Longer timeout for deep local analysis
+        const localHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (localApiKey && localApiKey.trim() !== '') {
+          localHeaders["Authorization"] = `Bearer ${localApiKey.trim()}`;
+        }
+
+        const response = await axios.post(finalUrl, payload, { 
+          headers: localHeaders,
+          timeout: 60000 
+        }); // Longer timeout for deep local analysis
 
         // Handle standard Ollama chat format
         if (response.data?.message?.content) {
@@ -5016,7 +5048,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     });
 
     app.post("/api/ai/chat", authenticate, async (req, res) => {
-      const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, modelOverride, images, targetLanguage } = req.body;
+      const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, modelOverride, images, targetLanguage, localApiKey } = req.body;
       const userId = (req as any).user.id;
       const user = db.prepare("SELECT enableExternalAI, subscriptionTier, subscriptionStatus, email FROM users WHERE id = ?").get(userId) as any;
       const hasExternalAI = user?.enableExternalAI === 1;
@@ -5140,7 +5172,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
               temperature,
               useSearch,
               thinkingLevel,
-              userId
+              userId,
+              localApiKey
             });
 
             let fullResponse = "";
@@ -5183,7 +5216,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
               systemInstruction: enrichedSystemInstruction,
               modelName: targetModel,
               temperature,
-              userId
+              userId,
+              localApiKey
             });
 
             let finalResponse = responseText;

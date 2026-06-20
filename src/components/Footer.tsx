@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mail, 
@@ -33,6 +33,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [systemTime, setSystemTime] = useState('');
   const [activeClinicians, setActiveClinicians] = useState(14);
+  const railRef = useRef<HTMLDivElement>(null);
 
   const footerFeatures = [
     {
@@ -115,6 +116,67 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     return () => {
       clearInterval(timeInterval);
       clearInterval(usersInterval);
+    };
+  }, []);
+
+  // Set up mouse drag-to-scroll and horizontal mouse wheel translation for the clinical features rail
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    let isDown = false;
+    let startX: number;
+    let scrollLeft: number;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      isDown = true;
+      rail.classList.add('cursor-grabbing');
+      rail.classList.remove('cursor-grab');
+      startX = e.pageX - rail.offsetLeft;
+      scrollLeft = rail.scrollLeft;
+    };
+
+    const handleMouseLeave = () => {
+      isDown = false;
+      rail.classList.remove('cursor-grabbing');
+      rail.classList.add('cursor-grab');
+    };
+
+    const handleMouseUp = () => {
+      isDown = false;
+      rail.classList.remove('cursor-grabbing');
+      rail.classList.add('cursor-grab');
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - rail.offsetLeft;
+      const walk = (x - startX) * 1.6;
+      rail.scrollLeft = scrollLeft - walk;
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        rail.scrollBy({ left: e.deltaY * 1.1, behavior: 'auto' });
+      }
+    };
+
+    rail.classList.add('cursor-grab');
+    rail.addEventListener('mousedown', handleMouseDown);
+    rail.addEventListener('mouseleave', handleMouseLeave);
+    rail.addEventListener('mouseup', handleMouseUp);
+    rail.addEventListener('mousemove', handleMouseMove);
+    rail.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      rail.removeEventListener('mousedown', handleMouseDown);
+      rail.removeEventListener('mouseleave', handleMouseLeave);
+      rail.removeEventListener('mouseup', handleMouseUp);
+      rail.removeEventListener('mousemove', handleMouseMove);
+      rail.removeEventListener('wheel', handleWheel);
     };
   }, []);
 
@@ -232,8 +294,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <button 
                 onClick={(e) => {
                   e.preventDefault();
-                  const el = document.getElementById('footer-features-rail');
-                  if (el) el.scrollBy({ left: -300, behavior: 'smooth' });
+                  if (railRef.current) railRef.current.scrollBy({ left: -300, behavior: 'smooth' });
                 }}
                 className="w-9 h-9 rounded-xl bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 flex items-center justify-center text-slate-650 dark:text-slate-350 hover:text-blue-600 dark:hover:text-cyan-400 hover:border-blue-200 dark:hover:border-cyan-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90"
                 title="Scroll Left"
@@ -243,8 +304,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <button 
                 onClick={(e) => {
                   e.preventDefault();
-                  const el = document.getElementById('footer-features-rail');
-                  if (el) el.scrollBy({ left: 300, behavior: 'smooth' });
+                  if (railRef.current) railRef.current.scrollBy({ left: 300, behavior: 'smooth' });
                 }}
                 className="w-9 h-9 rounded-xl bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 flex items-center justify-center text-slate-655 dark:text-slate-355 hover:text-blue-600 dark:hover:text-cyan-400 hover:border-blue-200 dark:hover:border-cyan-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90"
                 title="Scroll Right"
@@ -255,6 +315,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           <div 
+            ref={railRef}
             id="footer-features-rail"
             className="flex flex-row flex-nowrap gap-5 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory overflow-y-hidden custom-scrollbar relative"
             style={{ WebkitOverflowScrolling: 'touch' }}

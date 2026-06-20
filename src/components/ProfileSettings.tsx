@@ -40,9 +40,15 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
+  const [prioritizeLocalAI, setPrioritizeLocalAI] = useState(() => {
+    return localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
+  });
   const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
   const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || '');
   const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'gemma4');
+  const [localApiKey, setLocalApiKey] = useState(() => {
+    return localStorage.getItem('doctorian_local_api_key') || '';
+  });
   const [huggingfaceToken, setHuggingfaceToken] = useState(user?.huggingfaceToken || '');
   const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'meta-llama/Llama-3.1-8B-Instruct');
   
@@ -236,6 +242,8 @@ Verified by Joseph Akora - Development Lead.
       localStorage.setItem('doctorian_voice_safety_nodiag', String(voiceSafetyNoDiag));
       localStorage.setItem('doctorian_voice_safety_nooutcome', String(voiceSafetyNoOutcome));
       localStorage.setItem('doctorian_voice_safety_encourage', String(voiceSafetyEncourageHelp));
+      localStorage.setItem('doctorian_prioritize_local_ai', String(prioritizeLocalAI));
+      localStorage.setItem('doctorian_local_api_key', localApiKey);
 
       const updatedUser = await api.auth.updateProfile({ 
         displayName, 
@@ -1148,6 +1156,23 @@ Verified by Joseph Akora - Development Lead.
                             <p className="text-[9px] text-slate-400 hover:text-slate-500 font-bold uppercase leading-relaxed m-0">
                               For power developers who wish to route diagnostic tokens to custom local models on their PC instead of using the fully premium managed cloud pipeline.
                             </p>
+
+                            {/* Prioritize Local LLM Client Direct Bridge */}
+                            <div className="flex items-center justify-between p-4 bg-violet-50/50 dark:bg-violet-900/10 rounded-2xl border border-violet-100/80 dark:border-violet-800/60 my-2">
+                              <div>
+                                <span className="text-[10px] font-black text-violet-700 dark:text-violet-400 uppercase tracking-wider block mb-0.5">Direct Client-Side Bridge</span>
+                                <span className="text-[8.5px] font-bold text-slate-400 dark:text-slate-500 uppercase leading-snug block">
+                                  Prioritize your local LM Studio / Ollama. Connects directly from your browser to <code className="text-violet-700 dark:text-violet-400 bg-violet-100/60 dark:bg-violet-900/30 px-1 rounded font-bold">localhost</code> without needing any public ngrok or localtunnel tunnels.
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setPrioritizeLocalAI(!prioritizeLocalAI)}
+                                className={`w-14 h-7 rounded-full transition-all relative shrink-0 ${prioritizeLocalAI ? 'bg-violet-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                              >
+                                <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${prioritizeLocalAI ? 'left-8' : 'left-1'}`} />
+                              </button>
+                            </div>
                             
                             <div className="relative group">
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-violet-600 transition-colors">
@@ -1172,6 +1197,19 @@ Verified by Joseph Akora - Development Lead.
                                 onChange={e => setOllamaModel(e.target.value)}
                                 className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
                                 placeholder="gemma4 or custom model identifier"
+                              />
+                            </div>
+
+                            <div className="relative group">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-violet-600 transition-colors">
+                                <Key size={18} />
+                              </div>
+                              <input
+                                type="password"
+                                value={localApiKey}
+                                onChange={e => setLocalApiKey(e.target.value)}
+                                className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
+                                placeholder="Local API Bearer Token (Optional for LM Studio / Ollama auth)"
                               />
                             </div>
 

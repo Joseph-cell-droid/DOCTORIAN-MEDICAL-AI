@@ -5,7 +5,7 @@ import {
   Loader2, Radio, Activity, Send, FileText, CheckCircle2, ChevronRight, 
   Volume2, VolumeX, PlusCircle, Trash, Clock, ShieldAlert, History, Filter, 
   AlertTriangle, BadgePlus, Share2, ClipboardList, Pill, Upload, Camera, 
-  Monitor, Bluetooth, Wifi, Cpu, Key, HelpCircle
+  Monitor, Bluetooth, Wifi, Cpu, Key, HelpCircle, Fingerprint, Shield
 } from 'lucide-react';
 import { api, Doctor } from '../api';
 import { useArduinoContext } from '../ArduinoContext';
@@ -76,6 +76,56 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
     assessment: '',
     plan: ''
   });
+
+  // Doctor Clinical Security & Vault States
+  const [secScanProgress, setSecScanProgress] = useState<number | null>(null);
+  const [secToken, setSecToken] = useState<string>(() => {
+    return localStorage.getItem('doctorian_otp_token') || 'MOH-MFA-9BD81';
+  });
+  const [identityVerified, setIdentityVerified] = useState<boolean>(true);
+
+  // Generate OTP Key
+  const handleGenerateOTP = () => {
+    const freshToken = 'MOH-MFA-' + Math.floor(10000 + Math.random() * 90000);
+    setSecToken(freshToken);
+    localStorage.setItem('doctorian_otp_token', freshToken);
+    setLogs(prev => [
+      { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `[Security Sentinel] Created single-use cryptographic token: ${freshToken}. Vault secured.`, type: 'success' },
+      ...prev
+    ]);
+    if (addToast) addToast(`Cryptographic single-use token generated: ${freshToken}`, "success");
+  };
+
+  // Run Bio-security Handshake scan
+  const handleRunBioHandshake = () => {
+    if (secScanProgress !== null) return;
+    setSecScanProgress(0);
+    setIdentityVerified(false);
+    
+    setLogs(prev => [
+      { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `[Biometrics] Activating device scanning laser arrays... checking physical nodes...`, type: 'info' },
+      ...prev
+    ]);
+
+    let internalProgress = 0;
+    const interval = setInterval(() => {
+      internalProgress += 20;
+      setSecScanProgress(internalProgress);
+      
+      if (internalProgress >= 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          setSecScanProgress(null);
+          setIdentityVerified(true);
+          if (addToast) addToast("Biometric credential handshake completed. Identity verified.", "success");
+          setLogs(logPrev => [
+            { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `[Biometrics Handshake] SUCCESS: Passkey matched. Active session certified as official clinical MD signature.`, type: 'success' },
+            ...logPrev
+          ]);
+        }, 300);
+      }
+    }, 300);
+  };
 
   // Simulated Medical Action Terminal Log Feed
   const [logs, setLogs] = useState<Array<{ id: string; timestamp: string; message: string; type: 'info' | 'success' | 'warning' | 'broadcast' }>>(() => [
@@ -812,34 +862,130 @@ Provide a professional, direct, academic, and clinical response assisting the ph
               })}
             </div>
 
-            {/* Simulated Live Audio Pulse Feed Monitor */}
-            <section className="bg-slate-950 rounded-[2rem] border border-slate-800 p-6 md:p-8 text-white shadow-xl flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-                <div>
-                  <span className="text-[8px] font-black bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-full uppercase tracking-widest">Active Broadcasting Paging logs</span>
-                  <h3 className="text-base font-black uppercase mt-1">Unified Regional Hospital Carrier Pulse Activations</h3>
+            {/* Unified Clinical Security Sentinel & Pulse Telemetry Console */}
+            <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+              
+              {/* Left Column: Clinical Security Sentinel & Vault Card */}
+              <div className="lg:col-span-5 bg-slate-900 text-white rounded-[2rem] p-8 border border-slate-800 shadow-2xl flex flex-col justify-between gap-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none select-none">
+                  <Fingerprint size={160} className="text-blue-500" />
                 </div>
-                <button 
-                  onClick={() => setLogs([{ id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: "Clear matrix terminal session logs triggered.", type: 'info' }])}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-850 rounded-xl text-[8px] font-bold uppercase tracking-widest border border-slate-800 transition-colors"
-                >
-                  Clear Terminal Logs
-                </button>
-              </div>
-
-              <div className="max-h-60 overflow-y-auto font-mono text-[10px] leading-relaxed space-y-2 no-scrollbar">
-                {logs.map((log) => (
-                  <div key={log.id} className="flex items-start gap-3 border-b border-slate-900/40 pb-1.5 text-slate-350">
-                    <span className="text-slate-550 shrink-0 font-bold">[{log.timestamp}]</span>
-                    <span className={log.type === 'success' ? 'text-emerald-400' : log.type === 'warning' ? 'text-rose-400' : 'text-slate-350'}>
-                      {log.type === 'success' && '✨'}
-                      {log.type === 'warning' && '💊'}
-                      {log.type === 'info' && '🛰️'}
-                      &nbsp;{log.message}
+                
+                <div className="space-y-4 z-10">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <Shield className="text-emerald-500 animate-pulse" size={22} />
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-100">Clinical Identity Vault</h4>
+                        <p className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-widest mt-0.5">FIDO2 MULTI-FACTOR ACTIVE</p>
+                      </div>
+                    </div>
+                    
+                    <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                      identityVerified ? 'bg-emerald-550 bg-emerald-500/15 text-emerald-450 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-450 border border-amber-500/20'
+                    }`}>
+                      {identityVerified ? 'MD SIGNATURE ACTIVE' : 'POSTURE LOCK'}
                     </span>
                   </div>
-                ))}
+
+                  {/* Status Indicator Statement */}
+                  <p className="text-[10px] text-slate-350 font-bold uppercase leading-relaxed">
+                    This active medical session is cryptographically bound to your physical WebAuthn credential keychain. Valid assertions are stamps for patient handovers.
+                  </p>
+                </div>
+
+                {/* Biometric Credentials Scan Controller */}
+                <div className="space-y-3 z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Tactile Hardware Assertions</span>
+                    {secScanProgress !== null && (
+                      <span className="text-[9px] font-mono font-bold text-blue-400 animate-pulse">{secScanProgress}% RESOLVING</span>
+                    )}
+                  </div>
+                  
+                  {secScanProgress !== null ? (
+                    <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl space-y-2">
+                      <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden p-0.5">
+                        <div 
+                          className="bg-gradient-to-r from-emerald-500 to-blue-500 h-full rounded-full transition-all duration-200"
+                          style={{ width: `${secScanProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-[7.5px] font-mono font-bold text-slate-500 uppercase tracking-widest animate-pulse">Scanning biometric nodes & hardware keyrings...</p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleRunBioHandshake}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-550 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-emerald-500/25 active:scale-95 flex items-center justify-center gap-2 shadow shadow-emerald-600/10"
+                    >
+                      <Fingerprint size={14} /> Validate Credentials Handshake
+                    </button>
+                  )}
+                </div>
+
+                {/* OTP Passkey Session Registry */}
+                <div className="z-10 bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 block">Single-Use Dispatch Token</span>
+                      <p className="font-mono text-xs text-blue-400 font-extrabold tracking-widest mt-1 select-all">{secToken}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={handleGenerateOTP}
+                        disabled={secScanProgress !== null}
+                        className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 text-white text-[8px] font-black uppercase tracking-wider rounded-lg transition-colors border border-slate-800"
+                      >
+                        New Token
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(secToken);
+                          if (addToast) addToast("Session token copied to doctor clipboard buffer.", "success");
+                        }}
+                        className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white text-[8px] font-black uppercase tracking-wider rounded-lg transition-colors border border-slate-800"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-[7.5px] text-slate-550 uppercase font-black tracking-widest border-t border-slate-900 pt-2 flex justify-between">
+                    <span>MOH DISPATCH PASS: COMPILED</span>
+                    <span>KEY ROTATION: LIVE</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Right Column: Hospital Carrier Pulse Log (Terminal Console) */}
+              <div className="lg:col-span-7 bg-slate-950 rounded-[2rem] border border-slate-800 p-6 md:p-8 text-white shadow-2xl flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-850/80 pb-4">
+                  <div>
+                    <span className="text-[8px] font-black bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-full uppercase tracking-widest">Active Broadcasting Paging logs</span>
+                    <h3 className="text-base font-black uppercase mt-1">Unified Regional Hospital Carrier Pulse Activations</h3>
+                  </div>
+                  <button 
+                    onClick={() => setLogs([{ id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: "Clear matrix terminal session logs triggered.", type: 'info' }])}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-850 rounded-xl text-[8px] font-bold uppercase tracking-widest border border-slate-800 transition-colors shrink-0"
+                  >
+                    Clear Terminal Logs
+                  </button>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto font-mono text-[10px] leading-relaxed space-y-2 no-scrollbar">
+                  {logs.map((log) => (
+                    <div key={log.id} className="flex items-start gap-3 border-b border-slate-900/40 pb-1.5 text-slate-400">
+                      <span className="text-slate-600 shrink-0 font-bold">[{log.timestamp}]</span>
+                      <span className={log.type === 'success' ? 'text-emerald-400' : log.type === 'warning' ? 'text-rose-400' : 'text-slate-350'}>
+                        {log.type === 'success' && '✨'}
+                        {log.type === 'warning' && '💊'}
+                        {log.type === 'info' && '🛰️'}
+                        &nbsp;{log.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </section>
           </motion.div>
         )}

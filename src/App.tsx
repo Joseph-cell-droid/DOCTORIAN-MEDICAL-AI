@@ -803,23 +803,45 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const fetchWeather = () => {
-      if (!navigator.geolocation) return;
-      navigator.geolocation.getCurrentPosition(async (pos) => {
+    const fetchWeather = async () => {
+      const defaultCoords = { latitude: 37.7749, longitude: -122.4194 }; // San Francisco
+
+      const proceedWithCoords = async (lat: number, lon: number) => {
         try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+          if (!res.ok) throw new Error("Status: " + res.status);
           const data = await res.json();
           setWeatherData({
             temp: data.current_weather.temperature,
             condition: data.current_weather.weathercode,
-            latitude,
-            longitude
+            latitude: lat,
+            longitude: lon
           });
         } catch (err) {
-          console.error("App-level weather fetch failed:", err);
+          console.warn("App-level weather fetch fell back to default parameters:", err);
+          setWeatherData({
+            temp: 21,
+            condition: 1, // partly cloudy
+            latitude: lat,
+            longitude: lon
+          });
         }
-      });
+      };
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            proceedWithCoords(pos.coords.latitude, pos.coords.longitude);
+          },
+          (err) => {
+            console.warn("Geolocation denied or failed, using default location:", err);
+            proceedWithCoords(defaultCoords.latitude, defaultCoords.longitude);
+          },
+          { timeout: 5000 }
+        );
+      } else {
+        proceedWithCoords(defaultCoords.latitude, defaultCoords.longitude);
+      }
     };
     fetchWeather();
   }, []);
@@ -1887,7 +1909,9 @@ export default function App() {
       <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50 dark:bg-slate-950 overflow-hidden">
 
 
-        <div id="app-scroll-viewport" className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
+        <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative ${
+          currentView === 'ai_nexus' ? 'overflow-hidden' : 'overflow-y-auto'
+        }`}>
         <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
           {/* PWA Install Banner (Mobile Only) */}
           <AnimatePresence>
@@ -2588,8 +2612,14 @@ export default function App() {
 
       </div>
 
-      <main className="flex-1 pb-20 relative flex flex-col pt-0 w-full animate-fadeIn" id="main-content">
-          <div className="flex-1 flex flex-col items-stretch relative py-6 w-full max-w-7xl mx-auto px-2 sm:px-8">
+      <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-20'
+      }`} id="main-content">
+          <div className={`flex-1 flex flex-col items-stretch relative w-full ${
+            currentView === 'ai_nexus' 
+              ? 'py-0 px-0 max-w-full h-full min-h-0' 
+              : 'py-6 px-2 sm:px-8 max-w-7xl mx-auto'
+          }`}>
             <Suspense fallback={
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
                 <div className="relative">
@@ -3604,10 +3634,14 @@ export default function App() {
       </motion.div>
     )}
   </AnimatePresence>
-            <div className="flex-grow" />
-            <Suspense fallback={<div className="h-20" />}>
-              <Footer onNavigate={(view) => setCurrentView(view)} />
-            </Suspense>
+            {currentView !== 'ai_nexus' && (
+              <>
+                <div className="flex-grow" />
+                <Suspense fallback={<div className="h-20" />}>
+                  <Footer onNavigate={(view) => setCurrentView(view)} />
+                </Suspense>
+              </>
+            )}
       </div>
     </div>
   </div>

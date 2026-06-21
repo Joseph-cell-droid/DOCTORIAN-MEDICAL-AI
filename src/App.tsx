@@ -67,52 +67,57 @@ import {
   Dna,
   ChevronRight,
   ChevronLeft,
-  Globe
+  Globe,
+  Volume2,
+  VolumeX,
+  Music,
+  Sliders,
+  Headphones
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 
-const MedicalIllustrator = lazy(() => import("./components/MedicalIllustrator").then(m => ({ default: m.MedicalIllustrator })));
-const GenomicLongevityCore = lazy(() => import("./components/GenomicLongevityCore").then(m => ({ default: m.GenomicLongevityCore })));
-const ImageGenerator = lazy(() => import("./components/ImageGenerator").then(m => ({ default: m.ImageGenerator })));
+import { MedicalIllustrator } from "./components/MedicalIllustrator";
+import { GenomicLongevityCore } from "./components/GenomicLongevityCore";
+import { ImageGenerator } from "./components/ImageGenerator";
 import { ChatInterface } from "./components/ChatInterface";
-const MedicalAI = lazy(() => import("./components/MedicalAI").then(m => ({ default: m.MedicalAI })));
-const CognisHub = lazy(() => import("./components/CognisHub").then(m => ({ default: m.CognisHub })));
+import { MedicalAI } from "./components/MedicalAI";
+import { CognisHub } from "./components/CognisHub";
 import BioSimulation from "./components/BioSimulation";
-const PatientMonitor = lazy(() => import("./components/PatientMonitor").then(m => ({ default: m.PatientMonitor })));
-const Features = lazy(() => import("./components/Features").then(m => ({ default: m.Features })));
-const About = lazy(() => import("./components/About").then(m => ({ default: m.About })));
-const HealthRecords = lazy(() => import("./components/HealthRecords").then(m => ({ default: m.HealthRecords })));
-const ProfileSettings = lazy(() => import("./components/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
-const AdminDashboard = lazy(() => import("./components/AdminDashboard").then(m => ({ default: m.AdminDashboard })));
-const AccessRestriction = lazy(() => import("./components/AccessRestriction").then(m => ({ default: m.AccessRestriction })));
-const SpecialistFinder = lazy(() => import("./components/SpecialistFinder").then(m => ({ default: m.SpecialistFinder })));
-const VitalityMatrix = lazy(() => import("./components/VitalityMatrix").then(m => ({ default: m.VitalityMatrix })));
+import { PatientMonitor } from "./components/PatientMonitor";
+import { Features } from "./components/Features";
+import { About } from "./components/About";
+import { HealthRecords } from "./components/HealthRecords";
+import { ProfileSettings } from "./components/ProfileSettings";
+import { AdminDashboard } from "./components/AdminDashboard";
+import { AccessRestriction } from "./components/AccessRestriction";
+import { SpecialistFinder } from "./components/SpecialistFinder";
+import { VitalityMatrix } from "./components/VitalityMatrix";
 import { SymptomChecker } from "./components/SymptomChecker";
 import { DiagnosticLab } from "./components/DiagnosticLab";
 import { EmergencyRegistry } from "./components/EmergencyRegistry";
 import { Billing } from "./components/Billing";
-const MedicationTracker = lazy(() => import("./components/MedicationTracker").then(m => ({ default: m.MedicationTracker })));
-const WorkoutTracker = lazy(() => import("./components/WorkoutTracker").then(m => ({ default: m.WorkoutTracker })));
+import { MedicationTracker } from "./components/MedicationTracker";
+import { WorkoutTracker } from "./components/WorkoutTracker";
 import { BioSecurity } from "./components/BioSecurity";
-const DeveloperPortal = lazy(() => import("./components/DeveloperPortal").then(m => ({ default: m.DeveloperPortal })));
-const DoctorsDashboard = lazy(() => import("./components/DoctorsDashboard").then(m => ({ default: m.DoctorsDashboard })));
-const BMICalculator = lazy(() => import("./components/BMICalculator").then(m => ({ default: m.BMICalculator })));
-const LearnMore = lazy(() => import("./components/LearnMore").then(m => ({ default: m.LearnMore })));
+import { DeveloperPortal } from "./components/DeveloperPortal";
+import { DoctorsDashboard } from "./components/DoctorsDashboard";
+import { BMICalculator } from "./components/BMICalculator";
+import { LearnMore } from "./components/LearnMore";
 import { AuthModal } from "./components/AuthModal";
-const AdminInfoModal = lazy(() => import("./components/AdminInfoModal").then(m => ({ default: m.AdminInfoModal })));
-const Footer = lazy(() => import("./components/Footer").then(m => ({ default: m.Footer })));
-const BiomaticSandbox = lazy(() => import("./components/BiomaticSandbox").then(m => ({ default: m.BiomaticSandbox })));
+import { AdminInfoModal } from "./components/AdminInfoModal";
+import { Footer } from "./components/Footer";
+import { BiomaticSandbox } from "./components/BiomaticSandbox";
 import { ClinicalProtocols } from "./components/Tasks";
 import { NeuralTrainingHub } from "./components/NeuralTrainingHub";
 
 import { Soundscape } from "./utils/soundscape";
 
 import { HealthTip } from "./components/HealthTipModal";
-const HealthTipModal = lazy(() => import("./components/HealthTipModal").then(m => ({ default: m.HealthTipModal })));
-const HealthProgressTracker = lazy(() => import("./components/HealthProgressTracker").then(m => ({ default: m.HealthProgressTracker })));
+import { HealthTipModal } from "./components/HealthTipModal";
+import { HealthProgressTracker } from "./components/HealthProgressTracker";
 import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
 import { TerminalSecureGate } from "./components/TerminalSecureGate";
 import { translate } from './utils/translations';
@@ -224,6 +229,47 @@ import { SubscriptionModal } from './components/SubscriptionModal';
 import { AppTutorial } from './components/AppTutorial';
 import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
+const viewNamesMap: Record<string, string> = {
+  home: 'Dashboard Home',
+  monitor: 'Vitals Monitor',
+  features: 'Clinical Modules',
+  about: 'About System',
+  learn_more: 'Documentation',
+  records: 'Health Records',
+  profile: 'User Profile',
+  admin: 'Admin Console',
+  specialist: 'Specialists Advisor',
+  neuro: 'Neural Health Node',
+  vitality: 'Vitality Matrix',
+  meds: 'Medication Tracker',
+  fitness: 'Fitness Analytics',
+  symptoms: 'Symptom Checker',
+  biosecurity: 'Biosecurity Shield',
+  ai_nexus: 'AI Nexus Portal',
+  illustrator: 'Medical Illustrator',
+  diagnostic_lab: 'Diagnostic Lab',
+  emergency: 'Emergency Portal',
+  training: 'Neural training',
+  tasks: 'System Queue',
+  clinical_roadmap: 'Clinical Roadmap',
+  anomaly_detail: 'Anomaly Detail',
+  health_matrix: 'Biomatic Sandbox',
+  autonomous_sync: 'Autonomous Core',
+  dev_portal: 'Developer Portal',
+  billing: 'Resource Billings',
+  health_trace: 'Neural Trace',
+  biomatic: 'Biomatic Lab',
+  genomic_longevity: 'Genomic Longevity',
+  systems_hub: 'Systems Launchpad',
+  doctors_dashboard: 'Doctors Board',
+  help: 'Help Center',
+  community: 'Global Forum',
+  privacy: 'Privacy Vault',
+  terms: 'Terms of Use',
+  feedback: 'Clinical Feedback',
+  protocols: 'Medical Protocols'
+};
+
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
@@ -250,6 +296,88 @@ export default function App() {
   });
   const [downloadingLang, setDownloadingLang] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
+
+  const [isAudioMenuOpen, setIsAudioMenuOpen] = useState(false);
+  const [vitalsAudioEnabled, setVitalsAudioEnabled] = useState(false);
+  const [vitalsAudioVolume, setVitalsAudioVolume] = useState(0.3);
+  const [soundscapeEnabled, setSoundscapeEnabled] = useState(false);
+  const [soundscapeVolume, setSoundscapeVolume] = useState(0.45);
+  const [soundscapePreset, setSoundscapePreset] = useState<'alpha_focus' | 'theta_meditation' | 'beta_high_cognition'>('alpha_focus');
+
+  useEffect(() => {
+    // Import first and fetch initial values
+    import('./utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+      setVitalsAudioEnabled(VitalsSonifier.getEnabled());
+      setVitalsAudioVolume(VitalsSonifier.getVolume());
+    });
+    setSoundscapeEnabled(Soundscape.getEnabled());
+    setSoundscapeVolume(Soundscape.getVolume());
+    setSoundscapePreset(Soundscape.getPreset());
+
+    const handleVitalsSoundSync = (e: any) => {
+      if (e.detail) {
+        if (e.detail.enabled !== undefined) setVitalsAudioEnabled(e.detail.enabled);
+        if (e.detail.volume !== undefined) setVitalsAudioVolume(e.detail.volume);
+      }
+    };
+
+    const handleSoundscapeSync = (e: any) => {
+      if (e.detail) {
+        if (e.detail.enabled !== undefined) setSoundscapeEnabled(e.detail.enabled);
+        if (e.detail.volume !== undefined) setSoundscapeVolume(e.detail.volume);
+        if (e.detail.preset !== undefined) setSoundscapePreset(e.detail.preset);
+      }
+    };
+
+    window.addEventListener('doctorian:vitals_sound_setting_update', handleVitalsSoundSync);
+    window.addEventListener('doctorian:soundscape_setting_update', handleSoundscapeSync);
+
+    return () => {
+      window.removeEventListener('doctorian:vitals_sound_setting_update', handleVitalsSoundSync);
+      window.removeEventListener('doctorian:soundscape_setting_update', handleSoundscapeSync);
+    };
+  }, []);
+
+  const toggleVitalsAudio = () => {
+    import('./utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+      const next = !vitalsAudioEnabled;
+      setVitalsAudioEnabled(next);
+      VitalsSonifier.setEnabled(next);
+      if (next) {
+        addToast("🔊 Vitals Audio Sonification Live. Heartbeat sounds synchronized in the background.", "success");
+      } else {
+        addToast("🔇 Vitals Audio Sonification silenced.", "info");
+      }
+    });
+  };
+
+  const handleVitalsVolumeChange = (vol: number) => {
+    import('./utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+      setVitalsAudioVolume(vol);
+      VitalsSonifier.setVolume(vol);
+    });
+  };
+
+  const toggleSoundscapeGlobal = () => {
+    const next = !soundscapeEnabled;
+    setSoundscapeEnabled(next);
+    Soundscape.setEnabled(next);
+    if (next) {
+      addToast("🎵 Ambient Soundscape loaded. Binaural beats Active.", "success");
+    } else {
+      addToast("🎵 Soundscape turned off.", "info");
+    }
+  };
+
+  const handleSoundscapeVolChangeGlobal = (vol: number) => {
+    setSoundscapeVolume(vol);
+    Soundscape.setVolume(vol);
+  };
+
+  const changePresetGlobal = (preset: 'alpha_focus' | 'theta_meditation' | 'beta_high_cognition') => {
+    setSoundscapePreset(preset);
+    Soundscape.setPreset(preset);
+  };
 
   // Automatically trigger a silent setup/validation of translation dictionaries
   useEffect(() => {
@@ -502,14 +630,44 @@ export default function App() {
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
+  const [navigationHistory, setNavigationHistory] = useState<any[]>(['home']);
+  const [isBackHovered, setIsBackHovered] = useState(false);
+
   const setCurrentView = (view: any) => {
     _setCurrentView(view);
+    
+    // Track chronological sequential navigation path
+    setNavigationHistory((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1] === view) {
+        return prev;
+      }
+      return [...prev, view];
+    });
+
     // Restores viewport scroll to the top for seamless navigation
     window.scrollTo({ top: 0, behavior: 'instant' as any });
     const viewport = document.getElementById('app-scroll-viewport');
     if (viewport) {
       viewport.scrollTop = 0;
     }
+  };
+
+  const handleGoBack = () => {
+    if (navigationHistory.length <= 1) return;
+    
+    const previousView = navigationHistory[navigationHistory.length - 2];
+    const newHistory = navigationHistory.slice(0, -1);
+    
+    setNavigationHistory(newHistory);
+    _setCurrentView(previousView);
+    
+    window.scrollTo({ top: 0, behavior: 'instant' as any });
+    const viewport = document.getElementById('app-scroll-viewport');
+    if (viewport) {
+      viewport.scrollTop = 0;
+    }
+    
+    addToast(`◀ Returned to ${viewNamesMap[previousView] || previousView}`, "info");
   };
 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
@@ -686,6 +844,30 @@ export default function App() {
     return () => {
       window.removeEventListener('doctorian:soundscape_setting_update', handleSoundscapeTrigger);
       Soundscape.stop();
+    };
+  }, [currentView]);
+
+  // Automatic browser click gesture activation for background audio telemetry
+  useEffect(() => {
+    const handleGestureStart = () => {
+      import("./utils/vitalsSonifier").then(({ VitalsSonifier }) => {
+        if (VitalsSonifier.getEnabled() && !VitalsSonifier.isSonifierPlaying()) {
+          VitalsSonifier.start();
+        }
+      });
+      const isEnabled = Soundscape.getEnabled();
+      const isTargetView = currentView === 'neuro' || currentView === 'training';
+      if (isEnabled && isTargetView && !Soundscape.isEnginePlaying()) {
+        Soundscape.start(true);
+      }
+    };
+
+    window.addEventListener('click', handleGestureStart);
+    window.addEventListener('touchstart', handleGestureStart);
+    
+    return () => {
+      window.removeEventListener('click', handleGestureStart);
+      window.removeEventListener('touchstart', handleGestureStart);
     };
   }, [currentView]);
 
@@ -1621,7 +1803,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div id="app-root-container" className="h-screen bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden">
+      <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden">
       <a 
         href="#main-content" 
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[150] focus:px-6 focus:py-3 focus:bg-blue-600 focus:text-white focus:rounded-2xl focus:font-black focus:shadow-2xl"
@@ -2132,6 +2314,179 @@ export default function App() {
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Clinical Auditory & Sonification Hub */}
+                <div className="relative shrink-0">
+                  <motion.button
+                    layout
+                    onClick={() => {
+                      setIsAudioMenuOpen(!isAudioMenuOpen);
+                      setIsLanguageMenuOpen(false);
+                      setIsWindowsMenuOpen(false);
+                      setIsProfileOpen(false);
+                    }}
+                    className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer relative ${
+                      isAudioMenuOpen 
+                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
+                        : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
+                    }`}
+                    aria-label="Clinical Audio Settings"
+                    title="Clinical Audio & Sonification Hub"
+                  >
+                    {vitalsAudioEnabled || soundscapeEnabled ? (
+                      <div className="relative flex items-center justify-center">
+                        <Headphones size={16} className={`shrink-0 ${vitalsAudioEnabled ? 'text-rose-500 animate-bounce' : 'text-blue-500 animate-pulse'}`} />
+                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                      </div>
+                    ) : (
+                      <VolumeX size={16} className="shrink-0 text-slate-400" />
+                    )}
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {isAudioMenuOpen && (
+                      <>
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-40 bg-transparent"
+                          onClick={() => setIsAudioMenuOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                          className="absolute right-0 mt-3 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-200/60 dark:border-slate-800/80 p-5 z-50 overflow-visible z-50"
+                        >
+                          <div className="flex flex-col gap-4">
+                            <div className="pb-2 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-left">
+                              <span className="text-[10px] font-black uppercase tracking-tight text-slate-400 dark:text-slate-500">Clinical Sound Engine</span>
+                              <span className="text-[8px] font-mono bg-blue-500/10 text-blue-600 dark:bg-blue-500/25 dark:text-blue-400 px-2 py-0.5 rounded-md uppercase font-black tracking-widest">Active Background</span>
+                            </div>
+
+                            {/* Section 1: Heartbeat Pulse Sonification */}
+                            <div className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100/50 dark:border-slate-850/50 text-left">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex gap-2">
+                                  <div className="p-1.5 rounded-xl bg-rose-500/10 text-rose-500 mt-0.5 shrink-0">
+                                    <Activity size={14} className={vitalsAudioEnabled ? "animate-pulse" : ""} />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Vitals Pulse (Heart)</h4>
+                                    <p className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">Audible pulse, SpO2 pitch-tracking, and diagnostic warning alerts.</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={toggleVitalsAudio}
+                                  className={`w-9 h-5 rounded-full p-0.5 transition-all outline-none border cursor-pointer ${
+                                    vitalsAudioEnabled 
+                                      ? 'bg-rose-500 border-rose-400 flex justify-end items-center' 
+                                      : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
+                                  }`}
+                                >
+                                  <motion.div layout className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
+                                </button>
+                              </div>
+
+                              {vitalsAudioEnabled && (
+                                <div className="mt-2 flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/40 pt-2">
+                                  <div className="flex items-center justify-between text-[8px] uppercase font-black text-slate-400">
+                                    <span>Volume</span>
+                                    <span>{Math.round(vitalsAudioVolume * 100)}%</span>
+                                  </div>
+                                  <input 
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.05"
+                                    value={vitalsAudioVolume}
+                                    onChange={(e) => handleVitalsVolumeChange(parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Section 2: Cognitive Binaural Soundscapes */}
+                            <div className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100/50 dark:border-slate-850/50 text-left">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex gap-2">
+                                  <div className="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-500 mt-0.5 shrink-0">
+                                    <Music size={14} className={soundscapeEnabled ? "animate-spin" : ""} style={{ animationDuration: '8s' }} />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Ambient Soundscape</h4>
+                                    <p className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">Focus binaural carrier waves stacked with a soft brown noise mask.</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={toggleSoundscapeGlobal}
+                                  className={`w-9 h-5 rounded-full p-0.5 transition-all outline-none border cursor-pointer ${
+                                    soundscapeEnabled 
+                                      ? 'bg-indigo-500 border-indigo-400 flex justify-end items-center' 
+                                      : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
+                                  }`}
+                                >
+                                  <motion.div layout className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
+                                </button>
+                              </div>
+
+                              {soundscapeEnabled && (
+                                <div className="mt-2 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800/40 pt-2 text-[8px] uppercase">
+                                  <div className="flex items-center justify-between font-black text-slate-400">
+                                    <span>Volume</span>
+                                    <span>{Math.round(soundscapeVolume * 100)}%</span>
+                                  </div>
+                                  <input 
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.05"
+                                    value={soundscapeVolume}
+                                    onChange={(e) => handleSoundscapeVolChangeGlobal(parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                  />
+
+                                  <div className="font-black text-slate-400 mt-1 mb-0.5">Preset Profile</div>
+                                  <div className="grid grid-cols-3 gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-100 dark:border-slate-850 rounded-xl">
+                                    {(['alpha_focus', 'theta_meditation', 'beta_high_cognition'] as const).map(p => {
+                                      const labelMap = { alpha_focus: 'Alpha', theta_meditation: 'Theta', beta_high_cognition: 'Beta' };
+                                      const active = soundscapePreset === p;
+                                      return (
+                                        <button
+                                          key={p}
+                                          type="button"
+                                          onClick={() => changePresetGlobal(p)}
+                                          className={`py-1 text-[8px] font-black uppercase rounded-lg transition-all border cursor-pointer leading-none truncate ${
+                                            active 
+                                              ? 'bg-indigo-500 text-white border-indigo-500 shadow-sm' 
+                                              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'
+                                          }`}
+                                        >
+                                          {labelMap[p]}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="text-[7.5px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500 text-center select-none pt-1">
+                              👉 Click page anywhere to run soundscapes
+                            </div>
                           </div>
                         </motion.div>
                       </>
@@ -3326,7 +3681,7 @@ export default function App() {
       }}
       onSuccess={() => {
         if (pendingView) {
-          _setCurrentView(pendingView);
+          setCurrentView(pendingView);
         }
         setPendingView(null);
       }}
@@ -3634,6 +3989,59 @@ export default function App() {
       </motion.div>
     )}
   </AnimatePresence>
+  
+  {/* Floating Clinical Back Navigation Button */}
+  <AnimatePresence>
+    {navigationHistory.length > 1 && (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.8, y: 20 }}
+        className="fixed bottom-24 right-5 sm:bottom-8 sm:right-8 z-[150] pointer-events-none"
+      >
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onMouseEnter={() => setIsBackHovered(true)}
+          onMouseLeave={() => setIsBackHovered(false)}
+          onClick={handleGoBack}
+          className="flex items-center justify-center gap-2 h-11 sm:h-12 rounded-full border shadow-[0_15px_30px_rgba(37,99,235,0.25)] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-500/30 font-black text-[10px] uppercase tracking-wider pl-4 pr-3 cursor-pointer pointer-events-auto select-none transition-all duration-200"
+          title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'}`}
+        >
+          <ArrowLeft size={14} className="stroke-[3]" />
+          
+          <AnimatePresence mode="wait">
+            {!isBackHovered ? (
+              <motion.span 
+                key="back-short"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="text-[9px] font-black uppercase tracking-widest leading-none"
+              >
+                Back
+              </motion.span>
+            ) : (
+              <motion.span 
+                key="back-long"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="text-[9px] text-white/90 font-bold tracking-wider leading-none truncate max-w-[140px]"
+              >
+                To {viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'Previous'}
+              </motion.span>
+            )}
+          </AnimatePresence>
+
+          <span className="w-5 h-5 rounded-full bg-white/25 text-white text-[8px] font-black flex items-center justify-center shrink-0 ml-1">
+            {navigationHistory.length - 1}
+          </span>
+        </motion.button>
+      </motion.div>
+    )}
+  </AnimatePresence>
+
             {currentView !== 'ai_nexus' && (
               <>
                 <div className="flex-grow" />

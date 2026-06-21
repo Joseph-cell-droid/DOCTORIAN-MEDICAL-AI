@@ -92,41 +92,6 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
           )}
         </AnimatePresence>
 
-        {/* Dynamic Header - Minimal 2026 Style */}
-        <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4 shrink-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-b border-slate-100/50 dark:border-slate-800/30 font-sans">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Bot className="text-white w-5 h-5" />
-             </div>
-             <div>
-                <h1 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-1">
-                  Doctorian
-                </h1>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Neural Link Active</span>
-                </div>
-             </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-            <button 
-              onClick={() => setShowVisualizer(true)}
-              className="px-4 py-2 bg-slate-50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 flex items-center gap-2"
-            >
-              <Brain size={14} className="text-blue-500" />
-              <span className="hidden sm:inline">Anatomical Synth</span>
-            </button>
-            <button 
-              onClick={() => onNavigate?.('genomic_longevity')}
-              className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 flex items-center gap-2"
-            >
-              <Dna size={14} />
-              <span className="hidden sm:inline">Genomic Omics</span>
-            </button>
-          </div>
-        </div>
-
         <div className="flex-1 min-h-0 relative">
           <ChatInterface 
             user={user} 
@@ -134,6 +99,8 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
             arduino={arduino} 
             onUpgradeRequested={onUpgradeRequested}
             currentLanguage={currentLanguage}
+            onNavigate={onNavigate}
+            onShowNeuralVisualizer={() => setShowVisualizer(true)}
           />
         </div>
       </div>

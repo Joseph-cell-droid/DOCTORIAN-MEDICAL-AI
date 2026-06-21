@@ -202,7 +202,13 @@ export const useArduino = () => {
       }
       return newHistory;
     });
-    setHealthStatus(calculateHealthStatus(newVitals));
+    const status = calculateHealthStatus(newVitals);
+    setHealthStatus(status);
+    
+    // Feed parameters directly to background sonification agent
+    import('../utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+      VitalsSonifier.updatePresence(newVitals, status.overall);
+    });
   }, [calculateHealthStatus]);
 
   const parseData = useCallback((data: string) => {
@@ -533,28 +539,30 @@ export const useArduino = () => {
     }, 800);
   }, []);
 
-  const performGlobalTrace = useCallback(async (data: { records: any[], meds: any[], tasks: any[] }) => {
+  const performGlobalTrace = useCallback(async (data: { records: any[], meds: any[], tasks: any[], patientInfo?: any }) => {
     if (!vitals && history.length === 0) return null;
     
     isAnalyzing.current = true;
     try {
       const { api } = await import('../api');
+      const patient = data.patientInfo || { name: 'Gloria (Self)', relation: 'Owner', age: 28, targetDevice: 'Samsung Galaxy Watch 6 Pro' };
       const analysisPrompt = `
-        Perform a Longitudinal Global Health Trace for this patient.
+        Perform an Advanced Longitudinal Global Health Trace for patient "${patient.name}" (${patient.relation}, Age ${patient.age}) connected to device ${patient.targetDevice || 'integrated wearable'}.
         DATA MATRIX:
-        - Current Vitals: ${JSON.stringify(vitals)}
-        - History (Trend): ${JSON.stringify(history.slice(-20))}
-        - Medical Records: ${JSON.stringify(data.records.slice(-10))}
-        - Medications: ${JSON.stringify(data.meds)}
-        - Protocols/Tasks: ${JSON.stringify(data.tasks)}
+        - Current Active Vitals STATE: ${JSON.stringify(vitals)}
+        - Selected Timeframe: Tracing logs beyond 90 days (past 120 days longitudinal trend).
+        - Direct Bio-Feedback history: ${JSON.stringify(history.slice(-25))}
+        - Medical History Records: ${JSON.stringify(data.records.slice(-15))}
+        - Standard Meds/Prescriptions: ${JSON.stringify(data.meds)}
+        - Care Protocol Tasks: ${JSON.stringify(data.tasks)}
 
         TASK:
-        1. Identify clinical progress relative to past records.
-        2. Detect any worsening trends or medication side-effect correlations.
-        3. Provide a 'Doctorian Health Trajectory' (Improving/Stable/Declining).
-        4. Suggest protocol adjustments.
+        1. Evaluate clinical physiological progress specifically relative to past records stretching back past 90 days.
+        2. Detect any worsening trends, cardiac anomalies, blood pressure drift, or medication side-effect correlations.
+        3. Provide a 'Doctorian Health Trajectory Status' (Improving/Stable/Declining).
+        4. Suggest protocol adjustments suited for this patient profile.
         
-        Tone: Cyber-Clinical, ultra-precise.
+        Tone: Cyber-Clinical, ultra-precise, objective, and highly professional.
       `;
 
       const res = await api.ai.aiChat(

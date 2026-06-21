@@ -4,13 +4,14 @@ import {
   Sparkles, ShieldCheck, ChevronRight, BarChart3, 
   Calendar, Microscope, FileText, Pill, Search, ClipboardList, Cpu,
   AlertCircle, ArrowRightCircle, RefreshCw, Target, Footprints, Droplet, Dumbbell, Moon,
-  Watch, Smartphone, Bluetooth, Check, Wifi, Heart
+  Watch, Smartphone, Bluetooth, Check, Wifi, Heart, Users, UserPlus, Trash2, Plus, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useArduino } from '../hooks/useArduino';
+import { useArduinoContext } from '../ArduinoContext';
 import { api, User } from '../api';
 import { HealthGoalsModal, HealthGoal } from './HealthGoalsModal';
 import { WearableConnector } from './WearableConnector';
+import { TelemetryCastManager } from './TelemetryCastManager';
 import confetti from 'canvas-confetti';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -24,7 +25,7 @@ interface HealthProgressTrackerProps {
 }
 
 export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ user }) => {
-  const arduino = useArduino();
+  const arduino = useArduinoContext();
   const [loading, setLoading] = useState(true);
   const [traceResult, setTraceResult] = useState<string | null>(null);
   const [isTracing, setIsTracing] = useState(false);
@@ -104,6 +105,89 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   });
   const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  const [selectedTimeRange, setSelectedTimeRange] = useState<'7D' | '30D' | '90D' | '120D+'>('30D');
+
+  // Connected Patients/Family Members state
+  const [connectedMembers, setConnectedMembers] = useState<{
+    id: string;
+    name: string;
+    relation: string;
+    age: number;
+    connectedDevice: string;
+    deviceType: 'Samsung' | 'Apple' | 'Fitbit' | 'Garmin' | 'Bluetooth' | 'None';
+    vitals: { heartRate: number; spo2: number; temperature: number; systolicBP: number; diastolicBP: number };
+    status: 'excellent' | 'normal' | 'warning' | 'critical';
+    lastSync: string;
+    battery: number;
+    signal: number;
+  }[]>(() => {
+    const saved = localStorage.getItem('doctorian_connected_members');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: 'member_gloria',
+        name: 'Gloria (Self)',
+        relation: 'Owner',
+        age: 28,
+        connectedDevice: 'Samsung Galaxy Watch 6 Pro',
+        deviceType: 'Samsung',
+        vitals: { heartRate: 72, spo2: 98, temperature: 36.6, systolicBP: 118, diastolicBP: 78 },
+        status: 'excellent',
+        lastSync: 'Live',
+        battery: 88,
+        signal: 5
+      },
+      {
+        id: 'member_grace',
+        name: 'Grace K.',
+        relation: 'Mother',
+        age: 56,
+        connectedDevice: 'Fitbit Sense 2',
+        deviceType: 'Fitbit',
+        vitals: { heartRate: 74, spo2: 96, temperature: 36.8, systolicBP: 122, diastolicBP: 80 },
+        status: 'normal',
+        lastSync: '2m ago',
+        battery: 74,
+        signal: 4
+      },
+      {
+        id: 'member_arthur',
+        name: 'Arthur M.',
+        relation: 'Grandfather',
+        age: 82,
+        connectedDevice: 'ICU ECG Bedside',
+        deviceType: 'Bluetooth',
+        vitals: { heartRate: 85, spo2: 94, temperature: 37.1, systolicBP: 135, diastolicBP: 88 },
+        status: 'warning',
+        lastSync: 'Live',
+        battery: 52,
+        signal: 5
+      },
+      {
+        id: 'member_zoe',
+        name: 'Zoe J.',
+        relation: 'Daughter',
+        age: 8,
+        connectedDevice: 'Garmin Fenix 7 Sapphire',
+        deviceType: 'Garmin',
+        vitals: { heartRate: 64, spo2: 99, temperature: 36.4, systolicBP: 110, diastolicBP: 72 },
+        status: 'excellent',
+        lastSync: '10m ago',
+        battery: 95,
+        signal: 3
+      }
+    ];
+  });
+  
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('member_gloria');
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberRelation, setNewMemberRelation] = useState('Family');
+  const [newMemberAge, setNewMemberAge] = useState<number>(30);
+  const [newMemberDevice, setNewMemberDevice] = useState<'Samsung' | 'Apple' | 'Fitbit' | 'Garmin' | 'Bluetooth' | 'None'>('Samsung');
 
   // Connected Smartwatch states
   const [activeWatch, setActiveWatch] = useState<'Samsung' | 'Apple' | 'Fitbit' | 'Garmin' | 'Bluetooth' | 'None'>(() => {
@@ -220,38 +304,58 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   const [isWritingRecord, setIsWritingRecord] = useState(false);
 
   const chartData = React.useMemo(() => {
-    // Start with machine base history
-    let base = arduino.history && arduino.history.length > 5 ? [...arduino.history] : Array.from({length: 15}).map((_, i) => {
-      const ts = Date.now() - (15 - i) * 1000 * 60 * 15; // 15 min gaps
+    let daysToGenerate = 30;
+    if (selectedTimeRange === '7D') daysToGenerate = 7;
+    if (selectedTimeRange === '90D') daysToGenerate = 90;
+    if (selectedTimeRange === '120D+') daysToGenerate = 120;
+
+    const activeMember = connectedMembers.find(m => m.id === selectedMemberId) || connectedMembers[0];
+    const baseHR = activeMember.vitals.heartRate;
+    const baseSpo2 = activeMember.vitals.spo2;
+    const baseSys = activeMember.vitals.systolicBP;
+    const baseDia = activeMember.vitals.diastolicBP;
+    const baseTemp = activeMember.vitals.temperature;
+
+    // Generate daily historical logs for selected timeframe
+    let base = Array.from({ length: daysToGenerate }).map((_, i) => {
+      const ts = Date.now() - (daysToGenerate - i) * 24 * 60 * 60 * 1000;
+      
+      // Weekly physiological rhythms, sleep anomalies and subtle noise
+      const weeklySin = Math.sin((i / 7) * Math.PI * 2);
+      const cardiacDrift = (Math.random() * 4 - 2) + (weeklySin * 2.5);
+      const tempNoise = parseFloat((Math.random() * 0.16 - 0.08).toFixed(2));
+      const spo2Noise = Math.min(100, Math.max(88, baseSpo2 + Math.floor(Math.random() * 2) - (weeklySin > 0.85 ? 1 : 0)));
+      
       return {
-        heartRate: 74 + Math.sin(i * 0.5) * 6 + Math.random() * 3,
-        spo2: 98 + Math.random() * 1,
-        temperature: 36.6 + Math.random() * 0.2,
-        systolicBP: 118 + Math.random() * 8,
-        diastolicBP: 78 + Math.random() * 4,
+        heartRate: Math.max(40, Math.round(baseHR + cardiacDrift)),
+        spo2: Math.round(spo2Noise),
+        temperature: parseFloat((baseTemp + tempNoise).toFixed(1)),
+        systolicBP: Math.round(baseSys + (Math.random() * 6 - 3) + (weeklySin * 4)),
+        diastolicBP: Math.round(baseDia + (Math.random() * 4 - 2) + (weeklySin * 2.5)),
         timestamp: ts
       };
     });
 
-    // Merge manual records of "Heart Rate" if any
+    // Merge manual records if applicable
     const heartRecords = records.filter(r => r.type === 'Heart Rate' || r.type === 'HeartRate');
     heartRecords.forEach(r => {
       const ts = Date.parse(r.date) || Date.now();
       const val = parseFloat(r.value) || 72;
-      if (!base.some(b => b.timestamp === ts)) {
+      const cutoff = Date.now() - daysToGenerate * 24 * 60 * 60 * 1000;
+      if (ts >= cutoff) {
         base.push({
           heartRate: val,
-          spo2: 98,
-          temperature: 36.5,
-          systolicBP: 120,
-          diastolicBP: 80,
+          spo2: baseSpo2,
+          temperature: baseTemp,
+          systolicBP: baseSys,
+          diastolicBP: baseDia,
           timestamp: ts
         });
       }
     });
 
     return base.sort((a, b) => a.timestamp - b.timestamp);
-  }, [arduino.history, records]);
+  }, [selectedTimeRange, selectedMemberId, connectedMembers, records]);
 
   const consistencyData = React.useMemo(() => {
     const days = [];
@@ -474,6 +578,26 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     };
   }, [activeWatch, arduino.watchMetadata]);
 
+  // Sync selectedMemberId with activeWatch and initial vitals instantly
+  useEffect(() => {
+    const member = connectedMembers.find(m => m.id === selectedMemberId);
+    if (member) {
+      setActiveWatch(member.deviceType);
+      setWatchBattery(member.battery);
+      setSignalStrength(member.signal);
+      
+      arduino.updateVitals({
+        heartRate: member.vitals.heartRate,
+        spo2: member.vitals.spo2,
+        temperature: member.vitals.temperature,
+        systolicBP: member.vitals.systolicBP,
+        diastolicBP: member.vitals.diastolicBP,
+        respiratoryRate: 14,
+        timestamp: Date.now()
+      });
+    }
+  }, [selectedMemberId, connectedMembers]);
+
   const runLiveWatchAnalysis = async () => {
     if (activeWatch === 'None') return;
     setIsWatchAnalyzing(true);
@@ -533,10 +657,17 @@ Provide a clean array or scannable markdown blocks containing these structured a
   const runGlobalAnalysis = async () => {
     setIsTracing(true);
     try {
+      const activeMember = connectedMembers.find(m => m.id === selectedMemberId) || connectedMembers[0];
       const result = await arduino.performGlobalTrace({
         records,
         meds,
-        tasks
+        tasks,
+        patientInfo: {
+          name: activeMember.name,
+          age: activeMember.age,
+          relation: activeMember.relation,
+          targetDevice: activeMember.connectedDevice
+        }
       });
       setTraceResult(result);
     } catch (err) {
@@ -664,7 +795,10 @@ Provide a clean array or scannable markdown blocks containing these structured a
             )}
           </AnimatePresence>
 
-           {/* Smartwatch Synapse Integration Hub */}
+          {/* Real-time Dynamic Biometric Casting & Emulation Control Console */}
+          <TelemetryCastManager />
+
+          {/* Smartwatch Synapse Integration Hub */}
            <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden relative mb-10">
              <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
              
@@ -1123,6 +1257,279 @@ Provide a clean array or scannable markdown blocks containing these structured a
               </div>
             </div>
 
+           {/* Connected Patients & Wearables Hub */}
+           <div id="connected-patients-wearables-hub" className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden mb-10 text-left relative">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
+             
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+               <div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2.5">
+                    <span className="p-2.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                      <Users size={22} className="animate-pulse" />
+                    </span>
+                    Connected Patients & Wearables Hub
+                  </h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 font-sans">
+                    Monitor real-time vitals, connection states, and long-term health statuses of all linked members
+                  </p>
+               </div>
+
+               <button
+                 type="button"
+                 onClick={() => setIsAddMemberOpen(true)}
+                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 flex items-center gap-2 active:scale-95 cursor-pointer shadow-md inline-flex font-mono"
+               >
+                 <UserPlus size={14} />
+                 Link New Patient
+               </button>
+             </div>
+
+             {/* Connection & Member Cards Row */}
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+               {connectedMembers.map(member => {
+                 const isSelected = member.id === selectedMemberId;
+                 const statusGlow = member.status === 'excellent' ? 'bg-emerald-500 shadow-emerald-500/50' :
+                                    member.status === 'normal' ? 'bg-indigo-500 shadow-indigo-500/50' :
+                                    member.status === 'warning' ? 'bg-amber-500 shadow-amber-500/50' : 'bg-rose-500 shadow-rose-500/50';
+
+                 const borderHighlight = isSelected 
+                   ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-lg scale-[1.02]' 
+                   : 'border-slate-100 dark:border-slate-800/80 bg-white/50 dark:bg-slate-905/40 hover:border-slate-300 dark:hover:border-slate-700';
+
+                 return (
+                   <div 
+                     key={member.id}
+                     onClick={() => setSelectedMemberId(member.id)}
+                     className={`p-6 rounded-3xl border transition-all cursor-pointer select-none relative flex flex-col justify-between ${borderHighlight}`}
+                   >
+                     {/* Top Bar inside Member Card */}
+                     <div className="flex items-start justify-between gap-2">
+                       <div className="min-w-0 text-left">
+                         <div className="flex items-center gap-1.5 flex-wrap">
+                           <span className="text-[9px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded">
+                             {member.relation}
+                           </span>
+                           <span className="text-[9px] font-bold text-slate-400 font-mono">
+                             Age {member.age}
+                           </span>
+                         </div>
+                         <h4 className="font-extrabold text-sm text-slate-900 dark:text-white mt-1.5 truncate">
+                           {member.name}
+                         </h4>
+                       </div>
+
+                       <div className="flex items-center gap-1.5 shrink-0 relative w-3.5 h-3.5">
+                         <span className={`w-2.5 h-2.5 rounded-full animate-ping shrink-0 absolute inset-0.5 ${statusGlow}`} />
+                         <span className={`w-2 h-2 rounded-full shrink-0 absolute inset-1 ${statusGlow}`} />
+                       </div>
+                     </div>
+
+                     {/* Vitals Summary Rows */}
+                     <div className="my-5 space-y-2 border-y border-slate-50 dark:border-slate-800/40 py-3 text-left">
+                       <div className="flex justify-between items-center text-xs">
+                         <span className="text-slate-400 font-bold uppercase text-[8px] tracking-wider">Heart Pulse</span>
+                         <span className="text-rose-500 font-black font-mono text-xs">
+                           {member.vitals.heartRate} <span className="text-[8px] text-slate-400 font-normal">BPM</span>
+                         </span>
+                       </div>
+                       <div className="flex justify-between items-center text-xs">
+                         <span className="text-slate-400 font-bold uppercase text-[8px] tracking-wider">Blood Press</span>
+                         <span className="text-emerald-500 font-black font-mono text-xs">
+                           {member.vitals.systolicBP}/{member.vitals.diastolicBP} <span className="text-[8px] text-slate-450 font-normal">mmHg</span>
+                         </span>
+                       </div>
+                       <div className="flex justify-between items-center text-xs">
+                         <span className="text-slate-400 font-bold uppercase text-[8px] tracking-wider">Ox Saturation</span>
+                         <span className="text-sky-500 font-black font-mono text-xs">
+                           {member.vitals.spo2}%
+                         </span>
+                       </div>
+                     </div>
+
+                     {/* Bottom Device Sync Block */}
+                     <div className="flex justify-between items-center text-[10px] mt-2">
+                       <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 min-w-0">
+                         <Watch size={11} className="shrink-0" />
+                         <span className="truncate font-bold text-[9px]">{member.connectedDevice}</span>
+                       </div>
+                       <div className="text-right shrink-0">
+                         <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase font-mono">
+                           {member.lastSync}
+                         </span>
+                       </div>
+                     </div>
+
+                     {/* Action to delete other than self */}
+                     {member.id !== 'member_gloria' && (
+                       <button
+                         type="button"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           const updated = connectedMembers.filter(m => m.id !== member.id);
+                           setConnectedMembers(updated);
+                           localStorage.setItem('doctorian_connected_members', JSON.stringify(updated));
+                           if (selectedMemberId === member.id) {
+                             setSelectedMemberId('member_gloria');
+                           }
+                         }}
+                         className="absolute -top-2 -right-2 p-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/50 text-rose-500 rounded-full cursor-pointer transition-all border border-rose-100/30"
+                         title="Remove connected patient"
+                       >
+                         <Trash2 size={10} />
+                       </button>
+                     )}
+                   </div>
+                 );
+               })}
+             </div>
+
+             {/* Dynamic Add Connected Member Modal */}
+             <AnimatePresence>
+               {isAddMemberOpen && (
+                 <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                   <motion.div
+                     initial={{ opacity: 0, scale: 0.95 }}
+                     animate={{ opacity: 1, scale: 1 }}
+                     exit={{ opacity: 0, scale: 0.95 }}
+                     className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 w-full max-w-lg shadow-2xl relative"
+                   >
+                     <button
+                       type="button"
+                       onClick={() => setIsAddMemberOpen(false)}
+                       className="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 rounded-full transition-all cursor-pointer"
+                     >
+                       <X size={16} />
+                     </button>
+
+                     <h3 className="text-xl font-extrabold text-slate-900 dark:text-white uppercase tracking-tight mb-1">
+                       Link New Patient / Wearable
+                     </h3>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 font-sans">
+                       Add family member or patient parameters to establish direct cast streams
+                     </p>
+
+                     <div className="space-y-4 text-left">
+                       <div>
+                         <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name</label>
+                         <input
+                           type="text"
+                           value={newMemberName}
+                           onChange={(e) => setNewMemberName(e.target.value)}
+                           className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold font-sans focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                           placeholder="e.g. Richard J."
+                         />
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-4">
+                         <div>
+                           <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Relation / Role</label>
+                           <select
+                             value={newMemberRelation}
+                             onChange={(e) => setNewMemberRelation(e.target.value)}
+                             className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-xs font-bold font-sans focus:outline-none"
+                           >
+                             <option value="Family">Family</option>
+                             <option value="Parent">Parent</option>
+                             <option value="Spouse">Spouse</option>
+                             <option value="Child">Child</option>
+                             <option value="Clinic Patient">Clinic Patient</option>
+                           </select>
+                         </div>
+                         <div>
+                           <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Age</label>
+                           <input
+                             type="number"
+                             value={newMemberAge}
+                             onChange={(e) => setNewMemberAge(Number(e.target.value))}
+                             className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-xs font-bold font-sans focus:outline-none"
+                             min="1"
+                           />
+                         </div>
+                       </div>
+
+                       <div>
+                         <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Target Smartwatch Device Type</label>
+                         <select
+                           value={newMemberDevice}
+                           onChange={(e) => setNewMemberDevice(e.target.value as any)}
+                           className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-xs font-bold font-sans focus:outline-none"
+                         >
+                           <option value="Samsung">Samsung Galaxy Watch 6</option>
+                           <option value="Apple">Apple Watch Ultra / Series 9</option>
+                           <option value="Fitbit">Fitbit Sense 2 / Inspire</option>
+                           <option value="Garmin">Garmin Fenix 7 Sapphire</option>
+                           <option value="Bluetooth">Direct Web BLE Transceiver</option>
+                         </select>
+                       </div>
+                     </div>
+
+                     <div className="mt-8 flex gap-3">
+                       <button
+                         type="button"
+                         onClick={() => setIsAddMemberOpen(false)}
+                         className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-350 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
+                       >
+                         Cancel
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => {
+                           if (!newMemberName.trim()) return;
+                           
+                           // Setup typical physiological baselines based on selected smartwatch and age
+                           const pulseBaseline = newMemberDevice === 'Garmin' ? 62 : newMemberDevice === 'Apple' ? 70 : 76;
+                           const spo2Value = newMemberDevice === 'Apple' ? 99 : 97;
+                           const systValue = 115 + Math.floor(Math.random() * 12);
+                           const diastValue = 75 + Math.floor(Math.random() * 8);
+
+                           const newMember = {
+                             id: `member_${Date.now()}`,
+                             name: newMemberName,
+                             relation: newMemberRelation,
+                             age: newMemberAge,
+                             connectedDevice: newMemberDevice === 'Samsung' ? 'Samsung Galaxy Watch 6 Pro' :
+                                              newMemberDevice === 'Apple' ? 'Apple Watch Ultra' :
+                                              newMemberDevice === 'Fitbit' ? 'Fitbit Sense 2' :
+                                              newMemberDevice === 'Garmin' ? 'Garmin Fenix 7 Sapphire' : 'Real-time Bluetooth BLE device',
+                             deviceType: newMemberDevice,
+                             vitals: {
+                               heartRate: pulseBaseline,
+                               spo2: spo2Value,
+                               temperature: 36.6,
+                               systolicBP: systValue,
+                               diastolicBP: diastValue
+                             },
+                             status: 'normal' as any,
+                             lastSync: 'Just now',
+                             battery: 92,
+                             signal: 4
+                           };
+
+                           const updated = [...connectedMembers, newMember];
+                           setConnectedMembers(updated);
+                           localStorage.setItem('doctorian_connected_members', JSON.stringify(updated));
+                           
+                           setIsAddMemberOpen(false);
+                           setNewMemberName('');
+                           setSelectedMemberId(newMember.id); // automatically switch focus to newly connected member!
+
+                           confetti({
+                             particleCount: 80,
+                             spread: 60,
+                             origin: { y: 0.8 }
+                           });
+                         }}
+                         className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md"
+                       >
+                         Link Device
+                       </button>
+                     </div>
+                   </motion.div>
+                 </div>
+               )}
+             </AnimatePresence>
+           </div>
+
            {/* Longitudinal Chart Toggleable Matrix */}
           <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden group">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10 border-b border-slate-100 dark:border-slate-800/60 pb-6">
@@ -1158,8 +1565,13 @@ Provide a clean array or scannable markdown blocks containing these structured a
                <div className="flex items-center gap-2">
                   {chartMode === 'vitals' ? (
                      <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
-                        {['7D', '30D', '90D'].map(t => (
-                          <button key={t} type="button" className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${t === '30D' ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {['7D', '30D', '90D', '120D+'].map(t => (
+                          <button 
+                            key={t} 
+                            type="button" 
+                            onClick={() => setSelectedTimeRange(t as any)}
+                            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer ${selectedTimeRange === t ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-sm font-extrabold shadow-indigo-500/5' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
+                          >
                             {t}
                           </button>
                         ))}

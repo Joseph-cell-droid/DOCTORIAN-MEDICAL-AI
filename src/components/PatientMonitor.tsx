@@ -22,6 +22,7 @@ import { EmergencyRegistry } from './EmergencyRegistry';
 import { AlarmHubView } from './AlarmHubView';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
 import { HistoricalTelemetryChart } from './HistoricalTelemetryChart';
+import { TelemetryCastManager } from './TelemetryCastManager';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar,
@@ -4735,6 +4736,9 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             <div className="mb-8">
               <LiveECGMonitor vitals={vitals} addAlarmLog={addAlarmLog} />
             </div>
+
+            {/* Seamless Wearable & ICU Display Casting Console */}
+            <TelemetryCastManager />
 
             {/* Interactive 24-Hour Historical Dual-Axis Chart */}
             <HistoricalTelemetryChart 

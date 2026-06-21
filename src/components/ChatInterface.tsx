@@ -9,7 +9,7 @@ import {
   Copy, Check, ThumbsUp, ThumbsDown, MessageSquarePlus, Smile,
   Activity, Brain, Heart, Download, Paperclip, FileText, Phone,
   ChevronDown, Shield, Cpu, Clock, Plus, MessageSquare, ArrowRight, Settings,
-  BookOpen, Users
+  BookOpen, Users, Maximize2, Minimize2, Dna
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -248,7 +248,7 @@ const isMedicalQuery = (text: string): boolean => {
   return keywords.some(k => text.toLowerCase().includes(k));
 };
 
-export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string }) {
+export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage, onNavigate, onShowNeuralVisualizer }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string, onNavigate?: (view: any) => void, onShowNeuralVisualizer?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -475,6 +475,25 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // BRAND NEW COGNITIVE MATRIX SETTINGS STATE
   // ==========================================
   const [activeMainTab, setActiveMainTab] = useState<'chat' | 'health_log' | 'resources'>('chat');
+  const [isWidescreen, setIsWidescreen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("doctorian_chat_widescreen") === "true";
+    }
+    return false;
+  });
+  
+  const [activeFeatureTip, setActiveFeatureTip] = useState<{ id: string; text: string } | null>(null);
+  const activeFeatureTimerRef = useRef<any>(null);
+
+  const triggerFeatureTip = (id: string, text: string) => {
+    setActiveFeatureTip({ id, text });
+    if (activeFeatureTimerRef.current) {
+      clearTimeout(activeFeatureTimerRef.current);
+    }
+    activeFeatureTimerRef.current = setTimeout(() => {
+      setActiveFeatureTip(null);
+    }, 3000);
+  };
   
   // Offline Health Logs State
   const [healthLogs, setHealthLogs] = useState<any[]>(() => {
@@ -2392,22 +2411,21 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
         )}
       </AnimatePresence>
 
-      {/* Main Chat Core Split Container */}
       <div className="flex-1 flex min-h-0 min-w-0 relative overflow-hidden">
         {/* Main Chat Core */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-white dark:bg-slate-950 relative">
-          <header className="h-16 lg:h-15 px-3 md:px-4 lg:px-6 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl shrink-0 relative">
+          <header className="h-16 lg:h-15 px-2 xs:px-3 md:px-4 lg:px-6 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl shrink-0 relative">
             {/* Top border ambient synapse line */}
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 opacity-90" />
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-2 -ml-2 text-slate-500 hover:text-blue-600 transition-colors"
+                className="p-1.5 xs:p-2 -ml-1 text-slate-500 hover:text-blue-600 transition-colors shrink-0"
                 title="Neural Session History"
               >
-                <History size={20} />
+                <History size={18} className="sm:w-[20px] sm:h-[20px]" />
               </button>
-              <Sparkles size={16} className="text-blue-600 animate-pulse" />
+              <Sparkles size={14} className="text-blue-600 animate-pulse shrink-0 sm:w-[16px] sm:h-[16px]" />
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hidden xl:inline">Doctorian AI</span>
               
               {/* Active System Pulse Status */}
@@ -2419,77 +2437,212 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                   </span>
                 </div>
                 <button 
-                  onClick={handleToggleUgandaMOH}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-full transition-all text-[8.5px] font-[1000] uppercase tracking-widest cursor-pointer ${
+                  onClick={() => {
+                    handleToggleUgandaMOH();
+                    triggerFeatureTip('moh_protocols', `MOH Protocols: ${!isUgandaMOHActive ? 'Synced' : 'Offline'}`);
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-full transition-all text-[8.5px] font-[1000] uppercase tracking-widest cursor-pointer ${
                     isUgandaMOHActive 
                       ? 'bg-blue-600 text-white border-blue-500 shadow-sm' 
                       : 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30 hover:border-blue-500'
                   }`}
-                  title="MOH Uganda Care Guidance Protocols: Click to toggle dynamic synchronization matching UCG 2023."
+                  title="MOH Uganda Care Guidance Protocols"
                 >
-                  <BookOpen size={11} className={isUgandaMOHActive ? 'animate-pulse text-white' : 'text-blue-600 dark:text-blue-450'} />
-                  <span className="hidden lg:inline">MOH Protocols: {isUgandaMOHActive ? 'Synthesized' : 'Offline'}</span>
+                  <BookOpen size={13} className={isUgandaMOHActive ? 'animate-pulse text-white' : 'text-blue-600 dark:text-blue-450'} />
+                  <AnimatePresence>
+                    {activeFeatureTip?.id === 'moh_protocols' && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
+                      >
+                        {activeFeatureTip.text}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2">
+            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 lg:gap-2">
               {/* VHT Community Registry Sync */}
               <button
-                onClick={handleToggleVHTLogs}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border transition-all text-[9px] font-black uppercase tracking-wider cursor-pointer ${
+                onClick={() => {
+                  handleToggleVHTLogs();
+                  triggerFeatureTip('vht_registry', `VHT Registry: ${!isVHTLogsActive ? 'Synced' : 'Standby'}`);
+                }}
+                className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full border transition-all text-[8.5px] sm:text-[9px] font-black uppercase tracking-wider cursor-pointer shrink-0 ${
                   isVHTLogsActive
                     ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm shadow-emerald-500/10'
                     : 'bg-emerald-555/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
                 }`}
-                title="VHT Patient Community Registry: Click to toggle community patient metadata logs."
+                title="VHT Patient Community Registry"
               >
-                <Users size={11} className={isVHTLogsActive ? 'animate-pulse text-white' : 'text-emerald-500'} />
-                <span className="hidden lg:inline">VHT Registry: {isVHTLogsActive ? 'Synced' : 'Standby'}</span>
+                <Users size={12} className={isVHTLogsActive ? 'animate-pulse text-white' : 'text-emerald-500'} />
+                <AnimatePresence>
+                  {activeFeatureTip?.id === 'vht_registry' && (
+                    <motion.span
+                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
+                    >
+                      {activeFeatureTip.text}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
 
               {/* Bio-Stethoscope Acoustic Monitor */}
               <button 
-                onClick={handleTriggerBioStethoscope}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[9.5px] font-black uppercase tracking-wider shadow-sm cursor-pointer ${
+                onClick={() => {
+                  handleTriggerBioStethoscope();
+                  triggerFeatureTip('bio_stethoscope', 'Bioacoustic Scan');
+                }}
+                className={`flex items-center gap-1 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border transition-all text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider shadow-sm cursor-pointer shrink-0 ${
                   isBioStethoscopeActive
                     ? 'bg-rose-600 text-white border-rose-500 animate-pulse'
                     : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-150 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:border-rose-500'
                 }`}
-                title="Bio-Stethoscope: Click to capture and analyze thoracic bioacoustic sounds."
+                title="Bio-Stethoscope Acoustic Monitor"
               >
-                <Stethoscope size={11} className={isBioStethoscopeActive ? 'text-white' : 'text-rose-500'} />
-                <span className="hidden lg:inline">Bio-Stethoscope: {isBioStethoscopeActive ? 'Streaming...' : 'Measure'}</span>
+                <Stethoscope size={12} className={isBioStethoscopeActive ? 'text-white' : 'text-rose-500'} />
+                <AnimatePresence>
+                  {activeFeatureTip?.id === 'bio_stethoscope' && (
+                    <motion.span
+                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
+                    >
+                      {activeFeatureTip.text}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
 
               {/* Active Fine-Tuned Weights Indicator Badge */}
               {activeFineTunedModel && (
-                <div className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-500 text-[9px] font-black uppercase tracking-wider">
+                <div className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-500 text-[9px] font-black uppercase tracking-wider shrink-0">
                   <Cpu size={11} className="animate-pulse text-blue-400" />
                   <span>FT: {activeFineTunedModel.customName}</span>
                 </div>
               )}
 
               {/* EMR Case Intake & Formulator Trigger */}
+              {onShowNeuralVisualizer && (
+                <button 
+                  onClick={() => {
+                    onShowNeuralVisualizer();
+                    triggerFeatureTip('anatomical_synth', 'Anatomical Synth');
+                  }}
+                  className={`p-1.5 sm:p-2 transition-all flex items-center gap-1 sm:gap-1.5 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-500 hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-900 bg-white dark:bg-slate-950 cursor-pointer shrink-0 ${
+                    activeFeatureTip?.id === 'anatomical_synth' ? 'bg-blue-50 border-blue-200 dark:bg-slate-900 dark:border-slate-800' : ''
+                  }`}
+                  title="Anatomical Synth Visualizer"
+                >
+                  <Brain size={14} className="text-blue-500" />
+                  <AnimatePresence>
+                    {activeFeatureTip?.id === 'anatomical_synth' && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="hidden sm:inline-block text-[9.5px] font-[1000] uppercase tracking-wider text-blue-600 dark:text-blue-400 overflow-hidden whitespace-nowrap"
+                      >
+                        {activeFeatureTip.text}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              )}
+
+              {onNavigate && (
+                <button 
+                  onClick={() => {
+                    onNavigate('genomic_longevity');
+                    triggerFeatureTip('genomic_omics', 'Genomic Omics');
+                  }}
+                  className={`p-1.5 sm:p-2 transition-all flex items-center gap-1 sm:gap-1.5 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-500 hover:text-pink-600 hover:bg-slate-50 dark:hover:bg-slate-900 bg-white dark:bg-slate-950 cursor-pointer shrink-0 ${
+                    activeFeatureTip?.id === 'genomic_omics' ? 'bg-pink-50 border-pink-200 dark:bg-slate-900 dark:border-slate-800' : ''
+                  }`}
+                  title="Genomic Omics Core"
+                >
+                  <Dna size={14} className="text-pink-500 shrink-0" />
+                  <AnimatePresence>
+                    {activeFeatureTip?.id === 'genomic_omics' && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="hidden sm:inline-block text-[9.5px] font-[1000] uppercase tracking-wider text-pink-600 dark:text-pink-400 overflow-hidden whitespace-nowrap"
+                      >
+                        {activeFeatureTip.text}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              )}
+
               <button 
-                onClick={() => setShowToolHub(!showToolHub)} 
-                className={`p-2 transition-all flex items-center gap-1.5 rounded-xl border ${showToolHub ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-mono font-bold' : 'text-slate-400 hover:text-blue-600 border-transparent bg-transparent'}`}
+                onClick={() => {
+                  setShowToolHub(!showToolHub);
+                  triggerFeatureTip('case_intake', showToolHub ? 'EHR Closed' : 'EHR Intake Open');
+                }} 
+                className={`p-1.5 sm:p-2 transition-all flex items-center gap-1 sm:gap-1.5 rounded-xl border cursor-pointer shrink-0 ${
+                  showToolHub 
+                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-mono font-bold font-black' 
+                    : 'text-slate-400 hover:text-blue-600 border-transparent bg-transparent'
+                }`}
                 title="Patient Intake & Case EMR Formulator"
               >
-                <FileText size={16} />
-                <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Case Intake</span>
+                <FileText size={15} className="shrink-0" />
+                <AnimatePresence>
+                  {activeFeatureTip?.id === 'case_intake' && (
+                    <motion.span
+                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="hidden sm:inline-block text-[9px] font-black uppercase tracking-widest text-inherit overflow-hidden whitespace-nowrap"
+                    >
+                      {activeFeatureTip.text}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
 
               {/* Modernized Add Chat button with instant start template dropdown */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button 
-                  onClick={() => setShowNewChatDropdown(!showNewChatDropdown)} 
-                  className={`px-3 py-1.5 transition-all flex items-center gap-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${showNewChatDropdown ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-blue-50/50 dark:bg-slate-900 border-blue-100 dark:border-slate-800 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'}`}
+                  onClick={() => {
+                    setShowNewChatDropdown(!showNewChatDropdown);
+                    triggerFeatureTip('new_session', 'New Session');
+                  }} 
+                  className={`px-1.5 sm:px-3 py-1 sm:py-1.5 transition-all flex items-center gap-1 sm:gap-1.5 rounded-full border text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 ${showNewChatDropdown ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-blue-50/50 dark:bg-slate-900 border-blue-100 dark:border-slate-800 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'}`}
                   title="Smarter Pulse Node Spawn"
                 >
-                  <PlusCircle size={14} className={showNewChatDropdown ? '' : 'animate-pulse'} />
-                  <span className="hidden lg:inline">New Session</span>
-                  <ChevronDown size={11} className={`transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
+                  <PlusCircle size={12} className={showNewChatDropdown ? '' : 'animate-pulse'} />
+                  <AnimatePresence>
+                    {activeFeatureTip?.id === 'new_session' && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
+                      >
+                        {activeFeatureTip.text}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  <ChevronDown size={11} className={`hidden sm:inline-block transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
               <AnimatePresence>
@@ -2610,16 +2763,76 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
               onClick={() => {
                 setShowVoiceCallModal(true);
                 setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Loaded Doctorian Voice and Calling Portal.']);
+                triggerFeatureTip('voice_call', 'Voice Call');
               }} 
-              className="p-2 hover:bg-emerald-500/15 dark:hover:bg-emerald-550/20 text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1 bg-emerald-500/10 rounded-xl border border-emerald-500/20 cursor-pointer"
+              className="p-2 px-2.5 hover:bg-emerald-500/15 dark:hover:bg-emerald-550/20 text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1 bg-emerald-500/10 rounded-xl border border-emerald-500/20 cursor-pointer"
               title="Doctorian Voice consultation & Calling Portal"
             >
-              <Phone size={14} className="animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest px-1 hidden md:inline">Voice Call</span>
+              <Phone size={13} className="animate-pulse" />
+              <AnimatePresence>
+                {activeFeatureTip?.id === 'voice_call' && (
+                  <motion.span
+                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                    animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
+                  >
+                    {activeFeatureTip.text}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
 
-            <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-slate-400 hover:text-blue-600 transition-all animate-spin-slow" title="Doctorian Settings">
-              <Settings size={18} />
+            <button 
+              onClick={() => {
+                const newWS = !isWidescreen;
+                setIsWidescreen(newWS);
+                localStorage.setItem("doctorian_chat_widescreen", String(newWS));
+                setTerminalLogs(prev => [...prev.slice(-3), `SYS: UI dynamic layout shifted to [${newWS ? 'Widescreen' : 'Standard'}] mode.`]);
+                triggerFeatureTip('widescreen', newWS ? 'Widescreen' : 'Standard View');
+              }} 
+              className={`p-2 px-2.5 transition-all flex items-center gap-1.5 rounded-xl border cursor-pointer ${isWidescreen ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 font-mono font-bold hover:bg-indigo-500/20' : 'text-slate-400 hover:text-blue-600 border-transparent bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/45'}`}
+              title={isWidescreen ? "Switch to Standard Compact View" : "Switch to Full Explorer Widescreen View for friendly reading room"}
+            >
+              {isWidescreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              <AnimatePresence>
+                {activeFeatureTip?.id === 'widescreen' && (
+                  <motion.span
+                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                    animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
+                  >
+                    {activeFeatureTip.text}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+
+            <button 
+              onClick={() => {
+                setShowSettings(!showSettings);
+                triggerFeatureTip('settings', showSettings ? 'Closed Settings' : 'Settings Opened');
+              }} 
+              className="p-2 text-slate-400 hover:text-blue-600 transition-all animate-spin-slow cursor-pointer flex items-center gap-1" 
+              title="Doctorian Settings"
+            >
+              <Settings size={14} />
+              <AnimatePresence>
+                {activeFeatureTip?.id === 'settings' && (
+                  <motion.span
+                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                    animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-blue-600"
+                  >
+                    {activeFeatureTip.text}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
           </div>
         </header>
@@ -2668,7 +2881,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
           <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
           {/* Message Stream */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <div className={`mx-auto px-4 sm:px-6 py-4 sm:py-6 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (
                 <motion.div 
@@ -2904,8 +3117,8 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                           initial={false}
                           className={`text-sm sm:text-base leading-relaxed relative border transition-all ${
                           msg.role === 'user' 
-                            ? 'px-5 py-4 sm:px-6 sm:py-5 rounded-[2rem] bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 dark:from-white dark:via-slate-50 dark:to-slate-100 text-white dark:text-slate-900 border-transparent rounded-tr-none shadow-xl shadow-slate-950/10' 
-                            : 'px-5 py-4 sm:px-6 sm:py-5 rounded-[2rem] bg-slate-50/70 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 border-slate-100/60 dark:border-slate-800/40 rounded-tl-none shadow-sm w-full'
+                            ? `${isWidescreen ? 'px-6 py-5 sm:px-8 sm:py-6 rounded-[2.5rem]' : 'px-5 py-4 sm:px-6 sm:py-5 rounded-[2rem]'} bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 dark:from-white dark:via-slate-50 dark:to-slate-100 text-white dark:text-slate-900 border-transparent rounded-tr-none shadow-xl shadow-slate-950/10` 
+                            : `${isWidescreen ? 'px-6 py-5 sm:px-8 sm:py-6 rounded-[2.5rem]' : 'px-5 py-4 sm:px-6 sm:py-5 rounded-[2rem]'} bg-slate-50/70 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 border-slate-100/60 dark:border-slate-800/40 rounded-tl-none shadow-sm w-full`
                           }`}
                         >
                            {msg.role === 'bot' && (
@@ -2916,7 +3129,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                              </div>
                            )}
 
-                            <div className={`prose prose-sm dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white/90 dark:text-slate-800' : ''}`}>
+                            <div className={`prose ${isWidescreen ? 'prose-sm md:prose-base leading-relaxed' : 'prose-sm'} dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white/90 dark:text-slate-800' : ''}`}>
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {msg.text || (isLoading && i === messages.length - 1 ? '...' : '')}
                               </ReactMarkdown>
@@ -3127,7 +3340,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
         {/* Input Area */}
         <div className="px-4 sm:px-6 py-4 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800/50">
-          <div className="max-w-4xl mx-auto">
+          <div className={`mx-auto transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <div className="relative flex flex-col bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] sm:rounded-full p-2 transition-all shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800">
               {/* Attached Files Preview */}
               <AnimatePresence>
@@ -3284,7 +3497,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
         {activeMainTab === 'health_log' && (
           <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950/40 custom-scrollbar p-4 sm:p-6 space-y-6">
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className={`mx-auto space-y-6 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
               {/* Header with Title and Import/Export Options */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-bottom-3 duration-300">
                 <div>
@@ -3522,7 +3735,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
         {activeMainTab === 'resources' && (
           <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950/40 custom-scrollbar p-4 sm:p-6 space-y-6">
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className={`mx-auto space-y-6 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
               {/* Header with Title */}
               <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-bottom-3 duration-300 text-left">
                 <h3 className="text-xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">

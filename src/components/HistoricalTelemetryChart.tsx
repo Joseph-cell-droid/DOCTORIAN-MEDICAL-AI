@@ -18,11 +18,12 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
   preset 
 }) => {
   const [chartType, setChartType] = useState<'area' | 'line' | 'bar'>('area');
+  const [timeInterval, setTimeInterval] = useState<'24h' | '7d' | '30d'>('24h');
   const [showHR, setShowHR] = useState(true);
   const [showSpO2, setShowSpO2] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
 
-  // Generate a stable and realistic 24-hour trend based on the active patient preset
+  // Generate a stable and realistic trend based on active interval and patient preset
   const chartData = useMemo(() => {
     const data = [];
     const now = new Date();
@@ -45,36 +46,90 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
       sVariation = 2;
     }
 
-    // Generate 24 hourly points
-    for (let i = 23; i >= 0; i--) {
-      const timeLabel = new Date(now.getTime() - i * 60 * 60 * 1000);
-      const hourString = timeLabel.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      // We use mathematical waves to simulate realistic biometric homeostasis shift over 24 hours
-      const waveValue = Math.sin((24 - i) * 0.35) * hVariation;
-      const waveValueSpo2 = Math.cos((24 - i) * 0.35) * sVariation;
+    if (timeInterval === '24h') {
+      // Generate 24 hourly points
+      for (let i = 23; i >= 0; i--) {
+        const timeLabel = new Date(now.getTime() - i * 60 * 60 * 1000);
+        const hourString = timeLabel.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // We use mathematical waves to simulate realistic biometric homeostasis shift over 24 hours
+        const waveValue = Math.sin((24 - i) * 0.35) * hVariation;
+        const waveValueSpo2 = Math.cos((24 - i) * 0.35) * sVariation;
 
-      // Ensure the very last hour merges with the real-time active telemetry of the simulator/arduino!
-      const isCurrentHour = i === 0;
-      
-      const hrVal = isCurrentHour && vitals
-        ? Math.round(vitals.heartRate)
-        : Math.round(hBaseline + waveValue + (Math.sin(i * 1.5) * 1.5));
-      
-      const spo2Val = isCurrentHour && vitals
-        ? Math.round(vitals.spo2)
-        : Math.min(100, Math.round(sBaseline + waveValueSpo2 + (Math.cos(i * 1.5) * 0.5)));
+        // Ensure the very last hour merges with the real-time active telemetry of the simulator/arduino!
+        const isCurrentHour = i === 0;
+        
+        const hrVal = isCurrentHour && vitals
+          ? Math.round(vitals.heartRate)
+          : Math.round(hBaseline + waveValue + (Math.sin(i * 1.5) * 1.5));
+        
+        const spo2Val = isCurrentHour && vitals
+          ? Math.round(vitals.spo2)
+          : Math.min(100, Math.round(sBaseline + waveValueSpo2 + (Math.cos(i * 1.5) * 0.5)));
 
-      data.push({
-        time: hourString,
-        heartRate: hrVal,
-        spo2: spo2Val,
-        timestamp: timeLabel.getTime(),
-        isCurrent: isCurrentHour
-      });
+        data.push({
+          time: hourString,
+          heartRate: hrVal,
+          spo2: spo2Val,
+          timestamp: timeLabel.getTime(),
+          isCurrent: isCurrentHour
+        });
+      }
+    } else if (timeInterval === '7d') {
+      // Generate 7 daily points
+      for (let i = 6; i >= 0; i--) {
+        const timeLabel = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateString = timeLabel.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        
+        const waveValue = Math.sin((7 - i) * 1.2) * hVariation;
+        const waveValueSpo2 = Math.cos((7 - i) * 1.2) * sVariation;
+        const isToday = i === 0;
+
+        const hrVal = isToday && vitals
+          ? Math.round(vitals.heartRate)
+          : Math.round(hBaseline + waveValue + (Math.sin(i * 2.5) * 2));
+        
+        const spo2Val = isToday && vitals
+          ? Math.round(vitals.spo2)
+          : Math.min(100, Math.round(sBaseline + waveValueSpo2 + (Math.cos(i * 2.5) * 0.7)));
+
+        data.push({
+          time: dateString,
+          heartRate: hrVal,
+          spo2: spo2Val,
+          timestamp: timeLabel.getTime(),
+          isCurrent: isToday
+        });
+      }
+    } else {
+      // Generate 30 daily points
+      for (let i = 29; i >= 0; i--) {
+        const timeLabel = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateString = timeLabel.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        
+        const waveValue = Math.sin((30 - i) * 0.5) * hVariation;
+        const waveValueSpo2 = Math.cos((30 - i) * 0.5) * sVariation;
+        const isToday = i === 0;
+
+        const hrVal = isToday && vitals
+          ? Math.round(vitals.heartRate)
+          : Math.round(hBaseline + waveValue + (Math.sin(i * 3.5) * 3));
+        
+        const spo2Val = isToday && vitals
+          ? Math.round(vitals.spo2)
+          : Math.min(100, Math.round(sBaseline + waveValueSpo2 + (Math.cos(i * 3.5) * 0.8)));
+
+        data.push({
+          time: dateString,
+          heartRate: hrVal,
+          spo2: spo2Val,
+          timestamp: timeLabel.getTime(),
+          isCurrent: isToday
+        });
+      }
     }
     return data;
-  }, [vitals, selectedPatientId, preset]);
+  }, [vitals, selectedPatientId, preset, timeInterval]);
 
   // Compute stats summaries for both metrics
   const stats = useMemo(() => {
@@ -132,13 +187,13 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
     <div id="historical-telemetry-panel" className="bg-white dark:bg-slate-900 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl p-6 sm:p-8 mb-8 transition-colors">
       
       {/* Header and Controls Row */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 border-b border-slate-50 dark:border-slate-800/60 pb-6">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 border-b border-slate-50 dark:border-slate-800/60 pb-6">
         <div>
           <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-3 text-lg sm:text-xl uppercase tracking-tight">
             <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400">
               <Activity className="w-5.5 h-5.5" />
             </div>
-            Interactive 24-Hour Biometric Trends
+            Interactive {timeInterval === '24h' ? '24-Hour' : timeInterval === '7d' ? '7-Day' : '30-Day'} Biometric Trends
           </h3>
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1.5 ml-1">
             Correlation: Cardiac Rhythm vs Metabolic O2 Saturation
@@ -148,6 +203,40 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
         {/* Control Interface Panel */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           
+          {/* Time Interval Selector */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-205 dark:bg-slate-800 dark:border-slate-750">
+            <button
+              onClick={() => setTimeInterval('24h')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                timeInterval === '24h' 
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              24h View
+            </button>
+            <button
+              onClick={() => setTimeInterval('7d')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                timeInterval === '7d' 
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              7-Day
+            </button>
+            <button
+              onClick={() => setTimeInterval('30d')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                timeInterval === '30d' 
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              30-Day
+            </button>
+          </div>
+
           {/* Vitals Selection Visibility */}
           <div className="flex bg-slate-55 bg-slate-100 p-1 rounded-xl border border-slate-205 dark:bg-slate-800 dark:border-slate-750">
             <button
@@ -231,7 +320,9 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
           <div className="bg-blue-50/40 dark:bg-slate-800/20 rounded-3xl p-5 border border-blue-50/60 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-3 text-blue-600 dark:text-blue-400">
               <Heart size={14} className="animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest">24h Heart Rate Analysis</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {timeInterval === '24h' ? '24h' : timeInterval === '7d' ? '7-Day' : '30-Day'} Heart Rate Analysis
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-white/80 dark:bg-slate-900/60 py-2.5 px-2 rounded-xl">
@@ -253,7 +344,9 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
           <div className="bg-emerald-50/40 dark:bg-slate-800/20 rounded-3xl p-5 border border-emerald-50/60 dark:border-slate-800">
             <div className="flex items-center gap-2 mb-3 text-emerald-600 dark:text-emerald-400">
               <Eye size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest">24h SpO2 Saturation Analysis</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {timeInterval === '24h' ? '24h' : timeInterval === '7d' ? '7-Day' : '30-Day'} SpO2 Saturation Analysis
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-white/80 dark:bg-slate-900/60 py-2.5 px-2 rounded-xl">
@@ -447,7 +540,7 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> SpO2 Oxygen Sync
           </span>
         </div>
-        <span className="text-blue-500 animate-pulse">● 24h Sync Stream Active</span>
+        <span className="text-blue-500 animate-pulse">● {timeInterval === '24h' ? '24h' : timeInterval === '7d' ? '7-Day' : '30-Day'} Sync Stream Active</span>
       </div>
 
     </div>

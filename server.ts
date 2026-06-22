@@ -61,8 +61,9 @@ const PORT = 3000;
 console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
-// Toggle between "gemini" (Option Two - free platform Gemini models) and "Ollama" (Option One - Llama 3.1 8b via Ollama)
+// Toggle between "gemini", "Ollama", or "LM_STUDIO"
 const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
+const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
 // Option Two Engines (Google Gemini mapped to modern standard models)
 const GEMINI_PRIMARY = "gemma-4"; 
@@ -83,12 +84,18 @@ const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
 const DEFAULT_GEMMA_ENGINE = "gemma-4";
 const BACKUP_ENGINE = "mistral";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || process.env.LOCAL_AI_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "mistral";
+const OLLAMA_URL = IS_LM_STUDIO
+  ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
+  : (process.env.OLLAMA_URL || process.env.LOCAL_AI_URL || "http://localhost:11434");
+
+const OLLAMA_MODEL = IS_LM_STUDIO
+  ? (process.env.LM_STUDIO_MODEL || "google/gemma-3-4b")
+  : (process.env.OLLAMA_MODEL || "mistral");
+
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
 const IS_LOCAL_ENV = process.env.NODE_ENV !== 'production';
-const USE_LOCAL_AI = process.env.USE_LOCAL_AI === 'true';
+const USE_LOCAL_AI = process.env.USE_LOCAL_AI === 'true' || IS_LM_STUDIO;
 const SILENT_OLLAMA = process.env.SILENT_OLLAMA === 'true';
 
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || "tgp_v1_r-su1DYx0zYLUUhlkY-b9UYZ5Hx404P6TuAuSl7ZvTM";
@@ -110,11 +117,14 @@ const shouldTryHuggingFace = (customToken?: string) => {
   return token && token.trim().length > 0;
 };
 
-// Helper to determine if we should even try the local Ollama pulse
+// Helper to determine if we should even try the local Ollama/LM Studio pulse
 const shouldTryOllama = (customUrl?: string) => {
   if (SILENT_OLLAMA) return false;
   const url = (customUrl || "").trim().toLowerCase();
   if (!url) return false;
+  if (IS_LM_STUDIO || ACTIVE_AI_PROVIDER.toLowerCase() === "ollama") {
+    return true;
+  }
   if (url.includes("localhost") || url.includes("127.0.0.1")) {
     return IS_LOCAL_ENV === true;
   }
@@ -436,11 +446,15 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
-  let pathways = ["huggingface", "ollama", "keys", "together"];
-  if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
+  let pathways = ["huggingface", "keys", "together", "ollama"];
+  if (IS_LM_STUDIO) {
+    pathways = ["ollama"];
+  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
+    pathways = ["ollama", "huggingface", "keys", "together"];
+  } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
     const isLocalhost = activeOllamaUrl.includes("localhost") || activeOllamaUrl.includes("127.0.0.1");
     if (!isLocalhost || IS_LOCAL_ENV) {
-      pathways = ["ollama", "huggingface", "keys", "together"];
+      pathways = ["huggingface", "keys", "together", "ollama"];
     }
   }
 
@@ -582,7 +596,7 @@ async function* callAIStream(options: {
     if (pathway === "ollama" && shouldTryOllama(activeOllamaUrl)) {
       try {
         const endpoint = activeOllamaUrl.endsWith('/') ? activeOllamaUrl.slice(0, -1) : activeOllamaUrl;
-        const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1');
+        const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1') || IS_LM_STUDIO;
         const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
         const finalUrl = isLMStudio
           ? (endpoint.includes('/v1') ? (endpoint.includes('/chat/completions') ? endpoint : `${endpoint}/chat/completions`) : `${endpoint}/v1/chat/completions`)
@@ -642,7 +656,7 @@ async function* callAIStream(options: {
         const response = await axios.post(finalUrl, payload, { 
           headers: localHeaders,
           responseType: 'stream', 
-          timeout: 30000 
+          timeout: 2500 
         });
 
         const stream = response.data;
@@ -892,6 +906,10 @@ async function* callAIStream(options: {
   // --- FINAL FALLBACK: Connection Failure ---
   console.log("[AI-STREAM] External pathways exhausted. Triggering local synthesis.");
   const prompt = lastMessage?.text || "Hello";
+  if (IS_LM_STUDIO || ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
+    yield `🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to connect to your local pre-trained model. Please verify that your local LM Studio server is running on your laptop with the URL: ${OLLAMA_URL} and that the model "${OLLAMA_MODEL}" is successfully loaded.`;
+    return;
+  }
   const fallbackResponse = doctorianLocalSynthesis(prompt);
   yield fallbackResponse;
 }
@@ -983,11 +1001,15 @@ async function callAIWorkflow(options: {
   }
 
   // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
-  let pathways = ["huggingface", "ollama", "keys", "together"];
-  if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
+  let pathways = ["huggingface", "keys", "together", "ollama"];
+  if (IS_LM_STUDIO) {
+    pathways = ["ollama"];
+  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
+    pathways = ["ollama", "huggingface", "keys", "together"];
+  } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
     const isLocalhost = activeOllamaUrl.includes("localhost") || activeOllamaUrl.includes("127.0.0.1");
     if (!isLocalhost || IS_LOCAL_ENV) {
-      pathways = ["ollama", "huggingface", "keys", "together"];
+      pathways = ["huggingface", "keys", "together", "ollama"];
     }
   }
 
@@ -1067,10 +1089,10 @@ async function callAIWorkflow(options: {
         const isLocal = activeOllamaUrl && (activeOllamaUrl.includes('localhost') || activeOllamaUrl.includes('127.0.0.1'));
         
         // Injecting local analysis enhancement instruction
-        const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross-reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
+        const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
 
         const endpoint = activeOllamaUrl.endsWith('/') ? activeOllamaUrl.slice(0, -1) : activeOllamaUrl;
-        const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1');
+        const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1') || IS_LM_STUDIO;
         const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
         
         const finalUrl = isLMStudio
@@ -1129,8 +1151,8 @@ async function callAIWorkflow(options: {
 
         const response = await axios.post(finalUrl, payload, { 
           headers: localHeaders,
-          timeout: 60000 
-        }); // Longer timeout for deep local analysis
+          timeout: 2500 
+        }); // Fast timeout for responsive local detection and cloud falling-back
 
         // Handle standard Ollama chat format
         if (response.data?.message?.content) {
@@ -1325,6 +1347,9 @@ async function callAIWorkflow(options: {
   // --- FINAL FALLBACK: Connection Failure ---
   console.log("[AI-BRAIN] External pathways exhausted. Triggering local synthesis.");
   const prompt = lastUserMessage || "Hello";
+  if (IS_LM_STUDIO || ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
+    return `🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to connect to your local pre-trained model. Please verify that your local LM Studio server is running on your laptop with the URL: ${OLLAMA_URL} and that the model "${OLLAMA_MODEL}" is successfully loaded.`;
+  }
   return doctorianLocalSynthesis(prompt);
 }
 

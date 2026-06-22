@@ -775,6 +775,7 @@ export default function App() {
   const [isWindowsMenuOpen, setIsWindowsMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [weatherData, setWeatherData] = useState<any>(null);
+  const navigationContainerRef = useRef<HTMLDivElement>(null);
 
   const arduino = useArduinoContext();
   useMedicationReminders(user);
@@ -1461,7 +1462,7 @@ export default function App() {
       let sourceAttribution = "";
 
       // 1. Try local Gemma4 first (prioritizing PC Local LM Studio on User's PC / local Ollama)
-      const localUrlStr = user?.ollamaUrl || 'http://localhost:1234';
+      const localUrlStr = user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt';
       const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
       
       const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
@@ -1803,7 +1804,8 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden">
+      <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
+        <div ref={navigationContainerRef} className="fixed inset-0 z-[140] pointer-events-none" />
       <a 
         href="#main-content" 
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[150] focus:px-6 focus:py-3 focus:bg-blue-600 focus:text-white focus:rounded-2xl focus:font-black focus:shadow-2xl"
@@ -2968,7 +2970,7 @@ export default function App() {
       </div>
 
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-20'
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-32 sm:pb-24'
       }`} id="main-content">
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus' 
@@ -3994,10 +3996,14 @@ export default function App() {
   <AnimatePresence>
     {navigationHistory.length > 1 && (
       <motion.div
+        drag
+        dragMomentum={false}
+        dragElastic={0.05}
+        dragConstraints={navigationContainerRef}
         initial={{ opacity: 0, scale: 0.8, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.8, y: 20 }}
-        className="fixed bottom-24 right-5 sm:bottom-8 sm:right-8 z-[150] pointer-events-none"
+        className="fixed bottom-24 right-5 sm:bottom-8 sm:right-8 z-[150] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
       >
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -4005,10 +4011,10 @@ export default function App() {
           onMouseEnter={() => setIsBackHovered(true)}
           onMouseLeave={() => setIsBackHovered(false)}
           onClick={handleGoBack}
-          className="flex items-center justify-center gap-2 h-11 sm:h-12 rounded-full border shadow-[0_15px_30px_rgba(37,99,235,0.25)] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-500/30 font-black text-[10px] uppercase tracking-wider pl-4 pr-3 cursor-pointer pointer-events-auto select-none transition-all duration-200"
-          title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'}`}
+          className="relative flex items-center justify-center gap-1.5 sm:gap-2 h-11 w-11 sm:w-auto sm:h-12 rounded-full border shadow-[0_15px_30px_rgba(37,99,235,0.25)] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-500/30 font-black text-[10px] uppercase tracking-wider p-0 sm:pl-4 sm:pr-3 cursor-pointer pointer-events-auto select-none transition-all duration-200"
+          title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'} (Drag to move)`}
         >
-          <ArrowLeft size={14} className="stroke-[3]" />
+          <ArrowLeft size={14} className="stroke-[3] shrink-0" />
           
           <AnimatePresence mode="wait">
             {!isBackHovered ? (
@@ -4017,7 +4023,7 @@ export default function App() {
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-[9px] font-black uppercase tracking-widest leading-none"
+                className="text-[9px] font-black uppercase tracking-widest leading-none hidden sm:inline-block"
               >
                 Back
               </motion.span>
@@ -4027,14 +4033,14 @@ export default function App() {
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-[9px] text-white/90 font-bold tracking-wider leading-none truncate max-w-[140px]"
+                className="text-[9px] text-white/90 font-bold tracking-wider leading-none truncate max-w-[140px] hidden sm:inline-block"
               >
                 To {viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'Previous'}
               </motion.span>
             )}
           </AnimatePresence>
 
-          <span className="w-5 h-5 rounded-full bg-white/25 text-white text-[8px] font-black flex items-center justify-center shrink-0 ml-1">
+          <span className="absolute -top-1 -right-1 sm:static sm:top-auto sm:right-auto w-5 h-5 rounded-full bg-blue-500 sm:bg-white/25 text-white text-[8px] font-black flex items-center justify-center shrink-0 sm:ml-1 shadow-sm border border-blue-400/50 sm:border-none">
             {navigationHistory.length - 1}
           </span>
         </motion.button>

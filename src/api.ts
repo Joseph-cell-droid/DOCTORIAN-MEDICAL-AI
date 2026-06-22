@@ -217,6 +217,51 @@ export function getLocalLLMEndpoint(baseUrl: string): { url: string; isOpenAI: b
   return { url: `${cleanUrl}/api/chat`, isOpenAI: false };
 }
 
+export async function resolveLocalModelName(baseUrl: string, userConfiguredModel?: string): Promise<string> {
+  if (userConfiguredModel && userConfiguredModel.trim() !== "") {
+    return userConfiguredModel.trim();
+  }
+  const cleanUrl = baseUrl.trim().replace(/\/$/, "");
+  const isLMStudio = cleanUrl.includes(":1234") || cleanUrl.toLowerCase().includes("lmstudio") || cleanUrl.toLowerCase().includes("v1") || cleanUrl.includes("/v1");
+  
+  if (isLMStudio) {
+    try {
+      let modelsUrl = "";
+      if (cleanUrl.includes("/v1")) {
+        modelsUrl = `${cleanUrl}/models`;
+      } else {
+        modelsUrl = `${cleanUrl}/v1/models`;
+      }
+      
+      const response = await originalBrowserFetch(modelsUrl).catch(() => null);
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data && data.data && data.data.length > 0) {
+          console.log(`[Local AI] Dynamically resolved active LM Studio model: ${data.data[0].id}`);
+          return data.data[0].id;
+        }
+      }
+    } catch (e) {
+      console.warn("[Local AI] Failed to dynamically resolve active model:", e);
+    }
+  } else {
+    try {
+      const tagsUrl = `${cleanUrl}/api/tags`;
+      const response = await originalBrowserFetch(tagsUrl).catch(() => null);
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data && data.models && data.models.length > 0) {
+          console.log(`[Local AI] Dynamically resolved active Ollama model: ${data.models[0].name}`);
+          return data.models[0].name;
+        }
+      }
+    } catch (e) {
+      console.warn("[Local AI] Failed to resolve active Ollama model name:", e);
+    }
+  }
+  return userConfiguredModel || "mistral";
+}
+
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
   if (typeof localStorage === 'undefined') return defaultValue;
   try {
@@ -1408,71 +1453,99 @@ export const api = {
         return { text, creditsRemaining: "Unlimited (Offline Local Back-up Mode)" };
       }
 
-      // Check if user has prioritize local AI active in localStorage
+      // Check if user has prioritize local AI active in localStorage, or if URL is local (localhost / 127.0.0.1 / ::1) which only browser direct call can hit
       const userStr = localStorage.getItem('medical_user');
-      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
-      
-      if (prioritizeLocalAI && userStr) {
+      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+      let isLocalUrl = false;
+      let parsedUser: any = null;
+      if (userStr) {
         try {
-          const user = JSON.parse(userStr);
-          if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
-            const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-            const defaultLocalModel = 'mistral';
-            const activeLocalModel = user.ollamaModel || defaultLocalModel;
-            console.log(`[Neural Link] [DIRECT CLIENT] Directing pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel})`);
-            
-            const requestBody = isOpenAI ? {
-              model: activeLocalModel,
-              messages: [
-                { role: 'system', content: systemInstruction },
-                ...payloadMessages.map(m => ({
-                  role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-                  content: m.text
-                }))
-              ],
-              stream: false,
-              temperature: temperature || 0.7
-            } : {
-              model: activeLocalModel, 
-              messages: [
-                { role: 'system', content: systemInstruction },
-                ...payloadMessages.map(m => ({
-                  role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-                  content: m.text
-                }))
-              ],
-              stream: false,
-              options: { temperature: temperature || 0.7 }
-            };
+          parsedUser = JSON.parse(userStr);
+        } catch (e) {}
+      }
 
-            const localHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-            const localApiKeySaved = localStorage.getItem('doctorian_local_api_key');
-            if (localApiKeySaved && localApiKeySaved.trim() !== '') {
-              localHeaders['Authorization'] = `Bearer ${localApiKeySaved.trim()}`;
-            }
+      if (!parsedUser) {
+        parsedUser = {
+          ollamaUrl: 'https://fuzzy-bugs-run.loca.lt',
+          ollamaModel: 'gemma4',
+          enableExternalAI: true
+        };
+      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '') {
+        parsedUser.ollamaUrl = 'https://fuzzy-bugs-run.loca.lt';
+      }
 
-            const localRes = await fetch(localUrl, {
-              method: 'POST',
-              headers: localHeaders,
-              body: JSON.stringify(requestBody)
-            });
+      if (parsedUser && parsedUser.ollamaUrl) {
+        const urlLower = parsedUser.ollamaUrl.toLowerCase();
+        isLocalUrl = urlLower.includes("localhost") || urlLower.includes("127.0.0.1") || urlLower.includes("::1");
+      }
 
-            if (localRes.ok) {
-              const localData = await localRes.json();
-              if (isOpenAI) {
-                const text = localData.choices?.[0]?.message?.content;
-                if (text) {
-                  return { text: text as string, creditsRemaining: `Unlimited (Direct Local Bridge - LM Studio)` };
-                }
-              } else {
-                if (localData.message?.content) {
-                  return { text: localData.message.content as string, creditsRemaining: `Unlimited (Direct Local Bridge - Ollama)` };
-                }
+      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl) && (parsedUser.enableExternalAI || parsedUser.enableExternalAI === undefined)) {
+        const user = parsedUser;
+        try {
+          const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
+          
+          let activeLocalModel = user.ollamaModel;
+          if (!activeLocalModel || activeLocalModel.trim() === "") {
+            activeLocalModel = await resolveLocalModelName(user.ollamaUrl, activeLocalModel);
+          }
+          if (!activeLocalModel) {
+            activeLocalModel = 'mistral';
+          }
+          
+          console.log(`[Neural Link] [DIRECT CLIENT] Directing pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl})`);
+          
+          const requestBody = isOpenAI ? {
+            model: activeLocalModel,
+            messages: [
+              { role: 'system', content: systemInstruction },
+              ...payloadMessages.map(m => ({
+                role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.text
+              }))
+            ],
+            stream: false,
+            temperature: temperature || 0.7
+          } : {
+            model: activeLocalModel, 
+            messages: [
+              { role: 'system', content: systemInstruction },
+              ...payloadMessages.map(m => ({
+                role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.text
+              }))
+            ],
+            stream: false,
+            options: { temperature: temperature || 0.7 }
+          };
+
+          const localHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+          const localApiKeySaved = localStorage.getItem('doctorian_local_api_key');
+          if (localApiKeySaved && localApiKeySaved.trim() !== '') {
+            localHeaders['Authorization'] = `Bearer ${localApiKeySaved.trim()}`;
+          }
+
+          const localRes = await fetch(localUrl, {
+            method: 'POST',
+            headers: localHeaders,
+            body: JSON.stringify(requestBody)
+          });
+
+          if (localRes.ok) {
+            const localData = await localRes.json();
+            if (isOpenAI) {
+              const text = localData.choices?.[0]?.message?.content;
+              if (text) {
+                return { text: text as string, creditsRemaining: `Unlimited (Direct Local Bridge - LM Studio)` };
+              }
+            } else {
+              if (localData.message?.content) {
+                return { text: localData.message.content as string, creditsRemaining: `Unlimited (Direct Local Bridge - Ollama)` };
               }
             }
           }
-        } catch (e) {
-          console.warn("[Neural Link] [DIRECT CLIENT] Direct local AI execution failed. Reverting to managed backend pipeline...", e);
+          console.warn(`[Neural Link] Direct local AI connection returned status: ${localRes.status}. Cascading to cloud backend.`);
+        } catch (e: any) {
+          console.warn("[Neural Link] [DIRECT CLIENT] Direct local AI execution failed, cascading to cloud backend:", e);
         }
       }
 
@@ -1563,9 +1636,9 @@ export const api = {
           }
         }
         
-        console.warn("[Neural Link] Local LLM failover missed. Initiating emergency offline diagnostic synapse fallback...");
-        const text = generateOfflineMedicalResponse(userPrompt);
-        return { text, creditsRemaining: "Unlimited (Emergency Diagnostic Fallback)" };
+        console.warn("[Neural Link] Local LLM failover missed.");
+        const text = "🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to fetch response from your local pre-trained model. Please verify that your local LM Studio server is running on your laptop, that your target URL is configured correct, and that your chosen model is currently loaded inside LM Studio. Local simulated neural response has been bypassed to allow direct model auditing.";
+        return { text, creditsRemaining: "Local Connection Disrupted" };
       }
     },
     async voiceChat(text: string, voiceName: string = 'Charon') {
@@ -1629,103 +1702,132 @@ export const api = {
         return;
       }
 
-      // Check if user has prioritize local AI active in localStorage
+      // Check if user has prioritize local AI active in localStorage, or if URL is local (localhost / 127.0.0.1 / ::1) which only browser direct call can hit
       const userStr = localStorage.getItem('medical_user');
-      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
-      
-      if (prioritizeLocalAI && userStr) {
+      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+      let isLocalUrl = false;
+      let parsedUser: any = null;
+      if (userStr) {
         try {
-          const user = JSON.parse(userStr);
-          if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
-            const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-            const defaultLocalModel = 'mistral';
-            const activeLocalModel = user.ollamaModel || defaultLocalModel;
-            console.log(`[Neural Link] [DIRECT CLIENT] Directing stream pulse to Local LLM prior: ${localUrl} (Model: ${activeLocalModel})`);
-            
-            const requestBody = isOpenAI ? {
-              model: activeLocalModel,
-              messages: [
-                { role: 'system', content: systemInstruction },
-                ...messages.map(m => ({
-                  role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-                  content: m.text
-                }))
-              ],
-              stream: true,
-              temperature: temperature || 0.7
-            } : {
-              model: activeLocalModel, 
-              messages: [
-                { role: 'system', content: systemInstruction },
-                ...messages.map(m => ({
-                  role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-                  content: m.text
-                }))
-              ],
-              stream: true,
-              options: { temperature: temperature || 0.7 }
-            };
+          parsedUser = JSON.parse(userStr);
+        } catch (e) {}
+      }
 
-            const localHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-            const localApiKeySaved = localStorage.getItem('doctorian_local_api_key');
-            if (localApiKeySaved && localApiKeySaved.trim() !== '') {
-              localHeaders['Authorization'] = `Bearer ${localApiKeySaved.trim()}`;
-            }
+      if (!parsedUser) {
+        parsedUser = {
+          ollamaUrl: 'https://fuzzy-bugs-run.loca.lt',
+          ollamaModel: 'gemma4',
+          enableExternalAI: true
+        };
+      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '') {
+        parsedUser.ollamaUrl = 'https://fuzzy-bugs-run.loca.lt';
+      }
 
-            const localRes = await fetch(localUrl, {
-              method: 'POST',
-              headers: localHeaders,
-              body: JSON.stringify(requestBody),
-              signal
-            });
+      if (parsedUser && parsedUser.ollamaUrl) {
+        const urlLower = parsedUser.ollamaUrl.toLowerCase();
+        isLocalUrl = urlLower.includes("localhost") || urlLower.includes("127.0.0.1") || urlLower.includes("::1");
+      }
 
-            if (localRes.ok && localRes.body) {
-              const reader = localRes.body.getReader();
-              const decoder = new TextDecoder();
-              let streamBuffer = "";
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                streamBuffer += decoder.decode(value, { stream: true });
-                let lineEndIndex;
-                while ((lineEndIndex = streamBuffer.indexOf("\n")) >= 0) {
-                  const line = streamBuffer.slice(0, lineEndIndex).trim();
-                  streamBuffer = streamBuffer.slice(lineEndIndex + 1);
-
-                  let cleanLine = line.trim();
-                  if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
-
-                  let targetJson = cleanLine;
-                  if (cleanLine.startsWith("data:")) {
-                    targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
-                  }
-
-                  try {
-                    const parsed = JSON.parse(targetJson);
-                    if (isOpenAI) {
-                      const text = parsed.choices?.[0]?.delta?.content;
-                      if (text) yield text;
-                    } else {
-                      if (parsed.message?.content) {
-                        yield parsed.message.content;
-                      } else if (parsed.response) {
-                        yield parsed.response;
-                      } else if (parsed.choices?.[0]?.delta?.content) {
-                        yield parsed.choices[0].delta.content;
-                      }
-                    }
-                  } catch (e) {}
-                }
-              }
-              if (onMetadata) {
-                onMetadata({ credits: `Unlimited (Direct Local Bridge - ${isOpenAI ? 'LM Studio' : 'Ollama'})` });
-              }
-              return; // Executed successfully, stop and return!
-            }
+      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl) && (parsedUser.enableExternalAI || parsedUser.enableExternalAI === undefined)) {
+        const user = parsedUser;
+        try {
+          const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
+          
+          let activeLocalModel = user.ollamaModel;
+          if (!activeLocalModel || activeLocalModel.trim() === "") {
+            activeLocalModel = await resolveLocalModelName(user.ollamaUrl, activeLocalModel);
           }
-        } catch (e) {
-          console.warn("[Neural Link] [DIRECT CLIENT] Direct local AI stream execution failed. Reverting to managed backend pipeline...", e);
+          if (!activeLocalModel) {
+            activeLocalModel = 'mistral';
+          }
+          
+          console.log(`[Neural Link] [DIRECT CLIENT] Directing stream pulse to Local LLM prior: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl})`);
+          
+          const requestBody = isOpenAI ? {
+            model: activeLocalModel,
+            messages: [
+              { role: 'system', content: systemInstruction },
+              ...messages.map(m => ({
+                role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.text
+              }))
+            ],
+            stream: true,
+            temperature: temperature || 0.7
+          } : {
+            model: activeLocalModel, 
+            messages: [
+              { role: 'system', content: systemInstruction },
+              ...messages.map(m => ({
+                role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.text
+              }))
+            ],
+            stream: true,
+            options: { temperature: temperature || 0.7 }
+          };
+
+          const localHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+          const localApiKeySaved = localStorage.getItem('doctorian_local_api_key');
+          if (localApiKeySaved && localApiKeySaved.trim() !== '') {
+            localHeaders['Authorization'] = `Bearer ${localApiKeySaved.trim()}`;
+          }
+
+          const localRes = await fetch(localUrl, {
+            method: 'POST',
+            headers: localHeaders,
+            body: JSON.stringify(requestBody),
+            signal
+          });
+
+          if (localRes.ok && localRes.body) {
+            const reader = localRes.body.getReader();
+            const decoder = new TextDecoder();
+            let streamBuffer = "";
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              streamBuffer += decoder.decode(value, { stream: true });
+              let lineEndIndex;
+              while ((lineEndIndex = streamBuffer.indexOf("\n")) >= 0) {
+                const line = streamBuffer.slice(0, lineEndIndex).trim();
+                streamBuffer = streamBuffer.slice(lineEndIndex + 1);
+
+                let cleanLine = line.trim();
+                if (!cleanLine || cleanLine === "data: [DONE]" || cleanLine === "data:[DONE]") continue;
+
+                let targetJson = cleanLine;
+                if (cleanLine.startsWith("data:")) {
+                  targetJson = cleanLine.substring(cleanLine.indexOf(":") + 1).trim();
+                }
+
+                try {
+                  const parsed = JSON.parse(targetJson);
+                  if (isOpenAI) {
+                    const text = parsed.choices?.[0]?.delta?.content;
+                    if (text) yield text;
+                  } else {
+                    if (parsed.message?.content) {
+                      yield parsed.message.content;
+                    } else if (parsed.response) {
+                      yield parsed.response;
+                    } else if (parsed.choices?.[0]?.delta?.content) {
+                      yield parsed.choices[0].delta.content;
+                    }
+                  }
+                } catch (e) {}
+              }
+            }
+            if (onMetadata) {
+              onMetadata({ credits: `Unlimited (Direct Local Bridge - ${isOpenAI ? 'LM Studio' : 'Ollama'})` });
+            }
+            return; // Executed successfully, stop and return!
+          } else {
+            console.warn(`[Neural Link] Direct local AI stream error: ${localRes.status} ${localRes.statusText}. Cascading to cloud backend.`);
+          }
+        } catch (e: any) {
+          console.warn("[Neural Link] [DIRECT CLIENT] Direct local AI stream execution failed, cascading to cloud backend:", e);
         }
       }
 
@@ -1916,15 +2018,15 @@ export const api = {
           }
         }
         
-        console.warn("[Neural Link] Local LLM fallback missed. Triggering organic diagnostic streaming synthesis...");
-        const text = generateOfflineMedicalResponse(lastPrompt);
+        console.warn("[Neural Link] Local LLM fallback missed.");
+        const text = "🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to fetch streaming response from your local pre-trained model. Please verify that your local LM Studio server is running on your laptop, that your target URL is configured correct, and that your chosen model is currently loaded inside LM Studio. Local simulated neural response has been bypassed to allow direct model auditing.";
         const words = text.split(" ");
         for (let i = 0; i < words.length; i++) {
           if (signal?.aborted) return;
           yield words[i] + " ";
-          await new Promise(resolve => setTimeout(resolve, 40));
+          await new Promise(resolve => setTimeout(resolve, 20));
         }
-        onMetadata?.({ credits: "Unlimited (Emergency Diagnostic Fallback)" });
+        onMetadata?.({ credits: "Local Connection Disrupted" });
       }
     },
     async submitFeedback(feedback: { messageId: string; rating: 'up' | 'down'; suggestion?: string }) {

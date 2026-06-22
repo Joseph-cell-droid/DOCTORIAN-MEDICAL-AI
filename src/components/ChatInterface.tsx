@@ -2072,7 +2072,10 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
       let engineSystemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}\n\nCRITICAL LANGUAGE INSTRUCTION: The user's active UI language is set to "${currentLanguage || 'English (US)'}". You MUST formulate all subsequent answers, explanations, clinical advices, and responses in this language (${currentLanguage || 'English (US)'}).`;
       
-      if (clinicalEngine === 'gemma3-tfjs') {
+      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+      const hasLocalUrl = true;
+
+      if (clinicalEngine === 'gemma3-tfjs' && !prioritizeLocalAI && !hasLocalUrl) {
         setIsThinking(true);
         // Simulate real TF.js execution latency and pattern calculation
         await new Promise(resolve => setTimeout(resolve, 800));

@@ -793,6 +793,13 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   };
 
   React.useEffect(() => {
+    // Automatically start simulated vitals/demo content if not connected to anything
+    if (!connection.connected && typeof startDemo === 'function') {
+      startDemo('healthy');
+    }
+  }, [connection.connected, startDemo]);
+
+  React.useEffect(() => {
     localStorage.setItem('doctorian_registered_patients', JSON.stringify(registeredPatients));
   }, [registeredPatients]);
 
@@ -3763,14 +3770,6 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             <Cpu size={12} />
             USB Serial
           </button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
-          <button 
-            onClick={() => startDemo()}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
-          >
-            <Play size={12} />
-            Try Demo
-          </button>
         </div>
       )}
 
@@ -4950,95 +4949,308 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             </div>
 
             {/* Data Log */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200 dark:shadow-none p-4 sm:p-8 overflow-hidden transition-colors">
-              <h3 className="font-black text-slate-900 dark:text-white mb-8 flex items-center gap-3">
-                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400">
-                  <Activity className="w-5 h-5" />
+            <div id="detailed-data-log" className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200 dark:shadow-none p-4 sm:p-8 overflow-hidden transition-colors">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-800 dark:text-slate-200">
+                    <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
+                      Detailed Data Log
+                    </h3>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest mt-1 block">
+                      {timeRange === 'Day' ? '⚡ Active Registered Patients (Live Node Matrix)' : '📈 Historic Vitals Trend Records'}
+                    </span>
+                  </div>
                 </div>
-                Detailed Data Log ({timeRange})
-              </h3>
-              <div className="overflow-x-auto -mx-4 sm:-mx-8 px-4 sm:px-8">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 dark:border-slate-800">
-                      <th className="pb-4 pr-4 font-black">Time</th>
-                      <th className="pb-4 pr-4 font-black">HR (bpm)</th>
-                      <th className="pb-4 pr-4 font-black">Temp (°C)</th>
-                      <th className="pb-4 pr-4 font-black">SpO2 (%)</th>
-                      <th className="pb-4 pr-4 font-black">BP (mmHg)</th>
-                      <th className="pb-4 font-black">RR (br/min)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                    {displayHistory.slice().reverse().slice(0, 20).map((h, i) => {
-                      const hrCheck = checkVitalDeviation('heartRate', h.heartRate, h.timestamp, displayHistory);
-                      const tCheck = checkVitalDeviation('temperature', h.temperature, h.timestamp, displayHistory);
-                      const sCheck = checkVitalDeviation('spo2', h.spo2, h.timestamp, displayHistory);
-                      const sbpCheck = checkVitalDeviation('systolicBP', h.systolicBP, h.timestamp, displayHistory);
-                      const dbpCheck = checkVitalDeviation('diastolicBP', h.diastolicBP, h.timestamp, displayHistory);
-                      const rrCheck = checkVitalDeviation('respiratoryRate', h.respiratoryRate, h.timestamp, displayHistory);
 
-                      return (
-                        <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="py-4 pr-4 text-xs font-bold text-slate-400">
-                            {timeRange === 'Day' ? new Date(h.timestamp).toLocaleTimeString() : new Date(h.timestamp).toLocaleDateString()}
-                          </td>
-                          <td className="py-4 pr-4 text-sm font-black">
-                            <span className={`inline-flex items-center gap-1.5 ${
-                              hrCheck.isDeviated 
-                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                : h.heartRate > 100 ? 'text-rose-600' : h.heartRate < 60 ? 'text-amber-600' : 'text-slate-900 dark:text-white'
-                            }`} title={hrCheck.isDeviated ? `Warning: Heart Rate deviates by ${(hrCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${Math.round(hrCheck.avg)})` : undefined}>
-                              {Math.round(h.heartRate)}
-                              {hrCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
-                            </span>
-                          </td>
-                          <td className="py-4 pr-4 text-sm font-black">
-                            <span className={`inline-flex items-center gap-1.5 ${
-                              tCheck.isDeviated 
-                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                : h.temperature > 37.5 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
-                            }`} title={tCheck.isDeviated ? `Warning: Temperature deviates by ${(tCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${tCheck.avg.toFixed(1)}°C)` : undefined}>
-                              {h.temperature.toFixed(1)}
-                              {tCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
-                            </span>
-                          </td>
-                          <td className="py-4 pr-4 text-sm font-black">
-                            <span className={`inline-flex items-center gap-1.5 ${
-                              sCheck.isDeviated 
-                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                : h.spo2 < 95 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
-                            }`} title={sCheck.isDeviated ? `Warning: SpO2 deviates by ${(sCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${Math.round(sCheck.avg)}%)` : undefined}>
-                              {Math.round(h.spo2)}
-                              {sCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
-                            </span>
-                          </td>
-                          <td className="py-4 pr-4 text-sm font-black">
-                            <span className={`inline-flex items-center gap-1.5 ${
-                              (sbpCheck.isDeviated || dbpCheck.isDeviated)
-                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                : 'text-slate-900 dark:text-white'
-                            }`} title={(sbpCheck.isDeviated || dbpCheck.isDeviated) ? `Warning: Systolic BP deviates by ${(sbpCheck.diffPercent * 100).toFixed(0)}% (avg ${Math.round(sbpCheck.avg)}), Diastolic BP by ${(dbpCheck.diffPercent * 100).toFixed(0)}% (avg ${Math.round(dbpCheck.avg)})` : undefined}>
-                              {Math.round(h.systolicBP)}/{Math.round(h.diastolicBP)}
-                              {(sbpCheck.isDeviated || dbpCheck.isDeviated) && <AlertCircle size={12} className="text-red-500 shrink-0" />}
-                            </span>
-                          </td>
-                          <td className="py-4 text-sm font-black">
-                            <span className={`inline-flex items-center gap-1.5 ${
-                              rrCheck.isDeviated 
-                                ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                : 'text-slate-900 dark:text-white'
-                            }`} title={rrCheck.isDeviated ? `Warning: Respiratory Rate deviates by ${(rrCheck.diffPercent * 100).toFixed(0)}% from its 7-day rolling average (${Math.round(rrCheck.avg)})` : undefined}>
-                              {Math.round(h.respiratoryRate)}
-                              {rrCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                {timeRange === 'Day' && (
+                  <span className="self-start sm:self-center flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[9px] font-black rounded-lg uppercase tracking-wider border border-emerald-100 dark:border-emerald-900/30 shadow-sm animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Doctorian Live Feed
+                  </span>
+                )}
               </div>
+
+              {timeRange === 'Day' ? (
+                /* Multi Patient Live Monitor (Day Mode) */
+                <div className="overflow-x-auto -mx-4 sm:-mx-8 px-4 sm:px-8">
+                  <table className="w-full text-left min-w-[900px] border-collapse">
+                    <thead>
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-150 dark:border-slate-800 pb-3">
+                        <th className="pb-4 pr-4 font-black">Patient Profile</th>
+                        <th className="pb-4 pr-4 font-black text-center">Location Node</th>
+                        <th className="pb-4 pr-4 font-black">Clinical Diagnostic Conditions</th>
+                        <th className="pb-4 pr-4 font-black">HR (bpm)</th>
+                        <th className="pb-4 pr-4 font-black">Temp (°C)</th>
+                        <th className="pb-4 pr-4 font-black">SpO2 (%)</th>
+                        <th className="pb-4 pr-4 font-black">BP (mmHg)</th>
+                        <th className="pb-4 pr-4 font-black">RR (br/min)</th>
+                        <th className="pb-4 font-black text-right">Node Controller</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/50">
+                      {registeredPatients.map((p) => {
+                        // Dynamically obtain or simulate live vitals matching the patient's individual vitalsPreset
+                        const pVitals = (() => {
+                          if (p.id === selectedPatientId && vitals) {
+                            return vitals;
+                          }
+                          const preset = p.vitalsPreset || 'healthy';
+                          // Deterministic offset based on ID to keep fluctuations consistent yet dynamic
+                          const offset = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10;
+                          const timeSeconds = Math.floor(Date.now() / 2000) + offset;
+                          const cycle = Math.sin(timeSeconds / 3);
+
+                          if (preset === 'critical') {
+                            return {
+                              heartRate: Math.round(135 + cycle * 7),
+                              temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
+                              spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
+                              systolicBP: Math.round(191 + cycle * 9),
+                              diastolicBP: Math.round(111 + cycle * 4),
+                              respiratoryRate: Math.round(28 + cycle * 2)
+                            };
+                          } else if (preset === 'warning') {
+                            return {
+                              heartRate: Math.round(102 + cycle * 4),
+                              temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
+                              spo2: Math.round(91 + cycle * 2),
+                              systolicBP: Math.round(136 + cycle * 5),
+                              diastolicBP: Math.round(86 + cycle * 3),
+                              respiratoryRate: Math.round(21 + cycle * 1)
+                            };
+                          } else {
+                            return {
+                              heartRate: Math.round(68 + cycle * 3),
+                              temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
+                              spo2: Math.round(96 + cycle * 1),
+                              systolicBP: Math.round(118 + cycle * 3),
+                              diastolicBP: Math.round(78 + cycle * 2),
+                              respiratoryRate: Math.round(14 + cycle * 1)
+                            };
+                          }
+                        })();
+
+                        const hr = pVitals.heartRate;
+                        const temp = pVitals.temperature;
+                        const spo2 = pVitals.spo2;
+                        const sbp = pVitals.systolicBP;
+                        const dbp = pVitals.diastolicBP;
+                        const rr = pVitals.respiratoryRate;
+
+                        const isCritical = p.vitalsPreset === 'critical';
+                        const isWarning = p.vitalsPreset === 'warning';
+                        const isCoupled = p.id === selectedPatientId;
+
+                        return (
+                          <tr 
+                            key={p.id} 
+                            className={`group transition-all duration-150 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${
+                              isCoupled 
+                                ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l border-l-blue-600' 
+                                : ''
+                            }`}
+                          >
+                            <td className="py-4 pr-4">
+                              <div className="flex items-center gap-3">
+                                <span className={`w-2.5 h-2.5 rounded-full ring-4 shrink-0 shadow-sm ${
+                                  isCritical 
+                                    ? 'bg-rose-500 ring-rose-500/20' 
+                                    : isWarning 
+                                      ? 'bg-amber-500 ring-amber-500/20' 
+                                      : 'bg-emerald-500 ring-emerald-500/20'
+                                } ${isCritical ? 'animate-pulse' : ''}`} />
+                                <div>
+                                  <div className="font-extrabold text-slate-900 dark:text-white text-sm tracking-tight flex items-center gap-1.5">
+                                    {p.name}
+                                    {isCoupled && (
+                                      <span className="text-[8px] bg-blue-600 text-white uppercase px-1.5 py-0.5 rounded-full font-black tracking-widest shrink-0">
+                                        coupled
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
+                                    {p.age}y • {p.gender} • Type {p.bloodType} • {p.weight || '70kg'}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 pr-4 text-center">
+                              <span className="font-mono text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+                                {p.bedNumber}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4/10">
+                              <div className="max-w-[280px]">
+                                <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">
+                                  {p.conditions || "No recorded chronic pathologies"}
+                                </div>
+                                <div className={`text-[10px] font-black uppercase mt-1 tracking-wider ${
+                                  isCritical 
+                                    ? 'text-rose-600 dark:text-rose-400' 
+                                    : isWarning 
+                                      ? 'text-amber-600 dark:text-amber-400' 
+                                      : 'text-emerald-600 dark:text-emerald-400'
+                                }`}>
+                                  {isCritical 
+                                    ? '⚠️ CRITICAL: Hypoxia Distress' 
+                                    : isWarning 
+                                      ? '⚠️ BORDERLINE: Mild Pyrexia' 
+                                      : '✓ STABLE: Nominal Metabolism'}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                isCritical 
+                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : isWarning 
+                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                              }`}>
+                                {hr}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                isCritical 
+                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : isWarning 
+                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                              }`}>
+                                {temp.toFixed(1)}°
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                isCritical 
+                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : isWarning 
+                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                              }`}>
+                                {spo2}%
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 font-black text-xs text-slate-800 dark:text-slate-200">
+                              <span className="bg-slate-50 dark:bg-slate-800/40 px-2 py-1 rounded border border-slate-100 dark:border-slate-800">
+                                {sbp}/{dbp}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 font-black text-sm text-slate-800 dark:text-slate-200">
+                              {rr}
+                            </td>
+                            <td className="py-4 text-right">
+                              {isCoupled ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow-md cursor-default shadow-blue-500/20">
+                                  <Monitor size={10} className="stroke-[3]" />
+                                  Active Node
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => setSelectedPatientId(p.id)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-[9px] font-black uppercase tracking-wider rounded-xl border border-slate-200/50 dark:border-slate-700/50 transition-all cursor-pointer shadow-sm"
+                                >
+                                  <Stethoscope size={10} />
+                                  Observe patient
+                                  <ChevronRight size={10} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                /* Historic Single Patient History Log (Week Mode) */
+                <div className="overflow-x-auto -mx-4 sm:-mx-8 px-4 sm:px-8">
+                  <table className="w-full text-left max-w-full">
+                    <thead>
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 dark:border-slate-800">
+                        <th className="pb-4 pr-4 font-black">Time</th>
+                        <th className="pb-4 pr-4 font-black">HR (bpm)</th>
+                        <th className="pb-4 pr-4 font-black">Temp (°C)</th>
+                        <th className="pb-4 pr-4 font-black">SpO2 (%)</th>
+                        <th className="pb-4 pr-4 font-black">BP (mmHg)</th>
+                        <th className="pb-4 font-black">RR (br/min)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                      {displayHistory.slice().reverse().slice(0, 20).map((h, i) => {
+                        const hrCheck = checkVitalDeviation('heartRate', h.heartRate, h.timestamp, displayHistory);
+                        const tCheck = checkVitalDeviation('temperature', h.temperature, h.timestamp, displayHistory);
+                        const sCheck = checkVitalDeviation('spo2', h.spo2, h.timestamp, displayHistory);
+                        const sbpCheck = checkVitalDeviation('systolicBP', h.systolicBP, h.timestamp, displayHistory);
+                        const dbpCheck = checkVitalDeviation('diastolicBP', h.diastolicBP, h.timestamp, displayHistory);
+                        const rrCheck = checkVitalDeviation('respiratoryRate', h.respiratoryRate, h.timestamp, displayHistory);
+
+                        return (
+                          <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="py-4 pr-4 text-xs font-bold text-slate-400">
+                              {new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </td>
+                            <td className="py-4 pr-4 text-sm font-black">
+                              <span className={`inline-flex items-center gap-1.5 ${
+                                hrCheck.isDeviated 
+                                  ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : h.heartRate > 100 ? 'text-rose-600' : h.heartRate < 60 ? 'text-amber-600' : 'text-slate-900 dark:text-white'
+                              }`} title={hrCheck.isDeviated ? `Warning: Heart Rate deviates by ${(hrCheck.diffPercent * 100).toFixed(0)}% from average` : undefined}>
+                                {Math.round(h.heartRate)}
+                                {hrCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 text-sm font-black">
+                              <span className={`inline-flex items-center gap-1.5 ${
+                                tCheck.isDeviated 
+                                  ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : h.temperature > 37.5 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
+                              }`} title={tCheck.isDeviated ? `Warning: Temperature deviates by ${(tCheck.diffPercent * 100).toFixed(0)}% from average` : undefined}>
+                                {h.temperature.toFixed(1)}
+                                {tCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 text-sm font-black">
+                              <span className={`inline-flex items-center gap-1.5 ${
+                                sCheck.isDeviated 
+                                  ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : h.spo2 < 95 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
+                              }`} title={sCheck.isDeviated ? `Warning: SpO2 deviates by ${(sCheck.diffPercent * 100).toFixed(0)}% from average` : undefined}>
+                                {Math.round(h.spo2)}
+                                {sCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 text-sm font-black">
+                              <span className={`inline-flex items-center gap-1.5 ${
+                                (sbpCheck.isDeviated || dbpCheck.isDeviated)
+                                  ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : 'text-slate-900 dark:text-white'
+                              }`} title={(sbpCheck.isDeviated || dbpCheck.isDeviated) ? 'Warning: BP deviation detected' : undefined}>
+                                {Math.round(h.systolicBP)}/{Math.round(h.diastolicBP)}
+                                {(sbpCheck.isDeviated || dbpCheck.isDeviated) && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                              </span>
+                            </td>
+                            <td className="py-4 text-sm font-black">
+                              <span className={`inline-flex items-center gap-1.5 ${
+                                rrCheck.isDeviated 
+                                  ? 'text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : 'text-slate-900 dark:text-white'
+                              }`} title={rrCheck.isDeviated ? `Warning: Respiratory Rate deviates from average` : undefined}>
+                                {Math.round(h.respiratoryRate)}
+                                {rrCheck.isDeviated && <AlertCircle size={12} className="text-red-500 shrink-0" />}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </>
         )}

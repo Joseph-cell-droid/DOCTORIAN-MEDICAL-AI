@@ -41,10 +41,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [phone, setPhone] = useState(user?.phone || '');
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
   const [prioritizeLocalAI, setPrioritizeLocalAI] = useState(() => {
-    return localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
+    return localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
   });
   const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
-  const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || '');
+  const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
   const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'gemma4');
   const [localApiKey, setLocalApiKey] = useState(() => {
     return localStorage.getItem('doctorian_local_api_key') || '';
@@ -206,7 +206,7 @@ Verified by Joseph Akora - Development Lead.
       setPhone(user.phone || '');
       setEnableExternalAI(user.enableExternalAI || false);
       setEnableDeepHealthInsights(user.enableDeepHealthInsights || false);
-      setOllamaUrl(user.ollamaUrl || '');
+      setOllamaUrl(user.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
       setOllamaModel(user.ollamaModel || 'gemma4');
       setHuggingfaceToken(user.huggingfaceToken || '');
       setHuggingfaceModel(user.huggingfaceModel || 'meta-llama/Llama-3.1-8B-Instruct');

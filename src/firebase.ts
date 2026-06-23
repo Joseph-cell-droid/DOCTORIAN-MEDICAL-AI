@@ -4,9 +4,11 @@ import { getFirestore, doc, getDoc, setDoc, collection, query, where, onSnapshot
 // @ts-ignore
 import firebaseConfig from '../firebase-applet-config.json';
 
+const config: any = firebaseConfig;
+
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, config.firestoreDatabaseId || undefined);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });

@@ -1442,6 +1442,18 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      // If the user's current scroll position is more than 120 pixels away from the bottom of the content,
+      // it means they have intentionally scrolled up. In this case, disable auto-scrolling to respect their reading activity.
+      // Otherwise, keep auto-scrolling active.
+      const isCloseToBottom = scrollHeight - scrollTop - clientHeight < 120;
+      setShouldAutoScroll(isCloseToBottom);
+    }
+  };
 
   const startNewSession = () => {
     setMessages([]);
@@ -1451,13 +1463,14 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
       encryption: 'Triple-Layer AES-256',
       status: 'AUTHENTICATED'
     });
+    setShouldAutoScroll(true);
   };
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (shouldAutoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, shouldAutoScroll]);
 
   const clearChat = () => {
     if (window.confirm("Purge Neural Buffer? This will permanently delete the current session timeline from your local matrix.")) {
@@ -1988,6 +2001,8 @@ ${f.prescription}
   const handleSend = async (customInput?: string) => {
     const textToSend = customInput || input;
     if (!textToSend.trim() || isLoading) return;
+
+    setShouldAutoScroll(true);
 
     if (credits !== 'Unlimited' && Number(credits) <= 0) {
       setCredits(400);
@@ -2883,7 +2898,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
         {activeMainTab === 'chat' && (
           <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
           {/* Message Stream */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll">
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll">
           <div className={`mx-auto px-4 sm:px-6 py-4 sm:py-6 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (

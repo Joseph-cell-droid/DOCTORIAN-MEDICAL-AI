@@ -244,6 +244,8 @@ Verified by Joseph Akora - Development Lead.
       localStorage.setItem('doctorian_voice_safety_encourage', String(voiceSafetyEncourageHelp));
       localStorage.setItem('doctorian_prioritize_local_ai', String(prioritizeLocalAI));
       localStorage.setItem('doctorian_local_api_key', localApiKey);
+      // Reset the local connection failure counter to allow 3 fresh attempts under the new settings
+      localStorage.setItem('doctorian_local_fail_count', '0');
 
       const updatedUser = await api.auth.updateProfile({ 
         displayName, 

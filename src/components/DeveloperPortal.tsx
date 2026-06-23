@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Terminal, 
   Key, 
@@ -17,7 +17,13 @@ import {
   ArrowRight,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  Activity,
+  Wifi,
+  WifiOff,
+  AlertCircle,
+  Zap,
+  Cloud
 } from 'lucide-react';
 import { api } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,10 +40,127 @@ export const DeveloperPortal: React.FC = () => {
   const [credentials, setCredentials] = useState<any>(null);
   const [showCredentials, setShowCredentials] = useState(false);
 
+  // Smart Fallback Diagnostic States
+  const [prioritizeLocal, setPrioritizeLocal] = useState<boolean>(() => {
+    return localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+  });
+  const [failCount, setFailCount] = useState<number>(() => {
+    return parseInt(localStorage.getItem('doctorian_local_fail_count') || '0', 10);
+  });
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [pingSuccess, setPingSuccess] = useState<boolean | null>(null);
+  const [pingLog, setPingLog] = useState<string[]>([]);
+
   useEffect(() => {
     fetchKeys();
     fetchCredentials();
+    loadProfile();
+    
+    const savedUrl = localStorage.getItem('doctorian_cached_ollama_url') || 'https://fuzzy-bugs-run.loca.lt';
+    setPingLog([
+      `[${new Date().toLocaleTimeString()}] Diagnostic environment loaded.`,
+      `[${new Date().toLocaleTimeString()}] Target Local AI Endpoint: ${savedUrl}`,
+      `[${new Date().toLocaleTimeString()}] Ready to audit connectivity route.`
+    ]);
   }, []);
+
+  const loadProfile = async () => {
+    try {
+      const u = await api.auth.getProfile();
+      setUserProfile(u);
+      if (u?.ollamaUrl) {
+        localStorage.setItem('doctorian_cached_ollama_url', u.ollamaUrl);
+      }
+    } catch (err) {
+      try {
+        const cached = localStorage.getItem('medical_user');
+        if (cached) {
+          const u = JSON.parse(cached);
+          setUserProfile(u);
+          if (u?.ollamaUrl) {
+            localStorage.setItem('doctorian_cached_ollama_url', u.ollamaUrl);
+          }
+        }
+      } catch (e) {}
+    }
+  };
+
+  const refreshFallbackState = () => {
+    setPrioritizeLocal(localStorage.getItem('doctorian_prioritize_local_ai') !== 'false');
+    setFailCount(parseInt(localStorage.getItem('doctorian_local_fail_count') || '0', 10));
+  };
+
+  const resetFallbackState = () => {
+    localStorage.setItem('doctorian_prioritize_local_ai', 'true');
+    localStorage.setItem('doctorian_local_fail_count', '0');
+    refreshFallbackState();
+    setPingSuccess(null);
+    setPingLog(prev => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] Diagnostics manual override: Reset failure counter. Re-prioritized Local LM Studio.`
+    ]);
+  };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setPingSuccess(null);
+    const targetUrl = userProfile?.ollamaUrl || localStorage.getItem('doctorian_cached_ollama_url') || 'https://fuzzy-bugs-run.loca.lt';
+    const cleanUrl = targetUrl.trim().replace(/\/$/, "");
+    
+    setPingLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] Auditing connection to ${cleanUrl}...`]);
+    
+    try {
+      const isLMStudio = cleanUrl.includes(':1234') || cleanUrl.includes('/v1') || cleanUrl.toLowerCase().includes('lmstudio');
+      const finalUrl = isLMStudio
+        ? (cleanUrl.includes('/v1') ? `${cleanUrl}/chat/completions` : `${cleanUrl}/v1/chat/completions`)
+        : (cleanUrl.includes('/api/chat') ? cleanUrl : `${cleanUrl}/api/chat`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+
+      const bodyPayload = isLMStudio ? {
+        model: "gemma4",
+        messages: [{ role: "user", content: "ping" }],
+        stream: false,
+        max_tokens: 1
+      } : {
+        model: "gemma4",
+        messages: [{ role: "user", content: "ping" }],
+        stream: false,
+        options: { num_predict: 1 }
+      };
+
+      const res = await fetch(finalUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyPayload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        setPingSuccess(true);
+        localStorage.setItem('doctorian_local_fail_count', '0');
+        refreshFallbackState();
+        setPingLog(prev => [
+          ...prev, 
+          `[${new Date().toLocaleTimeString()}] Connection check succeeded! Local LM Studio is ONLINE and active. Failures reset.`
+        ]);
+      } else {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+    } catch (err: any) {
+      setPingSuccess(false);
+      setPingLog(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Connection check failed: ${err?.message || 'Network blocked or Timeout'}.`,
+        `[${new Date().toLocaleTimeString()}] Suggestions: Verify Local LM Studio is running, CORS is enabled, and try options path.`
+      ]);
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   const fetchCredentials = async () => {
     try {
@@ -493,6 +616,170 @@ console.log(data.choices[0].message.content);
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/20 p-2 rounded-lg">
                 <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                 Neural API Status: Online
+              </div>
+            </div>
+
+            {/* Smart Fallback Diagnostic Center */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-indigo-600 animate-pulse" />
+                  <h3 className="font-black text-xs text-slate-900 dark:text-white uppercase tracking-wider">
+                    Smart Fallback Diagnostics
+                  </h3>
+                </div>
+                <button
+                  onClick={refreshFallbackState}
+                  title="Force Refresh State"
+                  className="p-1 px-2 text-[10px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 rounded-md transition-all active:scale-95 flex items-center gap-1"
+                >
+                  <RefreshCw size={10} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {/* Status Badge */}
+              <div className="space-y-3">
+                <div className="text-[10px] uppercase tracking-widest font-black text-slate-400">
+                  Fallback Route Status
+                </div>
+                {(!prioritizeLocal || failCount >= 3) ? (
+                  <div className="flex flex-col gap-2 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/50 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+                        Cloud Fallback Active (Bypassing Local)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                      {failCount >= 3 
+                        ? `Local connection failed 3 consecutive times. Autocutoff active.`
+                        : `Local AI priority is disabled in main settings.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/50 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                        Primary Path: Local-First (LM Studio/Ollama)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium font-sans">
+                      Routing insight query attempts to local nodes. No backup currently engaged.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Connection attempts tally */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-widest font-black text-slate-400">
+                  <span>Consecutive Local Failures</span>
+                  <span className="text-slate-900 dark:text-white font-black">{failCount} / 3</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {[1, 2, 3].map((node) => {
+                    const isPassed = failCount < node;
+                    const isCurrent = failCount === node - 1 && prioritizeLocal && failCount < 3;
+                    return (
+                      <div 
+                        key={node} 
+                        className={`flex-1 h-3 rounded-lg relative overflow-hidden transition-all duration-300 ${
+                          isPassed 
+                            ? (isCurrent ? 'bg-indigo-100 dark:bg-indigo-950 border border-indigo-400 animate-pulse' : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700')
+                            : 'bg-rose-500 dark:bg-rose-600 shadow-sm shadow-rose-500/20'
+                        }`}
+                      >
+                        {isCurrent && (
+                          <div className="absolute inset-0 bg-indigo-500/10 animate-ping" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 font-sans">
+                  <span>Attempt 1</span>
+                  <span>Attempt 2</span>
+                  <span>Attempt 3 (Limit)</span>
+                </div>
+              </div>
+
+              {/* Audit targets */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-2">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700/50 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Cpu size={14} className="text-slate-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Local Provider</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-400 truncate max-w-[150px]">
+                    {userProfile?.ollamaUrl || localStorage.getItem('doctorian_cached_ollama_url') || 'http://localhost:11434'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <Cloud size={14} className="text-slate-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cloud Backup</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-400">
+                    Gemma 2 27B @ Cloud Neural Link
+                  </span>
+                </div>
+              </div>
+
+              {/* Live diagnostic terminal logs */}
+              <div className="space-y-3">
+                <div className="text-[10px] uppercase tracking-widest font-black text-slate-400">
+                  Diagnostic Connection Logs
+                </div>
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[9px] text-slate-300 space-y-1.5 max-h-[120px] overflow-y-auto scrollbar-thin">
+                  {pingLog.map((logStr, i) => (
+                    <div key={i} className="leading-tight select-all">
+                      <span className="text-indigo-400">{logStr.substring(0, 11)}</span>
+                      <span className="text-slate-300">{logStr.substring(11)}</span>
+                    </div>
+                  ))}
+                  {pingSuccess !== null && (
+                    <div className={`font-bold mt-1 ${pingSuccess ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {pingSuccess 
+                        ? '>> DIAGNOSTIC AUDIT: LM STUDIO REACHABLE (ONLINE_SECURE)' 
+                        : '>> DIAGNOSTIC AUDIT: DIRECT LINK CRITICAL OFFLINE (FALLBACK_BYPASS)'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Interactive buttons */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  disabled={isTesting}
+                  className="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isTesting ? (
+                    <>
+                      <RefreshCw size={12} className="animate-spin" />
+                      <span>Auditing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={12} />
+                      <span>Ping Local Node</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={resetFallbackState}
+                  className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw size={12} />
+                  <span>Reset Status</span>
+                </button>
               </div>
             </div>
           </div>

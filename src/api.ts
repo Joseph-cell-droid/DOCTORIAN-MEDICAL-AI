@@ -136,64 +136,62 @@ const isOffline = (): boolean => {
 
 const generateOfflineMedicalResponse = (msg: string): string => {
   const norm = msg.toLowerCase();
-  let advice = "🔬 **DOCTORIAN CORE DIAGNOSTICS Pass** 🩺\n\nI have processed your physiological feedback through my offline clinical schema matrix. Here is my diagnostics report:\n\n";
   
   if (norm.includes("fever") || norm.includes("temperature") || norm.includes("hot") || norm.includes("musujja")) {
-    advice += `🌡️ **[VITAL INSTABILITY: HYPERTHERMIA DETECTED]** 🩺
+    return `🌡️ **Hyperthermia & Fever Care Guidelines**
 ---
-- **Thermoregulatory Support**: Prioritize instant oral rehydration solution (ORS). 💧
-- **Monitoring Routine**: Log temperature counts every 2 to 4 hours in your *Patient Monitor*. 📊
-- **Physical Measures**: Rest in a ventilated workspace and apply damp cool packs on pulse points. 🧊
-- **Log Medication**: Record NSAID or paracetamol intake in your local *Medication Tracker* to monitor cellular reaction curves. 💊
+- **Hydration**: Prioritize oral rehydration solution (ORS) or clean water to stay hydrated. 💧
+- **Monitoring**: Check and log temperature readings regularly. 📊
+- **Cooling Measures**: Rest in a well-ventilated, cool room. Apply damp cool cloths to the forehead or armpits if comfortable. 🧊
+- **Medication**: If appropriate, follow guidelines for paracetamol or ibuprofen to help manage comfort. 💊
 
-🚨 **Urgent RED FLAGS**: Contact a clinical physician immediately if temperature crosses **39.4°C (103°F)** or persists past **48 hours**.`;
+🚨 **Warning**: Contact a healthcare professional or go to the nearest clinic if the temperature exceeds 39.4°C (103°F) or persists for more than 48 hours.`;
   } else if (norm.includes("chest") || norm.includes("heart") || norm.includes("palpitation") || norm.includes("pulse")) {
-    advice += `🫀 **[HEMODYNAMIC ASSESSMENT: PALPITATIONS]** 🩺
+    return `🫀 **Chest Discomfort & Palpitation Guidance**
 ---
-- **Posture Care**: Recline in a semi-Fowler position (upper body elevated) immediately. 🛋️
-- **Respiratory Baseline**: Practice deep paced diaphragmatic inhalation (4s in, 4s hold, 4s out). 🧘‍♀️
-- **Vitals Capture**: Record current Blood Pressure & Heart Rate in your digital *Health Records*.  📈
-- **Vicious Cycle Loop**: Stress triggers adrenaline surges; keep auditory surroundings quiet and relax. 🤫
+- **Posture**: Sit down or recline in a comfortable upright position immediately to ease breathing. 🛋️
+- **Breathing**: Practice slow, calm deep breathing (inhaling and exhaling slowly). 🧘‍♀️
+- **Vitals**: Check and document your heart rate and blood pressure if a home monitor is available. 📈
+- **Rest**: Rest in a quiet, low-stress environment.
 
-🚨 **⚠️ CRITICAL RED FLAGS**: If experiencing crushing pain traveling to the arm, neck, or jaw, combined with sweating or shortness of breath, **immediately trigger the Emergency SOS Broadcast**! 🚨`;
+🚨 **Critical Warning**: If you experience crushing or squeezing chest pain that radiates to your arm, shoulder, neck, or jaw, or is accompanied by sweating, shortness of breath, or dizziness, please seek emergency medical help immediately.`;
   } else if (norm.includes("bp") || norm.includes("pressure") || norm.includes("hypertension") || norm.includes("systolic") || norm.includes("diastolic")) {
-    advice += `📈 **[CARDIOVASCULAR PASS: BLOOD PRESSURE VARIANCE]** 🩺
+    return `📈 **Blood Pressure Management Guidelines**
 ---
-- **Rest Protocol**: Limit physical exertion immediately and sit in a quiet dark room. 🔕
-- **Dietary Restriction**: Strictly avoid salt-heavy nutrition, caffeine, or energy stimulants. ☕
-- **Therapeutic Exercise**: Practice standard progressive muscle relaxation protocols. 🧘‍♂️
-- **Coronary Log**: Document values inside *Health Records Tracker* to chart hypertensive baselines. 📋
+- **Rest Period**: Rest quietly in a calm, seated position for at least 15 minutes. 🔕
+- **Avoid Stimulants**: Refrain from caffeine, tobacco, alcohol, and high-sodium foods. ☕
+- **Stress Reduction**: Try deep breathing exercises or progressive muscle relaxation. 🧘‍♂️
+- **Logging**: Keep a detailed log of your measurements to share with your provider. 📋
 
-🚨 **Hyper Crimson Warning**: Seek standard clinic stabilization if blood pressure exceeds **180/120 mmHg** accompanied by blurred vision or dizziness, or track local medications. 🏥`;
+🚨 **Warning**: If your blood pressure is unusually high (e.g., above 180/120 mmHg) and you experience severe headache, chest pain, shortness of breath, or vision changes, seek urgent medical care.`;
   } else if (norm.includes("headache") || norm.includes("migraine") || norm.includes("head")) {
-    advice += `🧠 **[NEUROLOGICAL PASS: CEPHALALGIA DETECTED]** 🩺
+    return `🧠 **Headache & Migraine Care Guidelines**
 ---
-- **Neuro Balance**: Hydrate with 500-1000ml pure water with electrolyte blends. 🥤
-- **Sensory Squelch**: Minimize high blue-light emissions, screens, and noise exposure immediately. 🕶️
-- **Skeletal Alignment**: Exercise mild neck-muscle stretching to relieve tension cephalea. 🩹
-- **Intake Log**: Record NSAID or hydration intake in your local *Medication Dashboard*. 💊
+- **Hydration**: Drink plenty of water throughout the day. 🥤
+- **Environment**: Rest in a quiet, dark, or low-light room to reduce sensory triggers. 🕶️
+- **Relaxation**: Ease neck and shoulder tension with gentle stretches or a light massage. 🩹
+- **Tracking**: Note potential triggers such as stress, specific foods, or screen time.
 
-⚠️ *Note: Document recurring migraine trigger patterns in your clinical logs.*`;
+⚠️ *Seek medical attention for severe, sudden headaches ("thunderclap" headaches) or those accompanied by stiff neck, fever, or confusion.*`;
   } else if (norm.includes("cough") || norm.includes("breathe") || norm.includes("shortness") || norm.includes("covid") || norm.includes("lungs")) {
-    advice += `🫁 **[RESPIRATORY INTEGRITY: HOARSE/PRODUCTIVE COUGH]** 🩺
+    return `🫁 **Respiratory Comfort Guidelines**
 ---
-- **Airway Patency**: Rest with your head elevated with multiple pillows. Do not lie completely flat. 🛏️
-- **Hydration Routine**: Direct steam inhalation or drinking warm herbal decocations supports clearance. 🍵
-- **Oxygen Monitor**: Confirm Blood Oxygen Level (SPO2) averages above 95% on your tracker. 📈
-- **Alveolar Safety**: Stop all exposure to particulate smoke, cooking exhaust, and vapor irritants. 🚭
+- **Positioning**: Rest with your head elevated on pillows to keep airways open. 🛏️
+- **Steam & Moisture**: Consider humidifier use or inhaling steam from warm water to ease congestion. 🍵
+- **Fluid Intake**: Drink warm liquids, such as botanical teas or warm water with honey. 📈
+- **Air Quality**: Avoid exposure to second-hand smoke, chemical fumes, pollutants, and strong dust. 🚭
 
-🚨 **Pulmonary Warning**: If arterial oxygen (SPO2) drops below **92%**, proceed to the nearest emergency oxygenation clinic. 🏥`;
+🚨 **Warning**: If you experience severe difficulty breathing, shortness of breath at rest, or if your oxygen saturation (SPO2) falls below 92%, seek immediate clinical care.`;
   } else {
-    advice += `🌟 **[DOCTORIAN COGNITIVE ROUTE: CLINICAL INTAKE CORE]** 🩺
+    return `💬 **Clinical Guidance System**
 ---
-Welcome to your offline diagnostics portal. Operating with secure SQLite synchronization:
-- **Case Logs Active**: Create patient records, log daily workouts, and schedule medications. 📋
-- **Air-Gap Protocol**: 100% processing is performed locally to protect sensitive health details. 🔐
-- **Back-Sync Engine**: Dynamic background telemetry will sync queued inputs upon connection. 🔄
+Welcome to your offline clinical companion. I am ready to assist you:
+- **Case Records & Health Logs**: You can view and manage patient profiles, medical calendars, and vitals. 📋
+- **Local Database**: All your logs and historical medical sheets are securely stored on your device. 🔐
+- **Consultation**: Ask about general health symptoms (such as fever, high BP, headache, respiratory concerns, or pregnancy guidelines) to display immediate clinical care references. 🔄
 
-✨ *Tips: Try asking about "Fever", "Chest Pain", "Headache", or "High BP" for direct matrix diagnostics.*`;
+*Medical attention is recommended for comprehensive health advice and diagnostic evaluations.*`;
   }
-  return advice + "\n\n---\n🛡️ *Operated entirely via Doctorian Local Intelligence Engine to guarantee medical support offline.* ✨";
 };
 
 export function getLocalLLMEndpoint(baseUrl: string): { url: string; isOpenAI: boolean } {
@@ -1637,8 +1635,9 @@ export const api = {
         }
         
         console.warn("[Neural Link] Local LLM failover missed.");
-        const text = "🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to fetch response from your local pre-trained model. Please verify that your local LM Studio server is running on your laptop, that your target URL is configured correct, and that your chosen model is currently loaded inside LM Studio. Local simulated neural response has been bypassed to allow direct model auditing.";
-        return { text, creditsRemaining: "Local Connection Disrupted" };
+        const lastPrompt = payloadMessages[payloadMessages.length - 1]?.text || "Hello";
+        const text = generateOfflineMedicalResponse(lastPrompt);
+        return { text, creditsRemaining: "Offline Local Back-up Mode" };
       }
     },
     async voiceChat(text: string, voiceName: string = 'Charon') {
@@ -1743,10 +1742,12 @@ export const api = {
           
           console.log(`[Neural Link] [DIRECT CLIENT] Directing stream pulse to Local LLM prior: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl})`);
           
+          const unstructuredInstruction = `${systemInstruction}\n\n[CRITICAL DIRECTIVE FOR LOCAL ANALYTICS]: Do NOT output any structured 4-section diagnostic layouts, unrequested templates, json schemas, or high-density lists. Keep your response conversational, natural, direct, freeform, and completely unstructured. Answer the clinician directly and concisely.`;
+
           const requestBody = isOpenAI ? {
             model: activeLocalModel,
             messages: [
-              { role: 'system', content: systemInstruction },
+              { role: 'system', content: unstructuredInstruction },
               ...messages.map(m => ({
                 role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.text
@@ -1757,7 +1758,7 @@ export const api = {
           } : {
             model: activeLocalModel, 
             messages: [
-              { role: 'system', content: systemInstruction },
+              { role: 'system', content: unstructuredInstruction },
               ...messages.map(m => ({
                 role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.text
@@ -2019,14 +2020,15 @@ export const api = {
         }
         
         console.warn("[Neural Link] Local LLM fallback missed.");
-        const text = "🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to fetch streaming response from your local pre-trained model. Please verify that your local LM Studio server is running on your laptop, that your target URL is configured correct, and that your chosen model is currently loaded inside LM Studio. Local simulated neural response has been bypassed to allow direct model auditing.";
+        const lastPrompt = messages[messages.length - 1]?.text || "Hello";
+        const text = generateOfflineMedicalResponse(lastPrompt);
         const words = text.split(" ");
         for (let i = 0; i < words.length; i++) {
           if (signal?.aborted) return;
           yield words[i] + " ";
           await new Promise(resolve => setTimeout(resolve, 20));
         }
-        onMetadata?.({ credits: "Local Connection Disrupted" });
+        onMetadata?.({ credits: "Offline Local Back-up Mode" });
       }
     },
     async submitFeedback(feedback: { messageId: string; rating: 'up' | 'down'; suggestion?: string }) {

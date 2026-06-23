@@ -1461,67 +1461,93 @@ export default function App() {
       let responseText = "";
       let sourceAttribution = "";
 
-      // 1. Try local Gemma4 first (prioritizing PC Local LM Studio on User's PC / local Ollama)
-      const localUrlStr = user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt';
-      const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
-      
-      const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
-      const finalUrl = isLMStudio
-        ? (cleanLocalUrl.includes('/v1') ? `${cleanLocalUrl}/chat/completions` : `${cleanLocalUrl}/v1/chat/completions`)
-        : (cleanLocalUrl.includes('/api/chat') ? cleanLocalUrl : `${cleanLocalUrl}/api/chat`);
+      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+      const localFailCount = parseInt(localStorage.getItem('doctorian_local_fail_count') || '0', 10);
+      const shouldBypassLocal = !prioritizeLocalAI || localFailCount >= 3;
 
-      const modelToUse = "gemma4";
-
-      console.log(`[Insight Fallback Route] Querying local PC LLM for model '${modelToUse}' at ${finalUrl}...`);
-      try {
-        const bodyPayload = isLMStudio ? {
-          model: modelToUse,
-          messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: prompt }
-          ],
-          stream: false,
-          temperature: 0.7
-        } : {
-          model: modelToUse,
-          messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: prompt }
-          ],
-          stream: false,
-          options: { temperature: 0.7 }
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s fast timeout for local PC retry path
-
-        const localRes = await fetch(finalUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(bodyPayload),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (!localRes.ok) throw new Error(`HTTP status ${localRes.status}`);
-
-        const localData = await localRes.json();
-        if (isLMStudio) {
-          responseText = localData?.choices?.[0]?.message?.content || "";
-        } else {
-          responseText = localData?.message?.content || localData?.response || "";
-        }
-
-        if (responseText) {
-          sourceAttribution = "Gemma4 (Local LM Studio)";
-          responseText = `${responseText} \n\n[Model: ${sourceAttribution}]`;
-        } else {
-          throw new Error("No text content from local Gemma4 model");
-        }
-      } catch (localErr: any) {
-        console.warn(`[Insight Fallback] Local Gemma4 on PC failed or is unreachable (${localErr?.message || localErr}). Escalating request to cloud provider backup...`);
+      if (!shouldBypassLocal) {
+        // 1. Try local Gemma4 first (prioritizing PC Local LM Studio on User's PC / local Ollama)
+        const localUrlStr = user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt';
+        const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
         
-        // 2. Cascade fallback to Cloud provider as backup
+        const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
+        const finalUrl = isLMStudio
+          ? (cleanLocalUrl.includes('/v1') ? `${cleanLocalUrl}/chat/completions` : `${cleanLocalUrl}/v1/chat/completions`)
+          : (cleanLocalUrl.includes('/api/chat') ? cleanLocalUrl : `${cleanLocalUrl}/api/chat`);
+
+        const modelToUse = "gemma4";
+
+        console.log(`[Insight Fallback Route] Querying local PC LLM for model '${modelToUse}' at ${finalUrl}...`);
+        try {
+          const bodyPayload = isLMStudio ? {
+            model: modelToUse,
+            messages: [
+              { role: "system", content: systemInstruction },
+              { role: "user", content: prompt }
+            ],
+            stream: false,
+            temperature: 0.7
+          } : {
+            model: modelToUse,
+            messages: [
+              { role: "system", content: systemInstruction },
+              { role: "user", content: prompt }
+            ],
+            stream: false,
+            options: { temperature: 0.7 }
+          };
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s fast timeout for local PC retry path
+
+          const localRes = await fetch(finalUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bodyPayload),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (!localRes.ok) throw new Error(`HTTP status ${localRes.status}`);
+
+          const localData = await localRes.json();
+          if (isLMStudio) {
+            responseText = localData?.choices?.[0]?.message?.content || "";
+          } else {
+            responseText = localData?.message?.content || localData?.response || "";
+          }
+
+          if (responseText) {
+            // Success! Reset failure count
+            localStorage.setItem('doctorian_local_fail_count', '0');
+            sourceAttribution = "Gemma4 (Local LM Studio)";
+          } else {
+            throw new Error("No text content from local Gemma4 model");
+          }
+        } catch (localErr: any) {
+          // Increment consecutive failures
+          const nextFailCount = localFailCount + 1;
+          localStorage.setItem('doctorian_local_fail_count', String(nextFailCount));
+          console.warn(`[Insight Fallback] Local Gemma4 on PC failed or is unreachable (Attempts: ${nextFailCount}/3, Error: ${localErr?.message || localErr}). Escalating request to cloud provider backup...`);
+          
+          if (nextFailCount >= 3) {
+            localStorage.setItem('doctorian_prioritize_local_ai', 'false');
+            console.warn(`[Insight Fallback] 3 consecutive direct local AI failures reached. Smart Fallback triggered: automatically switched to cloud-based provider.`);
+          }
+
+          // 2. Cascade fallback to Cloud provider as backup
+          const response = await api.ai.aiChat(
+            [{ role: "user", text: prompt }], 
+            systemInstruction, 
+            "gemma-2-27b-it", // Cloud Gemma model
+            0.7
+          );
+          responseText = response.text;
+          sourceAttribution = "Gemma 2 (Cloud Neural Link)";
+        }
+      } else {
+        // Switch directly to Cloud provider as backup
+        console.log(`[Insight Fallback] Bypassing local direct fetch (prioritizeLocalAI: ${prioritizeLocalAI}, localFailCount: ${localFailCount}). Querying Cloud provider immediately...`);
         const response = await api.ai.aiChat(
           [{ role: "user", text: prompt }], 
           systemInstruction, 
@@ -1530,9 +1556,6 @@ export default function App() {
         );
         responseText = response.text;
         sourceAttribution = "Gemma 2 (Cloud Neural Link)";
-        if (responseText) {
-          responseText = `${responseText} \n\n[Model Backup: ${sourceAttribution}]`;
-        }
       }
 
       if (responseText) {
@@ -2970,7 +2993,7 @@ export default function App() {
       </div>
 
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-32 sm:pb-24'
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-6 sm:pb-8'
       }`} id="main-content">
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus' 

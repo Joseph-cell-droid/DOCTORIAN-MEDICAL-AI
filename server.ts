@@ -24,6 +24,7 @@ import {
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { translations } from "./src/utils/translations";
+import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync.ts";
 
 dotenv.config();
 if (!process.env.OPENROUTER_API_KEY) {
@@ -446,16 +447,14 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
-  let pathways = ["huggingface", "keys", "together", "ollama"];
+  let pathways = ["ollama", "huggingface", "keys", "together"];
   if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
     pathways = ["ollama", "huggingface", "keys", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    const isLocalhost = activeOllamaUrl.includes("localhost") || activeOllamaUrl.includes("127.0.0.1");
-    if (!isLocalhost || IS_LOCAL_ENV) {
-      pathways = ["huggingface", "keys", "together", "ollama"];
-    }
+    // Highly prioritize local LM Studio url first
+    pathways = ["ollama", "huggingface", "keys", "together"];
   }
 
   for (const pathway of pathways) {
@@ -595,6 +594,8 @@ async function* callAIStream(options: {
 
     if (pathway === "ollama" && shouldTryOllama(activeOllamaUrl)) {
       try {
+        const enhancedSystemInstructionForLocal = `${systemInstruction}\n\n[CRITICAL DIRECTIVE FOR LOCAL ANALYTICS]: Do NOT output any structured 4-section diagnostic layouts, unrequested templates, json schemas, or high-density lists. Make sure your response is conversational, natural, direct, freeform, and completely unstructured. Answer the clinician directly and concisely.`;
+
         const endpoint = activeOllamaUrl.endsWith('/') ? activeOllamaUrl.slice(0, -1) : activeOllamaUrl;
         const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1') || IS_LM_STUDIO;
         const isGenerateEndpoint = !isLMStudio && endpoint.includes('/api/generate');
@@ -612,7 +613,7 @@ async function* callAIStream(options: {
 
         if (isLMStudio) {
           payload.messages = [
-            { role: "system", content: systemInstruction },
+            { role: "system", content: enhancedSystemInstructionForLocal },
             ...messages.map(m => ({
               role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
               content: m.text
@@ -636,10 +637,10 @@ async function* callAIStream(options: {
             }).join('\n') + '\nAssistant:';
 
             payload.prompt = conversationPrompt;
-            payload.system = systemInstruction;
+            payload.system = enhancedSystemInstructionForLocal;
           } else {
             payload.messages = [
-              { role: "system", content: systemInstruction },
+              { role: "system", content: enhancedSystemInstructionForLocal },
               ...messages.map(m => ({
                 role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.text
@@ -906,10 +907,6 @@ async function* callAIStream(options: {
   // --- FINAL FALLBACK: Connection Failure ---
   console.log("[AI-STREAM] External pathways exhausted. Triggering local synthesis.");
   const prompt = lastMessage?.text || "Hello";
-  if (IS_LM_STUDIO || ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    yield `🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to connect to your local pre-trained model. Please verify that your local LM Studio server is running on your laptop with the URL: ${OLLAMA_URL} and that the model "${OLLAMA_MODEL}" is successfully loaded.`;
-    return;
-  }
   const fallbackResponse = doctorianLocalSynthesis(prompt);
   yield fallbackResponse;
 }
@@ -1001,16 +998,14 @@ async function callAIWorkflow(options: {
   }
 
   // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
-  let pathways = ["huggingface", "keys", "together", "ollama"];
+  let pathways = ["ollama", "huggingface", "keys", "together"];
   if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
     pathways = ["ollama", "huggingface", "keys", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    const isLocalhost = activeOllamaUrl.includes("localhost") || activeOllamaUrl.includes("127.0.0.1");
-    if (!isLocalhost || IS_LOCAL_ENV) {
-      pathways = ["huggingface", "keys", "together", "ollama"];
-    }
+    // Highly prioritize local LM Studio url first
+    pathways = ["ollama", "huggingface", "keys", "together"];
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -1088,8 +1083,8 @@ async function callAIWorkflow(options: {
       try {
         const isLocal = activeOllamaUrl && (activeOllamaUrl.includes('localhost') || activeOllamaUrl.includes('127.0.0.1'));
         
-        // Injecting local analysis enhancement instruction
-        const enhancedSystemInstruction = `${systemInstruction}\n\nCRITICAL DIRECTIVE FOR LOCAL ANALYTICS: Provide exceptionally high-level clinical reasoning, cross reference symptoms with medical literature patterns, and maintain strict privacy-first discourse. Utilize your local computational resources for deep diagnostic synthesis.`;
+        // Injecting local analysis enhancement instruction with unstructured directive for raw conversational speed
+        const enhancedSystemInstruction = `${systemInstruction}\n\n[CRITICAL DIRECTIVE FOR LOCAL ANALYTICS]: Do NOT output any structured 4-section diagnostic layouts, unrequested templates, json schemas, or high-density lists. Keep your response conversational, natural, direct, freeform, and completely unstructured. Answer the clinician directly and concisely.`;
 
         const endpoint = activeOllamaUrl.endsWith('/') ? activeOllamaUrl.slice(0, -1) : activeOllamaUrl;
         const isLMStudio = activeOllamaUrl.includes(':1234') || activeOllamaUrl.toLowerCase().includes('lmstudio') || activeOllamaUrl.includes('/v1') || IS_LM_STUDIO;
@@ -1347,9 +1342,6 @@ async function callAIWorkflow(options: {
   // --- FINAL FALLBACK: Connection Failure ---
   console.log("[AI-BRAIN] External pathways exhausted. Triggering local synthesis.");
   const prompt = lastUserMessage || "Hello";
-  if (IS_LM_STUDIO || ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    return `🚨 **[Connection Error: LM Studio/Ollama Offline]** - Failed to connect to your local pre-trained model. Please verify that your local LM Studio server is running on your laptop with the URL: ${OLLAMA_URL} and that the model "${OLLAMA_MODEL}" is successfully loaded.`;
-  }
   return doctorianLocalSynthesis(prompt);
 }
 
@@ -1588,12 +1580,54 @@ function retrieveKnowledgeContext(userId: string, query: string): string {
   }
 }
 
+function wrapDatabaseWithPostgresSync(rawDb: any): any {
+  return new Proxy(rawDb, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return function (sql: string) {
+          const stmt = target.prepare(sql);
+          return {
+            run(...args: any[]) {
+              const res = stmt.run(...args);
+              syncToPostgres(sql, args).catch(err => {
+                console.error("[PG-SYNC-ERR] Replicate error:", err.message);
+              });
+              return res;
+            },
+            get(...args: any[]) {
+              return stmt.get(...args);
+            },
+            all(...args: any[]) {
+              return stmt.all(...args);
+            }
+          };
+        };
+      }
+      if (prop === "exec") {
+        return function (sql: string) {
+          const res = target.exec(sql);
+          syncToPostgres(sql, []).catch(err => {
+            console.error("[PG-SYNC-EXEC-ERR] Replicate error:", err.message);
+          });
+          return res;
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    }
+  });
+}
+
 function initDatabase() {
   console.log("[DB] Initializing clinical knowledge engine...");
   try {
-    db = new Database(DB_PATH);
+    const rawDb = new Database(DB_PATH);
+    db = wrapDatabaseWithPostgresSync(rawDb);
     db.prepare("SELECT 1").get();
-    console.log("[DB] Connection verified.");
+    console.log("[DB] Connection verified with PostgreSQL Synchronization engine active.");
     
     // Seed initial knowledge AND keep updated
     const checkTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_base'").get();
@@ -2191,6 +2225,11 @@ db.prepare(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
+
+// Trigger boot-time master synchronization from cloud PostgreSQL down to local SQLite
+syncFromPostgresToSqlite(db).catch(err => {
+  console.error("[POSTGRES-SYNC-STARTUP-ERR] Failed to pull startup state from PG:", err.message);
+});
 
 
 

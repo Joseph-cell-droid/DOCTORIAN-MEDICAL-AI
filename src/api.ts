@@ -1078,6 +1078,28 @@ export const api = {
       if (!res.ok) throw new Error(data.error || "Failed to fetch users");
       return data.users as User[];
     },
+    async createUser(user: Partial<User> & { password?: string }) {
+      const res = await fetch(`${API_BASE}/admin/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create user account");
+      return data as { success: boolean; id: string };
+    },
+    async updateUser(id: string, updates: Partial<User> & { password?: string }) {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/update`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update user details");
+      return data.success as boolean;
+    },
     async deleteUser(id: string) {
       const res = await fetch(`${API_BASE}/admin/users/${id}`, {
         method: "DELETE",
@@ -1151,6 +1173,40 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update doctor");
+      return data.success as boolean;
+    },
+    async listLogs() {
+      const res = await fetch(`${API_BASE}/admin/logs`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch system logs");
+      return data.logs as Array<{ id: string; userId?: string; action: string; details?: string; createdAt: string }>;
+    },
+    async clearLogs() {
+      const res = await fetch(`${API_BASE}/admin/logs`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to clear logs");
+      return data.success as boolean;
+    },
+    async listFeedback() {
+      const res = await fetch(`${API_BASE}/admin/feedback`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch user feedback");
+      return data.feedback as Array<{ id: string; userId?: string; messageId: string; rating: string; suggestion?: string; timestamp: string; userEmail?: string; userDisplayName?: string }>;
+    },
+    async deleteFeedback(id: string) {
+      const res = await fetch(`${API_BASE}/admin/feedback/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete feedback entry");
       return data.success as boolean;
     }
   },

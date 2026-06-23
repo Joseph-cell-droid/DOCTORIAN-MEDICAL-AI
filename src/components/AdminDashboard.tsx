@@ -33,16 +33,35 @@ import {
   Radio,
   Zap,
   RefreshCw,
-  ShieldAlert
+  ShieldAlert,
+  Edit,
+  MessageSquare
 } from 'lucide-react';
 import { api, User, HealthRecord, Doctor, syncOfflineActions } from '../api';
 import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 
 export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  
+  // Feedback Admin State
+  const [feedback, setFeedback] = useState<any[]>([]);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+
+  // User CRUD Admin State
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userForm, setUserForm] = useState({
+    email: '',
+    password: '',
+    displayName: '',
+    role: 'user',
+    credits: 400,
+    phone: '',
+    institutionId: ''
+  });
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,12 +185,47 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
   // Live log stream state
   const [logs, setLogs] = useState<Array<{ id: string; time: string; msg: string; type: 'info' | 'warn' | 'success' | 'system' }>>([
-    { id: '1', time: new Date(Date.now() - 3600000).toLocaleTimeString(), msg: 'Clinical database integrity audit complete: 0 errors detected.', type: 'success' },
-    { id: '2', time: new Date(Date.now() - 3300000).toLocaleTimeString(), msg: 'Registered MTN API Callback tunnel securely.', type: 'info' },
-    { id: '3', time: new Date(Date.now() - 1800000).toLocaleTimeString(), msg: 'WebAuthn Security: Administrator session authenticated.', type: 'system' },
-    { id: '4', time: new Date(Date.now() - 600000).toLocaleTimeString(), msg: 'Neural Sync Service: Synchronized rural knowledge nodes.', type: 'success' },
-    { id: '5', time: new Date().toLocaleTimeString(), msg: 'Live Server Telemetry link initiated successfully.', type: 'system' }
+    { id: '1', time: new Date().toLocaleTimeString(), msg: 'Establishing database connection for system logs...', type: 'system' }
   ]);
+
+  const fetchRealLogs = async () => {
+    try {
+      const realLogs = await (api.admin as any).listLogs();
+      const mappedLogs = realLogs.map((l: any) => {
+        let type: 'info' | 'warn' | 'success' | 'system' = 'info';
+        const actionUpper = l.action.toUpperCase();
+        if (actionUpper.includes('ERR') || actionUpper.includes('FAIL') || actionUpper.includes('WARN')) {
+          type = 'warn';
+        } else if (actionUpper.includes('SUCCESS') || actionUpper.includes('COMPLET') || actionUpper.includes('PASS') || actionUpper.includes('CREAT') || actionUpper.includes('DELET') || actionUpper.includes('UPD')) {
+          type = 'success';
+        } else if (actionUpper.includes('SYSTEM') || actionUpper.includes('EMERGENCY') || actionUpper.includes('KEY') || actionUpper.includes('ADMIN')) {
+          type = 'system';
+        }
+        
+        return {
+          id: l.id,
+          time: new Date(l.createdAt).toLocaleTimeString(),
+          msg: l.details || `Executed: ${l.action}`,
+          type
+        };
+      });
+      setLogs(mappedLogs);
+    } catch (err) {
+      console.error("Failed to load real database logs:", err);
+    }
+  };
+
+  const handleLogActionToDB = async (action: string, details: string) => {
+    try {
+      await fetch('/api/admin/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, details }),
+        credentials: 'include'
+      });
+      fetchRealLogs();
+    } catch (err) {}
+  };
 
   // Telemetry real-time intervals
   useEffect(() => {
@@ -194,30 +248,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       });
     }, 2000);
 
-    const logMessages = [
-      { msg: 'Inbound WebAuthn transaction initiated for biometric payload', type: 'info' as const },
-      { msg: 'Clinical Diagnostic Engine resolved 94.2% diagnostic accuracy score', type: 'success' as const },
-      { msg: 'Syncing medical offline records with secure SQLite database', type: 'system' as const },
-      { msg: 'MTN Mobile Money webhook heartbeat recognized', type: 'info' as const },
-      { msg: 'Llama 3 Neural reasoning matrix synchronized successfully', type: 'success' as const },
-      { msg: 'Clinical backup archive created inside local_ai storage', type: 'system' as const },
-      { msg: 'Twilio callback verified: SMS notification queue dispatched', type: 'info' as const },
-      { msg: 'Hardware sensor transmission: ECG biometrics active key refreshed', type: 'system' as const },
-      { msg: 'High load caution: Neural response latency briefly exceeded 2.2s', type: 'warn' as const },
-      { msg: 'Database transaction logs cleared to maintain extreme disk efficiency', type: 'success' as const },
-    ];
-
+    fetchRealLogs();
     const logsInterval = setInterval(() => {
-      const randomLog = logMessages[Math.floor(Math.random() * logMessages.length)];
-      setLogs(prev => [
-        {
-          id: Math.random().toString(),
-          time: new Date().toLocaleTimeString(),
-          msg: randomLog.msg,
-          type: randomLog.type,
-        },
-        ...prev.slice(0, 15) // keep last 15 elements
-      ]);
+      fetchRealLogs();
     }, 4000);
 
     return () => {
@@ -464,6 +497,30 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     }
   };
 
+  const fetchFeedback = async () => {
+    setLoadingFeedback(true);
+    try {
+      const fbData = await (api.admin as any).listFeedback();
+      setFeedback(fbData);
+    } catch (err: any) {
+      console.error("Failed to load feedback:", err);
+      if (addToast) addToast("Failed to fetch user feedback from database", "error");
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const handleDeleteFeedback = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this feedback entry from the database?")) return;
+    try {
+      await (api.admin as any).deleteFeedback(id);
+      if (addToast) addToast("Feedback entry deleted.", "success");
+      fetchFeedback();
+    } catch (err: any) {
+      if (addToast) addToast("Failed to delete feedback.", "error");
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
@@ -473,6 +530,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       fetchBillingData();
     } else if (activeTab === 'doctors') {
       fetchDoctors();
+    } else if (activeTab === 'feedback') {
+      fetchFeedback();
     } else {
       fetchTwilioStatus();
     }
@@ -562,6 +621,50 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     } catch (err: any) {
       setError(err.message || "Failed to update role");
     }
+  };
+
+  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await (api.admin as any).createUser(userForm);
+      if (addToast) addToast("User registered successfully via database link!", "success");
+      setSuccessMessage("User created successfully");
+      setIsAddingUser(false);
+      setUserForm({ email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '' });
+      fetchUsers();
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      if (addToast) addToast(err.message || "Failed to create user", "error");
+    }
+  };
+
+  const handleUpdateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      await (api.admin as any).updateUser(editingUser.id, userForm);
+      if (addToast) addToast("User updated successfully via database link!", "success");
+      setSuccessMessage("User updated successfully");
+      setEditingUser(null);
+      setUserForm({ email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '' });
+      fetchUsers();
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      if (addToast) addToast(err.message || "Failed to update user", "error");
+    }
+  };
+
+  const handleOpenEditUser = (u: User) => {
+    setEditingUser(u);
+    setUserForm({
+      email: u.email,
+      password: '',
+      displayName: u.displayName || '',
+      role: u.role,
+      credits: Number(u.credits) || 400,
+      phone: u.phone || '',
+      institutionId: u.institutionId || ''
+    });
   };
 
   const handleViewRecords = async (user: User) => {
@@ -687,6 +790,17 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             <Activity size={16} aria-hidden="true" />
             System
           </button>
+          <button 
+            onClick={() => setActiveTab('feedback')}
+            role="tab"
+            aria-selected={activeTab === 'feedback'}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
+              activeTab === 'feedback' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <MessageSquare size={16} aria-hidden="true" />
+            Feedback
+          </button>
         </div>
       </div>
 
@@ -805,28 +919,40 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
-              <div className="relative max-w-md w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} aria-hidden="true" />
-                <input 
-                  type="text"
-                  placeholder="Search by email or name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search users by email or name"
-                  className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-                />
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-4 items-center flex-1 w-full">
+                <div className="relative max-w-sm w-full">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} aria-hidden="true" />
+                  <input 
+                    type="text"
+                    placeholder="Search by email or name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    aria-label="Search users by email or name"
+                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm text-sm"
+                  />
+                </div>
+                <div className="relative w-full sm:w-48">
+                  <input 
+                    type="text" 
+                    placeholder="Filter Institution ID..."
+                    value={filterInstitution}
+                    onChange={(e) => setFilterInstitution(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold"
+                    aria-label="Filter by institution"
+                  />
+                </div>
               </div>
-              <div className="relative w-full sm:w-64">
-                <input 
-                  type="text" 
-                  placeholder="Filter Institution ID..."
-                  value={filterInstitution}
-                  onChange={(e) => setFilterInstitution(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold"
-                  aria-label="Filter by institution"
-                />
-              </div>
+              
+              <button 
+                onClick={() => {
+                  setUserForm({ email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '' });
+                  setIsAddingUser(true);
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+              >
+                <Plus size={16} /> Add User
+              </button>
             </div>
 
             <div aria-live="polite" className="space-y-4">
@@ -919,6 +1045,14 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                           </td>
                           <td className="px-6 py-5 text-right">
                             <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => handleOpenEditUser(u)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all active:scale-90"
+                                aria-label={`Edit user ${u.displayName || u.email}`}
+                                title="Edit User"
+                              >
+                                <Edit size={20} aria-hidden="true" />
+                              </button>
                               <button 
                                 onClick={() => setUserQrView(u)}
                                 className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-all active:scale-90"
@@ -1513,7 +1647,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               </div>
             </div>
           </motion.div>
-        ) : (
+        ) : activeTab === 'system' ? (
           <motion.div
             key="system-tab"
             id="system-panel"
@@ -2123,6 +2257,87 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               </div>
             </div>
           </motion.div>
+        ) : (
+          <motion.div
+            key="feedback-tab"
+            id="feedback-panel"
+            role="tabpanel"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
+          >
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
+              <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                    <MessageSquare size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Database-Linked User Feedback</h3>
+                    <p className="text-xs text-slate-500 font-medium font-mono">Control center for direct messages and reviews persisted in SQLite database</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={fetchFeedback}
+                  className="px-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-100 dark:border-slate-700 active:scale-95"
+                >
+                  <RefreshCw size={12} />
+                  Reload Feedback
+                </button>
+              </div>
+
+              {loadingFeedback ? (
+                <div className="py-20 text-center">
+                  <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
+                  <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Querying SQL database memory...</p>
+                </div>
+              ) : feedback.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {feedback.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover:shadow-md transition-all relative group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+                            <span className="text-xs font-black text-slate-905 dark:text-white uppercase tracking-tight">
+                              {item.displayName || "Anonymous User"}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400">{item.email}</span>
+                          </div>
+                          
+                          <button 
+                            onClick={() => handleDeleteFeedback(item.id)}
+                            className="p-1 px-2.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-rose-150/10 flex items-center gap-1 active:scale-95"
+                            title="Delete this message"
+                          >
+                            <Trash2 size={12} /> Remove
+                          </button>
+                        </div>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 italic mb-4">
+                          "{item.message}"
+                        </p>
+                      </div>
+                      <div className="pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                        <span className="font-bold text-blue-600 dark:text-blue-400">UID: #{item.id}</span>
+                        <span>{new Date(item.createdAt).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4">
+                    <MessageSquare size={32} />
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 font-black text-sm uppercase tracking-wide">No feedback stored in database</p>
+                  <p className="text-xs text-slate-400 mt-1">When users submit feedback during consultations, it will list here in real time.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -2319,6 +2534,151 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   Delete
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Create / Edit User Modal */}
+      <AnimatePresence>
+        {(isAddingUser || editingUser) && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl max-w-lg w-full relative border border-slate-100 dark:border-slate-800 my-8"
+            >
+              <button 
+                onClick={() => {
+                  setIsAddingUser(false);
+                  setEditingUser(null);
+                }}
+                aria-label="Close user modal"
+                className="absolute top-6 right-6 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400"
+              >
+                <X size={24} aria-hidden="true" />
+              </button>
+
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2 flex items-center gap-2">
+                {isAddingUser ? <Plus className="text-blue-600" size={24} /> : <Edit className="text-blue-600" size={24} />}
+                {isAddingUser ? "Create New User in Database" : "Edit User in Database"}
+              </h3>
+              <p className="text-xs text-slate-500 mb-6">
+                {isAddingUser ? "Declare credentials and initial compute parameters directly linked to the secure clinical storage." : "Modify permissions or records associated with this clinical user profile."}
+              </p>
+
+              <form onSubmit={isAddingUser ? handleCreateUserSubmit : handleUpdateUserSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Username</label>
+                    <input 
+                      type="email"
+                      required
+                      value={userForm.email}
+                      onChange={(e) => setUserForm({...userForm, email: e.target.value})}
+                      placeholder="user@health.org"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {isAddingUser ? "Password Credentials" : "Change Password (Leave Blank to Keep Intact)"}
+                    </label>
+                    <input 
+                      type="password"
+                      required={isAddingUser}
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({...userForm, password: e.target.value})}
+                      placeholder="••••••••••••"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Full Name</label>
+                    <input 
+                      type="text"
+                      required
+                      value={userForm.displayName}
+                      onChange={(e) => setUserForm({...userForm, displayName: e.target.value})}
+                      placeholder="Alex Mercer"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                    <input 
+                      type="text"
+                      value={userForm.phone}
+                      onChange={(e) => setUserForm({...userForm, phone: e.target.value})}
+                      placeholder="e.g. +256..."
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">User Role</label>
+                    <select
+                      value={userForm.role}
+                      onChange={(e) => setUserForm({...userForm, role: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="user">Standard Patient (user)</option>
+                      <option value="doctor">Medical Specialist (doctor)</option>
+                      <option value="admin">Platform Admin (admin)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Diagnostic AI Tokens Limit</label>
+                    <input 
+                      type="number"
+                      required
+                      value={userForm.credits}
+                      onChange={(e) => setUserForm({...userForm, credits: Number(e.target.value)})}
+                      placeholder="400"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institution Identification Key</label>
+                    <input 
+                      type="text"
+                      value={userForm.institutionId}
+                      onChange={(e) => setUserForm({...userForm, institutionId: e.target.value})}
+                      placeholder="e.g. CLINIC-KAMPALA-NORTH"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4 font-bold">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsAddingUser(false);
+                      setEditingUser(null);
+                    }}
+                    className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 transition-all active:scale-95"
+                  >
+                    {isAddingUser ? "Create Profile" : "Save Changes"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

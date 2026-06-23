@@ -4028,11 +4028,105 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   // Admin Routes
   app.get("/api/admin/users", requireAdmin, (req: any, res) => {
     try {
-      const users = db.prepare("SELECT id, email, displayName, photoURL, role, createdAt FROM users ORDER BY createdAt DESC").all();
+      const users = db.prepare("SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, createdAt FROM users ORDER BY createdAt DESC").all();
       res.json({ users });
     } catch (err: any) {
       console.error("[ADMIN] Failed to fetch users:", err.message);
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Admin Create User Route
+  app.post("/api/admin/users", requireAdmin, async (req: any, res) => {
+    const { email, password, displayName, role, credits, phone, institutionId } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const id = "usr_" + Math.random().toString(36).substring(2, 12);
+      const createdAt = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO users (id, email, password, displayName, role, credits, phone, institutionId, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id,
+        email,
+        hashedPassword,
+        displayName || email.split("@")[0],
+        role || 'user',
+        credits !== undefined ? Number(credits) : 400,
+        phone || null,
+        institutionId || null,
+        createdAt
+      );
+
+      // Log this action to system logs in database
+      db.prepare("INSERT INTO system_logs (id, action, details) VALUES (?, ?, ?)")
+        .run(
+          Math.random().toString(36).substring(2, 11),
+          "USER_CREATION_ADMIN",
+          `Admin (${req.user.email}) created user account for ${email} with role ${role || 'user'}`
+        );
+
+      res.status(201).json({ success: true, id });
+    } catch (err: any) {
+      console.error("[ADMIN] User creation failed:", err.message);
+      if (err.message.includes("UNIQUE constraint failed")) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+      res.status(500).json({ error: "Failed to create user account" });
+    }
+  });
+
+  // Admin Update User Route
+  app.patch("/api/admin/users/:id/update", requireAdmin, async (req: any, res) => {
+    const { id } = req.params;
+    const { email, displayName, role, credits, phone, institutionId, password } = req.body;
+
+    try {
+      // Fetch existing user
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(440).json({ error: "User not found" });
+
+      let hashedPassword = existing.password;
+      if (password && password.trim().length > 0) {
+        if (password.length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters" });
+        }
+        hashedPassword = await bcrypt.hash(password, 10);
+      }
+
+      db.prepare(`
+        UPDATE users 
+        SET email = ?, displayName = ?, role = ?, credits = ?, phone = ?, institutionId = ?, password = ?
+        WHERE id = ?
+      `).run(
+        email || existing.email,
+        displayName !== undefined ? displayName : existing.displayName,
+        role || existing.role,
+        credits !== undefined ? Number(credits) : existing.credits,
+        phone !== undefined ? phone : existing.phone,
+        institutionId !== undefined ? institutionId : existing.institutionId,
+        hashedPassword,
+        id
+      );
+
+      // Log this action to system logs in database
+      db.prepare("INSERT INTO system_logs (id, action, details) VALUES (?, ?, ?)")
+        .run(
+          Math.random().toString(36).substring(2, 11),
+          "USER_UPDATE_ADMIN",
+          `Admin (${req.user.email}) updated user account for ${email || existing.email}`
+        );
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[ADMIN] Failed to update user ${id}:`, err.message);
+      if (err.message.includes("UNIQUE constraint failed")) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+      res.status(500).json({ error: "Failed to update user account details" });
     }
   });
 
@@ -4041,9 +4135,21 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     if (id === req.user.id) return res.status(400).json({ error: "Cannot delete yourself" });
 
     try {
+      const u = db.prepare("SELECT email FROM users WHERE id = ?").get(id) as any;
+      const targetEmail = u ? u.email : id;
+
       db.prepare("DELETE FROM users WHERE id = ?").run(id);
       db.prepare("DELETE FROM records WHERE userId = ?").run(id);
       db.prepare("DELETE FROM credentials WHERE userId = ?").run(id);
+
+      // Log this action
+      db.prepare("INSERT INTO system_logs (id, action, details) VALUES (?, ?, ?)")
+        .run(
+          Math.random().toString(36).substring(2, 11),
+          "USER_DELETION_ADMIN",
+          `Admin (${req.user.email}) deleted user account ${targetEmail}`
+        );
+
       res.json({ success: true });
     } catch (err: any) {
       console.error(`[ADMIN] Failed to delete user ${id}:`, err.message);
@@ -4075,11 +4181,91 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
 
     try {
+      const u = db.prepare("SELECT email FROM users WHERE id = ?").get(id) as any;
       db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
+
+      // Log this action
+      db.prepare("INSERT INTO system_logs (id, action, details) VALUES (?, ?, ?)")
+        .run(
+          Math.random().toString(36).substring(2, 11),
+          "USER_ROLE_CHANGE_ADMIN",
+          `Admin (${req.user.email}) updated role of ${u ? u.email : id} to ${role}`
+        );
+
       res.json({ success: true, role });
     } catch (err: any) {
       console.error(`[ADMIN] Failed to update role for user ${id}:`, err.message);
       res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  // Admin Database System Logs Endpoints
+  app.get("/api/admin/logs", requireAdmin, (req: any, res) => {
+    try {
+      const logs = db.prepare("SELECT * FROM system_logs ORDER BY createdAt DESC LIMIT 100").all();
+      res.json({ logs });
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to fetch system logs:", err.message);
+      res.status(500).json({ error: "Failed to fetch system logs" });
+    }
+  });
+
+  app.post("/api/admin/logs", requireAdmin, (req: any, res) => {
+    const { action, details } = req.body;
+    if (!action) return res.status(400).json({ error: "Action name required" });
+    try {
+      const id = "log_" + Math.random().toString(36).substring(2, 11);
+      db.prepare("INSERT INTO system_logs (id, userId, action, details) VALUES (?, ?, ?, ?)")
+        .run(id, req.user.id, action, details || '');
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to write system log:", err.message);
+      res.status(500).json({ error: "Failed to record log" });
+    }
+  });
+
+  app.delete("/api/admin/logs", requireAdmin, (req: any, res) => {
+    try {
+      db.prepare("DELETE FROM system_logs").run();
+      // Insert a fresh initialization log
+      db.prepare("INSERT INTO system_logs (id, userId, action, details) VALUES (?, ?, ?, ?)")
+        .run(
+          "log_" + Math.random().toString(36).substring(2, 11),
+          req.user.id,
+          "SYSTEM_LOGS_FLUSHED",
+          `System logs were manually flushed by admin (${req.user.email})`
+        );
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to flush system logs:", err.message);
+      res.status(500).json({ error: "Failed to clear logs" });
+    }
+  });
+
+  // Admin Feedback Management Endpoints
+  app.get("/api/admin/feedback", requireAdmin, (req: any, res) => {
+    try {
+      const feedback = db.prepare(`
+        SELECT f.*, u.email as userEmail, u.displayName as userDisplayName
+        FROM feedback f
+        LEFT JOIN users u ON f.userId = u.id
+        ORDER BY f.timestamp DESC
+      `).all();
+      res.json({ feedback });
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to fetch user feedback:", err.message);
+      res.status(500).json({ error: "Failed to load feedback logs" });
+    }
+  });
+
+  app.delete("/api/admin/feedback/:id", requireAdmin, (req: any, res) => {
+    const { id } = req.params;
+    try {
+      db.prepare("DELETE FROM feedback WHERE id = ?").run(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[ADMIN] Failed to delete feedback ${id}:`, err.message);
+      res.status(500).json({ error: "Failed to delete feedback entry" });
     }
   });
 

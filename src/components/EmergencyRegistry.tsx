@@ -13,7 +13,8 @@ import {
   UserPlus,
   RefreshCw,
   Zap,
-  Activity
+  Activity,
+  Trash2
 } from 'lucide-react';
 import { api, User as UserType } from '../api';
 
@@ -45,10 +46,31 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
   const [bloodGroup, setBloodGroup] = useState(user?.bloodGroup || '');
   const [hospitalPreference, setHospitalPreference] = useState(user?.hospitalPreference || '');
 
+  // DB-Backed Emergency Contacts
+  const [contactsList, setContactsList] = useState<Array<{ id: string; name: string; phone: string; role: string; email?: string }>>([]);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactRole, setNewContactRole] = useState('Relative');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [isAddingContact, setIsAddingContact] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [sosCountdown, setSosCountdown] = useState<number | null>(null);
+
+  const fetchContacts = async () => {
+    try {
+      const list = await api.emergencyContacts.list();
+      setContactsList(list);
+    } catch (e) {
+      console.error("Failed to load emergency contacts:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchContacts();
+  }, [user]);
 
   const broadcastSOS = async () => {
     if (!user) return;
@@ -95,6 +117,42 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
   const addNotification = (msg: string, type: 'info' | 'success' | 'warning' | 'error') => {
     setToast({ message: msg, type: type === 'success' ? 'success' : 'error' });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleAddContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newContactName.trim() || !newContactPhone.trim()) {
+      addNotification("Please enter contact name and phone number.", "error");
+      return;
+    }
+    setIsAddingContact(true);
+    try {
+      await api.emergencyContacts.create({
+        name: newContactName,
+        phone: newContactPhone,
+        role: newContactRole,
+        email: newContactEmail
+      });
+      await fetchContacts();
+      setNewContactName('');
+      setNewContactPhone('');
+      setNewContactEmail('');
+      addNotification("Emergency contact registered successfully.", "success");
+    } catch (err) {
+      addNotification("Failed to save emergency contact.", "error");
+    } finally {
+      setIsAddingContact(false);
+    }
+  };
+
+  const handleDeleteContact = async (id: string) => {
+    try {
+      await api.emergencyContacts.delete(id);
+      await fetchContacts();
+      addNotification("Emergency contact deleted.", "success");
+    } catch (err) {
+      addNotification("Failed to delete contact.", "error");
+    }
   };
 
   const handleUpdate = async () => {
@@ -435,6 +493,161 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                         placeholder="mentor@nexus.com"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Secondary Registered Contacts (Automatic Call Dispatch) */}
+            <div className="xl:col-span-12">
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 sm:p-10">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-md">
+                      <PhoneCall size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Automatic Alarm & Call Dispatch Targets</h3>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Database Registered Emergency Contacts</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+                      Alarm Synced
+                    </span>
+                    <span className="text-xs font-mono text-slate-400 dark:text-slate-500 font-bold">
+                      {contactsList.length} contact(s) active
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                  {/* Register Form */}
+                  <div className="lg:col-span-5 space-y-6">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      Register New Contact Node
+                    </h4>
+                    
+                    <form onSubmit={handleAddContact} className="space-y-4">
+                      <div>
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Contact Name</label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            type="text"
+                            required
+                            value={newContactName}
+                            onChange={e => setNewContactName(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 focus:border-rose-500 rounded-xl pl-12 pr-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all"
+                            placeholder="e.g. Sarah Obote"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Phone Number</label>
+                          <div className="relative">
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input 
+                              type="tel"
+                              required
+                              value={newContactPhone}
+                              onChange={e => setNewContactPhone(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 focus:border-rose-500 rounded-xl pl-12 pr-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all"
+                              placeholder="+256..."
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Relationship/Role</label>
+                          <select 
+                            value={newContactRole}
+                            onChange={e => setNewContactRole(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 focus:border-rose-500 rounded-xl px-4 py-3.5 text-xs font-black text-slate-900 dark:text-white outline-none transition-all"
+                          >
+                            <option value="Relative">Relative</option>
+                            <option value="Spouse">Spouse</option>
+                            <option value="Sibling">Sibling</option>
+                            <option value="Parent">Parent</option>
+                            <option value="Doctor">Secondary Doctor</option>
+                            <option value="Neighbor">Neighbor / Responder</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Email Address (Optional)</label>
+                        <input 
+                          type="email"
+                          value={newContactEmail}
+                          onChange={e => setNewContactEmail(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 focus:border-rose-500 rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all"
+                          placeholder="relative@domain.com"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isAddingContact}
+                        className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-slate-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {isAddingContact ? <RefreshCw className="animate-spin" size={14} /> : <UserPlus size={14} />}
+                        Save to Database & Sync Alarm
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Registered Contacts List */}
+                  <div className="lg:col-span-7 space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      Active Registered Contacts Matrix
+                    </h4>
+
+                    {contactsList.length === 0 ? (
+                      <div className="bg-white dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center">
+                        <AlertCircle className="mx-auto text-slate-400 mb-2" size={24} />
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">No additional emergency contacts stored in the database.</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-bold">Register contacts on the left to activate automatic calling and routing during alarms.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 overflow-y-auto max-h-[350px] pr-2">
+                        {contactsList.map(contact => (
+                          <div 
+                            key={contact.id} 
+                            className="bg-white dark:bg-slate-950/60 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex justify-between items-center group hover:border-rose-500/35 transition-all shadow-sm"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-800 dark:text-slate-200">{contact.name}</span>
+                                <span className="px-2 py-0.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-md text-[8px] font-black uppercase tracking-wider">
+                                  {contact.role}
+                                </span>
+                              </div>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-0.5 text-[11px] text-slate-400 dark:text-slate-500">
+                                <span className="font-mono font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                  <Phone size={10} /> {contact.phone}
+                                </span>
+                                {contact.email && (
+                                  <span className="flex items-center gap-1 font-bold">
+                                    <User size={10} /> {contact.email}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleDeleteContact(contact.id)}
+                              className="p-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-xl transition-all cursor-pointer opacity-80 group-hover:opacity-100"
+                              title="Remove Contact"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

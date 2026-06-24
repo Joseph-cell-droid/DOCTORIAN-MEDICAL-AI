@@ -297,7 +297,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // ==========================================
   // DOCTORIAN VOICE CALLING & TELEPHONY STATE
   // ==========================================
-  const [callState, setCallState] = useState<'idle' | 'calling' | 'connected' | 'disconnecting'>('idle');
+  const [callState, setCallState] = useState<'idle' | 'incoming' | 'calling' | 'connected' | 'disconnecting'>('idle');
   const [callType, setCallType] = useState<'webrtc' | 'mtn' | 'airtel'>('webrtc');
   const [voiceSelection, setVoiceSelection] = useState<'Charon' | 'Dr. Obote Mentor' | 'Nurse Atwine'>('Charon');
   const [speechModel, setSpeechModel] = useState<'Whisper'>('Whisper');
@@ -314,37 +314,146 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [voiceIsSpeaking, setVoiceIsSpeaking] = useState<boolean>(false);
   const [voiceCallQuery, setVoiceCallQuery] = useState<string>('');
   const [voiceCallIsTranscribing, setVoiceCallIsTranscribing] = useState<boolean>(false);
+  const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(false);
+  
+  const ringtoneCleanupRef = useRef<(() => void) | null>(null);
+
+  // Play dual-tone synthesized telephone ringtone using Web Audio API
+  const playRingtone = () => {
+    if (typeof window === 'undefined') return () => {};
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return () => {};
+      const ctx = new AudioContextClass();
+      let isPlaying = true;
+
+      const playBeep = (startTime: number, duration: number) => {
+        if (!isPlaying) return;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(400, startTime);
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(450, startTime);
+
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.12, startTime + 0.05);
+        gainNode.gain.setValueAtTime(0.12, startTime + duration - 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        osc1.start(startTime);
+        osc2.start(startTime);
+        osc1.stop(startTime + duration);
+        osc2.stop(startTime + duration);
+      };
+
+      const intervalId = setInterval(() => {
+        if (!isPlaying) return;
+        const now = ctx.currentTime;
+        playBeep(now, 0.4);
+        playBeep(now + 0.6, 0.4);
+      }, 3000);
+
+      // Initial ring
+      const now = ctx.currentTime;
+      playBeep(now, 0.4);
+      playBeep(now + 0.6, 0.4);
+
+      return () => {
+        isPlaying = false;
+        clearInterval(intervalId);
+        ctx.close().catch(() => {});
+      };
+    } catch (e) {
+      console.warn("AudioContext ringtone error:", e);
+      return () => {};
+    }
+  };
+
+  // Helper for triggering an incoming consultation call simulation
+  const triggerIncomingCall = () => {
+    if (callState !== 'idle') return;
+    setCallState('incoming');
+    setVoiceCallTranscript([{ role: 'assistant', text: "Incoming secure telephone link. Reviewing clinical file details..." }]);
+    const stopRing = playRingtone();
+    ringtoneCleanupRef.current = stopRing;
+    setVoiceCallLogs([
+      'SYS: Incoming WebRTC handshake request...',
+      `SYS: Selected voice avatar: ${voiceSelection}`,
+      'SYS: Carrier status active'
+    ]);
+  };
+
+  // Answer the incoming call
+  const answerIncomingCall = () => {
+    if (callState !== 'incoming') return;
+    if (ringtoneCleanupRef.current) {
+      ringtoneCleanupRef.current();
+      ringtoneCleanupRef.current = null;
+    }
+    setCallState('connected');
+    setVoiceCallLogs(prev => [
+      ...prev,
+      'SYS: Stream status: ACTIVE',
+      'SYS: Connection completed successfully'
+    ]);
+    speakVoiceCallText(`Hello! This is your Doctorian AI Health Specialist, speaking with ${voiceSelection} profile. I've successfully connected to your secure channel. How are you feeling today?`);
+  };
+
+  // Decline/End call
+  const declineIncomingCall = () => {
+    if (ringtoneCleanupRef.current) {
+      ringtoneCleanupRef.current();
+      ringtoneCleanupRef.current = null;
+    }
+    setCallState('idle');
+    setVoiceCallLogs([]);
+  };
+
+  // Cleanup ringtone on unmount
+  useEffect(() => {
+    return () => {
+      if (ringtoneCleanupRef.current) {
+        ringtoneCleanupRef.current();
+      }
+    };
+  }, []);
 
   // Helper for starting the call
   const startVoiceCallSession = async () => {
     if (callState !== 'idle') return;
-    setVoiceCallTranscript([{ role: 'assistant', text: "Dialing virtual endpoint... Handshaking secure transmission tunnels." }]);
+    setVoiceCallTranscript([{ role: 'assistant', text: "Connecting to secure telehealth node..." }]);
     setCallState('calling');
     setVoiceCallLogs([
-      'SYS: Initializing secure audio stream...',
-      `SYS: Allocating WebRTC SDP offer with selected brain [${voiceBrainModel}]`,
-      'SYS: Requesting translation carrier frequencies via Whisper STT protocol',
-      'SYS: Calibrating voice output parameters for Coqui XTTS-v2'
+      'SYS: Initializing stream parameters...',
+      `SYS: Handshaking with Qwen/Gemini cloud brain [${voiceBrainModel}]`,
+      'SYS: Ready'
     ]);
 
     setTimeout(() => {
       setCallState('connected');
-      setVoiceCallLogs(prev => [
-        ...prev, 
-        'SYS: Session handshakes aligned.', 
-        'SYS: WebRTC PeerConnection state: STABLE',
-        'SYS: Fully Containment Mode active. Zero cloud pipeline bypass.'
-      ]);
-      speakVoiceCallText("Hello and welcome! This is Doctorian Secure Voice Consultation portal, powered by the Coqui XTTS v2 voice cloning module, OpenAI Whisper STT transcribing, and WebRTC peer channels. How are you feeling today?");
-    }, 1800);
+      setVoiceCallLogs(prev => [...prev, 'SYS: Stream status: ACTIVE']);
+      speakVoiceCallText(`Hello and welcome! This is your Doctorian AI Voice consultation portal, connected on a secure pipeline. I am ready to assist you. How are you feeling today?`);
+    }, 1500);
   };
 
   // Helper for terminating the call
   const terminateVoiceCallSession = () => {
+    if (ringtoneCleanupRef.current) {
+      ringtoneCleanupRef.current();
+      ringtoneCleanupRef.current = null;
+    }
     setCallState('disconnecting');
     window.speechSynthesis?.cancel();
     setVoiceIsSpeaking(false);
-    setVoiceCallLogs(prev => [...prev, 'SYS: Aborting WebRTC peer stream socket. Disconnect signal broadcasted.']);
+    setVoiceCallLogs(prev => [...prev, 'SYS: Stream terminating...']);
     setTimeout(() => {
       setCallState('idle');
       setVoiceCallDuration(0);
@@ -2436,6 +2545,16 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
             {/* Top border ambient synapse line */}
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 opacity-90" />
             <div className="flex items-center gap-1.5 sm:gap-3">
+              {onNavigate && (
+                <button
+                  onClick={() => onNavigate('home')}
+                  className="lg:hidden p-1.5 xs:p-2 mr-1 text-slate-500 hover:text-blue-600 transition-colors shrink-0 flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-[9px] font-[1000] uppercase tracking-wider px-2 py-1.5"
+                  title="Exit Chat to Dashboard"
+                >
+                  <ArrowLeft size={13} className="stroke-[3]" />
+                  <span className="text-[9px]">Exit</span>
+                </button>
+              )}
               <button 
                 onClick={() => setIsSidebarOpen(true)}
                 className="p-1.5 xs:p-2 -ml-1 text-slate-500 hover:text-blue-600 transition-colors shrink-0"
@@ -5095,379 +5214,373 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                onClick={() => {
                  if (callState === 'idle') setShowVoiceCallModal(false);
                }}
-               className="absolute inset-0 bg-slate-950/85 backdrop-blur-xl"
+               className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xl"
              />
 
              {/* Modal Container */}
              <motion.div 
-               initial={{ opacity: 0, scale: 0.9, y: 30 }}
+               initial={{ opacity: 0, scale: 0.95, y: 20 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-               className="relative w-full max-w-2xl bg-slate-900 dark:bg-slate-950 text-white rounded-[2.5rem] border border-slate-800 shadow-3xl flex flex-col overflow-hidden max-h-[92vh] font-sans"
+               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+               className="relative w-full max-w-lg bg-slate-950/95 border border-slate-800/80 text-white rounded-[2.5rem] shadow-3xl flex flex-col overflow-hidden max-h-[85vh] font-sans"
              >
                {/* Modal Header */}
-               <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0 bg-slate-900/40">
-                  <div className="text-left flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400">
-                      <Phone className="animate-pulse" size={18} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white leading-none">Voice Consultation Hub</h3>
-                      <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
-                        XTTS v2 + Whisper Telephony
-                      </p>
-                    </div>
-                  </div>
-                  {callState === 'idle' && (
-                    <button 
-                      onClick={() => setShowVoiceCallModal(false)} 
-                      className="p-3 bg-white/5 hover:bg-white/10 text-slate-350 hover:text-white rounded-2xl transition-colors cursor-pointer"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
+               <div className="p-6 flex items-center justify-between shrink-0 bg-transparent z-10">
+                 <div className="text-left flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                   <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">AI Consultation</span>
+                 </div>
+                 {callState === 'idle' && (
+                   <button 
+                     onClick={() => setShowVoiceCallModal(false)} 
+                     className="p-2 hover:bg-white/5 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                   >
+                     <X size={18} />
+                   </button>
+                 )}
                </div>
 
-               {/* Modal Scroll Content */}
-               <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar flex-1 space-y-6 text-left">
-                  {callState === 'idle' ? (
-                    // IDLE VIEW: Core Call Configuration Setup
-                    <div className="space-y-6 animate-in fade-in duration-300">
-                      
-                      {/* Architectural Info Callout Panel */}
-                      <div className="p-5 bg-gradient-to-r from-blue-900/20 to-emerald-900/10 rounded-2xl border border-blue-500/10 space-y-2.5">
-                        <div className="flex items-center gap-2 font-bold">
-                          <Cpu size={14} className="text-blue-400 animate-spin-slow" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">Vocal Telephony Architecture</span>
-                        </div>
-                        <p className="text-[11px] text-slate-350 leading-relaxed">
-                          This portal links high-end speech translation and synthesis channels. Standard vocal dialogue captures your input through an index of **OpenAI Whisper STT**, feeds it to the **Qwen2.5 / Gemini** clinical brain to formulate medical-grade response, synthesizes response text into natural voice streams with **Coqui XTTS v2** voice cloner models, and transfers audio streams using **WebRTC Peer Channels** or carrier cellular networks (**MTN or Airtel**).
-                        </p>
-                      </div>
+               {/* Modal Content */}
+               <div className="px-6 pb-8 flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                 
+                 {/* IDLE STATE */}
+                 {callState === 'idle' && (
+                   <div className="flex flex-col flex-1 justify-center space-y-8 py-4 animate-in fade-in duration-300">
+                     <div className="text-center space-y-2">
+                       <h3 className="text-2xl font-semibold tracking-tight text-white">Secure Voice Portal</h3>
+                       <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                         Connect with our clinical intelligence core. Powered by real-time translation and modern neural models.
+                       </p>
+                     </div>
 
-                      {/* Config Grid (2 columns) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        
-                        {/* Column 1: Path Selection and Identity */}
-                        <div className="space-y-4 text-left">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Communication Route</label>
-                            <div className="grid grid-cols-3 gap-2">
-                              {(['webrtc', 'mtn', 'airtel'] as const).map(type => (
-                                <button
-                                  key={type}
-                                  type="button"
-                                  onClick={() => setCallType(type)}
-                                  className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all text-center ${callType === type ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : 'border-slate-800 text-slate-400 hover:bg-slate-900'}`}
-                                >
-                                  {type === 'webrtc' ? 'WebRTC (App)' : type === 'mtn' ? 'MTN Call' : 'Airtel Call'}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                     {/* Clean Configuration Card */}
+                     <div className="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-5 space-y-5 text-left">
+                       {/* Voice Selection */}
+                       <div className="space-y-2.5">
+                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Clinician Voice</span>
+                         <div className="grid grid-cols-3 gap-2">
+                           {[
+                             { id: 'Charon' as const, label: 'Charon', desc: 'Male Voice' },
+                             { id: 'Dr. Obote Mentor' as const, label: 'Dr. Obote', desc: 'Tutor Voice' },
+                             { id: 'Nurse Atwine' as const, label: 'Nurse Atwine', desc: 'Midwife Voice' }
+                           ].map(voice => (
+                             <button
+                               key={voice.id}
+                               type="button"
+                               onClick={() => setVoiceSelection(voice.id)}
+                               className={`p-3 rounded-2xl border text-center transition-all ${
+                                 voiceSelection === voice.id 
+                                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' 
+                                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-white hover:border-slate-700'
+                               }`}
+                             >
+                               <p className="text-xs font-semibold leading-none">{voice.label}</p>
+                               <p className="text-[9px] text-slate-500 mt-1 leading-none">{voice.desc}</p>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
 
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Speech-To-Text Model</label>
-                            <button className="w-full py-2.5 px-3 bg-slate-900/80 border border-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest rounded-xl text-left flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                              OpenAI Whisper STT Module
-                            </button>
-                          </div>
+                       {/* Cognitive Brain Selection */}
+                       <div className="space-y-2.5">
+                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Cognitive AI Brain</span>
+                         <div className="grid grid-cols-2 gap-2">
+                           {[
+                             { id: 'Gemini-3.5-Flash' as const, label: 'Gemini 3.5 Flash', desc: 'Ultra-fast Clinical Reasoning' },
+                             { id: 'Qwen2.5-3B-Instruct' as const, label: 'Qwen 2.5 (Local)', desc: 'Secure Offline Model' }
+                           ].map(brain => (
+                             <button
+                               key={brain.id}
+                               type="button"
+                               onClick={() => setVoiceBrainModel(brain.id)}
+                               className={`p-3 rounded-2xl border text-left transition-all ${
+                                 voiceBrainModel === brain.id 
+                                   ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' 
+                                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-white hover:border-slate-700'
+                               }`}
+                             >
+                               <p className="text-xs font-semibold leading-none">{brain.label}</p>
+                               <p className="text-[9px] text-slate-500 mt-1 leading-none">{brain.desc}</p>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
+                     </div>
 
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cognitive AI Brain</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {(['Gemini-3.5-Flash', 'Qwen2.5-3B-Instruct'] as const).map(model => (
-                                <button
-                                  key={model}
-                                  type="button"
-                                  onClick={() => setVoiceBrainModel(model)}
-                                  className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all text-center ${voiceBrainModel === model ? 'text-blue-400 border-blue-500/40 bg-blue-500/10' : 'border-slate-800 text-slate-400 hover:bg-slate-900'}`}
-                                >
-                                  {model === 'Gemini-3.5-Flash' ? 'Gemini 3.5' : 'Qwen2.5 3B'}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
+                     {/* Action Controls */}
+                     <div className="space-y-3">
+                       <button
+                         type="button"
+                         onClick={startVoiceCallSession}
+                         className="w-full py-4 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-2xl font-semibold tracking-wider text-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                       >
+                         <Phone size={14} />
+                         Initiate Direct Call
+                       </button>
 
-                        {/* Column 2: Voice Identifiers and Telephone setup */}
-                        <div className="space-y-4 text-left">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">XTTS Voice Synthesis Profile</label>
-                            <div className="space-y-2">
-                              {[
-                                { id: 'Charon' as const, label: 'Charon (Cloned)', desc: 'Warm male general practitioner tone' },
-                                { id: 'Dr. Obote Mentor' as const, label: 'Obote Mentor (Cloned)', desc: 'Traditional scholar senior tutor' },
-                                { id: 'Nurse Atwine' as const, label: 'Nurse Atwine (Cloned)', desc: 'Empathetic family wellness midwife' }
-                              ].map(voice => (
-                                <button
-                                  key={voice.id}
-                                  type="button"
-                                  onClick={() => setVoiceSelection(voice.id)}
-                                  className={`w-full p-3 border rounded-xl text-left transition-all flex items-center justify-between ${voiceSelection === voice.id ? 'border-emerald-500/40 bg-emerald-500/5 text-white' : 'border-slate-800 text-slate-400 hover:bg-slate-900'}`}
-                                >
-                                  <div>
-                                    <p className="text-[10px] font-black uppercase tracking-wider m-0">{voice.label}</p>
-                                    <p className="text-[8px] text-slate-400 uppercase tracking-widest m-0 mt-1">{voice.desc}</p>
-                                  </div>
-                                  <span className={`h-2 w-2 rounded-full ${voiceSelection === voice.id ? 'bg-emerald-400' : 'bg-transparent'}`}></span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                       <button
+                         type="button"
+                         onClick={triggerIncomingCall}
+                         className="w-full py-4 bg-slate-900 hover:bg-slate-800/80 text-white rounded-2xl font-semibold tracking-wider text-xs border border-slate-800 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                       >
+                         <Sparkles size={14} className="text-blue-400" />
+                         Receive Incoming Call Demo
+                       </button>
+                     </div>
+                   </div>
+                 )}
 
-                      {/* Phone Input Box for cellular calls */}
-                      {callType !== 'webrtc' && (
-                        <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3 shrink-0 animate-in slide-in-from-top-4 duration-300 text-left">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Carrier Telephone Number</label>
-                          <div className="flex gap-2">
-                            <span className="px-3.5 py-2.5 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl text-xs font-bold font-mono">+256</span>
-                            <input
-                              type="tel"
-                              placeholder="e.g. 772123456"
-                              value={voiceCallPhoneNumber}
-                              onChange={(e) => setVoiceCallPhoneNumber(e.target.value)}
-                              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-mono placeholder-slate-600 outline-none focus:border-emerald-500"
-                            />
-                          </div>
-                          <p className="text-[8px] text-slate-500 uppercase tracking-widest mt-1">
-                            This registers an outbound cellular session proxy over the local {callType.toUpperCase()} African gateway matrix.
-                          </p>
-                        </div>
-                      )}
+                 {/* INCOMING STATE (Call Answering Capability) */}
+                 {callState === 'incoming' && (
+                   <div className="flex flex-col flex-1 justify-center items-center py-10 space-y-12 animate-in zoom-in-95 duration-350">
+                     <div className="text-center space-y-3">
+                       <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 animate-pulse">Incoming Consultation Call</p>
+                       <h3 className="text-2xl font-semibold text-white">{voiceSelection} (Doctorian)</h3>
+                       <p className="text-xs text-slate-400">Secure AI Clinical Gateway</p>
+                     </div>
 
-                      {/* Authorize Checklist */}
-                      <label className="flex items-start gap-3 p-4 bg-slate-900/40 border border-slate-800/60 rounded-2xl cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={voiceCallPermission}
-                          onChange={(e) => setVoiceCallPermission(e.target.checked)}
-                          className="mt-1 accent-emerald-500 text-slate-900 h-4 w-4 shrink-0 rounded"
-                        />
-                        <div className="text-left">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-white">Voice Cloning Permission Authorization</p>
-                          <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1 text-left leading-normal">
-                            I verify and authorize Doctorian to process local voice assets under Secure HIPAA criteria to synthesize cloned speech matching selected clinical identities.
-                          </p>
-                        </div>
-                      </label>
+                     {/* Beautiful Pulsing Call Waves */}
+                     <div className="relative flex items-center justify-center w-40 h-40">
+                       <div className="absolute inset-0 rounded-full bg-emerald-500/5 animate-ping [animation-duration:2.5s]" />
+                       <div className="absolute inset-4 rounded-full bg-emerald-500/10 animate-ping [animation-duration:1.8s]" />
+                       <div className="absolute inset-8 rounded-full bg-emerald-500/15 animate-pulse" />
+                       
+                       <div className="relative z-10 w-24 h-24 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                         <Phone size={36} className="text-emerald-400 animate-bounce" />
+                       </div>
+                     </div>
 
-                      {/* Dial Trigger */}
-                      <button
-                        type="button"
-                        onClick={startVoiceCallSession}
-                        disabled={!voiceCallPermission || (callType !== 'webrtc' && !voiceCallPhoneNumber)}
-                        className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-20 disabled:scale-100 transition-all cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        <Phone size={14} className="text-slate-950 shrink-0" />
-                        Initiate Voice Consultation Call
-                      </button>
-                    </div>
-                  ) : (
-                    // CALLING / CONNECTED ACTIVE CALL SCREEN
-                    <div className="space-y-6 animate-in zoom-in-95 duration-300 text-center">
-                      
-                      {/* Ringing / Active Call Center Orb */}
-                      <div className="flex flex-col items-center justify-center py-4 space-y-4">
-                        <div className="relative">
-                          {/* Pulsing Back Ring 1 */}
-                          <div className={`absolute inset-0 rounded-full bg-emerald-500/15 animate-ping [animation-duration:2s] ${callState === 'connected' ? 'block' : 'hidden'}`} />
-                          {/* Pulsing Back Ring 2 */}
-                          <div className={`absolute inset-0 rounded-full bg-emerald-500/10 scale-125 animate-ping [animation-duration:3s] ${callState === 'connected' ? 'block' : 'hidden'}`} />
-                          
-                          {/* Actual Center Disk */}
-                          <div className={`w-28 h-28 rounded-full border flex flex-col items-center justify-center shadow-2xl relative z-10 transition-all ${
-                            callState === 'calling' 
-                              ? 'bg-slate-800 border-amber-500/30' 
-                              : callState === 'disconnecting'
-                              ? 'bg-slate-800 border-rose-500/30'
-                              : 'bg-slate-950 border-emerald-500/30 shadow-emerald-500/5'
-                          }`}>
-                            <Phone size={36} className={`transition-all ${
-                              callState === 'calling' 
-                                ? 'text-amber-400 animate-bounce' 
-                                : callState === 'disconnecting'
-                                ? 'text-rose-400'
-                                : 'text-emerald-400'
-                            }`} />
-                          </div>
-                        </div>
+                     {/* Action buttons (Answer/Decline) */}
+                     <div className="flex items-center gap-8 w-full max-w-xs justify-center pt-4">
+                       <button
+                         type="button"
+                         onClick={declineIncomingCall}
+                         className="w-14 h-14 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-rose-500/25 active:scale-90 transition-all cursor-pointer"
+                         title="Decline Call"
+                       >
+                         <X size={24} />
+                       </button>
 
-                        {/* Call duration timer */}
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-widest text-slate-400">
-                            {callType === 'webrtc' ? 'WebRTC In-App Channel' : `Telecom Outbound: +256 ${voiceCallPhoneNumber}`}
-                          </p>
-                          <h4 className="text-2xl font-bold font-mono tracking-tight mt-1">
-                            {callState === 'calling' ? (
-                              <span className="text-amber-400 uppercase tracking-widest text-xs font-black animate-pulse">Dialing Gateway...</span>
-                            ) : callState === 'disconnecting' ? (
-                              <span className="text-rose-400 uppercase tracking-widest text-xs font-black">Disconnecting...</span>
-                            ) : (
-                              // Formats duration into MM:SS
-                              `${String(Math.floor(voiceCallDuration / 60)).padStart(2, '0')}:${String(voiceCallDuration % 60).padStart(2, '0')}`
-                            )}
-                          </h4>
-                        </div>
-                      </div>
+                       <button
+                         type="button"
+                         onClick={answerIncomingCall}
+                         className="w-16 h-16 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 active:scale-90 transition-all cursor-pointer animate-pulse"
+                         title="Answer Call"
+                       >
+                         <Phone size={28} />
+                       </button>
+                     </div>
+                   </div>
+                 )}
 
-                      {/* Live Audio Visualizer Lines (Render when AI is speaking or transcribing) */}
-                      <div className="h-12 bg-slate-950/60 rounded-2xl border border-slate-900 flex items-center justify-center px-6 overflow-hidden">
-                        {voiceIsSpeaking || voiceCallIsTranscribing ? (
-                          <div className="flex items-end gap-1.5 h-6">
-                            {[...Array(16)].map((_, i) => (
-                              <div 
-                                key={i} 
-                                className="w-1.5 bg-emerald-500 rounded-full animate-bounce"
-                                style={{
-                                  height: `${10 + Math.random() * 80}%`,
-                                  animationDuration: `${0.4 + Math.random() * 0.6}s`,
-                                  animationDelay: `${i * 0.05}s`
-                                }}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-black uppercase text-slate-550 tracking-widest">Awaiting Bio-Acoustic Input...</span>
-                        )}
-                      </div>
+                 {/* ACTIVE CALL STATE (Calling, Connected, Disconnecting) */}
+                 {(callState === 'calling' || callState === 'connected' || callState === 'disconnecting') && (
+                   <div className="flex flex-col flex-1 justify-between py-2 space-y-6 animate-in zoom-in-95 duration-300">
+                     
+                     <div className="text-center space-y-2 pt-4">
+                       <h3 className="text-lg font-semibold tracking-tight text-white">{voiceSelection} (Doctorian)</h3>
+                       <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-mono">
+                         {callState === 'calling' ? (
+                           <span className="text-amber-400 animate-pulse">Connecting...</span>
+                         ) : callState === 'disconnecting' ? (
+                           <span className="text-rose-400">Disconnecting...</span>
+                         ) : (
+                           `Connected • ${String(Math.floor(voiceCallDuration / 60)).padStart(2, '0')}:${String(voiceCallDuration % 60).padStart(2, '0')}`
+                         )}
+                       </p>
+                     </div>
 
-                      {/* Live call transcript buffer */}
-                      <div className="space-y-2 text-left">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-450 text-left m-0">Real-time Whisper/XTTS Transcript Logs</p>
-                        <div className="h-44 bg-slate-950 rounded-2xl border border-slate-900/80 p-4 overflow-y-auto space-y-3 flex flex-col custom-scrollbar text-left text-xs">
-                          {voiceCallTranscript.map((log, i) => (
-                            <div key={i} className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${log.role === 'user' ? 'bg-blue-600/10 text-blue-200 border border-blue-500/10 self-end' : 'bg-slate-900 text-slate-200 border border-slate-800/50 self-start'}`}>
-                              <span className="text-[8px] font-black uppercase tracking-wider block mb-1.5 text-slate-450">
-                                {log.role === 'user' ? 'Speech (Whisper Transcribed)' : `XTTS Voice [${voiceSelection}]`}
-                              </span>
-                              <p className="text-[11px] leading-relaxed m-0 font-medium">{log.text}</p>
-                            </div>
-                          ))}
-                          {voiceCallIsTranscribing && (
-                            <div className="bg-slate-900/65 text-slate-300 p-3 rounded-2xl max-w-[85%] border border-slate-800/50 self-start animate-pulse">
-                              <span className="text-[8px] font-black uppercase tracking-wider block mb-1.5 text-slate-500">Processing Synapse Response</span>
-                              <p className="text-[11px] font-bold italic">Synthesizing natural voice stream...</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                     {/* Modern Plain Centered Fluid Breathing Ring */}
+                     <div className="flex flex-col items-center justify-center py-6">
+                       <div className="relative w-44 h-44 flex items-center justify-center">
+                         {/* Ambient fluid glow rings */}
+                         <div className={`absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/10 to-blue-600/10 blur-xl transition-all duration-700 ${voiceIsSpeaking ? 'scale-125 opacity-100' : 'scale-90 opacity-40'}`} />
+                         
+                         {/* Pulse Waves */}
+                         {voiceIsSpeaking && (
+                           <>
+                             <div className="absolute inset-0 rounded-full border border-cyan-500/25 animate-ping [animation-duration:2.5s]" />
+                             <div className="absolute inset-4 rounded-full border border-blue-500/20 animate-ping [animation-duration:1.8s]" />
+                           </>
+                         )}
 
-                      {/* Interactive Keyboard-Assisted Voice Dictation Input Grid */}
-                      <div className="space-y-3 bg-slate-950/45 p-4 border border-slate-900 rounded-2xl text-left">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 m-0">Speech Synthesizer Interaction</p>
-                          <p className="text-[8px] text-slate-500 uppercase tracking-widest mt-1">Speak or choose clinically structured phrases below to trigger Whisper STT pipeline transcription.</p>
-                        </div>
-                        
-                        {/* Quick Simulated Speech Prompts */}
-                        <div className="flex flex-wrap gap-1.5 py-1">
-                          {[
-                            "My blood pressure is 150/90",
-                            "Explain child immunization",
-                            "Emergency! Physical bleeding",
-                            "What is Musujja treatment?"
-                          ].map((promptText, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => {
-                                setVoiceCallQuery(promptText);
-                                sendVoiceCallMessage(promptText);
-                              }}
-                              className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-[9px] text-slate-350 hover:text-white uppercase font-black tracking-wider transition-all cursor-pointer"
-                            >
-                              🗣️ "{promptText}"
-                            </button>
-                          ))}
-                        </div>
+                         {/* Core glowing orb mimicking Gemini voice call UI */}
+                         <div className={`w-32 h-32 rounded-full flex items-center justify-center relative transition-all duration-500 border ${
+                           voiceIsSpeaking 
+                             ? 'bg-gradient-to-br from-cyan-950/80 to-blue-950/80 border-cyan-500/40 shadow-2xl shadow-cyan-500/15 scale-105' 
+                             : voiceCallIsTranscribing
+                             ? 'bg-gradient-to-br from-indigo-950/80 to-purple-950/80 border-indigo-500/30 shadow-xl shadow-indigo-500/10 animate-pulse'
+                             : 'bg-slate-900/90 border-slate-800 shadow-md scale-95'
+                         }`}>
+                           {/* Rotating internal gradient layer when thinking */}
+                           {voiceCallIsTranscribing && (
+                             <div className="absolute inset-1.5 rounded-full border border-t-cyan-400 border-r-indigo-500 border-b-transparent border-l-transparent animate-spin [animation-duration:1s]" />
+                           )}
 
-                        {/* Interactive Manual Input */}
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Type a speech dictation command or custom health question..."
-                            value={voiceCallQuery}
-                            onChange={(e) => setVoiceCallQuery(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                sendVoiceCallMessage();
-                              }
-                            }}
-                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => sendVoiceCallMessage()}
-                            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
-                          >
-                            Send
-                          </button>
-                        </div>
-                      </div>
+                           <div className="flex items-end gap-1.5 h-8">
+                             {voiceIsSpeaking ? (
+                               // Live elegant equalizers
+                               [...Array(6)].map((_, i) => (
+                                 <div 
+                                   key={i} 
+                                   className="w-1 bg-cyan-400 rounded-full animate-bounce"
+                                   style={{
+                                     height: `${30 + Math.random() * 70}%`,
+                                     animationDuration: `${0.4 + Math.random() * 0.4}s`,
+                                     animationDelay: `${i * 0.08}s`
+                                   }}
+                                 />
+                               ))
+                             ) : voiceCallIsTranscribing ? (
+                               <div className="text-[10px] uppercase tracking-widest font-bold text-indigo-400 animate-pulse">Thinking</div>
+                             ) : (
+                               // Inactive soft breathing bars
+                               [...Array(4)].map((_, i) => (
+                                 <div 
+                                   key={i} 
+                                   className="w-1 h-1.5 bg-slate-600 rounded-full animate-pulse"
+                                   style={{ animationDelay: `${i * 0.15}s` }}
+                                 />
+                               ))
+                             )}
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <p className="text-xs text-slate-400 mt-4 h-4 font-medium">
+                         {voiceIsSpeaking ? "Doctorian is speaking" : voiceCallIsTranscribing ? "Synthesizing stream..." : "Listening..."}
+                       </p>
+                     </div>
 
-                      {/* Telemetry Debug Log Drawer */}
-                      <div className="space-y-2 text-left">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-450 m-0">Technical Link Feeds (Micro-Telemetry)</p>
-                        <div className="p-3.5 bg-slate-950 border border-slate-900 rounded-2xl text-[8.5px] font-mono text-emerald-400 text-left max-h-24 overflow-y-auto no-scrollbar space-y-1">
-                          {voiceCallLogs.map((logLine, i) => (
-                            <p key={i} className="m-0 leading-normal opacity-75">{logLine}</p>
-                          ))}
-                          <p className="m-0 text-slate-550">[{new Date().toLocaleTimeString()}] AUDIO BITRATE: 128 kbps | PACKETS TRANSFERRED: {Math.floor(voiceCallDuration * 12 + 10)} | JITTER: 1.2ms | LATENCY: 24ms</p>
-                        </div>
-                      </div>
+                     {/* Collapsible Transcript Container */}
+                     <div className="space-y-2 text-left bg-slate-900/30 border border-slate-900 rounded-2xl overflow-hidden">
+                       <button
+                         type="button"
+                         onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
+                         className="w-full px-4 py-2.5 flex items-center justify-between text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all outline-none"
+                       >
+                         <span className="font-semibold uppercase tracking-wider text-[9px]">Live Dialogue Transcript</span>
+                         <div className="flex items-center gap-1">
+                           <span className="text-[9px] font-medium">{showVoiceTranscript ? 'Hide' : 'Show'}</span>
+                           <ChevronDown size={12} className={`transform transition-transform ${showVoiceTranscript ? 'rotate-180' : ''}`} />
+                         </div>
+                       </button>
 
-                      {/* Hang up & audio controls toolbar */}
-                      <div className="pt-4 border-t border-white/5 flex items-center justify-between gap-4">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setVoiceCallMuted(!voiceCallMuted)}
-                            className={`p-3 rounded-2xl border transition-all cursor-pointer ${voiceCallMuted ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-slate-905 border-slate-800 text-slate-400 hover:text-white'}`}
-                            title={voiceCallMuted ? "Unmute microphone" : "Mute microphone"}
-                          >
-                            <Mic size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setVoiceCallerSpeaker(!voiceCallerSpeaker)}
-                            className={`p-3 rounded-2xl border transition-all cursor-pointer ${!voiceCallerSpeaker ? 'bg-slate-850 border-slate-800 text-slate-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:text-white'}`}
-                            title={voiceCallerSpeaker ? "Disable speaker boost" : "Enable speaker boost"}
-                          >
-                            <Volume2 size={15} />
-                          </button>
-                        </div>
+                       {showVoiceTranscript && (
+                         <div className="h-32 p-4 overflow-y-auto space-y-3 flex flex-col custom-scrollbar border-t border-slate-900/50 text-[11px] animate-in slide-in-from-top-2 duration-200">
+                           {voiceCallTranscript.map((log, i) => (
+                             <div 
+                               key={i} 
+                               className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
+                                 log.role === 'user' 
+                                   ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/10 self-end' 
+                                   : 'bg-slate-900/80 text-slate-200 border border-slate-800/40 self-start'
+                               }`}
+                             >
+                               <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
+                                 {log.role === 'user' ? 'You' : voiceSelection}
+                               </span>
+                               <p className="m-0">{log.text}</p>
+                             </div>
+                           ))}
+                         </div>
+                       )}
+                     </div>
 
-                        <button
-                          type="button"
-                          onClick={terminateVoiceCallSession}
-                          className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest shadow-lg shadow-rose-500/15 active:scale-95 transition-all text-center flex items-center gap-2 cursor-pointer font-bold"
-                        >
-                          <X size={13} className="shrink-0" />
-                          Hang Up Consultation
-                        </button>
-                      </div>
-                    </div>
-                  )}
-               </div>
+                     {/* Quick Prompt Phrases Selector */}
+                     <div className="bg-slate-900/20 border border-slate-900/50 rounded-2xl p-3.5 space-y-2.5 text-left">
+                       <div className="flex flex-wrap gap-1.5">
+                         {[
+                           "Explain malaria prevention",
+                           "Explain child immunization",
+                           "My back is hurting badly",
+                           "What is Musujja treatment?"
+                         ].map((promptText, i) => (
+                           <button
+                             key={i}
+                             type="button"
+                             onClick={() => {
+                               setVoiceCallQuery(promptText);
+                               sendVoiceCallMessage(promptText);
+                             }}
+                             className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 text-[9px] text-slate-300 hover:text-white rounded-lg transition-all border border-slate-850 cursor-pointer font-medium"
+                           >
+                             "{promptText}"
+                           </button>
+                         ))}
+                       </div>
 
-               {/* Modal Footer (Architecture and Credit Verification) */}
-               <div className="p-5 border-t border-white/5 bg-slate-950/40 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-slate-500 shrink-0">
-                  <span>Engine: XTTS-V2 Cloner V2.8</span>
-                  <div className="flex items-center gap-1.5">
-                    <Shield size={10} className="text-emerald-500 animate-pulse" />
-                    <span>Secure Clinician Air-Gap Approved</span>
-                  </div>
+                       {/* Alternative Text Prompt Input */}
+                       <div className="flex gap-2">
+                         <input
+                           type="text"
+                           placeholder="Type to talk instead..."
+                           value={voiceCallQuery}
+                           onChange={(e) => setVoiceCallQuery(e.target.value)}
+                           onKeyDown={(e) => {
+                             if (e.key === 'Enter') {
+                               e.preventDefault();
+                               sendVoiceCallMessage();
+                             }
+                           }}
+                           className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-left"
+                         />
+                         <button
+                           type="button"
+                           onClick={() => sendVoiceCallMessage()}
+                           className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-semibold rounded-xl transition-all cursor-pointer"
+                         >
+                           Send
+                         </button>
+                       </div>
+                     </div>
+
+                     {/* Clean Control Toolbar */}
+                     <div className="pt-4 flex items-center justify-between gap-4 border-t border-slate-900/40">
+                       <div className="flex gap-2">
+                         <button
+                           type="button"
+                           onClick={() => setVoiceCallMuted(!voiceCallMuted)}
+                           className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                             voiceCallMuted 
+                               ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' 
+                               : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white'
+                           }`}
+                           title={voiceCallMuted ? "Unmute Mic" : "Mute Mic"}
+                         >
+                           {voiceCallMuted ? <MicOff size={16} /> : <Mic size={16} />}
+                         </button>
+                         
+                         <button
+                           type="button"
+                           onClick={() => setVoiceCallerSpeaker(!voiceCallerSpeaker)}
+                           className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                             !voiceCallerSpeaker 
+                               ? 'bg-slate-900 border-slate-850 text-slate-600' 
+                               : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400'
+                           }`}
+                           title="Toggle Speaker Boost"
+                         >
+                           {voiceCallerSpeaker ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                         </button>
+                       </div>
+
+                       <button
+                         type="button"
+                         onClick={terminateVoiceCallSession}
+                         className="px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-semibold shadow-lg shadow-rose-500/10 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+                       >
+                         <Phone size={14} className="rotate-[135deg]" />
+                         End Consultation
+                       </button>
+                     </div>
+                   </div>
+                 )}
                </div>
              </motion.div>
            </div>
          )}
        </AnimatePresence>
-     </div>
-   );
- }
+      </div>
+    );
+  }

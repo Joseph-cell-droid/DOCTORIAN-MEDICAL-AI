@@ -665,6 +665,35 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showNeuralSummary, setShowNeuralSummary] = useState(false);
   const [activeTab, setActiveTab] = useState<'realtime' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator'>('realtime');
+  const [emergencyLogs, setEmergencyLogs] = useState<any[]>([]);
+  const [activeDoctors, setActiveDoctors] = useState<any[]>([]);
+  const [activeCallTranscript, setActiveCallTranscript] = useState<string>('');
+  const [isAIBrainGenerated, setIsAIBrainGenerated] = useState<boolean>(false);
+  const [currentAudioSource, setCurrentAudioSource] = useState<any>(null);
+  const [currentAudioContext, setCurrentAudioContext] = useState<any>(null);
+  const [isAIVoiceLoading, setIsAIVoiceLoading] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const docs = await api.doctors.listActive();
+        setActiveDoctors(docs || []);
+      } catch (err) {
+        console.error("Failed to fetch active doctors:", err);
+      }
+
+      try {
+        const logs = await api.alerts.getEmergencyLogs();
+        setEmergencyLogs(logs || []);
+      } catch (err) {
+        console.error("Failed to fetch emergency dispatch logs:", err);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 6000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Custom Patient & Bed Allocator Registry System
 
@@ -1588,27 +1617,126 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
       // Initiate Voice Call
       setIsEmergencyCalling(true);
+      setIsAIVoiceLoading(true);
+      setActiveCallTranscript("Connecting with Doctorian AI Clinical Guardian Brain... Synthesizing real-time telemetry speech...");
+      setIsAIBrainGenerated(false);
+
       const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
       const voiceMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling with an urgent physiological update from ${hospitalName}. A critical biometric alarm has been triggered for Patient: ${activePatient?.name || 'Joseph Brian Obote'} in ${activePatient?.bedNumber || 'Bed B-01 (Ward A)'}. Currently, the patient's vitals are in a critical state. The heart rate is ${Math.round(vitals?.heartRate || 0)} beats per minute, the blood oxygen saturation level is at ${Math.round(vitals?.spo2 || 0)} percent, and the system reports pre-existing conditions: ${activePatient?.conditions || 'stable parameters'}. Immediate clinical intervention is required at ${hospitalName}. Please review the patient's telemetry and check on them immediately!`;
       
-      api.alerts.makeCall(voiceMessage, doctorPhone, mentorPhone, patientPhone)
+      const patientContext = {
+        patientName: activePatient?.name || "Authorized Client",
+        bedNumber: activePatient?.bedNumber || "Assigned Bed",
+        conditions: activePatient?.conditions || "Chronic cardiovascular risk factors",
+        hospitalPreference: hospitalName,
+        vitals: {
+          heartRate: Math.round(vitals?.heartRate || 0),
+          spo2: Math.round(vitals?.spo2 || 0),
+          temperature: vitals?.temperature || 37.0,
+          systolicBP: Math.round(vitals?.systolicBP || 120),
+          diastolicBP: Math.round(vitals?.diastolicBP || 80),
+          respiratoryRate: Math.round(vitals?.respiratoryRate || 18)
+        }
+      };
+
+      const speakWithLocalSpeech = (textToSpeak: string) => {
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          const voices = window.speechSynthesis.getVoices();
+          const selectedVoice = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('google')) || voices.find(v => v.lang.startsWith('en')) || null;
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+          }
+          utterance.rate = 1.0;
+          utterance.pitch = 1.02;
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          console.error("Local speech synthesis failed:", e);
+        }
+      };
+
+      api.alerts.makeCall(voiceMessage, doctorPhone, mentorPhone, patientPhone, patientContext)
         .then(res => {
+          setIsAIVoiceLoading(false);
+          const aiText = res.aiText || voiceMessage;
+          setActiveCallTranscript(aiText);
+          setIsAIBrainGenerated(!!res.isAIBrainGenerated);
+
           if (res.simulated && res.message.includes('TWILIO CONFIGURATION ERROR')) {
             setAlertError(res.message);
             console.warn('⚠️ Voice Call Simulated:', res.message);
           } else {
             console.log('✅ Voice Call Status:', res.message);
           }
-          setTimeout(() => setIsEmergencyCalling(false), 15000);
+
+          // Play real-time synthesized vocal wave stream from Gemini
+          if (res.audioBase64) {
+            try {
+              console.log("[PatientMonitor] Decoding raw 24kHz PCM voice file from Gemini brain...");
+              const binaryString = window.atob(res.audioBase64);
+              const len = binaryString.length;
+              const bytes = new Uint8Array(len);
+              for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              const int16Array = new Int16Array(bytes.buffer);
+              const float32Array = new Float32Array(int16Array.length);
+              for (let i = 0; i < int16Array.length; i++) {
+                float32Array[i] = int16Array[i] / 32768.0;
+              }
+              
+              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+              const buffer = audioCtx.createBuffer(1, float32Array.length, 24000);
+              buffer.copyToChannel(float32Array, 0);
+              
+              const source = audioCtx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(audioCtx.destination);
+              
+              source.onended = () => {
+                console.log("[PatientMonitor] Gemini audio voice call play complete.");
+              };
+              
+              source.start(0);
+              setCurrentAudioSource(source);
+              setCurrentAudioContext(audioCtx);
+            } catch (playErr) {
+              console.error("[PatientMonitor] AudioContext play failed, using browser synthesis fallback:", playErr);
+              speakWithLocalSpeech(aiText);
+            }
+          } else {
+            speakWithLocalSpeech(aiText);
+          }
         })
         .catch(err => {
+          setIsAIVoiceLoading(false);
           console.error('❌ Failed to initiate voice call:', err);
-          setIsEmergencyCalling(false);
+          speakWithLocalSpeech(voiceMessage);
         });
 
       setLastAlertSent(Date.now());
     }
-  }, [isCritical, vitals, lastAlertSent, selectedPatientId, registeredPatients]);
+  }, [isCritical, vitals, lastAlertSent, selectedPatientId, registeredPatients, user]);
+
+  const stopEmergencyCallPlayback = () => {
+    try {
+      if (currentAudioSource) {
+        currentAudioSource.stop();
+      }
+    } catch (e) {}
+    try {
+      if (currentAudioContext) {
+        currentAudioContext.close();
+      }
+    } catch (e) {}
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+    setCurrentAudioSource(null);
+    setCurrentAudioContext(null);
+    setIsEmergencyCalling(false);
+  };
 
   const getStatus = (label: string, value: number): 'normal' | 'warning' | 'critical' | undefined => {
     if (!vitals) return undefined;
@@ -3322,41 +3450,90 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               />
             </div>
 
-            <div className="relative z-10 text-center max-w-lg">
+            <div className="relative z-10 text-center max-w-lg w-full px-4">
               <motion.div 
                 animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
                 transition={{ duration: 0.5, repeat: Infinity }}
-                className="w-32 h-32 bg-white rounded-[2.5rem] flex items-center justify-center text-rose-600 mx-auto mb-10 shadow-2xl"
+                className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center text-rose-600 mx-auto mb-6 shadow-2xl"
               >
-                <PhoneCall size={56} />
+                <PhoneCall size={40} />
               </motion.div>
-              <h2 className="text-4xl font-[1000] uppercase tracking-tighter mb-4 animate-pulse">Emergency Alarm</h2>
-              <p className="text-xs font-black uppercase tracking-[0.3em] mb-12 text-rose-100 opacity-80">Autonomous Calling Protocol Active</p>
+              <h2 className="text-3xl font-[1000] uppercase tracking-tighter mb-2 animate-pulse">Emergency Alarm</h2>
+              <p className="text-xs font-black uppercase tracking-[0.3em] mb-8 text-rose-100 opacity-80">Autonomous Calling Protocol Active</p>
               
-              <div className="space-y-4">
-                <div className="p-5 bg-white/10 rounded-3xl border border-white/20 backdrop-blur-md flex items-center gap-4">
-                   <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-                      <Stethoscope size={20} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                      <Stethoscope size={16} />
                    </div>
                    <div className="text-left">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-rose-200">Calling Point ALPHA</p>
-                      <p className="text-sm font-black uppercase">Registered Specialist Node</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-rose-200">Point ALPHA</p>
+                      <p className="text-xs font-black uppercase truncate">Doctor on duty</p>
                    </div>
                 </div>
-                <div className="p-5 bg-white/10 rounded-3xl border border-white/20 backdrop-blur-md flex items-center gap-4">
-                   <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
-                      <UserIcon size={20} />
+                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                      <UserIcon size={16} />
                    </div>
                    <div className="text-left">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-rose-200">Calling Point BETA</p>
-                      <p className="text-sm font-black uppercase">Patient Mentorship Node</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-rose-200">Point BETA</p>
+                      <p className="text-xs font-black uppercase truncate">Patient Mentor</p>
                    </div>
                 </div>
               </div>
 
+              {/* Dynamic Transcript Panel from the AI Clinical Brain */}
+              <div className="p-5 bg-slate-950/80 rounded-[1.8rem] border border-white/10 text-left backdrop-blur-2xl shadow-2xl relative overflow-hidden mb-6">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-300">
+                      {isAIVoiceLoading ? "Connecting AI Brain..." : "Live Audio Transcript"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <Cpu size={10} className="text-emerald-400 animate-spin-slow" />
+                    <span className="text-[7px] font-extrabold uppercase text-emerald-300">
+                      {isAIBrainGenerated ? "Gemini Live" : "Emergency Backup"}
+                    </span>
+                  </div>
+                </div>
+
+                {isAIVoiceLoading ? (
+                  <div className="py-4 flex flex-col items-center justify-center space-y-2 text-center">
+                    <div className="flex gap-1 items-center justify-center h-4">
+                      <motion.div animate={{ height: [4, 12, 4] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.1 }} className="w-0.5 bg-rose-400 rounded-full" />
+                      <motion.div animate={{ height: [4, 20, 4] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.2 }} className="w-0.5 bg-rose-400 rounded-full" />
+                      <motion.div animate={{ height: [4, 10, 4] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.3 }} className="w-0.5 bg-rose-400 rounded-full" />
+                    </div>
+                    <p className="text-[10px] font-semibold text-rose-200/50 italic">Generating clinical voice monologue...</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Animated Equalizer Waveform */}
+                    <div className="flex items-center gap-1.5 h-6 mb-3 bg-white/5 px-3 rounded-lg border border-white/5 justify-between">
+                      <span className="text-[8px] font-black text-rose-200 tracking-wider uppercase">Live Vocal Frequency</span>
+                      <div className="flex gap-0.5 items-center h-3">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
+                          <motion.div 
+                            key={val}
+                            animate={{ height: [2, Math.floor(Math.random() * 12) + 2, 2] }}
+                            transition={{ duration: 0.2 + Math.random() * 0.3, repeat: Infinity }}
+                            className="w-0.5 bg-rose-400 rounded-full" 
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-200 font-bold max-h-28 overflow-y-auto pr-1 select-text scrollbar-thin">
+                      {activeCallTranscript}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <button 
-                onClick={() => setIsEmergencyCalling(false)}
-                className="mt-12 px-10 py-4 bg-white text-rose-600 rounded-full font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                onClick={stopEmergencyCallPlayback}
+                className="px-10 py-4 bg-white text-rose-600 rounded-full font-[1000] text-[10px] uppercase tracking-[0.3em] shadow-2xl hover:scale-105 active:scale-95 transition-all"
               >
                 Reset Emergency Loop
               </button>
@@ -4972,6 +5149,114 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   </span>
                 )}
               </div>
+
+              {timeRange === 'Day' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 pb-8 border-b border-slate-100 dark:border-slate-800">
+                  {/* Doctor On-Duty Rota Queue */}
+                  <div className="lg:col-span-2">
+                    <h4 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-3 flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" />
+                      Clinical On-Duty Rota & Alarm Rotation Queue
+                    </h4>
+                    
+                    {activeDoctors.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {activeDoctors.map((doc, idx) => {
+                          const isOnDuty = idx === 0; // First index represents active rotating doctor on duty
+                          return (
+                            <div 
+                              key={doc.id}
+                              className={`relative overflow-hidden p-4 rounded-2xl border transition-all ${
+                                isOnDuty 
+                                  ? 'bg-rose-50/50 dark:bg-rose-950/10 border-rose-200 dark:border-rose-900/40 shadow-md shadow-rose-100/30' 
+                                  : 'bg-slate-50/50 dark:bg-slate-800/20 border-slate-100 dark:border-slate-800/40'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                {doc.imageUrl ? (
+                                  <img 
+                                    src={doc.imageUrl} 
+                                    alt={doc.name} 
+                                    className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-800 shadow"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center font-bold text-blue-700 dark:text-blue-300">
+                                    {doc.name[4] || 'D'}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-xs font-black text-slate-900 dark:text-white truncate">{doc.name}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">{doc.specialization}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                                <span className="text-slate-400 dark:text-slate-500">{doc.location}</span>
+                                {isOnDuty ? (
+                                  <span className="px-2 py-0.5 bg-rose-500 text-white rounded text-[8px] animate-pulse">
+                                    On Call Active
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-[8px]">
+                                    Standby #{idx + 1}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800 text-center text-xs font-bold text-slate-400">
+                        No active clinical doctors defined in the rota system.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Real-Time Dispatch Log Tracker */}
+                  <div className="bg-slate-50 dark:bg-slate-800/10 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 max-h-[160px] overflow-y-auto">
+                    <h4 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-2 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-blue-500" />
+                      Live Dispatch Timeline
+                    </h4>
+                    {emergencyLogs.length > 0 ? (
+                      <div className="space-y-3">
+                        {emergencyLogs.slice(0, 5).map((log) => {
+                          let details: any = {};
+                          try {
+                            details = JSON.parse(log.details);
+                          } catch (e) {}
+                          
+                          return (
+                            <div key={log.id} className="text-[10px] leading-normal border-l-2 border-rose-500 pl-2.5 py-0.5">
+                              <div className="flex items-center justify-between font-black text-rose-600 dark:text-rose-400 uppercase">
+                                <span>{details.alertType || 'EMERGENCY TRIGGERED'}</span>
+                                <span className="text-[8px] text-slate-400 dark:text-slate-500">
+                                  {new Date(log.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="font-bold text-slate-700 dark:text-slate-300 mt-0.5">
+                                Rotated to: <span className="text-slate-900 dark:text-white font-extrabold">{details.recipientDoctor || 'On-Duty Doc'}</span> ({details.recipientDoctorPhone || 'rotated'})
+                              </p>
+                              {details.recipientMentorPhone && (
+                                <p className="text-emerald-600 dark:text-emerald-400 font-extrabold text-[8px] uppercase mt-0.5 flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                                  Relative called: {details.recipientMentorPhone}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-[90px] flex flex-col items-center justify-center text-center text-slate-400 dark:text-slate-600 text-xs font-bold italic">
+                        <Activity className="w-6 h-6 mb-1 text-slate-300 dark:text-slate-700 animate-pulse" />
+                        Waiting for emergency dispatches...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {timeRange === 'Day' ? (
                 /* Multi Patient Live Monitor (Day Mode) */

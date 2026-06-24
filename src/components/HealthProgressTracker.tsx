@@ -199,6 +199,11 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   const [watchConditions, setWatchConditions] = useState<string[]>([]);
   const [signalStrength, setSignalStrength] = useState<number>(4); // 1-5 bars
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState(false);
+  const [isNeuroScanOpen, setIsNeuroScanOpen] = useState(false);
+  const [isUpdateRecordsOpen, setIsUpdateRecordsOpen] = useState(false);
+  const [isScanningNeuro, setIsScanningNeuro] = useState(false);
+  const [neuroScanProgress, setNeuroScanProgress] = useState(0);
+  const [neuroScanReport, setNeuroScanReport] = useState<any | null>(null);
 
   const WATCH_METADATA_MAP = {
     Samsung: {
@@ -268,6 +273,23 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     const computedScore = 72; // default baseline score
     setProgressScore(computedScore);
     setIsResetConfirmOpen(false);
+  };
+
+  const handleLogRecord = async (type: string, value: string, unit: string, notes: string) => {
+    try {
+      await api.records.create({
+        type,
+        value,
+        unit,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        notes: notes || 'Logged via clinician shortcut dashboard.'
+      });
+      // Refresh list
+      const updated = await api.records.list();
+      setRecords(updated);
+    } catch (err) {
+      console.error("Error logging record shortcut:", err);
+    }
   };
 
   const saveGoals = (updatedGoals: HealthGoal[]) => {
@@ -2180,14 +2202,20 @@ Provide a clean array or scannable markdown blocks containing these structured a
           <div className="bg-blue-600 rounded-[3rem] p-10 text-white shadow-2xl shadow-blue-500/20">
              <h3 className="text-xl font-black uppercase tracking-tight mb-8">Next Protocols</h3>
              <div className="space-y-4">
-                <button className="w-full flex items-center justify-between p-6 bg-white/10 hover:bg-white/20 rounded-3xl border border-white/20 transition-all group">
+                <button 
+                  onClick={() => setIsNeuroScanOpen(true)}
+                  className="w-full flex items-center justify-between p-6 bg-white/10 hover:bg-white/20 rounded-3xl border border-white/20 transition-all group cursor-pointer"
+                >
                    <div className="flex items-center gap-4">
                       <Microscope size={20} />
                       <span className="text-xs font-black uppercase tracking-widest">Neuro-Scan</span>
                    </div>
                    <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
-                <button className="w-full flex items-center justify-between p-6 bg-white/10 hover:bg-white/20 rounded-3xl border border-white/20 transition-all group">
+                <button 
+                  onClick={() => setIsUpdateRecordsOpen(true)}
+                  className="w-full flex items-center justify-between p-6 bg-white/10 hover:bg-white/20 rounded-3xl border border-white/20 transition-all group cursor-pointer"
+                >
                    <div className="flex items-center gap-4">
                       <FileText size={20} />
                       <span className="text-xs font-black uppercase tracking-widest">Update Records</span>
@@ -2264,6 +2292,563 @@ Provide a clean array or scannable markdown blocks containing these structured a
         isOpen={isBluetoothModalOpen}
         onClose={() => setIsBluetoothModalOpen(false)}
       />
+
+      <NeuroScanModal
+        isOpen={isNeuroScanOpen}
+        onClose={() => setIsNeuroScanOpen(false)}
+        vitals={arduino.vitals}
+        onLogRecord={handleLogRecord}
+      />
+
+      <UpdateRecordsModal
+        isOpen={isUpdateRecordsOpen}
+        onClose={() => setIsUpdateRecordsOpen(false)}
+        vitals={arduino.vitals}
+        onLogRecord={handleLogRecord}
+      />
+    </div>
+  );
+};
+
+// ==========================================
+// NeuroScanModal Component
+// ==========================================
+interface NeuroScanModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  vitals: any;
+  onLogRecord: (type: string, value: string, unit: string, notes: string) => Promise<void>;
+}
+
+const NeuroScanModal: React.FC<NeuroScanModalProps> = ({ isOpen, onClose, vitals, onLogRecord }) => {
+  const [targetState, setTargetState] = useState<'focus' | 'relax' | 'sleep' | 'creative'>('focus');
+  const [probeIntensity, setProbeIntensity] = useState<number>(65);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState('');
+  const [scanReport, setScanReport] = useState<any | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const [eegData, setEegData] = useState<any[]>(() => 
+    Array.from({ length: 20 }).map((_, i) => ({
+      time: i,
+      alpha: 15 + Math.sin(i * 0.4) * 5 + Math.random() * 3,
+      beta: 25 + Math.cos(i * 0.7) * 8 + Math.random() * 4,
+      theta: 10 + Math.sin(i * 0.2) * 4 + Math.random() * 2,
+    }))
+  );
+
+  useEffect(() => {
+    let interval: any;
+    if (isScanning) {
+      interval = setInterval(() => {
+        // Increment progress
+        setScanProgress(prev => {
+          const next = prev + Math.floor(Math.random() * 8) + 4;
+          if (next >= 100) {
+            clearInterval(interval);
+            setIsScanning(false);
+            setScanProgress(100);
+            
+            // Generate Report details based on target state
+            const focus = targetState === 'focus' ? 85 + Math.floor(Math.random() * 12) : 55 + Math.floor(Math.random() * 15);
+            const coherence = 80 + Math.floor(Math.random() * 18);
+            const fatigue = targetState === 'sleep' ? 12 + Math.floor(Math.random() * 10) : 25 + Math.floor(Math.random() * 20);
+            const neuroScore = Math.round((focus + coherence + (100 - fatigue)) / 3);
+            
+            setScanReport({
+              focusIndex: focus,
+              synapticCoherence: coherence,
+              fatigueLevel: fatigue,
+              neuroplasticity: neuroScore,
+              amplitude: Math.round(probeIntensity * 1.2),
+              dominantWave: targetState === 'focus' ? 'Beta/Gamma' : targetState === 'relax' ? 'Alpha' : targetState === 'sleep' ? 'Delta' : 'Theta',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            });
+            return 100;
+          }
+          
+          // Update Status text dynamically based on progress
+          if (next < 20) setScanStatus('Booting EEG microvolt transducer array...');
+          else if (next < 45) setScanStatus('Calibrating multi-channel synaptic resonance...');
+          else if (next < 70) setScanStatus('Mapping blood flow kinetics in prefrontal cortex...');
+          else if (next < 90) setScanStatus('Measuring micro-amperage potentials in anterior cingulate...');
+          else setScanStatus('Synthesizing neuroplasticity vectors & cortical baseline...');
+
+          return next;
+        });
+
+        // Simulate active brainwaves
+        setEegData(prev => {
+          const next = [...prev, {
+            time: prev.length,
+            alpha: (targetState === 'relax' ? 40 : 15) + Math.sin(prev.length * 0.5) * 12 + Math.random() * 8,
+            beta: (targetState === 'focus' ? 50 : 20) + Math.cos(prev.length * 0.8) * 18 + Math.random() * 10,
+            theta: (targetState === 'creative' ? 35 : 10) + Math.sin(prev.length * 0.3) * 8 + Math.random() * 5,
+          }];
+          if (next.length > 20) next.shift();
+          return next;
+        });
+
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [isScanning, targetState, probeIntensity]);
+
+  const handleStartScan = () => {
+    setScanReport(null);
+    setScanProgress(0);
+    setSavedSuccess(false);
+    setIsScanning(true);
+    setScanStatus('Establishing neural contact...');
+  };
+
+  const handleSaveReport = async () => {
+    if (!scanReport) return;
+    setIsSaving(true);
+    try {
+      const notes = `Target state: ${targetState.toUpperCase()}. Dominant wave: ${scanReport.dominantWave}. Synaptic Coherence: ${scanReport.synapticCoherence}%, Neuroplasticity Score: ${scanReport.neuroplasticity}/100. Recommendations: Engaged cognitive entrainment protocols.`;
+      await onLogRecord(
+        'Neuro-Scan',
+        `Focus Index: ${scanReport.focusIndex}%`,
+        'COGNITIVE_RESONANCE',
+        notes
+      );
+      setSavedSuccess(true);
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        colors: ['#3B82F6', '#8B5CF6', '#10B981']
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/85 backdrop-blur-md"
+      />
+
+      {/* Modal Container */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        className="bg-slate-900 border border-slate-800 text-white rounded-[3rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative z-10 font-sans p-6 sm:p-10 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 p-3 bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-4 bg-blue-500/10 text-blue-400 rounded-2.5xl border border-blue-500/20">
+            <Microscope size={28} className={isScanning ? "animate-pulse" : ""} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black uppercase tracking-tight">Neuro-Scan Diagnostics</h3>
+            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-0.5">High-Resolution Cognitive Resonance Mapping</p>
+          </div>
+        </div>
+
+        {/* Dynamic Wave Visualizer */}
+        <div className="bg-slate-950/60 border border-slate-800/80 rounded-3xl p-6 mb-8 relative overflow-hidden">
+          <div className="absolute top-4 left-4 flex gap-3 z-10">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block animate-pulse" />
+              <span className="text-[9px] font-mono font-black uppercase text-slate-400 tracking-wider">Alpha (Cognitive)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block animate-pulse" />
+              <span className="text-[9px] font-mono font-black uppercase text-slate-400 tracking-wider">Beta (Focus)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block animate-pulse" />
+              <span className="text-[9px] font-mono font-black uppercase text-slate-400 tracking-wider">Theta (Creative)</span>
+            </div>
+          </div>
+
+          <div className="h-44 flex items-end justify-center gap-[2px] pt-8">
+            {eegData.map((d, i) => {
+              const heightAlpha = Math.min(130, Math.max(10, d.alpha * 2));
+              const heightBeta = Math.min(130, Math.max(10, d.beta * 2));
+              const heightTheta = Math.min(130, Math.max(10, d.theta * 2));
+              return (
+                <div key={i} className="flex-1 flex flex-col justify-end items-center h-full gap-[3px] opacity-80">
+                  <div style={{ height: `${heightBeta}px` }} className="w-full bg-gradient-to-t from-indigo-600/10 to-indigo-500 rounded-full transition-all duration-150" />
+                  <div style={{ height: `${heightAlpha}px` }} className="w-full bg-gradient-to-t from-blue-600/10 to-blue-500 rounded-full transition-all duration-150" />
+                  <div style={{ height: `${heightTheta}px` }} className="w-full bg-gradient-to-t from-purple-600/10 to-purple-500 rounded-full transition-all duration-150" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Configuration Panel */}
+        {!isScanning && !scanReport && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Target Cognitive State</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'focus', label: 'Beta (Focus)', color: 'border-indigo-500/30' },
+                    { id: 'relax', label: 'Alpha (Relax)', color: 'border-blue-500/30' },
+                    { id: 'sleep', label: 'Delta (Sleep)', color: 'border-cyan-500/30' },
+                    { id: 'creative', label: 'Theta (Creative)', color: 'border-purple-500/30' }
+                  ].map(state => (
+                    <button
+                      key={state.id}
+                      type="button"
+                      onClick={() => setTargetState(state.id as any)}
+                      className={`py-3 px-4 rounded-xl border text-[11px] font-black uppercase tracking-wider text-center transition-all cursor-pointer ${targetState === state.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-white'}`}
+                    >
+                      {state.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Sensor Amplitude: {probeIntensity}%</label>
+                <div className="bg-slate-800/40 border border-slate-700/40 p-5 rounded-2xl flex flex-col justify-center h-[76px]">
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={probeIntensity}
+                    onChange={(e) => setProbeIntensity(Number(e.target.value))}
+                    className="w-full accent-blue-500 bg-slate-750 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-wider mt-2">
+                    <span>MIN PROBE</span>
+                    <span>BALANCED</span>
+                    <span>HYPER VECTOR</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleStartScan}
+              className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-900/20 active:scale-95 cursor-pointer flex items-center justify-center gap-3"
+            >
+              <Cpu size={16} className="animate-spin-slow" />
+              LAUNCH ACTIVE EEG SCANNER
+            </button>
+          </div>
+        )}
+
+        {/* Scanning Progress */}
+        {isScanning && (
+          <div className="space-y-6 py-6 text-center">
+            <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full -rotate-90">
+                <circle cx="56" cy="56" r="50" className="stroke-slate-800" strokeWidth="8" fill="transparent" />
+                <circle cx="56" cy="56" r="50" className="stroke-blue-500 transition-all duration-150" strokeWidth="8" fill="transparent" strokeDasharray={`${2 * Math.PI * 50}`} strokeDashoffset={`${2 * Math.PI * 50 * (1 - scanProgress / 100)}`} />
+              </svg>
+              <span className="text-xl font-black font-mono text-white">{scanProgress}%</span>
+            </div>
+
+            <div>
+              <p className="text-sm font-black uppercase tracking-tight text-white animate-pulse">{scanStatus}</p>
+              <p className="text-[8px] font-mono font-black text-slate-500 uppercase tracking-widest mt-2">PARSING CORTICAL POTENTIALS VIA PREFRONTAL CHANNELS</p>
+            </div>
+          </div>
+        )}
+
+        {/* Results Card */}
+        {scanReport && (
+          <div className="space-y-8">
+            <div className="p-6 bg-slate-950/40 border border-emerald-500/20 rounded-3xl">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                  <Check size={16} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-tight text-emerald-400">Cortical Mapping Complete</h4>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">EEG diagnostic matrix parsed and stabilized</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-4 bg-slate-900/80 border border-slate-850 rounded-2xl">
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Focus Index</span>
+                  <span className="text-lg font-black text-white">{scanReport.focusIndex}%</span>
+                </div>
+                <div className="p-4 bg-slate-900/80 border border-slate-850 rounded-2xl">
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Dominant Wave</span>
+                  <span className="text-lg font-black text-blue-400">{scanReport.dominantWave}</span>
+                </div>
+                <div className="p-4 bg-slate-900/80 border border-slate-850 rounded-2xl">
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Synapses Coherence</span>
+                  <span className="text-lg font-black text-purple-400">{scanReport.synapticCoherence}%</span>
+                </div>
+                <div className="p-4 bg-slate-900/80 border border-slate-850 rounded-2xl">
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Neuroplasticity</span>
+                  <span className="text-lg font-black text-indigo-400">{scanReport.neuroplasticity}/100</span>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-850 pt-5 text-xs text-slate-400 leading-relaxed">
+                <p className="font-bold text-slate-300 uppercase text-[9px] tracking-widest mb-1.5">🔬 AI Clinical Diagnosis:</p>
+                Spontaneous <span className="text-blue-400 font-bold">{scanReport.dominantWave} wave</span> synchronization registered across prefrontal arrays. Patient demonstrates optimal attention resilience with mental fatigue coefficients at <span className="text-white font-bold">{scanReport.fatigueLevel}%</span>. Active homeostasis parameters are fully confirmed.
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={handleStartScan}
+                className="flex-1 py-4 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                RE-RUN DIAGNOSTIC
+              </button>
+              
+              {!savedSuccess ? (
+                <button
+                  onClick={handleSaveReport}
+                  disabled={isSaving}
+                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/10 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isSaving ? <Loader size={12} className="animate-spin" /> : <ShieldCheck size={14} />}
+                  SAVE REPORT TO CLINICAL RECORDS
+                </button>
+              ) : (
+                <div className="flex-1 py-4 bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                  <Check size={14} />
+                  REPORT COMMITTED SUCCESSFULLY
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+
+// ==========================================
+// UpdateRecordsModal Component
+// ==========================================
+interface UpdateRecordsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  vitals: any;
+  onLogRecord: (type: string, value: string, unit: string, notes: string) => Promise<void>;
+}
+
+const UpdateRecordsModal: React.FC<UpdateRecordsModalProps> = ({ isOpen, onClose, vitals, onLogRecord }) => {
+  const [logType, setLogType] = useState('Heart Rate');
+  const [logValue, setLogValue] = useState('72');
+  const [logNotes, setLogNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [successFeedback, setSuccessFeedback] = useState(false);
+
+  // Set default sample values on logType changes
+  useEffect(() => {
+    const sampleVals = {
+      'Heart Rate': '72',
+      'Blood Oxygen (SpO2)': '98',
+      'Body Temperature': '36.6',
+      'Blood Pressure': '120/80',
+      'Respiratory Rate': '16'
+    };
+    setLogValue(sampleVals[logType as keyof typeof sampleVals] || '75');
+  }, [logType]);
+
+  const handlePullTelemetry = () => {
+    if (!vitals) {
+      const sampleVals = {
+        'Heart Rate': '76',
+        'Blood Oxygen (SpO2)': '98',
+        'Body Temperature': '36.8',
+        'Blood Pressure': '124/82',
+        'Respiratory Rate': '16'
+      };
+      setLogValue(sampleVals[logType as keyof typeof sampleVals] || '75');
+      triggerLocalFeedback("Simulator offline. Captured standard calibrated baseline value.");
+      return;
+    }
+    
+    if (logType === 'Heart Rate') setLogValue(Math.round(vitals.heartRate).toString());
+    else if (logType === 'Blood Oxygen (SpO2)') setLogValue(Math.round(vitals.spo2).toString());
+    else if (logType === 'Body Temperature') setLogValue(vitals.temperature.toFixed(1));
+    else if (logType === 'Blood Pressure') setLogValue(`${Math.round(vitals.systolicBP)}/${Math.round(vitals.diastolicBP)}`);
+    else if (logType === 'Respiratory Rate') setLogValue(Math.round(vitals.respiratoryRate).toString());
+
+    triggerLocalFeedback("Telemetry captured! Active signal parsed and locked to buffer.");
+  };
+
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const triggerLocalFeedback = (msg: string) => {
+    setFeedbackMsg(msg);
+    setTimeout(() => setFeedbackMsg(''), 3500);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const unitStr = logType === 'Heart Rate' ? 'BPM' : logType === 'Blood Oxygen (SpO2)' ? '%' : logType === 'Body Temperature' ? '°C' : logType === 'Blood Pressure' ? 'mmHg' : 'RPM';
+      await onLogRecord(
+        logType,
+        logValue,
+        unitStr,
+        logNotes || 'Logged from clinic rapid console overlay.'
+      );
+      
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        zIndex: 250,
+        colors: ['#3B82F6', '#10B981', '#F59E0B']
+      });
+
+      setSuccessFeedback(true);
+      setTimeout(() => {
+        setSuccessFeedback(false);
+        setLogNotes('');
+        onClose();
+      }, 1500);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+      />
+
+      {/* Modal Card */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-6 sm:p-8 max-w-lg w-full shadow-2xl relative z-10 overflow-hidden font-sans text-slate-900 dark:text-white"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full transition-colors cursor-pointer"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 text-blue-500 rounded-2xl">
+            <FileText size={24} />
+          </div>
+          <div>
+            <h3 className="text-lg font-black uppercase tracking-tight">Clinical Records Console</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Rapid Biomarker Update Interface</p>
+          </div>
+        </div>
+
+        {feedbackMsg && (
+          <div className="mb-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all">
+            {feedbackMsg}
+          </div>
+        )}
+
+        {successFeedback ? (
+          <div className="text-center py-12 space-y-4">
+            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl">
+              <Check size={32} />
+            </div>
+            <div>
+              <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Biomarker Logged</h4>
+              <p className="text-xs font-medium text-slate-400 mt-1">Successfully saved to patient's longitudinal timeline.</p>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex justify-end -mb-2">
+              <button
+                type="button"
+                onClick={handlePullTelemetry}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Cpu size={12} />
+                PULL LIVE TELEMETRY
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2.5 ml-1">Classification</label>
+                <select
+                  value={logType}
+                  onChange={(e) => setLogType(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer"
+                >
+                  <option value="Heart Rate">Heart Rate (BPM)</option>
+                  <option value="Blood Oxygen (SpO2)">Blood Oxygen (SpO2 %)</option>
+                  <option value="Body Temperature">Body Temperature (°C)</option>
+                  <option value="Blood Pressure">Blood Pressure (mmHg)</option>
+                  <option value="Respiratory Rate">Respiratory Rate (breaths/min)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2.5 ml-1">Metric Value</label>
+                <input
+                  type="text"
+                  required
+                  value={logValue}
+                  onChange={(e) => setLogValue(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-black focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="e.g. 72"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2.5 ml-1">Clinical Annotations</label>
+              <textarea
+                value={logNotes}
+                onChange={(e) => setLogNotes(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-650"
+                placeholder="Clinical observations or physical cues..."
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100 disabled:opacity-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              {isSaving ? "STAMPING RECORD..." : "LOG RECORD TO HISTORIC TIMELINE"}
+            </button>
+          </form>
+        )}
+      </motion.div>
     </div>
   );
 };

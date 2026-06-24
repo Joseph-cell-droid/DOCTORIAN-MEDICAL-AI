@@ -1005,6 +1005,17 @@ export const api = {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Login verification failed");
         return data as { verified: boolean; user: User };
+      },
+      async simulateLogin(email: string) {
+        const res = await fetch(`${API_BASE}/auth/webauthn/simulate-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Simulated login failed");
+        return data as { verified: boolean; user: User };
       }
     },
     async forgotPassword(email: string) {
@@ -1443,16 +1454,32 @@ export const api = {
       if (!res.ok) throw new Error(data.error || "Failed to send alert");
       return data as { success: boolean; simulated?: boolean; message: string };
     },
-    async makeCall(message: string, toDoctor?: string, toMentor?: string, toPatient?: string) {
+    async makeCall(message: string, toDoctor?: string, toMentor?: string, toPatient?: string, patientContext?: any) {
       const res = await fetchWithRetry(`${API_BASE}/alerts/make-call`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, toDoctor, toMentor, toPatient }),
+        body: JSON.stringify({ message, toDoctor, toMentor, toPatient, patientContext }),
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to initiate call");
-      return data as { success: boolean; simulated?: boolean; message: string };
+      return data as { 
+        success: boolean; 
+        simulated?: boolean; 
+        message: string; 
+        aiText?: string; 
+        audioBase64?: string | null; 
+        isAIBrainGenerated?: boolean;
+      };
+    },
+    async getEmergencyLogs() {
+      const res = await fetchWithRetry(`${API_BASE}/emergency/logs`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch emergency logs");
+      return data.logs as any[];
     },
     async triggerWhatsApp(message: string, to: string, type?: string) {
       const res = await fetchWithRetry(`${API_BASE}/alerts/whatsapp`, {
@@ -2488,6 +2515,91 @@ export const api = {
         return await res.json();
       } catch (err) {
         return { provider: "Default Workspace Key", apiKey: "sk-or-v1-be453e08fda1a046b628552..." };
+      }
+    }
+  },
+  emergencyContacts: {
+    async list() {
+      if (isOffline()) {
+        const saved = localStorage.getItem('emergency_contacts');
+        return saved ? JSON.parse(saved) : [];
+      }
+      try {
+        const res = await fetch(`${API_BASE}/emergency-contacts`, {
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to fetch emergency contacts");
+        return data as Array<{ id: string; name: string; phone: string; role: string; email?: string }>;
+      } catch (err) {
+        const saved = localStorage.getItem('emergency_contacts');
+        return saved ? JSON.parse(saved) : [];
+      }
+    },
+    async create(contact: { name: string; phone: string; role: string; email?: string }) {
+      if (isOffline()) {
+        const saved = localStorage.getItem('emergency_contacts');
+        const contacts = saved ? JSON.parse(saved) : [];
+        const newContact = { id: Math.random().toString(36).substring(2, 11), ...contact };
+        contacts.push(newContact);
+        localStorage.setItem('emergency_contacts', JSON.stringify(contacts));
+        return newContact;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/emergency-contacts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(contact),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to create emergency contact");
+        
+        // Update offline cache as well
+        const saved = localStorage.getItem('emergency_contacts');
+        const contacts = saved ? JSON.parse(saved) : [];
+        contacts.push(data.contact);
+        localStorage.setItem('emergency_contacts', JSON.stringify(contacts));
+        
+        return data.contact;
+      } catch (err) {
+        const saved = localStorage.getItem('emergency_contacts');
+        const contacts = saved ? JSON.parse(saved) : [];
+        const newContact = { id: Math.random().toString(36).substring(2, 11), ...contact };
+        contacts.push(newContact);
+        localStorage.setItem('emergency_contacts', JSON.stringify(contacts));
+        return newContact;
+      }
+    },
+    async delete(id: string) {
+      if (isOffline()) {
+        const saved = localStorage.getItem('emergency_contacts');
+        const contacts = saved ? JSON.parse(saved) : [];
+        const filtered = contacts.filter((c: any) => c.id !== id);
+        localStorage.setItem('emergency_contacts', JSON.stringify(filtered));
+        return { success: true };
+      }
+      try {
+        const res = await fetch(`${API_BASE}/emergency-contacts/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to delete emergency contact");
+        
+        // Update offline cache as well
+        const saved = localStorage.getItem('emergency_contacts');
+        const contacts = saved ? JSON.parse(saved) : [];
+        const filtered = contacts.filter((c: any) => c.id !== id);
+        localStorage.setItem('emergency_contacts', JSON.stringify(filtered));
+        
+        return data;
+      } catch (err) {
+        const saved = localStorage.getItem('emergency_contacts');
+        const contacts = saved ? JSON.parse(saved) : [];
+        const filtered = contacts.filter((c: any) => c.id !== id);
+        localStorage.setItem('emergency_contacts', JSON.stringify(filtered));
+        return { success: true };
       }
     }
   }

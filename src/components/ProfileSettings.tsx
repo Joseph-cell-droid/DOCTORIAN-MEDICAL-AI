@@ -7,7 +7,7 @@ import {
   Activity, Zap, Crown, CreditCard,
   Syringe as Pill, ChevronLeft, ChevronRight,
   FileText, ShieldAlert, Phone, ShieldCheck, Cpu,
-  Key, Sparkles
+  Key, Sparkles, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -36,6 +36,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   onLanguageChange
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'emergency' | 'security' | 'notifications' | 'medical-id' | 'billing'>('profile');
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -924,6 +925,33 @@ Verified by Joseph Akora - Development Lead.
                      ))}
                   </div>
                 </div>
+
+                {isIframe && (
+                  <div className="mt-8 p-6 bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-200/40 dark:border-amber-900/30 rounded-3xl text-xs font-bold text-amber-800 dark:text-amber-400 leading-relaxed flex flex-col sm:flex-row items-start gap-4">
+                    <div className="bg-amber-500 text-white p-3 rounded-2xl flex items-center justify-center shadow-md">
+                      <AlertCircle size={22} />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 text-xs">Biometric Hardware Sandboxing Notice</p>
+                      <p className="text-slate-600 dark:text-slate-400 font-medium">
+                        WebAuthn standards prohibit accessing real biometric readers (Touch ID / Face ID / Windows Hello) inside nested iFrame windows.
+                      </p>
+                      <p className="text-slate-500 dark:text-slate-500 text-[11px] font-semibold">
+                        To connect and register your actual phone, tablet, or laptop fingerprint scanner, open this application in a dedicated browser tab using the link below:
+                      </p>
+                      <div className="pt-2">
+                        <a 
+                          href={window.location.href} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-indigo-500/10 hover:shadow-indigo-500/20"
+                        >
+                          Open in Dedicated Window <ExternalLink size={12} />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-12 pt-8 border-t border-slate-50 dark:border-slate-800 flex items-center justify-center">
                   <div className="flex items-center gap-3 px-6 py-2 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-800">

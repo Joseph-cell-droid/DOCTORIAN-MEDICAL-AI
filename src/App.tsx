@@ -2078,7 +2078,7 @@ export default function App() {
       )}
 
       {/* Mobile Bottom Navigation - User Focused */}
-      {user && (
+      {user && currentView !== 'ai_nexus' && (
         <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] sm:w-[400px] h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] border border-white/20 dark:border-slate-800/50 shadow-2xl flex items-center justify-around px-4">
           {navLinks.slice(0, 5).map((item) => (
             <button

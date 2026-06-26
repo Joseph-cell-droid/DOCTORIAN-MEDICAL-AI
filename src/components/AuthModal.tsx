@@ -269,7 +269,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const handleOAuthMessage = (event: MessageEvent) => {
       // Validate origin
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
+      const currentHost = typeof window !== 'undefined' ? window.location.origin : '';
+      if (origin !== currentHost && !origin.endsWith('.run.app') && !origin.includes('localhost')) return;
 
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         if (event.data.token) {

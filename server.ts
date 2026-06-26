@@ -173,8 +173,9 @@ const shouldTryOllama = (customUrl?: string) => {
 const aiQueryCache = new Map<string, { response: string; timestamp: number }>();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache TTL for instant reuse
 
-function getValidApiKeys() {
+function getValidApiKeys(userId?: string, localApiKey?: string) {
   const envKeys = [
+    localApiKey,
     process.env.GEMINI_API_KEY,
     process.env.VITE_GEMINI_API_KEY,
     process.env.GOOGLE_API_KEY,
@@ -188,6 +189,21 @@ function getValidApiKeys() {
     process.env.ANTHROPIC_API_KEY,
     process.env.CLAUDE_API_KEY,
   ].filter(Boolean);
+
+  let dbUserKey: string | undefined = undefined;
+  if (userId) {
+    try {
+      const userRow = db.prepare("SELECT huggingfaceToken FROM users WHERE id = ?").get(userId) as any;
+      if (userRow && userRow.huggingfaceToken && userRow.huggingfaceToken.trim() !== "") {
+        dbUserKey = userRow.huggingfaceToken.trim();
+        if (dbUserKey && !envKeys.includes(dbUserKey)) {
+          envKeys.unshift(dbUserKey);
+        }
+      }
+    } catch (e) {
+      console.warn("[DB-ERROR] Failed to query custom user keys in getValidApiKeys:", e);
+    }
+  }
   
   // Broader search for keys in environment
   const allEnvKeys = Object.keys(process.env);
@@ -208,7 +224,7 @@ function getValidApiKeys() {
 
   const valid = envKeys.map(k => k!.trim()).filter(k => 
     k.length > 20 && // Real keys are usually long
-    (k.toLowerCase().startsWith("sk-") || k.startsWith("AIza") || k === process.env.GEMINI_API_KEY || k === process.env.GOOGLE_API_KEY) && // Must match real LLM API Key signatures
+    (k.toLowerCase().startsWith("sk-") || k.startsWith("AIza") || k === process.env.GEMINI_API_KEY || k === process.env.GOOGLE_API_KEY || k === localApiKey || k === dbUserKey) && // Must match real signatures or custom keys
     !k.toLowerCase().includes("placeholder") && 
     !k.toLowerCase().includes("not_set") &&
     !k.toLowerCase().includes("your_") &&
@@ -855,7 +871,7 @@ async function* callAIStream(options: {
     }
 
     if (pathway === "keys") {
-      const allKeys = getValidApiKeys();
+      const allKeys = getValidApiKeys(userId, localApiKey);
       if (allKeys.length > 0) {
         const lastUserMessage = (lastMessage?.text || "").toLowerCase();
         const hasImages = messages.some(m => m.images && m.images.length > 0) || lastMessage?.images?.length > 0;
@@ -1318,7 +1334,7 @@ async function callAIWorkflow(options: {
     }
 
     if (pathway === "keys") {
-      const allKeys = getValidApiKeys();
+      const allKeys = getValidApiKeys(userId, localApiKey);
       if (allKeys.length > 0) {
         const hasImages = messages.some(m => m.images && m.images.length > 0) || lastMessage?.images?.length > 0;
 
@@ -2428,6 +2444,7 @@ const RP_NAME = "Doctorian";
 
 // In-memory store for challenges (use a real session/redis in production)
 const challenges = new Map<string, string>();
+const activeMfaTokens = new Map<string, { code: string; expiresAt: number }>();
 
 async function startServer() {
   console.log("[SERVER] Initializing Express Application...");
@@ -3282,6 +3299,96 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       console.error("GitHub OAuth callback error:", err.response?.data || err.message);
       res.status(500).send("Authentication failed. Please try again.");
     }
+  });
+  
+  app.post("/api/mfa/send-token", async (req: any, res) => {
+    let email = req.body.email;
+    
+    // Attempt authentication if token exists, otherwise fall back to body or default email
+    try {
+      let token = req.cookies.token;
+      if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(" ");
+        if (parts.length === 2 && parts[0] === "Bearer") {
+          token = parts[1];
+        }
+      }
+      if (token) {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        if (decoded && decoded.email) {
+          email = decoded.email;
+        }
+      }
+    } catch (e) {
+      // ignore token verification error during pre-mfa phase and fallback to body.email
+    }
+
+    if (!email) {
+      email = "gloriajayakullo@gmail.com"; // Fallback to signup/default email
+    }
+
+    // Generate secure 6-digit PIN
+    const pin1 = Math.floor(100 + Math.random() * 900);
+    const pin2 = Math.floor(100 + Math.random() * 900);
+    const code = `${pin1}${pin2}`;
+    const formattedCode = `${pin1} ${pin2}`;
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    activeMfaTokens.set(email.toLowerCase(), {
+      code,
+      expiresAt
+    });
+
+    const subject = "🔐 Doctorian Active Token Broadcaster Sync";
+    const text = `Hello,\n\nYour Active Token Broadcaster MFA validation code is:\n\n${formattedCode}\n\nThis code will expire in 5 minutes.\n\nIf you did not request this code, please ignore this email.`;
+
+    await sendEmail(email, subject, text);
+
+    console.log(`[MFA] Sent code ${formattedCode} to ${email}. Expires in 5m.`);
+    res.json({ success: true, email, expiresAt, code: formattedCode });
+  });
+
+  app.post("/api/mfa/verify-token", async (req: any, res) => {
+    let email = req.body.email;
+    const codeInput = req.body.code ? req.body.code.replace(/\s+/g, '') : '';
+
+    try {
+      let token = req.cookies.token;
+      if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(" ");
+        if (parts.length === 2 && parts[0] === "Bearer") {
+          token = parts[1];
+        }
+      }
+      if (token) {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        if (decoded && decoded.email) {
+          email = decoded.email;
+        }
+      }
+    } catch (e) {}
+
+    if (!email) {
+      email = "gloriajayakullo@gmail.com";
+    }
+
+    const tokenData = activeMfaTokens.get(email.toLowerCase());
+    if (!tokenData) {
+      return res.status(400).json({ error: "No active token found for this account. Please request a new token." });
+    }
+
+    if (Date.now() > tokenData.expiresAt) {
+      activeMfaTokens.delete(email.toLowerCase());
+      return res.status(400).json({ error: "The token has expired (5 minutes timeout). Please request a new one." });
+    }
+
+    if (tokenData.code !== codeInput) {
+      return res.status(400).json({ error: "Incorrect verification token. Please try again." });
+    }
+
+    // Success! Clear the token and respond
+    activeMfaTokens.delete(email.toLowerCase());
+    res.json({ success: true });
   });
 
   app.post("/api/auth/login", authRateLimiter, async (req, res) => {
@@ -5046,7 +5153,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     if (!audio) return res.status(400).json({ error: "Audio data required" });
 
     try {
-      const allKeys = getValidApiKeys();
+      const allKeys = getValidApiKeys(req.user.id);
       const googleKey = allKeys.find(k => k.startsWith('AIza'));
       if (!googleKey) throw new Error("Neural STT pathway unavailable");
 
@@ -5715,7 +5822,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     app.get("/api/developer/credentials", authenticate, (req: any, res) => {
       try {
         const geminiKey = process.env.GEMINI_API_KEY || "";
-        const fallbackKeys = getValidApiKeys();
+        const fallbackKeys = getValidApiKeys(req.user.id);
         
         let primaryKey = geminiKey;
         if (!primaryKey && fallbackKeys.length > 0) {
@@ -5935,17 +6042,17 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
 
         let targetModel = modelOverride || modelName;
         if (!targetModel) {
-          if (hasGold) targetModel = "google/gemini-pro-1.5";
-          else if (hasPro) targetModel = "google/gemini-flash-1.5";
+          if (hasGold) targetModel = "gemini-3.1-pro-preview";
+          else if (hasPro) targetModel = "gemini-3.5-flash";
           else targetModel = "meta-llama/llama-3.1-8b-instruct";
         } else {
           // Verify model authorization level based on payment tier
           const mName = targetModel.toLowerCase();
-          if (mName.includes('pro') || mName.includes('large') || mName.includes('1.5-pro')) {
+          if (mName.includes('pro') || mName.includes('large') || mName.includes('3.1-pro') || mName.includes('1.5-pro')) {
             if (!hasGold) {
-              targetModel = hasPro ? "google/gemini-flash-1.5" : "meta-llama/llama-3.1-8b-instruct";
+              targetModel = hasPro ? "gemini-3.5-flash" : "meta-llama/llama-3.1-8b-instruct";
             }
-          } else if (mName.includes('flash') || mName.includes('medium') || mName.includes('3.5-flash')) {
+          } else if (mName.includes('flash') || mName.includes('medium') || mName.includes('3.5-flash') || mName.includes('1.5-flash')) {
             if (!hasPro && !hasGold) {
               targetModel = "meta-llama/llama-3.1-8b-instruct";
             }

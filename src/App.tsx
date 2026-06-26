@@ -212,7 +212,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     return this.props.children;
   }
 }
-import { api, User } from './api';
+import { api, User, autoDiscoverLocalNode } from './api';
 import { Logo } from "./components/Logo";
 import { ResourceView, ResourceType } from './components/ResourceView';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -1332,6 +1332,49 @@ export default function App() {
     };
     checkAuth();
   }, []);
+
+  // Automatic local PC AI node discovery and integration
+  useEffect(() => {
+    if (!isAuthReady || !user) return;
+
+    const runLocalAIScan = async () => {
+      console.log("[Local AI] Initiating background auto-discovery scan for local Ollama/LM Studio node...");
+      try {
+        const detected = await autoDiscoverLocalNode(user.ollamaUrl, user.ollamaModel);
+        
+        if (detected) {
+          console.log(`[Local AI] 🎉 Found active local LLM node automatically at: ${detected.url} (${detected.model})`);
+          
+          // Automatically save local configuration & enable prioritization
+          localStorage.setItem('doctorian_prioritize_local_ai', 'true');
+          localStorage.setItem('doctorian_local_fail_count', '0');
+          
+          // Update user state locally with detected configuration so any subsequent API/chat calls connect automatically
+          const updatedUser = {
+            ...user,
+            ollamaUrl: detected.url,
+            ollamaModel: detected.model
+          };
+          
+          setUser(updatedUser);
+          localStorage.setItem('medical_user', JSON.stringify(updatedUser));
+          
+          addToast(
+            `🔌 Direct PC Link Established: Connected automatically to local AI (${detected.model}) for extremely fast, secure responses!`,
+            "success"
+          );
+        } else {
+          console.log("[Local AI] No active local LLM node detected. Operating in high-accuracy Cloud Neural Link (Gemini) fallback mode.");
+        }
+      } catch (err) {
+        console.warn("[Local AI] Error executing background local node discovery:", err);
+      }
+    };
+
+    // Execute after a 2-second delay to prioritize main UI loading
+    const timer = setTimeout(runLocalAIScan, 2000);
+    return () => clearTimeout(timer);
+  }, [isAuthReady, user?.id]);
 
   useEffect(() => {
     const restrictedViews = ['admin'];

@@ -340,6 +340,52 @@ export async function resolveLocalModelName(baseUrl: string, userConfiguredModel
   return userConfiguredModel || "mistral";
 }
 
+export async function autoDiscoverLocalNode(configuredUrl?: string, configuredModel?: string): Promise<LocalNodeInfo | null> {
+  const urlsToTry: { url: string; checkPath: string; isOpenAI: boolean; defaultModel: string }[] = [];
+  
+  if (configuredUrl && configuredUrl.trim() !== "") {
+    const cleanConfigured = configuredUrl.trim().replace(/\/$/, "");
+    const isLMStudio = cleanConfigured.includes(":1234") || cleanConfigured.includes("/v1") || cleanConfigured.toLowerCase().includes("lmstudio");
+    const checkPath = isLMStudio
+      ? (cleanConfigured.includes("/v1") ? `${cleanConfigured}/models` : `${cleanConfigured}/v1/models`)
+      : `${cleanConfigured}/api/tags`;
+    urlsToTry.push({ url: cleanConfigured, checkPath, isOpenAI: isLMStudio, defaultModel: configuredModel || "gemma4" });
+  }
+
+  // Common local endpoints
+  const commonNodes = [
+    { url: "http://localhost:11434", checkPath: "http://localhost:11434/api/tags", isOpenAI: false, defaultModel: "gemma4" },
+    { url: "http://127.0.0.1:11434", checkPath: "http://127.0.0.1:11434/api/tags", isOpenAI: false, defaultModel: "gemma4" },
+    { url: "http://localhost:1234", checkPath: "http://localhost:1234/v1/models", isOpenAI: true, defaultModel: "gemma4" },
+    { url: "http://127.0.0.1:1234", checkPath: "http://127.0.0.1:1234/v1/models", isOpenAI: true, defaultModel: "gemma4" }
+  ];
+
+  for (const node of commonNodes) {
+    if (!configuredUrl || !node.url.includes(configuredUrl.trim().replace(/\/$/, ""))) {
+      urlsToTry.push(node);
+    }
+  }
+
+  for (const item of urlsToTry) {
+    const isUp = await pingEndpoint(item.checkPath, 600);
+    if (isUp) {
+      let model = configuredModel || "";
+      if (!model || model.trim() === "") {
+        model = await resolveLocalModelName(item.url, "").catch(() => "");
+      }
+      if (!model || model.trim() === "") {
+        model = "gemma4";
+      }
+      return {
+        url: item.url,
+        isOpenAI: item.isOpenAI,
+        model
+      };
+    }
+  }
+  return null;
+}
+
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
   if (typeof localStorage === 'undefined') return defaultValue;
   try {
@@ -1097,6 +1143,45 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Simulated login failed");
         return data as { verified: boolean; user: User };
       }
+    },
+    async sendMfaToken(email?: string) {
+      if (isOffline()) {
+        const pin1 = Math.floor(100 + Math.random() * 900);
+        const pin2 = Math.floor(100 + Math.random() * 900);
+        const code = `${pin1} ${pin2}`;
+        const expiresAt = Date.now() + 5 * 60 * 1000;
+        setStorageItem("medical_offline_mfa", { code, expiresAt });
+        console.log(`[Offline MFA Broadcast] Generated offline token ${code}. Expires in 5 minutes.`);
+        return { success: true, email: email || "offline_user", code, expiresAt };
+      }
+      const res = await fetch(`${API_BASE}/mfa/send-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send MFA token");
+      return data as { success: boolean; email: string; expiresAt: number; code?: string };
+    },
+    async verifyMfaToken(code: string, email?: string) {
+      if (isOffline()) {
+        const mfa = getStorageItem<{ code: string; expiresAt: number } | null>("medical_offline_mfa", null);
+        if (!mfa) throw new Error("No active token found for this account. Please request a new token.");
+        if (Date.now() > mfa.expiresAt) throw new Error("The token has expired (5 minutes timeout).");
+        if (mfa.code.replace(/\s+/g, '') !== code.replace(/\s+/g, '')) throw new Error("Incorrect verification token.");
+        setStorageItem("medical_offline_mfa", null);
+        return { success: true };
+      }
+      const res = await fetch(`${API_BASE}/mfa/verify-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, email }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed");
+      return data as { success: boolean };
     },
     async forgotPassword(email: string) {
       const res = await fetch(`${API_BASE}/auth/forgot-password`, {

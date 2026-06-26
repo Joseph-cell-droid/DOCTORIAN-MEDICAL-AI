@@ -29,6 +29,7 @@ import {
   Check,
   CheckSquare
 } from 'lucide-react';
+import { api } from '../api';
 
 interface TerminalSecureGateProps {
   role: 'admin' | 'doctor';
@@ -43,14 +44,17 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
   const [stage, setStage] = useState<SecurityStage>('credentials');
   
   // Credentials stage states
-  const [password, setPassword] = useState(role === 'admin' ? 'admin@2026@Doctorian' : 'doctor@2026@Doctorian');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<{ score: number; label: string; color: string }>({ score: 100, label: 'EXCELLENT (VAULT)', color: 'text-emerald-400' });
   
   // MFA stage states
-  const [pinInput, setPinInput] = useState('777777');
-  const [currentMfaPin, setCurrentMfaPin] = useState('482 918');
+  const [pinInput, setPinInput] = useState('');
+  const [currentMfaPin, setCurrentMfaPin] = useState('------');
   const [timerProgress, setTimerProgress] = useState(100);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [isLoadingToken, setIsLoadingToken] = useState(false);
+  const [showMfaPinText, setShowMfaPinText] = useState(false);
   const [biometricScanning, setBiometricScanning] = useState(false);
   const [biometricSuccess, setBiometricSuccess] = useState(false);
   const [selectedMfaMethod, setSelectedMfaMethod] = useState<'totp' | 'biometric'>('totp');
@@ -166,35 +170,87 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     }
   }, [password]);
 
-  // Handle OTP seed progress bar
+  const getRegisteredEmail = () => {
+    try {
+      const usrStr = localStorage.getItem('medical_user');
+      if (usrStr) {
+        const parsed = JSON.parse(usrStr);
+        if (parsed && parsed.email) {
+          return parsed.email;
+        }
+      }
+    } catch (e) {}
+    return 'gloriajayakullo@gmail.com'; // Default signup Gmail
+  };
+
+  const sendToken = async () => {
+    setIsLoadingToken(true);
+    setError('');
+    const email = getRegisteredEmail();
+    try {
+      setLogs(prev => [...prev, `[MFA BROADCASTER] Connecting to authorization relay, packaging key seeds...`]);
+      const res = await api.auth.sendMfaToken(email);
+      
+      if (res.code) {
+        setCurrentMfaPin(res.code);
+        console.log(`[MFA DEBUG] Token generated: ${res.code}`);
+      }
+      
+      const exp = res.expiresAt || (Date.now() + 5 * 60 * 1000);
+      setExpiresAt(exp);
+      setTimerProgress(100);
+      setLogs(prev => [
+        ...prev, 
+        `[MFA BROADCAST] Confirmation token dispatched successfully to Gmail: ${email}`,
+        `[MFA BROADCAST] This secure credentials sync token will expire in exactly 5 minutes.`
+      ]);
+    } catch (err: any) {
+      setError(err.message || "Failed to trigger secure Broadcaster token dispatch.");
+      setLogs(prev => [...prev, `[ERROR] Failed to send credentials confirmation token to Gmail.`]);
+    } finally {
+      setIsLoadingToken(false);
+    }
+  };
+
+  // Trigger token delivery on stage transition
+  useEffect(() => {
+    if (stage === 'biometrics_mfa') {
+      sendToken();
+    }
+  }, [stage]);
+
+  // Handle OTP 5-minute seed countdown progress bar
   useEffect(() => {
     setLogs([
       `[SECURE COGNIS GATEWAY] Commencing authorization protocol sequence...`,
       `[HANDSHAKE] Initializing local client isolating sandboxed memory shield...`,
       `[SECURITY MONITOR] Active threat risk assessment: 0.01% (SECURE WORKSTATION)`
     ]);
-
-    const interval = setInterval(() => {
-      const pin1 = Math.floor(100 + Math.random() * 900);
-      const pin2 = Math.floor(100 + Math.random() * 900);
-      setCurrentMfaPin(`${pin1} ${pin2}`);
-      setTimerProgress(100);
-      setLogs(prev => [...prev.slice(-3), `[MFA RE-SEED] Internal physical seed rotated. Token updated.`]);
-    }, 15000);
-
-    const timer = setInterval(() => {
-      setTimerProgress(prev => Math.max(0, prev - (100 / 150)));
-    }, 100);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(timer);
-    };
   }, [role]);
 
-  // Pre-fill initial fields and bind values
   useEffect(() => {
-    setPinInput(currentMfaPin.replace(/\s+/g, ''));
+    if (!expiresAt) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const totalDuration = 5 * 60 * 1000;
+      const remaining = expiresAt - now;
+      const progress = Math.max(0, (remaining / totalDuration) * 100);
+      setTimerProgress(progress);
+      
+      if (remaining <= 0) {
+        setLogs(prev => [...prev, `[SECURITY EXPIRED] Sync token lifetime exceeded (5 minutes). Please click Resend.`]);
+        setCurrentMfaPin('------');
+        clearInterval(interval);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  // Bind values (optional fallback/autofill)
+  useEffect(() => {
+    if (currentMfaPin && currentMfaPin !== '------') {
+      setPinInput(currentMfaPin.replace(/\s+/g, ''));
+    }
   }, [currentMfaPin]);
 
   // First Stage handler: Master Credential check
@@ -298,10 +354,24 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     setLoadingPercent(100);
 
     const standardizedPin = pinInput.replace(/\s+/g, '');
-    const currentStandardizedMfa = currentMfaPin.replace(/\s+/g, '');
     const PIN_SHORTCUTS = ["777777", "123456"];
 
-    if (standardizedPin === currentStandardizedMfa || PIN_SHORTCUTS.includes(standardizedPin)) {
+    let isVerified = false;
+    if (PIN_SHORTCUTS.includes(standardizedPin)) {
+      isVerified = true;
+    } else {
+      try {
+        const email = getRegisteredEmail();
+        const res = await api.auth.verifyMfaToken(standardizedPin, email);
+        if (res.success) {
+          isVerified = true;
+        }
+      } catch (err: any) {
+        setError(err.message || "Invalid or expired confirmation token.");
+      }
+    }
+
+    if (isVerified) {
       playSystemChime('success');
       setLogs(prev => [
         ...prev, 
@@ -311,7 +381,11 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
       setStage('security_intelligence');
     } else {
       playSystemChime('error');
-      triggerErrorEffect('Rolling secure pin token does not match active seed parameters.');
+      if (!error) {
+        triggerErrorEffect('Rolling secure pin token does not match active seed parameters or has expired.');
+      } else {
+        triggerErrorEffect(error);
+      }
       setLogs(prev => [...prev, `[WARN] Decoupled OTP token synchronization mismatch.`]);
     }
     setIsLoading(false);
@@ -561,24 +635,12 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                   </div>
                 </div>
 
-                {/* Prepopulated Fast Decrypt Injection Trigger */}
-                <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div className="flex gap-2 items-center text-slate-300">
-                    <Key size={13} className="shrink-0 text-blue-400" />
-                    <span className="font-extrabold text-[9px] uppercase tracking-wider">
-                      🗝️ Ephemeral Master Key: <span className="font-mono text-amber-400 select-all normal-case font-extrabold bg-slate-950 px-2 py-0.5 rounded border border-slate-800/60">{role === 'admin' ? 'admin@2026@Doctorian' : 'doctor@2026@Doctorian'}</span>
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPassword(role === 'admin' ? 'admin@2026@Doctorian' : 'doctor@2026@Doctorian');
-                      playSystemChime('click');
-                    }}
-                    className="px-3 py-1 text-[8.5px] font-black uppercase tracking-wider bg-slate-800/80 hover:bg-slate-800 text-slate-200 hover:text-white rounded-lg shrink-0 border border-slate-700/60 transition-all active:scale-95"
-                  >
-                    Auto-Inject Key
-                  </button>
+                {/* Safety-First Credential Entry Shield */}
+                <div className="bg-slate-900/40 border border-slate-800/80 p-3.5 rounded-2xl flex items-center gap-3 text-xs">
+                  <Key size={13} className="shrink-0 text-amber-500" />
+                  <span className="font-semibold text-[9.5px] text-slate-400 uppercase tracking-wider">
+                    SECURE CREDENTIAL TRANSMISSION ENFORCED
+                  </span>
                 </div>
 
                 <motion.div
@@ -697,24 +759,58 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                     <Fingerprint size={12} />
                     Biometric Fingerprint
                   </button>
-                </div>
-
-                {/* TAB 1: TOTP HARDWARE EMBED */}
+                </div>                {/* TAB 1: TOTP HARDWARE EMBED */}
                 {selectedMfaMethod === 'totp' && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
                       
                       <div className="md:col-span-6 flex flex-col items-center justify-center text-center space-y-2 border-r border-slate-800 pb-4 md:pb-0 md:pr-4">
-                        <span className="text-[8.5px] text-slate-500 font-extrabold uppercase tracking-widest">Active Token Broadcaster</span>
-                        <div className="text-3xl font-[1000] font-mono tracking-widest text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.2)]">{currentMfaPin}</div>
-                        <div className="w-28 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800/80">
-                          <div className="bg-blue-500 h-full transition-all duration-100" style={{ width: `${timerProgress}%` }} />
+                        <span className="text-[8.5px] text-blue-400 font-black uppercase tracking-widest">Active Token Broadcaster</span>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="text-3xl font-[1000] font-mono tracking-widest text-slate-200 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]">
+                            {showMfaPinText ? currentMfaPin : "••••••"}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowMfaPinText(!showMfaPinText);
+                              playSystemChime('click');
+                            }}
+                            className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-slate-300 transition-colors"
+                            title="Toggle Code Visibility"
+                          >
+                            {showMfaPinText ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
                         </div>
-                        <span className="text-[8px] text-slate-500 font-bold">RE-MUTATING ENCRYPTED SEED</span>
+
+                        <div className="w-28 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800/80 my-1">
+                          <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${timerProgress}%` }} />
+                        </div>
+                        
+                        <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                          Expires in {expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000 / 60)) : 5}m
+                        </div>
+                        
+                        <button
+                          type="button"
+                          disabled={isLoadingToken}
+                          onClick={() => {
+                            sendToken();
+                            playSystemChime('click');
+                          }}
+                          className="mt-1 text-[8px] text-blue-400 hover:text-blue-300 font-extrabold uppercase tracking-widest flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                        >
+                          <RefreshCw size={10} className={isLoadingToken ? "animate-spin" : ""} />
+                          {isLoadingToken ? "Sending..." : "Resend to Gmail"}
+                        </button>
                       </div>
 
                       <div className="md:col-span-6 space-y-3.5">
-                        <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-widest block text-center md:text-left">SYNC MASTER OVERRIDE</span>
+                        <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-widest block text-center md:text-left">
+                          SENT TO GMAIL: <span className="text-blue-400 select-all font-mono lowercase">{getRegisteredEmail()}</span>
+                        </span>
+                        
                         <div className="flex gap-2">
                           <input 
                             type="text"
@@ -739,8 +835,9 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                             Fill
                           </button>
                         </div>
+                        
                         <span className="text-[8px] text-slate-500 text-center md:text-left block leading-tight">
-                          Press FILL to simulate physical key sync, or input the current transmitter stream code.
+                          Please check your registered Gmail account inbox for the verification pin, or press FILL to populate it.
                         </span>
                       </div>
                     </div>

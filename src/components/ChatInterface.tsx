@@ -2439,7 +2439,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
         engineSystemInstruction += `\n\n[GOOGLE MedLM CLINICAL CO-PILOT POWERED BY CLINICAL GROUNDING]:\n- You are operating under Google's specialized MedLM medical fine-tune architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
       }
 
-      const targetEngineId = clinicalEngine === 'medlm-medium' ? 'gemini-3.5-flash' : (clinicalEngine === 'medlm-large' ? 'gemini-1.5-pro' : 'meta-llama/llama-3.1-8b-instruct');
+      const targetEngineId = clinicalEngine === 'medlm-medium' ? 'gemini-3.5-flash' : (clinicalEngine === 'medlm-large' ? 'gemini-3.1-pro-preview' : 'meta-llama/llama-3.1-8b-instruct');
 
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map(m => ({

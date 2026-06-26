@@ -2190,15 +2190,16 @@ export default function App() {
                 </motion.button>
               </div>
 
-              <div className="flex flex-1 justify-center px-0.5 sm:px-4 items-center gap-1 sm:gap-3 overflow-visible min-w-0">
+              <div className="flex flex-1 justify-center px-0.5 sm:px-2 md:px-4 items-center gap-1 sm:gap-2 md:gap-3 overflow-visible min-w-0">
                 <motion.button 
                   layout
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex flex-1 md:w-full md:max-w-md items-center gap-1.5 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-1.5 sm:px-4 sm:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[36px] sm:min-w-[85px] h-9 sm:h-11 shadow-sm justify-center sm:justify-start"
+                  className="flex flex-1 md:max-w-[200px] lg:max-w-md items-center gap-1.5 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-1.5 sm:px-3 sm:py-2 md:px-4 md:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[36px] sm:min-w-[85px] h-9 md:h-10 lg:h-11 shadow-sm justify-center sm:justify-start"
                   aria-label="Open search"
                 >
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
-                  <span className="text-[10px] sm:text-xs font-black md:inline text-high-visibility truncate uppercase tracking-widest hidden sm:block">Search System...</span>
+                  <span className="text-[10px] sm:text-xs font-black text-high-visibility truncate uppercase tracking-widest hidden lg:block">Search System...</span>
+                  <span className="text-[10px] font-black text-high-visibility truncate uppercase tracking-widest hidden sm:block lg:hidden">Search...</span>
                 </motion.button>
                 
                 <button
@@ -2216,7 +2217,7 @@ export default function App() {
                       type: isForced ? "info" : "success"
                     });
                   }}
-                  className={`hidden md:flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 shrink-0 h-9 sm:h-11 justify-center ${
+                  className={`hidden md:flex items-center gap-1.5 px-2 py-1.5 md:px-2.5 md:py-2 lg:px-3 lg:py-2.5 rounded-xl border transition-all cursor-pointer active:scale-95 shrink-0 h-9 md:h-10 lg:h-11 justify-center ${
                     isOffline
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
                       : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
@@ -2238,7 +2239,7 @@ export default function App() {
                       setIsWindowsMenuOpen(false);
                       setIsProfileOpen(false);
                     }}
-                    className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer ${
+                    className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer ${
                       isLanguageMenuOpen 
                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
@@ -2346,7 +2347,7 @@ export default function App() {
                   </AnimatePresence>
                 </div>
 
-                {/* Clinical Auditory & Sonification Hub */}
+                 {/* Clinical Auditory & Sonification Hub */}
                 <div className="relative shrink-0">
                   <motion.button
                     layout
@@ -2356,7 +2357,7 @@ export default function App() {
                       setIsWindowsMenuOpen(false);
                       setIsProfileOpen(false);
                     }}
-                    className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer relative ${
+                    className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer relative ${
                       isAudioMenuOpen 
                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
@@ -2524,7 +2525,7 @@ export default function App() {
                   <motion.button
                     layout
                     onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
-                    className={`p-1.5 sm:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 sm:w-11 sm:h-11 cursor-pointer ${
+                    className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer ${
                       isWindowsMenuOpen 
                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
@@ -2715,34 +2716,34 @@ export default function App() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-1.5 sm:gap-4 ml-auto shrink-0">
+              <div className="flex items-center gap-1.5 md:gap-2.5 lg:gap-4 ml-auto shrink-0">
               {isAuthReady && (
                 user ? (
-                  <div className="flex items-center gap-1.5 sm:gap-3 relative shrink-0">
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
+                  <div className="flex items-center gap-1.5 md:gap-2.5 lg:gap-3 relative shrink-0">
+                    <div className="hidden md:flex items-center gap-1 px-1.5 py-1 md:px-2 md:py-1.5 lg:px-2.5 lg:py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
                       <Zap size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">
+                      <span className="text-[10px] lg:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">
                         {displayCredits}
                       </span>
                     </div>
                     <div className="relative shrink-0">
                       <button 
-                        className="group flex items-center gap-1.5 pl-1 pr-1.5 sm:pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-9 sm:h-11 min-h-[36px] sm:min-h-[40px] items-center"
+                        className="group flex items-center gap-1.5 pl-1 pr-1 md:pr-1.5 lg:pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-9 md:h-10 lg:h-11 min-h-[36px] md:min-h-[40px] items-center"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         aria-label="User profile menu"
                         aria-haspopup="true"
                         aria-expanded={isProfileOpen}
                       >
-                        <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 overflow-hidden flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-blue-500/50 transition-all">
+                        <div className="h-6 w-6 md:h-7 md:w-7 lg:h-8 lg:w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 overflow-hidden flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-blue-500/50 transition-all">
                           {user.photoURL ? (
                             <img src={user.photoURL} alt={`Profile of ${user.displayName || user.email}`} className="w-full h-full object-cover shrink-0" referrerPolicy="no-referrer" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-[10px] sm:text-xs shrink-0">
+                            <div className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-[10px] md:text-xs shrink-0">
                               {user.displayName?.[0] || user.email[0].toUpperCase()}
                             </div>
                           )}
                         </div>
-                        <div className="hidden sm:flex flex-col items-start leading-tight">
+                        <div className="hidden lg:flex flex-col items-start leading-tight">
                           <span className="text-[10px] font-black text-slate-900 dark:text-white truncate max-w-[80px] uppercase tracking-tighter">
                             {user.displayName?.split(' ')[0] || 'User'}
                           </span>
@@ -2750,7 +2751,7 @@ export default function App() {
                             {user.subscriptionTier || 'Free'} Core
                           </span>
                         </div>
-                        <ChevronDown size={12} className={`text-slate-400 transition-transform duration-300 hidden sm:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`text-slate-400 transition-transform duration-300 hidden lg:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
                       </button>
 
                       <AnimatePresence>

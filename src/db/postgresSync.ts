@@ -18,6 +18,55 @@ pgPool.on("error", (err) => {
 export function translateSqlToPg(sqliteSql: string, tableNameHint?: string): string {
   let pgSql = sqliteSql;
 
+  // Translate SQLite camelCase columns to snake_case for PostgreSQL compatibility
+  const columnReplacements: { [key: string]: string } = {
+    userId: "user_id",
+    photoURL: "photo_url",
+    displayName: "display_name",
+    recipientId: "recipient_id",
+    whatsappNumber: "whatsapp_number",
+    messageId: "message_id",
+    medicationId: "medication_id",
+    takenAt: "taken_at",
+    sessionId: "session_id",
+    preferredGreeting: "preferred_greeting",
+    lastGreeting: "last_greeting",
+    updatedAt: "updated_at",
+    remindersEnabled: "reminders_enabled",
+    createdAt: "created_at",
+    valLoss: "val_loss",
+    valAccuracy: "val_accuracy",
+    baseModel: "base_model",
+    customName: "custom_name",
+    datasetSize: "dataset_size",
+    externalId: "external_id",
+    isActive: "is_active",
+    apiKey: "api_key",
+    lastUsed: "last_used",
+    institutionId: "institution_id",
+    doctorPhone: "doctor_phone",
+    doctorEmail: "doctor_email",
+    doctorName: "doctor_name",
+    mentorPhone: "mentor_phone",
+    mentorEmail: "mentor_email",
+    mentorName: "mentor_name",
+    doctorId: "doctor_id",
+    mentorId: "mentor_id",
+    enableExternalAI: "enable_external_ai",
+    ollamaUrl: "ollama_url",
+    ollamaModel: "ollama_model",
+    huggingfaceToken: "huggingface_token",
+    huggingfaceModel: "huggingface_model",
+    lastUnitReset: "last_unit_reset",
+    attachmentURL: "attachment_url",
+    expiresAt: "expires_at"
+  };
+
+  for (const [camel, snake] of Object.entries(columnReplacements)) {
+    const regex = new RegExp(`\\b${camel}\\b`, "gi");
+    pgSql = pgSql.replace(regex, snake);
+  }
+
   // 1. Convert standard SQLite "INSERT OR IGNORE" to PostgreSQL conflict syntax
   if (pgSql.includes("INSERT OR IGNORE")) {
     pgSql = pgSql.replace(/INSERT OR IGNORE/gi, "INSERT");

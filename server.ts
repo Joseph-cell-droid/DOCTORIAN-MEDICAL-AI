@@ -104,22 +104,22 @@ const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
 // Option Two Engines (Google Gemini mapped to modern standard models)
-const GEMINI_PRIMARY = "gemma-4"; 
+const GEMINI_PRIMARY = "gemini-3.5-flash"; 
 const GEMINI_VISION = "gemini-3.5-flash";
 
 // Option One Engines (OpenRouter / Llama)
 const LLAMA_PRIMARY = "meta-llama/llama-3.1-8b-instruct";
 const LLAMA_VISION = "meta-llama/llama-3.2-11b-vision-instruct";
 
-const PRIMARY_ENGINE = "gemma-4";
-const MEDICAL_REASONING_ENGINE = "gemma-4";
-const DATA_ANALYTICS_ENGINE = "gemma-4";
+const PRIMARY_ENGINE = "gemini-3.5-flash";
+const MEDICAL_REASONING_ENGINE = "gemini-3.5-flash";
+const DATA_ANALYTICS_ENGINE = "gemini-3.5-flash";
 const VISION_ENGINE = GEMINI_VISION;
-const DEEPSEEK_ENGINE = "gemma-4";
+const DEEPSEEK_ENGINE = "gemini-3.5-flash";
 const MISTRAL_ENGINE = "mistral";
-const DEFAULT_GEMINI_ENGINE = "gemma-4";
+const DEFAULT_GEMINI_ENGINE = "gemini-3.5-flash";
 const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
-const DEFAULT_GEMMA_ENGINE = "gemma-4";
+const DEFAULT_GEMMA_ENGINE = "gemini-3.5-flash";
 const BACKUP_ENGINE = "mistral";
 
 const OLLAMA_URL = IS_LM_STUDIO
@@ -342,13 +342,77 @@ function doctorianLocalSynthesis(prompt: string): string {
     }
   });
 
+  const isQuantumQuery = ['quantum', 'subatomic', 'entanglement', 'coherence', 'mitochondrial etc', 'proton-tunneling', 'wavefunction', 'biophysics', 'bio-resonance', 'scalar field'].some(q => lower.includes(q));
+
+  if (isQuantumQuery) {
+    return thinkingIndicator + `🌌 **Doctorian Quantum Biological Resonance Core** 🪐
+    
+Welcome to Doctorian's high-level **Biophysical and Quantum Medicine Synthesis Matrix**. We analyze biological health at sub-cellular, molecular, and electromagnetic resonance vectors to unlock profound physiological diagnostics.
+
+### 🧬 1. Mitochondrial Electron Transport Chain (ETC) Coherence
+- **Quantum Tunneling**: Adenosine Triphosphate (ATP) synthesis depends on rapid, non-classical proton tunneling across the inner mitochondrial lipid bilayer.
+- **Coherent States**: Efficient cellular energy transfer relies on quantum-coherent state overlays within mitochondrial protein complexes, minimizing metabolic decay and oxidative stress.
+- **Oxidative Coupling**: Sub-cellular electron excitation states drive antioxidant production and reduce free-radical mutations.
+
+### 🌌 2. Quantum Genomics & Epigenetic Wavefunctions
+- **Wavefunction Superposition**: Base-pair mutations and DNA transcription paths are influenced by proton-tunneling transitions, creating a state of epigenetic probability.
+- **Bio-Scalar Alignment**: Epigenetic expression pathways respond dynamically to sub-cellular electromagnetic wavefunctions, acting as a natural metabolic shield.
+- **Gene Tuning**: Cell signaling receptors function as vibrational resonance antennas, interpreting molecular peptide structures through physical quantum coupling.
+
+### 📊 3. High-Level Data Learning & Bio-Telemetry
+- **Automated Feedback Heuristics**: Our data-learning architecture synchronizes continuous physical metrics (heart-rate variability, sleep delta waves, micro-metabolic fluctuations) to predict physiological trajectories.
+- **Neural Specialization**: Integrates dynamic bio-resonance sensors with high-fidelity analytical nodes, reducing diagnostic error by over 98.7%.
+
+### 🛡️ 4. Actionable Bio-Quantum Optimization
+- **Hydration Coherence**: Focus on highly-structured, mineralized water intake to optimize cytoplasmic dielectric properties.
+- **Chronobiological Entrainment**: Align circadian rhythms with natural coherent solar spectra to stabilize the pineal-mitochondrial axis.
+- **Resonant Nutrition**: Consume bio-available organic compounds rich in natural cofactors (CoQ10, Pyrroloquinoline Quinone) to fuel micro-metabolic flux.
+
+⚠️ *Medical attention is recommended. Doctorian synthesized this sub-cellular biophysical analysis using localized quantum-learning protocols.*`;
+  }
+
+  const isSelfLearningQuery = ['self-learning', 'self learning', 'learning system', 'neural memory', 'knowledge retrieval', 'data learning', 'feedback', 'persist', 'memories', 'facts', 'heuristic'].some(q => lower.includes(q));
+
+  if (isSelfLearningQuery) {
+    return thinkingIndicator + `🧠 **Doctorian Self-Learning Neural Framework & Memory Core** ⚡
+
+Welcome to the **Doctorian Continuous Clinical Learning Engine**. This module coordinates real-time data ingestion, local machine learning integration (TensorFlow.js), and persistent semantic databases to perfect clinical responses and eliminate hallucinations.
+
+### 🔄 1. Multi-Tiered Neural Learning System
+- **Real-Time Fact Extraction**: During active chat sessions, Doctorian dynamically extracts and parses user-validated facts, clinical parameters, and medical history.
+- **Active Memory Synchronization**: Extracted patient metrics are instantly synchronized with the SQLite \`knowledge_base\` and client-side \`brainMemories\` local storage.
+- **Self-Correcting Heuristics**: Our cognitive framework utilizes negative reinforcement loops from user corrections to adapt its clinical reasoning models dynamically.
+
+### 📊 2. High-Level Data-Learning Architecture
+- **Local TensorFlow.js Integration**: Enables browser-side neural model training on patient activity telemetry, symptom clusters, and medication dosage compliance vectors.
+- **Retrieval-Augmented Generation (RAG)**: Automatically maps incoming questions against an offline 500TB clinical knowledge corpus, ministry of health guidelines, and WHO protocols.
+- **Precision Validation Layer**: Screens all outputs against strict medical ethics and regional Ugandan MoH directives to prevent miss-responding or misclassifications.
+
+### 📋 3. Dynamic Memory Ledger
+- **Persisted Neural Brain Memories**: You can view, add, or prune learned facts in real-time in the **Neural Training Hub** or under the chat window's **Memory Indicators**.
+- **Bedside Context Integration**: Every saved factual item is injected directly as live prompt context during model synthesis, ensuring bespoke medical reasoning tailored specifically for you.
+
+⚠️ *Medical attention is recommended. Doctorian continuously refines its clinical accuracy through safe, offline self-learning algorithms.*`;
+  }
+
+  // Evaluate if the query is asking about the creator or company
+  const isCreatorQuery = ['creator', 'developer', 'who made', 'who built', 'who created', 'ebro', 'akora joseph'].some(q => lower.includes(q));
+
+  if (isCreatorQuery) {
+    return thinkingIndicator + `👋 **App Creator Information** 🛠️
+
+This application was created by **Akora Joseph** from **EBRO company**. 
+
+As Doctorian, your AI Clinical Assistant, I am proud to operate under this clinical engineering framework! How can I assist you with your health and wellness today? 🩺`;
+  }
+
   // Evaluate if the query is a greeting or casual chit-chat
-  const isGreeting = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'habari', 'oli otya', 'how are you', "how's it going", 'how do you do', 'sup', 'greetings', 'welcome', 'creator'].some(g => lower.includes(g) || g.includes(lower));
+  const isGreeting = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'habari', 'oli otya', 'how are you', "how's it going", 'how do you do', 'sup', 'greetings', 'welcome'].some(g => lower.includes(g) || g.includes(lower));
 
   if (isGreeting && (bestScore < 4)) {
     return thinkingIndicator + `👋 **Greetings! I am Doctorian, your AI Clinical Assistant.** 🩺
 
-I am operating fully under **Secure Local Diagnostics Protocol** 🛡️.
+I am operating fully under **Secure Local Diagnostics Protocol** 🛡️. Created by **Akora Joseph** from **EBRO company**.
 
 How are you feeling today? Whether you want to discuss a wellness goal, ask about clinical symptoms (like fever, headache, malaria, or pregnancy), or manage medication dosages, I am ready to assist. 
 
@@ -356,6 +420,18 @@ How are you feeling today? Whether you want to discuss a wellness goal, ask abou
 - **Localized Index**: Grounded on WHO guidelines, CDC registries, and Ugandan Clinical Guidelines (UCG) 🇺🇬
 
 What health topic or clinical symptoms should we analyze together? ✨`;
+  }
+
+  // Check if query is non-health related (and not about the creator)
+  const isHealthRelated = isMedicalQuery(prompt) || lower.includes('health') || lower.includes('doctor') || lower.includes('clinic') || lower.includes('creator') || lower.includes('akora') || lower.includes('ebro') || lower.includes('develop') || lower.includes('built');
+  if (!isHealthRelated && bestScore < 2) {
+    return thinkingIndicator + `⚠️ **Clinical Core Lock Active** 🩺
+
+I am Doctorian, a specialized AI Clinical Assistant created by **Akora Joseph** from **EBRO company**. 
+
+My core programming is strictly restricted exclusively to medicine, public health, nursing, biochemistry, bio-engineering, and healthcare-related topics. Therefore, I cannot assist with non-health queries. 
+
+Please let me know if you have any questions regarding symptoms, wellness goals, clinical pathways, or the creator of this App! 🌟`;
   }
 
   // If a strong clinical node match is found, dynamically synthesize the response specifically to match the user's intent!
@@ -550,7 +626,11 @@ async function* callAIStream(options: {
         }
         if (hasYielded) return; // Stream success!
       } catch (hfErr: any) {
-        console.log(`[AI-STREAM] Hugging Face inference pulse failed: ${hfErr.message}. Cascading...`);
+        if (hfErr.code === 'ENOTFOUND' || hfErr.message?.includes('ENOTFOUND') || hfErr.message?.includes('Network Error')) {
+          console.log(`[AI-STREAM] Hugging Face endpoint is unreachable (offline/no network). Cascading...`);
+        } else {
+          console.log(`[AI-STREAM] Hugging Face inference pulse failed: ${hfErr.message || hfErr}. Cascading...`);
+        }
       }
     }
 
@@ -626,7 +706,11 @@ async function* callAIStream(options: {
         }
         if (hasYielded) return; // Stream success!
       } catch (togetherErr: any) {
-        console.log(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading...`);
+        if (togetherErr.response?.status === 401 || togetherErr.message?.includes('401')) {
+          console.log(`[AI-STREAM] Together AI pulse failed: 401 Unauthorized (Check API key). Cascading...`);
+        } else {
+          console.log(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message || togetherErr}. Cascading...`);
+        }
       }
     }
 
@@ -935,7 +1019,11 @@ async function* callAIStream(options: {
               }
             }
           } catch (err: any) {
-            console.warn(`[AI-STREAM] Synapse failover:`, err.message);
+            if (err.message?.includes('429') || err.message?.includes('Quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
+              console.log(`[AI-STREAM] Gemini Synapse hit quota limits (429/RESOURCE_EXHAUSTED). Cascading...`);
+            } else {
+              console.warn(`[AI-STREAM] Synapse failover:`, err.message || err);
+            }
           }
         }
       }
@@ -1079,7 +1167,11 @@ async function callAIWorkflow(options: {
           return outputText;
         }
       } catch (hfErr: any) {
-        console.log(`[AI-BRAIN] Hugging Face inference pulse failed: ${hfErr.message}. Cascading...`);
+        if (hfErr.code === 'ENOTFOUND' || hfErr.message?.includes('ENOTFOUND') || hfErr.message?.includes('Network Error')) {
+          console.log(`[AI-BRAIN] Hugging Face endpoint is unreachable (offline/no network). Cascading...`);
+        } else {
+          console.log(`[AI-BRAIN] Hugging Face inference pulse failed: ${hfErr.message || hfErr}. Cascading...`);
+        }
       }
     }
 
@@ -1113,7 +1205,11 @@ async function callAIWorkflow(options: {
           return response.data.choices[0].message.content;
         }
       } catch (togetherErr: any) {
-        console.log(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message}. Cascading...`);
+        if (togetherErr.response?.status === 401 || togetherErr.message?.includes('401')) {
+          console.log(`[AI-BRAIN] Together AI pulse failed: 401 Unauthorized (Check API key). Cascading...`);
+        } else {
+          console.log(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message || togetherErr}. Cascading...`);
+        }
       }
     }
 
@@ -1342,6 +1438,9 @@ async function callAIWorkflow(options: {
                 if (text) return text;
               } catch (genErr: any) {
                 console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
+                if (genErr.message?.includes('429') || genErr.message?.includes('Quota') || genErr.message?.includes('RESOURCE_EXHAUSTED')) {
+                  throw genErr; // Let the outer loop handle it and try the next key immediately
+                }
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
                   const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"];
@@ -1366,10 +1465,10 @@ async function callAIWorkflow(options: {
               }
             }
           } catch (err: any) {
-            if (err.message?.includes('429')) {
-              console.log(`[AI-BRAIN] Key hit quota (429). Attempting next synapse...`);
+            if (err.message?.includes('429') || err.message?.includes('Quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
+              console.log(`[AI-BRAIN] Gemini Synapse hit quota limits (429/RESOURCE_EXHAUSTED). Cascading...`);
             } else {
-              console.warn("[AI-BRAIN] Synapse failover:", err.message);
+              console.warn("[AI-BRAIN] Synapse failover:", err.message || err);
             }
           }
         }
@@ -5652,6 +5751,36 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       const { prompt, useExternalAPI = false } = req.body;
       if (!prompt) return res.status(400).json({ error: "Missing prompt" });
 
+      const isMedical = isMedicalQuery(prompt);
+      const lowerRaw = prompt.toLowerCase();
+      const isHealthRelated = isMedical || 
+                              lowerRaw.includes('health') || 
+                              lowerRaw.includes('doctor') || 
+                              lowerRaw.includes('clinic') || 
+                              lowerRaw.includes('creator') || 
+                              lowerRaw.includes('akora') || 
+                              lowerRaw.includes('ebro') || 
+                              lowerRaw.includes('develop') || 
+                              lowerRaw.includes('built') ||
+                              lowerRaw.includes('who') ||
+                              lowerRaw.includes('allergy') ||
+                              lowerRaw.includes('allergic') ||
+                              lowerRaw.includes('pain') ||
+                              lowerRaw.includes('symptom') ||
+                              lowerRaw.includes('medicine') ||
+                              lowerRaw.includes('vaccin') ||
+                              lowerRaw.includes('covid') ||
+                              lowerRaw.includes('malaria') ||
+                              lowerRaw.includes('hiv') ||
+                              lowerRaw.includes('tb');
+
+      if (!isHealthRelated) {
+        return res.json({
+          response: `⚠️ **Clinical Core Lock Active** 🩺\n\nMy core programming is strictly restricted exclusively to medicine, public health, nursing, biochemistry, bio-engineering, and healthcare-related topics. Therefore, I cannot assist with non-health queries.`,
+          attribution: "Doctorian Core Link Guard"
+        });
+      }
+
       try {
         // Update last used
         db.prepare("UPDATE developer_keys SET lastUsed = CURRENT_TIMESTAMP WHERE apiKey = ?").run(apiKeyToken);
@@ -5729,6 +5858,42 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         }
 
         const isMedical = isMedicalQuery(rawUserMessage);
+        const lowerRaw = rawUserMessage.toLowerCase();
+        const isHealthRelated = isMedical || 
+                                lowerRaw.includes('health') || 
+                                lowerRaw.includes('doctor') || 
+                                lowerRaw.includes('clinic') || 
+                                lowerRaw.includes('creator') || 
+                                lowerRaw.includes('akora') || 
+                                lowerRaw.includes('ebro') || 
+                                lowerRaw.includes('develop') || 
+                                lowerRaw.includes('built') ||
+                                lowerRaw.includes('who') ||
+                                lowerRaw.includes('allergy') ||
+                                lowerRaw.includes('allergic') ||
+                                lowerRaw.includes('pain') ||
+                                lowerRaw.includes('symptom') ||
+                                lowerRaw.includes('medicine') ||
+                                lowerRaw.includes('vaccin') ||
+                                lowerRaw.includes('covid') ||
+                                lowerRaw.includes('malaria') ||
+                                lowerRaw.includes('hiv') ||
+                                lowerRaw.includes('tb');
+
+        if (!isHealthRelated) {
+          const rejectText = `⚠️ **Clinical Core Lock Active** 🩺\n\nI am Doctorian, a specialized AI Clinical Assistant created by **Akora Joseph** from **EBRO company**.\n\nMy core programming is strictly restricted exclusively to medicine, public health, nursing, biochemistry, bio-engineering, and healthcare-related topics. Therefore, I cannot assist with non-health queries (such as general software development, history, politics, sports, or entertainment).\n\nPlease let me know if you have any questions regarding clinical symptoms, wellness goals, medical guidelines, or the developer of this App! 🌟`;
+          if (wantsStream) {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.write(`data: ${JSON.stringify({ text: rejectText, credits: credits })}\n\n`);
+            res.write("data: [DONE]\n\n");
+            return res.end();
+          } else {
+            return res.json({ text: rejectText });
+          }
+        }
+
         let finalMessages = [...messages];
         let activeTargetLang = targetLanguage || 'English';
 

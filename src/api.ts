@@ -215,6 +215,86 @@ export function getLocalLLMEndpoint(baseUrl: string): { url: string; isOpenAI: b
   return { url: `${cleanUrl}/api/chat`, isOpenAI: false };
 }
 
+async function pingEndpoint(url: string, timeoutMs: number = 800): Promise<boolean> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const fetchFn = originalBrowserFetch || fetch;
+    const res = await fetchFn(url, { signal: controller.signal }).catch(() => null);
+    clearTimeout(id);
+    return !!(res && res.ok);
+  } catch {
+    clearTimeout(id);
+    return false;
+  }
+}
+
+export interface LocalNodeInfo {
+  url: string;
+  isOpenAI: boolean;
+  model: string;
+}
+
+export async function detectActiveLocalNode(configuredUrl: string, configuredModel?: string): Promise<LocalNodeInfo> {
+  const cleanConfigured = configuredUrl.trim().replace(/\/$/, "");
+  const isLMStudioConfigured = cleanConfigured.includes(":1234") || cleanConfigured.includes("/v1") || cleanConfigured.toLowerCase().includes("lmstudio");
+  const checkPathConfigured = isLMStudioConfigured
+    ? (cleanConfigured.includes("/v1") ? `${cleanConfigured}/models` : `${cleanConfigured}/v1/models`)
+    : `${cleanConfigured}/api/tags`;
+
+  const urlsToTry: { url: string; checkPath: string; isOpenAI: boolean }[] = [
+    {
+      url: cleanConfigured,
+      checkPath: checkPathConfigured,
+      isOpenAI: isLMStudioConfigured
+    }
+  ];
+
+  const isLocal = cleanConfigured.includes("localhost") || cleanConfigured.includes("127.0.0.1") || cleanConfigured.includes("::1");
+  if (isLocal) {
+    if (isLMStudioConfigured) {
+      // Configured LM Studio, try Ollama as fallback
+      urlsToTry.push({
+        url: "http://localhost:11434",
+        checkPath: "http://localhost:11434/api/tags",
+        isOpenAI: false
+      });
+    } else {
+      // Configured Ollama, try LM Studio as fallback
+      urlsToTry.push({
+        url: "http://localhost:1234",
+        checkPath: "http://localhost:1234/v1/models",
+        isOpenAI: true
+      });
+    }
+  }
+
+  for (const item of urlsToTry) {
+    const isUp = await pingEndpoint(item.checkPath, 800);
+    if (isUp) {
+      let model = configuredModel || "";
+      if (!model || model.trim() === "") {
+        model = await resolveLocalModelName(item.url, model);
+      }
+      if (!model || model.trim() === "") {
+        model = "mistral";
+      }
+      return {
+        url: item.url,
+        isOpenAI: item.isOpenAI,
+        model
+      };
+    }
+  }
+
+  // Fallback to configured
+  return {
+    url: cleanConfigured,
+    isOpenAI: isLMStudioConfigured,
+    model: configuredModel || "mistral"
+  };
+}
+
 export async function resolveLocalModelName(baseUrl: string, userConfiguredModel?: string): Promise<string> {
   if (userConfiguredModel && userConfiguredModel.trim() !== "") {
     return userConfiguredModel.trim();
@@ -1560,20 +1640,14 @@ export const api = {
         isLocalUrl = urlLower.includes("localhost") || urlLower.includes("127.0.0.1") || urlLower.includes("::1");
       }
 
-      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl) && (parsedUser.enableExternalAI || parsedUser.enableExternalAI === undefined)) {
+      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl)) {
         const user = parsedUser;
         try {
-          const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
+          const activeNode = await detectActiveLocalNode(user.ollamaUrl, user.ollamaModel);
+          const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(activeNode.url);
+          const activeLocalModel = activeNode.model;
           
-          let activeLocalModel = user.ollamaModel;
-          if (!activeLocalModel || activeLocalModel.trim() === "") {
-            activeLocalModel = await resolveLocalModelName(user.ollamaUrl, activeLocalModel);
-          }
-          if (!activeLocalModel) {
-            activeLocalModel = 'mistral';
-          }
-          
-          console.log(`[Neural Link] [DIRECT CLIENT] Directing pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl})`);
+          console.log(`[Neural Link] [DIRECT CLIENT] Directing pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl}, detectedUrl: ${activeNode.url})`);
           
           const requestBody = isOpenAI ? {
             model: activeLocalModel,
@@ -1656,11 +1730,11 @@ export const api = {
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
-            if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
-              const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-              const defaultLocalModel = 'mistral';
-              const activeLocalModel = user.ollamaModel || defaultLocalModel;
-              console.log(`[Neural Link] Directing failover pulse to PC Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI})`);
+            if (user.ollamaUrl) {
+              const activeNode = await detectActiveLocalNode(user.ollamaUrl, user.ollamaModel);
+              const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(activeNode.url);
+              const activeLocalModel = activeNode.model;
+              console.log(`[Neural Link] Directing failover pulse to PC Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI}, detectedUrl: ${activeNode.url})`);
               
               const requestBody = isOpenAI ? {
                 model: activeLocalModel,
@@ -1810,20 +1884,14 @@ export const api = {
         isLocalUrl = urlLower.includes("localhost") || urlLower.includes("127.0.0.1") || urlLower.includes("::1");
       }
 
-      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl) && (parsedUser.enableExternalAI || parsedUser.enableExternalAI === undefined)) {
+      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl)) {
         const user = parsedUser;
         try {
-          const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
+          const activeNode = await detectActiveLocalNode(user.ollamaUrl, user.ollamaModel);
+          const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(activeNode.url);
+          const activeLocalModel = activeNode.model;
           
-          let activeLocalModel = user.ollamaModel;
-          if (!activeLocalModel || activeLocalModel.trim() === "") {
-            activeLocalModel = await resolveLocalModelName(user.ollamaUrl, activeLocalModel);
-          }
-          if (!activeLocalModel) {
-            activeLocalModel = 'mistral';
-          }
-          
-          console.log(`[Neural Link] [DIRECT CLIENT] Directing stream pulse to Local LLM prior: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl})`);
+          console.log(`[Neural Link] [DIRECT CLIENT] Directing stream pulse to Local LLM prior: ${localUrl} (Model: ${activeLocalModel}, isLocalUrl: ${isLocalUrl}, detectedUrl: ${activeNode.url})`);
           
           const unstructuredInstruction = `${systemInstruction}\n\n[CRITICAL DIRECTIVE FOR LOCAL ANALYTICS]: Do NOT output any structured 4-section diagnostic layouts, unrequested templates, json schemas, or high-density lists. Keep your response conversational, natural, direct, freeform, and completely unstructured. Answer the clinician directly and concisely.`;
 
@@ -1985,11 +2053,11 @@ export const api = {
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
-            if (user.ollamaUrl && (user.enableExternalAI || user.enableExternalAI === undefined)) {
-              const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(user.ollamaUrl);
-              const defaultLocalModel = 'mistral';
-              const activeLocalModel = user.ollamaModel || defaultLocalModel;
-              console.log(`[Neural Link] Directing stream failover pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI})`);
+            if (user.ollamaUrl) {
+              const activeNode = await detectActiveLocalNode(user.ollamaUrl, user.ollamaModel);
+              const { url: localUrl, isOpenAI } = getLocalLLMEndpoint(activeNode.url);
+              const activeLocalModel = activeNode.model;
+              console.log(`[Neural Link] Directing stream failover pulse to Local LLM: ${localUrl} (Model: ${activeLocalModel}, isOpenAI: ${isOpenAI}, detectedUrl: ${activeNode.url})`);
               
               const requestBody = isOpenAI ? {
                 model: activeLocalModel,

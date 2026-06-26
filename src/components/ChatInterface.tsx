@@ -90,7 +90,7 @@ const PERSONAS = {
 };
 
 const BASE_SYSTEM_INSTRUCTION = `You are Doctorian, a Universal Medical Intelligence Core (UMIC).
-Powered by Ebro Company. Created by Akora Joseph.
+Powered by EBRO company. Created by Akora Joseph.
 Specialized in NEURAL-CLINICAL SYNTHESIS, ADVANCED CLINICAL MEDICAL EDUCATION, and localized medical decision support systems.
 
 COGNITIVE ARCHITECTURE & CLINICAL BRAIN STRUCTURE:
@@ -120,21 +120,29 @@ You are trained on global gold-standard medical data, double-blind clinical tria
    - Autonomic nervous system regulation, vagal nerve tone, somatic symptom disorders (psychophysiological conversion), neurochemical baselines, and anxiety/panic physiological pathways.
 6. OBSTETRICS, GYNECOLOGY, & MATERNAL HEALTH:
    - High-risk pregnancy protocols, preeclampsia features (BP thresholds, proteinuria, HELLP syndrome detection), eclampsia magnesium sulfate seizure prophylaxis and treatment, and active management of the third stage of labor (AMTSL).
+7. QUANTUM BIOLOGY, HIGH-LEVEL DATA LEARNING & BIO-SYSTEMS:
+   - Molecular and sub-cellular biophysics, quantum genomics, mitochondrial electron transport chain (ETC) coherence, bio-resonance sensors, bio-telemetry interfaces, and proton-tunneling enzymology.
+   - Micro-metabolic flux analysis, peptide receptor dynamics, and systemic epigenetic feedback loops.
 
 GEOGRAPHIC & RURAL SYSTEM CONTEXT:
 1. REGIONAL Uganda MoH CRITERIA: Grounded in Ugandan Clinical Guidelines (UCG) and Ministry of Health (MoH) protocols. Expert understanding of Health Center tiers: HC II (preventative/outpatient), HC III (basic maternity/laboratory), HC IV (emergency obstetric save/minor theater), up to regional/national referral hospitals.
 2. COMMUNITY HEALTH & RESOURCE CONSTRAINTS: Tailors recommendations to resource-limited clinics, recommending low-cost equivalents (e.g., starting oral rehydration therapy or using readily available first-line antibacterials) whenever reference labs or tertiary centers are hours away.
 
 STRICT OPERATIONAL CONSTRAINTS:
-1. CLINICAL CORE LOCK: Restrict output exclusively to medicine, public health, nursing, biochemistry, and bio-engineering. Refuse non-health requests professionally.
+1. CLINICAL CORE LOCK: Restrict output exclusively to medicine, public health, nursing, biochemistry, bio-engineering, healthcare topics, and details about the App's creator (Akora Joseph from EBRO company). Under no circumstances should you answer non-health related queries (e.g., general software programming, history, politics, sports, general entertainment). Professionally and politely decline non-health and non-creator requests, explaining that you are specialized exclusively in medical and health intelligence. Always focus precisely on answering what the user wants.
 2. VOCABULARY DENSITY (HIGH ACADEMIC REALISM): Communicate with the depth and clarity of an associate professor of clinical medicine. Employ precise Latinized and clinical terminology where appropriate (e.g., write *cholelithiasis* instead of gallstones, *pyrexia* instead of fever, *pruritus* instead of itching, *syncope* instead of passing out, *dyspnea* instead of shortness of breath, *erythematous maculopapular rash* instead of red spots), followed by clear layperson friendly translations in parenthesis.
 3. ABSOLUTE PRIVACY: Guard all biometric data signatures. Local link isolation is simulated as 100% data sovereign.
 4. GREETING PROTOCOL: Warm, clinical, and reassuring. Always greet with: "Hello! I am Doctorian. How can I assist with your biological health today?"
 5. ENCOURAGE PHYSICAL CLINICAL EVALUATION: Never formulate final absolute diagnoses. Frame outputs as high-probability clinical insights and differential matrices. Always conclude your analysis with the exact clinical safety prompt: "Medical attention is recommended."
+6. CREATOR INFORMATION: If asked about who created or built this app, who the developer is, or which company made it, you must state that the App was created by Akora Joseph from EBRO company.
+7. QUANTUM BIO-DATA PRECISION & SELF-LEARNING ALIGNMENT: 
+   - Avoid miss-responding, hallucinating, or injecting irrelevant preambles. Check your knowledge base and neural memories before formulating responses.
+   - Answer precisely the question asked. For quantum biology or high-level bio-telemetry inquiries, formulate highly sophisticated, professional responses blending biochemistry and physical systems.
+   - Utilize self-learning heuristics: learn from user corrections and clinical memories to achieve perfect precision on subsequent queries.
 
 FORMATTING & EMOJI RULES (CRITICAL):
 - Structure your responses beautifully using multi-layered, clear Markdown layouts, bullet points, interactive check-lists, and clear bold headings.
-- Always include helpful medical emojis in headers and inline to structure the reading path gracefully (🩺, 🧠, 🫀, 🔬, 🧪, 🌡️, 💊, 🩹, 🩸, 🏥, 🦠, 🧬, 🥗, 💧, 🏃‍♂️).
+- Always include helpful medical emojis in headers and inline to structure the reading path gracefully (🩺, 🧠, 🫀, 🔬, 🧪, 🌡️, 💊, 🩹, 🩸, 🏥, 🦠, 🧬, 🥗, 💧, RUNNING, 🏃‍♂️).
 - Mix in subtle structuring emojis (✨, 🌟, 💡, 🛡️, 📋, 🔍, 🌍, 🤝, 🎯, 🚀, 💬, 🔄, 📅, 📈, 💎) to maintain an engaging, professional, and visually stunning aesthetic.
 
 STRUCTURE FOR DIAGNOSTICS:
@@ -293,6 +301,57 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     return false;
   });
   const [activeFineTunedModel, setActiveFineTunedModel] = useState<any>(null);
+
+  // Dynamic brain memories states
+  const [brainMemories, setBrainMemories] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('doctorian_brain_memories');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to load brain memories", e);
+      }
+    }
+    return [];
+  });
+  const [newMemoryText, setNewMemoryText] = useState('');
+
+  // Load account-specific brain memories when user changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const userKey = user?.email || user?.id || 'default';
+        const userSaved = localStorage.getItem(`doctorian_brain_memories_${userKey}`);
+        if (userSaved) {
+          setBrainMemories(JSON.parse(userSaved));
+        } else {
+          // Fallback to global if user-specific doesn't exist yet
+          const globalSaved = localStorage.getItem('doctorian_brain_memories');
+          if (globalSaved) {
+            const parsed = JSON.parse(globalSaved);
+            setBrainMemories(parsed);
+            // Initialize user-specific storage with existing global memories
+            localStorage.setItem(`doctorian_brain_memories_${userKey}`, JSON.stringify(parsed));
+          } else {
+            setBrainMemories([]);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to sync account memories:", e);
+      }
+    }
+  }, [user?.email, user?.id]);
+
+  const handleAddManualMemory = () => {
+    if (!newMemoryText.trim()) return;
+    const updated = [...new Set([...brainMemories, newMemoryText.trim()])].slice(-20);
+    setBrainMemories(updated);
+    const userKey = user?.email || user?.id || 'default';
+    localStorage.setItem(`doctorian_brain_memories_${userKey}`, JSON.stringify(updated));
+    localStorage.setItem('doctorian_brain_memories', JSON.stringify(updated));
+    setNewMemoryText('');
+    setTerminalLogs(prev => [...prev.slice(-3), 'BRAIN: Manual memory fact registered.']);
+  };
 
   // ==========================================
   // DOCTORIAN VOICE CALLING & TELEPHONY STATE
@@ -1220,8 +1279,61 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
           context += `\nHISTORICAL HEALTH LEDGER: ${recent}\n`;
         }
 
+        // 3. Load Registered Patients page data
+        try {
+          const patientsRaw = localStorage.getItem('doctorian_registered_patients');
+          if (patientsRaw) {
+            const patientsList = JSON.parse(patientsRaw);
+            if (Array.isArray(patientsList) && patientsList.length > 0) {
+              context += `\nREGISTERED CLINICAL PATIENTS (PAGE DATA):\n` + patientsList.slice(0, 5).map(p => `- Patient ${p.name}, Age ${p.age}, Gender ${p.gender}, Bed: ${p.bedNumber || 'N/A'}, Conditions: ${p.conditions || 'None'}, Allergies: ${p.allergies || 'None'}`).join('\n') + `\n`;
+            }
+          }
+        } catch (_) {}
+
+        // 4. Load Medications page data
+        try {
+          const medsRaw = localStorage.getItem('medical_offline_medications');
+          if (medsRaw) {
+            const medsList = JSON.parse(medsRaw);
+            if (Array.isArray(medsList) && medsList.length > 0) {
+              context += `\nACTIVE MEDICATION SCHEDULES (PAGE DATA):\n` + medsList.slice(0, 5).map(m => `- Med ${m.name}: ${m.dosage} (${m.frequency}), Patient: ${m.patientName || 'Default'}`).join('\n') + `\n`;
+            }
+          }
+        } catch (_) {}
+
+        // 5. Load Tasks page data
+        try {
+          const tasksRaw = localStorage.getItem('doctorian_tasks');
+          if (tasksRaw) {
+            const tasksList = JSON.parse(tasksRaw);
+            if (Array.isArray(tasksList) && tasksList.length > 0) {
+              context += `\nACTIVE CLINICAL TASKS (PAGE DATA):\n` + tasksList.slice(0, 5).map(t => `- [${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.title || t.text} (Priority: ${t.priority || 'Normal'})`).join('\n') + `\n`;
+            }
+          }
+        } catch (_) {}
+
+        // 6. Load Appointments page data
+        try {
+          const apptsRaw = localStorage.getItem('doctorian_appointments');
+          if (apptsRaw) {
+            const apptsList = JSON.parse(apptsRaw);
+            if (Array.isArray(apptsList) && apptsList.length > 0) {
+              context += `\nUPCOMING CLINICAL APPOINTMENTS (PAGE DATA):\n` + apptsList.slice(0, 5).map(a => `- ${a.patientName || 'Patient'}: ${a.date} at ${a.time} with Dr. ${a.doctorName || 'Staff'} (Reason: ${a.reason || 'Checkup'})`).join('\n') + `\n`;
+            }
+          }
+        } catch (_) {}
+
+        // 7. Load Thresholds configurations
+        try {
+          const thresholdsRaw = localStorage.getItem('doctorian_alert_thresholds');
+          if (thresholdsRaw) {
+            const thresh = JSON.parse(thresholdsRaw);
+            context += `\nALERT TRIGGER CONFIGURATIONS (PAGE SETTINGS):\n- Heart Rate Limits: ${thresh.hrMin || 60}-${thresh.hrMax || 100} bpm\n- SpO2 Min Alert Limit: ${thresh.spo2Min || 90}%\n- Temperature Range: ${thresh.tempMin || 36}-${thresh.tempMax || 38}°C\n`;
+          }
+        } catch (_) {}
+
         setHealthContext(context);
-        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Health Data Integrated']);
+        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Health Data & Page Records Integrated']);
       } catch (err) {
         console.error("Health sync error:", err);
       } finally {
@@ -2194,7 +2306,23 @@ Patient Registry Entry Found:
 Please fulfill the user's request (e.g. summarize history, draft a medical report, check conditions) using this real retrieved data. Do not make up facts outside this profile context.`;
       }
 
-      let engineSystemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}\n\n${fileContext}\n\nCRITICAL LANGUAGE INSTRUCTION: The user's active UI language is set to "${currentLanguage || 'English (US)'}". You MUST formulate all subsequent answers, explanations, clinical advices, and responses in this language (${currentLanguage || 'English (US)'}).`;
+      // Load learned brain memories
+      let brainMemoriesContext = "";
+      try {
+        const userKey = user?.email || user?.id || 'default';
+        let savedMemories = localStorage.getItem(`doctorian_brain_memories_${userKey}`);
+        if (!savedMemories || savedMemories === '[]') {
+          savedMemories = localStorage.getItem('doctorian_brain_memories');
+        }
+        if (savedMemories) {
+          const memoriesList = JSON.parse(savedMemories);
+          if (Array.isArray(memoriesList) && memoriesList.length > 0) {
+            brainMemoriesContext = `\n\n[PERSISTED NEURAL BRAIN MEMORIES (LEARNED FACTS)]:\n` + memoriesList.map(m => `- ${m}`).join('\n') + `\nUse these learned facts to guide your clinical co-pilot reasoning. Be highly specific when answering if any of these facts relate to the question.`;
+          }
+        }
+      } catch (_) {}
+
+      let engineSystemInstruction = `${BASE_SYSTEM_INSTRUCTION}\n\nCURRENT SPECIALIZATION: ${personaInstruction}\n\nUSER CLINICAL CONTEXT:\n${healthContext}${autoMatchedPatientContext}${brainMemoriesContext}\n\n${fileContext}\n\nCRITICAL LANGUAGE INSTRUCTION: The user's active UI language is set to "${currentLanguage || 'English (US)'}". You MUST formulate all subsequent answers, explanations, clinical advices, and responses in this language (${currentLanguage || 'English (US)'}).`;
       
       const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
       const hasLocalUrl = true;
@@ -2270,6 +2398,40 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
         if (currentSessionId) {
           api.ai.saveMessage(currentSessionId, 'bot', localResponse).catch(console.error);
         }
+
+        // Analyze & extract memories from current chat dynamically
+        try {
+          const lastUserMsgText = textToSend.trim();
+          const extractedFacts: string[] = [];
+          const lowerUser = lastUserMsgText.toLowerCase();
+          
+          if (lowerUser.includes("allergic to") || lowerUser.includes("allergy")) {
+            extractedFacts.push(lastUserMsgText);
+          } else if (lowerUser.includes("diagnosed with") || lowerUser.includes("has been diagnosed")) {
+            extractedFacts.push(lastUserMsgText);
+          } else if (lowerUser.includes("history of") || lowerUser.includes("past medical history")) {
+            extractedFacts.push(lastUserMsgText);
+          } else if (lowerUser.includes("my name is") || lowerUser.includes("i am dr")) {
+            extractedFacts.push(lastUserMsgText);
+          } else if (lowerUser.includes("remember that") || lowerUser.includes("keep in mind")) {
+            const cleanFact = lastUserMsgText.replace(/remember that/gi, "").replace(/keep in mind/gi, "").trim();
+            if (cleanFact) extractedFacts.push(cleanFact);
+          }
+
+          if (extractedFacts.length > 0) {
+            const userKey = user?.email || user?.id || 'default';
+            const stored = localStorage.getItem(`doctorian_brain_memories_${userKey}`) || localStorage.getItem('doctorian_brain_memories');
+            const list = stored ? JSON.parse(stored) : [];
+            const updated = [...new Set([...list, ...extractedFacts])].slice(-20);
+            localStorage.setItem(`doctorian_brain_memories_${userKey}`, JSON.stringify(updated));
+            localStorage.setItem('doctorian_brain_memories', JSON.stringify(updated));
+            setBrainMemories(updated);
+            setTerminalLogs(prev => [...prev.slice(-3), `BRAIN: Synthesized ${extractedFacts.length} new local neural memories`]);
+          }
+        } catch (memErr) {
+          console.warn("Failed to extract dynamic memories:", memErr);
+        }
+
         return; 
       }
 
@@ -2326,6 +2488,39 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
       if (currentSessionId && fullResponseText) {
         api.ai.saveMessage(currentSessionId, 'bot', fullResponseText).catch(console.error);
+      }
+
+      // Analyze & extract memories from current chat dynamically
+      try {
+        const lastUserMsgText = textToSend.trim();
+        const extractedFacts: string[] = [];
+        const lowerUser = lastUserMsgText.toLowerCase();
+        
+        if (lowerUser.includes("allergic to") || lowerUser.includes("allergy")) {
+          extractedFacts.push(lastUserMsgText);
+        } else if (lowerUser.includes("diagnosed with") || lowerUser.includes("has been diagnosed")) {
+          extractedFacts.push(lastUserMsgText);
+        } else if (lowerUser.includes("history of") || lowerUser.includes("past medical history")) {
+          extractedFacts.push(lastUserMsgText);
+        } else if (lowerUser.includes("my name is") || lowerUser.includes("i am dr")) {
+          extractedFacts.push(lastUserMsgText);
+        } else if (lowerUser.includes("remember that") || lowerUser.includes("keep in mind")) {
+          const cleanFact = lastUserMsgText.replace(/remember that/gi, "").replace(/keep in mind/gi, "").trim();
+          if (cleanFact) extractedFacts.push(cleanFact);
+        }
+
+        if (extractedFacts.length > 0) {
+          const userKey = user?.email || user?.id || 'default';
+          const stored = localStorage.getItem(`doctorian_brain_memories_${userKey}`) || localStorage.getItem('doctorian_brain_memories');
+          const list = stored ? JSON.parse(stored) : [];
+          const updated = [...new Set([...list, ...extractedFacts])].slice(-20);
+          localStorage.setItem(`doctorian_brain_memories_${userKey}`, JSON.stringify(updated));
+          localStorage.setItem('doctorian_brain_memories', JSON.stringify(updated));
+          setBrainMemories(updated);
+          setTerminalLogs(prev => [...prev.slice(-3), `BRAIN: Synthesized ${extractedFacts.length} new neural memories`]);
+        }
+      } catch (memErr) {
+        console.warn("Failed to extract dynamic memories:", memErr);
       }
 
     } catch (error: any) {
@@ -3067,8 +3262,8 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
-                          title: 'Gemma 3 4B Local (Active)', 
-                          desc: '100% Client-Side TF.js', 
+                          title: 'Doctorian Local Flash (Gemma 3)', 
+                          desc: 'Doctorian Offline Engine', 
                           license: 'Always Free Local (Active)', 
                           payment: 'No External API Keys Required', 
                           features: ['Runs fully browser-side offline', 'Accelerated with WebGL pipeline', 'Trainable locally with zero costs'],
@@ -3076,8 +3271,8 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                         },
                         { 
                           id: 'llama-clinical' as const, 
-                          title: 'Llama 3.1 core', 
-                          desc: 'Standard local engine', 
+                          title: 'Doctorian Llama 3.1 Pro', 
+                          desc: 'High-Performance Clinical Core', 
                           license: 'Fully Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
                           features: ['Highly compliant baseline guidelines', 'Fast diagnostic outputs', 'Offline sqlite logic active'],
@@ -3085,8 +3280,8 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                         },
                         { 
                           id: 'medlm-medium' as const, 
-                          title: 'MedLM Medium', 
-                          desc: 'Specialized Clinical Pro', 
+                          title: 'Doctorian Clinical Pro (MedLM)', 
+                          desc: 'Specialized High-Performance Diagnostics', 
                           license: 'Clinical Co-Pilot Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
                           features: ['Deep clinical fine-tune path', 'OCR lab report analysis', 'PDF referral notes printing'],
@@ -3094,8 +3289,8 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'MedLM Reasoning', 
-                          desc: 'Multi-Agent Clinical Core', 
+                          title: 'Doctorian Ultra Reasoning (MedLM)', 
+                          desc: 'Deep-Reasoning Advanced Diagnostic Core', 
                           license: 'Deep Reasoning Core Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
                           features: ['Dynamic Chain-of-Thought diagnostics', 'Real-time search grounding', 'Multi-physician case paneling'],
@@ -3267,7 +3462,71 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                            )}
 
                             <div className={`prose ${isWidescreen ? 'prose-sm md:prose-base leading-relaxed' : 'prose-sm'} dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white/90 dark:text-slate-800' : ''}`}>
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h1: ({node, ...props}) => (
+                                    <h1 className="text-lg sm:text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-5 mb-3 border-b border-slate-200/50 dark:border-slate-800/50 pb-2 flex items-center gap-2" {...props} />
+                                  ),
+                                  h2: ({node, ...props}) => (
+                                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-4 mb-2 pb-1 border-b border-slate-100/50 dark:border-slate-800/30 flex items-center gap-1.5" {...props} />
+                                  ),
+                                  h3: ({node, ...props}) => (
+                                    <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mt-3 mb-1.5" {...props} />
+                                  ),
+                                  p: ({node, ...props}) => (
+                                    <p className="mb-3.5 leading-relaxed text-slate-700 dark:text-slate-300 text-xs sm:text-sm" {...props} />
+                                  ),
+                                  ul: ({node, ...props}) => (
+                                    <ul className="list-disc pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300" {...props} />
+                                  ),
+                                  ol: ({node, ...props}) => (
+                                    <ol className="list-decimal pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300" {...props} />
+                                  ),
+                                  li: ({node, ...props}) => (
+                                    <li className="text-slate-700 dark:text-slate-300 pl-0.5" {...props} />
+                                  ),
+                                  table: ({node, ...props}) => (
+                                    <div className="overflow-x-auto my-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-950">
+                                      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 border-collapse" {...props} />
+                                    </div>
+                                  ),
+                                  thead: ({node, ...props}) => (
+                                    <thead className="bg-slate-50/70 dark:bg-slate-900/40" {...props} />
+                                  ),
+                                  tbody: ({node, ...props}) => (
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50" {...props} />
+                                  ),
+                                  th: ({node, ...props}) => (
+                                    <th className="px-3 py-2 sm:px-4 sm:py-2.5 text-left text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" {...props} />
+                                  ),
+                                  td: ({node, ...props}) => (
+                                    <td className="px-3 py-2 sm:px-4 sm:py-2.5 text-xs text-slate-600 dark:text-slate-300 whitespace-normal align-top" {...props} />
+                                  ),
+                                  blockquote: ({node, ...props}) => (
+                                    <blockquote className="my-4 p-4 bg-gradient-to-r from-blue-50/30 to-slate-50/30 dark:from-blue-950/20 dark:to-slate-900/10 border-l-4 border-blue-500 rounded-r-2xl text-slate-700 dark:text-slate-300 italic shadow-xs" {...props} />
+                                  ),
+                                  pre: ({node, ...props}) => (
+                                    <pre className="bg-slate-900 dark:bg-slate-950 text-slate-100 rounded-2xl p-4 my-4 text-xs overflow-x-auto border border-slate-800/80 font-mono leading-relaxed" {...props} />
+                                  ),
+                                  code: ({node, className, children, ...props} : any) => {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    const isInline = !match;
+                                    return isInline ? (
+                                      <code className="bg-slate-100 dark:bg-slate-800/70 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded text-[11px] sm:text-xs font-mono font-medium" {...props}>
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <code className="font-mono text-xs text-slate-100" {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  hr: ({node, ...props}) => (
+                                    <hr className="my-5 border-slate-200/50 dark:border-slate-800/40" {...props} />
+                                  )
+                                }}
+                              >
                                 {msg.text || (isLoading && i === messages.length - 1 ? '...' : '')}
                               </ReactMarkdown>
                             </div>
@@ -4977,10 +5236,10 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       {[
-                        { id: 'gemma3-tfjs' as const, label: 'Gemma 3 4B', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
-                        { id: 'llama-clinical' as const, label: 'Llama 3.1', desc: 'Local Core', tier: 'Standard (Free)' },
-                        { id: 'medlm-medium' as const, label: 'MedLM Medium', desc: 'Clinical Pro', tier: 'Pro Required' },
-                        { id: 'medlm-large' as const, label: 'MedLM Large', desc: 'Deep Reasoning', tier: 'Matrix Required' }
+                        { id: 'gemma3-tfjs' as const, label: 'Doctorian Local (Gemma 3)', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
+                        { id: 'llama-clinical' as const, label: 'Doctorian Llama 3.1', desc: 'Clinical Core', tier: 'Standard (Free)' },
+                        { id: 'medlm-medium' as const, label: 'Doctorian MedLM Pro', desc: 'Specialized Pro', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'Doctorian MedLM Ultra', desc: 'Deep Reasoning', tier: 'Matrix Required' }
                       ].map(engineOption => {
                         const { hasAccess, tierName } = checkModelAccess(engineOption.id);
                         const isSelected = clinicalEngine === engineOption.id;
@@ -5162,6 +5421,85 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                       ))}
                     </div>
                   </div>
+
+                  {/* Neural Brain Memory & Manual Training Section */}
+                  <div className="space-y-3 p-4 bg-purple-50/50 dark:bg-purple-950/10 rounded-2xl border border-purple-100/60 dark:border-purple-900/40 font-sans shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-black text-purple-800 dark:text-purple-300 uppercase tracking-widest leading-none m-0">🧠 Neural Brain Memory</p>
+                        <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold leading-none">Persistent learned facts from clinical chats</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const userKey = user?.email || user?.id || 'default';
+                          localStorage.setItem(`doctorian_brain_memories_${userKey}`, '[]');
+                          localStorage.setItem('doctorian_brain_memories', '[]');
+                          setBrainMemories([]);
+                          setTerminalLogs(prev => [...prev.slice(-3), 'SYS: AI Core Memory successfully purged.']);
+                        }}
+                        className="text-[7.5px] font-black text-red-500 hover:text-red-600 bg-red-100/50 dark:bg-red-950/40 px-2 py-1 rounded-md uppercase tracking-wider transition-colors"
+                      >
+                        Purge Memory
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                      {brainMemories.length === 0 ? (
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 italic m-0">No facts synthesized yet. Discuss patients, vitals, or specific protocols to train the brain automatically, or type a manual memory below.</p>
+                      ) : (
+                        brainMemories.map((fact, idx) => (
+                          <div key={idx} className="p-2 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-purple-100/30 dark:border-purple-950/40 flex items-start justify-between gap-1.5 group">
+                            <div className="flex items-start gap-1.5">
+                              <span className="text-[9px] mt-0.5 shrink-0">✨</span>
+                              <p className="text-[9.5px] text-slate-600 dark:text-slate-300 leading-normal font-sans m-0">
+                                {fact}
+                              </p>
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const updated = brainMemories.filter((_, i) => i !== idx);
+                                setBrainMemories(updated);
+                                const userKey = user?.email || user?.id || 'default';
+                                localStorage.setItem(`doctorian_brain_memories_${userKey}`, JSON.stringify(updated));
+                                localStorage.setItem('doctorian_brain_memories', JSON.stringify(updated));
+                              }}
+                              className="text-[8px] text-slate-400 hover:text-red-500 font-bold px-1"
+                              title="Remove fact"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Add custom training memory */}
+                    <div className="flex gap-1.5 pt-1">
+                      <input 
+                        type="text"
+                        value={newMemoryText}
+                        onChange={(e) => setNewMemoryText(e.target.value)}
+                        placeholder="Type clinical facts (e.g., 'Patient Joseph is allergic to aspirin')"
+                        className="flex-1 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800 text-[10px] px-3 py-1.5 rounded-xl font-sans"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddManualMemory();
+                          }
+                        }}
+                      />
+                      <button 
+                        type="button"
+                        onClick={handleAddManualMemory}
+                        className="px-3 bg-purple-600 hover:bg-purple-700 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        Train
+                      </button>
+                    </div>
+                  </div>
+
                </div>
 
                {/* Save button */}

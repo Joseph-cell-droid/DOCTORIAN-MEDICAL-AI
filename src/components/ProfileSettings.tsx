@@ -6,12 +6,12 @@ import {
   X, RefreshCw, QrCode, Download, Share2,
   Activity, Zap, Crown, CreditCard,
   Syringe as Pill, ChevronLeft, ChevronRight,
-  FileText, ShieldAlert, Phone, ShieldCheck, Cpu,
+  FileText, ShieldAlert, Phone, ShieldCheck, Cpu, Settings,
   Key, Sparkles, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
-import { api, User as UserType } from '../api';
+import { api, User as UserType, detectActiveLocalNode } from '../api';
 import { UpgradeModal } from './UpgradeModal';
 import { translate } from '../utils/translations';
 import { useRef } from 'react';
@@ -424,7 +424,7 @@ Verified by Joseph Akora - Development Lead.
               { id: 'profile', label: 'Identity', icon: <User size={18} />, color: 'blue' },
               { id: 'medical-id', label: 'Clinical ID', icon: <QrCode size={18} />, color: 'blue' },
               { id: 'emergency', label: 'SOS Nodes', icon: <ShieldAlert size={18} />, color: 'rose' },
-              { id: 'security', label: 'Neural Lock', icon: <Lock size={18} />, color: 'indigo' },
+              { id: 'security', label: 'Neural Links', icon: <Lock size={18} />, color: 'indigo' },
               { id: 'billing', label: 'Credit Bank', icon: <CreditCard size={18} />, color: 'emerald' },
               { id: 'notifications', label: 'Channels', icon: <Bell size={18} />, color: 'amber' },
             ].map(item => (
@@ -956,34 +956,495 @@ Verified by Joseph Akora - Development Lead.
                 <div className="mt-12 pt-8 border-t border-slate-50 dark:border-slate-800 flex items-center justify-center">
                   <div className="flex items-center gap-3 px-6 py-2 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-800">
                     <Lock size={14} className="text-slate-400" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secure session encrypted with AES-256</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Biometric vault bound with hardware security</span>
                   </div>
                 </div>
-              </div>
-            </motion.section>
-          )}
 
-          {/* Neural Core Section */}
-          {false && (
-            <motion.section 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-8"
-            >
-              <div className="bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-blue-600" />
-                
-                <div className="flex items-center gap-4 mb-10">
-                  <div className="bg-violet-50 dark:bg-violet-900/30 p-4 rounded-2xl text-violet-600 dark:text-violet-400 shadow-inner">
-                    <Cpu size={28} />
-                  </div>
+                {/* --- AI BRAIN NODE SELECTOR & LOCAL MODEL PRESETS --- */}
+                <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800/80 space-y-6">
                   <div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Neural Core Intelligence</h3>
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">Configure high-tier reasoning engines</p>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">AI Brain Node Selector</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                      Configure your active medical intelligence matrix. Run fully offline using a local model on your laptop, or leverage high-performance cloud synapses.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Option 1: Cloud Core */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrioritizeLocalAI(false);
+                      }}
+                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
+                        !prioritizeLocalAI
+                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-3 rounded-2xl ${!prioritizeLocalAI ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                          <Globe size={20} />
+                        </div>
+                        {!prioritizeLocalAI && (
+                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Active</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Cloud Brain Node</h5>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Google Gemini 1.5 Flash</p>
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
+                          Zero configuration required. Lightning fast & secure web search clinical reasoning.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Option 2: Ollama Local */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrioritizeLocalAI(true);
+                        setOllamaUrl('http://localhost:11434');
+                      }}
+                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
+                        prioritizeLocalAI && (ollamaUrl.includes('11434') || !ollamaUrl.includes('1234'))
+                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-3 rounded-2xl ${prioritizeLocalAI && (ollamaUrl.includes('11434') || !ollamaUrl.includes('1234')) ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                          <Cpu size={20} />
+                        </div>
+                        {prioritizeLocalAI && (ollamaUrl.includes('11434') || !ollamaUrl.includes('1234')) && (
+                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Active</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Ollama Laptop Node</h5>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Port: 11434</p>
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
+                          Runs locally on your laptop. Full privacy & complete air-gapped clinical operations.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Option 3: LM Studio Local */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrioritizeLocalAI(true);
+                        setOllamaUrl('http://localhost:1234');
+                      }}
+                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
+                        prioritizeLocalAI && ollamaUrl.includes('1234')
+                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-3 rounded-2xl ${prioritizeLocalAI && ollamaUrl.includes('1234') ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                          <Activity size={20} />
+                        </div>
+                        {prioritizeLocalAI && ollamaUrl.includes('1234') && (
+                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Active</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">LM Studio Laptop Node</h5>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Port: 1234</p>
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
+                          Direct OpenAI-compatible local endpoints running on your device.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Local Customizer Settings rendered dynamically when Local is chosen */}
+                  {prioritizeLocalAI && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-6 bg-white dark:bg-slate-900/60 rounded-3xl border border-slate-100 dark:border-slate-800/80 space-y-4"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Settings size={14} className="text-indigo-600" />
+                          <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Configure Local Model Settings</span>
+                        </div>
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[8px] font-black uppercase">Direct Laptop Sync</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Laptop AI Address (URL)</label>
+                          <div className="relative group">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-indigo-600 transition-colors">
+                              <Activity size={16} />
+                            </div>
+                            <input
+                              type="text"
+                              value={ollamaUrl}
+                              onChange={e => setOllamaUrl(e.target.value)}
+                              className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3.5 text-xs font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-600 transition-all outline-none"
+                              placeholder="e.g. http://localhost:11434"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Active Model Name</label>
+                          <div className="relative group">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-indigo-600 transition-colors">
+                              <Cpu size={16} />
+                            </div>
+                            <input
+                              type="text"
+                              value={ollamaModel}
+                              onChange={e => setOllamaModel(e.target.value)}
+                              className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3.5 text-xs font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-600 transition-all outline-none"
+                              placeholder="e.g. llama3.1, gemma2, phi3"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quick Select Model Presets</label>
+                        <div className="flex flex-wrap gap-2">
+                          {['gemma2', 'llama3.1', 'mistral', 'phi3'].map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setOllamaModel(preset)}
+                              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${
+                                ollamaModel === preset
+                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                                  : 'bg-slate-50 dark:bg-slate-800 border-slate-150 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-4 p-4 bg-indigo-50/40 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-800/40">
+                        <AlertCircle size={14} className="text-indigo-600 shrink-0" />
+                        <p className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed m-0">
+                          Note: Local connections connect directly from your browser. 
+                          For Ollama, you must run it with CORS enabled: <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-indigo-600">OLLAMA_ORIGINS="*"</code>.
+                          For LM Studio, ensure "CORS Support" is toggled ON.
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100/40 dark:border-emerald-800/30 flex items-center justify-between gap-3">
+                        <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase">Test if local node is reachable:</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const activeNode = await detectActiveLocalNode(ollamaUrl);
+                              const isLMStudioCheck = activeNode.isOpenAI;
+                              const checkPath = isLMStudioCheck 
+                                ? (activeNode.url.includes('/v1') ? `${activeNode.url}/models` : `${activeNode.url.replace(/\/$/, '')}/v1/models`)
+                                : `${activeNode.url.replace(/\/$/, '')}/api/tags`;
+                              
+                              const res = await fetch(checkPath).catch(() => null);
+                              if (res && res.ok) {
+                                setMessage({ 
+                                  text: `Neural pulse confirmed! Successfully reached ${isLMStudioCheck ? 'LM Studio' : 'Ollama'} at ${activeNode.url}.`, 
+                                  type: 'success' 
+                                });
+                              } else {
+                                throw new Error('Connection failed');
+                              }
+                            } catch {
+                              setMessage({ text: 'Neural pulse failed. Ensure local server (Ollama on port 11434 or LM Studio on port 1234) is running and CORS is enabled.', type: 'error' });
+                            }
+                          }}
+                          type="button"
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm"
+                        >
+                          Pulse Link Check
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
+                <div className="group p-8 mt-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-violet-500/5">
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 relative z-10">
+                    <div className="flex items-start gap-6">
+                      <div className="bg-white dark:bg-slate-900 p-5 rounded-[2.5rem] shadow-xl text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform duration-500">
+                        <Zap size={32} />
+                      </div>
+                      <div className="max-w-md">
+                        <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">External Neural Links</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed mb-4">
+                          Enable higher-tier reasoning by connecting to specialized external matrices. This automatically utilizes <span className="text-violet-600 font-black">Meta Llama 3.1 8B</span> and <span className="text-blue-600 font-black">DeepSeek R1</span> for complex medical synthesis.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                           <span className="px-3 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-[8px] font-black uppercase tracking-widest">Llama 3.1 8B</span>
+                           <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-[8px] font-black uppercase tracking-widest">Gemma</span>
+                           <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[8px] font-black uppercase tracking-widest">Active Reasoning</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setEnableExternalAI(!enableExternalAI)}
+                      className={`w-20 h-10 rounded-full transition-all relative shrink-0 ${enableExternalAI ? 'bg-violet-600 shadow-lg shadow-violet-500/30' : 'bg-slate-200 dark:bg-slate-700'}`}
+                    >
+                      <div className={`absolute top-1.5 w-7 h-7 bg-white rounded-full transition-all shadow-md ${enableExternalAI ? 'left-11' : 'left-2'}`} />
+                    </button>
+                  </div>
+
+                  <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2 mb-4 ml-1">
+                      <Cpu size={14} className="text-blue-500 animate-pulse" />
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
+                    </div>
+                    
+                    <div className="space-y-4 mb-8">
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
+                          <Key size={18} />
+                        </div>
+                        <input
+                          type="password"
+                          value={huggingfaceToken}
+                          onChange={e => setHuggingfaceToken(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
+                          placeholder="Hugging Face API Access Token (hf_...)"
+                        />
+                      </div>
+
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
+                          <Sparkles size={18} />
+                        </div>
+                        <input
+                          type="text"
+                          value={huggingfaceModel}
+                          onChange={e => setHuggingfaceModel(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
+                          placeholder="Model, e.g. meta-llama/Llama-3.1-8B-Instruct"
+                        />
+                      </div>
+
+                      <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
+                        Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">meta-llama/Llama-3.1-8B-Instruct</span> if left empty.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-4 ml-1">
+                      <Globe size={14} className="text-violet-500" />
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Doctorian Cloud Neural Synapse Pipeline</h4>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Premium Managed Synapse Status Dashboard */}
+                      <div className="p-6 bg-gradient-to-br from-violet-500/10 via-blue-500/5 to-transparent rounded-3xl border border-violet-500/25 dark:border-violet-500/15 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                          <Cpu size={80} className="text-violet-500 animate-pulse" />
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                          <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+                            Active Synapse Online
+                          </span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                            Active License: <span className="text-blue-600 dark:text-blue-400">{(user?.subscriptionTier || "Free").toUpperCase()}</span>
+                          </span>
+                        </div>
+
+                        <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">
+                          {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "")
+                            ? "Google MedLM Large & Deep Reasoning Core"
+                            : ['pro', 'silver'].includes(user?.subscriptionTier || "")
+                            ? "Google MedLM Medium & Clinical Pro Core"
+                            : "Meta LLaMA 3.1 & Doctorian Local Core"
+                          }
+                        </h5>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide leading-relaxed mb-4">
+                          Hosted model is configured directly in the codes. Performance, diagnostic speeds, and neural layers automatically scale with your active subscription layer & payment credentials.
+                        </p>
+
+                        {/* Dynamic Progress Matrices based on Tier */}
+                        <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/85 pt-4">
+                          <div>
+                            <div className="flex justify-between text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                              <span>Diagnostic Reasoning Depth</span>
+                              <span className="text-slate-900 dark:text-white">
+                                {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? "100% (Ultimate)" : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? "75% (Catalyst)" : "35% (Base)"}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-violet-600 rounded-full transition-all duration-1000"
+                                style={{ width: ['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? '100%' : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? '75%' : '35%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                              <span>Complex Medical Grounding (MoH / ICD-11)</span>
+                              <span className="text-slate-900 dark:text-white">
+                                {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? "98% (Multi-System)" : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? "90% (Guideline-Linked)" : "45% (Symptom-Matched)"}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-blue-500 rounded-full transition-all duration-1000"
+                                style={{ width: ['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? '98%' : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? '90%' : '45%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                              <span>Context Bandwidth Capacity</span>
+                              <span className="text-slate-900 dark:text-white">
+                                {['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? "128K Token Layer" : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? "32K Token Layer" : "8K Token Layer"}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                                style={{ width: ['enterprise', 'gold', 'business'].includes(user?.subscriptionTier || "") ? '100%' : ['pro', 'silver'].includes(user?.subscriptionTier || "") ? '65%' : '20%' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-8">
+                <div className="bg-slate-900 rounded-[2rem] p-8 text-white relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-violet-600/20 to-transparent" />
+                   <div className="flex items-center gap-4 mb-4">
+                      <Activity size={20} className="text-violet-400" />
+                      <h4 className="text-sm font-black uppercase tracking-widest">Neural Link Guidelines</h4>
+                   </div>
+                   <ul className="space-y-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <li className="flex items-start gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-0.5 shrink-0" />
+                         <span>External links consume slightly more neural credits per request</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-0.5 shrink-0" />
+                         <span>Higher-tier models provide enhanced diagnostic logic and planning</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-0.5 shrink-0" />
+                         <span>Recommended for complex multi-symptom analysis</span>
+                      </li>
+                   </ul>
+                </div>
+
+                {/* AI Voice Synthesis Stack Engine Configuration */}
+                <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-8">
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">AI Voice Synthesis Stack</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                      Select and optimize the backend telecommunication and speech synthesis pathways for specific regional deployments, budgets, or privacy requirements.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { id: 'cheapest', label: 'Cheapest Base', desc: 'Twilio + basic TTS', info: 'Low-cost cloud speech core with premium global routing.', color: 'from-blue-600 to-indigo-600' },
+                      { id: 'human', label: 'Most Human Voice', desc: 'ElevenLabs Integration', info: 'Ultra-low latency human-realistic cloned emotions.', color: 'from-violet-600 to-purple-600' },
+                      { id: 'offline', label: 'Offline Native', desc: 'Coqui TTS Server', info: 'Run lightweight deep synthesis model inside local host.', color: 'from-emerald-600 to-teal-600' },
+                      { id: 'african', label: 'African Deployment', desc: "Africa's Talking + Twilio", info: 'Localized cellular handshake optimized for East African nodes.', color: 'from-amber-600 to-orange-600' },
+                      { id: 'fully_local', label: 'Fully Local AI', desc: 'Ollama + Whisper + Coqui', info: '完全 100% boundary-contained offline physical loop.', color: 'from-rose-600 to-pink-600' }
+                    ].map((stack) => (
+                      <button
+                        key={stack.id}
+                        type="button"
+                        onClick={() => setSelectedVoiceStack(stack.id)}
+                        className={`text-left p-6 rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between h-40 ${selectedVoiceStack === stack.id ? 'border-violet-600 bg-white dark:bg-slate-900 shadow-xl' : 'border-slate-150 dark:border-slate-800/60 bg-slate-100/30 dark:bg-slate-900/10 hover:border-slate-300 dark:hover:border-slate-705'}`}
+                      >
+                        {selectedVoiceStack === stack.id && (
+                          <div className={`absolute top-0 right-0 w-12 h-12 bg-linear-to-bl ${stack.color} text-white rounded-bl-3xl flex items-center justify-center`}>
+                            <CheckCircle2 size={16} />
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Goal: {stack.label}</span>
+                          <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mt-1">{stack.desc}</h5>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-normal mt-2">
+                          {stack.info}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Clinical Voice Safeties & Guardrails */}
+                <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">AI Clinical Guardrails</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                      Strictly enforce medical voice and transcript policies to reduce physical liability and preserve absolute safety guidelines.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      { 
+                        id: 'short', 
+                        state: voiceSafetyShort, 
+                        setter: setVoiceSafetyShort, 
+                        label: 'Stay Short & Ultra-Brief', 
+                        desc: 'Instructs the neural live voice model to strictly phrase answers under 25 words to avoid complex wordiness and optimize synthesis rate.' 
+                      },
+                      { 
+                        id: 'nodiag', 
+                        state: voiceSafetyNoDiag, 
+                        setter: setVoiceSafetyNoDiag, 
+                        label: 'Avoid AI Diagnoses', 
+                        desc: 'Blocks the voice intelligence core from labeling patterns or naming diseases. Redirects reasoning toward physiological observations.' 
+                      },
+                      { 
+                        id: 'nooutcome', 
+                        state: voiceSafetyNoOutcome, 
+                        setter: setVoiceSafetyNoOutcome, 
+                        label: 'Avoid Outcome Guarantees', 
+                        desc: 'Prohibits promising recovery rates or guaranteeing survival metrics. Directs focus towards real-time homeostatic stability index calculations.' 
+                      },
+                      { 
+                        id: 'encourage', 
+                        state: voiceSafetyEncourageHelp, 
+                        setter: setVoiceSafetyEncourageHelp, 
+                        label: 'Encourage Professional Medical Help', 
+                        desc: 'Directs the system to conclude advice statements with clear professional directives such as: "Medical attention is recommended." or similar instructions.' 
+                      }
+                    ].map((safeguard) => (
+                      <div 
+                        key={safeguard.id}
+                        className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex items-start justify-between gap-6"
+                      >
+                        <div className="space-y-1">
+                          <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{safeguard.label}</h5>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{safeguard.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => safeguard.setter(!safeguard.state)}
+                          className={`w-14 h-7 rounded-full shrink-0 relative transition-all inline-block ${safeguard.state ? 'bg-violet-600 shadow-md shadow-violet-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                          <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${safeguard.state ? 'left-8' : 'left-1'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                   {/* Hybrid Strategy Architecture Visual Guide */}
                   <div className="bg-slate-50 dark:bg-slate-950 p-6 sm:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-6">
                     <div>
@@ -1243,8 +1704,12 @@ Verified by Joseph Akora - Development Lead.
                               />
                             </div>
 
-                            <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
-                              Connect to your laptop's local instance. Ollama runs on <span className="text-slate-900 dark:text-white">http://localhost:11434</span>. LM Studio runs on <span className="text-slate-900 dark:text-white">http://localhost:1234</span>. Requires a public tunnel endpoint.
+                            <p className="text-[10px] text-slate-400 font-bold px-2 uppercase leading-relaxed tracking-tight">
+                              Connect to your laptop's local instance directly from your browser! No public tunnel needed. 
+                              <br />
+                              • <span className="text-slate-900 dark:text-white">Ollama</span> runs on <span className="text-slate-900 dark:text-white">http://localhost:11434</span> (Requires running with <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-blue-600">OLLAMA_ORIGINS="*"</code>).
+                              <br />
+                              • <span className="text-slate-900 dark:text-white">LM Studio</span> runs on <span className="text-slate-900 dark:text-white">http://localhost:1234/v1</span> (Works automatically).
                             </p>
 
                             <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
@@ -1256,17 +1721,19 @@ Verified by Joseph Akora - Development Lead.
                                  <button
                                    onClick={async () => {
                                      try {
-                                       const isLMStudioCheck = ollamaUrl.includes(':1234') || ollamaUrl.includes('/v1') || ollamaUrl.toLowerCase().includes('lmstudio');
+                                       const activeNode = await detectActiveLocalNode(ollamaUrl);
+                                        const isLMStudioCheck = activeNode.isOpenAI;
+                                        const detectedUrl = activeNode.url;
                                        const checkPath = isLMStudioCheck 
-                                         ? (ollamaUrl.includes('/v1') ? `${ollamaUrl}/models` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`)
-                                         : `${ollamaUrl.replace(/\/$/, '')}/api/tags`;
+                                         ? (detectedUrl.includes('/v1') ? `${detectedUrl}/models` : `${detectedUrl.replace(/\/$/, '')}/v1/models`)
+                                         : `${detectedUrl.replace(/\/$/, '')}/api/tags`;
                                        
                                        const res = await fetch(checkPath).catch(() => null);
                                        if (res && res.ok) {
-                                         setMessage({ text: `Neural pulse confirmed! ${isLMStudioCheck ? 'LM Studio/OpenAI API' : 'Ollama'} is reachable.`, type: 'success' });
+                                         setMessage({ text: `Neural pulse confirmed! Successfully reached ${isLMStudioCheck ? 'LM Studio' : 'Ollama'} at ${detectedUrl}.`, type: 'success' });
                                        } else {
                                          // Fallback try secondary endpoint check
-                                         const secondaryPath = isLMStudioCheck ? `${ollamaUrl.replace(/\/$/, '')}/api/tags` : `${ollamaUrl.replace(/\/$/, '')}/v1/models`;
+                                         const secondaryPath = isLMStudioCheck ? `${detectedUrl.replace(/\/$/, '')}/api/tags` : `${detectedUrl.replace(/\/$/, '')}/v1/models`;
                                          const resSec = await fetch(secondaryPath).catch(() => null);
                                          if (resSec && resSec.ok) {
                                             setMessage({ text: 'Neural pulse confirmed! Local server is reachable.', type: 'success' });
@@ -1426,7 +1893,6 @@ Verified by Joseph Akora - Development Lead.
                       ))}
                     </div>
                   </div>
-                </div>
 
                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-slate-50 dark:border-slate-800 relative z-10">
                    <div className="flex items-center gap-3">

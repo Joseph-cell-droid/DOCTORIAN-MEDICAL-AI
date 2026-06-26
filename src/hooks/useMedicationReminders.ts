@@ -45,8 +45,8 @@ export const useMedicationReminders = (user: User | null) => {
                   if (registration && 'showNotification' in registration) {
                     await registration.showNotification('💊 Medication Reminder', {
                       body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
-                      icon: '/logo.svg',
-                      badge: '/logo.svg',
+                      icon: '/logo.png',
+                      badge: '/logo.png',
                       tag: `med-reminder-${currentTime}`,
                       renotify: true,
                       vibrate: [200, 100, 200, 100, 200],
@@ -55,13 +55,13 @@ export const useMedicationReminders = (user: User | null) => {
                   } else {
                     new Notification('💊 Medication Reminder', {
                       body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
-                      icon: '/logo.svg'
+                      icon: '/logo.png'
                     });
                   }
                 } else {
                   new Notification('💊 Medication Reminder', {
                     body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
-                    icon: '/logo.svg'
+                    icon: '/logo.png'
                   });
                 }
               } catch (err) {
@@ -69,7 +69,7 @@ export const useMedicationReminders = (user: User | null) => {
                 try {
                   new Notification('💊 Medication Reminder', {
                     body: `Time for your medication: ${names}. Dosage: ${dueMeds.map(m => m.dosage).join(', ')}`,
-                    icon: '/logo.svg'
+                    icon: '/logo.png'
                   });
                 } catch (e) {
                   // Ignore

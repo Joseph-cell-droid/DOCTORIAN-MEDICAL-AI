@@ -62,8 +62,8 @@ export const MedicationTracker: React.FC = () => {
         const title = '💊 Doctorian Push Engine';
         const options = {
           body: 'Local push reminders and clinical alerts successfully active!',
-          icon: '/logo.svg',
-          badge: '/logo.svg',
+          icon: '/logo.png',
+          badge: '/logo.png',
           tag: 'doctorian-registration'
         };
         
@@ -89,8 +89,8 @@ export const MedicationTracker: React.FC = () => {
     const title = '🧪 Local Notification Test';
     const options = {
       body: 'This is a simulator test. Your local push reminders are fully functional background & offline.',
-      icon: '/logo.svg',
-      badge: '/logo.svg',
+      icon: '/logo.png',
+      badge: '/logo.png',
     };
     if ('serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.ready;

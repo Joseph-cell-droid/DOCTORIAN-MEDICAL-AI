@@ -1,6 +1,4 @@
 import React from 'react';
-// @ts-ignore
-import doctorianLogo from '../assets/images/doctorian_logo_1779622956808.png';
 
 interface LogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -20,7 +18,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', className = '', showTex
         
         {/* High Quality Platform Logo */}
         <img 
-          src={doctorianLogo} 
+          src="/logo.png" 
           alt="Doctorian Platform Logo"
           className="absolute inset-0 w-full h-full object-cover z-10 transition-transform duration-500 group-hover/logo:scale-110"
           referrerPolicy="no-referrer"

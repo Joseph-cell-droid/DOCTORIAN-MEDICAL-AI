@@ -288,12 +288,14 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
-  if (!apiKey || apiKey.trim().length < 20) return null;
+  if (!apiKey || apiKey.trim().length < 5) return null;
   const trimmed = apiKey.trim();
-  if (!trimmed.startsWith('AIza')) return null; // Only Google API keys work with this library
+  const baseURL = process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined;
+  if (!trimmed.startsWith('AIza') && !baseURL) return null; // Only Google API keys work by default unless a custom base URL is set
   return new GoogleGenAI({
     apiKey: trimmed,
     httpOptions: {
+      baseUrl: baseURL,
       headers: {
         'User-Agent': 'aistudio-build',
       }
@@ -1442,6 +1444,7 @@ async function callAIWorkflow(options: {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
                   httpOptions: {
+                    baseUrl: process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined,
                     headers: {
                       'User-Agent': 'aistudio-build',
                     }
@@ -5072,6 +5075,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         const ai = new GoogleGenAI({
           apiKey: geminiKey.trim(),
           httpOptions: {
+            baseUrl: process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined,
             headers: {
               'User-Agent': 'aistudio-build',
             }

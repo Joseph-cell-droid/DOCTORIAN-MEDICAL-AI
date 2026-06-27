@@ -1699,13 +1699,13 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                           {consultHistory.map((h, i) => (
                             <div key={i} className={`p-4 rounded-2xl text-xs max-w-xl leading-relaxed ${
                               h.role === 'user' 
-                                ? 'bg-blue-600/10 text-blue-200 border border-blue-500/10 self-end ml-auto' 
+                                ? 'bg-blue-600/20 text-white border border-blue-500/30 self-end ml-auto shadow-md font-bold' 
                                 : 'bg-slate-900 text-slate-300 border border-white/5'
                             }`}>
                               <span className="text-[8px] font-black uppercase tracking-wider block mb-1 text-slate-400">
                                 {h.role === 'user' ? 'Physician Demand' : 'Clinical AI Co-Pilot'}
                               </span>
-                              <p className="whitespace-pre-line font-medium leading-relaxed">{h.text}</p>
+                              <p className={`whitespace-pre-line leading-relaxed ${h.role === 'user' ? 'font-extrabold text-sm text-white' : 'font-medium'}`}>{h.text}</p>
                             </div>
                           ))}
                         </div>

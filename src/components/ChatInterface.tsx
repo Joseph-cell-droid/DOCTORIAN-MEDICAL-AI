@@ -3461,7 +3461,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                              </div>
                            )}
 
-                            <div className={`prose ${isWidescreen ? 'prose-sm md:prose-base leading-relaxed' : 'prose-sm'} dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white/90 dark:text-slate-800' : ''}`}>
+                            <div className={`prose ${isWidescreen ? 'prose-sm md:prose-base leading-relaxed' : 'prose-sm'} dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white dark:text-slate-900 font-extrabold text-sm sm:text-base' : ''}`}>
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
@@ -3475,16 +3475,16 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                                     <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mt-3 mb-1.5" {...props} />
                                   ),
                                   p: ({node, ...props}) => (
-                                    <p className="mb-3.5 leading-relaxed text-slate-700 dark:text-slate-300 text-xs sm:text-sm" {...props} />
+                                    <p className={msg.role === 'user' ? "mb-3.5 leading-relaxed text-white dark:text-slate-950 text-sm sm:text-base font-extrabold" : "mb-3.5 leading-relaxed text-slate-700 dark:text-slate-300 text-xs sm:text-sm"} {...props} />
                                   ),
                                   ul: ({node, ...props}) => (
-                                    <ul className="list-disc pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300" {...props} />
+                                    <ul className={msg.role === 'user' ? "list-disc pl-5 mb-3.5 space-y-1 text-sm sm:text-base text-white dark:text-slate-950 font-extrabold" : "list-disc pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300"} {...props} />
                                   ),
                                   ol: ({node, ...props}) => (
-                                    <ol className="list-decimal pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300" {...props} />
+                                    <ol className={msg.role === 'user' ? "list-decimal pl-5 mb-3.5 space-y-1 text-sm sm:text-base text-white dark:text-slate-950 font-extrabold" : "list-decimal pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300"} {...props} />
                                   ),
                                   li: ({node, ...props}) => (
-                                    <li className="text-slate-700 dark:text-slate-300 pl-0.5" {...props} />
+                                    <li className={msg.role === 'user' ? "text-white dark:text-slate-950 font-extrabold pl-0.5" : "text-slate-700 dark:text-slate-300 pl-0.5"} {...props} />
                                   ),
                                   table: ({node, ...props}) => (
                                     <div className="overflow-x-auto my-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-950">
@@ -5818,7 +5818,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
                                <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
                                  {log.role === 'user' ? 'You' : voiceSelection}
                                </span>
-                               <p className="m-0">{log.text}</p>
+                               <p className={`m-0 ${log.role === 'user' ? 'font-black text-cyan-200' : ''}`}>{log.text}</p>
                              </div>
                            ))}
                          </div>

@@ -38,6 +38,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { api, User, HealthRecord, Doctor, syncOfflineActions } from '../api';
+import { CyberSecurityPanel } from './CyberSecurityPanel';
 import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 
@@ -1859,6 +1860,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 </details>
               </div>
             </div>
+
+            {/* Advanced Encrypted Cyber Security Posture Section */}
+            <CyberSecurityPanel dashboardType="admin" />
 
             {/* Background Synchronization Queue Tracker Card */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl mt-8">

@@ -1151,8 +1151,8 @@ export const api = {
         const code = `${pin1} ${pin2}`;
         const expiresAt = Date.now() + 5 * 60 * 1000;
         setStorageItem("medical_offline_mfa", { code, expiresAt });
-        console.log(`[Offline MFA Broadcast] Generated offline token ${code}. Expires in 5 minutes.`);
-        return { success: true, email: email || "offline_user", code, expiresAt };
+        console.log(`[Offline MFA Broadcast] Generated offline token ${code}. Expires in 5 minutes. Check developer console.`);
+        return { success: true, email: email || "offline_user", expiresAt };
       }
       const res = await fetch(`${API_BASE}/mfa/send-token`, {
         method: "POST",
@@ -1162,7 +1162,7 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send MFA token");
-      return data as { success: boolean; email: string; expiresAt: number; code?: string };
+      return data as { success: boolean; email: string; expiresAt: number };
     },
     async verifyMfaToken(code: string, email?: string) {
       if (isOffline()) {
@@ -1182,6 +1182,21 @@ export const api = {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Verification failed");
       return data as { success: boolean };
+    },
+    async checkMfaStatus(email?: string) {
+      if (isOffline()) {
+        const mfa = getStorageItem<{ code: string; expiresAt: number; verified?: boolean } | null>("medical_offline_mfa", null);
+        if (mfa && mfa.verified) return { verified: true };
+        return { verified: false };
+      }
+      const res = await fetch(`${API_BASE}/mfa/check-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      return data as { verified: boolean; expired?: boolean; error?: string };
     },
     async forgotPassword(email: string) {
       const res = await fetch(`${API_BASE}/auth/forgot-password`, {

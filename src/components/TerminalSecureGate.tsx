@@ -58,6 +58,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
   const [biometricScanning, setBiometricScanning] = useState(false);
   const [biometricSuccess, setBiometricSuccess] = useState(false);
   const [selectedMfaMethod, setSelectedMfaMethod] = useState<'totp' | 'biometric'>('totp');
+  const [useManualCode, setUseManualCode] = useState(false);
   
   // Security Intelligence calibration stage states
   const [calibrationProgress, setCalibrationProgress] = useState(0);
@@ -81,7 +82,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPercent, setLoadingPercent] = useState(0);
   const [shuffleErrorEffect, setShuffleErrorEffect] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
 
   const triggerErrorEffect = (msg: string) => {
@@ -191,11 +192,6 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
       setLogs(prev => [...prev, `[MFA BROADCASTER] Connecting to authorization relay, packaging key seeds...`]);
       const res = await api.auth.sendMfaToken(email);
       
-      if (res.code) {
-        setCurrentMfaPin(res.code);
-        console.log(`[MFA DEBUG] Token generated: ${res.code}`);
-      }
-      
       const exp = res.expiresAt || (Date.now() + 5 * 60 * 1000);
       setExpiresAt(exp);
       setTimerProgress(100);
@@ -218,6 +214,57 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
       sendToken();
     }
   }, [stage]);
+
+  // Poll MFA validation status from Gmail link click
+  useEffect(() => {
+    if (stage !== 'biometrics_mfa' || !expiresAt) return;
+
+    let isSubscribed = true;
+    let pollInterval: NodeJS.Timeout;
+
+    const checkStatus = async () => {
+      try {
+        const email = getRegisteredEmail();
+        const res = await (api.auth as any).checkMfaStatus(email);
+        
+        if (!isSubscribed) return;
+
+        if (res.verified) {
+          clearInterval(pollInterval);
+          setLogs(prev => [
+            ...prev,
+            `[MFA BROADCAST] Handshake confirmed! Gmail verification clicked successfully.`,
+            `[SECURITY GATE] Credentials validation complete. Transitioning to Node Calibration...`
+          ]);
+          playSystemChime('success');
+          
+          try {
+            await api.auth.verifyMfaToken('VERIFIED_LINK', email);
+          } catch (err) {}
+
+          setTimeout(() => {
+            if (isSubscribed) {
+              setStage('security_intelligence');
+              setIsCalibrating(true);
+            }
+          }, 1500);
+        } else if (res.expired) {
+          clearInterval(pollInterval);
+          setLogs(prev => [...prev, `[MFA BROADCAST] Session expired. Please click 'Resend'.`]);
+        }
+      } catch (err) {
+        // fail silently and retry
+      }
+    };
+
+    checkStatus();
+    pollInterval = setInterval(checkStatus, 2000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollInterval);
+    };
+  }, [stage, expiresAt]);
 
   // Handle OTP 5-minute seed countdown progress bar
   useEffect(() => {
@@ -246,12 +293,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     return () => clearInterval(interval);
   }, [expiresAt]);
 
-  // Bind values (optional fallback/autofill)
-  useEffect(() => {
-    if (currentMfaPin && currentMfaPin !== '------') {
-      setPinInput(currentMfaPin.replace(/\s+/g, ''));
-    }
-  }, [currentMfaPin]);
+  // Autofill disabled for high-security compliance (verification code must be retrieved manually from Gmail)
 
   // First Stage handler: Master Credential check
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -354,21 +396,16 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     setLoadingPercent(100);
 
     const standardizedPin = pinInput.replace(/\s+/g, '');
-    const PIN_SHORTCUTS = ["777777", "123456"];
 
     let isVerified = false;
-    if (PIN_SHORTCUTS.includes(standardizedPin)) {
-      isVerified = true;
-    } else {
-      try {
-        const email = getRegisteredEmail();
-        const res = await api.auth.verifyMfaToken(standardizedPin, email);
-        if (res.success) {
-          isVerified = true;
-        }
-      } catch (err: any) {
-        setError(err.message || "Invalid or expired confirmation token.");
+    try {
+      const email = getRegisteredEmail();
+      const res = await api.auth.verifyMfaToken(standardizedPin, email);
+      if (res.success) {
+        isVerified = true;
       }
+    } catch (err: any) {
+      setError(err.message || "Invalid or expired confirmation token.");
     }
 
     if (isVerified) {
@@ -762,36 +799,85 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                 </div>                {/* TAB 1: TOTP HARDWARE EMBED */}
                 {selectedMfaMethod === 'totp' && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
+                    <div className="bg-slate-900/40 p-6 md:p-8 rounded-2xl border border-slate-800 space-y-6">
                       
-                      <div className="md:col-span-6 flex flex-col items-center justify-center text-center space-y-2 border-r border-slate-800 pb-4 md:pb-0 md:pr-4">
-                        <span className="text-[8.5px] text-blue-400 font-black uppercase tracking-widest">Active Token Broadcaster</span>
+                      {/* Secure Info Header */}
+                      <div className="text-center space-y-3">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest text-blue-400">
+                          <Lock size={10} className="text-blue-400" />
+                          Encrypted Verification Stream
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Confirm Access via Gmail</h3>
+                        <p className="text-[11px] text-slate-400 leading-relaxed max-w-md mx-auto">
+                          A secure authentication link has been transmitted to your Gmail account:<br />
+                          <span className="text-blue-400 font-mono font-bold select-all lowercase">{getRegisteredEmail()}</span>
+                        </p>
+                      </div>
+
+                      {/* Gmail confirmation status indicator with high security polishing */}
+                      <div className="bg-slate-950/60 border border-slate-850 p-6 rounded-2xl flex flex-col items-center justify-center space-y-4 max-w-sm mx-auto text-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-blue-500/[0.01] pointer-events-none" />
                         
-                        <div className="flex items-center gap-2">
-                          <div className="text-3xl font-[1000] font-mono tracking-widest text-slate-200 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]">
-                            {showMfaPinText ? currentMfaPin : "••••••"}
+                        <div className="relative">
+                          {/* Pulsing ring animation */}
+                          <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75" />
+                          <div className="relative w-14 h-14 rounded-full bg-slate-900 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+                            <Shield size={24} className="animate-pulse" />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowMfaPinText(!showMfaPinText);
-                              playSystemChime('click');
-                            }}
-                            className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-slate-300 transition-colors"
-                            title="Toggle Code Visibility"
-                          >
-                            {showMfaPinText ? <EyeOff size={14} /> : <Eye size={14} />}
-                          </button>
                         </div>
 
-                        <div className="w-28 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800/80 my-1">
-                          <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${timerProgress}%` }} />
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block animate-pulse">Awaiting Link Click...</span>
+                          <span className="text-[9px] text-slate-500 font-mono block">Please open your Gmail in another tab and click "Confirm Access"</span>
                         </div>
-                        
-                        <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
-                          Expires in {expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000 / 60)) : 5}m
+                      </div>
+
+                      {/* Manual OTP entry fallback */}
+                      {!useManualCode ? (
+                        <div className="text-center">
+                          <button
+                            type="button"
+                            onClick={() => { setUseManualCode(true); playSystemChime('click'); }}
+                            className="text-[9px] text-slate-500 hover:text-slate-400 font-extrabold uppercase tracking-wider underline decoration-dotted underline-offset-4"
+                          >
+                            Need manual OTP code override?
+                          </button>
                         </div>
-                        
+                      ) : (
+                        <div className="border-t border-slate-850 pt-4 space-y-4">
+                          <div className="text-center space-y-1">
+                            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Manual Override Entry</span>
+                            <span className="text-[9px] text-slate-500 block">Type the 6-digit confirmation figures from your email below.</span>
+                          </div>
+
+                          <div className="max-w-xs mx-auto space-y-3">
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                required
+                                value={pinInput}
+                                onChange={(e) => {
+                                  setPinInput(e.target.value);
+                                  setError('');
+                                }}
+                                maxLength={7}
+                                placeholder="000 000"
+                                className="bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 px-5 py-3 text-lg font-mono font-black tracking-[0.4em] text-center rounded-xl w-full outline-none text-slate-100 placeholder:text-slate-700 uppercase"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Control Link with Circular / Subtle Timer Bar */}
+                      <div className="pt-2 border-t border-slate-850 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                            <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${timerProgress}%` }} />
+                          </div>
+                          <span className="text-[8px] text-slate-400 uppercase tracking-widest font-mono font-semibold">Broadcaster Life</span>
+                        </div>
+
                         <button
                           type="button"
                           disabled={isLoadingToken}
@@ -799,47 +885,13 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                             sendToken();
                             playSystemChime('click');
                           }}
-                          className="mt-1 text-[8px] text-blue-400 hover:text-blue-300 font-extrabold uppercase tracking-widest flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                          className="text-[9px] text-blue-400 hover:text-blue-300 font-extrabold uppercase tracking-wider flex items-center gap-1.5 bg-blue-500/5 hover:bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/15 transition-all self-end sm:self-auto"
                         >
-                          <RefreshCw size={10} className={isLoadingToken ? "animate-spin" : ""} />
-                          {isLoadingToken ? "Sending..." : "Resend to Gmail"}
+                          <RefreshCw size={11} className={isLoadingToken ? "animate-spin" : ""} />
+                          {isLoadingToken ? "Requesting..." : "Resend Link to Gmail"}
                         </button>
                       </div>
 
-                      <div className="md:col-span-6 space-y-3.5">
-                        <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-widest block text-center md:text-left">
-                          SENT TO GMAIL: <span className="text-blue-400 select-all font-mono lowercase">{getRegisteredEmail()}</span>
-                        </span>
-                        
-                        <div className="flex gap-2">
-                          <input 
-                            type="text"
-                            required
-                            value={pinInput}
-                            onChange={(e) => {
-                              setPinInput(e.target.value);
-                              setError('');
-                            }}
-                            maxLength={7}
-                            placeholder="Enter matching PIN..."
-                            className="bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 px-4 py-2 text-xs font-mono font-black tracking-widest text-center rounded-xl w-full outline-none text-slate-200"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPinInput(currentMfaPin.replace(/\s+/g, ''));
-                              playSystemChime('click');
-                            }}
-                            className="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider border border-slate-700/50"
-                          >
-                            Fill
-                          </button>
-                        </div>
-                        
-                        <span className="text-[8px] text-slate-500 text-center md:text-left block leading-tight">
-                          Please check your registered Gmail account inbox for the verification pin, or press FILL to populate it.
-                        </span>
-                      </div>
                     </div>
 
                     {error && (
@@ -855,20 +907,23 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                         onClick={() => {
                           setStage('credentials');
                           setError('');
+                          setUseManualCode(false);
                           playSystemChime('click');
                         }}
                         className="flex-1 py-3.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
                       >
                         Back
                       </button>
-                      <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-blue-400/20"
-                      >
-                        {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
-                        Sync Hardware Core
-                      </button>
+                      {useManualCode && (
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-blue-400/20"
+                        >
+                          {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                          Sync Hardware Core
+                        </button>
+                      )}
                     </form>
                   </div>
                 )}

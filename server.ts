@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -1009,29 +1010,57 @@ async function* callAIStream(options: {
                   };
                 });
 
-                const resultStream = await aiClient.models.generateContentStream({
-                  model: providerModel,
-                  contents: formattedContents,
-                  config: {
-                    systemInstruction: effectiveSystemInstruction,
-                    temperature: temperature || 0.7,
-                    tools: useSearch ? [{ googleSearch: {} }] : undefined
-                  }
-                });
-                
-                let hasYielded = false;
+                let resultStream;
+                let success = false;
                 try {
-                  for await (const chunk of resultStream) {
-                    const text = chunk.text;
-                    if (text) {
-                      yield text;
-                      hasYielded = true;
+                  resultStream = await aiClient.models.generateContentStream({
+                    model: providerModel,
+                    contents: formattedContents,
+                    config: {
+                      systemInstruction: effectiveSystemInstruction,
+                      temperature: temperature || 0.7,
+                      tools: useSearch ? [{ googleSearch: {} }] : undefined
+                    }
+                  });
+                  success = true;
+                } catch (streamInitErr: any) {
+                  console.log("[AI-STREAM] Modern Synapse stream failed, trying alternate model fallback:", streamInitErr.message);
+                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"].filter(m => m !== providerModel);
+                  for (const modelId of modelsToTry) {
+                    try {
+                      console.log(`[AI-STREAM] Attempting stream fallback with model: ${modelId}`);
+                      resultStream = await aiClient.models.generateContentStream({
+                        model: modelId,
+                        contents: formattedContents,
+                        config: {
+                          systemInstruction: effectiveSystemInstruction,
+                          temperature: temperature || 0.7
+                        }
+                      });
+                      success = true;
+                      break;
+                    } catch (retryErr: any) {
+                      console.log(`[AI-STREAM] Stream fallback tried ${modelId} but failed:`, retryErr.message);
+                      if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
                     }
                   }
-                } catch (streamErr: any) {
-                  console.error("[AI-STREAM] Gemini stream chunk error:", streamErr.message);
                 }
-                if (hasYielded) return;
+
+                if (success && resultStream) {
+                  let hasYielded = false;
+                  try {
+                    for await (const chunk of resultStream) {
+                      const text = chunk.text;
+                      if (text) {
+                        yield text;
+                        hasYielded = true;
+                      }
+                    }
+                  } catch (streamErr: any) {
+                    console.error("[AI-STREAM] Gemini stream chunk error:", streamErr.message);
+                  }
+                  if (hasYielded) return;
+                }
               }
             }
           } catch (err: any) {
@@ -1408,6 +1437,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
+              const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-3.5-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1417,7 +1447,6 @@ async function callAIWorkflow(options: {
                     }
                   }
                 });
-                const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-3.5-flash"; 
                 
                 console.log(`[AI-BRAIN] Mapping ${providerModel} to ${effectiveModel} via Modern Pathway`);
                 
@@ -1454,12 +1483,9 @@ async function callAIWorkflow(options: {
                 if (text) return text;
               } catch (genErr: any) {
                 console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
-                if (genErr.message?.includes('429') || genErr.message?.includes('Quota') || genErr.message?.includes('RESOURCE_EXHAUSTED')) {
-                  throw genErr; // Let the outer loop handle it and try the next key immediately
-                }
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"];
+                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"].filter(m => m !== effectiveModel);
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
@@ -1477,6 +1503,8 @@ async function callAIWorkflow(options: {
                       if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
                     }
                   }
+                } else {
+                  throw genErr;
                 }
               }
             }
@@ -2444,7 +2472,7 @@ const RP_NAME = "Doctorian";
 
 // In-memory store for challenges (use a real session/redis in production)
 const challenges = new Map<string, string>();
-const activeMfaTokens = new Map<string, { code: string; expiresAt: number }>();
+const activeMfaTokens = new Map<string, { code: string; expiresAt: number; verified?: boolean }>();
 
 async function startServer() {
   console.log("[SERVER] Initializing Express Application...");
@@ -3327,25 +3355,142 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       email = "gloriajayakullo@gmail.com"; // Fallback to signup/default email
     }
 
-    // Generate secure 6-digit PIN
-    const pin1 = Math.floor(100 + Math.random() * 900);
-    const pin2 = Math.floor(100 + Math.random() * 900);
-    const code = `${pin1}${pin2}`;
-    const formattedCode = `${pin1} ${pin2}`;
+    // Generate secure 6-digit PIN using cryptographically secure pseudorandom number generator (CSPRNG)
+    const secureCodeVal = crypto.randomInt(100000, 1000000);
+    const code = secureCodeVal.toString();
+    const formattedCode = `${code.slice(0, 3)} ${code.slice(3)}`;
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     activeMfaTokens.set(email.toLowerCase(), {
       code,
-      expiresAt
+      expiresAt,
+      verified: false
     });
 
-    const subject = "🔐 Doctorian Active Token Broadcaster Sync";
-    const text = `Hello,\n\nYour Active Token Broadcaster MFA validation code is:\n\n${formattedCode}\n\nThis code will expire in 5 minutes.\n\nIf you did not request this code, please ignore this email.`;
+    const host = req.headers.host || "localhost:3000";
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const baseUrl = `${protocol}://${host}`;
+    const confirmUrl = `${baseUrl}/api/mfa/confirm-email?email=${encodeURIComponent(email)}&code=${code}`;
+
+    const subject = "🔐 Doctorian - Secure Dashboard Access Confirmation Link";
+    const text = `Hello Practitioner,\n\nA request was made to log in to the secure Admin or Doctor dashboard on Doctorian.\n\nPlease confirm this access directly from your Gmail account by clicking the secure link below:\n\n${confirmUrl}\n\nThis verification link is valid for 5 minutes. If you did not make this request, please ignore this message.\n\nSecurely logged by Doctorian Cyber Security Sentinel.`;
 
     await sendEmail(email, subject, text);
 
-    console.log(`[MFA] Sent code ${formattedCode} to ${email}. Expires in 5m.`);
-    res.json({ success: true, email, expiresAt, code: formattedCode });
+    console.log(`[MFA] Sent confirmation link to ${email}. Expires in 5m. URL: ${confirmUrl}`);
+    res.json({ success: true, email, expiresAt });
+  });
+
+  app.get("/api/mfa/confirm-email", async (req: any, res) => {
+    const email = req.query.email;
+    const code = req.query.code;
+
+    if (!email || !code) {
+      return res.status(400).send("Invalid confirmation request. Missing parameters.");
+    }
+
+    const tokenData = activeMfaTokens.get(email.toLowerCase());
+    if (!tokenData) {
+      return res.status(400).send(`
+        <html>
+          <head>
+            <title>Verification Failed</title>
+            <style>
+              body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+              .card { background: #1e293b; border: 1px solid #334155; padding: 2.5rem; border-radius: 1.5rem; max-width: 450px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+              h1 { color: #f43f5e; font-size: 1.5rem; margin-top: 0; }
+              p { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>Link Expired or Invalid</h1>
+              <p>No active security session was found for this account. The verification token may have already been used, or expired after 5 minutes.</p>
+              <p>Please return to the Doctorian application and click 'Resend' to initiate a new secure handshake.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    if (Date.now() > tokenData.expiresAt) {
+      activeMfaTokens.delete(email.toLowerCase());
+      return res.status(400).send(`
+        <html>
+          <head>
+            <title>Verification Expired</title>
+            <style>
+              body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+              .card { background: #1e293b; border: 1px solid #334155; padding: 2.5rem; border-radius: 1.5rem; max-width: 450px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+              h1 { color: #f43f5e; font-size: 1.5rem; margin-top: 0; }
+              p { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>Link Expired</h1>
+              <p>This verification link expired after 5 minutes of inactivity.</p>
+              <p>Please return to the Doctorian application and request a new confirmation link.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    if (tokenData.code !== code) {
+      return res.status(400).send("Incorrect confirmation code.");
+    }
+
+    tokenData.verified = true;
+    activeMfaTokens.set(email.toLowerCase(), tokenData);
+
+    res.send(`
+      <html>
+        <head>
+          <title>Access Confirmed - Doctorian</title>
+          <style>
+            body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #1e293b; border: 1px solid #334155; padding: 3rem; border-radius: 1.5rem; max-width: 450px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.55); border-top: 4px solid #10b981; }
+            .icon { background: rgba(16, 185, 129, 0.1); color: #10b981; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+            h1 { color: #ffffff; font-size: 1.6rem; margin: 0 0 0.5rem; font-weight: 800; letter-spacing: -0.025em; }
+            p { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem; }
+            .badge { display: inline-block; background: #0f172a; border: 1px solid #1e293b; color: #3b82f6; font-family: monospace; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.85rem; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">✓</div>
+            <h1>Identity Confirmed</h1>
+            <p>Your identity has been authenticated successfully directly from your Gmail account.</p>
+            <p>You can now close this browser tab and return to the main Doctorian application. Your dashboard access will unlock automatically in real-time.</p>
+            <div class="badge">SECURE HANDSHAKE: SUCCESS</div>
+          </div>
+        </body>
+      </html>
+    `);
+  });
+
+  app.post("/api/mfa/check-status", async (req: any, res) => {
+    let email = req.body.email;
+    if (!email) {
+      email = "gloriajayakullo@gmail.com";
+    }
+
+    const tokenData = activeMfaTokens.get(email.toLowerCase());
+    if (!tokenData) {
+      return res.json({ verified: false, error: "No active session" });
+    }
+
+    if (Date.now() > tokenData.expiresAt) {
+      activeMfaTokens.delete(email.toLowerCase());
+      return res.json({ verified: false, expired: true });
+    }
+
+    if (tokenData.verified) {
+      return res.json({ verified: true });
+    }
+
+    res.json({ verified: false });
   });
 
   app.post("/api/mfa/verify-token", async (req: any, res) => {
@@ -3382,13 +3527,12 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       return res.status(400).json({ error: "The token has expired (5 minutes timeout). Please request a new one." });
     }
 
-    if (tokenData.code !== codeInput) {
-      return res.status(400).json({ error: "Incorrect verification token. Please try again." });
+    if (tokenData.verified || (codeInput && tokenData.code === codeInput)) {
+      activeMfaTokens.delete(email.toLowerCase());
+      return res.json({ success: true });
     }
 
-    // Success! Clear the token and respond
-    activeMfaTokens.delete(email.toLowerCase());
-    res.json({ success: true });
+    return res.status(400).json({ error: "Awaiting confirmation. Please check your Gmail inbox and click the secure link to verify." });
   });
 
   app.post("/api/auth/login", authRateLimiter, async (req, res) => {
@@ -3445,9 +3589,9 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         return res.json({ message: "If an account exists with that email, a verification code has been sent." });
       }
 
-      // Generate a 6-digit numeric code
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const token = Math.random().toString(36).substring(2, 15);
+      // Generate a secure 6-digit numeric code using CSPRNG
+      const code = crypto.randomInt(100000, 1000000).toString();
+      const token = crypto.randomBytes(16).toString('hex');
       const expiresAt = new Date(Date.now() + 600000).toISOString(); // 10 minutes
 
       // Delete any existing tokens for this user
@@ -4963,10 +5107,19 @@ Include these facts clearly:
 Speak directly, with clinical weight, compassion, and precise professional authority. Keep the entire monologue extremely concise (3 to 4 sentences, under 90 words total) so it remains impactful when synthesized or read.
 Output ONLY the plain spoken text itself. Do NOT include markdown formatting, headers, quotation marks, or asterisks.`;
 
-        const textResponse = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: prompt,
-        });
+        let textResponse;
+        try {
+          textResponse = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: prompt,
+          });
+        } catch (err: any) {
+          console.log("[AI-VOICE] gemini-3.5-flash failed, trying gemini-3.1-flash-lite fallback:", err.message);
+          textResponse = await ai.models.generateContent({
+            model: "gemini-3.1-flash-lite",
+            contents: prompt,
+          });
+        }
 
         if (textResponse && textResponse.text) {
           aiText = textResponse.text.trim().replace(/[*#`"]/g, '');
@@ -5170,18 +5323,35 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       - "english": a high-fidelity medical translation of the transcription into English
       - "detectedLanguage": the language identified.`;
 
-      const result = await aiClient.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: [
-          prompt,
-          {
-            inlineData: {
-              data: audio.includes('base64,') ? audio.split('base64,')[1] : audio,
-              mimeType: mimeType || 'audio/webm'
+      let result;
+      try {
+        result = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: [
+            prompt,
+            {
+              inlineData: {
+                data: audio.includes('base64,') ? audio.split('base64,')[1] : audio,
+                mimeType: mimeType || 'audio/webm'
+              }
             }
-          }
-        ]
-      });
+          ]
+        });
+      } catch (err: any) {
+        console.log("[AI-TRANSCRIBE] gemini-3.5-flash failed, trying gemini-3.1-flash-lite fallback:", err.message);
+        result = await aiClient.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: [
+            prompt,
+            {
+              inlineData: {
+                data: audio.includes('base64,') ? audio.split('base64,')[1] : audio,
+                mimeType: mimeType || 'audio/webm'
+              }
+            }
+          ]
+        });
+      }
 
       const responseText = result.text || "";
       let transcription;

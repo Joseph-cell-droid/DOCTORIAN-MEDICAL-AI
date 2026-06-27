@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { api, Doctor } from '../api';
 import { useArduinoContext } from '../ArduinoContext';
+import { CyberSecurityPanel } from './CyberSecurityPanel';
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
@@ -987,6 +988,12 @@ Provide a professional, direct, academic, and clinical response assisting the ph
               </div>
 
             </section>
+
+            {/* Advanced Encrypted Cyber Security Posture Section */}
+            <div className="mt-8">
+              <CyberSecurityPanel dashboardType="doctor" />
+            </div>
+
           </motion.div>
         )}
 

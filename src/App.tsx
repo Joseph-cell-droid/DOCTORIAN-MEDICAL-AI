@@ -2200,7 +2200,6 @@ export default function App() {
           </AnimatePresence>
 
         <motion.header 
-          layout
           initial={false}
           animate={{
             backgroundColor: isEyeCareMode 
@@ -2222,27 +2221,24 @@ export default function App() {
         >
           <div className="max-w-7xl mx-auto w-full px-2 sm:px-8">
             <div className="flex items-center py-2.5 sm:py-4 gap-1.5 sm:gap-4 w-full">
-              <div className="flex items-center gap-1.5 sm:gap-6 shrink-0">
+              <div className="flex items-center gap-1.5 lg:gap-6 shrink-0">
                 <motion.button 
-                  layout
                   className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0 p-1"
                   onClick={() => setCurrentView('home')}
                   aria-label="Go to Home"
                 >
-                  <Logo size="sm" className="scale-[0.8] sm:scale-90 lg:scale-100 shrink-0 [&_.logo-text]:hidden sm:[&_.logo-text]:flex" />
+                  <Logo size="sm" className="scale-[0.8] lg:scale-100 shrink-0 [&_.logo-text]:hidden lg:[&_.logo-text]:flex" />
                 </motion.button>
               </div>
 
               <div className="flex flex-1 justify-center px-0.5 sm:px-2 md:px-4 items-center gap-1 sm:gap-2 md:gap-3 overflow-visible min-w-0">
                 <motion.button 
-                  layout
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex flex-1 md:max-w-[200px] lg:max-w-md items-center gap-1.5 sm:gap-3 bg-slate-100 dark:bg-slate-800/90 p-1.5 sm:px-3 sm:py-2 md:px-4 md:py-2.5 rounded-xl text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-750 transition-all border border-slate-300/80 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-700 min-w-[36px] sm:min-w-[85px] h-9 md:h-10 lg:h-11 shadow-sm justify-center sm:justify-start"
+                  className="flex items-center justify-center p-1.5 md:p-2 lg:p-2.5 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-9 h-9 md:w-10 md:h-10 lg:w-auto lg:max-w-md lg:flex-1 lg:h-11 lg:gap-3 lg:px-4 shadow-sm"
                   aria-label="Open search"
                 >
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
-                  <span className="text-[10px] sm:text-xs font-black text-high-visibility truncate uppercase tracking-widest hidden lg:block">Search System...</span>
-                  <span className="text-[10px] font-black text-high-visibility truncate uppercase tracking-widest hidden sm:block lg:hidden">Search...</span>
+                  <span className="text-xs font-black text-high-visibility truncate uppercase tracking-widest hidden lg:block">Search System...</span>
                 </motion.button>
                 
                 <button
@@ -2276,7 +2272,6 @@ export default function App() {
                 {/* Language Quick Dropdown */}
                 <div className="relative shrink-0">
                   <motion.button
-                    layout
                     onClick={() => {
                       setIsLanguageMenuOpen(!isLanguageMenuOpen);
                       setIsWindowsMenuOpen(false);
@@ -2381,33 +2376,32 @@ export default function App() {
                                     Offline
                                   </span>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
+                               </div>
+                             ))}
+                           </div>
+                         </motion.div>
+                       </>
+                     )}
+                   </AnimatePresence>
+                 </div>
 
                  {/* Clinical Auditory & Sonification Hub */}
-                <div className="relative shrink-0">
-                  <motion.button
-                    layout
-                    onClick={() => {
-                      setIsAudioMenuOpen(!isAudioMenuOpen);
-                      setIsLanguageMenuOpen(false);
-                      setIsWindowsMenuOpen(false);
-                      setIsProfileOpen(false);
-                    }}
-                    className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer relative ${
-                      isAudioMenuOpen 
-                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
-                        : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
-                    }`}
-                    aria-label="Clinical Audio Settings"
-                    title="Clinical Audio & Sonification Hub"
-                  >
+                 <div className="relative shrink-0">
+                   <motion.button
+                     onClick={() => {
+                       setIsAudioMenuOpen(!isAudioMenuOpen);
+                       setIsLanguageMenuOpen(false);
+                       setIsWindowsMenuOpen(false);
+                       setIsProfileOpen(false);
+                     }}
+                     className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer relative ${
+                       isAudioMenuOpen 
+                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
+                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
+                     }`}
+                     aria-label="Clinical Audio Settings"
+                     title="Clinical Audio & Sonification Hub"
+                   >
                     {vitalsAudioEnabled || soundscapeEnabled ? (
                       <div className="relative flex items-center justify-center">
                         <Headphones size={16} className={`shrink-0 ${vitalsAudioEnabled ? 'text-rose-500 animate-bounce' : 'text-blue-500 animate-pulse'}`} />
@@ -2566,7 +2560,6 @@ export default function App() {
                 {/* Unified Systems Launchpad / Windows dropdown button - Always Visible */}
                 <div className="relative overflow-visible shrink-0">
                   <motion.button
-                    layout
                     onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
                     className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer ${
                       isWindowsMenuOpen 
@@ -2763,7 +2756,7 @@ export default function App() {
               {isAuthReady && (
                 user ? (
                   <div className="flex items-center gap-1.5 md:gap-2.5 lg:gap-3 relative shrink-0">
-                    <div className="hidden md:flex items-center gap-1 px-1.5 py-1 md:px-2 md:py-1.5 lg:px-2.5 lg:py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
+                    <div className="hidden lg:flex items-center gap-1 px-1.5 py-1 md:px-2 md:py-1.5 lg:px-2.5 lg:py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
                       <Zap size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
                       <span className="text-[10px] lg:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">
                         {displayCredits}

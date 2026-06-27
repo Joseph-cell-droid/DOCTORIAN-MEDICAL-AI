@@ -100,28 +100,28 @@ const PORT = 3000;
 console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
-// Toggle between "gemini", "Ollama", or "LM_STUDIO"
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
+// Toggle between "openrouter", "Ollama", or "LM_STUDIO"
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "openrouter";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
-// Option Two Engines (Google Gemini mapped to modern standard models)
-const GEMINI_PRIMARY = "gemini-3.5-flash"; 
-const GEMINI_VISION = "gemini-3.5-flash";
+// Default Models (Google Gemma and Mistral Instruct configured as primary standard models)
+const GEMINI_PRIMARY = "google/gemma-3-4b"; 
+const GEMINI_VISION = "google/gemma-3-4b";
 
-// Option One Engines (OpenRouter / Llama)
-const LLAMA_PRIMARY = "meta-llama/llama-3.1-8b-instruct";
-const LLAMA_VISION = "meta-llama/llama-3.2-11b-vision-instruct";
+// Option One Engines (OpenRouter / Llama / Mistral)
+const LLAMA_PRIMARY = "mistralai/mistral-7b-instruct";
+const LLAMA_VISION = "google/gemma-3-4b";
 
-const PRIMARY_ENGINE = "gemini-3.5-flash";
-const MEDICAL_REASONING_ENGINE = "gemini-3.5-flash";
-const DATA_ANALYTICS_ENGINE = "gemini-3.5-flash";
-const VISION_ENGINE = GEMINI_VISION;
-const DEEPSEEK_ENGINE = "gemini-3.5-flash";
-const MISTRAL_ENGINE = "mistral";
-const DEFAULT_GEMINI_ENGINE = "gemini-3.5-flash";
-const DEFAULT_LLAMA_ENGINE = "meta-llama/llama-3.1-8b-instruct";
-const DEFAULT_GEMMA_ENGINE = "gemini-3.5-flash";
-const BACKUP_ENGINE = "mistral";
+const PRIMARY_ENGINE = "google/gemma-3-4b";
+const MEDICAL_REASONING_ENGINE = "google/gemma-3-4b";
+const DATA_ANALYTICS_ENGINE = "mistralai/mistral-7b-instruct";
+const VISION_ENGINE = "google/gemma-3-4b";
+const DEEPSEEK_ENGINE = "mistralai/mistral-7b-instruct";
+const MISTRAL_ENGINE = "mistralai/mistral-7b-instruct";
+const DEFAULT_GEMINI_ENGINE = "google/gemma-3-4b";
+const DEFAULT_LLAMA_ENGINE = "mistralai/mistral-7b-instruct";
+const DEFAULT_GEMMA_ENGINE = "google/gemma-3-4b";
+const BACKUP_ENGINE = "mistralai/mistral-7b-instruct";
 
 const OLLAMA_URL = IS_LM_STUDIO
   ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
@@ -237,12 +237,11 @@ function getValidApiKeys(userId?: string, localApiKey?: string) {
   const googleKeys = valid.filter(k => !k.toLowerCase().startsWith('sk-'));
 
   const provider = (ACTIVE_AI_PROVIDER || "").toLowerCase();
-  if (provider === "gemini") {
-    // Option Two: Gemini prioritized, OpenRouter/Llama as fallback
-    const ordered = [...googleKeys, ...skKeys];
+  if (provider === "openrouter" || provider === "ollama" || provider === "lm_studio") {
+    // OpenRouter / Local LLMs prioritized
+    const ordered = [...skKeys, ...googleKeys];
     return [...new Set(ordered)];
   } else {
-    // Option One: OpenRouter/Llama prioritized, Gemini as fallback
     const ordered = [...skKeys, ...googleKeys];
     return [...new Set(ordered)];
   }
@@ -256,23 +255,14 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   const m = modelId.toLowerCase();
 
   if (isORKey) {
-    // To ensure correct clinical engines function correctly on OpenRouter:
-    if (m.includes('llama-3.2') || m.includes('vision') || m.includes('image')) {
-      return "meta-llama/llama-3.2-11b-vision-instruct";
-    }
-    if (m.includes('gemma')) {
-      return "google/gemma-2-27b-it";
-    }
-    if (m.includes('mistral')) {
+    // Map requests to Google Gemma 3 4B IT and Mistral 7B Instruct on OpenRouter
+    if (m.includes('mistral') || m.includes('reason') || m.includes('deepseek')) {
       return "mistralai/mistral-7b-instruct";
     }
-    if (m.includes('pro') || m.includes('large')) {
-      return "google/gemini-2.5-pro";
+    if (m.includes('gemma') || m.includes('gemini') || m.includes('flash') || m.includes('pro') || m.includes('vision') || m.includes('image')) {
+      return "google/gemma-3-4b-it";
     }
-    if (m.includes('gemini') || m.includes('flash') || m.includes('medlm') || m.includes('medium')) {
-      return "google/gemini-2.5-flash";
-    }
-    return "meta-llama/llama-3.1-8b-instruct";
+    return "google/gemma-3-4b-it";
   }
   
   if (isOpenAI) {
@@ -280,11 +270,11 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
     return "gpt-4o-mini";
   }
 
-  // Native Google Gemini key (AIza...)
-  if (m.includes('gemma')) {
-    return "models/gemma-2-27b-it";
+  // Native Google key fallback (AIza...)
+  if (m.includes('mistral')) {
+    return "models/gemma-2-27b-it"; // Native Google GenAI does not host Mistral, fallback to Gemma
   }
-  return "gemini-3.5-flash";
+  return "models/gemma-2-27b-it";
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
@@ -1027,7 +1017,7 @@ async function* callAIStream(options: {
                   success = true;
                 } catch (streamInitErr: any) {
                   console.log("[AI-STREAM] Modern Synapse stream failed, trying alternate model fallback:", streamInitErr.message);
-                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"].filter(m => m !== providerModel);
+                  const modelsToTry = ["models/gemma-2-27b-it", "models/gemma-2-9b-it"].filter(m => m !== providerModel);
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-STREAM] Attempting stream fallback with model: ${modelId}`);
@@ -1439,7 +1429,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.includes('gemini') ? providerModel : "gemini-3.5-flash";
+              const effectiveModel = providerModel && (providerModel.includes('gemini') || providerModel.includes('gemma')) ? providerModel : "models/gemma-2-27b-it";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1488,7 +1478,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"].filter(m => m !== effectiveModel);
+                  const modelsToTry = ["models/gemma-2-27b-it", "models/gemma-2-9b-it"].filter(m => m !== effectiveModel);
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
@@ -2714,7 +2704,7 @@ async function startServer() {
       const responseText = await callAI({
         messages: [{ role: 'user', text: prompt }],
         systemInstruction,
-        modelName: "gemini-3.5-flash",
+        modelName: "google/gemma-3-4b",
         temperature: 0.2,
         userId,
         useSearch: true
@@ -5114,13 +5104,13 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         let textResponse;
         try {
           textResponse = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemma-2-27b-it",
             contents: prompt,
           });
         } catch (err: any) {
-          console.log("[AI-VOICE] gemini-3.5-flash failed, trying gemini-3.1-flash-lite fallback:", err.message);
+          console.log("[AI-VOICE] gemma-2-27b-it failed, trying gemma-2-9b-it fallback:", err.message);
           textResponse = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite",
+            model: "gemma-2-9b-it",
             contents: prompt,
           });
         }
@@ -5330,7 +5320,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       let result;
       try {
         result = await aiClient.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemma-2-27b-it",
           contents: [
             prompt,
             {
@@ -5342,9 +5332,9 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           ]
         });
       } catch (err: any) {
-        console.log("[AI-TRANSCRIBE] gemini-3.5-flash failed, trying gemini-3.1-flash-lite fallback:", err.message);
+        console.log("[AI-TRANSCRIBE] gemma-2-27b-it failed, trying gemini-3.5-flash fallback for audio modality:", err.message);
         result = await aiClient.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-3.5-flash",
           contents: [
             prompt,
             {
@@ -5780,7 +5770,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       const response = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
-          model: "google/gemini-2.0-flash-exp:free",
+          model: "google/gemma-3-4b-it",
           messages: [
             { role: "system", content: systemInstruction },
             ...messages.map((m: any) => ({
@@ -6216,19 +6206,14 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
 
         let targetModel = modelOverride || modelName;
         if (!targetModel) {
-          if (hasGold) targetModel = "gemini-3.1-pro-preview";
-          else if (hasPro) targetModel = "gemini-3.5-flash";
-          else targetModel = "meta-llama/llama-3.1-8b-instruct";
+          if (hasGold || hasPro) targetModel = "google/gemma-3-4b-it";
+          else targetModel = "mistralai/mistral-7b-instruct";
         } else {
           // Verify model authorization level based on payment tier
           const mName = targetModel.toLowerCase();
-          if (mName.includes('pro') || mName.includes('large') || mName.includes('3.1-pro') || mName.includes('1.5-pro')) {
-            if (!hasGold) {
-              targetModel = hasPro ? "gemini-3.5-flash" : "meta-llama/llama-3.1-8b-instruct";
-            }
-          } else if (mName.includes('flash') || mName.includes('medium') || mName.includes('3.5-flash') || mName.includes('1.5-flash')) {
+          if (mName.includes('pro') || mName.includes('gemma') || mName.includes('3-4b') || mName.includes('gemma-3')) {
             if (!hasPro && !hasGold) {
-              targetModel = "meta-llama/llama-3.1-8b-instruct";
+              targetModel = "mistralai/mistral-7b-instruct";
             }
           }
         }

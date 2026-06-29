@@ -41,6 +41,17 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
+  const [aiBrainOption, setAiBrainOption] = useState<'in_browser' | 'cloud' | 'laptop_node'>(() => {
+    const engine = typeof window !== 'undefined' ? localStorage.getItem('doctorian_clinical_engine') : null;
+    if (engine === 'gemma3-tfjs' || !engine) {
+      return 'in_browser'; // Default/primary is in_browser / Option 1
+    }
+    const prioritizeLocal = typeof window !== 'undefined' ? localStorage.getItem('doctorian_prioritize_local_ai') !== 'false' : false;
+    if (prioritizeLocal) {
+      return 'laptop_node';
+    }
+    return 'cloud';
+  });
   const [prioritizeLocalAI, setPrioritizeLocalAI] = useState(() => {
     return localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
   });
@@ -243,7 +254,19 @@ Verified by Joseph Akora - Development Lead.
       localStorage.setItem('doctorian_voice_safety_nodiag', String(voiceSafetyNoDiag));
       localStorage.setItem('doctorian_voice_safety_nooutcome', String(voiceSafetyNoOutcome));
       localStorage.setItem('doctorian_voice_safety_encourage', String(voiceSafetyEncourageHelp));
-      localStorage.setItem('doctorian_prioritize_local_ai', String(prioritizeLocalAI));
+      
+      // Save AI Brain selection
+      if (aiBrainOption === 'in_browser') {
+        localStorage.setItem('doctorian_clinical_engine', 'gemma3-tfjs');
+        localStorage.setItem('doctorian_prioritize_local_ai', 'false');
+      } else if (aiBrainOption === 'cloud') {
+        localStorage.setItem('doctorian_clinical_engine', 'medlm-medium');
+        localStorage.setItem('doctorian_prioritize_local_ai', 'false');
+      } else if (aiBrainOption === 'laptop_node') {
+        localStorage.setItem('doctorian_clinical_engine', 'llama-clinical');
+        localStorage.setItem('doctorian_prioritize_local_ai', 'true');
+      }
+
       localStorage.setItem('doctorian_local_api_key', localApiKey);
       // Reset the local connection failure counter to allow 3 fresh attempts under the new settings
       localStorage.setItem('doctorian_local_fail_count', '0');
@@ -970,98 +993,99 @@ Verified by Joseph Akora - Development Lead.
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Option 1: Cloud Core */}
+                    {/* Option 1: In-Browser Local Brain (Gemma 3 TFJS) */}
                     <button
                       type="button"
                       onClick={() => {
+                        setAiBrainOption('in_browser');
                         setPrioritizeLocalAI(false);
                       }}
                       className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
-                        !prioritizeLocalAI
+                        aiBrainOption === 'in_browser'
                           ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
                           : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
-                        <div className={`p-3 rounded-2xl ${!prioritizeLocalAI ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                        <div className={`p-3 rounded-2xl ${aiBrainOption === 'in_browser' ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                          <Cpu size={20} />
+                        </div>
+                        {aiBrainOption === 'in_browser' && (
+                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Primary</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">In-Browser Local Brain</h5>
+                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">Google Gemma 3 (TFJS DL)</p>
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
+                          Loads weights directly in-browser. 100% private execution on your GPU using WebGL/WebGPU.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Option 2: Cloud Core */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAiBrainOption('cloud');
+                        setPrioritizeLocalAI(false);
+                      }}
+                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
+                        aiBrainOption === 'cloud'
+                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-3 rounded-2xl ${aiBrainOption === 'cloud' ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
                           <Globe size={20} />
                         </div>
-                        {!prioritizeLocalAI && (
-                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Active</span>
+                        {aiBrainOption === 'cloud' && (
+                          <span className="px-2 py-0.5 bg-slate-500 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Failover</span>
                         )}
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Cloud Brain Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Google Gemini 1.5 Flash</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Google Gemini (Active Fallback)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Zero configuration required. Lightning fast & secure web search clinical reasoning.
+                          High performance failover cloud synapse. Instant clinical reasoning & web search grounding.
                         </p>
                       </div>
                     </button>
 
-                    {/* Option 2: Ollama Local */}
+                    {/* Option 3: Laptop Server Node */}
                     <button
                       type="button"
                       onClick={() => {
+                        setAiBrainOption('laptop_node');
                         setPrioritizeLocalAI(true);
-                        setOllamaUrl('http://localhost:11434');
                       }}
                       className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
-                        prioritizeLocalAI && (ollamaUrl.includes('11434') || !ollamaUrl.includes('1234'))
+                        aiBrainOption === 'laptop_node'
                           ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
                           : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
-                        <div className={`p-3 rounded-2xl ${prioritizeLocalAI && (ollamaUrl.includes('11434') || !ollamaUrl.includes('1234')) ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
-                          <Cpu size={20} />
-                        </div>
-                        {prioritizeLocalAI && (ollamaUrl.includes('11434') || !ollamaUrl.includes('1234')) && (
-                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Active</span>
-                        )}
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Ollama Laptop Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Port: 11434</p>
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Runs locally on your laptop. Full privacy & complete air-gapped clinical operations.
-                        </p>
-                      </div>
-                    </button>
-
-                    {/* Option 3: LM Studio Local */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPrioritizeLocalAI(true);
-                        setOllamaUrl('http://localhost:1234');
-                      }}
-                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
-                        prioritizeLocalAI && ollamaUrl.includes('1234')
-                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
-                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className={`p-3 rounded-2xl ${prioritizeLocalAI && ollamaUrl.includes('1234') ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                        <div className={`p-3 rounded-2xl ${aiBrainOption === 'laptop_node' ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
                           <Activity size={20} />
                         </div>
-                        {prioritizeLocalAI && ollamaUrl.includes('1234') && (
+                        {aiBrainOption === 'laptop_node' && (
                           <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Active</span>
                         )}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">LM Studio Laptop Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Port: 1234</p>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Laptop Server Node</h5>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Ollama / LM Studio</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Direct OpenAI-compatible local endpoints running on your device.
+                          Run customized offline server models (Llama 3.1) on laptop port 11434 / 1234.
                         </p>
                       </div>
                     </button>
                   </div>
 
                   {/* Local Customizer Settings rendered dynamically when Local is chosen */}
-                  {prioritizeLocalAI && (
+                  {aiBrainOption === 'laptop_node' && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

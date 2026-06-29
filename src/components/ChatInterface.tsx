@@ -745,19 +745,8 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         return saved;
       }
     }
-    // Gloriajayakullo gets MedLM bypass
-    if (user?.email?.toLowerCase() === "gloriajayakullo@gmail.com") return 'medlm-medium';
-    
-    // Default fallback based on active paid status
-    const tier = user?.subscriptionTier || 'free';
-    const isActive = user?.subscriptionStatus === 'active';
-    if (isActive && ['business', 'gold', 'enterprise'].includes(tier)) {
-      return 'medlm-large';
-    }
-    if (isActive && ['pro', 'silver'].includes(tier)) {
-      return 'medlm-medium';
-    }
-    return 'gemma3-tfjs'; // Set Google Gemma 3 4B via TF.js as standard default offline-first brain!
+    // Set Google Gemma 3 4B via TF.js as standard default offline-first brain for everyone!
+    return 'gemma3-tfjs';
   });
 
   const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs') => {
@@ -2327,7 +2316,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
       const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
       const hasLocalUrl = true;
 
-      if (clinicalEngine === 'gemma3-tfjs' && !prioritizeLocalAI && !hasLocalUrl) {
+      if (clinicalEngine === 'gemma3-tfjs') {
         setIsThinking(true);
         // Simulate real TF.js execution latency and pattern calculation
         await new Promise(resolve => setTimeout(resolve, 800));

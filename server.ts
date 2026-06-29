@@ -272,9 +272,9 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
 
   // Native Google key fallback (AIza...)
   if (m.includes('mistral')) {
-    return "models/gemma-2-27b-it"; // Native Google GenAI does not host Mistral, fallback to Gemma
+    return "gemini-3.5-flash"; // Native Google GenAI does not host Mistral, fallback to Gemini
   }
-  return "models/gemma-2-27b-it";
+  return "gemini-3.5-flash";
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
@@ -569,15 +569,15 @@ async function* callAIStream(options: {
 
   const lastMessage = messages[messages.length - 1];
   
-  // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
-  let pathways = ["ollama", "huggingface", "keys", "together"];
+  // Configure pathways: Option 1 (keys/cloud) is the primary AI brain, Option 2 (ollama/local) is the fallback/failover
+  let pathways = ["keys", "ollama", "huggingface", "together"];
   if (IS_LM_STUDIO) {
-    pathways = ["ollama"];
+    pathways = ["keys", "ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "huggingface", "keys", "together"];
+    pathways = ["keys", "ollama", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    // Highly prioritize local LM Studio url first
-    pathways = ["ollama", "huggingface", "keys", "together"];
+    // Try keys (primary) first, and fallback to local Ollama/LM Studio node
+    pathways = ["keys", "ollama", "huggingface", "together"];
   }
 
   for (const pathway of pathways) {
@@ -1017,7 +1017,7 @@ async function* callAIStream(options: {
                   success = true;
                 } catch (streamInitErr: any) {
                   console.log("[AI-STREAM] Modern Synapse stream failed, trying alternate model fallback:", streamInitErr.message);
-                  const modelsToTry = ["models/gemma-2-27b-it", "models/gemma-2-9b-it"].filter(m => m !== providerModel);
+                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-STREAM] Attempting stream fallback with model: ${modelId}`);
@@ -1160,15 +1160,15 @@ async function callAIWorkflow(options: {
     }
   }
 
-  // Dynamically prioritize Local Ollama / LM Studio if url is configured and reachable
-  let pathways = ["ollama", "huggingface", "keys", "together"];
+  // Configure pathways: Option 1 (keys/cloud) is the primary AI brain, Option 2 (ollama/local) is the fallback/failover
+  let pathways = ["keys", "ollama", "huggingface", "together"];
   if (IS_LM_STUDIO) {
-    pathways = ["ollama"];
+    pathways = ["keys", "ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "huggingface", "keys", "together"];
+    pathways = ["keys", "ollama", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    // Highly prioritize local LM Studio url first
-    pathways = ["ollama", "huggingface", "keys", "together"];
+    // Try keys (primary) first, and fallback to local Ollama/LM Studio node
+    pathways = ["keys", "ollama", "huggingface", "together"];
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -1429,7 +1429,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && (providerModel.includes('gemini') || providerModel.includes('gemma')) ? providerModel : "models/gemma-2-27b-it";
+              const effectiveModel = providerModel && (providerModel.includes('gemini') || providerModel.includes('gemma')) ? providerModel : "gemini-3.5-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1478,7 +1478,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["models/gemma-2-27b-it", "models/gemma-2-9b-it"].filter(m => m !== effectiveModel);
+                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
@@ -5104,15 +5104,11 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         let textResponse;
         try {
           textResponse = await ai.models.generateContent({
-            model: "gemma-2-27b-it",
+            model: "gemini-3.5-flash",
             contents: prompt,
           });
         } catch (err: any) {
-          console.log("[AI-VOICE] gemma-2-27b-it failed, trying gemma-2-9b-it fallback:", err.message);
-          textResponse = await ai.models.generateContent({
-            model: "gemma-2-9b-it",
-            contents: prompt,
-          });
+          console.log("[AI-VOICE] gemini-3.5-flash failed:", err.message);
         }
 
         if (textResponse && textResponse.text) {
@@ -5320,20 +5316,6 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       let result;
       try {
         result = await aiClient.models.generateContent({
-          model: "gemma-2-27b-it",
-          contents: [
-            prompt,
-            {
-              inlineData: {
-                data: audio.includes('base64,') ? audio.split('base64,')[1] : audio,
-                mimeType: mimeType || 'audio/webm'
-              }
-            }
-          ]
-        });
-      } catch (err: any) {
-        console.log("[AI-TRANSCRIBE] gemma-2-27b-it failed, trying gemini-3.5-flash fallback for audio modality:", err.message);
-        result = await aiClient.models.generateContent({
           model: "gemini-3.5-flash",
           contents: [
             prompt,
@@ -5345,6 +5327,9 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
             }
           ]
         });
+      } catch (err: any) {
+        console.log("[AI-TRANSCRIBE] gemini-3.5-flash failed for audio modality:", err.message);
+        throw err;
       }
 
       const responseText = result.text || "";

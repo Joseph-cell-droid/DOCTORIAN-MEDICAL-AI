@@ -1074,6 +1074,444 @@ const fetchTranslationInBackground = (text: string, targetLanguage: string) => {
   });
 };
 
+const simplifiedOfflineTranslations: Record<string, Record<string, string>> = {
+  'Luganda': {
+    'Home Screen': 'Wwebbulaasi',
+    'Talk to Doctor': 'Yogera ne Musawo',
+    'Long Life Lab': 'Ebikwatagana ku Nsigo',
+    'Body Pictures': 'Ebifaananyi by’Eddagala',
+    'Train Doctor': 'Tendeka Musawo',
+    'Health Simulator': 'Kipimo ky’Obulamu',
+    'Check Illness': 'Kebera Obulwaye',
+    'Heart & Pulse': 'Okukuba kw’Omutima',
+    'Health History': 'Kalonda w’Obulamu',
+    'Body Energy': 'Amaanyi g’Omubiri',
+    'Doctor Area': 'Ebikwata ku Basawo',
+    'Medicine Store': 'Ettundiro ly’Eddagala',
+    'Talk to Experts': 'Yunga ku Bakugu',
+    'About App': 'Ebikwata ku Pulogulaamu',
+    'Admin Panel': 'Obuyinza obwa Admin',
+    'Help Center': 'Okuyambibwa',
+    'Privacy Vault': 'Kakebe k’Ebyama',
+    'Terms & Data': 'Ebiragiro n’Ebiwandiiko'
+  },
+  'Swahili': {
+    'Home Screen': 'Mwangaza',
+    'Talk to Doctor': 'Zungumza na Daktari',
+    'Long Life Lab': 'Maabara ya Maisha Marefu',
+    'Body Pictures': 'Picha za Mwili',
+    'Train Doctor': 'Funza Daktari',
+    'Health Simulator': 'Kielelezo cha Afya',
+    'Check Illness': 'Chunguza Ugonjwa',
+    'Heart & Pulse': 'Moyo na Mapigo',
+    'Health History': 'Historia ya Afya',
+    'Body Energy': 'Nguvu ya Mwili',
+    'Doctor Area': 'Eneo la Madaktari',
+    'Medicine Store': 'Duka la Dawa',
+    'Talk to Experts': 'Ongea na Wataalamu',
+    'About App': 'Kuhusu Programu',
+    'Admin Panel': 'Jopo la Utawala',
+    'Help Center': 'Kituo cha Msaada',
+    'Privacy Vault': 'Eneo la Faragha',
+    'Terms & Data': 'Vigezo na Data'
+  },
+  'Spanish': {
+    'Home Screen': 'Inicio',
+    'Talk to Doctor': 'Hablar con Médico',
+    'Long Life Lab': 'Laboratorio de Vida Larga',
+    'Body Pictures': 'Imágenes del Cuerpo',
+    'Train Doctor': 'Entrenar Médico',
+    'Health Simulator': 'Simulador de Salud',
+    'Check Illness': 'Comprobar Enfermedad',
+    'Heart & Pulse': 'Corazón y Pulso',
+    'Health History': 'Historial de Salud',
+    'Body Energy': 'Energía del Cuerpo',
+    'Doctor Area': 'Área de Médicos',
+    'Medicine Store': 'Farmacia',
+    'Talk to Experts': 'Hablar con Expertos',
+    'About App': 'Sobre la Aplicación',
+    'Admin Panel': 'Panel de Control',
+    'Help Center': 'Centro de Ayuda',
+    'Privacy Vault': 'Bóveda de Privacidad',
+    'Terms & Data': 'Términos y Datos'
+  },
+  'French': {
+    'Home Screen': 'Accueil',
+    'Talk to Doctor': 'Parler au Docteur',
+    'Long Life Lab': 'Labo Vie Longue',
+    'Body Pictures': 'Images du Corps',
+    'Train Doctor': 'Former le Docteur',
+    'Health Simulator': 'Simulateur de Santé',
+    'Check Illness': 'Vérifier la Maladie',
+    'Heart & Pulse': 'Cœur et Pouls',
+    'Health History': 'Historique de Santé',
+    'Body Energy': 'Énergie du Corps',
+    'Doctor Area': 'Espace Docteurs',
+    'Medicine Store': 'Pharmacie',
+    'Talk to Experts': 'Parler aux Experts',
+    'About App': 'À Propos de l’App',
+    'Admin Panel': 'Panneau d’Administration',
+    'Help Center': 'Centre d’Aide',
+    'Privacy Vault': 'Coffre de Confidentialité',
+    'Terms & Data': 'Conditions et Données'
+  },
+  'German': {
+    'Home Screen': 'Startbildschirm',
+    'Talk to Doctor': 'Mit Arzt sprechen',
+    'Long Life Lab': 'Labor für langes Leben',
+    'Body Pictures': 'Körperbilder',
+    'Train Doctor': 'Arzt ausbilden',
+    'Health Simulator': 'Gesundheitssimulator',
+    'Check Illness': 'Krankheit prüfen',
+    'Heart & Pulse': 'Herz & Puls',
+    'Health History': 'Gesundheitsverlauf',
+    'Body Energy': 'Körperenergie',
+    'Doctor Area': 'Arztbereich',
+    'Medicine Store': 'Apotheke',
+    'Talk to Experts': 'Mit Experten sprechen',
+    'About App': 'Über die App',
+    'Admin Panel': 'Admin-Bereich',
+    'Help Center': 'Hilfe-Center',
+    'Privacy Vault': 'Datenschutz-Tresor',
+    'Terms & Data': 'Nutzungsbedingungen'
+  },
+  'Chinese': {
+    'Home Screen': '主屏幕',
+    'Talk to Doctor': '咨询医生',
+    'Long Life Lab': '长寿实验室',
+    'Body Pictures': '身体图像',
+    'Train Doctor': '训练医生',
+    'Health Simulator': '健康模拟器',
+    'Check Illness': '检查疾病',
+    'Heart & Pulse': '心脏与脉搏',
+    'Health History': '健康历史',
+    'Body Energy': '身体能量',
+    'Doctor Area': '医生区域',
+    'Medicine Store': '药房',
+    'Talk to Experts': '咨询专家',
+    'About App': '关于应用',
+    'Admin Panel': '管理面板',
+    'Help Center': '帮助中心',
+    'Privacy Vault': '隐私保险库',
+    'Terms & Data': '条款与数据'
+  },
+  'Hindi': {
+    'Home Screen': 'मुख्य स्क्रीन',
+    'Talk to Doctor': 'डॉक्टर से बात करें',
+    'Long Life Lab': 'दीर्घायु लैब',
+    'Body Pictures': 'शरीर के चित्र',
+    'Train Doctor': 'डॉक्टर को सिखाएं',
+    'Health Simulator': 'स्वास्थ्य सिम्युलेटर',
+    'Check Illness': 'बीमारी की जाँच',
+    'Heart & Pulse': 'दिल और धड़कन',
+    'Health History': 'स्वास्थ्य इतिहास',
+    'Body Energy': 'शरीर की ऊर्जा',
+    'Doctor Area': 'डॉक्टर क्षेत्र',
+    'Medicine Store': 'दवा की दुकान',
+    'Talk to Experts': 'विशेषज्ञों से बात करें',
+    'About App': 'ऐप के बारे में',
+    'Admin Panel': 'एडमिन पैनल',
+    'Help Center': 'सहायता केंद्र',
+    'Privacy Vault': 'गोपनीयता तिजोरी',
+    'Terms & Data': 'नियम और डेटा'
+  },
+  'Arabic': {
+    'Home Screen': 'الشاشة الرئيسية',
+    'Talk to Doctor': 'تحدث مع الطبيب',
+    'Long Life Lab': 'مختبر العمر الطويل',
+    'Body Pictures': 'صور الجسم',
+    'Train Doctor': 'تدريب الطبيب',
+    'Health Simulator': 'محاكي الصحة',
+    'Check Illness': 'فحص المرض',
+    'Heart & Pulse': 'القلب والنبض',
+    'Health History': 'تاريخ الصحة',
+    'Body Energy': 'طاقة الجسم',
+    'Doctor Area': 'منطقة الأطباء',
+    'Medicine Store': 'مخزن الأدوية',
+    'Talk to Experts': 'تحدث مع الخبراء',
+    'About App': 'حول التطبيق',
+    'Admin Panel': 'لوحة التحكم',
+    'Help Center': 'مركز المساعدة',
+    'Privacy Vault': 'خزنة الخصوصية',
+    'Terms & Data': 'الشروط والبيانات'
+  },
+  'Portuguese': {
+    'Home Screen': 'Tela Inicial',
+    'Talk to Doctor': 'Falar com Médico',
+    'Long Life Lab': 'Laboratório de Longevidade',
+    'Body Pictures': 'Imagens do Corpo',
+    'Train Doctor': 'Treinar Médico',
+    'Health Simulator': 'Simulador de Saúde',
+    'Check Illness': 'Verificar Doença',
+    'Heart & Pulse': 'Coração e Pulso',
+    'Health History': 'Histórico de Saúde',
+    'Body Energy': 'Energia do Corpo',
+    'Doctor Area': 'Área Médica',
+    'Medicine Store': 'Farmácia',
+    'Talk to Experts': 'Falar com Especialistas',
+    'About App': 'Sobre o Aplicativo',
+    'Admin Panel': 'Painel Administrativo',
+    'Help Center': 'Central de Ajuda',
+    'Privacy Vault': 'Cofre de Privacidade',
+    'Terms & Data': 'Termos e Dados'
+  },
+  'Runyankole-Rukiga': {
+    'Home Screen': 'Ebaandi y’eMirimo',
+    'Talk to Doctor': 'Gamba na Musawo',
+    'Long Life Lab': 'Oburamu Obureingwa',
+    'Body Pictures': 'Ebishushani by’Omubiri',
+    'Train Doctor': 'Tunga Musawo',
+    'Health Simulator': 'Akasanduku k’Oburamu',
+    'Check Illness': 'Kebera Oburwire',
+    'Heart & Pulse': 'Omutima n’Okukuba',
+    'Health History': 'Ebyafaayo by’Oburamu',
+    'Body Energy': 'Amaanyi g’Omubiri',
+    'Doctor Area': 'Ekitundu ky’Abashaho',
+    'Medicine Store': 'Eitundiro ry’Eddagala',
+    'Talk to Experts': 'Gamba n’Abashaho ba Kugu',
+    'About App': 'Ebikwata ha Sistemu',
+    'Admin Panel': 'Obushobozi bwa Admin'
+  },
+  'Acholi-Luo': {
+    'Home Screen': 'Pany kin mogo',
+    'Talk to Doctor': 'Lok ki Musawo',
+    'Long Life Lab': 'Kwan me Nying',
+    'Body Pictures': 'Cal me Cogo',
+    'Train Doctor': 'Pwony Musawo',
+    'Health Simulator': 'Cogo me Biomatic',
+    'Check Illness': 'Ngolo bur',
+    'Heart & Pulse': 'Cwiny ki Cencor',
+    'Health History': 'Kwo pa yat',
+    'Body Energy': 'Matrix me kwo',
+    'Doctor Area': 'Core me yat',
+    'Medicine Store': 'Kabedo me yat',
+    'Talk to Experts': 'Kub ki ludito yat',
+    'About App': 'Ngec me lany',
+    'Admin Panel': 'Twero pa admin'
+  },
+  'Langi': {
+    'Home Screen': 'Kany me ngol',
+    'Talk to Doctor': 'Lok i kura ne Musawo',
+    'Long Life Lab': 'Kikok kor obola',
+    'Body Pictures': 'Cal me obola',
+    'Train Doctor': 'Pwony Musawo',
+    'Health Simulator': 'Akasanduk me Biomatic',
+    'Check Illness': 'Ngolo bur',
+    'Heart & Pulse': 'Cwiny ki Monitor',
+    'Health History': 'Nino kor kwo',
+    'Body Energy': 'Teko me kwo',
+    'Doctor Area': 'Yub me kwo',
+    'Medicine Store': 'Karibiti me yat',
+    'Talk to Experts': 'Yubu ludito yat',
+    'About App': 'Ngec kor lany',
+    'Admin Panel': 'Twero pa admin'
+  },
+  'Iteso': {
+    'Home Screen': 'Ebaandi eupaas',
+    'Talk to Doctor': 'Ingit Musawo',
+    'Long Life Lab': 'Ikaileta loka aijar',
+    'Body Pictures': 'Ebishushani loka aijar',
+    'Train Doctor': 'Aitipin Musawo',
+    'Health Simulator': 'Akasaduku nako Biomatic',
+    'Check Illness': 'Akirukot',
+    'Heart & Pulse': 'Omutima loka aijar',
+    'Health History': 'Aitiit aijar',
+    'Body Energy': 'Atorokin naka aijar',
+    'Doctor Area': 'Clinic loka asistemu',
+    'Medicine Store': 'Abisikin naka ekisero',
+    'Talk to Experts': 'Aiidudun laka eyaat',
+    'About App': 'Ikisila ka asistemu',
+    'Admin Panel': 'Apolou ko Admin'
+  },
+  'Lusoga': {
+    'Home Screen': 'Ebaandi ya Bulamu',
+    'Talk to Doctor': 'Yogera ne Musawo',
+    'Long Life Lab': 'Ekyobukulukuku kya Bulamu',
+    'Body Pictures': 'Ebifaananyi bya Bulamu',
+    'Train Doctor': 'Tendeka Musawo',
+    'Health Simulator': 'Akasanduko ka Biomatic',
+    'Check Illness': 'Ekebezi lya Obulwaye',
+    'Heart & Pulse': 'Omutima gwa Doctorian',
+    'Health History': 'Kwonya Bulamu',
+    'Body Energy': 'Amaani ga Bulamu',
+    'Doctor Area': 'Hub ya Bulamu',
+    'Medicine Store': 'Edduuka lya Eddagala',
+    'Talk to Experts': 'Yunga ku Bakugu',
+    'About App': 'Ebyokumanya Sistemu',
+    'Admin Panel': 'Obuyinza bwa Admin'
+  },
+  'Lugbara': {
+    'Home Screen': 'Tanga be mve',
+    'Talk to Doctor': 'Obi Musawo dri',
+    'Long Life Lab': 'Oca be kile mve',
+    'Body Pictures': 'Ebifaananyi be mve',
+    'Train Doctor': 'Mbaara be diagnostic',
+    'Health Simulator': 'Kaso be Biomatic',
+    'Check Illness': 'Uvupi ba diagnostic',
+    'Heart & Pulse': 'Bari be Doctorian',
+    'Health History': 'Obipi be ada',
+    'Body Energy': 'Akpara okpo be',
+    'Doctor Area': 'Klinik be sistem',
+    'Medicine Store': 'Kasuro be adi',
+    'Talk to Experts': 'Eje drakpi be dda',
+    'About App': 'Efofo be sistem',
+    'Admin Panel': 'Okpo be admin'
+  },
+  'Runyoro-Rutooro': {
+    'Home Screen': "Ebaandi y'eMikorra",
+    'Talk to Doctor': 'Gamba na Musawo',
+    'Long Life Lab': "Eby'obusika n'Obulamu",
+    'Body Pictures': "Ebishushani by'Eddagala",
+    'Train Doctor': 'Tendeka Musawo',
+    'Health Simulator': 'Akasanduku ka Biomatic',
+    'Check Illness': 'Kebera Oburwire',
+    'Heart & Pulse': 'Omutima gwa Doctorian',
+    'Health History': 'Okuhondera Obulamu',
+    'Body Energy': "Engarika y'Obulamu",
+    'Doctor Area': "Kitebe ky'Eby'obushaho",
+    'Medicine Store': "Edduuka ly'Eddagala",
+    'Talk to Experts': 'Kwatahanisa n’Abashaho',
+    'About App': 'Ebikwata ha Sistemu',
+    'Admin Panel': 'Obuyinza bwa Admin'
+  },
+  'Rukonjo': {
+    'Home Screen': "Ebbende y'Emibiri",
+    'Talk to Doctor': 'Bulia Musawo',
+    'Long Life Lab': "Eriserukya ery'Obulamu",
+    'Body Pictures': "Ebifaananyi by'Eddagala",
+    'Train Doctor': 'Tendeka Musawo',
+    'Health Simulator': 'Akasanduku ko Biomatic',
+    'Check Illness': "Maabara y'Erikebera",
+    'Heart & Pulse': 'Omutima gwa Doctorian',
+    'Health History': 'Okukwama Obulamu',
+    'Body Energy': "Engabi y'Obulamu",
+    'Doctor Area': 'Kitebe kya CognisHub',
+    'Medicine Store': "Ediru ly'Eddagala",
+    'Talk to Experts': 'Yunga n’Abakugu',
+    'About App': 'Ebikwata ha Sistemu',
+    'Admin Panel': 'Obuyinza obwo Admin'
+  },
+  'Samia': {
+    'Home Screen': "Engalo y'emilimo",
+    'Talk to Doctor': 'Reeba Musawo',
+    'Long Life Lab': 'Ekikaibeele kya bulamu',
+    'Body Pictures': 'Ebifaananyi bye eddagala',
+    'Train Doctor': 'Khusa Musawo',
+    'Health Simulator': 'Akasanduko ka Biomatic',
+    'Check Illness': 'Ekemeero lya bulwaye',
+    'Heart & Pulse': 'Omuteyo kwa Doctorian',
+    'Health History': 'Okukuunda obulamu',
+    'Body Energy': 'Amakani ka bulamu',
+    'Doctor Area': 'Hub lya bulami',
+    'Medicine Store': 'Eryoolo lya eddagala',
+    'Talk to Experts': 'Khunye n’abasaho',
+    'About App': "Amang'ana ka sistemu",
+    'Admin Panel': 'Obunikhali bwa Admin'
+  },
+  'Karamojong': {
+    'Home Screen': 'Epeta lotic',
+    'Talk to Doctor': 'Ingit Emuron',
+    'Long Life Lab': 'Aponit naka bulamuoburaingwa',
+    'Body Pictures': 'Ebishushani loka emedical',
+    'Train Doctor': 'Aitipin Emuron',
+    'Health Simulator': 'Akasaduk naka Biomatic',
+    'Check Illness': 'Maabara naka akirukot',
+    'Heart & Pulse': 'Tau loka Doctorian',
+    'Health History': 'Aiti loka aijar',
+    'Body Energy': 'Amoroki naka aijar',
+    'Doctor Area': 'Hub naka emedical',
+    'Medicine Store': 'Aropit naka ekisero',
+    'Talk to Experts': 'Aiidud ko emuron',
+    'About App': 'Ngakiro naka asistem',
+    'Admin Panel': 'Apoloy ko Admin'
+  },
+  'Russian': {
+    'Home Screen': 'Главный экран',
+    'Talk to Doctor': 'Чат с врачом',
+    'Long Life Lab': 'Лаборатория долголетия',
+    'Body Pictures': 'Иллюстрации тела',
+    'Train Doctor': 'Обучить врача',
+    'Health Simulator': 'Симулятор здоровья',
+    'Check Illness': 'Поиск болезней',
+    'Heart & Pulse': 'Сердце и пульс',
+    'Health History': 'История здоровья',
+    'Body Energy': 'Энергия тела',
+    'Doctor Area': 'Кабинет врача',
+    'Medicine Store': 'Аптека',
+    'Talk to Experts': 'Связь с экспертами',
+    'About App': 'О приложении',
+    'Admin Panel': 'Панель админа'
+  },
+  'Japanese': {
+    'Home Screen': 'ホーム画面',
+    'Talk to Doctor': '医師に相談',
+    'Long Life Lab': '長寿研究ラボ',
+    'Body Pictures': '体のイラスト',
+    'Train Doctor': '医師を訓練する',
+    'Health Simulator': '健康シミュレーター',
+    'Check Illness': '病気を確認する',
+    'Heart & Pulse': '心臓と脈拍',
+    'Health History': '健康の履歴',
+    'Body Energy': '体のエネルギー',
+    'Doctor Area': '医師エリア',
+    'Medicine Store': '薬局デポ',
+    'Talk to Experts': '専門家に相談',
+    'About App': 'アプリについて',
+    'Admin Panel': '管理パネル'
+  },
+  'Korean': {
+    'Home Screen': '홈 화면',
+    'Talk to Doctor': '의사와 상담',
+    'Long Life Lab': '장수 연구소',
+    'Body Pictures': '인체 그림',
+    'Train Doctor': '의사 훈련',
+    'Health Simulator': '건강 시뮬레이터',
+    'Check Illness': '질병 확인',
+    'Heart & Pulse': '심장 및 맥박',
+    'Health History': '건강 기록',
+    'Body Energy': '신체 에너지',
+    'Doctor Area': '의사 전용 영역',
+    'Medicine Store': '약국 저장소',
+    'Talk to Experts': '전문가 상담',
+    'About App': '앱 정보',
+    'Admin Panel': '관리자 패널'
+  },
+  'Italian': {
+    'Home Screen': 'Schermata Home',
+    'Talk to Doctor': 'Parla con il Medico',
+    'Long Life Lab': 'Laboratorio Longevità',
+    'Body Pictures': 'Disegni del Corpo',
+    'Train Doctor': 'Addestra il Medico',
+    'Health Simulator': 'Simulatore di Salute',
+    'Check Illness': 'Trova Malatte',
+    'Heart & Pulse': 'Cuore e Pulsazioni',
+    'Health History': 'Cronologia Salute',
+    'Body Energy': 'Energia del Corpo',
+    'Doctor Area': 'Area Medici',
+    'Medicine Store': 'Deposito Farmaci',
+    'Talk to Experts': 'Parla con Esperti',
+    'About App': 'Informazioni App',
+    'Admin Panel': 'Pannello Amministratore'
+  },
+  'Turkish': {
+    'Home Screen': 'Ana Ekran',
+    'Talk to Doctor': 'Doktorla Konuş',
+    'Long Life Lab': 'Uzun Yaşam Laboratuvarı',
+    'Body Pictures': 'Vücut Resimleri',
+    'Train Doctor': 'Doktoru Eğit',
+    'Health Simulator': 'Sağlık Simülatörü',
+    'Check Illness': 'Hastalık Kontrolü',
+    'Heart & Pulse': 'Kalp ve Nabız',
+    'Health History': 'Sağlık Geçmişi',
+    'Body Energy': 'Vücut Enerjisi',
+    'Doctor Area': 'Doktor Bölgesi',
+    'Medicine Store': 'Eczane Deposu',
+    'Talk to Experts': 'Uzmanlarla Konuş',
+    'About App': 'Uygulama Hakkında',
+    'Admin Panel': 'Yönetici Paneli'
+  }
+};
+
 export const translate = (text: string, selectedLanguage: string): string => {
   const trimmed = text.trim();
   if (!trimmed) return text;
@@ -1081,8 +1519,41 @@ export const translate = (text: string, selectedLanguage: string): string => {
   // Simple quick guard to avoid auto-translating things that are numeric values
   if (/^\d+(\.\d+)?%?$/.test(trimmed)) return text;
 
+  const oldKeyFallbackMap: Record<string, string> = {
+    'Home Dashboard': 'Home Screen',
+    'AI Consultation': 'Talk to Doctor',
+    'Longevity & DNA Lab': 'Long Life Lab',
+    'Anatomy Illustrator': 'Body Pictures',
+    'Neural Core Trainer': 'Train Doctor',
+    'Biosimulator Lab': 'Health Simulator',
+    'Diagnostic Lab Analyser': 'Check Illness',
+    'Real-time Bio-Monitor': 'Heart & Pulse',
+    'Clinical History Trace': 'Health History',
+    'Vitality Bio-Energy': 'Body Energy',
+    'Doctors\' Portal': 'Doctor Area',
+    'Clinical Pharmacy': 'Medicine Store',
+    'Specialist Referral Network': 'Talk to Experts',
+    'System & App Info': 'About App',
+    'Admin Command Center': 'Admin Panel'
+  };
+
+  const lookupKey = oldKeyFallbackMap[trimmed] || trimmed;
   const langKey = selectedLanguage as LanguageCode;
-  
+
+  // 0. Check Simplified Offline Translations
+  if (simplifiedOfflineTranslations[langKey]) {
+    const matched = simplifiedOfflineTranslations[langKey][lookupKey];
+    if (matched) return matched;
+    
+    // Case-insensitive check
+    const lowerLookup = lookupKey.toLowerCase();
+    for (const key of Object.keys(simplifiedOfflineTranslations[langKey])) {
+      if (key.toLowerCase() === lowerLookup) {
+        return simplifiedOfflineTranslations[langKey][key];
+      }
+    }
+  }
+
   // English does not require further parsing
   if (selectedLanguage.startsWith('English')) {
     return text;
@@ -1092,14 +1563,14 @@ export const translate = (text: string, selectedLanguage: string): string => {
   
   // 1. Check Pre-compiled static translations
   if (systemTranslations) {
-    if (trimmed in systemTranslations) {
-      return systemTranslations[trimmed];
+    if (lookupKey in systemTranslations) {
+      return systemTranslations[lookupKey];
     }
 
     // Case-insensitive static check
-    const lowerTrimmed = trimmed.toLowerCase();
+    const lowerLookup = lookupKey.toLowerCase();
     for (const key of Object.keys(systemTranslations)) {
-      if (key.toLowerCase() === lowerTrimmed) {
+      if (key.toLowerCase() === lowerLookup) {
         return systemTranslations[key];
       }
     }

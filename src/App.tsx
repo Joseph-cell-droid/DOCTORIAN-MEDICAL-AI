@@ -230,24 +230,24 @@ import { AppTutorial } from './components/AppTutorial';
 import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 const viewNamesMap: Record<string, string> = {
-  home: 'Dashboard Home',
-  monitor: 'Vitals Monitor',
+  home: 'Home Dashboard',
+  monitor: 'Real-time Bio-Monitor',
   features: 'Clinical Modules',
-  about: 'About System',
+  about: 'System & App Info',
   learn_more: 'Documentation',
   records: 'Health Records',
   profile: 'User Profile',
-  admin: 'Admin Console',
-  specialist: 'Specialists Advisor',
-  neuro: 'Neural Health Node',
-  vitality: 'Vitality Matrix',
-  meds: 'Medication Tracker',
+  admin: 'Admin Command Center',
+  specialist: 'Specialist Referral Network',
+  neuro: 'Neural Core Trainer',
+  vitality: 'Vitality Bio-Energy',
+  meds: 'Clinical Pharmacy',
   fitness: 'Fitness Analytics',
   symptoms: 'Symptom Checker',
   biosecurity: 'Biosecurity Shield',
-  ai_nexus: 'AI Nexus Portal',
-  illustrator: 'Medical Illustrator',
-  diagnostic_lab: 'Diagnostic Lab',
+  ai_nexus: 'AI Consultation',
+  illustrator: 'Anatomy Illustrator',
+  diagnostic_lab: 'Diagnostic Lab Analyser',
   emergency: 'Emergency Portal',
   training: 'Neural training',
   tasks: 'System Queue',
@@ -257,11 +257,11 @@ const viewNamesMap: Record<string, string> = {
   autonomous_sync: 'Autonomous Core',
   dev_portal: 'Developer Portal',
   billing: 'Resource Billings',
-  health_trace: 'Neural Trace',
-  biomatic: 'Biomatic Lab',
-  genomic_longevity: 'Genomic Longevity',
+  health_trace: 'Clinical History Trace',
+  biomatic: 'Biosimulator Lab',
+  genomic_longevity: 'Longevity & DNA Lab',
   systems_hub: 'Systems Launchpad',
-  doctors_dashboard: 'Doctors Board',
+  doctors_dashboard: 'Doctors\' Portal',
   help: 'Help Center',
   community: 'Global Forum',
   privacy: 'Privacy Vault',
@@ -1803,6 +1803,14 @@ export default function App() {
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: <Shield size={16} />, action: handleAdminAccess }] : [])
   ];
 
+  const isSubViewActive = (linkId: string, current: string) => {
+    if (linkId === current) return true;
+    if (linkId === 'biomatic' && (current === 'genomic_longevity' || current === 'illustrator')) return true;
+    if (linkId === 'monitor' && (current === 'health_trace' || current === 'vitality')) return true;
+    if (linkId === 'doctors_dashboard' && (current === 'neuro' || current === 'meds' || current === 'specialist')) return true;
+    return false;
+  };
+
   const sidebarSections = [
     {
       title: "Core Operations",
@@ -1814,12 +1822,9 @@ export default function App() {
         bar: "bg-blue-500"
       },
       items: [
-        { id: 'home', label: 'Dashboard', icon: <Home size={15} /> },
-        { id: 'ai_nexus', label: 'Doctorian Neural Core', icon: <Bot size={15} /> },
-        { id: 'genomic_longevity', label: 'Genomic Longevity Core', icon: <Dna size={15} /> },
-        { id: 'illustrator', label: 'Medical Illustrator', icon: <Palette size={15} /> },
-        { id: 'neuro', label: 'CognisHub Node', icon: <Brain size={15} /> },
-        { id: 'biomatic', label: 'Biomatic Sandbox', icon: <Cpu size={15} /> },
+        { id: 'home', label: 'Home Dashboard', icon: <Home size={15} /> },
+        { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={15} /> },
+        { id: 'biomatic', label: 'Biosimulator Lab', icon: <Cpu size={15} /> },
       ]
     },
     {
@@ -1832,10 +1837,8 @@ export default function App() {
         bar: "bg-emerald-500"
       },
       items: [
-        { id: 'diagnostic_lab', label: 'Diagnostic Lab', icon: <Stethoscope size={15} /> },
-        { id: 'monitor', label: 'Bio-Monitor Console', icon: <Monitor size={15} /> },
-        { id: 'health_trace', label: 'Health Progress Trace', icon: <TrendingUp size={15} /> },
-        { id: 'vitality', label: 'Vitality Matrix', icon: <Zap size={15} /> },
+        { id: 'diagnostic_lab', label: 'Diagnostic Lab Analyser', icon: <Stethoscope size={15} /> },
+        { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={15} /> },
       ]
     },
     {
@@ -1848,11 +1851,9 @@ export default function App() {
         bar: "bg-purple-500"
       },
       items: [
-        { id: 'doctors_dashboard', label: "Doctors' Dashboard", icon: <FileText size={15} /> },
-        { id: 'meds', label: 'Bio-Pharmacy Depot', icon: <Pill size={15} /> },
-        { id: 'specialist', label: 'Connect Specialists', icon: <Stethoscope size={15} /> },
-        { id: 'about', label: 'Systems Information', icon: <Info size={15} /> },
-        ...(isAdmin ? [{ id: 'admin', label: 'Admin Command Matrix', icon: <Shield size={15} />, action: handleAdminAccess }] : [])
+        { id: 'doctors_dashboard', label: 'Doctors\' Portal', icon: <FileText size={15} /> },
+        { id: 'about', label: 'System & App Info', icon: <Info size={15} /> },
+        ...(isAdmin ? [{ id: 'admin', label: 'Admin Command Center', icon: <Shield size={15} />, action: handleAdminAccess }] : [])
       ]
     }
   ];
@@ -1880,6 +1881,81 @@ export default function App() {
         
         return true;
       });
+
+  const subViewGroups = {
+    biomatic: ['biomatic', 'genomic_longevity', 'illustrator'],
+    monitor: ['monitor', 'health_trace', 'vitality'],
+    doctors: ['doctors_dashboard', 'neuro', 'meds', 'specialist']
+  };
+
+  const getSubViewGroup = (view: string): 'biomatic' | 'monitor' | 'doctors' | null => {
+    if (subViewGroups.biomatic.includes(view)) return 'biomatic';
+    if (subViewGroups.monitor.includes(view)) return 'monitor';
+    if (subViewGroups.doctors.includes(view)) return 'doctors';
+    return null;
+  };
+
+  const renderSubTabsBar = () => {
+    const activeGroup = getSubViewGroup(currentView);
+    if (!activeGroup || !user) return null;
+
+    const tabs = {
+      biomatic: [
+        { id: 'biomatic', label: 'Biosimulator Lab', icon: <Cpu size={14} /> },
+        { id: 'genomic_longevity', label: 'Longevity & DNA Lab', icon: <Dna size={14} /> },
+        { id: 'illustrator', label: 'Anatomy Illustrator', icon: <Palette size={14} /> }
+      ],
+      monitor: [
+        { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={14} /> },
+        { id: 'vitality', label: 'Vitality Bio-Energy', icon: <Zap size={14} /> },
+        { id: 'health_trace', label: 'Clinical History Trace', icon: <TrendingUp size={14} /> }
+      ],
+      doctors: [
+        { id: 'doctors_dashboard', label: "Doctors' Portal", icon: <FileText size={14} /> },
+        { id: 'neuro', label: 'Neural Core Trainer', icon: <Brain size={14} /> },
+        { id: 'meds', label: 'Clinical Pharmacy', icon: <Pill size={14} /> },
+        { id: 'specialist', label: 'Specialist Referral Network', icon: <Stethoscope size={14} /> }
+      ]
+    };
+
+    return (
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/50 dark:border-slate-800/40 pb-4 shrink-0 px-2 sm:px-0">
+        <div>
+          <h2 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">
+            {translate(activeGroup === 'biomatic' ? 'Biosimulator & Labs' : activeGroup === 'monitor' ? 'Bio-Monitoring Systems' : 'Clinical & Doctors Core', currentLanguage)}
+          </h2>
+          <p className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
+            {translate(viewNamesMap[currentView] || '', currentLanguage)}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/70 dark:bg-slate-900/45 backdrop-blur-2xl rounded-2xl border border-slate-200/30 dark:border-slate-800/40 overflow-x-auto no-scrollbar max-w-full">
+          {tabs[activeGroup].map((tab) => {
+            const isTabActive = currentView === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id === 'doctors_dashboard' && !isDoctorAuthenticated) {
+                    setCurrentView('doctors_dashboard');
+                  } else {
+                    setCurrentView(tab.id as any);
+                  }
+                }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                  isTabActive
+                    ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-md border border-slate-200/35 dark:border-slate-850/50 scale-[1.02]'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-850/25'
+                }`}
+              >
+                {React.cloneElement(tab.icon, { className: isTabActive ? 'text-blue-500' : 'text-slate-400' })}
+                <span>{translate(tab.label, currentLanguage)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   const mobileNavLinks = navLinks.slice(0, 5);
 
@@ -1938,7 +2014,7 @@ export default function App() {
 
                   <div className="flex flex-col gap-1">
                     {section.items.map((link) => {
-                      const isActive = currentView === link.id;
+                      const isActive = isSubViewActive(link.id, currentView);
                       return (
                         <button 
                           key={link.id}
@@ -2134,41 +2210,6 @@ export default function App() {
             </div>
           </div>
         </aside>
-      )}
-
-      {/* Mobile Bottom Navigation - User Focused */}
-      {user && currentView !== 'ai_nexus' && (
-        <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] sm:w-[400px] h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] border border-white/20 dark:border-slate-800/50 shadow-2xl flex items-center justify-around px-4">
-          {navLinks.slice(0, 5).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setCurrentView(item.id as any)}
-              className={`flex flex-col items-center gap-1 transition-all ${
-                currentView === item.id 
-                  ? 'text-blue-600' 
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}
-            >
-              <div className={`p-2 rounded-xl transition-all ${currentView === item.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}>
-                {React.cloneElement(item.icon as any, { size: 20 })}
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-tighter">{item.label.split(' ')[0]}</span>
-            </button>
-          ))}
-          <button 
-            onClick={() => setIsMobileMenuOpen(true)}
-            className={`flex flex-col items-center gap-1 transition-all ${
-              isMobileMenuOpen 
-                ? 'text-blue-600' 
-                : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <div className={`p-2 rounded-xl transition-all ${isMobileMenuOpen ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-               <LayoutGrid size={20} />
-            </div>
-            <span className="text-[8px] font-black uppercase tracking-tighter">Systems</span>
-          </button>
-        </nav>
       )}
 
       {/* Mobile/Tablet Header & Bottom Nav */}
@@ -2883,7 +2924,7 @@ export default function App() {
                                     <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
                                       <BrainCircuit size={16} />
                                     </div>
-                                    <span className="font-black uppercase tracking-tight text-left">Doctorian Neural Core</span>
+                                    <span className="font-black uppercase tracking-tight text-left">{translate("Talk to Doctor", currentLanguage)}</span>
                                   </div>
                                   <div className="w-2 h-2 rounded-full bg-violet-550 animate-pulse" />
                                 </button>
@@ -3052,6 +3093,7 @@ export default function App() {
               ? 'py-0 px-0 max-w-full h-full min-h-0' 
               : 'py-6 px-2 sm:px-8 max-w-7xl mx-auto'
           }`}>
+            {renderSubTabsBar()}
             <Suspense fallback={
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
                 <div className="relative">
@@ -4128,7 +4170,7 @@ export default function App() {
     {user && (
       <div 
         id="floating-windows-launcher-container"
-        className="lg:hidden fixed bottom-24 left-5 sm:bottom-8 sm:left-8 z-[150] pointer-events-auto select-none"
+        className="lg:hidden fixed bottom-6 left-6 z-[150] pointer-events-auto select-none"
       >
         <motion.div
           drag
@@ -4167,23 +4209,16 @@ export default function App() {
                 {/* Grid of Navigation Buttons */}
                 <div className="grid grid-cols-3 gap-2 max-h-[280px] overflow-y-auto no-scrollbar py-0.5">
                   {[
-                    { id: 'home', label: 'Dashboard', icon: <Home size={15} />, color: 'from-blue-500 to-indigo-600' },
-                    { id: 'ai_nexus', label: 'Neural Core', icon: <Bot size={15} />, color: 'from-violet-500 to-purple-600' },
-                    { id: 'genomic_longevity', label: 'Genomics', icon: <Dna size={15} />, color: 'from-emerald-500 to-teal-600' },
-                    { id: 'illustrator', label: 'Illustrator', icon: <Palette size={15} />, color: 'from-pink-500 to-rose-600' },
-                    { id: 'neuro', label: 'CognisHub', icon: <Brain size={15} />, color: 'from-blue-400 to-indigo-500' },
-                    { id: 'biomatic', label: 'Biomatic', icon: <Cpu size={15} />, color: 'from-amber-500 to-orange-600' },
-                    { id: 'diagnostic_lab', label: 'Diagnostics', icon: <Stethoscope size={15} />, color: 'from-emerald-600 to-teal-500' },
-                    { id: 'monitor', label: 'Bio-Monitor', icon: <Monitor size={15} />, color: 'from-cyan-500 to-blue-500' },
-                    { id: 'health_trace', label: 'Health Trace', icon: <TrendingUp size={15} />, color: 'from-purple-500 to-indigo-600' },
-                    { id: 'vitality', label: 'Vitality Matrix', icon: <Zap size={15} />, color: 'from-orange-500 to-amber-500' },
-                    { id: 'doctors_dashboard', label: 'Doctors', icon: <FileText size={15} />, color: 'from-indigo-500 to-indigo-700' },
-                    { id: 'meds', label: 'Pharmacy', icon: <Pill size={15} />, color: 'from-sky-500 to-blue-600' },
-                    { id: 'specialist', label: 'Specialists', icon: <Stethoscope size={15} />, color: 'from-green-500 to-emerald-600' },
-                    { id: 'about', label: 'System Info', icon: <Info size={15} />, color: 'from-slate-500 to-slate-700' },
-                    ...(isAdmin ? [{ id: 'admin', label: 'Admin Command', icon: <Shield size={15} />, action: handleAdminAccess, color: 'from-red-500 to-rose-600' }] : [])
+                    { id: 'home', label: 'Home Dashboard', icon: <Home size={15} />, color: 'from-blue-500 to-indigo-600' },
+                    { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={15} />, color: 'from-violet-500 to-purple-600' },
+                    { id: 'biomatic', label: 'Biosimulator Lab', icon: <Cpu size={15} />, color: 'from-amber-500 to-orange-600' },
+                    { id: 'diagnostic_lab', label: 'Diagnostic Lab Analyser', icon: <Stethoscope size={15} />, color: 'from-emerald-600 to-teal-500' },
+                    { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={15} />, color: 'from-cyan-500 to-blue-500' },
+                    { id: 'doctors_dashboard', label: 'Doctors\' Portal', icon: <FileText size={15} />, color: 'from-indigo-500 to-indigo-700' },
+                    { id: 'about', label: 'System & App Info', icon: <Info size={15} />, color: 'from-slate-500 to-slate-700' },
+                    ...(isAdmin ? [{ id: 'admin', label: 'Admin Command Center', icon: <Shield size={15} />, action: handleAdminAccess, color: 'from-red-500 to-rose-600' }] : [])
                   ].map((item) => {
-                    const isActive = currentView === item.id;
+                    const isActive = isSubViewActive(item.id, currentView);
                     return (
                       <motion.button
                         key={item.id}

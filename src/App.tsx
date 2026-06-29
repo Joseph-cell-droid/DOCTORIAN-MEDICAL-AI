@@ -729,6 +729,7 @@ export default function App() {
   const [isRegisteringBiometrics, setIsRegisteringBiometrics] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [lastInsightFetchAt, setLastInsightFetchAt] = useState<number>(0);
@@ -1486,6 +1487,21 @@ export default function App() {
     }
   }, [user]);
 
+  // Close floating windows launcher when clicking elsewhere on the page
+  useEffect(() => {
+    if (!isFloatingMenuOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('#floating-windows-launcher-container')) {
+        setIsFloatingMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isFloatingMenuOpen]);
+
   const fetchAiInsight = async (retryCount = 0) => {
     if (isInsightLoading && retryCount === 0) return;
     setIsInsightLoading(true);
@@ -2219,8 +2235,8 @@ export default function App() {
           }}
           className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible"
         >
-          <div className="max-w-7xl mx-auto w-full px-2 sm:px-8">
-            <div className="flex items-center py-2.5 sm:py-4 gap-1.5 sm:gap-4 w-full">
+          <div className="max-w-7xl mx-auto w-full px-2.5 sm:px-4 md:px-6 lg:px-8">
+            <div className="flex items-center py-2.5 sm:py-4 gap-1 sm:gap-2.5 md:gap-3 lg:gap-4 w-full">
               <div className="flex items-center gap-1.5 lg:gap-6 shrink-0">
                 <motion.button 
                   className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0 p-1"
@@ -2231,7 +2247,7 @@ export default function App() {
                 </motion.button>
               </div>
 
-              <div className="flex flex-1 justify-center px-0.5 sm:px-2 md:px-4 items-center gap-1 sm:gap-2 md:gap-3 overflow-visible min-w-0">
+              <div className="flex flex-1 justify-center px-0.5 sm:px-1.5 md:px-2 items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 overflow-visible min-w-0">
                 <motion.button 
                   onClick={() => setIsSearchOpen(true)}
                   className="flex items-center justify-center p-1.5 md:p-2 lg:p-2.5 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-9 h-9 md:w-10 md:h-10 lg:w-auto lg:max-w-md lg:flex-1 lg:h-11 lg:gap-3 lg:px-4 shadow-sm"
@@ -2256,7 +2272,7 @@ export default function App() {
                       type: isForced ? "info" : "success"
                     });
                   }}
-                  className={`hidden md:flex items-center gap-1.5 px-2 py-1.5 md:px-2.5 md:py-2 lg:px-3 lg:py-2.5 rounded-xl border transition-all cursor-pointer active:scale-95 shrink-0 h-9 md:h-10 lg:h-11 justify-center ${
+                  className={`hidden md:flex items-center gap-1.5 px-2 py-1.5 md:px-0 lg:px-3 lg:py-2.5 rounded-xl border transition-all cursor-pointer active:scale-95 shrink-0 h-9 w-9 md:h-10 md:w-10 lg:w-auto lg:h-11 justify-center ${
                     isOffline
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
                       : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
@@ -2937,9 +2953,8 @@ export default function App() {
               {user && (
                 <>
                   <motion.button 
-                    layout
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="hidden md:flex p-1.5 sm:p-2.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all group shrink-0 h-9 w-9 sm:h-11 sm:w-11 items-center justify-center"
+                    className="hidden md:flex p-1.5 md:p-2 lg:p-2.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all group shrink-0 h-9 w-9 md:h-10 md:w-10 lg:h-11 lg:w-11 items-center justify-center"
                     aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                   >
@@ -2958,7 +2973,7 @@ export default function App() {
                   </motion.button>
                   <button 
                     onClick={handleOpenAdminInfo}
-                    className="hidden md:flex p-1.5 sm:p-2.5 text-slate-400 hover:text-slate-900 transition-colors relative group shrink-0 h-9 w-9 sm:h-11 sm:w-11 items-center justify-center"
+                    className="hidden md:flex p-1.5 md:p-2 lg:p-2.5 text-slate-400 hover:text-slate-900 transition-colors relative group shrink-0 h-9 w-9 md:h-10 md:w-10 lg:h-11 lg:w-11 items-center justify-center"
                     aria-label={hasNotification ? "View notifications (new available)" : "View notifications"}
                     title="Notifications"
                   >
@@ -4105,6 +4120,125 @@ export default function App() {
           </span>
         </motion.button>
       </motion.div>
+    )}
+  </AnimatePresence>
+
+  {/* Floating Windows / Systems Launcher for Mobile & Tablet */}
+  <AnimatePresence>
+    {user && (
+      <div 
+        id="floating-windows-launcher-container"
+        className="lg:hidden fixed bottom-24 left-5 sm:bottom-8 sm:left-8 z-[150] pointer-events-auto select-none"
+      >
+        <motion.div
+          drag
+          dragMomentum={false}
+          dragElastic={0.05}
+          dragConstraints={navigationContainerRef}
+          className="relative pointer-events-auto"
+        >
+          {/* Opened Menu Panel */}
+          <AnimatePresence>
+            {isFloatingMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: -12 }}
+                exit={{ opacity: 0, scale: 0.85, y: 15 }}
+                transition={{ type: "spring", damping: 25, stiffness: 280 }}
+                className="absolute bottom-full left-0 mb-3 w-[290px] xs:w-[320px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800/80 shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-4 flex flex-col gap-3 pointer-events-auto"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 bg-gradient-to-br from-blue-500 to-emerald-500 text-white rounded-lg">
+                      <LayoutGrid size={14} />
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">Systems Launchpad</span>
+                      <span className="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Medical Command Node</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[7px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Sys Ready</span>
+                  </div>
+                </div>
+
+                {/* Grid of Navigation Buttons */}
+                <div className="grid grid-cols-3 gap-2 max-h-[280px] overflow-y-auto no-scrollbar py-0.5">
+                  {[
+                    { id: 'home', label: 'Dashboard', icon: <Home size={15} />, color: 'from-blue-500 to-indigo-600' },
+                    { id: 'ai_nexus', label: 'Neural Core', icon: <Bot size={15} />, color: 'from-violet-500 to-purple-600' },
+                    { id: 'genomic_longevity', label: 'Genomics', icon: <Dna size={15} />, color: 'from-emerald-500 to-teal-600' },
+                    { id: 'illustrator', label: 'Illustrator', icon: <Palette size={15} />, color: 'from-pink-500 to-rose-600' },
+                    { id: 'neuro', label: 'CognisHub', icon: <Brain size={15} />, color: 'from-blue-400 to-indigo-500' },
+                    { id: 'biomatic', label: 'Biomatic', icon: <Cpu size={15} />, color: 'from-amber-500 to-orange-600' },
+                    { id: 'diagnostic_lab', label: 'Diagnostics', icon: <Stethoscope size={15} />, color: 'from-emerald-600 to-teal-500' },
+                    { id: 'monitor', label: 'Bio-Monitor', icon: <Monitor size={15} />, color: 'from-cyan-500 to-blue-500' },
+                    { id: 'health_trace', label: 'Health Trace', icon: <TrendingUp size={15} />, color: 'from-purple-500 to-indigo-600' },
+                    { id: 'vitality', label: 'Vitality Matrix', icon: <Zap size={15} />, color: 'from-orange-500 to-amber-500' },
+                    { id: 'doctors_dashboard', label: 'Doctors', icon: <FileText size={15} />, color: 'from-indigo-500 to-indigo-700' },
+                    { id: 'meds', label: 'Pharmacy', icon: <Pill size={15} />, color: 'from-sky-500 to-blue-600' },
+                    { id: 'specialist', label: 'Specialists', icon: <Stethoscope size={15} />, color: 'from-green-500 to-emerald-600' },
+                    { id: 'about', label: 'System Info', icon: <Info size={15} />, color: 'from-slate-500 to-slate-700' },
+                    ...(isAdmin ? [{ id: 'admin', label: 'Admin Command', icon: <Shield size={15} />, action: handleAdminAccess, color: 'from-red-500 to-rose-600' }] : [])
+                  ].map((item) => {
+                    const isActive = currentView === item.id;
+                    return (
+                      <motion.button
+                        key={item.id}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          if (item.action) {
+                            item.action();
+                          } else {
+                            setCurrentView(item.id as any);
+                          }
+                          setIsFloatingMenuOpen(false);
+                        }}
+                        className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border text-center relative cursor-pointer ${
+                          isActive 
+                            ? 'bg-blue-50/80 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/80 dark:text-blue-450' 
+                            : 'bg-slate-50/50 border-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800/40 dark:border-slate-800/40 dark:text-slate-400 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br ${item.color} text-white shadow-sm transition-transform duration-300`}>
+                          {item.icon}
+                        </div>
+                        <span className="text-[8px] font-black uppercase tracking-tight leading-none truncate w-full px-0.5">
+                          {translate(item.label, currentLanguage)}
+                        </span>
+                        {isActive && (
+                          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                <div className="text-[7.5px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500 text-center select-none pt-1 border-t border-slate-100 dark:border-slate-800/40">
+                  👉 Drag icon to move launcher
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Draggable Launcher Button */}
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
+            className={`relative flex items-center justify-center h-11 w-11 sm:h-12 sm:w-12 rounded-full border shadow-[0_15px_30px_rgba(59,130,246,0.25)] bg-gradient-to-r from-blue-600 via-blue-700 to-emerald-500 text-white border-blue-500/30 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+              isFloatingMenuOpen ? 'ring-4 ring-blue-500/25' : ''
+            }`}
+            title="Systems Windows Launcher (Drag to move)"
+          >
+            <LayoutGrid size={18} className="stroke-[2.5] shrink-0 animate-pulse" />
+            <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-emerald-450 border-2 border-white dark:border-slate-950 shadow-sm" />
+          </motion.button>
+        </motion.div>
+      </div>
     )}
   </AnimatePresence>
 

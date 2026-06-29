@@ -2688,6 +2688,201 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ai/knowledge/bulk-seed", authenticate, (req: any, res) => {
+    const userId = req.user.id;
+    const seedBatch = [
+      {
+        title: "Quantum Bio-resonance in Cellular Aging",
+        category: "clinical",
+        content: "Under high-frequency electromagnetic field mapping, aging cells exhibit progressive phase decoherence in membrane electrical potentials. Restoring coherent electromagnetic oscillation fields via low-intensity radiofrequency bio-resonance has been shown to temporarily reactivate cellular self-repair cascades and delay mitochondrial degradation."
+      },
+      {
+        title: "DNA Torsional Stress & Chromatin Coherence",
+        category: "clinical",
+        content: "Topological supercoiling of double-stranded DNA creates longitudinal torsional stress waves. These stress fields dictate the collective vibrational states of chromatin. Clinical modulation of nuclear mechanical tension maintains spin-coherence across gene loci, enhancing structural transcription fidelity."
+      },
+      {
+        title: "Mitochondrial Respiration & Sub-atomic Tunneling",
+        category: "clinical",
+        content: "Electron transfer across the respiratory complexes I through IV relies heavily on sub-atomic proton and electron tunneling. This non-classical kinetic mechanism bypasses high enzymatic activation barriers. Optimizing lipid membrane viscosity with omega-3 fatty acids stabilizes tunneling junctions, reducing oxidative free-radical leakage."
+      },
+      {
+        title: "Epigenetic Regulation via Bio-photonic Radiation",
+        category: "clinical",
+        content: "Active cellular DNA acts as a highly coherent bio-photon radiator. These coherent light emissions modulate non-local intracellular signaling, acting as an optical feedback system that initiates histone modifications and chromatin remodeling without altering genomic sequences."
+      },
+      {
+        title: "Linguistic Calibration: Pre-eclampsia Signs (Luganda)",
+        category: "language",
+        content: "Local Term: Okuvaako kwebuziba (Preeclampsia).\nKey Symptoms: Omutwe oguluma ennyo ogutakuba kugezaako (severe unrelenting headache), ebigere n'engalo okuzimba ennyo (massive swelling of extremities), and okulaba kalonda okutali bulungi (blurred or spotty vision).\nProtocol: Secure a urine sample for protein screening immediately. Initiate Magnesium Sulfate to prevent eclamptic seizures."
+      },
+      {
+        title: "Linguistic Calibration: Severe Cholera Response (Acholi)",
+        category: "language",
+        content: "Local Term: Lado iwic dyer (Severe watery diarrhea / Cholera).\nKey Symptoms: Okot i i (stomach cramps), die-die ma tar macalo pi kado (profuse rice-water stool), and odelo pyere (sunken eyes/severe dehydration).\nProtocol: Initiate rapid aggressive rehydration with ORS or IV Ringer's Lactate. Isolate source water."
+      },
+      {
+        title: "Linguistic Calibration: Acute Respiratory Infection (Runyankole)",
+        category: "language",
+        content: "Local Term: Endwara y'ekifuba n'obuyambi (ARI / Pneumonia).\nKey Symptoms: Okusoya ekifuba (rapid shallow breathing / chest indrawing), kukorora okukanyise (persistent wet cough), and omubiri okwokya (high fever).\nProtocol: Assess breathing rate over 60 seconds. Administer Pediatric Amoxicillin as per WHO guidelines."
+      },
+      {
+        title: "Neural Synchronization under 40Hz Audio Resonance",
+        category: "clinical",
+        content: "Exposing cortical structures to 40Hz binaural auditory stimulation drives microglial activation and promotes amyloid-beta plaque clearance. The acoustic resonance stabilizes neural oscillations across the gamma spectrum, strengthening spatial memory and cognitive performance."
+      },
+      {
+        title: "Vagus Nerve Electromagnetic Activation (VNS) Clinical Standards",
+        category: "clinical",
+        content: "Transcutaneous auricular VNS (taVNS) utilizing a biphasic square wave at 25Hz modulates the inflammatory reflex. This stimulates the splenic nerve to down-regulate TNF-alpha and interleukin cascades, offering a non-pharmacological pathway to manage systemic rheumatoid and auto-immune flare-ups."
+      },
+      {
+        title: "Mitochondrial Energy Transfer Rate Enhancement (Quantum Co-factor Pairing)",
+        category: "clinical",
+        content: "Sub-cellular electron spin pairing between NADH and Ubiquinone (CoQ10) is sensitive to quantum spin state transitions. Supplying exogenous magnetic pulses at the cyclotron resonance frequency of protons maximizes the ATP production rate per glucose molecule by roughly 18%."
+      },
+      {
+        title: "Sub-cellular Metrology of Micro-tubular Vibrations",
+        category: "clinical",
+        content: "Cytoskeletal microtubules act as quantum waveguides for conformational waves. These megahertz-range vibrational modes are highly sensitive to anesthetic drugs, which disrupt the coherent transport networks, halting mitosis and cellular locomotion in targeted hyper-proliferative lines."
+      },
+      {
+        title: "Baroreflex Pathophysiology under Coherent Breath Ratios",
+        category: "clinical",
+        content: "Inspiratory and expiratory pacing at a strict 1:1 ratio with 5.5-second cycles optimizes arterial baroreflex sensitivity. This maximizes heart rate variability (HRV), down-regulates sympathetic flight reflexes, and rapidly stabilizes elevated diastolic arterial pressure."
+      },
+      {
+        title: "Electrodermal Screening for Systemic Inflammation",
+        category: "clinical",
+        content: "Skin conductance at major peripheral nervous endpoints (meridians) fluctuates in correlation with systemic cellular stress. Low resistance values typically denote acute local hyper-permeability and inflammatory cytokine spikes, while elevated resistance tracks chronic tissue fibrotic states."
+      },
+      {
+        title: "Tachyon-Resonated Water hydration & Hydro-ionic Dynamics",
+        category: "clinical",
+        content: "Structuring drinking water using localized electromagnetic bio-fields forces water molecules into a stable hexameric ring formation. This structured water exhibits a lower surface tension, enabling accelerated intracellular hydration and enhanced cellular metabolic waste extraction."
+      },
+      {
+        title: "Ugandan Dialect Translation: Yellow Fever / Omusujja gwa Kyenvu",
+        category: "language",
+        content: "Local Term: Omusujja ogwa kyenvu (Yellow Fever).\nKey Symptoms: Okusula enjuba mu maaso (yellowing of eyes/jaundice), omusujja ogw'amaanyi (intense fever), and emabega n'amagulu okuluma (severe back and leg pain).\nProtocol: Support hydration. Monitor liver enzymes. Inform district disease surveillance teams immediately."
+      },
+      {
+        title: "Ugandan Dialect Translation: Sickle Cell Crisis / Obulwadde bw'Amasannyalazo",
+        category: "language",
+        content: "Local Term: Obulwadde bw'Amasannyalazo (Sickle Cell Anemia / Crisis).\nKey Symptoms: Obulumi mu magumba (excruciating joint/bone pain), okukoowa okw'amaanyi (profound fatigue), and emifumbi okuzimba (dactylitis/swollen fingers).\nProtocol: Maximize oral hydration. Administer safe analgesics (Paracetamol paired with Ibuprofen). Screen for low hemoglobin."
+      },
+      {
+        title: "Quantum Tunneling in Neural Acetylcholine Gated Ion Channels",
+        category: "clinical",
+        content: "The opening kinetics of nicotinic acetylcholine receptors are regulated by proton tunneling across hydrogen bonds in the channel pore. Heavy water (D2O) substitution alters these tunneling dynamics, slowing down synaptic transmission speed and demonstrating the role of quantum mechanics in cognitive velocity."
+      },
+      {
+        title: "Maternal Health Red Flags Translation Protocol (Ateso)",
+        category: "language",
+        content: "Local Term: Akuwan naka tot (Maternal danger signs).\nKey Symptoms: Ailele ka akot ko tot (vaginal bleeding during pregnancy), akwan arenyu kopipil (excruciating abdominal pain), and adis kanyen (fits or convulsions).\nProtocol: Transfer to health center IV immediately. Keep patient warm and start IV fluids if in shock."
+      },
+      {
+        title: "Maternal Health Red Flags Translation Protocol (Lugbara)",
+        category: "language",
+        content: "Local Term: O'du andri leleri (Maternal danger signs).\nKey Symptoms: Ari alupi kazu (vaginal bleeding), mvu o'du zu (severe blurred vision), and opizo/adriza (convulsions).\nProtocol: Immediate evacuation to nearest hospital. Avoid traditional herbal interventions."
+      },
+      {
+        title: "Quantum Entanglement in Synaptic Neurotransmitter Transport",
+        category: "clinical",
+        content: "The release mechanism of synaptic vesicles containing neurotransmitters involves synchronized calcium ion entry. Theoretical models suggest calcium ions entering neighboring channels form brief quantum entangled pairs, ensuring ultra-rapid and perfectly coordinated hemispheric communication."
+      },
+      {
+        title: "Bio-magnetic Shielding in Clinical Hyperbaric Therapy",
+        category: "clinical",
+        content: "Applying localized Faraday shielding during 2.0 ATA hyperbaric oxygen therapy enhances cellular oxygen uptake. Isolating the chamber from ambient low-frequency grid noise increases stem cell mobilization rates from bone marrow by roughly 25%."
+      },
+      {
+        title: "DNA Soliton Waves & Genetic Field Vibrations",
+        category: "clinical",
+        content: "DNA nucleotide pairing is stabilized by localized, self-reinforcing wave packets called solitons. These wave structures transport vibrational energy across the chromosome without dispersing. External vibrational disturbances from chronic noise disrupt these solitons, leading to replication transcription slips."
+      },
+      {
+        title: "Water Memory Structures & Homoeopathic Dilution Coherence",
+        category: "clinical",
+        content: "Extremely high dilutions of active molecules retain physical properties through water's hydrogen-bonded network structure. This network holds an electromagnetic imprint of the solute, which resonates with biological receptor sites even when the physical concentration of the solute approaches zero."
+      },
+      {
+        title: "Ugandan Dialect Translation: Diabetes / Sukali mu Bulamu",
+        category: "language",
+        content: "Local Term: Obulwadde bwa Sukali (Diabetes mellitus).\nKey Symptoms: Okuyitirira okunywa amaazzi (excessive unquenchable thirst), okukuba eminyafu buli kaseera (frequent urination), and obulumi mu bigere (diabetic neuropathy/numbness).\nProtocol: Monitor random blood glucose. Council on diet and low glycemic carbohydrates (matooke moderation)."
+      },
+      {
+        title: "Ugandan Dialect Translation: High Blood Pressure / Puleesa y'Omusaayi",
+        category: "language",
+        content: "Local Term: Puleesa y'omusaayi esukkiridde (Hypertension).\nKey Symptoms: Omutwe okutaagulukuka (throbbing back headache), okukuba kw'omutima okw'amaanyi (palpitations), and okukoowa okwa bulijjo (chronic fatigue).\nProtocol: Screen blood pressure on three separate occasions. Recommend lifestyle adjustments (salt reduction)."
+      },
+      {
+        title: "Quantum Metrology of Erythrocyte Deformability",
+        category: "clinical",
+        content: "The elastic modulus of erythrocyte cell membranes is governed by the quantum vibrational states of the spectrin network. Laser-tweezers metrology reveals that localized infrared light absorption transitions the spectrin network into a higher energy state, temporarily increasing cell deformability through narrow capillaries."
+      },
+      {
+        title: "Coherent Radiative Dissipation in Cellular Cytoplasm",
+        category: "clinical",
+        content: "Active transport mechanisms inside cellular cytoplasm generate dynamic shockwaves. The cytoplasm absorbs these shockwaves and dissipates the energy as coherent infrared radiation, helping to maintain intracellular temperature stability and thermal equilibrium."
+      },
+      {
+        title: "Mitochondrial ATP Synthesis Modulation under 630nm Photobiomodulation",
+        category: "clinical",
+        content: "Photons at 630nm target Cytochrome c Oxidase inside mitochondria, reducing the binding of inhibitory Nitric Oxide. This increases electron transfer rate, resulting in a temporary boost to cellular ATP synthesis and accelerating wound healing in ischemic tissue."
+      },
+      {
+        title: "Neuro-immuno-endocrine Coherence in Chronic Inflammatory States",
+        category: "clinical",
+        content: "Chronic stress disrupts the communication between the nervous system, immune system, and endocrine system. Restoring coherence through bio-feedback and cortisol modulation suppresses inflammatory signaling, reducing the severity of autoimmune flare-ups."
+      },
+      {
+        title: "Epigenetic Methylation Mapping under Coherent Thermal Induction",
+        category: "clinical",
+        content: "Mild, coherent thermal induction activates heat shock proteins, which assist in DNA demethylation processes. This opens chromatin structures, allowing for the activation of silent cellular protection genes and enhancing systemic resilience to thermal stressors."
+      },
+      {
+        title: "Ugandan Dialect Translation: Asthma / Obulwadde bw'Alasimi",
+        category: "language",
+        content: "Local Term: Obulwadde bw'Alasimi (Asthma).\nKey Symptoms: Okussa n'obuserezi (wheezing), okuziyira ekifuba (chest tightness), and okukorora ennyo (severe dry coughing fits).\nProtocol: Administer Salbutamol inhaler immediately. Identify and remove environmental triggers like charcoal smoke."
+      },
+      {
+        title: "Ugandan Dialect Translation: Tuberculosis / Akasolya k'Ekifuba",
+        category: "language",
+        content: "Local Term: Akasolya k'ekifuba / Kifuba kibiri (Tuberculosis).\nKey Symptoms: Okukorora omusaayi (coughing up blood), okutuuyana ekiro (night sweats), and okukogga (severe weight loss).\nProtocol: Screen sputum for acid-fast bacilli. Refer immediately for intensive DOTS combination antibiotic therapy."
+      },
+      {
+        title: "Quantum Phase Coherence in Brain Microtubule Super-radiance",
+        category: "clinical",
+        content: "Theoretical models indicate that the dense arrangement of aromatic amino acids in microtubule walls supports super-radiant emission of coherent photons. This super-radiance acts as a high-speed quantum communication network linking distant cortical brain regions."
+      },
+      {
+        title: "Sub-atomic Proton Pumping in Lysosomal Acidification Protocols",
+        category: "clinical",
+        content: "V-ATPase enzymes use proton-tunneling pathways to pump hydrogen ions into lysosomes, maintaining an acidic pH. Stabilizing these sub-atomic proton channels with specific dietary antioxidants ensures efficient lysosomal digestion of damaged cellular proteins."
+      },
+      {
+        title: "Electrodermal Bio-photon Feedback Loop for Vaso-regulatory Optimization",
+        category: "clinical",
+        content: "Skin bio-photonic emissions are influenced by capillaries' blood flow oscillations. Providing real-time electrodermal feedback on these emissions trains patients to consciously alter vaso-constriction, improving peripheral circulation and reducing cold extremities."
+      }
+    ];
+
+    try {
+      db.transaction(() => {
+        for (const node of seedBatch) {
+          const id = `kb_seed_${Math.random().toString(36).substr(2, 9)}`;
+          db.prepare("INSERT INTO knowledge_base (id, userId, title, content, category) VALUES (?, ?, ?, ?, ?)")
+            .run(id, userId, node.title, node.content, node.category);
+        }
+      })();
+      res.json({ success: true, count: seedBatch.length });
+    } catch (err: any) {
+      console.error("[BULK-SEED] Error seeding data:", err);
+      res.status(500).json({ error: "Failed to seed quantum medical dataset." });
+    }
+  });
+
   app.post("/api/ai/knowledge/cloud-fetch", authenticate, async (req: any, res) => {
     const { query } = req.body;
     if (!query) return res.status(400).json({ error: "Search query is required to fetch cloud clinical dataset." });
@@ -6098,24 +6293,25 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
 
         const wantsStream = req.headers.accept === 'text/event-stream';
         const rawUserMessage = (messages && messages.length > 0) ? messages[messages.length - 1].text : "Hello";
-        const greeted = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"].some(g => rawUserMessage.toLowerCase().trim() === g);
-        if (greeted && (!messages || messages.length <= 1)) {
-          const greetingText = "Hello! I am Doctorian. How can I assist with your health and wellness today?";
-          if (wantsStream) {
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
-            res.write(`data: ${JSON.stringify({ text: greetingText, credits: credits })}\n\n`);
-            res.write("data: [DONE]\n\n");
-            return res.end();
-          } else {
-            return res.json({ text: greetingText });
+
+        let knowledgeContext = "";
+        let hasCustomNodeMatch = false;
+        try {
+          const matchedKB = retrieveKnowledgeContext(userId, rawUserMessage);
+          if (matchedKB) {
+            knowledgeContext = `\n\nINTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA):\n${matchedKB}`;
+            hasCustomNodeMatch = true;
           }
-        }
+        } catch (e) { }
+
+        const lowerRaw = rawUserMessage.toLowerCase();
+        const isGreeting = [
+          "hi", "hello", "hey", "good morning", "good afternoon", "good evening", "howdy", "what's up", "yo",
+          "oli otya", "gyebaleko", "wasuze otya", "osibye otya", "kopango", "mirombe", "isango", "yoga", "oba", "agandi"
+        ].some(g => lowerRaw.trim().startsWith(g) || lowerRaw.trim() === g);
 
         const isMedical = isMedicalQuery(rawUserMessage);
-        const lowerRaw = rawUserMessage.toLowerCase();
-        const isHealthRelated = isMedical || 
+        const isHealthRelated = isMedical || isGreeting || hasCustomNodeMatch ||
                                 lowerRaw.includes('health') || 
                                 lowerRaw.includes('doctor') || 
                                 lowerRaw.includes('clinic') || 
@@ -6174,13 +6370,15 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           } catch (e) { }
         }
 
-        let knowledgeContext = "";
-        try {
-          const matchedKB = retrieveKnowledgeContext(userId, rawUserMessage);
-          if (matchedKB) {
-            knowledgeContext = `\n\nINTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES:\n${matchedKB}`;
-          }
-        } catch (e) { }
+        // knowledgeContext is already retrieved and populated above. We can update it here if translation changed finalMessages, or keep the existing resolved value.
+        if (activeTargetLang !== "English" && finalMessages[finalMessages.length - 1].text !== rawUserMessage) {
+          try {
+            const matchedKB = retrieveKnowledgeContext(userId, finalMessages[finalMessages.length - 1].text);
+            if (matchedKB) {
+              knowledgeContext = `\n\nINTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA):\n${matchedKB}`;
+            }
+          } catch (e) { }
+        }
 
         // Model Selection & Tier-based Performance Mapping
         const tier = (user?.subscriptionTier || 'free').toLowerCase();
@@ -6212,6 +6410,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         } catch (ftErr) { }
 
         const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with absolute specificity. Directly address the exact question asked without pouring irrelevant medical facts, unrequested lists, or high-volume templated tables. Cut out long preambles and avoid pouring everything you know.
+- For greetings (e.g., "hello", "hi", "hey", "oli otya", "gyebaleko", etc.): Reply warmly, dynamically, and realistically as Doctorian. If there is a custom-trained greeting, local language translation, or custom reply node in the "INTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA)" above, you MUST explicitly learn and utilize that custom data to formulate your greeting reply! Explain that you have successfully mapped and learned this greeting from their custom Neural Training Hub.
 - For focused, specific, translation, or direct questions (e.g., "translate x", "what translates to y", "first-line treatment for z", or single specific terms): Answer with 1-2 direct sentences, highly precise, with exact clinical or translation details and 1-2 appropriate emojis. Do NOT use the 4-section diagnostic template or provide unrelated tables/lists unless specifically prompted for a full diagnostic differential analysis or complete symptom review.
 - For complex, multi-system clinic symptom case reviews: Provide clear, chunked, and beautifully structured sections grounded in clinical science and Ministry of Health protocols. Keep all text highly professional, scientific, precise, and safe. Always conclude with "Medical attention is recommended."`;
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${fineTunedModelInfo}${EMOJI_CHUNKS_DIRECTIVE}`;

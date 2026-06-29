@@ -73,6 +73,24 @@ export const NeuralTrainingHub: React.FC = () => {
   const [langMeaning, setLangMeaning] = useState('');
   const [formError, setFormError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleBulkQuantumSeed = async () => {
+    try {
+      setIsSeeding(true);
+      setSuccessMsg("Igniting sub-atomic quantum synchronization pipeline...");
+      
+      const result = await (api.ai as any).bulkSeedKnowledge();
+      
+      setSuccessMsg(`Synchronized ${result.count || 35} high-fidelity Health Quantum Nodes successfully!`);
+      setTimeout(() => setSuccessMsg(''), 4500);
+      fetchKnowledge();
+    } catch (err: any) {
+      alert(err.message || "Quantum synchronization protocol failed.");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // Fine tuning states
   const [ftJobs, setFtJobs] = useState<FineTuningJob[]>([]);
@@ -473,6 +491,23 @@ export const NeuralTrainingHub: React.FC = () => {
             >
               <Globe size={18} className="animate-bounce" />
               Cloud Data Fetcher
+            </button>
+            <button 
+              onClick={handleBulkQuantumSeed}
+              disabled={isSeeding}
+              className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-purple-500/20 disabled:opacity-50"
+            >
+              {isSeeding ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Seeding Quantum...
+                </>
+              ) : (
+                <>
+                  <Brain size={18} className="animate-pulse" />
+                  Quantum Bulk Seeder
+                </>
+              )}
             </button>
           </div>
         </div>

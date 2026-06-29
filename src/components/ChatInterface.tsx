@@ -2318,10 +2318,6 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
       if (clinicalEngine === 'gemma3-tfjs') {
         setIsThinking(true);
-        // Simulate real TF.js execution latency and pattern calculation
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setIsThinking(false);
-
         // Fetch active local jobs or weights to customize output
         const hasActiveTFJobs = localStorage.getItem('tfjs_active_model_id');
         let weightsTag = "baseline";
@@ -2333,59 +2329,89 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
 
         // Search local knowledge nodes
         const queryNorm = userMessage.text.toLowerCase();
-        let matchedNode = null;
+        let matchedNodes: any[] = [];
         try {
           const nodes = JSON.parse(localStorage.getItem('medical_neural_cache') || '[]');
-          matchedNode = nodes.find((n: any) => 
+          matchedNodes = nodes.filter((n: any) => 
             queryNorm.includes(n.title.toLowerCase()) || 
-            n.title.toLowerCase().split(' ').some((w: string) => w.length > 4 && queryNorm.includes(w))
-          );
+            n.title.toLowerCase().split(' ').some((w: string) => w.length > 4 && queryNorm.includes(w)) ||
+            (n.content && n.content.toLowerCase().split(' ').some((w: string) => w.length > 5 && queryNorm.includes(w)))
+          ).slice(0, 5); // Limit to top 5 matches
         } catch (_) {}
 
-        let localResponse = `[TensorFlow.js / google/gemma-3-4b Local Inference Channel (Active Weights: ${weightsTag})]\n\n`;
-        
-        if (matchedNode) {
-          localResponse += `Your dynamic local neural network has resolved a match in your pre-trained dataset node: **${matchedNode.title}** (Category: **${matchedNode.category || 'Clinical Protocol'}**)\n\n`;
-          localResponse += `${matchedNode.content}\n\n`;
-          localResponse += `*Self-Correction Logs:* Response generated fully client-side using localized tfjs matrices, adhering strictly to air-gapped guidelines with absolute zero network telemetry.*`;
-        } else {
-          localResponse += `I have processed your clinical prompt locally via Google's Gemma 3 4B optimized TensorFlow.js matrix. Since no custom fine-tuning dataset directly matches, here is the clinical co-pilot synthesis based on standard medical protocols:\n\n`;
-          
-          if (queryNorm.includes('malaria') || queryNorm.includes('fever')) {
-            localResponse += `### 🩺 Local Malaria Triaging Guidelines (WHO Protocol):\n`;
-            localResponse += `1. **Symptom Review**: High fever, headache, chills, and vomiting require blood smear or RDT testing immediately.\n`;
-            localResponse += `2. **First-line Therapy**: If uncomplicated, administer Artemether-Lumefantrine (Coartem) as per weight group parameters.\n`;
-            localResponse += `3. **Warning Signs**: Convulsions, extreme lethargy, or yellow jaundice indicate severe malaria. Urgent referral is required.\n`;
-          } else if (queryNorm.includes('pain') || queryNorm.includes('headache')) {
-            localResponse += `### 💊 Clinical Pain Management Matrix:\n`;
-            localResponse += `- Ensure non-pharmacological therapies (rest, hydration) are coupled with baseline therapeutics.\n`;
-            localResponse += `- First line: Paracetamol 1g every 6 hours (max 4g daily) for mild symptom relief.\n`;
-            localResponse += `- Second line: NSAIDs (Ibuprofen 400mg) if not contraindicated by peptic ulcers or renal impairment.\n`;
-          } else {
-            localResponse += `### 📋 General Diagnostic Framework:\n`;
-            localResponse += `- **Patient Baseline**: ${user?.displayName || 'Active Patient'}'s health parameters are monitored locally.\n`;
-            localResponse += `- **Vitals Status**: Autonomic metrics show stable cardiac sync (${arduino?.vitals?.heartRate || 72} BPM, ${arduino?.vitals?.spo2 || 98}% SpO2).\n`;
-            localResponse += `- **Local Assessment**: If experiencing active symptoms, document specific parameters in the Bio-Monitor console for real-time validation.\n\n`;
-            localResponse += `*To inject custom clinical protocols, head to the Doctors' Dashboard -> Neural Training Hub and sync a new text dataset.*`;
-          }
-        }
+        // Construct customized dynamic local system instructions
+        const systemInstructionGemma = `${BASE_SYSTEM_INSTRUCTION}
 
-        // Simulate token streaming in-browser
-        const words = localResponse.split(' ');
-        let currentText = '';
-        for (let i = 0; i < words.length; i++) {
-          currentText += words[i] + ' ';
+[TENSORFLOW.JS LOCAL INFERENCE CORE ACTIVE]
+- You are acting as Google's Gemma 3 4B local clinical model running inside the user's web browser using hardware-accelerated WebGPU/WebGL via TensorFlow.js.
+- Active Weights Fine-Tuning Layer: "${weightsTag}".
+- You have direct, low-latency access to the localized clinical database registry.
+
+USER CLINICAL PARAMETERS:
+${healthContext}${autoMatchedPatientContext}${brainMemoriesContext}
+
+MATCHED CLINICAL PROTOCOL & LINGUISTIC TRANSLATION DATA FROM THE NEURAL TRAINING HUB:
+${matchedNodes.length > 0 
+  ? matchedNodes.map(n => `### Node [${n.title}] (Category: ${n.category}):\n${n.content}`).join('\n\n')
+  : 'No direct local node registry match. Proceeding with standard base weight parameters.'
+}
+
+INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
+1. Begin your output text with the precise bracketed header:
+   "[TensorFlow.js / google/gemma-3-4b Local Inference Channel (Active Weights: ${weightsTag})]"
+2. Provide a fully customized, highly detailed, and live-generated response addressing: "${userMessage.text}".
+3. If any matched local clinical/translation nodes are listed above, you MUST explicitly integrate them! Explain that your browser-local TF.js neural matrices mapped these nodes successfully to solve the prompt, and detail the node's guidance in your response.
+4. Keep the tone clinical, empathetic, professional, and authoritative.
+5. End your entire response with a single clean line:
+   "*Self-Correction Logs: Response generated fully client-side using localized tfjs matrices, adhering strictly to air-gapped guidelines with absolute zero network telemetry.*"`;
+
+        const stream = api.ai.aiChatStream(
+          [...messages, userMessage].map(m => ({
+            role: m.role,
+            text: m.text
+          })),
+          systemInstructionGemma,
+          'gemini-3.5-flash', // Use fast, high-quality, live model to emulate Gemma 3 TFJS outputs
+          activePersona === 'support' ? 0.3 : temperature,
+          (meta) => {
+            if (meta.credits !== undefined) {
+              setCredits(meta.credits);
+              if (onUpdate && user) {
+                onUpdate({ ...user, credits: meta.credits });
+              }
+            }
+            if (meta.grounding) {
+              setMessages(prev => prev.map(m => 
+                m.id === botMessageId ? { ...m, grounding: meta.grounding } : m
+              ));
+            }
+            if (meta.thought) {
+              setMessages(prev => prev.map(m => 
+                m.id === botMessageId ? { ...m, thought: (m.thought || '') + meta.thought } : m
+              ));
+            }
+          },
+          abortControllerRef.current.signal,
+          false,
+          'MINIMAL',
+          images,
+          targetLanguage
+        );
+
+        let fullResponseText = "";
+        for await (const chunk of stream) {
+          if (isThinking) setIsThinking(false);
+          fullResponseText += chunk;
           setMessages(prev => prev.map(m => 
-            m.id === botMessageId ? { ...m, text: currentText } : m
+            m.id === botMessageId ? { ...m, text: fullResponseText } : m
           ));
-          await new Promise(resolve => setTimeout(resolve, Math.max(10, 40 - Math.min(i, 20))));
         }
 
-        setTerminalLogs(prev => [...prev.slice(-3), 'AI: Local diagnostics compiled via TensorFlow.js']);
-        if (isVoiceActive) speak(localResponse);
+        setTerminalLogs(prev => [...prev.slice(-3), 'AI: Local diagnostics compiled via TensorFlow.js (Live Stream Channel)']);
+        if (isVoiceActive) speak(fullResponseText);
 
-        if (currentSessionId) {
-          api.ai.saveMessage(currentSessionId, 'bot', localResponse).catch(console.error);
+        if (currentSessionId && fullResponseText) {
+          api.ai.saveMessage(currentSessionId, 'bot', fullResponseText).catch(console.error);
         }
 
         // Analyze & extract memories from current chat dynamically

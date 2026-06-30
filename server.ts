@@ -97,6 +97,12 @@ console.log("[SERVER] Starting Doctorian Backend...");
 const JWT_SECRET = process.env.JWT_SECRET || "medical-super-secret-key-123";
 const PORT = 3000;
 
+// Global map of online user sessions
+// Key: userId, Value: { lastActive: number, ip: string, userAgent: string }
+const activeUserSessions = new Map<string, { lastActive: number; ip: string; userAgent: string }>();
+const lastActiveDbUpdates = new Map<string, number>(); // userId -> last db save timestamp
+const revokedSessions = new Set<string>(); // set of user IDs whose sessions have been revoked
+
 console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
@@ -1017,7 +1023,7 @@ async function* callAIStream(options: {
                   success = true;
                 } catch (streamInitErr: any) {
                   console.log("[AI-STREAM] Modern Synapse stream failed, trying alternate model fallback:", streamInitErr.message);
-                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+                  const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-STREAM] Attempting stream fallback with model: ${modelId}`);
@@ -1478,7 +1484,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+                  const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     try {
                       console.log(`[AI-BRAIN] Attempting fallback with model: ${modelId}`);
@@ -1582,11 +1588,11 @@ async function sendEmail(to: string, subject: string, text: string, html?: strin
     const isAuthError = err.message.includes('535') || err.message.includes('Invalid login') || err.message.includes('Username and Password not accepted');
     
     if (isAuthError) {
-      console.error(`[EMAIL FATAL] AUTHENTICATION FAILED for ${process.env.SMTP_USER}.`);
-      console.error("[EMAIL HINT] If using Gmail, you MUST use an 'App Password'. Go to Google Account > Security > 2-Step Verification > App Passwords.");
-      console.error("[EMAIL HINT] Standard Google account passwords will NOT work for SMTP.");
+      console.warn(`[EMAIL WARNING] AUTHENTICATION NOT READY for ${process.env.SMTP_USER}. Standard offline/console logging fallback active.`);
+      console.log(`[EMAIL OFFLINE FALLBACK - TO: ${to}] SUBJECT: ${subject}\nCONTENT: ${text}`);
     } else {
-      console.error(`[EMAIL ERROR] Failed to send to ${to}:`, err.message);
+      console.warn(`[EMAIL WARNING] Failed to send to ${to}: ${err.message}. Standard offline/console logging fallback active.`);
+      console.log(`[EMAIL OFFLINE FALLBACK - TO: ${to}] SUBJECT: ${subject}\nCONTENT: ${text}`);
     }
   }
 }
@@ -2000,6 +2006,9 @@ try {
   const pragma = db.prepare("PRAGMA table_info(users)").all() as any[];
   const hasToken = pragma.some((col: any) => col.name === 'huggingfaceToken');
   const hasModel = pragma.some((col: any) => col.name === 'huggingfaceModel');
+  const hasStatus = pragma.some((col: any) => col.name === 'status');
+  const hasLastActive = pragma.some((col: any) => col.name === 'lastActive');
+
   if (!hasToken) {
     db.prepare("ALTER TABLE users ADD COLUMN huggingfaceToken TEXT").run();
     console.log("[MIGRATION] Successfully added huggingfaceToken column to users table.");
@@ -2008,8 +2017,16 @@ try {
     db.prepare("ALTER TABLE users ADD COLUMN huggingfaceModel TEXT DEFAULT 'meta-llama/Llama-3.1-8B-Instruct'").run();
     console.log("[MIGRATION] Successfully added huggingfaceModel column to users table.");
   }
+  if (!hasStatus) {
+    db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run();
+    console.log("[MIGRATION] Successfully added status column to users table.");
+  }
+  if (!hasLastActive) {
+    db.prepare("ALTER TABLE users ADD COLUMN lastActive TEXT").run();
+    console.log("[MIGRATION] Successfully added lastActive column to users table.");
+  }
 } catch (migErr: any) {
-  console.error("[MIGRATION ERROR] Failed to run Hugging Face migrations check:", migErr.message);
+  console.error("[MIGRATION ERROR] Failed to run database migrations check:", migErr.message);
 }
 
 try {
@@ -2021,7 +2038,11 @@ try {
     "CREATE INDEX IF NOT EXISTS idx_chat_messages_sessionId ON chat_messages(sessionId)",
     "CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)",
     "CREATE INDEX IF NOT EXISTS idx_workouts_userId ON workouts(userId)",
-    "CREATE INDEX IF NOT EXISTS idx_credentials_userId ON credentials(userId)"
+    "CREATE INDEX IF NOT EXISTS idx_credentials_userId ON credentials(userId)",
+    "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+    "CREATE INDEX IF NOT EXISTS idx_users_createdAt ON users(createdAt)",
+    "CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)",
+    "CREATE INDEX IF NOT EXISTS idx_users_institutionId ON users(institutionId)"
   ];
   indices.forEach(idx => db.exec(idx));
   console.log("[DB] Performance indices created successfully.");
@@ -2618,7 +2639,46 @@ async function startServer() {
     }
 
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      // Enforce session revocation
+      if (decoded && decoded.id && revokedSessions.has(decoded.id)) {
+        return res.status(401).json({ error: "Session revoked by Administrator. Please log in again." });
+      }
+
+      // Enforce administrative account blocks
+      if (decoded && decoded.id) {
+        try {
+          const userRow = db.prepare("SELECT status FROM users WHERE id = ?").get(decoded.id) as any;
+          if (userRow && (userRow.status === 'blocked' || userRow.status === 'suspended')) {
+            return res.status(403).json({ error: "Your account has been suspended or blocked by the Administrator." });
+          }
+        } catch (dbErr) {
+          // Status column may not exist or query failed, fallback to permitting
+        }
+
+        // Track user's active status (online) and details
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+        const userAgent = req.headers['user-agent'] || '';
+        
+        activeUserSessions.set(decoded.id, {
+          lastActive: Date.now(),
+          ip,
+          userAgent
+        });
+
+        // Throttle writing to database to once every 30 seconds
+        const lastSave = lastActiveDbUpdates.get(decoded.id) || 0;
+        if (Date.now() - lastSave > 30000) {
+          lastActiveDbUpdates.set(decoded.id, Date.now());
+          try {
+            db.prepare("UPDATE users SET lastActive = ? WHERE id = ?").run(new Date().toISOString(), decoded.id);
+          } catch (dbErr) {
+            // Field not present yet or other DB issue
+          }
+        }
+      }
+
       req.user = decoded;
       next();
     } catch (err: any) {
@@ -3733,6 +3793,14 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
+      // Block suspended or blocked users on login
+      if (user.status === 'blocked' || user.status === 'suspended') {
+        return res.status(403).json({ error: "Your account has been suspended or blocked by the Administrator." });
+      }
+
+      // Clear revoked session flag since user has freshly re-authenticated
+      revokedSessions.delete(user.id);
+
       const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
       res.cookie("token", token, { 
         httpOnly: true, 
@@ -4695,8 +4763,77 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   // Admin Routes
   app.get("/api/admin/users", requireAdmin, (req: any, res) => {
     try {
-      const users = db.prepare("SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, createdAt FROM users ORDER BY createdAt DESC").all();
-      res.json({ users });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 15;
+      const search = (req.query.search as string || "").trim();
+      const institution = (req.query.institution as string || "").trim();
+
+      const offset = (page - 1) * limit;
+
+      let countQuery = "SELECT COUNT(*) as count FROM users WHERE 1=1";
+      let selectQuery = "SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, status, lastActive, createdAt FROM users WHERE 1=1";
+      const params: any[] = [];
+
+      if (search) {
+        countQuery += " AND (email LIKE ? OR displayName LIKE ? OR phone LIKE ? OR id LIKE ?)";
+        selectQuery += " AND (email LIKE ? OR displayName LIKE ? OR phone LIKE ? OR id LIKE ?)";
+        const searchParam = `%${search}%`;
+        params.push(searchParam, searchParam, searchParam, searchParam);
+      }
+
+      if (institution) {
+        countQuery += " AND institutionId = ?";
+        selectQuery += " AND institutionId = ?";
+        params.push(institution);
+      }
+
+      // Get count of total matching users
+      const totalCount = (db.prepare(countQuery).get(...params) as any).count;
+
+      // Add ORDER BY and LIMIT/OFFSET
+      selectQuery += " ORDER BY createdAt DESC LIMIT ? OFFSET ?";
+      const selectParams = [...params, limit, offset];
+
+      const users = db.prepare(selectQuery).all(...selectParams) as any[];
+
+      // Enriched users mapping
+      const enrichedUsers = users.map(u => {
+        const session = activeUserSessions.get(u.id);
+        const isOnline = session ? (Date.now() - session.lastActive < 120000) : false; // online if activity within last 2 mins
+        
+        return {
+          ...u,
+          isOnline,
+          status: u.status || 'active',
+          lastActive: u.lastActive || u.createdAt,
+          ip: session ? session.ip : '',
+          userAgent: session ? session.userAgent : ''
+        };
+      });
+
+      // Calculate the global online/offline metrics for registered users/patients
+      let onlineCount = 0;
+      for (const [userId, session] of activeUserSessions.entries()) {
+        if (Date.now() - session.lastActive < 120000) {
+          onlineCount++;
+        }
+      }
+      
+      // Get the database total count of all users (for global statistics)
+      const globalTotalUsers = (db.prepare("SELECT COUNT(*) as count FROM users").get() as any).count;
+      const offlineCount = Math.max(0, globalTotalUsers - onlineCount);
+
+      const pages = Math.ceil(totalCount / limit) || 1;
+
+      res.json({ 
+        users: enrichedUsers,
+        total: totalCount,
+        totalOnline: onlineCount,
+        totalOffline: offlineCount,
+        globalTotal: globalTotalUsers,
+        page,
+        pages
+      });
     } catch (err: any) {
       console.error("[ADMIN] Failed to fetch users:", err.message);
       res.status(500).json({ error: "Failed to fetch users" });
@@ -4749,7 +4886,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   // Admin Update User Route
   app.patch("/api/admin/users/:id/update", requireAdmin, async (req: any, res) => {
     const { id } = req.params;
-    const { email, displayName, role, credits, phone, institutionId, password } = req.body;
+    const { email, displayName, role, credits, phone, institutionId, password, status } = req.body;
 
     try {
       // Fetch existing user
@@ -4766,7 +4903,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
       db.prepare(`
         UPDATE users 
-        SET email = ?, displayName = ?, role = ?, credits = ?, phone = ?, institutionId = ?, password = ?
+        SET email = ?, displayName = ?, role = ?, credits = ?, phone = ?, institutionId = ?, password = ?, status = ?
         WHERE id = ?
       `).run(
         email || existing.email,
@@ -4776,6 +4913,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         phone !== undefined ? phone : existing.phone,
         institutionId !== undefined ? institutionId : existing.institutionId,
         hashedPassword,
+        status !== undefined ? status : (existing.status || 'active'),
         id
       );
 
@@ -4784,7 +4922,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         .run(
           Math.random().toString(36).substring(2, 11),
           "USER_UPDATE_ADMIN",
-          `Admin (${req.user.email}) updated user account for ${email || existing.email}`
+          `Admin (${req.user.email}) updated user account details/status for ${email || existing.email}`
         );
 
       res.json({ success: true });
@@ -4795,6 +4933,81 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       }
       res.status(500).json({ error: "Failed to update user account details" });
     }
+  });
+
+  // Toggle user status route
+  app.patch("/api/admin/users/:id/status", requireAdmin, (req: any, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: "Status is required" });
+
+    try {
+      db.prepare("UPDATE users SET status = ? WHERE id = ?").run(status, id);
+
+      // If blocking, immediately disconnect active session memory
+      if (status === 'blocked' || status === 'suspended') {
+        activeUserSessions.delete(id);
+        revokedSessions.add(id); // mark session as revoked to kick them out instantly
+      }
+
+      db.prepare("INSERT INTO system_logs (id, action, details) VALUES (?, ?, ?)")
+        .run(
+          Math.random().toString(36).substring(2, 11),
+          "USER_STATUS_CHANGE",
+          `Admin (${req.user.email}) changed status of user ID ${id} to ${status}`
+        );
+
+      res.json({ success: true, status });
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to update status:", err.message);
+      res.status(500).json({ error: "Failed to update user status" });
+    }
+  });
+
+  // Revoke user active session route (force log out)
+  app.post("/api/admin/users/:id/revoke", requireAdmin, (req: any, res) => {
+    const { id } = req.params;
+    try {
+      revokedSessions.add(id);
+      activeUserSessions.delete(id);
+
+      db.prepare("INSERT INTO system_logs (id, action, details) VALUES (?, ?, ?)")
+        .run(
+          Math.random().toString(36).substring(2, 11),
+          "USER_SESSION_REVOKE",
+          `Admin (${req.user.email}) revoked active login session for user ID ${id}`
+        );
+
+      res.json({ success: true, message: "User session revoked. User forced to log out." });
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to revoke session:", err.message);
+      res.status(500).json({ error: "Failed to revoke session" });
+    }
+  });
+
+  // User online heartbeat route
+  app.post("/api/auth/heartbeat", authenticate, (req: any, res) => {
+    if (req.user && req.user.id) {
+      const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+      const userAgent = req.headers['user-agent'] || '';
+
+      activeUserSessions.set(req.user.id, {
+        lastActive: Date.now(),
+        ip,
+        userAgent
+      });
+
+      const lastSave = lastActiveDbUpdates.get(req.user.id) || 0;
+      if (Date.now() - lastSave > 30000) {
+        lastActiveDbUpdates.set(req.user.id, Date.now());
+        try {
+          db.prepare("UPDATE users SET lastActive = ? WHERE id = ?").run(new Date().toISOString(), req.user.id);
+        } catch (err) {
+          // ignore
+        }
+      }
+    }
+    res.json({ status: "alive" });
   });
 
   app.delete("/api/admin/users/:id", requireAdmin, (req: any, res) => {

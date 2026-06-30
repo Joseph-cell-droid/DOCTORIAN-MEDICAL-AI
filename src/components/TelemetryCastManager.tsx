@@ -230,7 +230,12 @@ export const TelemetryCastManager: React.FC = () => {
         type: 'cloud',
         deviceName: devName
       });
+      
+      // Establish background WebSocket stream to broadcast vitals
+      arduino.connectWebSocket(true);
+      
       addCastLog(`Established high-resolution mirror stream from ${devName}`, "success");
+      addCastLog("Connected to Neural Relay WebSocket to broadcast live telemetry.", "success");
       addCastLog("Bypassed standard Bluetooth polling; mirroring active viewport.", "info");
     }
   };

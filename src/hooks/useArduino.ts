@@ -165,6 +165,19 @@ export const useArduino = () => {
 
   const updateVitals = useCallback((newVitals: Vitals) => {
     setVitals(newVitals);
+
+    // Outbound real-time WebSocket stream broadcast
+    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+      try {
+        webSocketRef.current.send(JSON.stringify({
+          type: 'vitals_relay',
+          data: newVitals
+        }));
+      } catch (wsErr) {
+        console.warn('[WS-BIO] Failed to relay active vitals packet:', wsErr);
+      }
+    }
+
     setHistory(prev => {
       const newHistory = [...prev.slice(-49), newVitals];
       // Neural Analysis Trigger (Throttled to every 30s)
@@ -181,8 +194,8 @@ export const useArduino = () => {
              Recent: HR:${newVitals.heartRate}, SpO2:${newVitals.spo2}%, Temp:${newVitals.temperature}C.
              Detect if patient is WORSENING or STABLE. 
              Return JSON: {"insight": "1-sentence clinician summary", "alert": true/false}`,
-            "You are a specialized medical telemetry analyst (Gemma 2).",
-            "google/gemma-2-27b-it"
+            "You are a specialized medical telemetry analyst (Doctorian AI).",
+            "gemini-3.5-flash"
           ).then(res => {
             try {
               const data = JSON.parse(res.text.replace(/```json|```/g, '').trim());
@@ -433,9 +446,11 @@ export const useArduino = () => {
     }, 3000);
   }, [disconnect, updateVitals]);
 
-  const connectWebSocket = useCallback(() => {
+  const connectWebSocket = useCallback((isBroadcaster = false) => {
     setError(null);
-    disconnect();
+    if (!isBroadcaster) {
+      disconnect();
+    }
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/api/biometrics`;
@@ -446,7 +461,9 @@ export const useArduino = () => {
 
     ws.onopen = () => {
       console.log('[WS] Neural Stream established.');
-      setConnection({ connected: true, type: 'cloud', deviceName: 'Neural Relay (Cloud)' });
+      if (!isBroadcaster) {
+        setConnection({ connected: true, type: 'cloud', deviceName: 'Neural Relay (Cloud)' });
+      }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -469,12 +486,14 @@ export const useArduino = () => {
 
     ws.onclose = () => {
       console.log('[WS] Neural Stream connection lost.');
-      setConnection({ connected: false, type: null, deviceName: null });
+      if (!isBroadcaster) {
+        setConnection({ connected: false, type: null, deviceName: null });
+      }
       
       // Auto-reconnect logic
       reconnectTimeoutRef.current = setTimeout(() => {
         console.log('[WS] Attempting to restabilize neural link...');
-        connectWebSocket();
+        connectWebSocket(isBroadcaster);
       }, 5000);
     };
 

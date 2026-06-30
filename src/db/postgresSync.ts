@@ -59,7 +59,8 @@ export function translateSqlToPg(sqliteSql: string, tableNameHint?: string): str
     huggingfaceModel: "huggingface_model",
     lastUnitReset: "last_unit_reset",
     attachmentURL: "attachment_url",
-    expiresAt: "expires_at"
+    expiresAt: "expires_at",
+    lastActive: "last_active"
   };
 
   for (const [camel, snake] of Object.entries(columnReplacements)) {
@@ -215,6 +216,7 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
               if (key === "is_active") camelKey = "isActive";
               if (key === "api_key") camelKey = "apiKey";
               if (key === "last_used") camelKey = "lastUsed";
+              if (key === "last_active") camelKey = "lastActive";
 
               sqliteRow[camelKey] = row[key];
             }

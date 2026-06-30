@@ -26,6 +26,8 @@ export const users = pgTable("users", {
   ollamaModel: text("ollama_model").default("llama3"),
   huggingfaceToken: text("huggingface_token"),
   huggingfaceModel: text("huggingface_model").default("meta-llama/Llama-3.1-8B-Instruct"),
+  status: text("status").default("active"),
+  lastActive: text("last_active"),
   createdAt: text("created_at").notNull(),
 });
 

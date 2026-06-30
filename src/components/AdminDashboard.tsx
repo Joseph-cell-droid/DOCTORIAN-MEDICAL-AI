@@ -35,7 +35,9 @@ import {
   RefreshCw,
   ShieldAlert,
   Edit,
-  MessageSquare
+  MessageSquare,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { api, User, HealthRecord, Doctor, syncOfflineActions } from '../api';
 import { CyberSecurityPanel } from './CyberSecurityPanel';
@@ -70,6 +72,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   // Billing Admin State
   const [adminBilling, setAdminBilling] = useState<any[]>([]);
   const [billingPagination, setBillingPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [usersPagination, setUsersPagination] = useState({ page: 1, pages: 1, total: 0, totalOnline: 0, totalOffline: 0 });
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -211,8 +214,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
         };
       });
       setLogs(mappedLogs);
-    } catch (err) {
-      console.error("Failed to load real database logs:", err);
+    } catch (err: any) {
+      console.warn("Failed to load real database logs:", err.message || err);
     }
   };
 
@@ -260,11 +263,23 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     };
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page = 1) => {
     setLoading(true);
     try {
-      const data = await api.admin.listUsers();
-      setUsers(data);
+      const data = await api.admin.listUsers(page, 15, searchQuery, filterInstitution);
+      setUsers(data.users);
+      setUsersPagination({
+        page: data.page,
+        pages: data.pages,
+        total: data.total,
+        totalOnline: data.totalOnline,
+        totalOffline: data.totalOffline
+      });
+      // Synchronize simulated telemetry connections with true database connections!
+      setTelemetry(prev => ({
+        ...prev,
+        activeConnections: data.totalOnline
+      }));
       setError(null);
     } catch (err: any) {
       setError(err.message || "Failed to load users");
@@ -316,10 +331,16 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     setLoadingTwilio(true);
     try {
       const res = await fetch('/api/admin/mtn-status', { credentials: 'include' });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       setTwilioStatus(data);
-    } catch (err) {
-      console.error("Failed to fetch MTN status:", err);
+    } catch (err: any) {
+      console.warn("Failed to fetch MTN status:", err.message || err);
     } finally {
       setLoadingTwilio(false);
     }
@@ -504,7 +525,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       const fbData = await (api.admin as any).listFeedback();
       setFeedback(fbData);
     } catch (err: any) {
-      console.error("Failed to load feedback:", err);
+      console.warn("Failed to load feedback:", err.message || err);
       if (addToast) addToast("Failed to fetch user feedback from database", "error");
     } finally {
       setLoadingFeedback(false);
@@ -524,7 +545,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
   useEffect(() => {
     if (activeTab === 'users') {
-      fetchUsers();
+      fetchUsers(1);
     } else if (activeTab === 'notifications') {
       fetchNotifications();
     } else if (activeTab === 'billing') {
@@ -537,6 +558,14 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       fetchTwilioStatus();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'users') return;
+    const delayDebounce = setTimeout(() => {
+      fetchUsers(1);
+    }, 400);
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, filterInstitution, activeTab]);
 
   const handleRegisterDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -624,6 +653,28 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     }
   };
 
+  const handleStatusChange = async (userId: string, newStatus: string) => {
+    try {
+      await api.admin.updateUserStatus(userId, newStatus);
+      setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus as any } : u));
+      setSuccessMessage(`Account status updated to ${newStatus}`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to update status");
+    }
+  };
+
+  const handleRevokeSession = async (userId: string) => {
+    try {
+      await api.admin.revokeUserSession(userId);
+      setUsers(users.map(u => u.id === userId ? { ...u, isOnline: false } : u));
+      setSuccessMessage("Session revoked successfully");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to revoke session");
+    }
+  };
+
   const handleCreateUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -681,12 +732,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     }
   };
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.displayName && u.displayName.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesInstitution = !filterInstitution || u.institutionId === filterInstitution;
-    return matchesSearch && matchesInstitution;
-  });
+  const filteredUsers = users;
 
   const getRecordIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -822,9 +868,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                <Users size={22} />
              </div>
              <div>
-               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Registered Nodes</p>
+               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Registered Patients</p>
                <h3 className="text-lg font-black text-slate-950 dark:text-white mt-1.5 leading-tight">
-                 {users.length} <span className="text-xs font-bold text-slate-400">Patients</span>
+                 {usersPagination.total} <span className="text-xs font-bold text-slate-400">Patients</span>
                </h3>
                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{doctors.length} Specialist Doctors Active</p>
              </div>
@@ -986,6 +1032,34 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               </AnimatePresence>
             </div>
 
+            {/* Real-time Session Status Tracker Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Registered Patients</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white mt-1 font-mono">{usersPagination.total}</p>
+                </div>
+                <Users className="text-slate-400" size={24} />
+              </div>
+              <div className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-3xl border border-emerald-500/10 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider font-bold">Logged In (Online Now)</p>
+                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono flex items-center gap-2">
+                    {usersPagination.totalOnline}
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </p>
+                </div>
+                <Wifi className="text-emerald-500" size={24} />
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Logged Out (Offline)</p>
+                  <p className="text-2xl font-black text-slate-600 dark:text-slate-400 mt-1 font-mono">{usersPagination.totalOffline}</p>
+                </div>
+                <WifiOff className="text-slate-400" size={24} />
+              </div>
+            </div>
+
             <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -993,6 +1067,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                       <th scope="col" className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">User</th>
                       <th scope="col" className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Role</th>
+                      <th scope="col" className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Account Status</th>
+                      <th scope="col" className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Session Status</th>
                       <th scope="col" className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Joined</th>
                       <th scope="col" className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                     </tr>
@@ -1007,15 +1083,25 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         >
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 overflow-hidden shadow-inner">
-                                {u.photoURL ? (
-                                  <img src={u.photoURL} alt={u.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <UserIcon size={24} />
+                              <div className="relative">
+                                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 overflow-hidden shadow-inner">
+                                  {u.photoURL ? (
+                                    <img src={u.photoURL} alt={u.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <UserIcon size={24} />
+                                  )}
+                                </div>
+                                {u.isOnline && (
+                                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 shadow-sm" title="Online now">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                  </span>
                                 )}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900 dark:text-white">{u.displayName}</p>
+                                <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  {u.displayName}
+                                </p>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                   <Mail size={12} />
                                   {u.email}
@@ -1027,16 +1113,70 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                             <select 
                               value={u.role}
                               onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-transparent border-0 focus:ring-0 cursor-pointer transition-colors ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-transparent border border-transparent focus:ring-0 cursor-pointer transition-colors ${
                                 u.role === 'admin' || u.role === 'doctor'
-                                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800'
-                                  : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800'
+                                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800/50'
+                                  : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/50'
                               }`}
                             >
                               <option value="user" className="dark:bg-slate-900 text-slate-900 dark:text-white">User</option>
                               <option value="doctor" className="dark:bg-slate-900 text-slate-900 dark:text-white">Doctor</option>
                               <option value="admin" className="dark:bg-slate-900 text-slate-900 dark:text-white">Admin</option>
                             </select>
+                          </td>
+                          <td className="px-6 py-5">
+                            <select 
+                              value={u.status || 'active'}
+                              onChange={(e) => handleStatusChange(u.id, e.target.value)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-transparent border border-transparent focus:ring-0 cursor-pointer transition-colors ${
+                                u.status === 'blocked' || u.status === 'suspended'
+                                  ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800/50'
+                                  : u.status === 'locked'
+                                  ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/50'
+                                  : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50'
+                              }`}
+                            >
+                              <option value="active" className="dark:bg-slate-900 text-slate-900 dark:text-white">Active</option>
+                              <option value="suspended" className="dark:bg-slate-900 text-slate-900 dark:text-white">Suspended</option>
+                              <option value="blocked" className="dark:bg-slate-900 text-slate-900 dark:text-white">Blocked</option>
+                              <option value="locked" className="dark:bg-slate-900 text-slate-900 dark:text-white">Locked</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-5">
+                            {u.isOnline ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Wifi size={14} className="text-emerald-500" />
+                                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Online</span>
+                                </div>
+                                {u.ip && (
+                                  <p className="text-[10px] font-mono text-slate-400 truncate max-w-[150px]" title={`IP: ${u.ip}\nUser Agent: ${u.userAgent}`}>
+                                    IP: {u.ip}
+                                  </p>
+                                )}
+                                <button
+                                  onClick={() => handleRevokeSession(u.id)}
+                                  className="mt-1 self-start inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 transition-all uppercase tracking-widest border border-rose-500/20"
+                                  title="Revoke session and sign out user immediately"
+                                >
+                                  Force Exit
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <WifiOff size={14} className="text-slate-400" />
+                                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offline</span>
+                                </div>
+                                {u.lastActive ? (
+                                  <p className="text-[10px] text-slate-400">
+                                    Seen: {new Date(u.lastActive).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                ) : (
+                                  <p className="text-[10px] text-slate-400">Never connected</p>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-5">
                             <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
@@ -1084,7 +1224,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="px-6 py-20 text-center">
+                        <td colSpan={6} className="px-6 py-20 text-center">
                           <div className="flex flex-col items-center gap-3">
                             <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-600">
                               <Users size={32} />
@@ -1098,6 +1238,57 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 </table>
               </div>
             </div>
+
+            {/* Pagination Controls */}
+            {usersPagination.pages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 px-6 py-4 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm mt-4">
+                <p className="text-xs text-slate-500 font-medium">
+                  Showing page <span className="font-bold text-slate-700 dark:text-slate-300">{usersPagination.page}</span> of <span className="font-bold text-slate-700 dark:text-slate-300">{usersPagination.pages}</span> (Total matching: <span className="font-bold text-slate-700 dark:text-slate-300">{usersPagination.total}</span>)
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => fetchUsers(usersPagination.page - 1)}
+                    disabled={usersPagination.page <= 1}
+                    className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all border border-slate-150/10"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(5, usersPagination.pages) }, (_, idx) => {
+                    // Simple sliding window for page numbers
+                    let pageNum = idx + 1;
+                    if (usersPagination.page > 3) {
+                      pageNum = usersPagination.page - 3 + idx;
+                    }
+                    if (pageNum + (5 - idx - 1) > usersPagination.pages) {
+                      pageNum = Math.max(1, usersPagination.pages - 5 + idx + 1);
+                    }
+                    
+                    if (pageNum > usersPagination.pages) return null;
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => fetchUsers(pageNum)}
+                        className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl transition-all ${
+                          usersPagination.page === pageNum
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                            : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-150/10'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => fetchUsers(usersPagination.page + 1)}
+                    disabled={usersPagination.page >= usersPagination.pages}
+                    className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all border border-slate-150/10"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         ) : activeTab === 'billing' ? (
           <motion.div

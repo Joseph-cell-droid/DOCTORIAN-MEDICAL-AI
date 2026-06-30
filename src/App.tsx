@@ -967,8 +967,8 @@ export default function App() {
         }
       } catch (error: any) {
         console.error("Failed to check notifications:", error);
-        if (error.message === 'Unauthorized' || error.status === 401) {
-          console.log("[Doctorian] Session expired. Synchronizing to Guest Mode.");
+        if (error.status === 403 || error.message === 'Unauthorized' || error.status === 401 || (error.message && (error.message.includes("suspended") || error.message.includes("blocked")))) {
+          console.log("[Doctorian] Session expired, revoked or account blocked. Synchronizing to Guest Mode.");
           setUser(null);
         }
       }
@@ -2442,8 +2442,8 @@ export default function App() {
                    </AnimatePresence>
                  </div>
 
-                 {/* Clinical Auditory & Sonification Hub */}
-                 <div className="relative shrink-0">
+                 {/* Clinical Auditory & Sonification Hub (Moved to Systems Hub) */}
+                 <div className="hidden">
                    <motion.button
                      onClick={() => {
                        setIsAudioMenuOpen(!isAudioMenuOpen);
@@ -2714,7 +2714,7 @@ export default function App() {
                                   <VoiceCommandToggle onNavigate={(v) => { setCurrentView(v); setIsWindowsMenuOpen(false); }} />
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2 sm:col-span-2">
+                                <div className="grid grid-cols-4 gap-2 sm:col-span-2">
                                   <button
                                     onClick={() => setIsEyeCareMode(!isEyeCareMode)}
                                     className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
@@ -2745,7 +2745,147 @@ export default function App() {
                                     )}
                                     <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Alerts</span>
                                   </button>
+
+                                  <button
+                                    onClick={() => setIsAudioMenuOpen(!isAudioMenuOpen)}
+                                    className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
+                                      isAudioMenuOpen
+                                        ? 'bg-blue-100/85 border-blue-400 text-blue-955 dark:bg-blue-950/40 dark:border-blue-600 dark:text-blue-200'
+                                        : 'bg-slate-50 dark:bg-slate-850 border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    {vitalsAudioEnabled || soundscapeEnabled ? (
+                                      <Headphones size={14} className="text-rose-500 animate-bounce" />
+                                    ) : (
+                                      <VolumeX size={14} className="text-slate-400" />
+                                    )}
+                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Audio Hub</span>
+                                  </button>
                                 </div>
+
+                                {isAudioMenuOpen && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60 rounded-[1.5rem] flex flex-col gap-3 text-left sm:col-span-2"
+                                  >
+                                    <div className="pb-1 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+                                      <span className="text-[9px] font-black uppercase tracking-tight text-slate-400 dark:text-slate-550">Clinical Sound Engine</span>
+                                      <span className="text-[7px] font-mono bg-blue-500/10 text-blue-600 dark:bg-blue-500/25 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Active</span>
+                                    </div>
+
+                                    {/* Section 1: Heartbeat Pulse Sonification */}
+                                    <div className="flex flex-col gap-2 p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex gap-2 min-w-0">
+                                          <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
+                                            <Activity size={12} className={vitalsAudioEnabled ? "animate-pulse" : ""} />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <h4 className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Vitals Pulse (Heart)</h4>
+                                            <p className="text-[8px] text-slate-400 dark:text-slate-550 leading-tight">Audible pulse, pitch-tracking, warnings.</p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={toggleVitalsAudio}
+                                          className={`w-8 h-4 rounded-full p-0.5 transition-all outline-none border cursor-pointer shrink-0 ${
+                                            vitalsAudioEnabled 
+                                              ? 'bg-rose-500 border-rose-400 flex justify-end items-center' 
+                                              : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
+                                          }`}
+                                        >
+                                          <motion.div layout className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
+                                        </button>
+                                      </div>
+
+                                      {vitalsAudioEnabled && (
+                                        <div className="mt-1.5 flex flex-col gap-1 border-t border-slate-100 dark:border-slate-800/40 pt-1.5">
+                                          <div className="flex items-center justify-between text-[7px] uppercase font-black text-slate-400">
+                                            <span>Volume</span>
+                                            <span>{Math.round(vitalsAudioVolume * 100)}%</span>
+                                          </div>
+                                          <input 
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.05"
+                                            value={vitalsAudioVolume}
+                                            onChange={(e) => handleVitalsVolumeChange(parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded appearance-none cursor-pointer accent-rose-500"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Section 2: Cognitive Binaural Soundscapes */}
+                                    <div className="flex flex-col gap-2 p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex gap-2 min-w-0">
+                                          <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 shrink-0">
+                                            <Music size={12} className={soundscapeEnabled ? "animate-spin" : ""} style={{ animationDuration: '8s' }} />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <h4 className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Ambient Soundscape</h4>
+                                            <p className="text-[8px] text-slate-400 dark:text-slate-550 leading-tight">Focus binaural carrier waves with noise mask.</p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={toggleSoundscapeGlobal}
+                                          className={`w-8 h-4 rounded-full p-0.5 transition-all outline-none border cursor-pointer shrink-0 ${
+                                            soundscapeEnabled 
+                                              ? 'bg-indigo-500 border-indigo-400 flex justify-end items-center' 
+                                              : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
+                                          }`}
+                                        >
+                                          <motion.div layout className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
+                                        </button>
+                                      </div>
+
+                                      {soundscapeEnabled && (
+                                        <div className="mt-1.5 flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/40 pt-1.5 text-[7px] uppercase">
+                                          <div className="flex items-center justify-between font-black text-slate-400">
+                                            <span>Volume</span>
+                                            <span>{Math.round(soundscapeVolume * 100)}%</span>
+                                          </div>
+                                          <input 
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.05"
+                                            value={soundscapeVolume}
+                                            onChange={(e) => handleSoundscapeVolChangeGlobal(parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded appearance-none cursor-pointer accent-indigo-500"
+                                          />
+
+                                          <div className="font-black text-slate-400 mt-1 mb-0.5">Preset Profile</div>
+                                          <div className="grid grid-cols-3 gap-1 bg-slate-50 dark:bg-slate-950/60 p-1 border border-slate-100 dark:border-slate-850 rounded-lg">
+                                            {(['alpha_focus', 'theta_meditation', 'beta_high_cognition'] as const).map(p => {
+                                              const labelMap = { alpha_focus: 'Alpha', theta_meditation: 'Theta', beta_high_cognition: 'Beta' };
+                                              const active = soundscapePreset === p;
+                                              return (
+                                                <button
+                                                  key={p}
+                                                  type="button"
+                                                  onClick={() => changePresetGlobal(p)}
+                                                  className={`py-1 text-[7px] font-black uppercase rounded transition-all border cursor-pointer leading-none truncate ${
+                                                    active 
+                                                      ? 'bg-indigo-500 text-white border-indigo-500 shadow-xs' 
+                                                      : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
+                                                  }`}
+                                                >
+                                                  {labelMap[p]}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                )}
                               </div>
 
                               {/* Systems Launcher Core */}
@@ -2991,49 +3131,7 @@ export default function App() {
                   </div>
                 )
               )}
-              {user && (
-                <>
-                  <motion.button 
-                    onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="hidden md:flex p-1.5 md:p-2 lg:p-2.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all group shrink-0 h-9 w-9 md:h-10 md:w-10 lg:h-11 lg:w-11 items-center justify-center"
-                    aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                    title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                  >
-                    <AnimatePresence mode="wait" initial={false}>
-                      <motion.div
-                        key={isDarkMode ? 'sun' : 'moon'}
-                        initial={{ rotate: -90, scale: 0.8, opacity: 0 }}
-                        animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                        exit={{ rotate: 90, scale: 0.8, opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="flex items-center justify-center shrink-0"
-                      >
-                        {isDarkMode ? <Sun aria-hidden="true" size={16} className="shrink-0 text-amber-500" /> : <Moon aria-hidden="true" size={16} className="shrink-0 text-indigo-400" />}
-                      </motion.div>
-                    </AnimatePresence>
-                  </motion.button>
-                  <button 
-                    onClick={handleOpenAdminInfo}
-                    className="hidden md:flex p-1.5 md:p-2 lg:p-2.5 text-slate-400 hover:text-slate-900 transition-colors relative group shrink-0 h-9 w-9 md:h-10 md:w-10 lg:h-11 lg:w-11 items-center justify-center"
-                    aria-label={hasNotification ? "View notifications (new available)" : "View notifications"}
-                    title="Notifications"
-                  >
-                    <motion.div
-                      animate={hasNotification ? { 
-                        rotate: [0, -10, 10, -10, 10, 0],
-                        scale: [1, 1.1, 1.1, 1.1, 1.1, 1]
-                      } : {}}
-                      transition={{ repeat: hasNotification ? Infinity : 0, duration: 0.5 }}
-                      className="shrink-0 flex items-center justify-center"
-                    >
-                      <Bell aria-hidden="true" size={16} className={`shrink-0 ${hasNotification ? "text-blue-600" : ""}`} />
-                    </motion.div>
-                    {hasNotification && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border-2 border-white bg-rose-500 shrink-0 animate-pulse" aria-hidden="true"></span>
-                    )}
-                  </button>
-                </>
-              )}
+
             </div>
           </div>
         </div>

@@ -30,6 +30,11 @@ export interface User {
   ollamaModel?: string;
   huggingfaceToken?: string;
   huggingfaceModel?: string;
+  status?: 'active' | 'suspended' | 'blocked' | 'locked';
+  lastActive?: string;
+  isOnline?: boolean;
+  ip?: string;
+  userAgent?: string;
 }
 
 export interface HealthRecord {
@@ -1324,13 +1329,33 @@ export const api = {
     }
   },
   admin: {
-    async listUsers() {
-      const res = await fetch(`${API_BASE}/admin/users`, {
+    async listUsers(page = 1, limit = 15, search = "", institution = "") {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search,
+        institution
+      });
+      const res = await fetch(`${API_BASE}/admin/users?${params.toString()}`, {
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to fetch users");
-      return data.users as User[];
+      return data as {
+        users: User[];
+        total: number;
+        totalOnline: number;
+        totalOffline: number;
+        globalTotal: number;
+        page: number;
+        pages: number;
+      };
     },
     async createUser(user: Partial<User> & { password?: string }) {
       const res = await fetch(`${API_BASE}/admin/users`, {
@@ -1380,6 +1405,26 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update user role");
+      return data.success as boolean;
+    },
+    async updateUserStatus(id: string, status: string) {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update user status");
+      return data.success as boolean;
+    },
+    async revokeUserSession(id: string) {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/revoke`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to revoke user session");
       return data.success as boolean;
     },
     async listBilling(page: number = 1, limit: number = 10) {
@@ -1433,7 +1478,13 @@ export const api = {
       const res = await fetch(`${API_BASE}/admin/logs`, {
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to fetch system logs");
       return data.logs as Array<{ id: string; userId?: string; action: string; details?: string; createdAt: string }>;
     },
@@ -1442,7 +1493,13 @@ export const api = {
         method: "DELETE",
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to clear logs");
       return data.success as boolean;
     },
@@ -1450,7 +1507,13 @@ export const api = {
       const res = await fetch(`${API_BASE}/admin/feedback`, {
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to fetch user feedback");
       return data.feedback as Array<{ id: string; userId?: string; messageId: string; rating: string; suggestion?: string; timestamp: string; userEmail?: string; userDisplayName?: string }>;
     },

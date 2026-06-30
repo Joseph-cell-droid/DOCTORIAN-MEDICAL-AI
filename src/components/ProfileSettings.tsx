@@ -703,9 +703,10 @@ Verified by Joseph Akora - Development Lead.
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End-to-End Encrypted Identity Terminal</p>
                     </div>
                  </div>
+
                   <button 
-                   onClick={() => setActiveTab('security')}
-                   className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all relative z-10 border border-white/10"
+                    onClick={() => setActiveTab('security')}
+                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all relative z-10 border border-white/10"
                   >
                     Review Security Protocols
                   </button>
@@ -1995,7 +1996,7 @@ Verified by Joseph Akora - Development Lead.
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-emerald-500" />
                 <div className="mx-auto w-64 h-64 bg-slate-50 dark:bg-slate-800 rounded-[3rem] p-8 flex flex-col items-center justify-center mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-inner group transition-transform hover:scale-105">
                    <QRCodeSVG 
-                      value={`clinical-id:${user?.id || 'unknown'}`} 
+                      value={`${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`} 
                       size={180}
                       className="text-slate-900 dark:text-white group-hover:rotate-6 transition-transform duration-700" 
                       level="H"
@@ -2005,6 +2006,26 @@ Verified by Joseph Akora - Development Lead.
                      UID: {user?.id || 'SYNCING...'}
                    </div>
                 </div>
+                 <div className="max-w-md mx-auto mb-8 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                   <div className="min-w-0 flex-1">
+                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Shareable Medical ID Link</p>
+                     <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 truncate mt-0.5">
+                       {`${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`}
+                     </p>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={() => {
+                       const link = `${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`;
+                       navigator.clipboard.writeText(link);
+                       setMessage({ text: '📋 Emergency Profile Link copied to clipboard!', type: 'success' });
+                     }}
+                     className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all cursor-pointer whitespace-nowrap border border-slate-150/10"
+                   >
+                     Copy Link
+                   </button>
+                 </div>
+
                 <h2 className="text-4xl sm:text-5xl font-black uppercase tracking-[-0.05em] mb-4 text-slate-900 dark:text-white leading-none">
                   Clinical <span className="text-blue-600 font-serif italic normal-case">Fast-Sync</span> ID
                 </h2>
@@ -2014,14 +2035,20 @@ Verified by Joseph Akora - Development Lead.
                 
                 <div className="flex flex-wrap justify-center gap-4">
                    <button 
-                     onClick={() => setMessage({ text: 'Neural ID synchronized with Digital Wallet.', type: 'success' })}
-                     className="flex items-center gap-3 px-10 py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all group"
+                     onClick={() => {
+                       window.open(`/?scanUserId=${user?.id || 'unknown'}`, '_blank');
+                     }}
+                     className="flex items-center gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all group"
                    >
-                     <Download size={18} className="group-hover:-translate-y-1 transition-transform" />
-                     Save to Neural Wallet
+                     <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform" />
+                     View Live Scanned Profile
                    </button>
                    <button 
-                     onClick={() => setMessage({ text: 'Triage access link generated.', type: 'success' })}
+                     onClick={() => {
+                       const link = `${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`;
+                       navigator.clipboard.writeText(link);
+                       setMessage({ text: '📋 Triage access link copied to clipboard!', type: 'success' });
+                     }}
                      className="flex items-center gap-3 px-10 py-5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] border border-slate-100 dark:border-slate-700 hover:text-blue-600 hover:border-blue-200 transition-all"
                    >
                      <Share2 size={18} />
@@ -2072,7 +2099,7 @@ Verified by Joseph Akora - Development Lead.
                       onClick={handleDownloadFullHistory}
                       className="hidden sm:flex items-center gap-3 px-6 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.05] active:scale-95 transition-all group"
                     >
-                      <Download size={18} className="group-hover:-translate-y-1 transition-transform" />
+                      <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform" />
                       Export Ledger
                     </button>
                   )}

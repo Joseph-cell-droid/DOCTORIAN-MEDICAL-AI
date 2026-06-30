@@ -29,6 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [view, setView] = useState<AuthView>(initialView);
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
   const [authMethod, setAuthMethod] = useState<'password' | 'biometric'>('password');
+  const [portalType, setPortalType] = useState<'patient' | 'doctor' | 'admin'>('patient');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -214,10 +215,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (view === 'login') {
         const user = await api.auth.login(email, password);
         
-        // Verify user's role after successful login
-        if (user.role === 'admin' || user.role === 'doctor') {
-          setSuccessMessage(`Administrator access verified: ${user.role.toUpperCase()}`);
+        // Enforce role-portal separation
+        if (portalType === 'doctor') {
+          if (user.role !== 'doctor' && user.role !== 'clinician') {
+            throw new Error("Access Denied: This account is registered as a Patient. Please use the Patient Sign In Portal.");
+          }
+          setSuccessMessage(`Clinician credentials verified! Loading clinical core and patient vitals...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
+        } else if (portalType === 'admin') {
+          if (user.role !== 'admin') {
+            throw new Error("Access Denied: Restricted Administrative Node. This email is not registered as a System Administrator.");
+          }
+          setSuccessMessage(`Administrator access verified! Loading core administration matrix...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          // Patient portal login
+          if (user.role === 'admin' || user.role === 'doctor' || user.role === 'clinician') {
+            setSuccessMessage(`Welcome back, Clinician/Admin! Logging you into standard patient perspective.`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            setSuccessMessage(`Welcome back, Patient! Initializing bio-security session...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
         
         onSuccess(user);
@@ -397,13 +416,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                    view === 'authorize' ? 'Biometric verification required' : 'New Password'}
                 </h2>
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-sm font-medium mt-2 max-w-[280px] sm:max-w-xs mx-auto">
-                  {view === 'login' ? 'Sign in for Doctors, Patients, or Mentors' : 
+                  {view === 'login' ? (
+                     portalType === 'doctor' ? '🔐 Clinician & Medical Staff Terminal' :
+                     portalType === 'admin' ? '🛡️ Restricted Administrative Server Core' :
+                     '🧬 Personal Patient & Emergency Registry Portal'
+                   ) : 
                    view === 'signup' ? 'Join Doctorian for personalized health insights' :
                    view === 'forgot-password' ? 'Enter your email to receive a verification code' : 
                    view === 'verify-code' ? 'Enter the 6-digit code sent to your email' : 
                    view === 'authorize' ? 'Scan your FaceID or Fingerprint to authorize high-privilege action' : 'Enter your new secure password'}
                 </p>
               </div>
+
+              {view === 'login' && (
+                <div className="mb-6 space-y-2">
+                  <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block text-center">
+                    Select Authentication Portal
+                  </span>
+                  <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-850/80 rounded-2xl border border-slate-200/10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPortalType('patient');
+                        setError(null);
+                      }}
+                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        portalType === 'patient' 
+                          ? 'bg-blue-600 text-white shadow-md' 
+                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+                      }`}
+                    >
+                      Patient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPortalType('doctor');
+                        setError(null);
+                      }}
+                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        portalType === 'doctor' 
+                          ? 'bg-emerald-600 text-white shadow-md' 
+                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+                      }`}
+                    >
+                      Clinician
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPortalType('admin');
+                        setError(null);
+                      }}
+                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        portalType === 'admin' 
+                          ? 'bg-indigo-600 text-white shadow-md' 
+                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+                      }`}
+                    >
+                      Admin
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {view === 'login' && (
                 <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-8" role="tablist" aria-label="Sign in method">

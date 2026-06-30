@@ -6339,6 +6339,25 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     });
 
     // Emergency Contacts Management Endpoints
+    app.get("/api/emergency-profile/:id", (req: any, res) => {
+      try {
+        const userId = req.params.id;
+        const user = db.prepare("SELECT id, email, displayName, photoURL, phone, bloodGroup, allergies, conditions, hospitalPreference, role FROM users WHERE id = ?").get(userId) as any;
+        if (!user) {
+          return res.status(404).json({ error: "Patient/User profile not found." });
+        }
+        const contacts = db.prepare("SELECT * FROM emergency_contacts WHERE userId = ? ORDER BY createdAt DESC").all(userId);
+        const records = db.prepare("SELECT * FROM records WHERE userId = ? ORDER BY createdAt DESC LIMIT 5").all(userId);
+        res.json({
+          user,
+          contacts,
+          records
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
     app.get("/api/emergency-contacts", authenticate, (req: any, res) => {
       try {
         const userId = req.user.id || req.user.uid;

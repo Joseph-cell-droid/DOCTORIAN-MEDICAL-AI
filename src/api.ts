@@ -2859,6 +2859,16 @@ export const api = {
     }
   },
   emergencyContacts: {
+    async getEmergencyProfile(id: string) {
+      const res = await fetch(`${API_BASE}/emergency-profile/${id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load patient profile");
+      return data as {
+        user: any;
+        contacts: Array<{ id: string; name: string; phone: string; role: string; email?: string }>;
+        records: Array<{ id: string; userId: string; summary?: string; diagnosis?: string; treatment?: string; createdAt: string; type?: string }>;
+      };
+    },
     async list() {
       if (isOffline()) {
         const saved = localStorage.getItem('emergency_contacts');

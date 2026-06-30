@@ -91,6 +91,7 @@ import { Features } from "./components/Features";
 import { About } from "./components/About";
 import { HealthRecords } from "./components/HealthRecords";
 import { ProfileSettings } from "./components/ProfileSettings";
+import { PatientProfileViewer } from "./components/PatientProfileViewer";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { AccessRestriction } from "./components/AccessRestriction";
 import { SpecialistFinder } from "./components/SpecialistFinder";
@@ -676,6 +677,9 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [hasNotification, setHasNotification] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
+  const [isScanLoading, setIsScanLoading] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const isUserPremium = useMemo(() => {
     return ['gold', 'business', 'silver', 'pro'].includes(user?.subscriptionStatus === 'active' ? user?.subscriptionTier : '') || user?.email?.toLowerCase() === "gloriajayakullo@gmail.com";
@@ -1220,6 +1224,33 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const scanUserId = params.get('scanUserId');
+    if (scanUserId) {
+      setIsScanLoading(true);
+      setScanError(null);
+      
+      // Clean up URL parameter to avoid getting stuck on page refreshes
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+
+      api.emergencyContacts.getEmergencyProfile(scanUserId)
+        .then((profileData) => {
+          setScannedPatientData(profileData);
+          addToast("✨ Emergency medical profile retrieved successfully via secure QR link.", "success");
+        })
+        .catch((err) => {
+          console.error("Failed to load scanned patient data:", err);
+          setScanError(err.message || "Failed to retrieve emergency profile.");
+          addToast("⚠️ Scan failed: Secure patient profile record could not be found.", "error");
+        })
+        .finally(() => {
+          setIsScanLoading(false);
+        });
+    }
+  }, []);
 
   useEffect(() => {
     if (user && currentView === 'home') {
@@ -1962,6 +1993,20 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {scannedPatientData && (
+        <div className="fixed inset-0 z-[99999] overflow-y-auto">
+          <PatientProfileViewer data={scannedPatientData} onClose={() => setScannedPatientData(null)} />
+        </div>
+      )}
+      {isScanLoading && (
+        <div className="fixed inset-0 z-[99999] bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+            <h3 className="text-lg font-black uppercase tracking-wider text-slate-800 dark:text-white">Decrypting Medical ID...</h3>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-widest">Accessing secure clinic server via neural gateway</p>
+          </div>
+        </div>
+      )}
       <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
         <div ref={navigationContainerRef} className="fixed inset-0 z-[140] pointer-events-none" />
       <a 

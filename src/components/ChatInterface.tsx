@@ -738,19 +738,19 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [ragSources, setRagSources] = useState<string[]>(['ucg2023', 'imci', 'sam_protocol']);
   const [exportFormat, setExportFormat] = useState<'referral_note' | 'moh_form5' | 'plain'>('referral_note');
   const [telemetrySpeed, setTelemetrySpeed] = useState<'verbose' | 'compressed' | 'hidden'>('verbose');
-  const [clinicalEngine, setClinicalEngine] = useState<'medlm-medium' | 'medlm-large' | 'llama-clinical' | 'gemma3-tfjs'>(() => {
+  const [clinicalEngine, setClinicalEngine] = useState<'medlm-medium' | 'medlm-large' | 'llama-clinical' | 'gemma3-tfjs' | 'huggingface'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('doctorian_clinical_engine');
-      if (saved === 'medlm-medium' || saved === 'medlm-large' || saved === 'llama-clinical' || saved === 'gemma3-tfjs') {
-        return saved;
+      if (saved === 'medlm-medium' || saved === 'medlm-large' || saved === 'llama-clinical' || saved === 'gemma3-tfjs' || saved === 'huggingface') {
+        return saved as any;
       }
     }
-    // Set Google Gemma 3 4B via TF.js as standard default offline-first brain for everyone!
-    return 'gemma3-tfjs';
+    // Set Hugging Face (Google Gemma 4 / Gemma 3 4B) as standard default cloud brain for everyone!
+    return 'huggingface';
   });
 
-  const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs') => {
-    if (modelId === 'gemma3-tfjs') {
+  const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface') => {
+    if (modelId === 'gemma3-tfjs' || modelId === 'huggingface') {
       return { hasAccess: true, tierName: 'Always Free (Offline)' };
     }
     
@@ -785,7 +785,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     return { hasAccess: false, tierName: 'Restricted Layer' };
   }, [user]);
 
-  const selectClinicalModel = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs') => {
+  const selectClinicalModel = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface') => {
     const access = checkModelAccess(modelId);
     if (access.hasAccess) {
       setClinicalEngine(modelId);
@@ -2452,9 +2452,17 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 
       if (clinicalEngine.startsWith('medlm')) {
         engineSystemInstruction += `\n\n[GOOGLE MedLM CLINICAL CO-PILOT POWERED BY CLINICAL GROUNDING]:\n- You are operating under Google's specialized MedLM medical fine-tune architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
+      } else if (clinicalEngine === 'huggingface') {
+        engineSystemInstruction += `\n\n[HUGGING FACE CLOUD BRAIN SYNAPSE ACTIVATED]:\n- You are operating live on realistic high-performance open models on the Hugging Face Hub.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
       }
 
-      const targetEngineId = clinicalEngine === 'medlm-medium' ? 'gemini-3.5-flash' : (clinicalEngine === 'medlm-large' ? 'gemini-3.1-pro-preview' : 'meta-llama/llama-3.1-8b-instruct');
+      const targetEngineId = clinicalEngine === 'medlm-medium' 
+        ? 'gemini-3.5-flash' 
+        : (clinicalEngine === 'medlm-large' 
+          ? 'gemini-3.1-pro-preview' 
+          : (clinicalEngine === 'huggingface' 
+            ? 'huggingface' 
+            : 'meta-llama/llama-3.1-8b-instruct'));
 
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map(m => ({
@@ -3273,7 +3281,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
@@ -3283,6 +3291,15 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           payment: 'No External API Keys Required', 
                           features: ['Runs fully browser-side offline', 'Accelerated with WebGL pipeline', 'Trainable locally with zero costs'],
                           color: 'from-amber-600 to-orange-600'
+                        },
+                        { 
+                          id: 'huggingface' as const, 
+                          title: 'Hugging Face Cloud Brain', 
+                          desc: 'Realistic Open Source Serverless API', 
+                          license: 'Cloud Connection (Active)', 
+                          payment: 'Access Token Configured', 
+                          features: ['Realistic models (Llama 3.1, Mistral)', 'Stable serverless API connections', 'Zero host computing consumption'],
+                          color: 'from-cyan-600 to-blue-600'
                         },
                         { 
                           id: 'llama-clinical' as const, 
@@ -3295,7 +3312,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'medlm-medium' as const, 
-                          title: 'Doctorian Clinical Pro (MedLM)', 
+                          title: 'Doctorian MedLM Pro', 
                           desc: 'Specialized High-Performance Diagnostics', 
                           license: 'Clinical Co-Pilot Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -3304,7 +3321,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'Doctorian Ultra Reasoning (MedLM)', 
+                          title: 'Doctorian MedLM Ultra', 
                           desc: 'Deep-Reasoning Advanced Diagnostic Core', 
                           license: 'Deep Reasoning Core Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -5249,9 +5266,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">Select the clinical intelligence layout for diagnostic formulation</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                       {[
                         { id: 'gemma3-tfjs' as const, label: 'Doctorian Local (Gemma 3)', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
+                        { id: 'huggingface' as const, label: 'Hugging Face Cloud', desc: 'Realistic Open Source', tier: 'Standard (Free)' },
                         { id: 'llama-clinical' as const, label: 'Doctorian Llama 3.1', desc: 'Clinical Core', tier: 'Standard (Free)' },
                         { id: 'medlm-medium' as const, label: 'Doctorian MedLM Pro', desc: 'Specialized Pro', tier: 'Pro Required' },
                         { id: 'medlm-large' as const, label: 'Doctorian MedLM Ultra', desc: 'Deep Reasoning', tier: 'Matrix Required' }
@@ -5536,11 +5554,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1')));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1')));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}

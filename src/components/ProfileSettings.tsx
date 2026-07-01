@@ -41,10 +41,13 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
-  const [aiBrainOption, setAiBrainOption] = useState<'in_browser' | 'cloud' | 'laptop_node'>(() => {
+  const [aiBrainOption, setAiBrainOption] = useState<'in_browser' | 'cloud' | 'laptop_node' | 'huggingface'>(() => {
     const engine = typeof window !== 'undefined' ? localStorage.getItem('doctorian_clinical_engine') : null;
     if (engine === 'gemma3-tfjs' || !engine) {
       return 'in_browser'; // Default/primary is in_browser / Option 1
+    }
+    if (engine === 'huggingface') {
+      return 'huggingface';
     }
     const prioritizeLocal = typeof window !== 'undefined' ? localStorage.getItem('doctorian_prioritize_local_ai') !== 'false' : false;
     if (prioritizeLocal) {
@@ -62,7 +65,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     return localStorage.getItem('doctorian_local_api_key') || '';
   });
   const [huggingfaceToken, setHuggingfaceToken] = useState(user?.huggingfaceToken || '');
-  const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'meta-llama/Llama-3.1-8B-Instruct');
+  const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'google/gemma-3-4b-it');
+  const [hfModels, setHfModels] = useState<{ id: string; downloads: number; likes: number }[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [isVerifyingHf, setIsVerifyingHf] = useState(false);
+  const [hfVerificationResult, setHfVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
   
   // Emergency Contact Info
   const [doctorPhone, setDoctorPhone] = useState(user?.doctorPhone || '');
@@ -221,9 +228,147 @@ Verified by Joseph Akora - Development Lead.
       setOllamaUrl(user.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
       setOllamaModel(user.ollamaModel || 'gemma4');
       setHuggingfaceToken(user.huggingfaceToken || '');
-      setHuggingfaceModel(user.huggingfaceModel || 'meta-llama/Llama-3.1-8B-Instruct');
+      setHuggingfaceModel(user.huggingfaceModel || 'google/gemma-3-4b-it');
     }
   }, [user]);
+
+  const handleVerifyHuggingFace = async () => {
+    if (!huggingfaceToken) {
+      setMessage({ text: "Please enter your Hugging Face API Token first.", type: "error" });
+      return;
+    }
+    setIsVerifyingHf(true);
+    setHfVerificationResult(null);
+    try {
+      const result = await api.ai.verifyHuggingFace(huggingfaceToken, huggingfaceModel);
+      setHfVerificationResult({ success: true, message: result.message });
+      setMessage({ text: "Hugging Face handshake successful!", type: "success" });
+    } catch (e: any) {
+      setHfVerificationResult({ 
+        success: false, 
+        message: e.message || "Failed to establish handshake. Check token or if the model is loading." 
+      });
+      setMessage({ text: "Hugging Face verification failed.", type: "error" });
+    } finally {
+      setIsVerifyingHf(false);
+    }
+  };
+
+  const loadHfModels = async () => {
+    setIsLoadingModels(true);
+    try {
+      const res = await api.ai.getHuggingFaceModels();
+      setHfModels(res.models);
+    } catch (e) {
+      console.error("Failed to fetch Hugging Face models:", e);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHfModels();
+  }, []);
+
+  const renderHuggingFaceSection = () => {
+    return (
+      <div className="space-y-4 mb-8">
+        <div className="relative group">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
+            <Key size={18} />
+          </div>
+          <input
+            type="password"
+            value={huggingfaceToken}
+            onChange={e => setHuggingfaceToken(e.target.value)}
+            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
+            placeholder="Hugging Face API Access Token (hf_...)"
+          />
+        </div>
+
+        <div className="relative group">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
+            <Sparkles size={18} />
+          </div>
+          <input
+            type="text"
+            value={huggingfaceModel}
+            onChange={e => setHuggingfaceModel(e.target.value)}
+            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
+            placeholder="Model, e.g. meta-llama/Llama-3.1-8B-Instruct"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleVerifyHuggingFace}
+            disabled={isVerifyingHf}
+            className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:bg-blue-300 transition-all shadow-md shadow-blue-500/15"
+          >
+            {isVerifyingHf ? "Handshaking..." : "Verify Connection"}
+          </button>
+          
+          <button
+            type="button"
+            onClick={loadHfModels}
+            disabled={isLoadingModels}
+            className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+          >
+            {isLoadingModels ? "Syncing..." : "Reload Models"}
+          </button>
+        </div>
+
+        {hfVerificationResult && (
+          <div className={`p-4 rounded-2xl border text-xs font-bold leading-relaxed transition-all ${
+            hfVerificationResult.success
+              ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-400"
+              : "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/30 text-rose-800 dark:text-rose-400"
+          }`}>
+            <p>{hfVerificationResult.message}</p>
+          </div>
+        )}
+
+        <div className="space-y-1.5 pt-2">
+          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Popular Inference Models</label>
+          {isLoadingModels ? (
+            <div className="flex flex-wrap gap-2 animate-pulse">
+              {[1, 2, 3, 4].map(n => (
+                <div key={n} className="h-8 w-28 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+              {hfModels.map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setHuggingfaceModel(m.id);
+                    setHfVerificationResult(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all text-left flex items-center justify-between gap-3 ${
+                    huggingfaceModel === m.id
+                      ? "bg-blue-600 border-blue-600 text-white shadow-md"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-150 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="truncate max-w-[180px] font-mono">{m.id.split("/").pop()}</span>
+                  <span className={`text-[8px] font-normal ${huggingfaceModel === m.id ? "text-blue-200" : "text-slate-400"}`}>
+                    {(m.downloads > 1000000 ? (m.downloads / 1000000).toFixed(1) + "M" : m.downloads > 1000 ? (m.downloads / 1000).toFixed(0) + "K" : m.downloads)} dn
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
+          Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">google/gemma-3-4b-it</span> if left empty.
+        </p>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (activeTab === 'security' && user) {
@@ -265,6 +410,9 @@ Verified by Joseph Akora - Development Lead.
       } else if (aiBrainOption === 'laptop_node') {
         localStorage.setItem('doctorian_clinical_engine', 'llama-clinical');
         localStorage.setItem('doctorian_prioritize_local_ai', 'true');
+      } else if (aiBrainOption === 'huggingface') {
+        localStorage.setItem('doctorian_clinical_engine', 'huggingface');
+        localStorage.setItem('doctorian_prioritize_local_ai', 'false');
       }
 
       localStorage.setItem('doctorian_local_api_key', localApiKey);
@@ -993,7 +1141,7 @@ Verified by Joseph Akora - Development Lead.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Option 1: In-Browser Local Brain (Gemma 3 TFJS) */}
                     <button
                       type="button"
@@ -1080,6 +1228,36 @@ Verified by Joseph Akora - Development Lead.
                         <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Ollama / LM Studio</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Run customized offline server models (Llama 3.1) on laptop port 11434 / 1234.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Option 4: Hugging Face Cloud Brain */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAiBrainOption('huggingface');
+                        setPrioritizeLocalAI(false);
+                      }}
+                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
+                        aiBrainOption === 'huggingface'
+                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-3 rounded-2xl ${aiBrainOption === 'huggingface' ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                          <Sparkles size={20} />
+                        </div>
+                        {aiBrainOption === 'huggingface' && (
+                          <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Stable HF</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Hugging Face Cloud</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Realistic Open Models</p>
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
+                          Fast, serverless execution of Llama 3.1 & Mistral via secure API keys.
                         </p>
                       </div>
                     </button>
@@ -1231,37 +1409,7 @@ Verified by Joseph Akora - Development Lead.
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
                     </div>
                     
-                    <div className="space-y-4 mb-8">
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
-                          <Key size={18} />
-                        </div>
-                        <input
-                          type="password"
-                          value={huggingfaceToken}
-                          onChange={e => setHuggingfaceToken(e.target.value)}
-                          className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
-                          placeholder="Hugging Face API Access Token (hf_...)"
-                        />
-                      </div>
-
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
-                          <Sparkles size={18} />
-                        </div>
-                        <input
-                          type="text"
-                          value={huggingfaceModel}
-                          onChange={e => setHuggingfaceModel(e.target.value)}
-                          className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
-                          placeholder="Model, e.g. meta-llama/Llama-3.1-8B-Instruct"
-                        />
-                      </div>
-
-                      <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
-                        Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">meta-llama/Llama-3.1-8B-Instruct</span> if left empty.
-                      </p>
-                    </div>
+                    {renderHuggingFaceSection()}
 
                     <div className="flex items-center gap-2 mb-4 ml-1">
                       <Globe size={14} className="text-violet-500" />
@@ -1543,37 +1691,7 @@ Verified by Joseph Akora - Development Lead.
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
                       </div>
                       
-                      <div className="space-y-4 mb-8">
-                        <div className="relative group">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
-                            <Key size={18} />
-                          </div>
-                          <input
-                            type="password"
-                            value={huggingfaceToken}
-                            onChange={e => setHuggingfaceToken(e.target.value)}
-                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
-                            placeholder="Hugging Face API Access Token (hf_...)"
-                          />
-                        </div>
-
-                        <div className="relative group">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
-                            <Sparkles size={18} />
-                          </div>
-                          <input
-                            type="text"
-                            value={huggingfaceModel}
-                            onChange={e => setHuggingfaceModel(e.target.value)}
-                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 transition-all outline-none"
-                            placeholder="Model, e.g. meta-llama/Llama-3.1-8B-Instruct"
-                          />
-                        </div>
-
-                        <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
-                          Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">meta-llama/Llama-3.1-8B-Instruct</span> if left empty.
-                        </p>
-                      </div>
+                      {renderHuggingFaceSection()}
 
                       <div className="flex items-center gap-2 mb-4 ml-1">
                         <Globe size={14} className="text-violet-500" />

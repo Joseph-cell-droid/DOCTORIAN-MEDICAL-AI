@@ -57,13 +57,19 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userForm, setUserForm] = useState({
+    id: '',
     email: '',
     password: '',
     displayName: '',
     role: 'user',
     credits: 400,
     phone: '',
-    institutionId: ''
+    institutionId: '',
+    allergies: '',
+    conditions: '',
+    bloodGroup: '',
+    hospitalPreference: '',
+    status: 'active'
   });
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -682,7 +688,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       if (addToast) addToast("User registered successfully via database link!", "success");
       setSuccessMessage("User created successfully");
       setIsAddingUser(false);
-      setUserForm({ email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '' });
+      setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active' });
       fetchUsers();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -698,7 +704,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       if (addToast) addToast("User updated successfully via database link!", "success");
       setSuccessMessage("User updated successfully");
       setEditingUser(null);
-      setUserForm({ email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '' });
+      setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active' });
       fetchUsers();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -709,13 +715,19 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const handleOpenEditUser = (u: User) => {
     setEditingUser(u);
     setUserForm({
+      id: u.id || '',
       email: u.email,
       password: '',
       displayName: u.displayName || '',
       role: u.role,
       credits: Number(u.credits) || 400,
       phone: u.phone || '',
-      institutionId: u.institutionId || ''
+      institutionId: u.institutionId || '',
+      allergies: u.allergies || '',
+      conditions: u.conditions || '',
+      bloodGroup: u.bloodGroup || '',
+      hospitalPreference: u.hospitalPreference || '',
+      status: u.status || 'active'
     });
   };
 
@@ -993,7 +1005,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               
               <button 
                 onClick={() => {
-                  setUserForm({ email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '' });
+                  setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active' });
                   setIsAddingUser(true);
                 }}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
@@ -1106,6 +1118,31 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                                   <Mail size={12} />
                                   {u.email}
                                 </p>
+                                <div className="flex flex-wrap gap-1.5 mt-2 max-w-md">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50" title="Clinical Patient Verification ID from QR Code">
+                                    ID: {u.id}
+                                  </span>
+                                  {u.bloodGroup && (
+                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30">
+                                      Type: {u.bloodGroup}
+                                    </span>
+                                  )}
+                                  {u.allergies && (
+                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30" title={`Allergies: ${u.allergies}`}>
+                                      ⚠️ Allergies: {u.allergies}
+                                    </span>
+                                  )}
+                                  {u.conditions && (
+                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30" title={`Medical Conditions: ${u.conditions}`}>
+                                      🩺 {u.conditions}
+                                    </span>
+                                  )}
+                                  {u.hospitalPreference && (
+                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30" title={`Hospital Preference: ${u.hospitalPreference}`}>
+                                      🏥 {u.hospitalPreference}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -2769,6 +2806,30 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
               <form onSubmit={isAddingUser ? handleCreateUserSubmit : handleUpdateUserSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  {isAddingUser && (
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Custom Patient ID (Optional - Matches QR Code)</label>
+                      <input 
+                        type="text"
+                        value={userForm.id}
+                        onChange={(e) => setUserForm({...userForm, id: e.target.value})}
+                        placeholder="e.g. usr_clinical_999 (Leave blank to auto-generate)"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      />
+                    </div>
+                  )}
+                  {!isAddingUser && editingUser && (
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient ID (Read-only)</label>
+                      <input 
+                        type="text"
+                        readOnly
+                        value={editingUser.id}
+                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-mono text-slate-500 focus:outline-none dark:text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Username</label>
                     <input 
@@ -2850,6 +2911,58 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.institutionId}
                       onChange={(e) => setUserForm({...userForm, institutionId: e.target.value})}
                       placeholder="e.g. CLINIC-KAMPALA-NORTH"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Blood Group</label>
+                    <select
+                      value={userForm.bloodGroup}
+                      onChange={(e) => setUserForm({...userForm, bloodGroup: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">Unknown</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hospital Preference</label>
+                    <input 
+                      type="text"
+                      value={userForm.hospitalPreference}
+                      onChange={(e) => setUserForm({...userForm, hospitalPreference: e.target.value})}
+                      placeholder="e.g. Kampala Hospital"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Allergies</label>
+                    <input 
+                      type="text"
+                      value={userForm.allergies}
+                      onChange={(e) => setUserForm({...userForm, allergies: e.target.value})}
+                      placeholder="e.g. Penicillin, Nuts (Comma-separated)"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Medical Conditions</label>
+                    <input 
+                      type="text"
+                      value={userForm.conditions}
+                      onChange={(e) => setUserForm({...userForm, conditions: e.target.value})}
+                      placeholder="e.g. Diabetes, Hypertension"
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>

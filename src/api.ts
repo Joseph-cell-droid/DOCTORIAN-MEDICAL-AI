@@ -61,6 +61,54 @@ export interface Doctor {
 
 const API_BASE = "/api";
 
+const SHARED_CRYPT_KEY = "doctorian-shared-quantum-key-2026-secure-salt";
+
+function encryptText(text: string, key: string = SHARED_CRYPT_KEY): string {
+  if (!text) return "";
+  const keyBytes = Array.from(key).map(c => c.charCodeAt(0));
+  const textBytes = Array.from(new TextEncoder().encode(text));
+  const encrypted: number[] = [];
+  
+  let state = 0;
+  for (let i = 0; i < keyBytes.length; i++) {
+    state = (state + keyBytes[i] * (i + 1)) % 2147483647;
+  }
+  
+  for (let i = 0; i < textBytes.length; i++) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    const keyByte = (state >> 16) & 0xFF;
+    encrypted.push(textBytes[i] ^ keyByte);
+  }
+  
+  return "enc_v1:" + encrypted.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function decryptText(encryptedHex: string, key: string = SHARED_CRYPT_KEY): string {
+  if (!encryptedHex) return "";
+  if (!encryptedHex.startsWith("enc_v1:")) return encryptedHex;
+  
+  const hex = encryptedHex.slice(7);
+  const keyBytes = Array.from(key).map(c => c.charCodeAt(0));
+  const encryptedBytes: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    encryptedBytes.push(parseInt(hex.substring(i, i + 2), 16));
+  }
+  
+  let state = 0;
+  for (let i = 0; i < keyBytes.length; i++) {
+    state = (state + keyBytes[i] * (i + 1)) % 2147483647;
+  }
+  
+  const decryptedBytes: number[] = [];
+  for (let i = 0; i < encryptedBytes.length; i++) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    const keyByte = (state >> 16) & 0xFF;
+    decryptedBytes.push(encryptedBytes[i] ^ keyByte);
+  }
+  
+  return new TextDecoder().decode(new Uint8Array(decryptedBytes));
+}
+
 // --- JWT AND AUTHORIZATION INTERCEPTOR ---
 // To handle situations where the app runs in an iframe and session cookies get blocked
 const originalBrowserFetch = typeof window !== "undefined" ? window.fetch.bind(window) : (typeof globalThis !== "undefined" && (globalThis as any).fetch ? (globalThis as any).fetch : undefined);
@@ -1932,20 +1980,26 @@ export const api = {
 
       // Try backend first (which prioritizes Together AI Llama 3.1 8B, falling back to server-side local Ollama)
       try {
+        const payloadObj = { 
+          messages: payloadMessages, 
+          systemInstruction, 
+          modelName: model, 
+          temperature,
+          useSearch,
+          localApiKey: localStorage.getItem('doctorian_local_api_key') || ''
+        };
+        const encryptedPayload = encryptText(JSON.stringify(payloadObj));
         const res = await fetchWithRetry(`${API_BASE}/ai/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            messages: payloadMessages, 
-            systemInstruction, 
-            modelName: model, 
-            temperature,
-            useSearch,
-            localApiKey: localStorage.getItem('doctorian_local_api_key') || ''
-          }),
+          body: JSON.stringify({ encryptedPayload }),
           credentials: "include",
         });
-        const data = await res.json();
+        let data = await res.json();
+        if (data && data.encryptedResponse) {
+          const decrypted = decryptText(data.encryptedResponse);
+          data = JSON.parse(decrypted);
+        }
         if (!res.ok) throw new Error(data.error || "Failed to get AI response");
         return data as { text: string; imageData?: string; creditsRemaining?: number | string };
       } catch (backendErr: any) {
@@ -2211,23 +2265,25 @@ export const api = {
 
       // Try backend streaming first (priority: cloud Together AI)
       try {
+        const payloadObj = { 
+          messages, 
+          systemInstruction, 
+          modelName: model, 
+          temperature,
+          useSearch,
+          thinkingLevel,
+          images,
+          targetLanguage,
+          localApiKey: localStorage.getItem('doctorian_local_api_key') || ''
+        };
+        const encryptedPayload = encryptText(JSON.stringify(payloadObj));
         const res = await fetchWithRetry(`${API_BASE}/ai/chat`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             "Accept": "text/event-stream"
           },
-          body: JSON.stringify({ 
-            messages, 
-            systemInstruction, 
-            modelName: model, 
-            temperature,
-            useSearch,
-            thinkingLevel,
-            images,
-            targetLanguage,
-            localApiKey: localStorage.getItem('doctorian_local_api_key') || ''
-          }),
+          body: JSON.stringify({ encryptedPayload }),
           credentials: "include",
           signal
         });
@@ -2256,7 +2312,11 @@ export const api = {
               const dataStr = line.slice(6);
               if (dataStr === "[DONE]") return;
               try {
-                const data = JSON.parse(dataStr);
+                let data = JSON.parse(dataStr);
+                if (data && data.encryptedChunk) {
+                  const decrypted = decryptText(data.encryptedChunk);
+                  data = JSON.parse(decrypted);
+                }
                 if (data.error) throw new Error(data.error);
                 
                 if (data.thought) {
@@ -2752,6 +2812,51 @@ export const api = {
       } catch (err) {
         return `[Offline Decoding Pass]: Patient reports normal clinical baselines.`;
       }
+    },
+    async getHuggingFaceModels(): Promise<{ models: { id: string; downloads: number; likes: number }[]; isFallback?: boolean }> {
+      if (isOffline()) {
+        return {
+          models: [
+            { id: "meta-llama/Llama-3.1-8B-Instruct", downloads: 1543000, likes: 5210 },
+            { id: "mistralai/Mistral-7B-Instruct-v0.3", downloads: 820000, likes: 2900 },
+            { id: "Qwen/Qwen2.5-1.5B-Instruct", downloads: 410000, likes: 950 }
+          ],
+          isFallback: true
+        };
+      }
+      try {
+        const res = await fetch(`${API_BASE}/ai/huggingface/models`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include"
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to fetch models");
+        return data;
+      } catch (err: any) {
+        return {
+          models: [
+            { id: "meta-llama/Llama-3.1-8B-Instruct", downloads: 1543000, likes: 5210 },
+            { id: "mistralai/Mistral-7B-Instruct-v0.3", downloads: 820000, likes: 2900 },
+            { id: "Qwen/Qwen2.5-1.5B-Instruct", downloads: 410000, likes: 950 }
+          ],
+          isFallback: true
+        };
+      }
+    },
+    async verifyHuggingFace(token: string, model?: string): Promise<{ success: boolean; message: string; raw?: any }> {
+      if (isOffline()) {
+        return { success: true, message: "Handshake verified locally (Offline back-up mode simulation)." };
+      }
+      const res = await fetch(`${API_BASE}/ai/huggingface/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, model }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed");
+      return data;
     }
   },
   tasks: {

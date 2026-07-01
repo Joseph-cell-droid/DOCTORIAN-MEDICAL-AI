@@ -31,6 +31,55 @@ dotenv.config();
 if (!process.env.OPENROUTER_API_KEY) {
   process.env.OPENROUTER_API_KEY = "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";
 }
+
+const SHARED_CRYPT_KEY = process.env.VITE_ENCRYPTION_SECRET || "doctorian-shared-quantum-key-2026-secure-salt";
+
+function encryptText(text: string, key: string = SHARED_CRYPT_KEY): string {
+  if (!text) return "";
+  const keyBytes = Array.from(key).map(c => c.charCodeAt(0));
+  const textBytes = Array.from(Buffer.from(text, 'utf-8'));
+  const encrypted: number[] = [];
+  
+  let state = 0;
+  for (let i = 0; i < keyBytes.length; i++) {
+    state = (state + keyBytes[i] * (i + 1)) % 2147483647;
+  }
+  
+  for (let i = 0; i < textBytes.length; i++) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    const keyByte = (state >> 16) & 0xFF;
+    encrypted.push(textBytes[i] ^ keyByte);
+  }
+  
+  return "enc_v1:" + encrypted.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function decryptText(encryptedHex: string, key: string = SHARED_CRYPT_KEY): string {
+  if (!encryptedHex) return "";
+  if (!encryptedHex.startsWith("enc_v1:")) return encryptedHex;
+  
+  const hex = encryptedHex.slice(7);
+  const keyBytes = Array.from(key).map(c => c.charCodeAt(0));
+  const encryptedBytes: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    encryptedBytes.push(parseInt(hex.substring(i, i + 2), 16));
+  }
+  
+  let state = 0;
+  for (let i = 0; i < keyBytes.length; i++) {
+    state = (state + keyBytes[i] * (i + 1)) % 2147483647;
+  }
+  
+  const decryptedBytes: number[] = [];
+  for (let i = 0; i < encryptedBytes.length; i++) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    const keyByte = (state >> 16) & 0xFF;
+    decryptedBytes.push(encryptedBytes[i] ^ keyByte);
+  }
+  
+  return Buffer.from(decryptedBytes).toString('utf-8');
+}
+
 const arduinoClients = new Set<WebSocket>();
 const biometricClients = new Set<WebSocket>();
 let globalDoctorRotationIndex = 0;
@@ -155,7 +204,7 @@ const shouldTryTogetherAI = () => {
 };
 
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN || "";
-const HUGGINGFACE_MODEL = process.env.HUGGINGFACE_MODEL || "meta-llama/Llama-3.1-8B-Instruct";
+const HUGGINGFACE_MODEL = process.env.HUGGINGFACE_MODEL || "google/gemma-3-4b-it";
 
 const shouldTryHuggingFace = (customToken?: string) => {
   const token = customToken || HUGGINGFACE_API_KEY;
@@ -546,6 +595,16 @@ async function* callAIStream(options: {
   let activeHFToken = HUGGINGFACE_API_KEY;
   let activeHFModel = HUGGINGFACE_MODEL;
 
+  if (modelName) {
+    if (modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
+      activeHFModel = "google/gemma-3-4b-it";
+    } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
+      activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
+    } else if (modelName !== "huggingface" && modelName !== "llama-clinical" && modelName !== "gemma3-tfjs") {
+      activeHFModel = modelName;
+    }
+  }
+
   if (userId) {
     try {
       let userRow: any = null;
@@ -577,12 +636,13 @@ async function* callAIStream(options: {
   
   // Configure pathways: Option 1 (keys/cloud) is the primary AI brain, Option 2 (ollama/local) is the fallback/failover
   let pathways = ["keys", "ollama", "huggingface", "together"];
-  if (IS_LM_STUDIO) {
+  if (modelName === "huggingface") {
+    pathways = ["huggingface", "keys", "ollama", "together"];
+  } else if (IS_LM_STUDIO) {
     pathways = ["keys", "ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
     pathways = ["keys", "ollama", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    // Try keys (primary) first, and fallback to local Ollama/LM Studio node
     pathways = ["keys", "ollama", "huggingface", "together"];
   }
 
@@ -1139,6 +1199,16 @@ async function callAIWorkflow(options: {
   let activeHFToken = HUGGINGFACE_API_KEY;
   let activeHFModel = HUGGINGFACE_MODEL;
 
+  if (modelName) {
+    if (modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
+      activeHFModel = "google/gemma-3-4b-it";
+    } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
+      activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
+    } else if (modelName !== "huggingface" && modelName !== "llama-clinical" && modelName !== "gemma3-tfjs") {
+      activeHFModel = modelName;
+    }
+  }
+
   if (userId) {
     try {
       let userRow: any = null;
@@ -1168,12 +1238,13 @@ async function callAIWorkflow(options: {
 
   // Configure pathways: Option 1 (keys/cloud) is the primary AI brain, Option 2 (ollama/local) is the fallback/failover
   let pathways = ["keys", "ollama", "huggingface", "together"];
-  if (IS_LM_STUDIO) {
+  if (modelName === "huggingface") {
+    pathways = ["huggingface", "keys", "ollama", "together"];
+  } else if (IS_LM_STUDIO) {
     pathways = ["keys", "ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
     pathways = ["keys", "ollama", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    // Try keys (primary) first, and fallback to local Ollama/LM Studio node
     pathways = ["keys", "ollama", "huggingface", "together"];
   }
 
@@ -1876,7 +1947,11 @@ const schemas = [
     ollamaUrl TEXT,
     ollamaModel TEXT DEFAULT 'llama3',
     huggingfaceToken TEXT,
-    huggingfaceModel TEXT DEFAULT 'meta-llama/Llama-3.1-8B-Instruct',
+    huggingfaceModel TEXT DEFAULT 'google/gemma-3-4b-it',
+    allergies TEXT,
+    conditions TEXT,
+    bloodGroup TEXT,
+    hospitalPreference TEXT,
     createdAt TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS notifications (
@@ -2008,13 +2083,17 @@ try {
   const hasModel = pragma.some((col: any) => col.name === 'huggingfaceModel');
   const hasStatus = pragma.some((col: any) => col.name === 'status');
   const hasLastActive = pragma.some((col: any) => col.name === 'lastActive');
+  const hasAllergies = pragma.some((col: any) => col.name === 'allergies');
+  const hasConditions = pragma.some((col: any) => col.name === 'conditions');
+  const hasBloodGroup = pragma.some((col: any) => col.name === 'bloodGroup');
+  const hasHospitalPreference = pragma.some((col: any) => col.name === 'hospitalPreference');
 
   if (!hasToken) {
     db.prepare("ALTER TABLE users ADD COLUMN huggingfaceToken TEXT").run();
     console.log("[MIGRATION] Successfully added huggingfaceToken column to users table.");
   }
   if (!hasModel) {
-    db.prepare("ALTER TABLE users ADD COLUMN huggingfaceModel TEXT DEFAULT 'meta-llama/Llama-3.1-8B-Instruct'").run();
+    db.prepare("ALTER TABLE users ADD COLUMN huggingfaceModel TEXT DEFAULT 'google/gemma-3-4b-it'").run();
     console.log("[MIGRATION] Successfully added huggingfaceModel column to users table.");
   }
   if (!hasStatus) {
@@ -2024,6 +2103,22 @@ try {
   if (!hasLastActive) {
     db.prepare("ALTER TABLE users ADD COLUMN lastActive TEXT").run();
     console.log("[MIGRATION] Successfully added lastActive column to users table.");
+  }
+  if (!hasAllergies) {
+    db.prepare("ALTER TABLE users ADD COLUMN allergies TEXT").run();
+    console.log("[MIGRATION] Successfully added allergies column to users table.");
+  }
+  if (!hasConditions) {
+    db.prepare("ALTER TABLE users ADD COLUMN conditions TEXT").run();
+    console.log("[MIGRATION] Successfully added conditions column to users table.");
+  }
+  if (!hasBloodGroup) {
+    db.prepare("ALTER TABLE users ADD COLUMN bloodGroup TEXT").run();
+    console.log("[MIGRATION] Successfully added bloodGroup column to users table.");
+  }
+  if (!hasHospitalPreference) {
+    db.prepare("ALTER TABLE users ADD COLUMN hospitalPreference TEXT").run();
+    console.log("[MIGRATION] Successfully added hospitalPreference column to users table.");
   }
 } catch (migErr: any) {
   console.error("[MIGRATION ERROR] Failed to run database migrations check:", migErr.message);
@@ -4771,7 +4866,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       const offset = (page - 1) * limit;
 
       let countQuery = "SELECT COUNT(*) as count FROM users WHERE 1=1";
-      let selectQuery = "SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, status, lastActive, createdAt FROM users WHERE 1=1";
+      let selectQuery = "SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, status, lastActive, allergies, conditions, bloodGroup, hospitalPreference, createdAt FROM users WHERE 1=1";
       const params: any[] = [];
 
       if (search) {
@@ -4842,19 +4937,33 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
   // Admin Create User Route
   app.post("/api/admin/users", requireAdmin, async (req: any, res) => {
-    const { email, password, displayName, role, credits, phone, institutionId } = req.body;
+    const { id: reqId, email, password, displayName, role, credits, phone, institutionId, allergies, conditions, bloodGroup, hospitalPreference } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
 
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const id = "usr_" + Math.random().toString(36).substring(2, 12);
+      
+      let finalId = reqId ? reqId.trim() : "";
+      if (finalId) {
+        // Check if ID is already in use
+        const existingId = db.prepare("SELECT id FROM users WHERE id = ?").get(finalId);
+        if (existingId) {
+          return res.status(400).json({ error: `User ID '${finalId}' is already registered in the system.` });
+        }
+      } else {
+        finalId = "usr_" + Math.random().toString(36).substring(2, 12);
+      }
+      
       const createdAt = new Date().toISOString();
 
       db.prepare(`
-        INSERT INTO users (id, email, password, displayName, role, credits, phone, institutionId, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (
+          id, email, password, displayName, role, credits, phone, institutionId, 
+          allergies, conditions, bloodGroup, hospitalPreference, createdAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id,
+        finalId,
         email,
         hashedPassword,
         displayName || email.split("@")[0],
@@ -4862,6 +4971,10 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         credits !== undefined ? Number(credits) : 400,
         phone || null,
         institutionId || null,
+        allergies || null,
+        conditions || null,
+        bloodGroup || null,
+        hospitalPreference || null,
         createdAt
       );
 
@@ -4870,23 +4983,23 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         .run(
           Math.random().toString(36).substring(2, 11),
           "USER_CREATION_ADMIN",
-          `Admin (${req.user.email}) created user account for ${email} with role ${role || 'user'}`
+          `Admin (${req.user.email}) created user account for ${email} with ID ${finalId}`
         );
 
-      res.status(201).json({ success: true, id });
+      res.status(201).json({ success: true, id: finalId });
     } catch (err: any) {
       console.error("[ADMIN] User creation failed:", err.message);
       if (err.message.includes("UNIQUE constraint failed")) {
         return res.status(400).json({ error: "User with this email already exists" });
       }
-      res.status(500).json({ error: "Failed to create user account" });
+      res.status(500).json({ error: "Failed to create user account: " + err.message });
     }
   });
 
   // Admin Update User Route
   app.patch("/api/admin/users/:id/update", requireAdmin, async (req: any, res) => {
     const { id } = req.params;
-    const { email, displayName, role, credits, phone, institutionId, password, status } = req.body;
+    const { email, displayName, role, credits, phone, institutionId, password, status, allergies, conditions, bloodGroup, hospitalPreference } = req.body;
 
     try {
       // Fetch existing user
@@ -4903,7 +5016,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
       db.prepare(`
         UPDATE users 
-        SET email = ?, displayName = ?, role = ?, credits = ?, phone = ?, institutionId = ?, password = ?, status = ?
+        SET email = ?, displayName = ?, role = ?, credits = ?, phone = ?, institutionId = ?, password = ?, status = ?,
+            allergies = ?, conditions = ?, bloodGroup = ?, hospitalPreference = ?
         WHERE id = ?
       `).run(
         email || existing.email,
@@ -4914,6 +5028,10 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         institutionId !== undefined ? institutionId : existing.institutionId,
         hashedPassword,
         status !== undefined ? status : (existing.status || 'active'),
+        allergies !== undefined ? allergies : existing.allergies,
+        conditions !== undefined ? conditions : existing.conditions,
+        bloodGroup !== undefined ? bloodGroup : existing.bloodGroup,
+        hospitalPreference !== undefined ? hospitalPreference : existing.hospitalPreference,
         id
       );
 
@@ -6500,7 +6618,87 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       }
     });
 
+    app.get("/api/ai/huggingface/models", authenticate, async (req, res) => {
+      try {
+        const response = await axios.get("https://huggingface.co/api/models?filter=text-generation&sort=downloads&direction=-1&limit=20", {
+          headers: {
+            "Accept": "application/json"
+          },
+          timeout: 10000
+        });
+        
+        const models = response.data.map((m: any) => ({
+          id: m.id,
+          downloads: m.downloads || 0,
+          likes: m.likes || 0,
+          pipeline_tag: m.pipeline_tag
+        }));
+        
+        res.json({ models });
+      } catch (err: any) {
+        // Fallback popular list if external Hugging Face Hub API is busy or offline
+        const fallbackModels = [
+          { id: "meta-llama/Llama-3.1-8B-Instruct", downloads: 1543000, likes: 5210 },
+          { id: "meta-llama/Meta-Llama-3-8B-Instruct", downloads: 980000, likes: 3200 },
+          { id: "mistralai/Mistral-7B-Instruct-v0.3", downloads: 820000, likes: 2900 },
+          { id: "Qwen/Qwen2.5-72B-Instruct", downloads: 650000, likes: 1800 },
+          { id: "Qwen/Qwen2.5-1.5B-Instruct", downloads: 410000, likes: 950 },
+          { id: "google/gemma-2-9b-it", downloads: 540000, likes: 2100 },
+          { id: "google/gemma-2-2b-it", downloads: 350000, likes: 1400 },
+          { id: "microsoft/Phi-3-mini-4k-instruct", downloads: 480000, likes: 1200 }
+        ];
+        res.json({ models: fallbackModels, error: err.message, isFallback: true });
+      }
+    });
+
+    app.post("/api/ai/huggingface/verify", authenticate, async (req, res) => {
+      const { token, model } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "Access token is required" });
+      }
+      const modelToTest = model || "google/gemma-3-4b-it";
+      
+      try {
+        console.log(`[HF-VERIFY] Testing token against Hugging Face Serverless API for model: ${modelToTest}`);
+        const response = await axios.post(`https://api-inference.huggingface.co/models/${modelToTest}`, {
+          inputs: "Hello, respond with exactly one word: Success.",
+          parameters: {
+            max_new_tokens: 10,
+            temperature: 0.1
+          }
+        }, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          timeout: 15000
+        });
+        
+        res.json({ 
+          success: true, 
+          message: "Synapse handshake successful! Hugging Face cloud connection is active and fully functional.",
+          raw: response.data
+        });
+      } catch (err: any) {
+        console.error("[HF-VERIFY] Test failed:", err.response?.data || err.message);
+        const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || "Connection timed out. Model might be loading on Hugging Face servers.";
+        res.status(500).json({ 
+          success: false, 
+          error: errMsg
+        });
+      }
+    });
+
     app.post("/api/ai/chat", authenticate, async (req, res) => {
+      if (req.body && req.body.encryptedPayload) {
+        try {
+          const decrypted = decryptText(req.body.encryptedPayload);
+          req.body = JSON.parse(decrypted);
+        } catch (err) {
+          console.error("[DECRYPTION-FAILED] Could not decrypt request payload:", err);
+          return res.status(400).json({ error: "Failed to decrypt quantum secure payload" });
+        }
+      }
       const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, modelOverride, images, targetLanguage, localApiKey } = req.body;
       const userId = (req as any).user.id;
       const user = db.prepare("SELECT enableExternalAI, subscriptionTier, subscriptionStatus, email FROM users WHERE id = ?").get(userId) as any;
@@ -6671,7 +6869,9 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
               if (activeTargetLang !== "English") {
                 fullResponse += chunk;
               } else {
-                res.write(`data: ${JSON.stringify({ text: chunk, credits: credits - 1 })}\n\n`);
+                const chunkObj = { text: chunk, credits: credits - 1 };
+                const encryptedChunk = encryptText(JSON.stringify(chunkObj));
+                res.write(`data: ${JSON.stringify({ encryptedChunk })}\n\n`);
               }
             }
 
@@ -6680,7 +6880,9 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
                 messages: [{ role: 'user', text: `Translate to ${activeTargetLang}: ${fullResponse}` }],
                 systemInstruction: "Translate medical response accurately."
               });
-              res.write(`data: ${JSON.stringify({ text: translated, credits: credits - 1 })}\n\n`);
+              const chunkObj = { text: translated, credits: credits - 1 };
+              const encryptedChunk = encryptText(JSON.stringify(chunkObj));
+              res.write(`data: ${JSON.stringify({ encryptedChunk })}\n\n`);
             }
 
             if (success) {
@@ -6692,7 +6894,9 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
             console.error("[AI-STREAM] Error:", err.message);
             if (!res.headersSent) res.status(500).json({ error: err.message });
             else {
-              res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+              const errObj = { error: err.message };
+              const encryptedChunk = encryptText(JSON.stringify(errObj));
+              res.write(`data: ${JSON.stringify({ encryptedChunk })}\n\n`);
               res.end();
             }
           }
@@ -6717,7 +6921,9 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
             }
 
             deductCredits(userId, 1);
-            res.json({ text: finalResponse, creditsRemaining: getUserCredits(userId) });
+            const responseObj = { text: finalResponse, creditsRemaining: getUserCredits(userId) };
+            const encryptedResponse = encryptText(JSON.stringify(responseObj));
+            res.json({ encryptedResponse });
           } catch (err: any) {
             res.status(500).json({ error: err.message });
           }

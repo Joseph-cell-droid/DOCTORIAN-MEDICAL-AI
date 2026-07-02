@@ -1,3 +1,5 @@
+import { isMarianMTModeActive, runMarianInference } from './marianMT';
+
 export interface TranslationKeys {
   // Page / Tab Titles
   'Dashboard': string;
@@ -1074,6 +1076,37 @@ const fetchTranslationInBackground = (text: string, targetLanguage: string) => {
   });
 };
 
+const triggerMarianOfflineTranslation = (text: string, targetLanguage: string) => {
+  const cacheKey = `${targetLanguage}:::${text}`;
+  if (pendingTranslations.has(cacheKey)) return;
+  pendingTranslations.add(cacheKey);
+
+  runMarianInference(text, targetLanguage)
+    .then(translatedText => {
+      let cache: any = {};
+      try {
+        cache = JSON.parse(localStorage.getItem("local_translations_cache") || '{}');
+      } catch (_) {}
+
+      if (!cache[targetLanguage]) {
+        cache[targetLanguage] = {};
+      }
+      cache[targetLanguage][text] = translatedText;
+      localStorage.setItem("local_translations_cache", JSON.stringify(cache));
+
+      // Trigger page translation traversal re-evaluation
+      window.dispatchEvent(new CustomEvent("local_translations_updated", {
+        detail: { text, targetLanguage, translation: translatedText }
+      }));
+    })
+    .catch(err => {
+      console.error("[MarianMT Offline Pipeline Error]", err);
+    })
+    .finally(() => {
+      setTimeout(() => pendingTranslations.delete(cacheKey), 500); // Fast release for fluid offline translation
+    });
+};
+
 const simplifiedOfflineTranslations: Record<string, Record<string, string>> = {
   'Luganda': {
     'Home Screen': 'Wwebbulaasi',
@@ -1625,7 +1658,11 @@ export const translate = (text: string, selectedLanguage: string): string => {
   }
 
   // 4. Trigger Dynamic Automatic Background Translation
-  fetchTranslationInBackground(trimmed, selectedLanguage);
+  if (isMarianMTModeActive()) {
+    triggerMarianOfflineTranslation(trimmed, selectedLanguage);
+  } else {
+    fetchTranslationInBackground(trimmed, selectedLanguage);
+  }
 
   return text;
 };

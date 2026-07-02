@@ -29,7 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [view, setView] = useState<AuthView>(initialView);
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
   const [authMethod, setAuthMethod] = useState<'password' | 'biometric'>('password');
-  const [portalType, setPortalType] = useState<'patient' | 'doctor' | 'admin'>('patient');
+  const [portalType, setPortalType] = useState<'user' | 'doctor' | 'admin'>('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -218,9 +218,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         // Enforce role-portal separation
         if (portalType === 'doctor') {
           if (user.role !== 'doctor' && user.role !== 'clinician') {
-            throw new Error("Access Denied: This account is registered as a Patient. Please use the Patient Sign In Portal.");
+            throw new Error("Access Denied: This account is registered as a Standard User. Please use the User Sign In Portal.");
           }
-          setSuccessMessage(`Clinician credentials verified! Loading clinical core and patient vitals...`);
+          setSuccessMessage(`Clinician credentials verified! Loading clinical core and diagnostic systems...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
         } else if (portalType === 'admin') {
           if (user.role !== 'admin') {
@@ -229,12 +229,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setSuccessMessage(`Administrator access verified! Loading core administration matrix...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
-          // Patient portal login
+          // User portal login
           if (user.role === 'admin' || user.role === 'doctor' || user.role === 'clinician') {
-            setSuccessMessage(`Welcome back, Clinician/Admin! Logging you into standard patient perspective.`);
+            setSuccessMessage(`Welcome back, Clinician/Admin! Logging you into standard user perspective.`);
             await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
-            setSuccessMessage(`Welcome back, Patient! Initializing bio-security session...`);
+            setSuccessMessage(`Welcome back, User! Initializing secure health session...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
@@ -419,7 +419,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {view === 'login' ? (
                      portalType === 'doctor' ? '🔐 Clinician & Medical Staff Terminal' :
                      portalType === 'admin' ? '🛡️ Restricted Administrative Server Core' :
-                     '🧬 Personal Patient & Emergency Registry Portal'
+                     '🧬 Secure Personal User & Health Portal'
                    ) : 
                    view === 'signup' ? 'Join Doctorian for personalized health insights' :
                    view === 'forgot-password' ? 'Enter your email to receive a verification code' : 
@@ -437,16 +437,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setPortalType('patient');
+                        setPortalType('user');
                         setError(null);
                       }}
                       className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        portalType === 'patient' 
+                        portalType === 'user' 
                           ? 'bg-blue-600 text-white shadow-md' 
                           : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
                       }`}
                     >
-                      Patient
+                      User
                     </button>
                     <button
                       type="button"
@@ -517,7 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                          'High-Privilege Security Authorization'}
                       </h4>
                       <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-                        Patient / Officer ID: {email || JSON.parse(localStorage.getItem("medical_user") || '{"email":"active-officer"}').email}
+                        User / Officer ID: {email || JSON.parse(localStorage.getItem("medical_user") || '{"email":"active-officer"}').email}
                       </p>
                     </div>
 

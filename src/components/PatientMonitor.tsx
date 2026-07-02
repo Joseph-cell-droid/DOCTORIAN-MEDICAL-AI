@@ -1575,9 +1575,9 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     if (isCritical && (!lastAlertSent || Date.now() - lastAlertSent > 300000)) { // Alert every 5 minutes if still critical
       const activePatient = registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0];
       
-      const patientPhone = activePatient?.phone || '+256787674140';
-      const doctorPhone = activePatient?.doctorPhone || '+256787674140';
-      const mentorPhone = activePatient?.mentorPhone || '+256787674140';
+      const patientPhone = user?.phone || activePatient?.phone || '+256787674140';
+      const doctorPhone = user?.doctorPhone || activePatient?.doctorPhone || '+256787674140';
+      const mentorPhone = user?.mentorPhone || activePatient?.mentorPhone || '+256787674140';
 
       const alertMessage = `CRITICAL ALERT [RELAY: 0787674140] for Patient: ${activePatient?.name || 'Authorized Client'} in ${activePatient?.bedNumber || 'Assigned Bed'}. Biometrics critical! HR: ${Math.round(vitals?.heartRate || 0)}bpm, SpO2: ${Math.round(vitals?.spo2 || 0)}%, Temp: ${vitals?.temperature.toFixed(1)}°C. Pre-existing Conditions: ${activePatient?.conditions || 'None'}. Clinical action required immediately.`;
       
@@ -3461,24 +3461,62 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               <h2 className="text-3xl font-[1000] uppercase tracking-tighter mb-2 animate-pulse">Emergency Alarm</h2>
               <p className="text-xs font-black uppercase tracking-[0.3em] mb-8 text-rose-100 opacity-80">Autonomous Calling Protocol Active</p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-3">
-                   <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                      <Stethoscope size={16} />
-                   </div>
-                   <div className="text-left">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-rose-200">Point ALPHA</p>
-                      <p className="text-xs font-black uppercase truncate">Doctor on duty</p>
-                   </div>
-                </div>
-                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-3">
-                   <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
-                      <UserIcon size={16} />
-                   </div>
-                   <div className="text-left">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-rose-200">Point BETA</p>
-                      <p className="text-xs font-black uppercase truncate">Patient Mentor</p>
-                   </div>
+              <div className="text-left mb-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-200 mb-2.5">Simultaneous Recipients Dialed:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[160px] overflow-y-auto pr-1">
+                  {/* Doctor */}
+                  <div className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
+                     <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                        <Stethoscope size={14} />
+                     </div>
+                     <div className="text-left min-w-0">
+                        <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">DOCTOR ON DUTY</p>
+                        <p className="text-xs font-black truncate">{user?.doctorName || "Primary Doctor"}</p>
+                        <p className="text-[10px] text-emerald-100 font-mono tracking-wider truncate">{user?.doctorPhone || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.doctorPhone || "+256787674140"}</p>
+                     </div>
+                  </div>
+                  {/* Mentor */}
+                  <div className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
+                     <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                        <UserIcon size={14} />
+                     </div>
+                     <div className="text-left min-w-0">
+                        <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">PATIENT MENTOR</p>
+                        <p className="text-xs font-black truncate">{user?.mentorName || "Nexus Mentor"}</p>
+                        <p className="text-[10px] text-amber-100 font-mono tracking-wider truncate">{user?.mentorPhone || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.mentorPhone || "+256787674140"}</p>
+                     </div>
+                  </div>
+                  {/* Patient Node */}
+                  <div className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
+                     <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                        <UserIcon size={14} />
+                     </div>
+                     <div className="text-left min-w-0">
+                        <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">PATIENT NODE</p>
+                        <p className="text-xs font-black truncate">{user?.displayName || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.name || "Patient"}</p>
+                        <p className="text-[10px] text-blue-100 font-mono tracking-wider truncate">{user?.phone || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.phone || "+256787674140"}</p>
+                     </div>
+                  </div>
+                  {/* Custom Emergency Contacts from DB */}
+                  {(() => {
+                    let stored: Array<{ name?: string; role?: string; phone: string }> = [];
+                    try {
+                      const saved = localStorage.getItem('emergency_contacts');
+                      if (saved) stored = JSON.parse(saved);
+                    } catch (e) {}
+                    return stored.map((contact, idx) => (
+                      <div key={idx} className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
+                         <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
+                            <PhoneCall size={12} />
+                         </div>
+                         <div className="text-left min-w-0">
+                            <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">{contact.role || "EMERGENCY CONTACT"}</p>
+                            <p className="text-xs font-black truncate">{contact.name || "Auxiliary Contact"}</p>
+                            <p className="text-[10px] text-purple-100 font-mono tracking-wider truncate">{contact.phone}</p>
+                         </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
 

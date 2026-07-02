@@ -113,9 +113,16 @@ export async function syncToPostgres(sqliteSql: string, params: any[], tableName
     return;
   }
 
-  // Filter out read-only query syncs
+  // Filter out read-only query syncs and DDL statements
   const upperSql = sqliteSql.trim().toUpperCase();
-  if (upperSql.startsWith("SELECT") || upperSql.startsWith("PRAGMA") || upperSql.startsWith("EXPLAIN")) {
+  if (
+    upperSql.startsWith("SELECT") || 
+    upperSql.startsWith("PRAGMA") || 
+    upperSql.startsWith("EXPLAIN") ||
+    upperSql.startsWith("CREATE") ||
+    upperSql.startsWith("ALTER") ||
+    upperSql.startsWith("DROP")
+  ) {
     return;
   }
 

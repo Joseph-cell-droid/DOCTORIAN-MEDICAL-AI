@@ -1082,7 +1082,13 @@ async function* callAIStream(options: {
                   });
                   success = true;
                 } catch (streamInitErr: any) {
-                  console.log("[AI-STREAM] Modern Synapse stream failed, trying alternate model fallback:", streamInitErr.message);
+                  let cleanErrMessage = streamInitErr.message || "";
+                  if (cleanErrMessage.includes("429") || cleanErrMessage.includes("Quota") || cleanErrMessage.includes("RESOURCE_EXHAUSTED") || cleanErrMessage.toLowerCase().includes("quota")) {
+                    cleanErrMessage = "Quota Exceeded (429 / RESOURCE_EXHAUSTED)";
+                  } else if (cleanErrMessage.length > 150) {
+                    cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
+                  }
+                  console.log("[AI-STREAM] Modern Synapse stream failed, trying alternate model fallback:", cleanErrMessage);
                   const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     try {
@@ -1098,7 +1104,13 @@ async function* callAIStream(options: {
                       success = true;
                       break;
                     } catch (retryErr: any) {
-                      console.log(`[AI-STREAM] Stream fallback tried ${modelId} but failed:`, retryErr.message);
+                      let cleanRetryErrMessage = retryErr.message || "";
+                      if (cleanRetryErrMessage.includes("429") || cleanRetryErrMessage.includes("Quota") || cleanRetryErrMessage.includes("RESOURCE_EXHAUSTED") || cleanRetryErrMessage.toLowerCase().includes("quota")) {
+                        cleanRetryErrMessage = "Quota Exceeded (429 / RESOURCE_EXHAUSTED)";
+                      } else if (cleanRetryErrMessage.length > 150) {
+                        cleanRetryErrMessage = cleanRetryErrMessage.substring(0, 150) + "...";
+                      }
+                      console.log(`[AI-STREAM] Stream fallback tried ${modelId} but failed:`, cleanRetryErrMessage);
                       if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
                     }
                   }
@@ -1552,7 +1564,13 @@ async function callAIWorkflow(options: {
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
                 if (text) return text;
               } catch (genErr: any) {
-                console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", genErr.message);
+                let cleanErrMessage = genErr.message || "";
+                if (cleanErrMessage.includes("429") || cleanErrMessage.includes("Quota") || cleanErrMessage.includes("RESOURCE_EXHAUSTED") || cleanErrMessage.toLowerCase().includes("quota")) {
+                  cleanErrMessage = "Quota Exceeded (429 / RESOURCE_EXHAUSTED)";
+                } else if (cleanErrMessage.length > 150) {
+                  cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
+                }
+                console.log("[AI-BRAIN] Modern Synapse failed, trying alternate model fallback:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
                   const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
@@ -1569,7 +1587,13 @@ async function callAIWorkflow(options: {
                       });
                       return result.text;
                     } catch (retryErr: any) {
-                      console.log(`[AI-BRAIN] Fallback tried ${modelId} but failed:`, retryErr.message);
+                      let cleanRetryErrMessage = retryErr.message || "";
+                      if (cleanRetryErrMessage.includes("429") || cleanRetryErrMessage.includes("Quota") || cleanRetryErrMessage.includes("RESOURCE_EXHAUSTED") || cleanRetryErrMessage.toLowerCase().includes("quota")) {
+                        cleanRetryErrMessage = "Quota Exceeded (429 / RESOURCE_EXHAUSTED)";
+                      } else if (cleanRetryErrMessage.length > 150) {
+                        cleanRetryErrMessage = cleanRetryErrMessage.substring(0, 150) + "...";
+                      }
+                      console.log(`[AI-BRAIN] Fallback tried ${modelId} but failed:`, cleanRetryErrMessage);
                       if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
                     }
                   }
@@ -5419,13 +5443,28 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     const mtnApiKey = process.env.MTN_API_KEY;
     const airtelApiKey = process.env.AIRTEL_API_KEY;
     const senderId = process.env.SENDER_ID || "DOCTORIAN_MED";
+
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
+    const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+
+    // Support retrieving registered numbers from database
+    const userId = req.user?.id || req.user?.uid;
+    let dbUser: any = null;
+    if (userId) {
+      try {
+        dbUser = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+      } catch (err) {
+        console.error("Failed to query user for SMS phone numbers:", err);
+      }
+    }
     
     // Support rotating doctor or passed numbers
     const rotating = getRotatingDoctorOnDuty();
-    const doctorNumber = normalizePhoneNumber(rotating.doctor ? rotating.doctorNumber : (toDoctor || process.env.DOCTOR_PHONE_NUMBER));
+    const doctorNumber = normalizePhoneNumber(toDoctor || dbUser?.doctorPhone || (rotating.doctor ? rotating.doctorNumber : undefined) || process.env.DOCTOR_PHONE_NUMBER || "+256787674140");
     const doctorName = rotating.doctor ? rotating.doctorName : "Primary Doctor";
     const nextDoctorName = rotating.nextDoctorName;
-    const mentorNumber = normalizePhoneNumber(toMentor || process.env.MENTOR_PHONE_NUMBER);
+    const mentorNumber = normalizePhoneNumber(toMentor || dbUser?.mentorPhone || process.env.MENTOR_PHONE_NUMBER || "+256787674140");
 
     // Save dispatch to database system_logs and notifications for the Detailed Data Log
     try {
@@ -5467,15 +5506,15 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       console.error("[SERVER] Failed to write emergency logs to database:", logErr.message);
     }
 
-    if ((!mtnApiKey && !airtelApiKey) || !doctorNumber) {
-      console.warn("MTN/Airtel API Keys or doctor number missing. SMS simulation completed.");
+    if ((!mtnApiKey && !airtelApiKey && (!twilioSid || !twilioAuth || !twilioPhone)) || !doctorNumber) {
+      console.warn("No real SMS gateway configured. SMS simulation completed.");
       return res.json({ 
         success: true, 
         simulated: true, 
         recipientDoctor: doctorName,
         recipientDoctorPhone: doctorNumber,
         nextDoctorOnDuty: nextDoctorName,
-        message: "Alert logged. Configure MTN_API_KEY or AIRTEL_API_KEY in .env for real SMS." 
+        message: "Alert logged. Configure MTN_API_KEY, AIRTEL_API_KEY, or TWILIO credentials in .env for real SMS." 
       });
     }
 
@@ -5502,7 +5541,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         }, {
           headers: { 'Authorization': `Bearer ${mtnApiKey}` }
         });
-        results.push({ recipient: recipientName, status: 'sent', network: 'MTN' });
+        results.push({ recipient: recipientName, status: 'sent', network: 'MTN', phone: to });
       } catch (err: any) {
         throw err;
       }
@@ -5518,7 +5557,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         }, {
           headers: { 'Authorization': `Bearer ${airtelApiKey}` }
         });
-        results.push({ recipient: recipientName, status: 'sent', network: 'Airtel' });
+        results.push({ recipient: recipientName, status: 'sent', network: 'Airtel', phone: to });
       } catch (err: any) {
         throw err;
       }
@@ -5526,19 +5565,53 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
     const dispatch = async (to: string, name: string) => {
       if (!to) return;
-      try {
-        if (mtnApiKey) {
-          await sendSmsViamtn(to, name);
-        } else if (airtelApiKey) {
-          await sendSmsViaAirtel(to, name);
+      let sent = false;
+      let errorMsgs = [];
+
+      // Try Twilio if configured
+      if (twilioSid && twilioAuth && twilioPhone) {
+        try {
+          const client = twilio(twilioSid, twilioAuth);
+          await client.messages.create({
+            body: message,
+            from: twilioPhone,
+            to: to
+          });
+          results.push({ recipient: name, status: 'sent', network: 'Twilio', phone: to });
+          sent = true;
+        } catch (err: any) {
+          console.error(`[SMS] Twilio failed for ${name} (${to}):`, err.message);
+          errorMsgs.push(`Twilio: ${err.message}`);
         }
-      } catch (err: any) {
-        console.error(`SMS Dispatch Error (${name}: ${to}):`, err.message);
-        results.push({ recipient: name, status: 'failed', error: err.message });
+      }
+
+      // Try MTN if configured
+      if (!sent && mtnApiKey) {
+        try {
+          await sendSmsViamtn(to, name);
+          sent = true;
+        } catch (err: any) {
+          console.error(`[SMS] MTN failed for ${name} (${to}):`, err.message);
+          errorMsgs.push(`MTN: ${err.message}`);
+        }
+      }
+
+      // Try Airtel if configured
+      if (!sent && airtelApiKey) {
+        try {
+          await sendSmsViaAirtel(to, name);
+          sent = true;
+        } catch (err: any) {
+          console.error(`[SMS] Airtel failed for ${name} (${to}):`, err.message);
+          errorMsgs.push(`Airtel: ${err.message}`);
+        }
+      }
+
+      if (!sent) {
+        results.push({ recipient: name, status: 'simulated', error: errorMsgs.join('; ') || 'Simulated backup', phone: to });
       }
     };
 
-    const userId = req.user?.id || req.user?.uid;
     let dbContacts: any[] = [];
     if (userId) {
       try {
@@ -5568,16 +5641,33 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     const { message, toDoctor, toMentor, toUser, patientContext } = req.body;
     if (!message) return res.status(400).json({ error: "Message is required" });
 
-    const apiKey = process.env.MTN_API_KEY;
-    const baseUrl = process.env.MTN_BASE_URL || "https://api.mtn.com/v1";
+    const mtnApiKey = process.env.MTN_API_KEY;
+    const mtnBaseUrl = process.env.MTN_BASE_URL || "https://api.mtn.com/v1";
+    const airtelApiKey = process.env.AIRTEL_API_KEY;
+    const airtelBaseUrl = process.env.AIRTEL_BASE_URL || "https://api.airtel.com/v1";
+
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
+    const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
     
+    // Support retrieving registered numbers from database
+    const userId = req.user?.id || req.user?.uid;
+    let dbUser: any = null;
+    if (userId) {
+      try {
+        dbUser = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+      } catch (err) {
+        console.error("Failed to query user for Call phone numbers:", err);
+      }
+    }
+
     // Support rotating doctor or passed numbers
     const rotating = getRotatingDoctorOnDuty();
-    const doctorNumber = normalizePhoneNumber(rotating.doctor ? rotating.doctorNumber : (toDoctor || process.env.DOCTOR_PHONE_NUMBER));
+    const doctorNumber = normalizePhoneNumber(toDoctor || dbUser?.doctorPhone || (rotating.doctor ? rotating.doctorNumber : undefined) || process.env.DOCTOR_PHONE_NUMBER || "+256787674140");
     const doctorName = rotating.doctor ? rotating.doctorName : "Primary Doctor";
     const nextDoctorName = rotating.nextDoctorName;
-    const mentorNumber = normalizePhoneNumber(toMentor || process.env.MENTOR_PHONE_NUMBER);
-    const userNumber = normalizePhoneNumber(toUser);
+    const mentorNumber = normalizePhoneNumber(toMentor || dbUser?.mentorPhone || process.env.MENTOR_PHONE_NUMBER || "+256787674140");
+    const userNumber = normalizePhoneNumber(toUser || dbUser?.phone || "+256787674140");
 
     // DYNAMIC AI VOICE SYNTHESIS DIRECTLY FROM THE GEMINI CLINICAL BRAIN
     let aiText = message;
@@ -5715,21 +5805,6 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       console.error("[SERVER] Failed to write emergency voice call logs:", logErr.message);
     }
 
-    if (!apiKey || (!doctorNumber && !userNumber)) {
-      console.warn("MTN API Key or recipient numbers missing. Voice call simulation completed.");
-      return res.json({ 
-        success: true, 
-        simulated: true, 
-        recipientDoctor: doctorName,
-        recipientDoctorPhone: doctorNumber,
-        nextDoctorOnDuty: nextDoctorName,
-        aiText: aiText,
-        audioBase64: audioBase64,
-        isAIBrainGenerated: isAIBrainGenerated,
-        message: "Voice call logged. Configure MTN API Key and phone numbers in .env for real calls." 
-      });
-    }
-
     const results = [];
     
     // Broadcast trigger to Arduino via WebSocket
@@ -5745,24 +5820,136 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       }
     });
 
-    const makeMTNCall = async (to: string, recipientName: string) => {
+    const getNetworkForPhone = (phone: string): 'MTN' | 'Airtel' | 'unknown' => {
+      const clean = phone.replace(/[^0-9]/g, '');
+      if (
+        clean.startsWith('25677') || clean.startsWith('25678') || clean.startsWith('25676') || clean.startsWith('25639') ||
+        clean.startsWith('077') || clean.startsWith('078') || clean.startsWith('076') || clean.startsWith('039') ||
+        clean.startsWith('77') || clean.startsWith('78') || clean.startsWith('76') || clean.startsWith('39')
+      ) {
+        return 'MTN';
+      }
+      if (
+        clean.startsWith('25675') || clean.startsWith('25670') || clean.startsWith('25674') ||
+        clean.startsWith('075') || clean.startsWith('070') || clean.startsWith('074') ||
+        clean.startsWith('75') || clean.startsWith('70') || clean.startsWith('74')
+      ) {
+        return 'Airtel';
+      }
+      return 'unknown';
+    };
+
+    const makeRealCall = async (to: string, recipientName: string) => {
       if (!to) return;
-      try {
-        await axios.post(`${baseUrl}/voice/call`, {
-          to,
-          message: aiText,
-          voice: 'female'
-        }, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
+      let connected = false;
+      let errorMsgs = [];
+      const network = getNetworkForPhone(to);
+
+      // Try Twilio call if configured (acts as a global proxy/fallback)
+      if (twilioSid && twilioAuth && twilioPhone) {
+        try {
+          console.log(`[CALL] Dispatching real Twilio Call to ${recipientName} at ${to}...`);
+          const client = twilio(twilioSid, twilioAuth);
+          await client.calls.create({
+            twiml: `<Response><Say voice="alice" language="en-US">${aiText}</Say></Response>`,
+            from: twilioPhone,
+            to: to
+          });
+          results.push({ recipient: recipientName, status: 'initiated', provider: 'Twilio', phone: to, network });
+          connected = true;
+        } catch (err: any) {
+          console.error(`[CALL] Twilio voice call failed for ${recipientName} (${to}):`, err.message);
+          errorMsgs.push(`Twilio: ${err.message}`);
+        }
+      }
+
+      // Route specifically based on Detected Mobile Network
+      if (!connected) {
+        if (network === 'MTN' && mtnApiKey) {
+          try {
+            console.log(`[CALL] Routing real MTN Call to MTN Subscriber ${recipientName} at ${to}...`);
+            await axios.post(`${mtnBaseUrl}/voice/call`, {
+              to,
+              message: aiText,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${mtnApiKey}` }
+            });
+            results.push({ recipient: recipientName, status: 'initiated', provider: 'MTN', phone: to, network: 'MTN' });
+            connected = true;
+          } catch (err: any) {
+            console.error(`[CALL] MTN network routing failed for ${recipientName} (${to}):`, err.response?.data || err.message);
+            errorMsgs.push(`MTN Route: ${err.response?.data?.message || err.message}`);
+          }
+        } else if (network === 'Airtel' && airtelApiKey) {
+          try {
+            console.log(`[CALL] Routing real Airtel Call to Airtel Subscriber ${recipientName} at ${to}...`);
+            await axios.post(`${airtelBaseUrl}/voice/call`, {
+              to,
+              message: aiText,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${airtelApiKey}` }
+            });
+            results.push({ recipient: recipientName, status: 'initiated', provider: 'Airtel', phone: to, network: 'Airtel' });
+            connected = true;
+          } catch (err: any) {
+            console.error(`[CALL] Airtel network routing failed for ${recipientName} (${to}):`, err.response?.data || err.message);
+            errorMsgs.push(`Airtel Route: ${err.response?.data?.message || err.message}`);
+          }
+        }
+      }
+
+      // Fallback routes if the specific operator was not available or could not connect but another API key is configured
+      if (!connected) {
+        if (mtnApiKey) {
+          try {
+            console.log(`[CALL] Attempting fallback MTN Call to ${recipientName} at ${to}...`);
+            await axios.post(`${mtnBaseUrl}/voice/call`, {
+              to,
+              message: aiText,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${mtnApiKey}` }
+            });
+            results.push({ recipient: recipientName, status: 'initiated', provider: 'MTN (Fallback)', phone: to, network: 'MTN' });
+            connected = true;
+          } catch (err: any) {
+            console.error(`[CALL] MTN fallback route failed for ${recipientName} (${to}):`, err.response?.data || err.message);
+            errorMsgs.push(`MTN Fallback: ${err.response?.data?.message || err.message}`);
+          }
+        }
+        
+        if (!connected && airtelApiKey) {
+          try {
+            console.log(`[CALL] Attempting fallback Airtel Call to ${recipientName} at ${to}...`);
+            await axios.post(`${airtelBaseUrl}/voice/call`, {
+              to,
+              message: aiText,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${airtelApiKey}` }
+            });
+            results.push({ recipient: recipientName, status: 'initiated', provider: 'Airtel (Fallback)', phone: to, network: 'Airtel' });
+            connected = true;
+          } catch (err: any) {
+            console.error(`[CALL] Airtel fallback route failed for ${recipientName} (${to}):`, err.response?.data || err.message);
+            errorMsgs.push(`Airtel Fallback: ${err.response?.data?.message || err.message}`);
+          }
+        }
+      }
+
+      if (!connected) {
+        results.push({ 
+          recipient: recipientName, 
+          status: 'simulated', 
+          phone: to,
+          network: network !== 'unknown' ? network : 'Simulated',
+          error: errorMsgs.join('; ') || 'Simulated backup'
         });
-        results.push({ recipient: recipientName, status: 'initiated' });
-      } catch (err: any) {
-        console.error(`MTN Voice Error (${recipientName}: ${to}):`, err.response?.data || err.message);
-        results.push({ recipient: recipientName, status: 'failed', error: err.response?.data?.message || err.message });
       }
     };
 
-    const userId = req.user?.id || req.user?.uid;
     let dbContacts: any[] = [];
     if (userId) {
       try {
@@ -5772,24 +5959,24 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       }
     }
 
-    if (doctorNumber) await makeMTNCall(doctorNumber, doctorName);
-    if (mentorNumber) await makeMTNCall(mentorNumber, 'Mentor/Relative');
-    if (userNumber) await makeMTNCall(userNumber, 'User/Patient');
+    if (doctorNumber) await makeRealCall(doctorNumber, doctorName);
+    if (mentorNumber) await makeRealCall(mentorNumber, 'Mentor/Relative');
+    if (userNumber) await makeRealCall(userNumber, 'User/Patient');
 
     for (const contact of dbContacts) {
       if (contact.phone) {
-        await makeMTNCall(normalizePhoneNumber(contact.phone), contact.name || 'Emergency Contact');
+        await makeRealCall(normalizePhoneNumber(contact.phone), contact.name || 'Emergency Contact');
       }
     }
 
     const allFailed = results.every(r => r.status === 'failed');
     if (allFailed && results.length > 0) {
-      return res.status(500).json({ error: "Failed to initiate MTN voice calls", details: results });
+      return res.status(500).json({ error: "Failed to initiate voice calls", details: results });
     }
 
     res.json({ 
       success: true, 
-      message: "MTN Voice call process completed", 
+      message: "Voice call process completed", 
       results, 
       recipientDoctor: doctorName, 
       nextDoctorOnDuty: nextDoctorName,
@@ -6022,6 +6209,12 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
     const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
+    const mtnApiKey = process.env.MTN_API_KEY;
+    const mtnBaseUrl = process.env.MTN_BASE_URL || "https://api.mtn.com/v1";
+    const airtelApiKey = process.env.AIRTEL_API_KEY;
+    const airtelBaseUrl = process.env.AIRTEL_BASE_URL || "https://api.airtel.com/v1";
+    const senderId = process.env.SENDER_ID || "DOCTORIAN_MED";
+
     const sosMessage = `EMERGENCY ALERT: ${name || 'User'} is in distress. Please respond immediately. ${message || ''}`;
     
     console.log(`[SOS] Triggered by ${name} (${userId})`);
@@ -6037,52 +6230,251 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       }
     });
 
+    let dbContacts: any[] = [];
+    if (userId) {
+      try {
+        dbContacts = db.prepare("SELECT * FROM emergency_contacts WHERE userId = ?").all(userId);
+      } catch (err) {
+        console.error("Failed to query emergency contacts for SOS:", err);
+      }
+    }
+
     const results: any[] = [];
 
-    // Try Twilio if configured
-    if (twilioSid && twilioAuth && twilioPhone) {
-      const client = twilio(twilioSid, twilioAuth);
-      const recipients = [
-        { phone: doctorNumber, label: 'Doctor' },
-        { phone: mentorNumber, label: 'Mentor' }
-      ].filter(r => r.phone);
+    const getNetworkForPhone = (phone: string): 'MTN' | 'Airtel' | 'unknown' => {
+      const clean = phone.replace(/[^0-9]/g, '');
+      if (
+        clean.startsWith('25677') || clean.startsWith('25678') || clean.startsWith('25676') || clean.startsWith('25639') ||
+        clean.startsWith('077') || clean.startsWith('078') || clean.startsWith('076') || clean.startsWith('039') ||
+        clean.startsWith('77') || clean.startsWith('78') || clean.startsWith('76') || clean.startsWith('39')
+      ) {
+        return 'MTN';
+      }
+      if (
+        clean.startsWith('25675') || clean.startsWith('25670') || clean.startsWith('25674') ||
+        clean.startsWith('075') || clean.startsWith('070') || clean.startsWith('074') ||
+        clean.startsWith('75') || clean.startsWith('70') || clean.startsWith('74')
+      ) {
+        return 'Airtel';
+      }
+      return 'unknown';
+    };
 
-      // Prepare all alert promises
-      const alertPromises: Promise<any>[] = [];
-      
-      for (const recipient of recipients) {
-        // Send SMS promise
-        alertPromises.push(
-          client.messages.create({
+    const recipients = [
+      { phone: doctorNumber, label: 'Doctor' },
+      { phone: mentorNumber, label: 'Mentor' },
+      userRow?.phone ? { phone: normalizePhoneNumber(userRow.phone), label: 'User/Patient' } : null,
+      ...dbContacts.map(c => ({ phone: normalizePhoneNumber(c.phone), label: c.name || 'Emergency Contact' }))
+    ].filter((r): r is { phone: string; label: string } => !!(r && r.phone));
+
+    const dispatchAlert = async (recipient: { phone: string; label: string }) => {
+      const to = recipient.phone;
+      const network = getNetworkForPhone(to);
+      let smsSent = false;
+      let callInitiated = false;
+      let errorMsgs = [];
+
+      // 1. DISPATCH SMS
+      // A. Try Twilio SMS if configured
+      if (twilioSid && twilioAuth && twilioPhone) {
+        try {
+          const client = twilio(twilioSid, twilioAuth);
+          await client.messages.create({
             body: sosMessage,
             from: twilioPhone,
-            to: recipient.phone!
-          }).then(() => ({ recipient: recipient.phone, label: recipient.label, type: 'sms', status: 'sent' }))
-        );
-        
-        // Make Call promise
-        alertPromises.push(
-          client.calls.create({
-            twiml: `<Response><Say voice="alice" language="en-US">Emergency Alert. Your ${recipient.label === 'Doctor' ? 'patient' : 'mentee'} ${name || 'is'} in distress. Please respond immediately.</Say></Response>`,
-            from: twilioPhone,
-            to: recipient.phone!
-          }).then(() => ({ recipient: recipient.phone, label: recipient.label, type: 'call', status: 'sent' }))
-        );
+            to: to
+          });
+          results.push({ recipient: to, label: recipient.label, type: 'sms', status: 'sent', provider: 'Twilio', network });
+          smsSent = true;
+        } catch (err: any) {
+          console.error(`[SOS SMS] Twilio failed for ${recipient.label} (${to}):`, err.message);
+          errorMsgs.push(`Twilio SMS: ${err.message}`);
+        }
       }
 
-      // Execute all alerts simultaneously
-      const alertResults = await Promise.allSettled(alertPromises);
-      
-      alertResults.forEach((res, i) => {
-        if (res.status === 'fulfilled') {
-          results.push({ ...res.value, provider: 'twilio' });
-        } else {
-          results.push({ status: 'failed', provider: 'twilio', error: res.reason?.message || 'Unknown error' });
+      // B. Try MTN/Airtel specific routing for SMS
+      if (!smsSent) {
+        if (network === 'MTN' && mtnApiKey) {
+          try {
+            await axios.post(`${mtnBaseUrl}/sms`, {
+              to,
+              from: senderId,
+              message: sosMessage
+            }, {
+              headers: { 'Authorization': `Bearer ${mtnApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'sms', status: 'sent', provider: 'MTN', network: 'MTN' });
+            smsSent = true;
+          } catch (err: any) {
+            console.error(`[SOS SMS] MTN failed for ${recipient.label} (${to}):`, err.message);
+            errorMsgs.push(`MTN SMS: ${err.message}`);
+          }
+        } else if (network === 'Airtel' && airtelApiKey) {
+          try {
+            await axios.post(`${airtelBaseUrl}/sms`, {
+              to,
+              from: senderId,
+              message: sosMessage
+            }, {
+              headers: { 'Authorization': `Bearer ${airtelApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'sms', status: 'sent', provider: 'Airtel', network: 'Airtel' });
+            smsSent = true;
+          } catch (err: any) {
+            console.error(`[SOS SMS] Airtel failed for ${recipient.label} (${to}):`, err.message);
+            errorMsgs.push(`Airtel SMS: ${err.message}`);
+          }
         }
-      });
-    } else {
-      console.warn("[SOS] Twilio not fully configured. Using simulated fallback.");
-      results.push({ status: 'simulated', message: 'Twilio credentials missing. Configure .env for real calls/SMS.' });
+      }
+
+      // C. Fallbacks for SMS
+      if (!smsSent) {
+        if (mtnApiKey) {
+          try {
+            await axios.post(`${mtnBaseUrl}/sms`, {
+              to,
+              from: senderId,
+              message: sosMessage
+            }, {
+              headers: { 'Authorization': `Bearer ${mtnApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'sms', status: 'sent', provider: 'MTN (Fallback)', network: 'MTN' });
+            smsSent = true;
+          } catch (err: any) {
+            errorMsgs.push(`MTN SMS Fallback: ${err.message}`);
+          }
+        }
+        if (!smsSent && airtelApiKey) {
+          try {
+            await axios.post(`${airtelBaseUrl}/sms`, {
+              to,
+              from: senderId,
+              message: sosMessage
+            }, {
+              headers: { 'Authorization': `Bearer ${airtelApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'sms', status: 'sent', provider: 'Airtel (Fallback)', network: 'Airtel' });
+            smsSent = true;
+          } catch (err: any) {
+            errorMsgs.push(`Airtel SMS Fallback: ${err.message}`);
+          }
+        }
+      }
+
+      if (!smsSent) {
+        results.push({
+          recipient: to,
+          label: recipient.label,
+          type: 'sms',
+          status: 'simulated',
+          network: network !== 'unknown' ? network : 'Simulated',
+          message: `Simulated SMS sent to ${recipient.label} (${to})`
+        });
+      }
+
+      // 2. DISPATCH CALL
+      // A. Try Twilio Call if configured
+      if (twilioSid && twilioAuth && twilioPhone) {
+        try {
+          const client = twilio(twilioSid, twilioAuth);
+          await client.calls.create({
+            twiml: `<Response><Say voice="alice" language="en-US">Emergency Alert. Your ${recipient.label === 'Doctor' ? 'patient' : 'mentee'} ${name || 'is'} in distress. Please respond immediately.</Say></Response>`,
+            from: twilioPhone,
+            to: to
+          });
+          results.push({ recipient: to, label: recipient.label, type: 'call', status: 'initiated', provider: 'Twilio', network });
+          callInitiated = true;
+        } catch (err: any) {
+          console.error(`[SOS CALL] Twilio call failed for ${recipient.label} (${to}):`, err.message);
+          errorMsgs.push(`Twilio Call: ${err.message}`);
+        }
+      }
+
+      // B. Try MTN/Airtel specific routing for Call
+      if (!callInitiated) {
+        const callPrompt = `Emergency Alert. Your ${recipient.label === 'Doctor' ? 'patient' : 'mentee'} ${name || 'is'} in distress. Please respond immediately.`;
+        if (network === 'MTN' && mtnApiKey) {
+          try {
+            await axios.post(`${mtnBaseUrl}/voice/call`, {
+              to,
+              message: callPrompt,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${mtnApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'call', status: 'initiated', provider: 'MTN', network: 'MTN' });
+            callInitiated = true;
+          } catch (err: any) {
+            console.error(`[SOS CALL] MTN failed for ${recipient.label} (${to}):`, err.message);
+            errorMsgs.push(`MTN Call: ${err.message}`);
+          }
+        } else if (network === 'Airtel' && airtelApiKey) {
+          try {
+            await axios.post(`${airtelBaseUrl}/voice/call`, {
+              to,
+              message: callPrompt,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${airtelApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'call', status: 'initiated', provider: 'Airtel', network: 'Airtel' });
+            callInitiated = true;
+          } catch (err: any) {
+            console.error(`[SOS CALL] Airtel failed for ${recipient.label} (${to}):`, err.message);
+            errorMsgs.push(`Airtel Call: ${err.message}`);
+          }
+        }
+      }
+
+      // C. Fallbacks for Call
+      if (!callInitiated) {
+        const callPrompt = `Emergency Alert. Your ${recipient.label === 'Doctor' ? 'patient' : 'mentee'} ${name || 'is'} in distress. Please respond immediately.`;
+        if (mtnApiKey) {
+          try {
+            await axios.post(`${mtnBaseUrl}/voice/call`, {
+              to,
+              message: callPrompt,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${mtnApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'call', status: 'initiated', provider: 'MTN (Fallback)', network: 'MTN' });
+            callInitiated = true;
+          } catch (err: any) {
+            errorMsgs.push(`MTN Call Fallback: ${err.message}`);
+          }
+        }
+        if (!callInitiated && airtelApiKey) {
+          try {
+            await axios.post(`${airtelBaseUrl}/voice/call`, {
+              to,
+              message: callPrompt,
+              voice: 'female'
+            }, {
+              headers: { 'Authorization': `Bearer ${airtelApiKey}` }
+            });
+            results.push({ recipient: to, label: recipient.label, type: 'call', status: 'initiated', provider: 'Airtel (Fallback)', network: 'Airtel' });
+            callInitiated = true;
+          } catch (err: any) {
+            errorMsgs.push(`Airtel Call Fallback: ${err.message}`);
+          }
+        }
+      }
+
+      if (!callInitiated) {
+        results.push({
+          recipient: to,
+          label: recipient.label,
+          type: 'call',
+          status: 'simulated',
+          network: network !== 'unknown' ? network : 'Simulated',
+          message: `Simulated Call made to ${recipient.label} (${to})`
+        });
+      }
+    };
+
+    for (const recipient of recipients) {
+      await dispatchAlert(recipient);
     }
 
     res.json({ success: true, message: "SOS Alert Sequence Initiated", results });
@@ -6734,6 +7126,32 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           }
         } catch (e) { }
 
+        // Fetch user/patient real-time database records
+        let patientDataContext = "";
+        try {
+          const patientUser = db.prepare("SELECT displayName, email, phone, allergies, conditions, bloodGroup, hospitalPreference FROM users WHERE id = ?").get(userId) as any;
+          const patientRecords = db.prepare("SELECT type, value, unit, date, notes FROM records WHERE userId = ? ORDER BY date DESC LIMIT 20").all(userId) as any[];
+          const patientMeds = db.prepare("SELECT name, dosage, frequency, time, category FROM medications WHERE userId = ?").all(userId) as any[];
+          const patientWorkouts = db.prepare("SELECT type, duration, calories, intensity, date FROM workouts WHERE userId = ? ORDER BY date DESC LIMIT 10").all(userId) as any[];
+
+          patientDataContext = `\n\n[PATIENT REAL-TIME HEALTH DATA & RECORDS]:\n` +
+            `- Name: ${patientUser?.displayName || "N/A"}\n` +
+            `- Email: ${patientUser?.email || "N/A"}\n` +
+            `- Phone: ${patientUser?.phone || "N/A"}\n` +
+            `- Blood Group: ${patientUser?.bloodGroup || "N/A"}\n` +
+            `- Reported Allergies: ${patientUser?.allergies || "None reported"}\n` +
+            `- Pre-existing Conditions: ${patientUser?.conditions || "None reported"}\n` +
+            `- Preferred Hospital: ${patientUser?.hospitalPreference || "None specified"}\n\n` +
+            `Active Medications:\n` +
+            (patientMeds.length > 0 ? patientMeds.map(m => `  * ${m.name} (${m.dosage || "N/A"}), Frequency: ${m.frequency || "N/A"} at ${m.time || "N/A"} [Category: ${m.category}]`).join('\n') : "  No active medications listed.") + `\n\n` +
+            `Recent Recorded Vitals & Health Readings:\n` +
+            (patientRecords.length > 0 ? patientRecords.map(r => `  * [${r.date}] ${r.type.toUpperCase()}: ${r.value} ${r.unit || ""} (${r.notes || "No notes"})`).join('\n') : "  No health readings/vitals recorded in database yet.") + `\n\n` +
+            `Recent Workouts & Fitness:\n` +
+            (patientWorkouts.length > 0 ? patientWorkouts.map(w => `  * [${w.date}] ${w.type}: ${w.duration} mins (${w.calories || 0} kcal, ${w.intensity || "normal"} intensity)`).join('\n') : "  No recent workouts logged.");
+        } catch (dbErr: any) {
+          console.error("[PATIENT-DATA-LOAD-ERROR] Failed to load contextual patient records:", dbErr.message);
+        }
+
         const lowerRaw = rawUserMessage.toLowerCase();
         const isGreeting = [
           "hi", "hello", "hey", "good morning", "good afternoon", "good evening", "howdy", "what's up", "yo",
@@ -6839,11 +7257,19 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           }
         } catch (ftErr) { }
 
+        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR LIMITATIONS - FORWARD PROPAGATION FORCE]:
+1. STRICT DOMAIN CONSTRAINT: You are trained and programmed to ONLY answer questions directly related to medicine, public health, healthcare, pharmacology, clinical vitals, biophysics, fitness, human biology, or the Doctorian application and its creators (Akora Joseph / EBRO company). Under absolutely no circumstances are you allowed to answer or entertain any queries outside this health data domain (e.g. general code generation, non-medical history, politics, sports, general math/science not related to biology, or general entertainment). If the query is outside these bounds, you must gently but strictly refuse, stating your core medical constraints.
+2. PATIENT DATA ANALYSIS CAPABILITY: You have direct access to the patient's real-time, live database records (vitals, health readings, medications, and workouts) provided in the [PATIENT REAL-TIME HEALTH DATA & RECORDS] block below.
+   - Whenever the user asks you to analyze, review, interpret, check, summarize, or evaluate their data, logs, readings, medications, or vitals, you MUST use this live block to perform a highly professional, clinical-grade analysis.
+   - Highlight any abnormal readings (e.g., extremely high/low blood pressure or heart rates, low SpO2, abnormal glucose levels), evaluate medication adherence or schedule, and provide clear, scientific, helpful insights tailored precisely to the user's explicit interest.
+   - Always prioritize the user's specific clinical interest or the specific vital metric they are asking about.
+   - ALWAYS state clearly that your analysis is based on their live database records on Doctorian, and conclude with the mandatory safety phrase: "Medical attention is recommended."`;
+
         const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with absolute specificity. Directly address the exact question asked without pouring irrelevant medical facts, unrequested lists, or high-volume templated tables. Cut out long preambles and avoid pouring everything you know.
 - For greetings (e.g., "hello", "hi", "hey", "oli otya", "gyebaleko", etc.): Reply warmly, dynamically, and realistically as Doctorian. If there is a custom-trained greeting, local language translation, or custom reply node in the "INTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA)" above, you MUST explicitly learn and utilize that custom data to formulate your greeting reply! Explain that you have successfully mapped and learned this greeting from their custom Neural Training Hub.
 - For focused, specific, translation, or direct questions (e.g., "translate x", "what translates to y", "first-line treatment for z", or single specific terms): Answer with 1-2 direct sentences, highly precise, with exact clinical or translation details and 1-2 appropriate emojis. Do NOT use the 4-section diagnostic template or provide unrelated tables/lists unless specifically prompted for a full diagnostic differential analysis or complete symptom review.
 - For complex, multi-system clinic symptom case reviews: Provide clear, chunked, and beautifully structured sections grounded in clinical science and Ministry of Health protocols. Keep all text highly professional, scientific, precise, and safe. Always conclude with "Medical attention is recommended."`;
-        const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${fineTunedModelInfo}${EMOJI_CHUNKS_DIRECTIVE}`;
+        const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${EMOJI_CHUNKS_DIRECTIVE}`;
 
         if (wantsStream) {
           res.setHeader('Content-Type', 'text/event-stream');

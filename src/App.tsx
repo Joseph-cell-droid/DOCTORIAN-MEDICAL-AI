@@ -1547,7 +1547,7 @@ export default function App() {
         prompt += ` Contextual vitals: HR ${arduino.vitals.heartRate} bpm, SpO2 ${arduino.vitals.spo2}%.`;
       }
 
-      const systemInstruction = "You are a helpful medical assistant specialized in wellness and preventive longevity protocols.";
+      const systemInstruction = "You are a helpful medical assistant specialized in wellness and preventive longevity protocols. Focus on providing detailed, real physiological and biological explanations (no simple dictionary interpretations). Explain pathophysiology and cellular mechanisms where appropriate.";
       let responseText = "";
       let sourceAttribution = "";
 
@@ -3962,6 +3962,15 @@ export default function App() {
       onSuccess={(u, isSignUp) => {
         setUser(u);
         setToast({ message: `Access sequence confirmed. Welcome ${u.displayName || u.email}.`, type: 'success' });
+        if (u.role === 'admin') {
+          setIsAdminAuthenticated(true);
+          setCurrentView('admin');
+        } else if (u.role === 'doctor' || u.role === 'clinician') {
+          setIsDoctorAuthenticated(true);
+          setCurrentView('doctors_dashboard');
+        } else {
+          setCurrentView('home');
+        }
         if (isSignUp) {
           setIsTutorialOpen(true);
         }

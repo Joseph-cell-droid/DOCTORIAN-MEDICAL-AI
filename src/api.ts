@@ -1444,6 +1444,21 @@ export const api = {
       if (!res.ok) throw new Error(data.error || "Failed to fetch user records");
       return data.records as HealthRecord[];
     },
+    async getUserFullProfile(id: string) {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/full-profile`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch user full profile data");
+      return data as {
+        records: HealthRecord[];
+        medications: any[];
+        workouts: any[];
+        tasks: any[];
+        emergencyContacts: any[];
+        payments: any[];
+      };
+    },
     async updateUserRole(id: string, role: string) {
       const res = await fetch(`${API_BASE}/admin/users/${id}/role`, {
         method: "PATCH",

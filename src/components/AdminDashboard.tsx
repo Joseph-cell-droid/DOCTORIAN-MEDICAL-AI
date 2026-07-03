@@ -85,6 +85,12 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userRecords, setUserRecords] = useState<HealthRecord[]>([]);
+  const [userMedications, setUserMedications] = useState<any[]>([]);
+  const [userWorkouts, setUserWorkouts] = useState<any[]>([]);
+  const [userTasks, setUserTasks] = useState<any[]>([]);
+  const [userContacts, setUserContacts] = useState<any[]>([]);
+  const [userPayments, setUserPayments] = useState<any[]>([]);
+  const [profileActiveTab, setProfileActiveTab] = useState<'vitals' | 'medications' | 'workouts' | 'tasks' | 'contacts' | 'billing'>('vitals');
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [userQrView, setUserQrView] = useState<User | null>(null);
 
@@ -734,11 +740,28 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const handleViewRecords = async (user: User) => {
     setSelectedUser(user);
     setLoadingRecords(true);
+    setProfileActiveTab('vitals');
     try {
-      const records = await api.admin.getUserRecords(user.id);
-      setUserRecords(records);
+      const data = await (api.admin as any).getUserFullProfile(user.id);
+      setUserRecords(data.records || []);
+      setUserMedications(data.medications || []);
+      setUserWorkouts(data.workouts || []);
+      setUserTasks(data.tasks || []);
+      setUserContacts(data.emergencyContacts || []);
+      setUserPayments(data.payments || []);
     } catch (err: any) {
-      setError(err.message || "Failed to load user records");
+      console.warn("Full profile fetch failed, falling back to basic records:", err);
+      try {
+        const records = await api.admin.getUserRecords(user.id);
+        setUserRecords(records);
+        setUserMedications([]);
+        setUserWorkouts([]);
+        setUserTasks([]);
+        setUserContacts([]);
+        setUserPayments([]);
+      } catch (fallbackErr: any) {
+        setError(fallbackErr.message || "Failed to load user records");
+      }
     } finally {
       setLoadingRecords(false);
     }
@@ -1045,7 +1068,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             </div>
 
             {/* Real-time Session Status Tracker Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Registered Patients</p>
@@ -1063,12 +1086,23 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 </div>
                 <Wifi className="text-emerald-500" size={24} />
               </div>
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="p-4 bg-rose-500/5 dark:bg-rose-500/10 rounded-3xl border border-rose-500/10 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Logged Out (Offline)</p>
-                  <p className="text-2xl font-black text-slate-600 dark:text-slate-400 mt-1 font-mono">{usersPagination.totalOffline}</p>
+                  <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider font-bold">Chronic Conditions Cases</p>
+                  <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 font-mono">
+                    {users.filter(u => u.conditions).length}
+                  </p>
                 </div>
-                <WifiOff className="text-slate-400" size={24} />
+                <Heart className="text-rose-500" size={24} />
+              </div>
+              <div className="p-4 bg-amber-500/5 dark:bg-amber-500/10 rounded-3xl border border-amber-500/10 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold">Premium Members</p>
+                  <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 font-mono">
+                    {users.filter(u => u.subscriptionTier && u.subscriptionTier !== 'free').length}
+                  </p>
+                </div>
+                <CreditCard className="text-amber-500" size={24} />
               </div>
             </div>
 
@@ -2589,84 +2623,464 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               role="dialog"
               aria-modal="true"
               aria-labelledby="records-modal-title"
-              className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl max-w-2xl w-full relative border border-slate-100 dark:border-slate-800 max-h-[80vh] overflow-hidden flex flex-col"
+              className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl max-w-4xl w-full relative border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-hidden flex flex-col"
             >
               <button 
                 onClick={() => setSelectedUser(null)}
                 aria-label="Close records modal"
-                className="absolute top-6 right-6 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400"
+                className="absolute top-6 right-6 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 z-10"
               >
                 <X size={24} aria-hidden="true" />
               </button>
 
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-16 h-16 rounded-3xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 overflow-hidden shadow-inner">
-                  {selectedUser.photoURL ? (
-                    <img src={selectedUser.photoURL} alt={selectedUser.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <UserIcon size={32} aria-hidden="true" />
-                  )}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-3xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 overflow-hidden shadow-inner">
+                    {selectedUser.photoURL ? (
+                      <img src={selectedUser.photoURL} alt={selectedUser.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <UserIcon size={32} aria-hidden="true" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 id="records-modal-title" className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                      {selectedUser.displayName}
+                      {selectedUser.isOnline && (
+                        <span className="flex h-3 w-3 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium flex items-center gap-1.5 mt-0.5">
+                      <Mail size={14} />
+                      {selectedUser.email}
+                      <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-md text-[10px] font-mono font-bold">ID: {selectedUser.id}</span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 id="records-modal-title" className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{selectedUser.displayName}'s Records</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{selectedUser.email}</p>
+
+                <div className="flex flex-wrap gap-2">
+                  {selectedUser.bloodGroup && (
+                    <span className="px-3 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-black uppercase tracking-wider border border-rose-500/20">
+                      🩸 Blood: {selectedUser.bloodGroup}
+                    </span>
+                  )}
+                  {selectedUser.allergies && (
+                    <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-black uppercase tracking-wider border border-amber-500/20" title={`Allergies: ${selectedUser.allergies}`}>
+                      ⚠️ Allergies: {selectedUser.allergies}
+                    </span>
+                  )}
+                  {selectedUser.conditions && (
+                    <span className="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-black uppercase tracking-wider border border-blue-500/20" title={`Conditions: ${selectedUser.conditions}`}>
+                      🩺 {selectedUser.conditions}
+                    </span>
+                  )}
+                  {selectedUser.hospitalPreference && (
+                    <span className="px-3 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl text-xs font-black uppercase tracking-wider border border-purple-500/20" title={`Hospital Preference: ${selectedUser.hospitalPreference}`}>
+                      🏥 {selectedUser.hospitalPreference}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+              {/* Mini Stats Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Vitals Logged</p>
+                  <p className="text-xl font-mono font-black text-slate-800 dark:text-white mt-1">{userRecords.length}</p>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Medications</p>
+                  <p className="text-xl font-mono font-black text-slate-800 dark:text-white mt-1">{userMedications.length}</p>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Workouts</p>
+                  <p className="text-xl font-mono font-black text-slate-800 dark:text-white mt-1">{userWorkouts.length}</p>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Health Tasks</p>
+                  <p className="text-xl font-mono font-black text-slate-800 dark:text-white mt-1">{userTasks.length}</p>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-center col-span-2 sm:col-span-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">AI Credits</p>
+                  <p className="text-xl font-mono font-black text-blue-600 dark:text-blue-400 mt-1">{selectedUser.credits}</p>
+                </div>
+              </div>
+
+              {/* Unified Profile Tabs Navigation */}
+              <div className="flex overflow-x-auto pb-2 border-b border-slate-100 dark:border-slate-800 gap-1 mb-6 custom-scrollbar" role="tablist">
+                {[
+                  { id: 'vitals', label: 'Vitals & Readings', count: userRecords.length },
+                  { id: 'medications', label: 'Medications', count: userMedications.length },
+                  { id: 'workouts', label: 'Workouts Log', count: userWorkouts.length },
+                  { id: 'tasks', label: 'Assigned Tasks', count: userTasks.filter(t => !t.completed).length },
+                  { id: 'contacts', label: 'Emergency Contacts', count: userContacts.length },
+                  { id: 'billing', label: 'Billing & Tiers', count: userPayments.length },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    role="tab"
+                    aria-selected={profileActiveTab === tab.id}
+                    onClick={() => setProfileActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                      profileActiveTab === tab.id
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold ${
+                        profileActiveTab === tab.id ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Active Tab Panel */}
+              <div className="flex-1 overflow-y-auto pr-2 min-h-[300px] max-h-[45vh] custom-scrollbar">
                 {loadingRecords ? (
                   <div className="flex flex-col items-center justify-center py-20">
                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-                    <p className="text-slate-500 font-medium">Fetching health records...</p>
+                    <p className="text-slate-500 font-medium">Loading patient context intelligence...</p>
                   </div>
-                ) : userRecords.length > 0 ? (
-                  userRecords.map((record) => (
-                    <div 
-                      key={record.id}
-                      className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-start justify-between gap-4"
-                    >
-                      <div className="flex gap-4">
-                        <div className="mt-1">
-                          {getRecordIcon(record.type)}
-                        </div>
-                        <div>
-                          <p className="font-black text-slate-900 dark:text-white">{record.type}</p>
-                          <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                            {record.value} <span className="text-sm font-bold text-slate-400">{record.unit}</span>
-                          </p>
-                          {record.notes && (
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 italic">"{record.notes}"</p>
-                          )}
-                          {record.attachmentURL && (
-                            <div className="mt-3">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Attached Diagnostic Image</p>
-                              <img 
-                                src={record.attachmentURL} 
-                                alt="Diagnostic attachment" 
-                                className="w-full max-w-[200px] rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
-                                referrerPolicy="no-referrer"
-                              />
+                ) : (
+                  <AnimatePresence mode="wait">
+                    {profileActiveTab === 'vitals' && (
+                      <motion.div
+                        key="vitals-panel"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                      >
+                        {userRecords.length > 0 ? (
+                          userRecords.map((record) => (
+                            <div 
+                              key={record.id}
+                              className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
+                            >
+                              <div className="flex gap-4">
+                                <div className="mt-1">
+                                  {getRecordIcon(record.type)}
+                                </div>
+                                <div>
+                                  <p className="font-black text-slate-900 dark:text-white">{record.type}</p>
+                                  <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
+                                    {record.value} <span className="text-sm font-bold text-slate-400">{record.unit}</span>
+                                  </p>
+                                  {record.notes && (
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 italic">"{record.notes}"</p>
+                                  )}
+                                  {record.attachmentURL && (
+                                    <div className="mt-3">
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Attached Diagnostic Image</p>
+                                      <img 
+                                        src={record.attachmentURL} 
+                                        alt="Diagnostic attachment" 
+                                        className="w-full max-w-[200px] rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                  {new Date(record.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1">
+                                  {new Date(record.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 mb-4">
+                              <Heart size={28} />
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold">No clinical vital readings registered.</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {profileActiveTab === 'medications' && (
+                      <motion.div
+                        key="meds-panel"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                      >
+                        {userMedications.length > 0 ? (
+                          userMedications.map((med) => (
+                            <div 
+                              key={med.id}
+                              className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
+                            >
+                              <div className="flex gap-4">
+                                <div className="mt-1 w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-black text-lg">
+                                  💊
+                                </div>
+                                <div>
+                                  <p className="font-black text-slate-900 dark:text-white text-lg">{med.name}</p>
+                                  <div className="flex flex-wrap gap-2 mt-1.5">
+                                    <span className="px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-md text-[10px] font-bold">
+                                      Dosage: {med.dosage || 'N/A'}
+                                    </span>
+                                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[10px] font-bold">
+                                      Freq: {med.frequency || 'N/A'}
+                                    </span>
+                                    {med.time && (
+                                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-[10px] font-bold">
+                                        🕒 {med.time}
+                                      </span>
+                                    )}
+                                    <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md text-[10px] font-black uppercase tracking-widest">
+                                      {med.category || 'prescription'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-400 mt-2">
+                                    Reminders: {med.remindersEnabled ? 'Enabled ✅' : 'Disabled ❌'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right text-xs text-slate-400">
+                                {new Date(med.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 mb-4">
+                              <Plus className="text-slate-400" size={28} />
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold">No registered medications recorded for this patient.</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {profileActiveTab === 'workouts' && (
+                      <motion.div
+                        key="workouts-panel"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                      >
+                        {userWorkouts.length > 0 ? (
+                          userWorkouts.map((workout) => (
+                            <div 
+                              key={workout.id}
+                              className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
+                            >
+                              <div className="flex gap-4">
+                                <div className="mt-1 w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-black text-lg">
+                                  🏃‍♂️
+                                </div>
+                                <div>
+                                  <p className="font-black text-slate-900 dark:text-white text-lg">{workout.type}</p>
+                                  <div className="flex flex-wrap gap-2 mt-1.5">
+                                    <span className="px-2 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-md text-[10px] font-bold">
+                                      ⏱️ {workout.duration} Mins
+                                    </span>
+                                    {workout.calories && (
+                                      <span className="px-2 py-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-md text-[10px] font-bold">
+                                        🔥 {workout.calories} kcal
+                                      </span>
+                                    )}
+                                    {workout.intensity && (
+                                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-[10px] font-black uppercase tracking-wider">
+                                        ⚡ {workout.intensity}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {workout.notes && (
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 italic">"{workout.notes}"</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                  {new Date(workout.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 mb-4">
+                              <Activity size={28} />
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold">No physical workouts logged.</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {profileActiveTab === 'tasks' && (
+                      <motion.div
+                        key="tasks-panel"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                      >
+                        {userTasks.length > 0 ? (
+                          userTasks.map((task) => (
+                            <div 
+                              key={task.id}
+                              className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
+                            >
+                              <div className="flex gap-4">
+                                <div className="mt-1">
+                                  {task.completed ? (
+                                    <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-xs font-bold border border-emerald-500/30">✓</span>
+                                  ) : (
+                                    <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center text-xs font-bold border border-slate-300">○</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className={`font-black text-slate-900 dark:text-white text-base ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                                    {task.title}
+                                  </p>
+                                  {task.description && (
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{task.description}</p>
+                                  )}
+                                  <div className="flex gap-2 mt-2">
+                                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                                      task.priority === 'high' ? 'bg-rose-500/10 text-rose-500' : task.priority === 'medium' ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                    }`}>
+                                      {task.priority || 'medium'} Priority
+                                    </span>
+                                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-[9px] font-bold">
+                                      Due: {new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 mb-4">
+                              <CheckCircle2 size={28} />
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold">No health tasks currently assigned.</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {profileActiveTab === 'contacts' && (
+                      <motion.div
+                        key="contacts-panel"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                      >
+                        {userContacts.length > 0 ? (
+                          userContacts.map((contact) => (
+                            <div 
+                              key={contact.id}
+                              className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
+                            >
+                              <div>
+                                <p className="font-black text-slate-900 dark:text-white text-lg">{contact.name}</p>
+                                <p className="text-xs font-black text-rose-500 uppercase tracking-widest mt-0.5">{contact.role}</p>
+                                <div className="flex flex-col sm:flex-row gap-4 mt-3">
+                                  <p className="text-sm font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                                    📞 {contact.phone}
+                                  </p>
+                                  {contact.email && (
+                                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                                      ✉️ {contact.email}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <a 
+                                href={`tel:${contact.phone}`}
+                                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95"
+                              >
+                                Call Emergency
+                              </a>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 mb-4">
+                              <Users size={28} />
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold">No emergency contacts registered for this patient.</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {profileActiveTab === 'billing' && (
+                      <motion.div
+                        key="billing-panel"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                      >
+                        <div className="p-5 bg-blue-500/5 dark:bg-blue-500/10 rounded-2xl border border-blue-500/10 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Subscription Status</p>
+                            <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 capitalize">{selectedUser.subscriptionTier || 'Free'} Tier</p>
+                            <p className="text-xs text-slate-400 mt-1">Status: <span className="text-emerald-500 font-bold capitalize">{selectedUser.subscriptionStatus || 'None'}</span></p>
+                          </div>
+                          {selectedUser.lastPaymentDate && (
+                            <div className="text-right">
+                              <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Last Payment Date</p>
+                              <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-1">
+                                {new Date(selectedUser.lastPaymentDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </p>
                             </div>
                           )}
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                          {new Date(record.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        </p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-1">
-                          {new Date(record.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4">
-                      <FileText size={32} />
-                    </div>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">No health records found for this user.</p>
-                  </div>
+
+                        <div className="space-y-3">
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Payment Transactions History</p>
+                          {userPayments.length > 0 ? (
+                            userPayments.map((payment) => (
+                              <div 
+                                key={payment.id}
+                                className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800/50 flex items-center justify-between"
+                              >
+                                <div>
+                                  <p className="text-sm font-black text-slate-900 dark:text-white capitalize">{payment.tier || 'Standard'} Payment</p>
+                                  <p className="text-[10px] font-mono text-slate-400 mt-0.5">Ref: {payment.id}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                                    +{payment.amount} {payment.currency || 'UGX'}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">
+                                    {new Date(payment.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-6 bg-slate-50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800 text-center text-slate-400 text-xs font-bold">
+                              No payment transaction history found.
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 )}
               </div>
 
@@ -2674,7 +3088,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 onClick={() => setSelectedUser(null)}
                 className="mt-8 w-full py-4 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl font-black hover:bg-slate-800 dark:hover:bg-blue-700 transition-all shadow-xl shadow-slate-200 dark:shadow-blue-900/20 active:scale-95"
               >
-                Close Records
+                Close Records Portal
               </button>
             </motion.div>
           </motion.div>

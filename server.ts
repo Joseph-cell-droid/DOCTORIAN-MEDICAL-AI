@@ -5190,6 +5190,50 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
+  app.get("/api/admin/users/:id/full-profile", requireAdmin, (req: any, res) => {
+    const { id } = req.params;
+    try {
+      const records = db.prepare("SELECT * FROM records WHERE userId = ? ORDER BY date DESC").all(id);
+      
+      let medications = [];
+      try {
+        medications = db.prepare("SELECT * FROM medications WHERE userId = ? ORDER BY createdAt DESC").all(id);
+      } catch (e) {}
+
+      let workouts = [];
+      try {
+        workouts = db.prepare("SELECT * FROM workouts WHERE userId = ? ORDER BY date DESC").all(id);
+      } catch (e) {}
+
+      let tasks = [];
+      try {
+        tasks = db.prepare("SELECT * FROM tasks WHERE userId = ? ORDER BY deadline DESC").all(id);
+      } catch (e) {}
+
+      let emergencyContacts = [];
+      try {
+        emergencyContacts = db.prepare("SELECT * FROM emergency_contacts WHERE userId = ? ORDER BY createdAt DESC").all(id);
+      } catch (e) {}
+
+      let payments = [];
+      try {
+        payments = db.prepare("SELECT * FROM payments WHERE userId = ? ORDER BY createdAt DESC").all(id);
+      } catch (e) {}
+      
+      res.json({
+        records,
+        medications,
+        workouts,
+        tasks,
+        emergencyContacts,
+        payments
+      });
+    } catch (err: any) {
+      console.error(`[ADMIN] Failed to fetch full-profile for user ${id}:`, err.message);
+      res.status(500).json({ error: "Failed to fetch user profile data" });
+    }
+  });
+
   app.patch("/api/admin/users/:id/role", requireAdmin, (req: any, res) => {
     const { id } = req.params;
     const { role } = req.body;
@@ -7200,10 +7244,14 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         // Auto Language Detection
         if (activeTargetLang === 'Auto Detect') {
           try {
-            activeTargetLang = await callAI({
+            const detectedRaw = await callAI({
               messages: [{ role: 'user', text: `Identify the language of: "${rawUserMessage}"` }],
-              systemInstruction: "Identify the language and return ONLY the name (e.g. 'Luganda', 'Ateso', 'English')."
+              systemInstruction: "Identify the language of the query and return ONLY the capitalized name of the language (e.g. 'Luganda', 'Swahili', 'English', 'Spanish', 'French', 'German'). Do not include any explanations, periods, or extra text."
             });
+            const cleanDetected = detectedRaw ? detectedRaw.trim().replace(/[\.\,\:\n\r]/g, "") : "English";
+            const match = cleanDetected.match(/(Luganda|Swahili|Kiswahili|English|Spanish|French|German|Ateso|Acholi|Luo|Runyankole|Lugbara|Lusoga|Portuguese|Russian|Japanese|Korean|Italian|Turkish|Hindi|Arabic)/i);
+            activeTargetLang = match ? match[0] : "English";
+            if (activeTargetLang.toLowerCase() === 'kiswahili') activeTargetLang = 'Swahili';
           } catch (e) { activeTargetLang = 'English'; }
         }
 
@@ -7259,16 +7307,19 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
 
         const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR LIMITATIONS - FORWARD PROPAGATION FORCE]:
 1. STRICT DOMAIN CONSTRAINT: You are trained and programmed to ONLY answer questions directly related to medicine, public health, healthcare, pharmacology, clinical vitals, biophysics, fitness, human biology, or the Doctorian application and its creators (Akora Joseph / EBRO company). Under absolutely no circumstances are you allowed to answer or entertain any queries outside this health data domain (e.g. general code generation, non-medical history, politics, sports, general math/science not related to biology, or general entertainment). If the query is outside these bounds, you must gently but strictly refuse, stating your core medical constraints.
-2. PATIENT DATA ANALYSIS CAPABILITY: You have direct access to the patient's real-time, live database records (vitals, health readings, medications, and workouts) provided in the [PATIENT REAL-TIME HEALTH DATA & RECORDS] block below.
-   - Whenever the user asks you to analyze, review, interpret, check, summarize, or evaluate their data, logs, readings, medications, or vitals, you MUST use this live block to perform a highly professional, clinical-grade analysis.
-   - Highlight any abnormal readings (e.g., extremely high/low blood pressure or heart rates, low SpO2, abnormal glucose levels), evaluate medication adherence or schedule, and provide clear, scientific, helpful insights tailored precisely to the user's explicit interest.
-   - Always prioritize the user's specific clinical interest or the specific vital metric they are asking about.
-   - ALWAYS state clearly that your analysis is based on their live database records on Doctorian, and conclude with the mandatory safety phrase: "Medical attention is recommended."`;
+2. HEALTH DATA ANALYSIS CAPABILITY: You have direct access to the patient's real-time, live database records (vitals, health readings, medications, and workouts) provided in the [PATIENT REAL-TIME HEALTH DATA & RECORDS] block, AND any user-subjected health data (such as blood pressure readings, glucose levels, heart rates, workouts, lab results, or symptoms) entered in the conversation history.
+   - Whenever the user asks you to analyze, review, interpret, check, summarize, or evaluate health data, or when the user subjects/provides raw health logs, numbers, or symptoms in their message, you MUST perform a highly professional, clinical-grade analysis.
+   - Benchmark all values against standard clinical reference ranges:
+     * Blood Pressure (Normal < 120/80 mmHg. Prehypertension: 120-139 / 80-89. Stage 1 Hypertension: 140-159 / 90-99. Stage 2 Hypertension: >= 160 / >= 100).
+     * Blood Glucose (Normal Fasting: 4.0 - 7.0 mmol/L (72-126 mg/dL); Post-prandial: < 8.5 mmol/L (< 153 mg/dL)).
+     * SpO2 (Oxygen Saturation) (Normal: 95-100%; Mild Hypoxia: 90-94%; Severe Hypoxia: < 90%).
+     * Heart Rate (Normal: 60-100 bpm. Bradycardia: < 60 bpm. Tachycardia: > 100 bpm).
+     * Body Temperature (Normal: 36.1 - 37.2°C (97-99°F). Fever: >= 38.0°C (100.4°F)).
+   - Discuss any abnormal readings, evaluate possible causes, explain the biological/clinical significance in deep detail with thorough scientific explanations, offer highly specific actionable lifestyle or clinical guidance, and ALWAYS conclude with: "Medical attention is recommended."`;
 
-        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with absolute specificity. Directly address the exact question asked without pouring irrelevant medical facts, unrequested lists, or high-volume templated tables. Cut out long preambles and avoid pouring everything you know.
+        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with deep specificity, directly addressing the exact question asked with comprehensive, detailed, and well-rounded clinical explanations. Do not use generic, unrequested lists or templates unless they are directly relevant to solving the query.
 - For greetings (e.g., "hello", "hi", "hey", "oli otya", "gyebaleko", etc.): Reply warmly, dynamically, and realistically as Doctorian. If there is a custom-trained greeting, local language translation, or custom reply node in the "INTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA)" above, you MUST explicitly learn and utilize that custom data to formulate your greeting reply! Explain that you have successfully mapped and learned this greeting from their custom Neural Training Hub.
-- For focused, specific, translation, or direct questions (e.g., "translate x", "what translates to y", "first-line treatment for z", or single specific terms): Answer with 1-2 direct sentences, highly precise, with exact clinical or translation details and 1-2 appropriate emojis. Do NOT use the 4-section diagnostic template or provide unrelated tables/lists unless specifically prompted for a full diagnostic differential analysis or complete symptom review.
-- For complex, multi-system clinic symptom case reviews: Provide clear, chunked, and beautifully structured sections grounded in clinical science and Ministry of Health protocols. Keep all text highly professional, scientific, precise, and safe. Always conclude with "Medical attention is recommended."`;
+- For all medical, symptoms, wellness, or specific clinical questions: Provide a beautifully structured, highly detailed response that provides clear, step-by-step scientific explanations, mechanisms, clinical guidelines, and safety metrics. Be extremely specific, thorough, and precise, answering all parts of the user's inquiry with well-explained reasoning. Always conclude with "Medical attention is recommended."`;
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${EMOJI_CHUNKS_DIRECTIVE}`;
 
         if (wantsStream) {
@@ -7303,8 +7354,8 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
 
             if (success && activeTargetLang !== "English") {
               const translated = await callAI({
-                messages: [{ role: 'user', text: `Translate to ${activeTargetLang}: ${fullResponse}` }],
-                systemInstruction: "Translate medical response accurately."
+                messages: [{ role: 'user', text: `Translate the following medical advice into ${activeTargetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style: ${fullResponse}` }],
+                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology (e.g. use standard medical terms in Luganda, Swahili, French, German, Spanish, etc.), keeping the tone professional, comforting, precise, and completely faithful to the clinical content.`
               });
               const chunkObj = { text: translated, credits: credits - 1 };
               const encryptedChunk = encryptText(JSON.stringify(chunkObj));
@@ -7341,8 +7392,8 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
             let finalResponse = responseText;
             if (activeTargetLang !== "English") {
               finalResponse = await callAI({
-                messages: [{ role: 'user', text: `Translate to ${activeTargetLang}: ${responseText}` }],
-                systemInstruction: "Translate medical response accurately."
+                messages: [{ role: 'user', text: `Translate the following medical advice into ${activeTargetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style: ${responseText}` }],
+                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology, keeping the tone professional, comforting, precise, and completely faithful to the clinical content.`
               });
             }
 

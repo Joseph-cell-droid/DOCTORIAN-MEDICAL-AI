@@ -57,6 +57,7 @@ export const useArduino = () => {
 
   const lastAiAnalysisTime = useRef<number>(0);
   const isAnalyzing = useRef<boolean>(false);
+  const isBroadcasterRef = useRef<boolean>(false);
 
   const demoIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const wifiIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,8 +167,8 @@ export const useArduino = () => {
   const updateVitals = useCallback((newVitals: Vitals) => {
     setVitals(newVitals);
 
-    // Outbound real-time WebSocket stream broadcast
-    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+    // Outbound real-time WebSocket stream broadcast - ONLY if this client is the designated broadcaster/cast owner
+    if (isBroadcasterRef.current && webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
       try {
         webSocketRef.current.send(JSON.stringify({
           type: 'vitals_relay',
@@ -448,6 +449,7 @@ export const useArduino = () => {
 
   const connectWebSocket = useCallback((isBroadcaster = false) => {
     setError(null);
+    isBroadcasterRef.current = isBroadcaster;
     if (!isBroadcaster) {
       disconnect();
     }
@@ -502,6 +504,20 @@ export const useArduino = () => {
       setError('Neural stream synchronization failure. Attempting reconnection...');
     };
   }, [disconnect, updateVitals, parseData]);
+
+  const disconnectWebSocket = useCallback(() => {
+    if (webSocketRef.current) {
+      webSocketRef.current.onclose = null;
+      webSocketRef.current.close();
+      webSocketRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    isBroadcasterRef.current = false;
+    console.log('[WS] Disconnected from neural biometrics relay.');
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -738,6 +754,7 @@ export const useArduino = () => {
     connectSerial,
     connectWiFi,
     connectWebSocket,
+    disconnectWebSocket,
     triggerAlarm,
     performGlobalTrace,
     disconnect,

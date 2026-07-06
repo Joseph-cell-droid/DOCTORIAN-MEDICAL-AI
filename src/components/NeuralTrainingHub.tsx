@@ -55,7 +55,114 @@ interface FineTuningJob {
 
 export const NeuralTrainingHub: React.FC = () => {
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dataset' | 'finetune'>('dataset');
+  const [activeTab, setActiveTab] = useState<'dataset' | 'finetune' | 'smart'>('dataset');
+
+  // Smart Training Optimizer States
+  const [smartAnalysis, setSmartAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Data Augmentation States
+  const [augmentCategory, setAugmentCategory] = useState('clinical');
+  const [augmentTopic, setAugmentTopic] = useState('');
+  const [isAugmenting, setIsAugmenting] = useState(false);
+  const [synthesizedNodes, setSynthesizedNodes] = useState<any[]>([]);
+  const [isInjectingAugmented, setIsInjectingAugmented] = useState(false);
+
+  // Smart Log Evaluation States
+  const [smartReport, setSmartReport] = useState<any>(null);
+  const [isEvaluatingReport, setIsEvaluatingReport] = useState(false);
+  const [evaluatedJobId, setEvaluatedJobId] = useState<string | null>(null);
+
+  // 1. Analyze Dataset
+  const handleAnalyzeDataset = async () => {
+    try {
+      setIsAnalyzing(true);
+      setSmartAnalysis(null);
+      const res = await (api.ai as any).analyzeDataset();
+      setSmartAnalysis(res);
+      setSuccessMsg("Smart dataset diagnostic matrix completed successfully!");
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert("Smart analysis failed: " + err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // 2. Synthesize Synthetic Nodes
+  const handleAugmentDataset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!augmentTopic.trim()) {
+      alert("Please provide a topic/focus for synthetic AI generation.");
+      return;
+    }
+    try {
+      setIsAugmenting(true);
+      setSynthesizedNodes([]);
+      const res = await (api.ai as any).augmentDataset(augmentCategory, augmentTopic);
+      setSynthesizedNodes(res || []);
+      setSuccessMsg("Successfully synthesized 3 custom clinical nodes!");
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert("Synthesis failed: " + err.message);
+    } finally {
+      setIsAugmenting(false);
+    }
+  };
+
+  // 3. Inject Synthetic Nodes
+  const handleInjectAugmentedNodes = async () => {
+    if (synthesizedNodes.length === 0) return;
+    try {
+      setIsInjectingAugmented(true);
+      setSuccessMsg("Injecting 3 synthetic AI nodes into clinical registry...");
+      
+      for (const node of synthesizedNodes) {
+        await api.ai.addKnowledge(node.title, node.content, augmentCategory);
+      }
+      
+      setSuccessMsg("Inject complete! Active dataset grew by 3 high-fidelity records.");
+      setSynthesizedNodes([]);
+      setAugmentTopic('');
+      setTimeout(() => setSuccessMsg(''), 4500);
+      await fetchKnowledge();
+    } catch (err: any) {
+      alert("Injection failed: " + err.message);
+    } finally {
+      setIsInjectingAugmented(false);
+    }
+  };
+
+  // 4. Evaluate Training Logs
+  const handleEvaluateJob = async (jobId: string) => {
+    try {
+      setIsEvaluatingReport(true);
+      setEvaluatedJobId(jobId);
+      setSmartReport(null);
+      const res = await (api.ai as any).evaluateJob(jobId);
+      setSmartReport(res);
+      setSuccessMsg("Neural evaluation complete. Smart Diagnostics Report compiled!");
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert("Evaluation failed: " + err.message);
+    } finally {
+      setIsEvaluatingReport(false);
+    }
+  };
+
+  // 5. Apply recommended hyperparameters
+  const handleApplyRecommendedParams = () => {
+    if (!smartAnalysis || !smartAnalysis.recommendations) return;
+    const { epochs, baseModel, learningRate } = smartAnalysis.recommendations;
+    
+    setFtEpochs(parseInt(epochs) || 5);
+    setFtBaseModel(baseModel || 'google/gemma-3-4b-tfjs');
+    setFtCustomName(`smart-tune-v${epochs}e`);
+    setActiveTab('finetune');
+    
+    setSuccessMsg("Applied recommended hyperparameters to fine-tuning workspace!");
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
 
   // Node (dataset) states
   const [items, setItems] = useState<KnowledgeItem[]>([]);
@@ -100,6 +207,21 @@ export const NeuralTrainingHub: React.FC = () => {
   const [ftEpochs, setFtEpochs] = useState(5);
   const [ftIsStarting, setFtIsStarting] = useState(false);
   const [selectedJob, setSelectedJob] = useState<FineTuningJob | null>(null);
+  const [isInjectingPreset, setIsInjectingPreset] = useState<string | null>(null);
+
+  const handleInjectPreset = async (presetId: string, title: string, category: string, content: string) => {
+    try {
+      setIsInjectingPreset(presetId);
+      await api.ai.addKnowledge(title, content, category);
+      setSuccessMsg(`"${title}" integrated into training nodes!`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+      await fetchKnowledge();
+    } catch (err: any) {
+      alert("Failed to inject training preset: " + err.message);
+    } finally {
+      setIsInjectingPreset(null);
+    }
+  };
 
   const TRAINING_CATEGORIES = [
     { id: 'article', label: 'Health Article', icon: '📄' },
@@ -539,6 +661,18 @@ export const NeuralTrainingHub: React.FC = () => {
           <Cpu size={16} />
           Clinician Weights Fine-Tuning
         </button>
+        <button
+          onClick={() => setActiveTab('smart')}
+          id="btn-tab-smart"
+          className={`px-6 py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'smart'
+              ? 'border-purple-600 text-purple-600 dark:text-purple-400 font-extrabold'
+              : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+          }`}
+        >
+          <Sliders size={16} className="text-purple-500 animate-pulse" />
+          🧠 Smart AI Optimizer
+        </button>
       </div>
 
       {activeTab === 'dataset' ? (
@@ -573,6 +707,82 @@ export const NeuralTrainingHub: React.FC = () => {
                     </p>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Symptom & Real-time Health Presets */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl">
+                  <Activity size={18} className="text-rose-600 dark:text-rose-400" />
+                </div>
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs">Symptom & Health Presets</h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                Instantly inject pre-configured, high-fidelity symptom diagnostic pathways and real-time clinical consulting standards to train your custom model.
+              </p>
+              
+              <div className="space-y-3 pt-2">
+                {[
+                  {
+                    id: 'preset-symptom',
+                    title: "Clinical Core: Symptom Differential Diagnostic Standard",
+                    label: "Symptom Diagnostic Protocol",
+                    category: "symptom",
+                    icon: "🩺",
+                    desc: "Trains the model on clinical differential assessments for acute and tropical symptoms.",
+                    content: "When evaluating user symptoms in real-time, implement standard WHO triage guidelines.\n- High Fever + Severe Headache + Joint Pain in tropical regions: Map highly to Malaria or Dengue. Promptly ask for onset duration and verify if they have a bed net.\n- Persistent watery diarrhea + extreme thirst + muscle cramps: High clinical suspicion for Cholera/Acute Gastroenteritis. Emphasize immediate ORS rehydration and water boiling protocols.\n- Fast shallow breathing (chest indrawing in children) + wet cough: Strong predictor for ARI/Pneumonia. Assess respiration rate over 60 seconds (Reference thresholds: < 2 months: >= 60/min; 2-11 months: >= 50/min; 1-5 years: >= 40/min).\n- Sudden chest pressure/pain radiating to left arm + sweating: Critical acute coronary event. Advise resting immediately and triggering local emergency ambulance services."
+                  },
+                  {
+                    id: 'preset-realtime',
+                    title: "Standard Operating Protocol: Real-time Health Queries",
+                    label: "Real-time Query Standard",
+                    category: "clinical",
+                    icon: "⚡",
+                    desc: "Teaches the model to analyze real-time patient vitals and health status updates dynamically.",
+                    content: "When addressing real-time health questions, prioritize interpreting user vitals first.\n- If user presents high blood pressure (> 140/90 mmHg), discuss potential triggers (stress, sodium, lack of sleep, missing meds), and provide specific, calming lifestyle steps.\n- If user presents SpO2 < 95%, evaluate breathing patterns, recommend pursed-lip breathing, and ask if they are in an elevated location or have underlying respiratory history. If < 90%, flag severe hypoxia.\n- Maintain a highly supportive, objective, and empathetic clinical persona. Always benchmark metrics against standard clinical guidelines, provide step-by-step scientific explanations of what the readings mean biologically, and conclude with recommendations for medical attention."
+                  },
+                  {
+                    id: 'preset-uganda',
+                    title: "Ugandan Community Health & Symptom Guidelines",
+                    label: "Ugandan Community Health Core",
+                    category: "clinical",
+                    icon: "🌍",
+                    desc: "Injects localized public health protocols and epidemiological indicators for East Africa.",
+                    content: "In Ugandan communities, common infectious and acute symptoms are managed with strict, localized public health protocols:\n- Malaria: Accountable for over 30% of outpatient visits. Rapid Diagnostic Tests (RDTs) must be prioritized for any fever. First-line therapy remains Artemether-Lumefantrine (Coartem).\n- Typhoid Fever: Flagged by prolonged step-ladder fever, abdominal discomfort, and 'rose spots' on trunk. Highlight safe water, sanitation, and hygiene (WASH) standards.\n- Bilharzia (Schistosomiasis): Prevalent around Lake Victoria and Albert. Contracted via fresh-water contact. Instruct on avoiding snail-infested waters and prioritize Praziquantel screening.\n- Primary health units (Health Center II, III, IV) must be referenced as the immediate routing node for secondary diagnostics."
+                  }
+                ].map((preset) => {
+                  const alreadyInjected = items.some(item => item.title === preset.title);
+                  return (
+                    <div 
+                      key={preset.id}
+                      className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col gap-2 group/preset"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{preset.icon}</span>
+                          <span className="text-xs font-black text-slate-800 dark:text-white leading-tight">{preset.label}</span>
+                        </div>
+                        {alreadyInjected ? (
+                          <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-md text-[8px] font-black uppercase tracking-wider">
+                            Injected
+                          </span>
+                        ) : (
+                          <button
+                            disabled={isInjectingPreset !== null}
+                            onClick={() => handleInjectPreset(preset.id, preset.title, preset.category, preset.content)}
+                            className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[8px] font-black uppercase tracking-widest cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                          >
+                            {isInjectingPreset === preset.id ? 'Injecting...' : 'Inject Node'}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight font-medium">
+                        {preset.desc}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -671,7 +881,7 @@ export const NeuralTrainingHub: React.FC = () => {
             )}
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'finetune' ? (
         /* Fine Tuning Console Panel */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all">
           {/* Left panel/form: Choose hyperparameters */}
@@ -917,6 +1127,360 @@ export const NeuralTrainingHub: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      ) : (
+        /* Smart AI Optimizer Tab View */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all animate-fadeIn">
+          {/* Left Panel: Auto-ML Calibration Engine & Metrics */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl">
+                    <Brain size={24} className="text-purple-600 dark:text-purple-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-lg leading-tight">Auto-ML Calibration Diagnostics</h3>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Grounded Hyperparameter Optimization</p>
+                  </div>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleAnalyzeDataset}
+                  disabled={isAnalyzing}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:scale-[1.03] active:scale-95 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Analyzing Registry...
+                    </>
+                  ) : (
+                    <>
+                      <Activity size={14} className="animate-pulse" />
+                      Run Dataset Diagnostics
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {!smartAnalysis ? (
+                <div className="py-12 px-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center space-y-4">
+                  <div className="p-4 bg-purple-50 dark:bg-purple-900/10 rounded-full text-purple-500">
+                    <Sliders size={32} className="animate-bounce" />
+                  </div>
+                  <div className="max-w-md">
+                    <h4 className="font-black text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider">Uncalibrated Neural Workspace</h4>
+                    <p className="text-slate-500 text-xs mt-2 leading-relaxed">
+                      Click the diagnostics button above to trigger the **Doctorian Neural Calibration Engine**. 
+                      Gemini will analyze your active clinical/translation database and recommend mathematically optimal training parameters to prevent overfitting.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Summary Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Indexed Nodes</span>
+                      <span className="text-xl font-black text-slate-900 dark:text-white">{smartAnalysis.summary?.totalNodes}</span>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Avg Text Length</span>
+                      <span className="text-xl font-black text-slate-900 dark:text-white">{smartAnalysis.summary?.averageLength} Chars</span>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Categories mapped</span>
+                      <span className="text-xl font-black text-purple-600 dark:text-purple-400">{Object.keys(smartAnalysis.summary?.categoryDistribution || {}).length} classes</span>
+                    </div>
+                  </div>
+
+                  {/* Recommendations */}
+                  <div className="bg-purple-50/40 dark:bg-purple-950/10 rounded-2xl p-6 border border-purple-100 dark:border-purple-900/30 space-y-4 animate-fadeIn">
+                    <h4 className="text-xs font-black text-purple-800 dark:text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <Zap size={14} /> RECOMMENDED HYPERPARAMETER CALIBRATION
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                      <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-purple-50 dark:border-slate-800 text-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Epochs</span>
+                        <span className="text-lg font-black text-slate-900 dark:text-white">{smartAnalysis.recommendations?.epochs}</span>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-purple-50 dark:border-slate-800 text-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Learning Rate</span>
+                        <span className="text-lg font-black text-indigo-500">{smartAnalysis.recommendations?.learningRate}</span>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-purple-50 dark:border-slate-800 text-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Batch Size</span>
+                        <span className="text-lg font-black text-slate-900 dark:text-white">{smartAnalysis.recommendations?.batchSize || 8}</span>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-purple-50 dark:border-slate-800 text-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Accuracy Target</span>
+                        <span className="text-lg font-black text-emerald-500">~95%+</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-purple-100 dark:border-purple-900/30">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Recommended Base Model</span>
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-200 block bg-white dark:bg-slate-900 p-3 rounded-lg border border-purple-50/50 dark:border-slate-800">
+                        {smartAnalysis.recommendations?.baseModel || 'google/gemma-3-4b-tfjs'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Scientific Justification</span>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                        {smartAnalysis.recommendations?.justification}
+                      </p>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleApplyRecommendedParams}
+                        className="w-full px-6 py-4 bg-purple-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-purple-700 hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-purple-500/10"
+                      >
+                        <Sliders size={16} />
+                        Apply Recommendations & Auto-Calibrate Workspace
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Potential Issues & Test Queries */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    <div className="bg-amber-50/40 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/30 rounded-2xl p-5 space-y-3">
+                      <h5 className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                        <AlertCircle size={14} /> Potential Biases & Risks
+                      </h5>
+                      <ul className="space-y-2">
+                        {smartAnalysis.potentialIssues?.map((issue: string, index: number) => (
+                          <li key={index} className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-relaxed list-disc list-inside">
+                            {issue}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-blue-50/40 dark:bg-blue-950/10 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-5 space-y-3">
+                      <h5 className="text-[10px] font-black text-blue-800 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                        <FileText size={14} /> Recommended Verification Queries
+                      </h5>
+                      <ul className="space-y-2">
+                        {smartAnalysis.testQueries?.map((query: string, index: number) => (
+                          <li key={index} className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-relaxed bg-white dark:bg-slate-900/40 p-2.5 rounded-xl border border-blue-50 dark:border-slate-800 flex items-start gap-2">
+                            <span className="p-1 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full text-[8px] font-black">ix</span>
+                            <span>{query}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Smart Diagnostics Evaluation Results */}
+            {selectedJob && (
+              <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6 animate-fadeIn">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl">
+                      <ShieldCheck size={24} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-slate-900 dark:text-white text-lg leading-tight">Post-Training Neural Diagnostic</h3>
+                      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Evaluating: <span className="text-slate-600 dark:text-white font-black font-mono">{selectedJob.customName || selectedJob.id}</span></p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleEvaluateJob(selectedJob.id)}
+                    disabled={isEvaluatingReport || selectedJob.status === 'training'}
+                    className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-700 hover:scale-[1.03] active:scale-95 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                  >
+                    {isEvaluatingReport ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Analyzing Weight Vectors...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={14} />
+                        Run Weight Evaluation
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {selectedJob.status === 'training' ? (
+                  <div className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium italic">
+                      "Training is currently actively iterating tensors on backend. Weight validation diagnostic report is locked until job converges."
+                    </p>
+                  </div>
+                ) : !smartReport || evaluatedJobId !== selectedJob.id ? (
+                  <div className="py-8 px-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center space-y-3">
+                    <div className="text-slate-400">
+                      <FileText size={24} />
+                    </div>
+                    <p className="text-slate-500 text-xs leading-relaxed max-w-md font-medium">
+                      Select a completed fine-tuning weights profile on the **Clinician Weights** tab, then click the **Run Weight Evaluation** button above to generate a medically aligned AI feedback report.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="p-5 bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle2 size={14} /> WEIGHTS HEALTH CONVERGENCE INDEX
+                        </h4>
+                        <span className="text-[10px] font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">VERIFIED</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Convergence Performance Index</span>
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{smartReport.performanceIndex}</p>
+                      </div>
+
+                      <div className="space-y-1 pt-2 border-t border-emerald-100/50 dark:border-slate-800">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Trained Core Competencies</span>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {smartReport.competencies?.map((comp: string, i: number) => (
+                            <span key={i} className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm block">
+                              🔬 {comp}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-emerald-100/50 dark:border-slate-800">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Clinical Guardrails Audit</span>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                            {smartReport.guardrails}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Recommended Next Steps</span>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                            {smartReport.improvements}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel: Synthetic AI Data Augmentation Engine */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                  <Workflow size={18} className="text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">Data Augmentation Engine</h3>
+                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Synthesize Database Presets with AI</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleAugmentDataset} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] ml-1">Target Class</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['clinical', 'language', 'symptom', 'prevention'].map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setAugmentCategory(cat)}
+                        className={`py-2 px-3 rounded-xl border text-[9px] font-black uppercase tracking-widest text-center transition-all ${
+                          augmentCategory === cat 
+                            ? 'bg-indigo-600 text-white border-indigo-700 shadow-md shadow-indigo-500/20' 
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {cat === 'clinical' ? '🔬 Clinic' : cat === 'language' ? '🌍 Lang' : cat === 'symptom' ? '🩺 Symptom' : '🛡️ Prevent'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] ml-1">Synthesizer Topic Prompt</label>
+                  <textarea
+                    value={augmentTopic}
+                    onChange={(e) => setAugmentTopic(e.target.value)}
+                    placeholder="e.g. Swahili emergency protocols for cardiac arrest, or Ugandan cholera quarantine guidelines for clinics..."
+                    rows={4}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none dark:text-white font-medium leading-relaxed"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isAugmenting || !augmentTopic.trim()}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                >
+                  {isAugmenting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Generating Synthetic Nodes...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} />
+                      Synthesize Training Nodes
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {synthesizedNodes.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PREVIEW SYNTHESIZED ADAPTERS</span>
+                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-md">READY</span>
+                  </div>
+
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                    {synthesizedNodes.map((node, i) => (
+                      <div key={i} className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2">
+                        <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">NODE ix.{i + 1}</span>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white leading-tight">{node.title}</h4>
+                        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3 italic">
+                          "{node.content}"
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleInjectAugmentedNodes}
+                    disabled={isInjectingAugmented}
+                    className="w-full px-6 py-4 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                  >
+                    {isInjectingAugmented ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Injecting Tensors...
+                      </>
+                    ) : (
+                      <>
+                        <Database size={14} />
+                        Inject Nodes to Active Dataset
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

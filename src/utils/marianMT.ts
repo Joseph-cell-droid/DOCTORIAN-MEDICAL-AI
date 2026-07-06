@@ -401,7 +401,10 @@ export const runMarianInference = async (text: string, targetLanguage: string): 
 // Check if MarianMT mode is enabled globally
 export const isMarianMTModeActive = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return localStorage.getItem('marian_mt_active') === 'true';
+  const isSystemOffline = localStorage.getItem('medical_forced_offline') === 'true' || 
+                          navigator.onLine === false || 
+                          (window as any).isServerUnreachable === true;
+  return isSystemOffline || localStorage.getItem('marian_mt_active') === 'true';
 };
 
 // Set MarianMT mode enabled state

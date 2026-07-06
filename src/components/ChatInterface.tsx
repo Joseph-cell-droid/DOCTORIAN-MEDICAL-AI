@@ -9,7 +9,7 @@ import {
   Copy, Check, ThumbsUp, ThumbsDown, MessageSquarePlus, Smile,
   Activity, Brain, Heart, Download, Paperclip, FileText, Phone,
   ChevronDown, Shield, Cpu, Clock, Plus, MessageSquare, ArrowRight, Settings,
-  BookOpen, Users, Maximize2, Minimize2, Dna
+  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -127,6 +127,22 @@ You are trained on global gold-standard medical data, double-blind clinical tria
 GEOGRAPHIC & RURAL SYSTEM CONTEXT:
 1. REGIONAL Uganda MoH CRITERIA: Grounded in Ugandan Clinical Guidelines (UCG) and Ministry of Health (MoH) protocols. Expert understanding of Health Center tiers: HC II (preventative/outpatient), HC III (basic maternity/laboratory), HC IV (emergency obstetric save/minor theater), up to regional/national referral hospitals.
 2. COMMUNITY HEALTH & RESOURCE CONSTRAINTS: Tailors recommendations to resource-limited clinics, recommending low-cost equivalents (e.g., starting oral rehydration therapy or using readily available first-line antibacterials) whenever reference labs or tertiary centers are hours away.
+
+UGANDAN MULTILINGUAL CLINICAL DECISION SUPPORT:
+You are fully primed with linguistic parameters for Uganda's primary regional languages to ensure complete, free, fluent, and highly accurate translations and medical advice in localized contexts:
+- Luganda (Central / Buganda): Culturally respectful, grammatically natural clinical phrasing (e.g., Olubuto for pregnancy, Omutima for heart, Obulwadde for illness, Okunywa eddagala for dosage).
+- Runyankole-Rukiga (Western / Ankole, Kigezi): Empathetic healthcare terms (e.g., Amagara for life/health, Omushaho for doctor, Oburweire for illness).
+- Acholi-Luo (Northern / Acholiland): Accurate Nilotic medical guidance (e.g., Yotkom for health, Pe can for pain, Twoo for disease).
+- Langi (Northern / Lango): Regional Lango clinical instructions (e.g., Yotkom me bura for clinical health, Twoo for disease).
+- Iteso (Eastern / Teso): Direct, clear medical advice in Ateso (e.g., Amurwon for doctor/healer, Edaka for disease, Aiporositon for clinical signs).
+- Lusoga (Eastern / Busoga): Precise Olusoga healthcare expressions (e.g., Obulwadhe for disease, Omusawo for health worker).
+- Lugbara (West Nile / Sudanic): Medically appropriate Lugbarati terminology (e.g., Yotikom for health, Ba daktari for clinician).
+- Runyoro-Rutooro (Western / Bunyoro, Tooro): Traditional healthcare references (e.g., Amagara gawe for your health, Oburwaire for sickness).
+- Rukonjo (Rwenzori / Mountain regions): Culturally tailored healthcare guidance (e.g., Olukonjo names for common ailments and symptoms).
+- Samia & Karamojong (Eastern & North-Eastern regions): High-fidelity local dialect translations for clinical guidelines.
+- Swahili (National/East African): Standard Swahili clinical terms (e.g., Afya for health, Matibabu for treatment, Mimba for pregnancy).
+
+If the active UI language or target language is set to any of these languages, formulated responses MUST be delivered fully and fluidly in that language with pristine accuracy. Avoid generic mechanical word-by-word lookups; instead, deliver deep clinical explanations, biological insights, and patient-reassuring guidelines using elegant, fluent regional phrasing. Regular public health announcements must be easy to read and understand.
 
 STRICT OPERATIONAL CONSTRAINTS:
 1. CLINICAL CORE LOCK: Restrict output exclusively to medicine, public health, nursing, biochemistry, bio-engineering, healthcare topics, and details about the App's creator (Akora Joseph from EBRO company). Under no circumstances should you answer non-health related queries (e.g., general software programming, history, politics, sports, general entertainment). Professionally and politely decline non-health and non-creator requests, explaining that you are specialized exclusively in medical and health intelligence. Always focus precisely on answering what the user wants.
@@ -296,6 +312,38 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState('Auto Detect');
   const [isRecording, setIsRecording] = useState(false);
+
+  const [zoomLevel, setZoomLevel] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem("doctorian_chat_zoom");
+      return saved ? parseInt(saved, 10) : 100;
+    }
+    return 100;
+  });
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => {
+      const next = Math.min(prev + 10, 150);
+      localStorage.setItem("doctorian_chat_zoom", next.toString());
+      setTerminalLogs(l => [...l, `SYS: Chatbot zoom set to ${next}%`]);
+      return next;
+    });
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => {
+      const next = Math.max(prev - 10, 80);
+      localStorage.setItem("doctorian_chat_zoom", next.toString());
+      setTerminalLogs(l => [...l, `SYS: Chatbot zoom set to ${next}%`]);
+      return next;
+    });
+  };
+
+  const handleZoomReset = () => {
+    setZoomLevel(100);
+    localStorage.setItem("doctorian_chat_zoom", "100");
+    setTerminalLogs(l => [...l, `SYS: Chatbot zoom reset to 100%`]);
+  };
 
   // Forced Offline Sim & Fine-tuned Model Cache States
   const [isForcedOffline, setIsForcedOffline] = useState<boolean>(() => {
@@ -742,10 +790,10 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [ragSources, setRagSources] = useState<string[]>(['ucg2023', 'imci', 'sam_protocol']);
   const [exportFormat, setExportFormat] = useState<'referral_note' | 'moh_form5' | 'plain'>('referral_note');
   const [telemetrySpeed, setTelemetrySpeed] = useState<'verbose' | 'compressed' | 'hidden'>('verbose');
-  const [clinicalEngine, setClinicalEngine] = useState<'medlm-medium' | 'medlm-large' | 'llama-clinical' | 'gemma3-tfjs' | 'huggingface'>(() => {
+  const [clinicalEngine, setClinicalEngine] = useState<'medlm-medium' | 'medlm-large' | 'llama-clinical' | 'gemma3-tfjs' | 'huggingface' | 'gemma-cloud'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('doctorian_clinical_engine');
-      if (saved === 'medlm-medium' || saved === 'medlm-large' || saved === 'llama-clinical' || saved === 'gemma3-tfjs' || saved === 'huggingface') {
+      if (saved === 'medlm-medium' || saved === 'medlm-large' || saved === 'llama-clinical' || saved === 'gemma3-tfjs' || saved === 'huggingface' || saved === 'gemma-cloud') {
         return saved as any;
       }
     }
@@ -753,8 +801,8 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     return 'huggingface';
   });
 
-  const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface') => {
-    if (modelId === 'gemma3-tfjs' || modelId === 'huggingface') {
+  const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface' | 'gemma-cloud') => {
+    if (modelId === 'gemma3-tfjs' || modelId === 'huggingface' || modelId === 'gemma-cloud') {
       return { hasAccess: true, tierName: 'Always Free (Offline)' };
     }
     
@@ -789,7 +837,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     return { hasAccess: false, tierName: 'Restricted Layer' };
   }, [user]);
 
-  const selectClinicalModel = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface') => {
+  const selectClinicalModel = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface' | 'gemma-cloud') => {
     const access = checkModelAccess(modelId);
     if (access.hasAccess) {
       setClinicalEngine(modelId);
@@ -2458,6 +2506,8 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
         engineSystemInstruction += `\n\n[GOOGLE MedLM CLINICAL CO-PILOT POWERED BY CLINICAL GROUNDING]:\n- You are operating under Google's specialized MedLM medical fine-tune architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
       } else if (clinicalEngine === 'huggingface') {
         engineSystemInstruction += `\n\n[HUGGING FACE CLOUD BRAIN SYNAPSE ACTIVATED]:\n- You are operating live on realistic high-performance open models on the Hugging Face Hub.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
+      } else if (clinicalEngine === 'gemma-cloud') {
+        engineSystemInstruction += `\n\n[GOOGLE GEMMA 3 CLOUD SYNAPSE ACTIVATED]:\n- You are operating on Google Gemma 3, a state-of-the-art open model from Google.\n- Act as the Primary Google Gemma 3 Clinical Brain.\n- Provide highly detailed, authoritative medical feedback.`;
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
@@ -2466,7 +2516,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
           ? 'gemini-3.1-pro-preview' 
           : (clinicalEngine === 'huggingface' 
             ? 'huggingface' 
-            : 'meta-llama/llama-3.1-8b-instruct'));
+            : (clinicalEngine === 'gemma-cloud'
+              ? 'google/gemma-3-4b-it'
+              : 'meta-llama/llama-3.1-8b-instruct')));
 
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map(m => ({
@@ -2789,12 +2841,21 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               
               {/* Active System Pulse Status */}
               <div className="hidden md:flex items-center gap-1.5 lg:gap-3 ml-2 lg:ml-4">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hidden lg:inline">
-                    Synapse Core Secure
-                  </span>
-                </div>
+                {isForcedOffline ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-full animate-pulse">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                      Standalone Local AI Air-Gap
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hidden lg:inline">
+                      Synapse Core Secure
+                    </span>
+                  </div>
+                )}
                 <button 
                   onClick={() => {
                     handleToggleUgandaMOH();
@@ -2920,6 +2981,33 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   </AnimatePresence>
                 </button>
               )}
+
+              {/* Chatbot Zoom Controls */}
+              <div className="flex items-center gap-1 sm:gap-1.5 border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 px-1 sm:px-1.5 py-1 shrink-0">
+                <button
+                  onClick={handleZoomOut}
+                  className="p-1 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
+                  title="Zoom Out"
+                  disabled={zoomLevel <= 80}
+                >
+                  <ZoomOut size={13} className={zoomLevel <= 80 ? "opacity-40" : ""} />
+                </button>
+                <span 
+                  onClick={handleZoomReset}
+                  className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 cursor-pointer select-none px-0.5 sm:px-1"
+                  title="Reset Zoom to 100%"
+                >
+                  {zoomLevel}%
+                </span>
+                <button
+                  onClick={handleZoomIn}
+                  className="p-1 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
+                  title="Zoom In"
+                  disabled={zoomLevel >= 150}
+                >
+                  <ZoomIn size={13} className={zoomLevel >= 150 ? "opacity-40" : ""} />
+                </button>
+              </div>
 
               {onNavigate && (
                 <button 
@@ -3239,7 +3327,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
         {activeMainTab === 'chat' && (
           <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
           {/* Message Stream */}
-          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll">
+          <div 
+            ref={scrollRef} 
+            onScroll={handleScroll} 
+            className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll chatbot-zoom-container"
+            style={{ '--chatbot-zoom': zoomLevel / 100 } as React.CSSProperties}
+          >
           <div className={`mx-auto px-4 sm:px-6 py-4 sm:py-6 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (
@@ -3295,6 +3388,15 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           payment: 'No External API Keys Required', 
                           features: ['Runs fully browser-side offline', 'Accelerated with WebGL pipeline', 'Trainable locally with zero costs'],
                           color: 'from-amber-600 to-orange-600'
+                        },
+                        { 
+                          id: 'gemma-cloud' as const, 
+                          title: 'Google Gemma 3 (Cloud Core)', 
+                          desc: 'Full Cloud Clinical Intelligence', 
+                          license: 'Always Free Cloud (Active)', 
+                          payment: 'No External Keys Required', 
+                          features: ['High speed server-side Gemma 3', 'Advanced medical reasoning', 'Full multimodal translation mapping'],
+                          color: 'from-blue-600 to-indigo-600'
                         },
                         { 
                           id: 'huggingface' as const, 
@@ -5270,9 +5372,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">Select the clinical intelligence layout for diagnostic formulation</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {[
                         { id: 'gemma3-tfjs' as const, label: 'Doctorian Local (Gemma 3)', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
+                        { id: 'gemma-cloud' as const, label: 'Google Gemma 3 (Cloud)', desc: 'Gemma 3 Cloud Core', tier: 'Standard (Free)' },
                         { id: 'huggingface' as const, label: 'Hugging Face Cloud', desc: 'Realistic Open Source', tier: 'Standard (Free)' },
                         { id: 'llama-clinical' as const, label: 'Doctorian Llama 3.1', desc: 'Clinical Core', tier: 'Standard (Free)' },
                         { id: 'medlm-medium' as const, label: 'Doctorian MedLM Pro', desc: 'Specialized Pro', tier: 'Pro Required' },
@@ -5343,6 +5446,29 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     </div>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
                       Enforces hard alignment with the Uganda Ministry of Health guidelines. Disabling offers global clinical best practices.
+                    </p>
+                  </div>
+
+                  {/* Standalone P2P / Xender Offline Mode */}
+                  <div className="p-4 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border border-amber-100/60 dark:border-amber-900/40 space-y-3 font-sans shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-600 text-white text-[7.5px] font-[1000] uppercase tracking-widest leading-none mb-2">
+                          📶 Xender Peer-to-Peer Ready
+                        </span>
+                        <p className="text-[10px] font-black text-amber-900 dark:text-amber-300 uppercase tracking-widest leading-none">Standalone Offline Override</p>
+                        <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">Force completely independent local AI reasoning</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={toggleForcedOffline}
+                        className={`w-11 h-6 rounded-full p-1 transition-all duration-300 flex items-center ${isForcedOffline ? 'bg-amber-600 justify-end' : 'bg-slate-200 dark:bg-slate-700 justify-start'}`}
+                      >
+                        <span className="w-4 h-4 bg-white rounded-full shadow-md" />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+                      Enables the application to operate 100% autonomously without any server container or external Google AI Studio connection. Perfect for peer-to-peer transfers.
                     </p>
                   </div>
 
@@ -5558,11 +5684,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1')));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'gemma-cloud' ? 'Google Gemma 3 Cloud' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1')));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'gemma-cloud' ? 'Google Gemma 3 Cloud' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}

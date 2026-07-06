@@ -225,7 +225,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <footer className="relative bg-[#f8fafc] dark:bg-[#030712] pt-10 sm:pt-12 pb-44 lg:pb-24 overflow-hidden border-t-2 border-slate-200 dark:border-slate-900/40 mt-auto transition-colors duration-300">
+    <footer className="relative bg-[#f8fafc] dark:bg-[#030712] pt-16 sm:pt-20 pb-48 lg:pb-32 overflow-hidden border-t-2 border-slate-200 dark:border-slate-900/40 mt-auto transition-colors duration-300">
       
       {/* Laser Gradient Accent Bar across the top of the footer */}
       <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 shadow-[0_1px_4px_rgba(59,130,246,0.3)]" />
@@ -239,12 +239,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 relative z-10">
         
-        {/* Scrollable Container just like the registration / login card */}
+        {/* Features display container - bounded scrollable boundary without scrollbar or borders */}
         <div 
-          id="footer-scroll-viewport" 
-          tabIndex={0}
-          aria-label="Clinical Footer Console"
-          className="max-h-[500px] sm:max-h-[600px] md:max-h-[700px] overflow-y-auto custom-scrollbar pr-1.5 pb-6 space-y-16 border border-slate-200/50 dark:border-slate-800/40 rounded-[2rem] p-6 bg-white/40 dark:bg-slate-950/20 backdrop-blur-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          id="footer-features-display" 
+          className="max-h-[600px] sm:max-h-[700px] md:max-h-[850px] overflow-y-auto no-scrollbar space-y-16 pb-12 outline-none focus:outline-none"
         >
           
           {/* Interactive System Status Top Row (Modern Grid Bar) / Highly visible grid boxes */}

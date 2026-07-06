@@ -21,6 +21,7 @@ import { ClinicalCoPilotPanel } from './ClinicalCoPilotPanel';
 import { EmergencyRegistry } from './EmergencyRegistry';
 import { AlarmHubView } from './AlarmHubView';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
+import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
 import { HistoricalTelemetryChart } from './HistoricalTelemetryChart';
 import { TelemetryCastManager } from './TelemetryCastManager';
 import { 
@@ -77,26 +78,62 @@ const VitalCard: React.FC<{
   maxVal?: number;
   highlight?: boolean;
   customIndicator?: React.ReactNode;
-}> = ({ icon, label, value, unit, color, bgColor, status, isLive, history = [], maxVal, highlight, customIndicator }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ 
-      opacity: 1, 
-      y: 0,
-      boxShadow: status === 'critical' ? ['0 0 0 0px rgba(239, 68, 68, 0)', '0 0 0 4px rgba(239, 68, 68, 0.2)', '0 0 0 0px rgba(239, 68, 68, 0)'] : 'none'
-    }}
-    whileHover={{ y: -4, transition: { duration: 0.2 } }}
-    transition={{ 
-      boxShadow: { repeat: Infinity, duration: 2 }
-    }}
-    className={`group relative overflow-hidden flex flex-col justify-between h-full rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-8 border transition-all duration-300 ${
-      highlight 
-        ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white border-blue-500 shadow-2xl shadow-blue-500/20' 
-        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-blue-500/5'
-    } ${status === 'critical' && !highlight ? 'border-red-200 dark:border-red-900 bg-red-50/30' : ''}`}
-    role="group"
-    aria-label={`${label} monitoring`}
-  >
+}> = ({ icon, label, value, unit, color, bgColor, status, isLive, history = [], maxVal, highlight, customIndicator }) => {
+  const numVal = parseFloat(value);
+  const isGlowActive = label === "Heart Rate" && !isNaN(numVal) && (numVal > 140 || numVal < 45);
+
+  const getHeartRateTrend = () => {
+    if (label !== "Heart Rate") return null;
+    if (!history || history.length < 2) return null;
+    const lastFive = history.slice(-5);
+    if (lastFive.length < 2) return null;
+    
+    const oldest = lastFive[0].value;
+    const latest = lastFive[lastFive.length - 1].value;
+    const diff = latest - oldest;
+    
+    if (diff > 0.5) {
+      return {
+        direction: 'up',
+        color: highlight ? 'text-rose-300' : 'text-rose-500 dark:text-rose-400',
+        icon: <TrendingUp size={24} className="inline-block animate-bounce shrink-0" />
+      };
+    } else if (diff < -0.5) {
+      return {
+        direction: 'down',
+        color: highlight ? 'text-blue-300' : 'text-blue-500 dark:text-blue-400',
+        icon: <TrendingDown size={24} className="inline-block animate-bounce shrink-0" />
+      };
+    }
+    return null;
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        boxShadow: isGlowActive
+          ? ['0 0 0 0px rgba(239, 68, 68, 0)', '0 0 0 8px rgba(239, 68, 68, 0.4)', '0 0 0 0px rgba(239, 68, 68, 0)']
+          : status === 'critical'
+          ? ['0 0 0 0px rgba(239, 68, 68, 0)', '0 0 0 4px rgba(239, 68, 68, 0.2)', '0 0 0 0px rgba(239, 68, 68, 0)']
+          : 'none'
+      }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      transition={{ 
+        boxShadow: { repeat: Infinity, duration: 2 }
+      }}
+      className={`group relative overflow-hidden flex flex-col justify-between h-full rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-8 border transition-all duration-300 ${
+        isGlowActive
+          ? 'bg-red-50/10 border-red-500 dark:border-red-500/80 animate-red-glow'
+          : highlight 
+          ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white border-blue-500 shadow-2xl shadow-blue-500/20' 
+          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-blue-500/5'
+      } ${status === 'critical' && !highlight && !isGlowActive ? 'border-red-200 dark:border-red-900 bg-red-50/30' : ''}`}
+      role="group"
+      aria-label={`${label} monitoring`}
+    >
     {isLive && (
       <div 
         className={`absolute top-0 right-0 px-4 sm:px-6 py-1.5 sm:py-2 text-[9px] font-black uppercase tracking-[0.2em] rounded-bl-2xl sm:rounded-bl-3xl shadow-lg flex items-center gap-1.5 sm:gap-2 ${
@@ -132,11 +169,22 @@ const VitalCard: React.FC<{
       
       <div className="space-y-1">
         <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${highlight ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'}`} id={`label-${label.replace(/\s+/g, '-')}`}>{label}</p>
-        <div className="flex items-baseline gap-1.5" aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}>
-          <span className={`text-5xl sm:text-6xl lg:text-7xl font-[1000] tracking-tighter tabular-nums leading-none ${
-            highlight ? 'text-white' : color.includes('text-') ? color : 'text-slate-900 dark:text-white'
-          }`} aria-live="polite">{value}</span>
-          <span className={`text-xs sm:text-sm font-black uppercase tracking-widest ${highlight ? 'text-white/40' : 'text-slate-400'}`}>{unit}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-baseline gap-1.5" aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}>
+            <span className={`text-5xl sm:text-6xl lg:text-7xl font-[1000] tracking-tighter tabular-nums leading-none ${
+              highlight ? 'text-white' : color.includes('text-') ? color : 'text-slate-900 dark:text-white'
+            }`} aria-live="polite">{value}</span>
+            <span className={`text-xs sm:text-sm font-black uppercase tracking-widest ${highlight ? 'text-white/40' : 'text-slate-400'}`}>{unit}</span>
+          </div>
+          {(() => {
+            const trend = getHeartRateTrend();
+            if (!trend) return null;
+            return (
+              <span className={`flex items-center ${trend.color}`} title={`Heart rate currently trending ${trend.direction}`}>
+                {trend.icon}
+              </span>
+            );
+          })()}
         </div>
         {customIndicator && (
           <div className="mt-1">
@@ -178,7 +226,8 @@ const VitalCard: React.FC<{
       </div>
     </div>
   </motion.div>
-);
+  );
+};
 
 const StatusBadge: React.FC<{ status: HealthStatus }> = ({ status }) => {
   const config = {
@@ -664,7 +713,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showNeuralSummary, setShowNeuralSummary] = useState(false);
-  const [activeTab, setActiveTab] = useState<'realtime' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator'>('realtime');
+  const [activeTab, setActiveTab] = useState<'realtime' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator' | 'ambulance'>('realtime');
   const [emergencyLogs, setEmergencyLogs] = useState<any[]>([]);
   const [activeDoctors, setActiveDoctors] = useState<any[]>([]);
   const [activeCallTranscript, setActiveCallTranscript] = useState<string>('');
@@ -4359,6 +4408,12 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                         🚨 Clinical Alarm Hub
                       </button>
                       <button
+                        onClick={() => setActiveTab('ambulance')}
+                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'ambulance' ? 'bg-white dark:bg-slate-900 text-red-600 shadow-md border border-red-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+                      >
+                        🚑 Ambulance Dispatch
+                      </button>
+                      <button
                         onClick={() => setActiveTab('registry')}
                         className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'registry' ? 'bg-white dark:bg-slate-900 text-teal-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                       >
@@ -4467,6 +4522,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   isCurrentlyAcknowledged={isCurrentlyAcknowledged}
                   alarmAcknowledgeTime={alarmAcknowledgeTime}
                   acknowledgeAlarm={acknowledgeAlarm}
+                />
+              </div>
+            ) : activeTab === 'ambulance' ? (
+              <div className="max-w-7xl mx-auto px-4 py-8">
+                <AmbulanceDispatchPanel 
+                  selectedPatientId={selectedPatientId}
+                  selectedPatientName={currentCoupledPatientGlobal?.name}
+                  addToast={(msg, type) => triggerRegistryNotification(msg, type)}
                 />
               </div>
             ) : activeTab === 'registry' ? (

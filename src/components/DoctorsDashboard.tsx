@@ -25,14 +25,25 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
   // States for Live Clinical Network (Duty-bound Clinicians list)
   const [clinicians, setClinicians] = useState<any[]>(() => {
     const saved = localStorage.getItem('doctorian_clinicians');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 'cli-1', name: "Dr. Gloria Jayakullo", role: "Attending Cardiologist, Chief Systems Specialist", dept: "cardio", status: "On Duty", location: "Cardiology Suite A", contact: "+256787674140", avatar: "GJ" },
-      { id: 'cli-2', name: "Assoc. Prof. Aaron S.", role: "Lead Neurosurgeon & Cognitive Architect", dept: "neuro", status: "In Surgery", location: "OT Chamber 4", contact: "+256702344511", avatar: "AS" },
-      { id: 'cli-3', name: "Dr. Florence N.", role: "Emergency Medicine Specialist", dept: "emergency", status: "On Duty", location: "Trauma Bay 2", contact: "+256751989311", avatar: "FN" },
-      { id: 'cli-4', name: "Consultant Isaac O.", role: "Telehealth Operations Director", dept: "telehealth", status: "Online", location: "Virtual Node 1", contact: "+256772881229", avatar: "IO" },
-      { id: 'cli-5', name: "Dr. Trevor M.", role: "Pediatric Cardiothoracic Specialist", dept: "cardio", status: "Offline", location: "Outpost Clinics", contact: "+256781120440", avatar: "TM" }
+    const defaultClinicians = [
+      { id: 'cli-1', name: "Dr. Gloria Jayakullo", role: "Attending Cardiologist, Chief Systems Specialist", dept: "cardio", status: "On Duty", location: "Cardiology Suite A", contact: "+256787674140", avatar: "GJ", imageUrl: "https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=300" },
+      { id: 'cli-2', name: "Assoc. Prof. Aaron S.", role: "Lead Neurosurgeon & Cognitive Architect", dept: "neuro", status: "In Surgery", location: "OT Chamber 4", contact: "+256702344511", avatar: "AS", imageUrl: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300" },
+      { id: 'cli-3', name: "Dr. Florence N.", role: "Emergency Medicine Specialist", dept: "emergency", status: "On Duty", location: "Trauma Bay 2", contact: "+256751989311", avatar: "FN", imageUrl: "https://images.unsplash.com/photo-1579684389782-64d84b5e901a?auto=format&fit=crop&q=80&w=300" },
+      { id: 'cli-4', name: "Consultant Isaac O.", role: "Telehealth Operations Director", dept: "telehealth", status: "Online", location: "Virtual Node 1", contact: "+256772881229", avatar: "IO", imageUrl: "https://images.unsplash.com/photo-1550831107-1553da8c8464?auto=format&fit=crop&q=80&w=300" },
+      { id: 'cli-5', name: "Dr. Trevor M.", role: "Pediatric Cardiothoracic Specialist", dept: "cardio", status: "Offline", location: "Outpost Clinics", contact: "+256781120440", avatar: "TM", imageUrl: "https://images.unsplash.com/photo-1607990283143-e81e7a2c93ab?auto=format&fit=crop&q=80&w=300" }
     ];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((c: any) => {
+          const matchingDefault = defaultClinicians.find(dc => dc.id === c.id);
+          return matchingDefault ? { ...c, imageUrl: matchingDefault.imageUrl, name: matchingDefault.name } : c;
+        });
+      } catch (err) {
+        return defaultClinicians;
+      }
+    }
+    return defaultClinicians;
   });
 
   // State for Paging Handshakes
@@ -797,8 +808,12 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                     
                     {/* Avatar side */}
                     <div className="flex sm:flex-col items-center gap-4 shrink-0 justify-between sm:justify-start">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-950 text-white font-mono flex items-center justify-center text-lg font-black relative">
-                        {cl.avatar}
+                      <div className="w-14 h-14 rounded-2xl bg-slate-950 text-white font-mono flex items-center justify-center text-lg font-black relative overflow-hidden">
+                        {cl.imageUrl ? (
+                          <img src={cl.imageUrl} alt={cl.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          cl.avatar
+                        )}
                         <span className={`absolute -right-1 -bottom-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${
                           cl.status === 'On Duty' || cl.status === 'Online' ? 'bg-emerald-500 animate-pulse' :
                           cl.status === 'In Surgery' ? 'bg-blue-600' : 'bg-slate-400'

@@ -124,6 +124,7 @@ import { TerminalSecureGate } from "./components/TerminalSecureGate";
 import { translate } from './utils/translations';
 import { MarianConsole } from "./components/MarianConsole";
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
+import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; showDetails: boolean }> {
   constructor(props: { children: React.ReactNode }) {
@@ -804,6 +805,16 @@ export default function App() {
 
   const arduino = useArduinoContext();
   useMedicationReminders(user);
+  
+  // Auto-detect language and download model pack on first load
+  useAutoLanguageSetup({
+    currentLanguage,
+    setCurrentLanguage,
+    downloadedLanguages,
+    handleDownloadLanguage,
+    setToast,
+  });
+
   const isAdmin = true;
   const isDoctor = true;
 
@@ -1075,6 +1086,50 @@ export default function App() {
 
 
   useEffect(() => {
+    const getFontFamily = (lang: string) => {
+      switch (lang) {
+        case 'Luganda':
+        case 'Swahili':
+        case 'Runyankole-Rukiga':
+        case 'Acholi-Luo':
+        case 'Langi':
+        case 'Iteso':
+        case 'Lusoga':
+        case 'Lugbara':
+        case 'Runyoro-Rutooro':
+        case 'Rukonjo':
+        case 'Samia':
+        case 'Karamojong':
+          return { sans: '"Outfit", sans-serif', display: '"Syne", sans-serif' };
+        case 'Spanish':
+        case 'French':
+        case 'German':
+        case 'Italian':
+        case 'Portuguese':
+        case 'Turkish':
+          return { sans: '"Montserrat", sans-serif', display: '"Playfair Display", serif' };
+        case 'Chinese':
+          return { sans: '"Noto Sans SC", sans-serif', display: '"Noto Sans SC", sans-serif' };
+        case 'Hindi':
+          return { sans: '"Poppins", "Noto Sans Devanagari", sans-serif', display: '"Poppins", sans-serif' };
+        case 'Arabic':
+          return { sans: '"Cairo", sans-serif', display: '"Cairo", sans-serif' };
+        case 'Russian':
+          return { sans: '"Montserrat", sans-serif', display: '"Montserrat", sans-serif' };
+        case 'Japanese':
+          return { sans: '"Noto Sans JP", sans-serif', display: '"Noto Sans JP", sans-serif' };
+        case 'Korean':
+          return { sans: '"Noto Sans KR", sans-serif', display: '"Noto Sans KR", sans-serif' };
+        default:
+          return { sans: '"Inter", sans-serif', display: '"Space Grotesk", sans-serif' };
+      }
+    };
+
+    const families = getFontFamily(currentLanguage);
+    document.documentElement.style.setProperty('--font-sans', families.sans);
+    document.documentElement.style.setProperty('--font-sans-fallback', families.sans);
+    document.documentElement.style.setProperty('--font-serif', families.display);
+
     const getFontClass = (lang: string) => {
       switch (lang) {
         case 'Luganda':
@@ -1248,7 +1303,31 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const scanUserId = params.get('scanUserId');
-    if (scanUserId) {
+    const scanUserData = params.get('scanUserData');
+
+    if (scanUserData) {
+      setIsScanLoading(true);
+      setScanError(null);
+
+      // Clean up URL parameter to avoid getting stuck on page refreshes
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+
+      try {
+        const decodedString = decodeURIComponent(atob(scanUserData).split('').map((c) => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const profileData = JSON.parse(decodedString);
+        setScannedPatientData(profileData);
+        addToast("✨ Emergency medical profile retrieved instantly from secure offline QR code.", "success");
+      } catch (err: any) {
+        console.error("Failed to decode scanned QR patient data:", err);
+        setScanError("Failed to parse QR code patient data.");
+        addToast("⚠️ Scan failed: QR code data is corrupted or invalid.", "error");
+      } finally {
+        setIsScanLoading(false);
+      }
+    } else if (scanUserId) {
       setIsScanLoading(true);
       setScanError(null);
       
@@ -2499,17 +2578,17 @@ export default function App() {
                                 >
                                   <button
                                     onClick={() => {
-                                      // If language is not downloaded, trigger download first instead of immediate switch
+                                      setCurrentLanguage(lang.name);
+                                      localStorage.setItem("app_lang", lang.name);
+                                      setIsLanguageMenuOpen(false);
+
                                       if (!isDownloaded && lang.name !== 'English (US)' && lang.name !== 'English (UK)') {
                                         handleDownloadLanguage(lang.name);
                                         setToast({
-                                          message: `📥 Initializing offline MarianMT compilation for ${lang.name}...`,
+                                          message: `🌐 Language switched to ${lang.name}. Initializing offline MarianMT background downloader...`,
                                           type: 'info'
                                         });
                                       } else {
-                                        setCurrentLanguage(lang.name);
-                                        localStorage.setItem("app_lang", lang.name);
-                                        setIsLanguageMenuOpen(false);
                                         setToast({
                                           message: `🌐 Language updated to ${lang.name}. Re-indexing clinical interface lexicon...`,
                                           type: 'success'

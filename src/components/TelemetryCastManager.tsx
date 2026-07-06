@@ -46,6 +46,58 @@ export const TelemetryCastManager: React.FC = () => {
     setCastLogs(prev => [{ time: timestamp, msg, type }, ...prev.slice(0, 19)]);
   };
 
+  const [isConnecting, setIsConnecting] = useState<'watch' | 'serial' | 'bluetooth' | 'wifi' | null>(null);
+  const [wifiInput, setWifiInput] = useState('http://192.168.1.100');
+
+  const handleConnectHealthWatch = async () => {
+    setIsConnecting('watch');
+    addCastLog("Requesting Web Bluetooth GATT pairing with smart watch...", "info");
+    try {
+      await arduino.connectHealthWatch();
+      addCastLog("Successfully coupled smart watch via Bluetooth!", "success");
+    } catch (err: any) {
+      addCastLog(`Watch connection failed: ${err.message || err}`, "warn");
+    } finally {
+      setIsConnecting(null);
+    }
+  };
+
+  const handleConnectSerial = async () => {
+    setIsConnecting('serial');
+    addCastLog("Initiating Web Serial handshake with USB health machine...", "info");
+    try {
+      await arduino.connectSerial();
+      addCastLog("Successfully coupled health machine via USB Serial!", "success");
+    } catch (err: any) {
+      addCastLog(`USB Serial connection failed: ${err.message || err}`, "warn");
+    } finally {
+      setIsConnecting(null);
+    }
+  };
+
+  const handleConnectWiFi = async () => {
+    setIsConnecting('wifi');
+    addCastLog(`Connecting to WiFi health machine endpoint at ${wifiInput}...`, "info");
+    try {
+      await arduino.connectWiFi(wifiInput);
+      addCastLog(`Successfully subscribed to WiFi health machine at ${wifiInput}`, "success");
+    } catch (err: any) {
+      addCastLog(`WiFi connection failed: ${err.message || err}`, "warn");
+    } finally {
+      setIsConnecting(null);
+    }
+  };
+
+  const handleDisconnectDevice = async () => {
+    addCastLog("Terminating hardware telemetry socket connection...", "warn");
+    try {
+      await arduino.disconnect();
+      addCastLog("Hardware successfully disconnected.", "info");
+    } catch (err: any) {
+      addCastLog(`Disconnection warning: ${err.message || err}`, "warn");
+    }
+  };
+
   // Draw continuous oscilloscope cast waves based on active cast source
   useEffect(() => {
     if (!isCasting) return;
@@ -68,7 +120,12 @@ export const TelemetryCastManager: React.FC = () => {
       ctx.beginPath();
       ctx.moveTo(0, canvas.height / 2);
 
-      const freqMultiplier = watchSymmetryPreset === 'hyper' ? 2.5 : watchSymmetryPreset === 'depressed' ? 0.7 : 1.3;
+      // Dynamically calculate frequency multiplier from real vital signs if available
+      const hrValue = (arduino.connection.connected && arduino.vitals) 
+        ? arduino.vitals.heartRate 
+        : (watchSymmetryPreset === 'hyper' ? 134 : watchSymmetryPreset === 'elevated' ? 98 : watchSymmetryPreset === 'depressed' ? 46 : 72);
+      
+      const freqMultiplier = hrValue / 60;
 
       for (let x = 0; x < canvas.width; x++) {
         let y = canvas.height / 2;
@@ -101,7 +158,8 @@ export const TelemetryCastManager: React.FC = () => {
       }
       ctx.stroke();
 
-      offset += watchSymmetryPreset === 'hyper' ? 0.07 : watchSymmetryPreset === 'depressed' ? 0.02 : 0.04;
+      // Adjust oscilloscope movement speed dynamically
+      offset += hrValue > 100 ? 0.06 : hrValue < 60 ? 0.025 : 0.04;
       animationId = requestAnimationFrame(draw);
     };
 
@@ -117,6 +175,18 @@ export const TelemetryCastManager: React.FC = () => {
     if (!isCasting) return;
 
     const dataPump = setInterval(() => {
+      // Check if we are casting a real hardware/watch connection
+      const isRealConnectionActive = arduino.connection.connected && arduino.connection.type !== 'demo';
+      
+      if (isRealConnectionActive) {
+        if (arduino.vitals) {
+          addCastLog(`Casting live hardware telemetry packet: HR ${Math.round(arduino.vitals.heartRate)} BPM | SpO2 ${Math.round(arduino.vitals.spo2)}% | Temp ${arduino.vitals.temperature}°C`, "success");
+        } else {
+          addCastLog("Awaiting data packets from connected hardware...", "info");
+        }
+        return; // Skip simulated vitals overwrite!
+      }
+
       let vitalsDelta = {
         heartRate: 72,
         spo2: 98,
@@ -211,39 +281,60 @@ export const TelemetryCastManager: React.FC = () => {
     }, 1500);
 
     return () => clearInterval(dataPump);
-  }, [isCasting, castSource, selectedWatchBrand, watchSymmetryPreset, selectedIcuDevice]);
+  }, [isCasting, castSource, selectedWatchBrand, watchSymmetryPreset, selectedIcuDevice, arduino.connection, arduino.vitals]);
 
   // Start / stop cast handlers
   const toggleCasting = () => {
     if (isCasting) {
       setIsCasting(false);
-      arduino.disconnect();
+      
+      // If we used a simulated cloud cast, disconnect it.
+      // Otherwise, disconnect just the WebSocket relay to keep physical hardware active!
+      if (arduino.connection.type === 'cloud') {
+        arduino.disconnect();
+      } else {
+        if (arduino.disconnectWebSocket) {
+          arduino.disconnectWebSocket();
+        }
+      }
       addCastLog("Live casting feed disconnected by administrator.", "warn");
     } else {
       setIsCasting(true);
-      const devName = castSource === 'watch' 
-        ? `${selectedWatchBrand} Smart Watch [SCREEN-CAST]`
-        : `ICU Bedside Monitor (ID: ${icuChannelCode}) [MIRRORED]`;
       
-      arduino.setConnection({
-        connected: true,
-        type: 'cloud',
-        deviceName: devName
-      });
+      const hasRealConnection = arduino.connection.connected && 
+                                arduino.connection.type !== 'cloud' && 
+                                arduino.connection.type !== 'demo' && 
+                                arduino.connection.type !== null;
+
+      if (!hasRealConnection) {
+        const devName = castSource === 'watch' 
+          ? `${selectedWatchBrand} Smart Watch [SCREEN-CAST]`
+          : `ICU Bedside Monitor (ID: ${icuChannelCode}) [MIRRORED]`;
+        
+        arduino.setConnection({
+          connected: true,
+          type: 'cloud',
+          deviceName: devName
+        });
+        addCastLog(`Establishing simulated mirror stream from ${devName}`, "success");
+      } else {
+        addCastLog(`REAL HARDWARE ACTIVE: Casting live ${arduino.connection.type.toUpperCase()} telemetry from "${arduino.connection.deviceName}"`, "success");
+      }
       
       // Establish background WebSocket stream to broadcast vitals
       arduino.connectWebSocket(true);
-      
-      addCastLog(`Established high-resolution mirror stream from ${devName}`, "success");
       addCastLog("Connected to Neural Relay WebSocket to broadcast live telemetry.", "success");
-      addCastLog("Bypassed standard Bluetooth polling; mirroring active viewport.", "info");
     }
   };
 
   const getWatchFaceColor = () => {
-    if (watchSymmetryPreset === 'hyper') return 'from-rose-500/20 to-red-500/10 shadow-rose-900/30';
-    if (watchSymmetryPreset === 'elevated') return 'from-amber-500/20 to-yellow-500/10 shadow-amber-900/10';
-    if (watchSymmetryPreset === 'depressed') return 'from-cyan-500/20 to-blue-500/10 shadow-blue-500/10';
+    const hr = (arduino.connection.connected && arduino.vitals) 
+      ? arduino.vitals.heartRate 
+      : (watchSymmetryPreset === 'hyper' ? 134 : watchSymmetryPreset === 'elevated' ? 98 : watchSymmetryPreset === 'depressed' ? 46 : 72);
+
+    if (hr > 140 || hr < 45) return 'from-rose-500/25 to-red-500/15 shadow-rose-950/40 animate-pulse border-red-500';
+    if (hr > 100) return 'from-amber-500/20 to-yellow-500/10 shadow-amber-900/10';
+    if (hr < 60) return 'from-cyan-500/20 to-blue-500/10 shadow-blue-500/10';
     return 'from-emerald-500/20 to-teal-500/10 shadow-teal-500/20';
   };
 
@@ -321,9 +412,11 @@ export const TelemetryCastManager: React.FC = () => {
                   <div className="mt-1 font-sans">
                     <span className="text-4xl font-[1000] tracking-tighter text-white">
                       {isCasting ? (
-                        watchSymmetryPreset === 'balanced' ? '72' :
-                        watchSymmetryPreset === 'elevated' ? '98' :
-                        watchSymmetryPreset === 'hyper' ? '134' : '48'
+                        arduino.vitals?.heartRate ? Math.round(arduino.vitals.heartRate).toString() : (
+                          watchSymmetryPreset === 'balanced' ? '72' :
+                          watchSymmetryPreset === 'elevated' ? '98' :
+                          watchSymmetryPreset === 'hyper' ? '134' : '48'
+                        )
                       ) : '--'}
                     </span>
                     <span className="text-[10px] text-rose-400 font-black tracking-wider block -mt-1 uppercase">BPM</span>
@@ -332,10 +425,10 @@ export const TelemetryCastManager: React.FC = () => {
                   {/* Tiny status items */}
                   <div className="grid grid-cols-2 gap-2 mt-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/5 text-[9px] font-bold font-mono">
                     <span className="text-cyan-400">
-                      O2: {isCasting ? (watchSymmetryPreset === 'hyper' ? '88' : '98') : '--'}%
+                      O2: {isCasting ? (arduino.vitals?.spo2 ? Math.round(arduino.vitals.spo2).toString() : (watchSymmetryPreset === 'hyper' ? '88' : '98')) : '--'}%
                     </span>
                     <span className="text-amber-400">
-                      C: {isCasting ? (watchSymmetryPreset === 'hyper' ? '39.4' : '36.6') : '--'}°
+                      C: {isCasting ? (arduino.vitals?.temperature ? arduino.vitals.temperature.toFixed(1) : (watchSymmetryPreset === 'hyper' ? '39.4' : '36.6')) : '--'}°
                     </span>
                   </div>
                 </div>
@@ -391,14 +484,22 @@ export const TelemetryCastManager: React.FC = () => {
                     <div>
                       <p className="text-[7px] text-slate-500 uppercase font-black">ECG Lead III</p>
                       <h4 className="text-xl font-extrabold text-blue-400 tracking-tighter">
-                        {isCasting ? (watchSymmetryPreset === 'hyper' ? '122' : '74') : '--'}
+                        {isCasting ? (
+                          (arduino.connection.connected && arduino.vitals)
+                            ? Math.round(arduino.vitals.heartRate)
+                            : (watchSymmetryPreset === 'hyper' ? '122' : '74')
+                        ) : '--'}
                         <span className="text-[9px] text-slate-500 ml-1">/min</span>
                       </h4>
                     </div>
                     <div className="text-right">
                       <p className="text-[7px] text-slate-500 uppercase font-black">NIBP SYS / DIA</p>
                       <h5 className="text-[12px] font-bold text-emerald-400 tracking-tight">
-                        {isCasting ? (watchSymmetryPreset === 'hyper' ? '148/96' : '116/76') : '--'}
+                        {isCasting ? (
+                          (arduino.connection.connected && arduino.vitals)
+                            ? `${Math.round(arduino.vitals.systolicBP)}/${Math.round(arduino.vitals.diastolicBP)}`
+                            : (watchSymmetryPreset === 'hyper' ? '148/96' : '116/76')
+                        ) : '--'}
                         <span className="text-[7px] text-slate-500 ml-1">mmHg</span>
                       </h5>
                     </div>
@@ -408,14 +509,22 @@ export const TelemetryCastManager: React.FC = () => {
                     <div>
                       <p className="text-[7px] text-slate-500 uppercase font-black">SPO2 SAT%</p>
                       <h4 className="text-base font-bold text-teal-400 tracking-tighter">
-                        {isCasting ? '97' : '--'}
+                        {isCasting ? (
+                          (arduino.connection.connected && arduino.vitals)
+                            ? Math.round(arduino.vitals.spo2)
+                            : '97'
+                        ) : '--'}
                         <span className="text-[9px] text-slate-500 ml-1">%</span>
                       </h4>
                     </div>
                     <div className="text-right">
                       <p className="text-[7px] text-slate-500 uppercase font-black">RESP. RATE</p>
                       <h5 className="text-[12px] font-bold text-red-500 tracking-tight">
-                        {isCasting ? (watchSymmetryPreset === 'hyper' ? '24' : '15') : '--'}
+                        {isCasting ? (
+                          (arduino.connection.connected && arduino.vitals)
+                            ? Math.round(arduino.vitals.respiratoryRate)
+                            : (watchSymmetryPreset === 'hyper' ? '24' : '15')
+                        ) : '--'}
                         <span className="text-[7px] text-slate-500 ml-1">bpm</span>
                       </h5>
                     </div>
@@ -584,6 +693,128 @@ export const TelemetryCastManager: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* HARDWARE COUPLING PANEL */}
+          <div className="bg-slate-50/50 dark:bg-slate-900/40 p-5 sm:p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="text-left">
+              <span className="text-[8.5px] font-black uppercase text-indigo-500 tracking-wider">Physical Device Coupling Core</span>
+              <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-tight mt-0.5">
+                🔌 Link Physical Hardware & Smart Watch
+              </h4>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                Link clinical biometric machines or real smartwatches to cast actual telemetry data into the platform in real-time.
+              </p>
+            </div>
+
+            {arduino.connection.connected && arduino.connection.type !== 'demo' ? (
+              <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="p-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    {arduino.connection.type === 'bluetooth' ? <Bluetooth size={18} className="animate-pulse" /> :
+                     arduino.connection.type === 'wifi' ? <Wifi size={18} className="animate-pulse" /> :
+                     <Cpu size={18} className="animate-pulse" />}
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block">ACTIVE HARDWARE COUPLED</span>
+                    <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {arduino.connection.deviceName || 'Real Health Sensor'}
+                    </h5>
+                    <p className="text-[9.5px] text-slate-400 uppercase font-mono tracking-tight">
+                      Connection Mode: {arduino.connection.type}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDisconnectDevice}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                >
+                  Disconnect Device
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Watch Card */}
+                <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between space-y-3">
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Smartphone size={16} className="text-rose-500" />
+                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200">Smartwatch Link</span>
+                    </div>
+                    <p className="text-[9.5px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                      Connect your physical Apple, Samsung, or Garmin smartwatch using Web Bluetooth GATT services.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConnectHealthWatch}
+                    disabled={isConnecting !== null}
+                    className="w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {isConnecting === 'watch' ? <RefreshCw size={12} className="animate-spin" /> : <Bluetooth size={12} />}
+                    <span>Link Real Smartwatch</span>
+                  </button>
+                </div>
+
+                {/* Health Machine Card */}
+                <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between space-y-3">
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Cpu size={16} className="text-blue-500" />
+                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200">Wired USB Machine</span>
+                    </div>
+                    <p className="text-[9.5px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                      Connect real Arduino boards or ICU biometric machines directly to your computer's USB serial port.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConnectSerial}
+                    disabled={isConnecting !== null}
+                    className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {isConnecting === 'serial' ? <RefreshCw size={12} className="animate-spin" /> : <Cpu size={12} />}
+                    <span>Link USB Serial Machine</span>
+                  </button>
+                </div>
+
+                {/* WiFi Machine Card */}
+                <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 md:col-span-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                    <div className="flex items-center gap-2">
+                      <Wifi size={16} className="text-emerald-500" />
+                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200">WiFi Health Machine (HTTP / IoT)</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200/50 dark:border-slate-800">
+                      <span className="text-[8.5px] font-black text-slate-450 uppercase">ENDPOINT:</span>
+                      <input
+                        type="text"
+                        value={wifiInput}
+                        onChange={(e) => setWifiInput(e.target.value)}
+                        className="bg-transparent text-[9.5px] font-bold font-mono text-slate-700 dark:text-slate-300 focus:outline-none w-32"
+                        placeholder="http://192.168.1.100"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1 text-left">
+                    <p className="text-[9.5px] text-slate-400 dark:text-slate-500 max-w-md leading-relaxed">
+                      Handshake with IoT health monitors using the local network. Ensure your machine serves valid biometric payloads.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleConnectWiFi}
+                      disabled={isConnecting !== null}
+                      className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0 self-end sm:self-auto cursor-pointer"
+                    >
+                      {isConnecting === 'wifi' ? <RefreshCw size={12} className="animate-spin" /> : <Wifi size={12} />}
+                      <span>Couple Local WiFi Machine</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Diagnostic status pipeline logs */}

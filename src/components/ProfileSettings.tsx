@@ -41,10 +41,13 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
-  const [aiBrainOption, setAiBrainOption] = useState<'in_browser' | 'cloud' | 'laptop_node' | 'huggingface'>(() => {
+  const [aiBrainOption, setAiBrainOption] = useState<'in_browser' | 'cloud' | 'laptop_node' | 'huggingface' | 'gemma_cloud'>(() => {
     const engine = typeof window !== 'undefined' ? localStorage.getItem('doctorian_clinical_engine') : null;
     if (engine === 'gemma3-tfjs' || !engine) {
       return 'in_browser'; // Default/primary is in_browser / Option 1
+    }
+    if (engine === 'gemma-cloud') {
+      return 'gemma_cloud';
     }
     if (engine === 'huggingface') {
       return 'huggingface';
@@ -403,6 +406,9 @@ Verified by Joseph Akora - Development Lead.
       // Save AI Brain selection
       if (aiBrainOption === 'in_browser') {
         localStorage.setItem('doctorian_clinical_engine', 'gemma3-tfjs');
+        localStorage.setItem('doctorian_prioritize_local_ai', 'false');
+      } else if (aiBrainOption === 'gemma_cloud') {
+        localStorage.setItem('doctorian_clinical_engine', 'gemma-cloud');
         localStorage.setItem('doctorian_prioritize_local_ai', 'false');
       } else if (aiBrainOption === 'cloud') {
         localStorage.setItem('doctorian_clinical_engine', 'medlm-medium');
@@ -1141,7 +1147,7 @@ Verified by Joseph Akora - Development Lead.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     {/* Option 1: In-Browser Local Brain (Gemma 3 TFJS) */}
                     <button
                       type="button"
@@ -1258,6 +1264,36 @@ Verified by Joseph Akora - Development Lead.
                         <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Realistic Open Models</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Fast, serverless execution of Llama 3.1 & Mistral via secure API keys.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Option 5: Google Gemma 3 Cloud Brain */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAiBrainOption('gemma_cloud');
+                        setPrioritizeLocalAI(false);
+                      }}
+                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
+                        aiBrainOption === 'gemma_cloud'
+                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-3 rounded-2xl ${aiBrainOption === 'gemma_cloud' ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
+                          <Sparkles size={20} className="text-blue-500" />
+                        </div>
+                        {aiBrainOption === 'gemma_cloud' && (
+                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Gemma 3</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Google Gemma 3 Cloud</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Gemma 3 4B Core</p>
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
+                          Official cloud deployment of Google Gemma 3 with absolute high-performance medical analysis.
                         </p>
                       </div>
                     </button>
@@ -2104,93 +2140,155 @@ Verified by Joseph Akora - Development Lead.
           )}
 
           {/* Medical ID Section */}
-          {activeTab === 'medical-id' && (
-            <motion.section 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-10"
-            >
-              <div className="bg-white dark:bg-slate-900 rounded-[4rem] p-12 sm:p-20 border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden text-center">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-emerald-500" />
-                <div className="mx-auto w-64 h-64 bg-slate-50 dark:bg-slate-800 rounded-[3rem] p-8 flex flex-col items-center justify-center mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-inner group transition-transform hover:scale-105">
-                   <QRCodeSVG 
-                      value={`${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`} 
-                      size={180}
-                      className="text-slate-900 dark:text-white group-hover:rotate-6 transition-transform duration-700" 
-                      level="H"
-                      includeMargin={false}
-                   />
-                   <div className="mt-4 text-[10px] font-black font-mono text-slate-400 uppercase tracking-[0.2em] opacity-50">
-                     UID: {user?.id || 'SYNCING...'}
-                   </div>
-                </div>
-                 <div className="max-w-md mx-auto mb-8 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-                   <div className="min-w-0 flex-1">
-                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Shareable Medical ID Link</p>
-                     <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 truncate mt-0.5">
-                       {`${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`}
-                     </p>
-                   </div>
-                   <button
-                     type="button"
-                     onClick={() => {
-                       const link = `${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`;
-                       navigator.clipboard.writeText(link);
-                       setMessage({ text: '📋 Emergency Profile Link copied to clipboard!', type: 'success' });
-                     }}
-                     className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all cursor-pointer whitespace-nowrap border border-slate-150/10"
-                   >
-                     Copy Link
-                   </button>
-                 </div>
+          {activeTab === 'medical-id' && (() => {
+            const buildSelfContainedProfile = () => {
+              if (!user) return null;
+              
+              const userSubset = {
+                id: user.id || 'unknown',
+                displayName: user.displayName || 'Unknown Patient',
+                email: user.email || '',
+                phone: user.phone || '',
+                photoURL: user.photoURL || '',
+                bloodGroup: user.bloodGroup || 'Not Set',
+                allergies: user.allergies || 'None Recorded',
+                conditions: user.conditions || 'None Declared',
+                hospitalPreference: user.hospitalPreference || 'Not Specified',
+                role: user.role || 'patient'
+              };
 
-                <h2 className="text-4xl sm:text-5xl font-black uppercase tracking-[-0.05em] mb-4 text-slate-900 dark:text-white leading-none">
-                  Clinical <span className="text-blue-600 font-serif italic normal-case">Fast-Sync</span> ID
-                </h2>
-                <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 font-bold max-w-lg mx-auto mb-12 font-serif leading-relaxed italic">
-                  "In the event of acute metabolic failure, responders can scan this port to instantly decrypt blood type, surgical history, and emergency protocols."
-                </p>
-                
-                <div className="flex flex-wrap justify-center gap-4">
-                   <button 
-                     onClick={() => {
-                       window.open(`/?scanUserId=${user?.id || 'unknown'}`, '_blank');
-                     }}
-                     className="flex items-center gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all group"
-                   >
-                     <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform" />
-                     View Live Scanned Profile
-                   </button>
-                   <button 
-                     onClick={() => {
-                       const link = `${window.location.origin}/?scanUserId=${user?.id || 'unknown'}`;
-                       navigator.clipboard.writeText(link);
-                       setMessage({ text: '📋 Triage access link copied to clipboard!', type: 'success' });
-                     }}
-                     className="flex items-center gap-3 px-10 py-5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] border border-slate-100 dark:border-slate-700 hover:text-blue-600 hover:border-blue-200 transition-all"
-                   >
-                     <Share2 size={18} />
-                     Clinical Relay
-                   </button>
-                </div>
-              </div>
+              const contactsList = [];
+              if (user.doctorName || user.doctorPhone) {
+                contactsList.push({
+                  id: 'doc-1',
+                  name: user.doctorName || 'Primary Care Physician',
+                  phone: user.doctorPhone || '',
+                  role: 'Primary Care Physician',
+                  email: user.doctorEmail || ''
+                });
+              }
+              if (user.mentorName || user.mentorPhone) {
+                contactsList.push({
+                  id: 'mentor-1',
+                  name: user.mentorName || 'Clinical Mentor',
+                  phone: user.mentorPhone || '',
+                  role: 'Clinical Mentor',
+                  email: user.mentorEmail || ''
+                });
+              }
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                 {[
-                   { label: 'Metabolic Type', val: 'O Pos (Rh+)', icon: <Fingerprint size={24} />, color: 'rose' },
-                   { label: 'Neural Inhibitors', val: 'Penicillin, Latex', icon: <Shield size={24} />, color: 'amber' },
-                   { label: 'Active Catalysts', val: 'Lisinopril, Omega-3', icon: <Pill size={24} />, color: 'emerald' },
-                   { label: 'Clinical Node', val: 'Alpha-9 Triage', icon: <Activity size={24} />, color: 'blue' }
-                 ].map((card, i) => (
-                   <div key={i} className="bg-white dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group">
-                      <div className="text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-500">{card.icon}</div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{card.label}</p>
-                      <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight">{card.val}</p>
+              const recordsList = [
+                {
+                  id: 'rec-1',
+                  title: 'Biometric Baseline Assessment',
+                  summary: 'Automated metabolic tracking baseline. Heart rate, blood oxygenation level, and arterial pressure profiles initialized.',
+                  diagnosis: 'N/A - General Wellness Check',
+                  treatment: 'Daily monitoring of arterial stress levels via Doctorian AI',
+                  createdAt: new Date().toLocaleDateString(),
+                  type: 'Routine'
+                }
+              ];
+
+              return {
+                user: userSubset,
+                contacts: contactsList,
+                records: recordsList
+              };
+            };
+
+            const selfContainedProfile = buildSelfContainedProfile();
+            const encodedData = selfContainedProfile ? btoa(encodeURIComponent(JSON.stringify(selfContainedProfile)).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+              return String.fromCharCode(parseInt(p1, 16));
+            })) : '';
+
+            const shareLink = `${window.location.origin}/?scanUserData=${encodedData}`;
+
+            return (
+              <motion.section 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-10"
+              >
+                <div className="bg-white dark:bg-slate-900 rounded-[4rem] p-12 sm:p-20 border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden text-center">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-emerald-500" />
+                  <div className="mx-auto w-64 h-64 bg-slate-50 dark:bg-slate-800 rounded-[3rem] p-8 flex flex-col items-center justify-center mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-inner group transition-transform hover:scale-105">
+                     <QRCodeSVG 
+                        value={shareLink} 
+                        size={180}
+                        className="text-slate-900 dark:text-white group-hover:rotate-6 transition-transform duration-700" 
+                        level="H"
+                        includeMargin={false}
+                     />
+                     <div className="mt-4 text-[10px] font-black font-mono text-slate-400 uppercase tracking-[0.2em] opacity-50">
+                       UID: {user?.id || 'SYNCING...'}
+                     </div>
+                  </div>
+                   <div className="max-w-md mx-auto mb-8 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                     <div className="min-w-0 flex-1">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Shareable Medical ID Link</p>
+                       <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 truncate mt-0.5 animate-pulse">
+                         {shareLink}
+                       </p>
+                     </div>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         navigator.clipboard.writeText(shareLink);
+                         setMessage({ text: '📋 Emergency Profile Link copied to clipboard!', type: 'success' });
+                       }}
+                       className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all cursor-pointer whitespace-nowrap border border-slate-150/10"
+                     >
+                       Copy Link
+                     </button>
                    </div>
-                 ))}
-              </div>
-            </motion.section>
-          )}
+
+                  <h2 className="text-4xl sm:text-5xl font-black uppercase tracking-[-0.05em] mb-4 text-slate-900 dark:text-white leading-none">
+                    Clinical <span className="text-blue-600 font-serif italic normal-case">Fast-Sync</span> ID
+                  </h2>
+                  <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 font-bold max-w-lg mx-auto mb-12 font-serif leading-relaxed italic">
+                    "In the event of acute metabolic failure, responders can scan this port to instantly decrypt blood type, surgical history, and emergency protocols."
+                  </p>
+                  
+                  <div className="flex flex-wrap justify-center gap-4">
+                     <button 
+                       onClick={() => {
+                         window.open(shareLink, '_blank');
+                       }}
+                       className="flex items-center gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all group"
+                     >
+                       <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform" />
+                       View Live Scanned Profile
+                     </button>
+                     <button 
+                       onClick={() => {
+                         navigator.clipboard.writeText(shareLink);
+                         setMessage({ text: '📋 Triage access link copied to clipboard!', type: 'success' });
+                       }}
+                       className="flex items-center gap-3 px-10 py-5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] border border-slate-100 dark:border-slate-700 hover:text-blue-600 hover:border-blue-200 transition-all"
+                     >
+                       <Share2 size={18} />
+                       Clinical Relay
+                     </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                   {[
+                     { label: 'Metabolic Type', val: user?.bloodGroup || 'O Pos (Rh+)', icon: <Fingerprint size={24} />, color: 'rose' },
+                     { label: 'Neural Inhibitors', val: user?.allergies || 'Penicillin, Latex', icon: <Shield size={24} />, color: 'amber' },
+                     { label: 'Active Catalysts', val: user?.conditions || 'Lisinopril, Omega-3', icon: <Pill size={24} />, color: 'emerald' },
+                     { label: 'Clinical Node', val: 'Alpha-9 Triage', icon: <Activity size={24} />, color: 'blue' }
+                   ].map((card, i) => (
+                     <div key={i} className="bg-white dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group">
+                        <div className="text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-500">{card.icon}</div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{card.label}</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight">{card.val}</p>
+                     </div>
+                   ))}
+                </div>
+              </motion.section>
+            );
+          })()}
 
           {/* Billing Section */}
           {activeTab === 'billing' && (

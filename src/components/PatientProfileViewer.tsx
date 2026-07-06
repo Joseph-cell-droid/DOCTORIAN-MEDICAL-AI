@@ -58,8 +58,16 @@ export const PatientProfileViewer: React.FC<PatientProfileViewerProps> = ({ data
   const { user, contacts, records } = data;
 
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/?scanUserId=${user.id}`;
-    navigator.clipboard.writeText(link);
+    try {
+      const encodedData = btoa(encodeURIComponent(JSON.stringify({ user, contacts, records })).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+        return String.fromCharCode(parseInt(p1, 16));
+      }));
+      const link = `${window.location.origin}/?scanUserData=${encodedData}`;
+      navigator.clipboard.writeText(link);
+    } catch (e) {
+      const link = `${window.location.origin}/?scanUserId=${user.id}`;
+      navigator.clipboard.writeText(link);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

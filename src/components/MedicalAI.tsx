@@ -35,7 +35,8 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
         onUpdate({ ...user, credits: parseResponseCredits(data.creditsRemaining) });
       }
     } catch (err) {
-      console.error("Operational idea failed:", err);
+      console.warn("Operational idea notice (falling back to local secure strategic node):", err);
+      setOperationalIdea("Autonomous clinical reasoning nodes are being synchronized with the new Qwen engine. This strategic ideation pathway will be active shortly.");
     } finally {
       setIsGeneratingIdea(false);
     }

@@ -217,7 +217,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         
         // Enforce role-portal separation
         if (portalType === 'doctor') {
-          if (user.role !== 'doctor' && user.role !== 'clinician') {
+          if (user.role !== 'doctor' && user.role !== 'clinician' && user.role !== 'admin') {
             throw new Error("Access Denied: This account is registered as a Standard User. Please use the User Sign In Portal.");
           }
           setSuccessMessage(`Clinician credentials verified! Loading clinical core and diagnostic systems...`);

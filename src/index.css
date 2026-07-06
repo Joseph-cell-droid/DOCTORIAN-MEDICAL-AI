@@ -466,4 +466,71 @@ body {
   letter-spacing: normal !important;
 }
 
+/* Chatbot Zoom Scaling Rules */
+.chatbot-zoom-container {
+  zoom: var(--chatbot-zoom, 1) !important;
+  transition: zoom 0.15s ease-out;
+}
+
+/* Hide scrollbar utility class */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Conditional Heart Rate Red Glow Animation */
+@keyframes red-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.2), 0 0 12px rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.8), 0 0 32px rgba(239, 68, 68, 0.4);
+    border-color: rgba(239, 68, 68, 1);
+    background-color: rgba(239, 68, 68, 0.08);
+  }
+}
+
+.animate-red-glow {
+  animation: red-glow 1.5s infinite ease-in-out !important;
+}
+
+/* Dynamic Live Heartbeat & Ripple Ring Animations */
+@keyframes vitals-heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.18);
+  }
+  35% {
+    transform: scale(1.04);
+  }
+  50% {
+    transform: scale(1.24);
+  }
+}
+
+@keyframes vitals-ring-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.animate-vitals-pulse {
+  animation: vitals-heartbeat var(--pulse-duration, 0.8s) infinite cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.animate-vitals-ring {
+  animation: vitals-ring-pulse var(--pulse-duration, 0.8s) infinite cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
 

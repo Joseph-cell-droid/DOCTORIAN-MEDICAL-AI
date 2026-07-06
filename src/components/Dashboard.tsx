@@ -4,7 +4,7 @@ import {
   Activity, Zap, Brain, ShieldCheck, RefreshCw, 
   Bot, Monitor, FileText, Stethoscope, LayoutGrid, 
   Info, Bell, Search, Plus, ArrowRight, ArrowLeft, X, Pill, ChevronRight,
-  TrendingUp, Heart, Battery, Droplets, Clock,
+  TrendingUp, TrendingDown, Heart, Battery, Droplets, Clock,
   CheckCircle2,
   ListTodo,
   Sparkles, Lightbulb, Quote, Cpu, Wind, Shield, Download, Fingerprint,
@@ -63,6 +63,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateUser,
   currentLanguage = 'English (US)'
 }) => {
+  const getHeartRateTrend = () => {
+    if (!history || history.length < 2) return null;
+    const lastFive = history.slice(-5);
+    if (lastFive.length < 2) return null;
+    
+    const oldest = lastFive[0].heartRate;
+    const latest = lastFive[lastFive.length - 1].heartRate;
+    const diff = latest - oldest;
+    
+    if (diff > 0.5) {
+      return {
+        direction: 'up',
+        color: 'text-rose-500 dark:text-rose-400',
+        icon: <TrendingUp size={16} className="inline-block animate-bounce shrink-0" />
+      };
+    } else if (diff < -0.5) {
+      return {
+        direction: 'down',
+        color: 'text-blue-500 dark:text-blue-400',
+        icon: <TrendingDown size={16} className="inline-block animate-bounce shrink-0" />
+      };
+    }
+    return null;
+  };
+
   const vitalStats = [
     { 
       label: translate('Doctorian AI Core', currentLanguage), 
@@ -1087,18 +1112,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Powerful Context Sidebar */}
         <div className="lg:col-span-4 flex flex-col gap-6 sm:gap-8">
           {/* Real-time Heart Rate Stream */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 shadow-sm overflow-hidden relative group">
+          <div className={`rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 shadow-sm overflow-hidden relative group transition-all duration-300 bg-white dark:bg-slate-900 border ${
+            vitals?.heartRate !== undefined && (vitals.heartRate > 140 || vitals.heartRate < 45)
+              ? 'animate-red-glow border-red-500 dark:border-red-500/80 bg-red-50/10'
+              : 'border-slate-100 dark:border-slate-800'
+          }`}>
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 text-high-visibility">Cardiac Pulse Registry</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter text-high-visibility">{vitals?.heartRate || '--'}</span>
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-high-visibility">BPM</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter text-high-visibility">{vitals?.heartRate || '--'}</span>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-high-visibility">BPM</span>
+                  </div>
+                  {(() => {
+                    const trend = getHeartRateTrend();
+                    if (!trend) return null;
+                    return (
+                      <span className={`flex items-center gap-0.5 text-xs font-bold ${trend.color}`} title={`Heart rate currently trending ${trend.direction}`}>
+                        {trend.icon}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
-              <div className="p-2 sm:p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl sm:rounded-2xl text-rose-600 animate-pulse">
-                <Heart size={18} />
-              </div>
+              {(() => {
+                const hr = vitals?.heartRate || 72;
+                // Calculate dynamic pulse duration in seconds: 60 / HR
+                const pulseSec = `${(60 / hr).toFixed(3)}s`;
+                return (
+                  <div 
+                    className="relative p-2 sm:p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl sm:rounded-2xl text-rose-600 cursor-pointer"
+                    style={{ '--pulse-duration': pulseSec } as React.CSSProperties}
+                  >
+                    {/* Ring Pulse Ripple Effect */}
+                    <div className="absolute inset-0 bg-rose-500/25 rounded-xl sm:rounded-2xl animate-vitals-ring pointer-events-none" />
+                    
+                    {/* Pulsating Icon */}
+                    <div className="relative z-10 animate-vitals-pulse">
+                      <Heart size={18} fill="currentColor" />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             <div className="h-20 sm:h-24 -mx-2">
               <VitalWaveform 

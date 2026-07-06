@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, MapPin, Star, Calendar, MessageSquare, Phone, ShieldCheck, 
-  Stethoscope, ShieldAlert, Zap, User as UserIcon, Loader2, Clock
+  Stethoscope, ShieldAlert, Zap, User as UserIcon, Loader2, Clock,
+  QrCode, Scan, Plus, Check, AlertCircle, Camera, RefreshCw, X, Play
 } from 'lucide-react';
 import { AppointmentScheduler } from './AppointmentScheduler';
 import { api, Doctor } from '../api';
+import jsQR from 'jsqr';
+import { QRCodeSVG } from 'qrcode.react';
 
 export const SpecialistFinder: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -13,6 +16,231 @@ export const SpecialistFinder: React.FC = () => {
   const [bookingSpecialist, setBookingSpecialist] = useState<any>(null);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // QR Scanner States
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [importingPatient, setImportingPatient] = useState<any>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [selectedDemoCard, setSelectedDemoCard] = useState<any>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+
+  const demoPatients = [
+    {
+      name: "Sarah Nabirye",
+      age: "29",
+      gender: "Female",
+      weight: "58kg",
+      bloodType: "A+",
+      phone: "+256782112233",
+      doctorPhone: "+256787674140",
+      mentorPhone: "+256787674140",
+      conditions: "Pregnancy Induced Hypertension, Preeclampsia risk",
+      allergies: "Penicillin",
+      vitalsPreset: "warning" as const
+    },
+    {
+      name: "Kato John",
+      age: "12",
+      gender: "Male",
+      weight: "34kg",
+      bloodType: "O-",
+      phone: "+256703998877",
+      doctorPhone: "+256787674140",
+      mentorPhone: "+256787674140",
+      conditions: "Acute Bronchial Asthma, Seasonal Allergies",
+      allergies: "Sulfa Drugs, Aspirin",
+      vitalsPreset: "critical" as const
+    },
+    {
+      name: "Mirembe Brenda",
+      age: "52",
+      gender: "Female",
+      weight: "72kg",
+      bloodType: "B+",
+      phone: "+256754556677",
+      doctorPhone: "+256787674140",
+      mentorPhone: "+256787674140",
+      conditions: "Post-Appendectomy Recovery, Type II Diabetes",
+      allergies: "None",
+      vitalsPreset: "healthy" as const
+    }
+  ];
+
+  const startCamera = async () => {
+    setCameraError(null);
+    setCameraActive(true);
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } 
+      });
+      setStream(s);
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.play().catch(e => console.log("Video play interrupted", e));
+      }
+    } catch (err: any) {
+      console.error("Camera access failed:", err);
+      setCameraError(err.name === "NotAllowedError" ? "Camera permission was denied. Please allow camera access in your browser settings." : "Failed to initialize camera. Make sure your device has a camera.");
+      setCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setCameraActive(false);
+  };
+
+  // Auto stop camera on unmount or close
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  const handleScannedText = (text: string) => {
+    try {
+      let dataToParse = text;
+      if (text.includes('scanUserData=')) {
+        const urlParams = new URLSearchParams(text.split('?')[1]);
+        const scanUserData = urlParams.get('scanUserData');
+        if (scanUserData) {
+          dataToParse = decodeURIComponent(atob(scanUserData).split('').map((c) => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+        }
+      }
+
+      const parsed = JSON.parse(dataToParse);
+      const name = parsed.name || parsed.user?.displayName || parsed.user?.name;
+
+      if (name) {
+        setImportingPatient({
+          name: name || '',
+          age: parsed.age || parsed.user?.age || '35',
+          gender: parsed.gender || parsed.user?.gender || 'Other',
+          weight: parsed.weight || parsed.user?.weight || '72kg',
+          bloodType: parsed.bloodType || parsed.user?.bloodGroup || parsed.user?.bloodType || 'O+',
+          phone: parsed.phone || parsed.user?.phone || '',
+          doctorPhone: parsed.doctorPhone || parsed.user?.doctorPhone || '+256787674140',
+          mentorPhone: parsed.mentorPhone || parsed.user?.mentorPhone || '+256787674140',
+          conditions: parsed.conditions || parsed.user?.conditions || 'None declared',
+          allergies: parsed.allergies || parsed.user?.allergies || 'None recorded',
+          vitalsPreset: parsed.vitalsPreset || parsed.user?.vitalsPreset || 'healthy'
+        });
+        stopCamera();
+      } else {
+        alert("Scanned QR is not a valid patient record.");
+      }
+    } catch (e) {
+      console.error("Failed to parse QR content", e);
+      // In case it's not JSON, treat it as a raw string / basic patient import
+      setImportingPatient({
+        name: text.substring(0, 30),
+        age: '30',
+        gender: 'Other',
+        weight: '70kg',
+        bloodType: 'O+',
+        phone: '+256780000000',
+        doctorPhone: '+256787674140',
+        mentorPhone: '+256787674140',
+        conditions: text || 'Physical record scan import',
+        allergies: 'None recorded',
+        vitalsPreset: 'healthy' as const
+      });
+      stopCamera();
+    }
+  };
+
+  const handleSimulateScan = (patient: any) => {
+    stopCamera();
+    setImportingPatient(patient);
+  };
+
+  const handleImport = (newPatient: any) => {
+    const saved = localStorage.getItem('doctorian_registered_patients');
+    let current: any[] = [];
+    if (saved) {
+      try {
+        current = JSON.parse(saved);
+      } catch (e) {
+        current = [];
+      }
+    } else {
+      current = [
+        {
+          id: 'patient-joseph',
+          name: 'Joseph Brian Obote',
+          bedNumber: 'Bed A-02',
+          age: '45',
+          gender: 'Male',
+          weight: '78kg',
+          bloodType: 'O+',
+          phone: '+256701234567',
+          doctorPhone: '+256787674140',
+          mentorPhone: '+256787674140',
+          conditions: 'Congestive Heart Failure, Stage II Kidney Disease',
+          allergies: 'Sulfa Drugs',
+          vitalsPreset: 'healthy' as const
+        }
+      ];
+    }
+    
+    const finalizedPatient = {
+      ...newPatient,
+      id: newPatient.id || `patient-scan-${Math.random().toString(36).substr(2, 9)}`,
+      bedNumber: newPatient.bedNumber || `Bed ${String.fromCharCode(65 + Math.floor(Math.random() * 4))}-0${Math.floor(Math.random() * 8) + 1}`
+    };
+    
+    localStorage.setItem('doctorian_registered_patients', JSON.stringify([...current, finalizedPatient]));
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  // Live QR Code Frame Processing
+  useEffect(() => {
+    let animId: number;
+    const processFrame = () => {
+      if (cameraActive && videoRef.current && canvasRef.current) {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height, {
+            inversionAttempts: "dontInvert"
+          });
+          if (code) {
+            handleScannedText(code.data);
+            return; // stop polling frame on success
+          }
+        }
+      }
+      if (cameraActive) {
+        animId = requestAnimationFrame(processFrame);
+      }
+    };
+
+    if (cameraActive) {
+      animId = requestAnimationFrame(processFrame);
+    }
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [cameraActive]);
 
   const categories = ['All', 'Link Doctor', 'Cardiologist', 'Dentist', 'Surgeon', 'Therapist'];
 
@@ -80,9 +308,393 @@ export const SpecialistFinder: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* Patient QR Scanner Dialog */}
+      <AnimatePresence>
+        {isScannerOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md" onClick={() => {
+              stopCamera();
+              setIsScannerOpen(false);
+              setImportingPatient(null);
+              setImportSuccess(false);
+            }} />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col pointer-events-auto"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => {
+                  stopCamera();
+                  setIsScannerOpen(false);
+                  setImportingPatient(null);
+                  setImportSuccess(false);
+                }}
+                className="absolute top-5 right-5 p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl transition-all z-10 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              {importingPatient ? (
+                <div className="p-6 sm:p-8 space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950 text-blue-600 rounded-2xl">
+                        <Scan size={24} />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Verify Physical Record Import</h2>
+                        <p className="text-xs text-slate-400 font-bold uppercase mt-0.5">Secure OCR & QR Telemetry Matcher</p>
+                      </div>
+                    </div>
+                    <span className="hidden sm:inline px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">
+                      Verified Encryption
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-h-[50vh] overflow-y-auto pr-2">
+                    {/* Name */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Patient Full Name</label>
+                      <input 
+                        type="text" 
+                        value={importingPatient.name} 
+                        onChange={e => setImportingPatient({...importingPatient, name: e.target.value})}
+                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    {/* Age / Gender */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Age</label>
+                        <input 
+                          type="text" 
+                          value={importingPatient.age} 
+                          onChange={e => setImportingPatient({...importingPatient, age: e.target.value})}
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Gender</label>
+                        <input 
+                          type="text" 
+                          value={importingPatient.gender} 
+                          onChange={e => setImportingPatient({...importingPatient, gender: e.target.value})}
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Weight / Blood Type */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Weight</label>
+                        <input 
+                          type="text" 
+                          value={importingPatient.weight} 
+                          onChange={e => setImportingPatient({...importingPatient, weight: e.target.value})}
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Blood Type</label>
+                        <input 
+                          type="text" 
+                          value={importingPatient.bloodType} 
+                          onChange={e => setImportingPatient({...importingPatient, bloodType: e.target.value})}
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Phone</label>
+                      <input 
+                        type="text" 
+                        value={importingPatient.phone} 
+                        onChange={e => setImportingPatient({...importingPatient, phone: e.target.value})}
+                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    {/* Allergies */}
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Allergies</label>
+                      <input 
+                        type="text" 
+                        value={importingPatient.allergies} 
+                        onChange={e => setImportingPatient({...importingPatient, allergies: e.target.value})}
+                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    {/* Conditions */}
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Medical Conditions</label>
+                      <textarea 
+                        value={importingPatient.conditions} 
+                        onChange={e => setImportingPatient({...importingPatient, conditions: e.target.value})}
+                        rows={2}
+                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                      />
+                    </div>
+
+                    {/* Vitals Preset Selection */}
+                    <div className="space-y-2 md:col-span-2 pb-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-mono">Simulated Vitals Preset</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['healthy', 'warning', 'critical'] as const).map(p => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setImportingPatient({...importingPatient, vitalsPreset: p})}
+                            className="py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-600"
+                            style={importingPatient.vitalsPreset === p ? {
+                              backgroundColor: p === 'healthy' ? 'rgba(16, 185, 129, 0.1)' : p === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                              borderColor: p === 'healthy' ? '#10b981' : p === 'warning' ? '#f59e0b' : '#ef4444',
+                              color: p === 'healthy' ? '#10b981' : p === 'warning' ? '#f59e0b' : '#ef4444',
+                              fontWeight: '900'
+                            } : {}}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={() => {
+                        setImportingPatient(null);
+                        startCamera();
+                      }}
+                      className="px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-wider cursor-pointer transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleImport(importingPatient);
+                        setImportSuccess(true);
+                        setImportingPatient(null);
+                      }}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 shadow-lg shadow-blue-500/10"
+                    >
+                      <Check size={14} /> Confirm Import
+                    </button>
+                  </div>
+                </div>
+              ) : importSuccess ? (
+                <div className="p-10 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center animate-bounce">
+                    <Check size={40} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">Record Successfully Scanned</h3>
+                    <p className="text-sm text-slate-400 font-bold uppercase mt-1">Ready for real-time telemetry tracking & monitor analysis</p>
+                  </div>
+                  <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-slate-400 font-mono">Import status</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded border border-emerald-100 dark:border-emerald-900">
+                      Active Registry Node Linked
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setImportSuccess(false);
+                      setIsScannerOpen(false);
+                    }}
+                    className="px-8 py-4 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all shadow-md"
+                  >
+                    Close Scanner
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800">
+                  {/* Left Column: Live camera feed */}
+                  <div className="w-full lg:w-1/2 p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[9px] font-black uppercase bg-rose-100 dark:bg-rose-950/50 text-rose-600 px-2.5 py-1 rounded-full">Live Optical Scanner</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-2">Align Physical Record</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-6">
+                        Grant camera permission and position the patient's physical QR code within the focus area below to capture and import instantly.
+                      </p>
+                    </div>
+
+                    {/* Camera scan box */}
+                    <div className="relative aspect-video w-full max-w-md mx-auto bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 flex items-center justify-center">
+                      {cameraActive ? (
+                        <>
+                          <video ref={videoRef} className="w-full h-full object-cover" />
+                          <canvas ref={canvasRef} className="hidden" />
+                          
+                          {/* Laser beam scan lines */}
+                          <div className="absolute inset-8 border-2 border-dashed border-emerald-500/50 pointer-events-none rounded-xl" />
+                          <motion.div 
+                            animate={{ y: ["-70px", "70px", "-70px"] }}
+                            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                            className="absolute left-4 right-4 h-1 bg-emerald-500 shadow-[0_0_12px_#10b981] pointer-events-none"
+                          />
+                        </>
+                      ) : (
+                        <div className="p-8 text-center text-slate-500 flex flex-col items-center justify-center gap-4">
+                          <Camera size={36} className="text-slate-600 animate-pulse" />
+                          {cameraError ? (
+                            <div className="space-y-2">
+                              <p className="text-xs font-black text-rose-500 uppercase">Camera Access Error</p>
+                              <p className="text-[10px] font-bold text-slate-400 max-w-xs">{cameraError}</p>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Camera Feed Offline</p>
+                          )}
+                          <button
+                            onClick={startCamera}
+                            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all active:scale-95 shadow-lg shadow-blue-500/10"
+                          >
+                            Start Live Camera
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 justify-center mt-6">
+                      {cameraActive && (
+                        <button
+                          onClick={stopCamera}
+                          className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+                        >
+                          Pause Camera
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Interactive Simulator */}
+                  <div className="w-full lg:w-1/2 p-6 sm:p-8 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[9px] font-black uppercase bg-blue-100 dark:bg-blue-950/50 text-blue-600 px-2.5 py-1 rounded-full">Simulator Sandbox</span>
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-2">Patient Sandbox Core</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-6">
+                        No physical card handy? Easily test the full profile import pipeline using our demo records below. Click "Simulate Scan" for a 1-click test, or "View QR" to display the valid matrix code.
+                      </p>
+
+                      <div className="space-y-3">
+                        {demoPatients.map((patient, index) => (
+                          <div 
+                            key={index}
+                            className="bg-white dark:bg-slate-900 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-between shadow-sm hover:shadow transition-all group"
+                          >
+                            <div>
+                              <h4 className="font-black text-slate-900 dark:text-white uppercase text-[11px] tracking-tight">{patient.name}</h4>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{patient.gender}, {patient.age} yrs • Blood: {patient.bloodType}</p>
+                              <p className="text-[9px] text-rose-500 font-bold uppercase mt-1">Allergy: {patient.allergies}</p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setSelectedDemoCard(patient)}
+                                className="px-3 py-2 border border-slate-150 dark:border-slate-700 hover:border-blue-500 hover:text-blue-500 text-slate-450 rounded-xl text-[8px] font-black uppercase tracking-wider cursor-pointer transition-all"
+                              >
+                                View QR
+                              </button>
+                              <button
+                                onClick={() => handleSimulateScan(patient)}
+                                className="px-3 py-2 bg-slate-900 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600 text-white rounded-xl text-[8px] font-black uppercase tracking-wider cursor-pointer transition-all flex items-center gap-1 shadow group-hover:shadow-md"
+                              >
+                                <Play size={8} /> Simulate Scan
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
+                      <div className="flex items-start gap-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100/50 dark:border-blue-900/40 p-4 rounded-2xl">
+                        <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={16} />
+                        <div>
+                          <h5 className="text-[10px] font-black text-blue-900 dark:text-blue-400 uppercase tracking-wider mb-1">MOH Physical Standards</h5>
+                          <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold leading-relaxed uppercase">
+                            Imported profiles comply with MoH Health Information Exchange protocols and will synchronize live onto active patient trackers.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Demo QR Code Pop-up Card */}
+      <AnimatePresence>
+        {selectedDemoCard && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setSelectedDemoCard(null)} />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 text-center flex flex-col items-center pointer-events-auto"
+            >
+              <button 
+                onClick={() => setSelectedDemoCard(null)}
+                className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-lg transition-all cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+
+              <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full mb-2">Printable Patient QR Token</span>
+              <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-1">{selectedDemoCard.name}</h4>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">MOH System Data Matrix</p>
+
+              <div className="p-4 bg-white rounded-2xl border border-slate-100 dark:border-slate-800 shadow-inner mb-6">
+                <QRCodeSVG value={JSON.stringify(selectedDemoCard)} size={200} />
+              </div>
+
+              <p className="text-[10px] text-slate-400 font-semibold leading-normal uppercase max-w-xs mb-4">
+                Point your physical device camera at this code to simulate real scanning, or trigger from the main control panel.
+              </p>
+
+              <button
+                onClick={() => {
+                  handleSimulateScan(selectedDemoCard);
+                  setSelectedDemoCard(null);
+                }}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all"
+              >
+                Simulate Instant Decode
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Page Title Header Section */}
       <header className="flex flex-col gap-6 sm:gap-10">
-        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 w-full">
           <div className="max-w-3xl">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[10px] font-[1000] text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full">Secure Clinic Channels</span>
@@ -96,6 +708,18 @@ export const SpecialistFinder: React.FC = () => {
             <p className="text-slate-500 dark:text-slate-400 font-bold text-base md:text-xl leading-relaxed">
               Find, consult, and book verified medical professionals and clinics instantly across the region.
             </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setIsScannerOpen(true);
+                startCamera();
+              }}
+              className="flex items-center gap-2.5 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-[1000] text-[10px] uppercase tracking-widest hover:shadow-lg hover:shadow-blue-500/10 hover:scale-[1.02] transition-all cursor-pointer shadow-md"
+            >
+              <QrCode size={16} /> Scan Patient QR Record
+            </button>
           </div>
         </div>
       </header>

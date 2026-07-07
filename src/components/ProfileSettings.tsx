@@ -2144,64 +2144,22 @@ Verified by Joseph Akora - Development Lead.
             const buildSelfContainedProfile = () => {
               if (!user) return null;
               
-              const userSubset = {
-                id: user.id || 'unknown',
-                displayName: user.displayName || 'Unknown Patient',
-                email: user.email || '',
-                phone: user.phone || '',
-                photoURL: user.photoURL || '',
-                bloodGroup: user.bloodGroup || 'Not Set',
-                allergies: user.allergies || 'None Recorded',
-                conditions: user.conditions || 'None Declared',
-                hospitalPreference: user.hospitalPreference || 'Not Specified',
-                role: user.role || 'patient'
-              };
-
-              const contactsList = [];
-              if (user.doctorName || user.doctorPhone) {
-                contactsList.push({
-                  id: 'doc-1',
-                  name: user.doctorName || 'Primary Care Physician',
-                  phone: user.doctorPhone || '',
-                  role: 'Primary Care Physician',
-                  email: user.doctorEmail || ''
-                });
-              }
-              if (user.mentorName || user.mentorPhone) {
-                contactsList.push({
-                  id: 'mentor-1',
-                  name: user.mentorName || 'Clinical Mentor',
-                  phone: user.mentorPhone || '',
-                  role: 'Clinical Mentor',
-                  email: user.mentorEmail || ''
-                });
-              }
-
-              const recordsList = [
-                {
-                  id: 'rec-1',
-                  title: 'Biometric Baseline Assessment',
-                  summary: 'Automated metabolic tracking baseline. Heart rate, blood oxygenation level, and arterial pressure profiles initialized.',
-                  diagnosis: 'N/A - General Wellness Check',
-                  treatment: 'Daily monitoring of arterial stress levels via Doctorian AI',
-                  createdAt: new Date().toLocaleDateString(),
-                  type: 'Routine'
-                }
-              ];
-
+              // Completely strip photoURL or other long web links to prevent high QR density and remove any AI studio links
               return {
-                user: userSubset,
-                contacts: contactsList,
-                records: recordsList
+                id: user.id || 'unknown',
+                nm: user.displayName || 'Unknown Patient',
+                em: user.email || '',
+                ph: user.phone || '',
+                bt: user.bloodGroup || 'Not Set',
+                al: user.allergies || 'None Recorded',
+                cd: user.conditions || 'None Declared',
+                dp: user.doctorPhone || '',
+                mp: user.mentorPhone || ''
               };
             };
 
             const selfContainedProfile = buildSelfContainedProfile();
-            const encodedData = selfContainedProfile ? btoa(encodeURIComponent(JSON.stringify(selfContainedProfile)).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-              return String.fromCharCode(parseInt(p1, 16));
-            })) : '';
-
-            const shareLink = `${window.location.origin}/?scanUserData=${encodedData}`;
+            const qrPayload = selfContainedProfile ? JSON.stringify(selfContainedProfile) : '';
 
             return (
               <motion.section 
@@ -2211,63 +2169,44 @@ Verified by Joseph Akora - Development Lead.
               >
                 <div className="bg-white dark:bg-slate-900 rounded-[4rem] p-12 sm:p-20 border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden text-center">
                   <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-emerald-500" />
-                  <div className="mx-auto w-64 h-64 bg-slate-50 dark:bg-slate-800 rounded-[3rem] p-8 flex flex-col items-center justify-center mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-inner group transition-transform hover:scale-105">
+                  
+                  <div className="mx-auto max-w-xs bg-white rounded-[2.5rem] p-6 flex flex-col items-center justify-center mb-6 border border-slate-200 shadow-xl group transition-all duration-300 hover:shadow-2xl">
                      <QRCodeSVG 
-                        value={shareLink} 
-                        size={180}
-                        className="text-slate-900 dark:text-white group-hover:rotate-6 transition-transform duration-700" 
-                        level="H"
-                        includeMargin={false}
+                        value={qrPayload} 
+                        size={256}
+                        className="text-slate-900 group-hover:scale-[1.02] transition-transform duration-300" 
+                        level="Q"
+                        includeMargin={true}
                      />
-                     <div className="mt-4 text-[10px] font-black font-mono text-slate-400 uppercase tracking-[0.2em] opacity-50">
-                       UID: {user?.id || 'SYNCING...'}
-                     </div>
                   </div>
-                   <div className="max-w-md mx-auto mb-8 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-                     <div className="min-w-0 flex-1">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Shareable Medical ID Link</p>
-                       <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 truncate mt-0.5 animate-pulse">
-                         {shareLink}
-                       </p>
-                     </div>
-                     <button
-                       type="button"
-                       onClick={() => {
-                         navigator.clipboard.writeText(shareLink);
-                         setMessage({ text: '📋 Emergency Profile Link copied to clipboard!', type: 'success' });
-                       }}
-                       className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all cursor-pointer whitespace-nowrap border border-slate-150/10"
-                     >
-                       Copy Link
-                     </button>
-                   </div>
+                  <div className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-[0.2em] opacity-80 mb-10">
+                     UID: {user?.id || 'SYNCING...'}
+                  </div>
+
+                  <div className="max-w-md mx-auto mb-8 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 text-left">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Embedded Secure Clinical Payload (No Web Links)</p>
+                    <div className="bg-slate-100 dark:bg-slate-950 p-3 rounded-xl max-h-24 overflow-y-auto text-[10px] font-mono text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-800">
+                      {qrPayload}
+                    </div>
+                  </div>
 
                   <h2 className="text-4xl sm:text-5xl font-black uppercase tracking-[-0.05em] mb-4 text-slate-900 dark:text-white leading-none">
-                    Clinical <span className="text-blue-600 font-serif italic normal-case">Fast-Sync</span> ID
+                    Clinical <span className="text-blue-600 font-serif italic normal-case">Off-Grid</span> QR ID
                   </h2>
                   <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 font-bold max-w-lg mx-auto mb-12 font-serif leading-relaxed italic">
-                    "In the event of acute metabolic failure, responders can scan this port to instantly decrypt blood type, surgical history, and emergency protocols."
+                    "This clinical identifier has no web links or remote dependencies. Scanning decrypts your complete blood group, medical conditions, surgical history, and emergency contacts directly off-grid."
                   </p>
                   
                   <div className="flex flex-wrap justify-center gap-4">
                      <button 
                        onClick={() => {
-                         window.open(shareLink, '_blank');
+                         navigator.clipboard.writeText(qrPayload);
+                         setMessage({ text: '📋 Offline Clinical JSON Payload copied to clipboard!', type: 'success' });
                        }}
                        className="flex items-center gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all group"
                      >
-                       <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform" />
-                       View Live Scanned Profile
-                     </button>
-                     <button 
-                       onClick={() => {
-                         navigator.clipboard.writeText(shareLink);
-                         setMessage({ text: '📋 Triage access link copied to clipboard!', type: 'success' });
-                       }}
-                       className="flex items-center gap-3 px-10 py-5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] border border-slate-100 dark:border-slate-700 hover:text-blue-600 hover:border-blue-200 transition-all"
-                     >
-                       <Share2 size={18} />
-                       Clinical Relay
+                       <Download size={18} className="group-hover:translate-y-1 transition-transform" />
+                       Copy Raw Payload
                      </button>
                   </div>
                 </div>

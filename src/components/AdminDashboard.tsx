@@ -45,8 +45,22 @@ import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 
 export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback'>('users');
-  const [users, setUsers] = useState<User[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin_active_tab');
+      if (saved) return saved as any;
+    }
+    return 'users';
+  });
+  const [users, setUsers] = useState<User[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('admin_cached_users');
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) { return []; }
+      }
+    }
+    return [];
+  });
   const [notifications, setNotifications] = useState<any[]>([]);
   
   // Feedback Admin State
@@ -78,9 +92,22 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   // Billing Admin State
   const [adminBilling, setAdminBilling] = useState<any[]>([]);
   const [billingPagination, setBillingPagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [usersPagination, setUsersPagination] = useState({ page: 1, pages: 1, total: 0, totalOnline: 0, totalOffline: 0 });
+  const [usersPagination, setUsersPagination] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('admin_cached_users_pagination');
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) { return { page: 1, pages: 1, total: 0, totalOnline: 0, totalOffline: 0 }; }
+      }
+    }
+    return { page: 1, pages: 1, total: 0, totalOnline: 0, totalOffline: 0 };
+  });
   const [loadingBilling, setLoadingBilling] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('admin_search_query') || '';
+    }
+    return '';
+  });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -111,7 +138,12 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const [isSyncingEngine, setIsSyncingEngine] = useState(false);
   const [networkStatus, setNetworkStatus] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
-  const [filterInstitution, setFilterInstitution] = useState('');
+  const [filterInstitution, setFilterInstitution] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('admin_filter_institution') || '';
+    }
+    return '';
+  });
 
   // Redesigned Administrative Security & Posture States
   const [securityLevel, setSecurityLevel] = useState<'STANDARD' | 'MFA_RESTRICTED' | 'LOCKDOWN'>('STANDARD');
@@ -199,10 +231,28 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     tokenThroughput: 14850,
   });
 
+  const [dbHealth, setDbHealth] = useState<{
+    fileSizeKb: number;
+    tableCounts: Record<string, number>;
+    integrity: string;
+    path: string;
+    timestamp: string;
+  } | null>(null);
+  const [isDefragging, setIsDefragging] = useState(false);
+
   // Live log stream state
   const [logs, setLogs] = useState<Array<{ id: string; time: string; msg: string; type: 'info' | 'warn' | 'success' | 'system' }>>([
     { id: '1', time: new Date().toLocaleTimeString(), msg: 'Establishing database connection for system logs...', type: 'system' }
   ]);
+
+  const fetchDbHealth = async () => {
+    try {
+      const health = await (api.admin as any).getDbHealth();
+      setDbHealth(health);
+    } catch (err: any) {
+      console.warn("Failed to fetch real database health:", err.message || err);
+    }
+  };
 
   const fetchRealLogs = async () => {
     try {
@@ -212,7 +262,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
         const actionUpper = l.action.toUpperCase();
         if (actionUpper.includes('ERR') || actionUpper.includes('FAIL') || actionUpper.includes('WARN')) {
           type = 'warn';
-        } else if (actionUpper.includes('SUCCESS') || actionUpper.includes('COMPLET') || actionUpper.includes('PASS') || actionUpper.includes('CREAT') || actionUpper.includes('DELET') || actionUpper.includes('UPD')) {
+        } else if (actionUpper.includes('SUCCESS') || actionUpper.includes('COMPLET') || actionUpper.includes('PASS') || actionUpper.includes('CREAT') || actionUpper.includes('DELET') || actionUpper.includes('UPD') || actionUpper.includes('VACUUM')) {
           type = 'success';
         } else if (actionUpper.includes('SYSTEM') || actionUpper.includes('EMERGENCY') || actionUpper.includes('KEY') || actionUpper.includes('ADMIN')) {
           type = 'system';
@@ -265,8 +315,11 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     }, 2000);
 
     fetchRealLogs();
+    fetchDbHealth();
+    
     const logsInterval = setInterval(() => {
       fetchRealLogs();
+      fetchDbHealth();
     }, 4000);
 
     return () => {
@@ -287,6 +340,15 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
         totalOnline: data.totalOnline,
         totalOffline: data.totalOffline
       });
+      // Cache users and pagination to localStorage
+      localStorage.setItem('admin_cached_users', JSON.stringify(data.users));
+      localStorage.setItem('admin_cached_users_pagination', JSON.stringify({
+        page: data.page,
+        pages: data.pages,
+        total: data.total,
+        totalOnline: data.totalOnline,
+        totalOffline: data.totalOffline
+      }));
       // Synchronize simulated telemetry connections with true database connections!
       setTelemetry(prev => ({
         ...prev,
@@ -295,6 +357,24 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       setError(null);
     } catch (err: any) {
       setError(err.message || "Failed to load users");
+      // Try to load from cache
+      const cachedUsers = localStorage.getItem('admin_cached_users');
+      const cachedPagination = localStorage.getItem('admin_cached_users_pagination');
+      if (cachedUsers) {
+        try {
+          setUsers(JSON.parse(cachedUsers));
+          if (addToast) addToast("Displaying cached offline user logs", "info");
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (cachedPagination) {
+        try {
+          setUsersPagination(JSON.parse(cachedPagination));
+        } catch (e) {
+          // ignore
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -570,6 +650,18 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       fetchTwilioStatus();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('admin_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('admin_search_query', searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    localStorage.setItem('admin_filter_institution', filterInstitution);
+  }, [filterInstitution]);
 
   useEffect(() => {
     if (activeTab !== 'users') return;
@@ -1921,190 +2013,204 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* MTN Status Card */}
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                    <Activity className="text-blue-600" size={24} />
-                    MTN API Configuration
-                  </h3>
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                    twilioStatus?.configured ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
-                  }`}>
-                    {twilioStatus?.configured ? 'Configured' : 'Incomplete'}
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                      <Activity className="text-blue-600" size={24} />
+                      MTN API Configuration
+                    </h3>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      twilioStatus?.configured ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
+                    }`}>
+                      {twilioStatus?.configured ? 'Configured' : 'Incomplete'}
+                    </div>
                   </div>
+
+                  {loadingTwilio ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="animate-spin text-blue-600" size={32} />
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">MTN API Key</p>
+                          <div className="flex items-center gap-2">
+                            {twilioStatus?.details && twilioStatus.details.hasApiKey ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{twilioStatus?.details && twilioStatus.details.hasApiKey ? 'Present' : 'Missing'}</span>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender ID</p>
+                          <div className="flex items-center gap-2">
+                            {twilioStatus?.details && twilioStatus.details.hasSenderId ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{(twilioStatus?.details && twilioStatus.details.senderId) || 'Missing'}</span>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Doctor Number</p>
+                          <div className="flex items-center gap-2">
+                            {twilioStatus?.details && twilioStatus.details.hasDoctorNumber ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{(twilioStatus?.details && twilioStatus.details.doctorNumber) || 'Missing'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {!twilioStatus?.configured && (
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
+                          <p className="text-xs font-bold text-blue-800 dark:text-blue-300 leading-relaxed">
+                            To enable real SMS and Voice alerts via MTN, you must configure the MTN environment variables in the Settings menu.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white mb-4 uppercase tracking-widest">MTN Setup Guide</h4>
+                        <div className="space-y-3">
+                          <div className="flex gap-3">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-[10px] font-black shrink-0">1</div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                              Register on the <span className="font-bold text-slate-700 dark:text-slate-300">MTN Developer Portal</span> to obtain your API Key.
+                            </p>
+                          </div>
+                          <div className="flex gap-3">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-[10px] font-black shrink-0">2</div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                              Set your <span className="font-bold text-slate-700 dark:text-slate-300">Sender ID</span> (e.g., DOCTORIAN) to identify your messages to users.
+                            </p>
+                          </div>
+                          <div className="flex gap-3">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-[10px] font-black shrink-0">3</div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                              Ensure your MTN account has sufficient balance to send SMS and initiate Voice calls.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {loadingTwilio ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="animate-spin text-blue-600" size={32} />
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">MTN API Key</p>
-                        <div className="flex items-center gap-2">
-                          {twilioStatus?.details && twilioStatus.details.hasApiKey ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{twilioStatus?.details && twilioStatus.details.hasApiKey ? 'Present' : 'Missing'}</span>
-                        </div>
-                      </div>
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender ID</p>
-                        <div className="flex items-center gap-2">
-                          {twilioStatus?.details && twilioStatus.details.hasSenderId ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{(twilioStatus?.details && twilioStatus.details.senderId) || 'Missing'}</span>
-                        </div>
-                      </div>
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Doctor Number</p>
-                        <div className="flex items-center gap-2">
-                          {twilioStatus?.details && twilioStatus.details.hasDoctorNumber ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-rose-500" />}
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{(twilioStatus?.details && twilioStatus.details.doctorNumber) || 'Missing'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {!twilioStatus?.configured && (
-                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
-                        <p className="text-xs font-bold text-blue-800 dark:text-blue-300 leading-relaxed">
-                          To enable real SMS and Voice alerts via MTN, you must configure the MTN environment variables in the Settings menu.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                      <h4 className="text-xs font-black text-slate-900 dark:text-white mb-4 uppercase tracking-widest">MTN Setup Guide</h4>
-                      <div className="space-y-3">
-                        <div className="flex gap-3">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-[10px] font-black shrink-0">1</div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                            Register on the <span className="font-bold text-slate-700 dark:text-slate-300">MTN Developer Portal</span> to obtain your API Key.
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-[10px] font-black shrink-0">2</div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                            Set your <span className="font-bold text-slate-700 dark:text-slate-300">Sender ID</span> (e.g., DOCTORIAN) to identify your messages to users.
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-[10px] font-black shrink-0">3</div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                            Ensure your MTN account has sufficient balance to send SMS and initiate Voice calls.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Enterprise Security & System Sentinel Card */}
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-205 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                  <div className="flex items-center gap-3">
-                    <Shield className="text-blue-600 dark:text-blue-400 animate-pulse" size={26} />
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                        Enterprise Security & System Sentinel
-                      </h3>
-                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">ADMIN SECURITY OPERATIONS CORE</p>
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-205 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 space-y-6 flex flex-col justify-between">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div className="flex items-center gap-3">
+                      <Shield className="text-blue-600 dark:text-blue-400 animate-pulse" size={26} />
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                          Enterprise Security
+                        </h3>
+                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">ADMIN SECURITY OPERATIONS CORE</p>
+                      </div>
+                    </div>
+                    <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                      securityLevel === 'STANDARD' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/10 dark:text-emerald-400 dark:border-emerald-900' :
+                      securityLevel === 'MFA_RESTRICTED' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/10 dark:text-amber-400 dark:border-amber-900' :
+                      'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-950/10 dark:text-rose-400 dark:border-rose-900 animate-pulse'
+                    }`}>
+                      {securityLevel === 'STANDARD' ? 'STANDARD' : securityLevel === 'MFA_RESTRICTED' ? 'STRICT MFA' : 'LOCKDOWN'}
                     </div>
                   </div>
-                  <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                    securityLevel === 'STANDARD' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/10 dark:text-emerald-400 dark:border-emerald-900' :
-                    securityLevel === 'MFA_RESTRICTED' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/10 dark:text-amber-400 dark:border-amber-900' :
-                    'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-950/10 dark:text-rose-400 dark:border-rose-900 animate-pulse'
-                  }`}>
-                    {securityLevel === 'STANDARD' ? 'STANDARD TIER' : securityLevel === 'MFA_RESTRICTED' ? 'STRICT MFA' : 'CRITICAL LOCKDOWN'}
-                  </div>
-                </div>
 
-                {/* Interactive Posture Selection */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Security Posture Mode Enforcement</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['STANDARD', 'MFA_RESTRICTED', 'LOCKDOWN'] as const).map((lvl) => (
+                  {/* Interactive Posture Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Security Posture Mode Enforcement</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['STANDARD', 'MFA_RESTRICTED', 'LOCKDOWN'] as const).map((lvl) => (
+                        <button
+                          key={lvl}
+                          onClick={() => handleSecurityLevelChange(lvl)}
+                          className={`py-2 px-3 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all border ${
+                            securityLevel === lvl
+                              ? lvl === 'STANDARD' ? 'bg-emerald-600 text-white border-emerald-600' : 
+                                lvl === 'MFA_RESTRICTED' ? 'bg-amber-500 text-white border-amber-500' : 
+                                'bg-rose-600 text-white border-rose-600 animate-pulse'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-350 border-slate-150 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {lvl.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Database Cryptographic Keys Manager */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Master Symmetry Secret Key</p>
+                        <p className="font-mono text-[11px] text-blue-600 dark:text-blue-400 font-bold mt-1 select-all truncate max-w-[120px]" title={clinicSecretKey}>
+                          {clinicSecretKey}
+                        </p>
+                      </div>
                       <button
-                        key={lvl}
-                        onClick={() => handleSecurityLevelChange(lvl)}
-                        className={`py-2 px-3 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all border ${
-                          securityLevel === lvl
-                            ? lvl === 'STANDARD' ? 'bg-emerald-600 text-white border-emerald-600' : 
-                              lvl === 'MFA_RESTRICTED' ? 'bg-amber-500 text-white border-amber-500' : 
-                              'bg-rose-600 text-white border-rose-600 animate-pulse'
-                            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-350 border-slate-150 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
-                        }`}
+                        onClick={handleRotateEncryptionKey}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-black uppercase tracking-wider rounded-lg transition-all active:scale-95"
                       >
-                        {lvl.replace('_', ' ')}
+                        Rotate Key
                       </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Database Cryptographic Keys Manager */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Master Symmetry Secret Key</p>
-                      <p className="font-mono text-[11px] text-blue-600 dark:text-blue-400 font-bold mt-1 select-all truncate max-w-[200px]" title={clinicSecretKey}>
-                        {clinicSecretKey}
-                      </p>
                     </div>
-                    <button
-                      onClick={handleRotateEncryptionKey}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-black uppercase tracking-wider rounded-lg transition-all active:scale-95"
-                    >
-                      Rotate Symmetric Key
-                    </button>
+                    <div className="text-[8px] text-slate-450 uppercase font-bold leading-relaxed border-t border-slate-100 dark:border-slate-750 pt-2 flex justify-between">
+                      <span>ALGORITHM: AES-GCM-256</span>
+                      <span>HEALTH KEY CHAIN ENVIABLE</span>
+                    </div>
                   </div>
-                  <div className="text-[8px] text-slate-450 uppercase font-bold leading-relaxed border-t border-slate-100 dark:border-slate-750 pt-2 flex justify-between">
-                    <span>ALGORITHM: AES-GCM-256</span>
-                    <span>HEALTH KEY CHAIN ENVIABLE</span>
-                  </div>
-                </div>
 
-                {/* Running Compliance Auditing */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">WebAuthn Token Compliance Auditing</label>
-                    {auditProgress !== null && (
-                      <span className="text-[9px] font-mono font-bold text-blue-500 animate-pulse">{auditProgress}% COMPLETE</span>
+                  {/* Running Compliance Auditing */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">WebAuthn Token Compliance Auditing</label>
+                      {auditProgress !== null && (
+                        <span className="text-[9px] font-mono font-bold text-blue-500 animate-pulse">{auditProgress}% COMPLETE</span>
+                      )}
+                    </div>
+
+                    {auditProgress !== null ? (
+                      <div className="bg-slate-50 dark:bg-slate-800 p-4 border border-slate-150 dark:border-slate-700 rounded-xl space-y-2">
+                        <div className="h-2 w-full bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden p-0.5">
+                          <div 
+                            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${auditProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[8px] font-mono text-slate-450 uppercase tracking-wider animate-pulse">Scanning registered identity hashes, secure certificates, and database state mappings...</p>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleRunSecurityAudit}
+                        className="w-full py-3 bg-slate-900 hover:bg-slate-850 dark:bg-slate-800 dark:hover:bg-slate-755 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-850 dark:border-slate-700 hover:shadow shadow-blue-500/5 active:scale-95"
+                      >
+                        🛡️ Dispatch Bio-Identity Audit
+                      </button>
                     )}
                   </div>
-
-                  {auditProgress !== null ? (
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 border border-slate-150 dark:border-slate-700 rounded-xl space-y-2">
-                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden p-0.5">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-300"
-                          style={{ width: `${auditProgress}%` }}
-                        />
-                      </div>
-                      <p className="text-[8px] font-mono text-slate-450 uppercase tracking-wider animate-pulse">Scanning registered identity hashes, secure certificates, and database state mappings...</p>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleRunSecurityAudit}
-                      className="w-full py-3 bg-slate-900 hover:bg-slate-850 dark:bg-slate-800 dark:hover:bg-slate-755 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-850 dark:border-slate-700 hover:shadow shadow-blue-500/5 active:scale-95"
-                    >
-                      🛡️ Dispatch Bio-Identity Audit
-                    </button>
-                  )}
                 </div>
 
                 {/* System facts collapsed beautifully */}
                 <details className="group border-t border-slate-100 dark:border-slate-800 pt-4 cursor-pointer select-none">
                   <summary className="list-none flex justify-between items-center text-[10px] font-black text-slate-450 uppercase tracking-widest group-open:text-blue-500 transition-colors">
-                    <span>Clinical Infrastructure Specs</span>
+                    <span>Clinical Specs</span>
                     <span className="text-[8px] font-mono transition-transform duration-200 group-open:rotate-180">▼</span>
                   </summary>
                   <div className="space-y-3 pt-4 text-[9px] text-slate-650 dark:text-slate-400 space-y-2">
                     <div className="flex justify-between border-b border-slate-50 dark:border-slate-850 pb-1.5">
                       <span className="font-semibold uppercase tracking-wider">Database Engine:</span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">SQLite 3 (Drizzle ORM)</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 dark:border-slate-850 pb-1.5">
+                      <span className="font-semibold uppercase tracking-wider">Database Size:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{dbHealth ? `${dbHealth.fileSizeKb} KB` : "Loading..."}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 dark:border-slate-850 pb-1.5">
+                      <span className="font-semibold uppercase tracking-wider">Database Integrity check:</span>
+                      <span className={`font-mono font-bold uppercase ${dbHealth?.integrity === "ok" ? "text-emerald-500" : "text-amber-500 animate-pulse"}`}>
+                        {dbHealth ? dbHealth.integrity : "Checking..."}
+                      </span>
                     </div>
                     <div className="flex justify-between border-b border-slate-50 dark:border-slate-850 pb-1.5">
                       <span className="font-semibold uppercase tracking-wider">Authentication Guard:</span>
@@ -2114,12 +2220,58 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       <span className="font-semibold uppercase tracking-wider">National Alert Tunnel:</span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">MTN API SMS Core</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-50 dark:border-slate-850 pb-1.5">
-                      <span className="font-semibold uppercase tracking-wider">Cloud Engine Scaling:</span>
-                      <span className="font-mono font-bold text-slate-905 text-blue-500">Firebase Database Sync (50k)</span>
-                    </div>
                   </div>
                 </details>
+              </div>
+
+              {/* SQLite Database Premises Monitor Card */}
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-205 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 space-y-6 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <Database className="text-blue-600 dark:text-blue-400" size={26} />
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                          Database Premises
+                        </h3>
+                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">Real-time SQLite Records & Auditing</p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-700 animate-pulse">
+                      Active
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 font-mono text-[11px]">
+                    {[
+                      { label: "Registered Patients", count: dbHealth?.tableCounts.users, color: "text-blue-600" },
+                      { label: "Health Records Logged", count: dbHealth?.tableCounts.records, color: "text-indigo-600" },
+                      { label: "Prescriptions Active", count: dbHealth?.tableCounts.medications, color: "text-emerald-500" },
+                      { label: "Recorded Dosages Take", count: dbHealth?.tableCounts.medication_intakes, color: "text-teal-600" },
+                      { label: "Diagnostics Tasks", count: dbHealth?.tableCounts.tasks, color: "text-violet-500" },
+                      { label: "System Triggers / Logs", count: dbHealth?.tableCounts.system_logs, color: "text-amber-500" },
+                      { label: "Patient Feedback Logs", count: dbHealth?.tableCounts.feedback, color: "text-rose-500" },
+                    ].map((row, i) => (
+                      <div key={i} className="flex justify-between items-center border-b border-slate-50 dark:border-slate-850 pb-2">
+                        <span className="text-slate-550 dark:text-slate-400 font-semibold">{row.label}:</span>
+                        <span className={`font-black ${row.color} text-sm`}>
+                          {row.count !== undefined ? row.count : "..."}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-450 uppercase font-bold leading-relaxed flex flex-col gap-1.5">
+                  <div className="flex justify-between">
+                    <span>PATH: /medical.db</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-black">SQLITE3</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SYNC HANDSHAKE:</span>
+                    <span className="text-emerald-500 font-black">VERIFIED</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2164,7 +2316,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Processor State</p>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`h-2.5 w-2.5 rounded-full ${isSyncingEngine ? 'bg-blue-500 animate-ping' : syncQueue.length > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                    <span className="text-xs font-black text-slate-705 dark:text-slate-300 uppercase tracking-wider">
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       {isSyncingEngine ? 'Syncing...' : syncQueue.length > 0 ? 'Cache Pending' : 'Synced'}
                     </span>
                   </div>
@@ -2349,7 +2501,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       className={`text-left p-6 rounded-3xl border transition-all duration-300 flex flex-col justify-between h-full ${
                         isActive
                           ? 'bg-blue-50/40 dark:bg-blue-900/10 border-blue-500 text-white shadow-xl shadow-blue-500/5'
-                          : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-805 hover:bg-slate-50 hover:border-slate-200'
+                          : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 hover:bg-slate-50 hover:border-slate-200'
                       }`}
                     >
                       <div className="space-y-2 mb-4">
@@ -2476,17 +2628,42 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     </p>
                   </div>
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
+                      if (isDefragging) return;
+                      setIsDefragging(true);
                       setLogs(prev => [
-                        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: "SQLite indexing optimization triggered.", type: 'info' },
-                        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: "VACUUM completed. Rebuilt indices for records & users indices securely.", type: 'success' },
+                        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: "Initiating live SQLite VACUUM optimization...", type: 'system' },
                         ...prev
                       ]);
-                      if (addToast) addToast("SQLite Indexes rebuilt securely.", "success");
+                      try {
+                        const result = await (api.admin as any).defragDb();
+                        setLogs(prev => [
+                          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `SQLite Database optimized. ${result.message} Duration: ${result.durationMs}ms. Size: ${result.fileSizeKb}KB.`, type: 'success' },
+                          ...prev
+                        ]);
+                        if (addToast) addToast("Database defragged and VACUUM completed!", "success");
+                        fetchDbHealth();
+                      } catch (err: any) {
+                        setLogs(prev => [
+                          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `❌ Database defragmentation failed: ${err.message || err}`, type: 'warn' },
+                          ...prev
+                        ]);
+                        if (addToast) addToast("Database optimization failed", "error");
+                      } finally {
+                        setIsDefragging(false);
+                      }
                     }}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-95"
+                    disabled={isDefragging}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
-                    Defrag database
+                    {isDefragging ? (
+                      <>
+                        <Loader2 className="animate-spin" size={12} />
+                        Optimizing...
+                      </>
+                    ) : (
+                      "Defrag database"
+                    )}
                   </button>
                 </div>
               </div>
@@ -3096,48 +3273,73 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       </AnimatePresence>
 
       <AnimatePresence>
-        {userQrView && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            id="user-qr-modal"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-xl"
-          >
+        {userQrView && (() => {
+          const qrPayload = JSON.stringify({
+            id: userQrView.id,
+            nm: userQrView.displayName || 'Patient',
+            em: userQrView.email || '',
+            ph: userQrView.phone || '',
+            bt: userQrView.bloodGroup || 'Not Set',
+            al: userQrView.allergies || 'None Recorded',
+            cd: userQrView.conditions || 'None Declared',
+            dp: userQrView.doctorPhone || '',
+            mp: userQrView.mentorPhone || ''
+          });
+
+          return (
             <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 max-w-sm w-full relative shadow-2xl border border-slate-100 dark:border-slate-800 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              id="user-qr-modal"
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-xl"
             >
-              <button 
-                onClick={() => setUserQrView(null)} 
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                aria-label="Close QR modal"
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 max-w-sm w-full relative shadow-2xl border border-slate-100 dark:border-slate-800 text-center"
               >
-                <X size={24} />
-              </button>
-              
-              <div className="bg-slate-50 dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-700 mb-8 flex items-center justify-center shadow-inner">
-                <QRCodeSVG 
-                  value={`clinical-id:${userQrView.id}`} 
-                  size={200}
-                  level="H"
-                  className="text-slate-900 dark:text-white"
-                />
-              </div>
-              
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">{userQrView.displayName}</h3>
-              <p className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-widest mb-8">UID: {userQrView.id}</p>
-              
-              <button 
-                onClick={() => window.print()}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-95"
-              >
-                <Download size={16} /> Print Clinical Badge
-              </button>
+                <button 
+                  onClick={() => setUserQrView(null)} 
+                  className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                  aria-label="Close QR modal"
+                >
+                  <X size={24} />
+                </button>
+                
+                <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 mb-6 flex items-center justify-center shadow-md">
+                  <QRCodeSVG 
+                    value={qrPayload} 
+                    size={240}
+                    level="Q"
+                    includeMargin={true}
+                    className="text-slate-900"
+                  />
+                </div>
+                
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-1">{userQrView.displayName}</h3>
+                <p className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-widest mb-4">UID: {userQrView.id}</p>
+
+                <div className="mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-left">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Embedded Clinical Payload (Offline)</p>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                    <div><span className="font-bold text-slate-400">Blood:</span> {userQrView.bloodGroup || 'N/A'}</div>
+                    <div><span className="font-bold text-slate-400">Phone:</span> {userQrView.phone || 'N/A'}</div>
+                    <div className="col-span-2 truncate"><span className="font-bold text-slate-400">Allergies:</span> {userQrView.allergies || 'None'}</div>
+                    <div className="col-span-2 truncate"><span className="font-bold text-slate-400">Conditions:</span> {userQrView.conditions || 'None'}</div>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => window.print()}
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <Download size={16} /> Print Clinical Badge
+                </button>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
@@ -3228,7 +3430,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         value={userForm.id}
                         onChange={(e) => setUserForm({...userForm, id: e.target.value})}
                         placeholder="e.g. usr_clinical_999 (Leave blank to auto-generate)"
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                       />
                     </div>
                   )}
@@ -3239,7 +3441,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         type="text"
                         readOnly
                         value={editingUser.id}
-                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-mono text-slate-500 focus:outline-none dark:text-slate-400 cursor-not-allowed"
+                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-mono text-slate-500 focus:outline-none dark:text-slate-400 cursor-not-allowed"
                       />
                     </div>
                   )}
@@ -3252,7 +3454,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.email}
                       onChange={(e) => setUserForm({...userForm, email: e.target.value})}
                       placeholder="user@health.org"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3266,7 +3468,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.password}
                       onChange={(e) => setUserForm({...userForm, password: e.target.value})}
                       placeholder="••••••••••••"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3278,7 +3480,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.displayName}
                       onChange={(e) => setUserForm({...userForm, displayName: e.target.value})}
                       placeholder="Alex Mercer"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3289,7 +3491,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.phone}
                       onChange={(e) => setUserForm({...userForm, phone: e.target.value})}
                       placeholder="e.g. +256..."
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3298,7 +3500,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     <select
                       value={userForm.role}
                       onChange={(e) => setUserForm({...userForm, role: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white focus:outline-none"
                     >
                       <option value="user">Standard Patient (user)</option>
                       <option value="doctor">Medical Specialist (doctor)</option>
@@ -3314,7 +3516,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.credits}
                       onChange={(e) => setUserForm({...userForm, credits: Number(e.target.value)})}
                       placeholder="400"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3325,7 +3527,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.institutionId}
                       onChange={(e) => setUserForm({...userForm, institutionId: e.target.value})}
                       placeholder="e.g. CLINIC-KAMPALA-NORTH"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3334,7 +3536,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     <select
                       value={userForm.bloodGroup}
                       onChange={(e) => setUserForm({...userForm, bloodGroup: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white focus:outline-none"
                     >
                       <option value="">Unknown</option>
                       <option value="A+">A+</option>
@@ -3355,7 +3557,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.hospitalPreference}
                       onChange={(e) => setUserForm({...userForm, hospitalPreference: e.target.value})}
                       placeholder="e.g. Kampala Hospital"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3366,7 +3568,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.allergies}
                       onChange={(e) => setUserForm({...userForm, allergies: e.target.value})}
                       placeholder="e.g. Penicillin, Nuts (Comma-separated)"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
 
@@ -3377,7 +3579,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       value={userForm.conditions}
                       onChange={(e) => setUserForm({...userForm, conditions: e.target.value})}
                       placeholder="e.g. Diabetes, Hypertension"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-705 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
                 </div>

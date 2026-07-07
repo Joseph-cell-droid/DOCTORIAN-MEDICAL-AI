@@ -5772,6 +5772,106 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
+  // Admin Real-time Database Health, Metrics and Defragmentation
+  app.get("/api/admin/db-health", requireAdmin, (req: any, res) => {
+    try {
+      // 1. Get database file size
+      let fileSizeKb = 0;
+      try {
+        if (fs.existsSync(DB_PATH)) {
+          const stats = fs.statSync(DB_PATH);
+          fileSizeKb = Math.round(stats.size / 1024);
+        }
+      } catch (e: any) {
+        console.warn("[ADMIN] Failed to get database file size:", e.message);
+      }
+
+      // 2. Query stats for all tables
+      const getCount = (table: string) => {
+        try {
+          const row = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as any;
+          return row ? row.count : 0;
+        } catch (e) {
+          return 0;
+        }
+      };
+
+      const tableCounts = {
+        users: getCount("users"),
+        records: getCount("records"),
+        medications: getCount("medications"),
+        medication_intakes: getCount("medication_intakes"),
+        workouts: getCount("workouts"),
+        tasks: getCount("tasks"),
+        system_logs: getCount("system_logs"),
+        feedback: getCount("feedback"),
+        notifications: getCount("notifications"),
+        credentials: getCount("credentials"),
+        knowledge_base: getCount("knowledge_base")
+      };
+
+      // 3. Simple integrity check
+      let integrity = "ok";
+      try {
+        const check = db.prepare("PRAGMA integrity_check").get() as any;
+        integrity = check && check.integrity_check === "ok" ? "ok" : "warning";
+      } catch (e) {
+        integrity = "error";
+      }
+
+      res.json({
+        success: true,
+        fileSizeKb,
+        tableCounts,
+        integrity,
+        path: DB_PATH,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error("[ADMIN] Database health check failed:", err.message);
+      res.status(500).json({ error: "Failed to perform database health check" });
+    }
+  });
+
+  app.post("/api/admin/db-defrag", requireAdmin, (req: any, res) => {
+    try {
+      const start = Date.now();
+      
+      // Perform SQLite VACUUM optimization
+      db.exec("VACUUM");
+      
+      const durationMs = Date.now() - start;
+
+      let fileSizeKb = 0;
+      try {
+        if (fs.existsSync(DB_PATH)) {
+          const stats = fs.statSync(DB_PATH);
+          fileSizeKb = Math.round(stats.size / 1024);
+        }
+      } catch (e) {}
+
+      // Log this action to system logs
+      const logId = "log_" + Math.random().toString(36).substring(2, 11);
+      db.prepare("INSERT INTO system_logs (id, userId, action, details) VALUES (?, ?, ?, ?)")
+        .run(
+          logId,
+          req.user.id,
+          "DB_DEFRAG_VACUUM",
+          `SQLite Database defragmented (VACUUM) successfully by admin (${req.user.email}). Duration: ${durationMs}ms. New DB Size: ${fileSizeKb}KB.`
+        );
+
+      res.json({
+        success: true,
+        message: "Database defragmentation and optimization completed successfully.",
+        durationMs,
+        fileSizeKb
+      });
+    } catch (err: any) {
+      console.error("[ADMIN] Database defrag failed:", err.message);
+      res.status(500).json({ error: "Failed to optimize database: " + err.message });
+    }
+  });
+
   // Medication Routes
   app.get("/api/medications", authenticate, (req: any, res) => {
     try {

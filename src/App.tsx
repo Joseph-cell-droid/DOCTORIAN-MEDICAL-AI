@@ -2471,7 +2471,7 @@ export default function App() {
                 </button>
 
                 {/* Language Quick Dropdown */}
-                <div className="relative shrink-0">
+                <div className="hidden sm:block relative shrink-0">
                   <motion.button
                     onClick={() => {
                       setIsLanguageMenuOpen(!isLanguageMenuOpen);
@@ -3310,26 +3310,28 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <button 
                       onClick={() => {
                         setAuthModalView('login');
                         setIsAuthModalOpen(true);
                       }}
-                      className="flex items-center gap-2 px-3 sm:px-4 py-2 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] sm:text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group border border-slate-100 dark:border-slate-800 whitespace-nowrap shrink-0"
+                      className="flex items-center justify-center gap-1.5 w-11 h-11 sm:w-auto sm:h-10 px-0 sm:px-4 text-slate-600 dark:text-slate-300 rounded-2xl sm:rounded-xl text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group border border-slate-100 dark:border-slate-800 whitespace-nowrap shrink-0"
+                      title="Sign In"
                     >
                       <LogIn size={16} className="group-hover:translate-x-1 transition-transform shrink-0" />
-                      <span className="inline">SIGN IN</span>
+                      <span className="hidden sm:inline">SIGN IN</span>
                     </button>
                     <button 
                       onClick={() => {
                         setAuthModalView('signup');
                         setIsAuthModalOpen(true);
                       }}
-                      className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] sm:text-xs font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-blue-900/20 group whitespace-nowrap shrink-0"
+                      className="flex items-center justify-center gap-1.5 w-11 h-11 sm:w-auto sm:h-10 px-0 sm:px-4 bg-blue-600 text-white rounded-2xl sm:rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-blue-900/20 group whitespace-nowrap shrink-0"
+                      title="Sign Up"
                     >
                       <UserPlus size={16} className="group-hover:scale-110 transition-transform shrink-0" />
-                      <span className="inline">SIGN UP</span>
+                      <span className="hidden sm:inline">SIGN UP</span>
                     </button>
                   </div>
                 )

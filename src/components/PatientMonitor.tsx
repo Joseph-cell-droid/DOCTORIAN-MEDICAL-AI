@@ -171,9 +171,23 @@ const VitalCard: React.FC<{
         <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${highlight ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'}`} id={`label-${label.replace(/\s+/g, '-')}`}>{label}</p>
         <div className="flex items-center gap-3">
           <div className="flex items-baseline gap-1.5" aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}>
-            <span className={`text-5xl sm:text-6xl lg:text-7xl font-[1000] tracking-tighter tabular-nums leading-none ${
-              highlight ? 'text-white' : color.includes('text-') ? color : 'text-slate-900 dark:text-white'
-            }`} aria-live="polite">{value}</span>
+            <motion.span 
+              className={`text-5xl sm:text-6xl lg:text-7xl font-[1000] tracking-tighter tabular-nums leading-none ${
+                highlight ? 'text-white' : color.includes('text-') ? color : 'text-slate-900 dark:text-white'
+              }`} 
+              aria-live="polite"
+              animate={label === "Heart Rate" && status === "normal" && value !== '--' ? {
+                scale: [1, 1.04, 1],
+                opacity: [1, 0.85, 1],
+              } : {}}
+              transition={label === "Heart Rate" && status === "normal" && value !== '--' ? {
+                duration: !isNaN(parseFloat(value)) && parseFloat(value) > 0 ? 60 / parseFloat(value) : 0.8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              } : {}}
+            >
+              {value}
+            </motion.span>
             <span className={`text-xs sm:text-sm font-black uppercase tracking-widest ${highlight ? 'text-white/40' : 'text-slate-400'}`}>{unit}</span>
           </div>
           {(() => {

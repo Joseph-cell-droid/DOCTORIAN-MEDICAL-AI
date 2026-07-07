@@ -2818,7 +2818,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
           <header className="h-16 lg:h-15 px-2 xs:px-3 md:px-4 lg:px-6 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl shrink-0 relative">
             {/* Top border ambient synapse line */}
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 opacity-90" />
-            <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               {onNavigate && (
                 <button
                   onClick={() => onNavigate('home')}
@@ -2886,7 +2886,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               </div>
             </div>
 
-            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 lg:gap-2">
+            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-[65vw] md:max-w-[75vw] lg:max-w-none shrink-0 py-1.5 whitespace-nowrap flex-nowrap scroll-smooth">
               {/* VHT Community Registry Sync */}
               <button
                 onClick={() => {
@@ -3263,7 +3263,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                 setShowSettings(!showSettings);
                 triggerFeatureTip('settings', showSettings ? 'Closed Settings' : 'Settings Opened');
               }} 
-              className="p-2 text-slate-400 hover:text-blue-600 transition-all animate-spin-slow cursor-pointer flex items-center gap-1" 
+              className="p-2 text-slate-400 hover:text-blue-600 transition-all animate-spin-slow cursor-pointer flex items-center gap-1 shrink-0" 
               title="Doctorian Settings"
             >
               <Settings size={14} />
@@ -3333,7 +3333,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll chatbot-zoom-container"
             style={{ '--chatbot-zoom': zoomLevel / 100 } as React.CSSProperties}
           >
-          <div className={`mx-auto px-4 sm:px-6 py-4 sm:py-6 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
+          <div className={`mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-60 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (
                 <motion.div 

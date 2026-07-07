@@ -1732,6 +1732,35 @@ export const api = {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete feedback entry");
       return data.success as boolean;
+    },
+    async getDbHealth() {
+      const res = await fetch(`${API_BASE}/admin/db-health`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch database health stats");
+      return data as {
+        success: boolean;
+        fileSizeKb: number;
+        tableCounts: Record<string, number>;
+        integrity: string;
+        path: string;
+        timestamp: string;
+      };
+    },
+    async defragDb() {
+      const res = await fetch(`${API_BASE}/admin/db-defrag`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to defragment database");
+      return data as {
+        success: boolean;
+        message: string;
+        durationMs: number;
+        fileSizeKb: number;
+      };
     }
   },
   doctors: {

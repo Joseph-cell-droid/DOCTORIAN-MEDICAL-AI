@@ -22,6 +22,11 @@ export const SpecialistFinder: React.FC = () => {
   const [cameraActive, setCameraActive] = useState(false);
   const [importingPatient, setImportingPatient] = useState<any>(null);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [importStatus, setImportStatus] = useState<{
+    type: 'new' | 'duplicate_skipped' | 'updated';
+    message: string;
+    patientName: string;
+  } | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [selectedDemoCard, setSelectedDemoCard] = useState<any>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -196,14 +201,53 @@ export const SpecialistFinder: React.FC = () => {
       ];
     }
     
-    const finalizedPatient = {
-      ...newPatient,
-      id: newPatient.id || `patient-scan-${Math.random().toString(36).substr(2, 9)}`,
-      bedNumber: newPatient.bedNumber || `Bed ${String.fromCharCode(65 + Math.floor(Math.random() * 4))}-0${Math.floor(Math.random() * 8) + 1}`
-    };
-    
-    localStorage.setItem('doctorian_registered_patients', JSON.stringify([...current, finalizedPatient]));
-    window.dispatchEvent(new Event('storage'));
+    const finalizedId = newPatient.id || `patient-scan-${Math.random().toString(36).substr(2, 9)}`;
+    const existingIndex = current.findIndex(p => 
+      p.id === finalizedId || 
+      (p.name && newPatient.name && p.name.toLowerCase().trim() === newPatient.name.toLowerCase().trim())
+    );
+
+    if (existingIndex !== -1) {
+      const existingPatient = current[existingIndex];
+      const diseasesIdentical = 
+        existingPatient.conditions === newPatient.conditions && 
+        existingPatient.allergies === newPatient.allergies;
+
+      if (diseasesIdentical) {
+        setImportStatus({
+          type: 'duplicate_skipped',
+          patientName: existingPatient.name,
+          message: 'This patient is already registered with an identical clinical profile. Skipped regeneration to avoid redundant database entries.'
+        });
+      } else {
+        const updatedPatient = {
+          ...existingPatient,
+          ...newPatient,
+          id: existingPatient.id // keep original ID
+        };
+        current[existingIndex] = updatedPatient;
+        localStorage.setItem('doctorian_registered_patients', JSON.stringify(current));
+        window.dispatchEvent(new Event('storage'));
+        setImportStatus({
+          type: 'updated',
+          patientName: existingPatient.name,
+          message: `Identified existing patient profile. Successfully updated conditions to: "${newPatient.conditions}"`
+        });
+      }
+    } else {
+      const finalizedPatient = {
+        ...newPatient,
+        id: finalizedId,
+        bedNumber: newPatient.bedNumber || `Bed ${String.fromCharCode(65 + Math.floor(Math.random() * 4))}-0${Math.floor(Math.random() * 8) + 1}`
+      };
+      localStorage.setItem('doctorian_registered_patients', JSON.stringify([...current, finalizedPatient]));
+      window.dispatchEvent(new Event('storage'));
+      setImportStatus({
+        type: 'new',
+        patientName: finalizedPatient.name,
+        message: 'Successfully linked a brand new patient to the active registry database nodes.'
+      });
+    }
   };
 
   // Live QR Code Frame Processing
@@ -494,24 +538,66 @@ export const SpecialistFinder: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              ) : importSuccess ? (
+              ) : importSuccess && importStatus ? (
                 <div className="p-10 flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center animate-bounce">
-                    <Check size={40} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">Record Successfully Scanned</h3>
-                    <p className="text-sm text-slate-400 font-bold uppercase mt-1">Ready for real-time telemetry tracking & monitor analysis</p>
-                  </div>
-                  <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-slate-400 font-mono">Import status</span>
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded border border-emerald-100 dark:border-emerald-900">
-                      Active Registry Node Linked
-                    </span>
-                  </div>
+                  {importStatus.type === 'new' && (
+                    <>
+                      <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center animate-bounce">
+                        <Check size={40} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 mb-1 block">New Patient Linked</span>
+                        <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-2">{importStatus.patientName}</h3>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{importStatus.message}</p>
+                      </div>
+                      <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex items-center justify-between">
+                        <span className="text-xs font-black uppercase text-slate-400 font-mono">Registry Status</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded border border-emerald-100 dark:border-emerald-900">
+                          Active Registry Node Linked
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {importStatus.type === 'updated' && (
+                    <>
+                      <div className="w-20 h-20 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center animate-bounce">
+                        <Zap size={40} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 mb-1 block">Clinical Record Updated</span>
+                        <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-2">{importStatus.patientName}</h3>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{importStatus.message}</p>
+                      </div>
+                      <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex items-center justify-between">
+                        <span className="text-xs font-black uppercase text-slate-400 font-mono">Registry Status</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded border border-blue-100 dark:border-blue-900">
+                          Conditions Merged
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {importStatus.type === 'duplicate_skipped' && (
+                    <>
+                      <div className="w-20 h-20 bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center">
+                        <ShieldAlert size={40} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 mb-1 block">Duplicate Registry Safeguard</span>
+                        <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-2">{importStatus.patientName}</h3>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider leading-relaxed max-w-md mx-auto">{importStatus.message}</p>
+                      </div>
+                      <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex items-center justify-between">
+                        <span className="text-xs font-black uppercase text-slate-400 font-mono">Registry Status</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded border border-amber-100 dark:border-amber-900">
+                          Already Registered
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <button
                     onClick={() => {
                       setImportSuccess(false);
+                      setImportStatus(null);
                       setIsScannerOpen(false);
                     }}
                     className="px-8 py-4 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all shadow-md"
@@ -671,7 +757,24 @@ export const SpecialistFinder: React.FC = () => {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">MOH System Data Matrix</p>
 
               <div className="p-4 bg-white rounded-2xl border border-slate-100 dark:border-slate-800 shadow-inner mb-6">
-                <QRCodeSVG value={JSON.stringify(selectedDemoCard)} size={200} />
+                <QRCodeSVG 
+                  value={JSON.stringify({
+                    id: selectedDemoCard.id || `demo-patient-${selectedDemoCard.name.replace(/\s+/g, '-').toLowerCase()}`,
+                    nm: selectedDemoCard.name,
+                    ag: selectedDemoCard.age,
+                    gd: selectedDemoCard.gender,
+                    wt: selectedDemoCard.weight,
+                    bt: selectedDemoCard.bloodType,
+                    ph: selectedDemoCard.phone,
+                    dp: selectedDemoCard.doctorPhone,
+                    mp: selectedDemoCard.mentorPhone,
+                    cd: selectedDemoCard.conditions,
+                    al: selectedDemoCard.allergies,
+                    vitalsPreset: selectedDemoCard.vitalsPreset
+                  })} 
+                  size={240} 
+                  level="L" 
+                />
               </div>
 
               <p className="text-[10px] text-slate-400 font-semibold leading-normal uppercase max-w-xs mb-4">

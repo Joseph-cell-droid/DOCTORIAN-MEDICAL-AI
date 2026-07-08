@@ -13,6 +13,8 @@ import { ClinicalPatientRegistry as ClinicalPatientRegistryStandalone, Registere
 import { DoctorVerificationModal } from './DoctorVerificationModal';
 import BioSimulation from './BioSimulation';
 import CognisAnalytics from './CognisAnalytics';
+import { DeviceTerminalPanel } from './DeviceTerminalPanel';
+import { MachineNexusPanel } from './MachineNexusPanel';
 import { NeuralHealthSummary } from './NeuralHealthSummary';
 import { VitalWaveform } from './VitalWaveform';
 import { LiveECGMonitor } from './LiveECGMonitor';
@@ -4089,288 +4091,32 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
       </motion.div>
 
       {/* Connection Panel */}
-      {!connection.connected && (
-        !(user?.role === 'doctor' || user?.role === 'admin') ? (
-          <motion.div 
-            id="connection-panel"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl shadow-slate-200 dark:shadow-blue-900/10 p-6 sm:p-10 mb-8 overflow-hidden relative"
-          >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3 relative z-10">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
-                <Radio className="w-5 h-5" />
-              </div>
-              Connect to Arduino
-            </h2>
-            <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 relative z-10 flex flex-col items-center text-center max-w-xl mx-auto py-8">
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-full mb-4">
-                <ShieldAlert size={28} />
-              </div>
-              <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white mb-2">Ward Telemetry Setup Restricted</h3>
-              <p className="text-xs text-slate-550 text-slate-500 leading-relaxed font-bold uppercase">
-                Active transponder socket connection channels are managed securely by medical personnel and network administrators directly within the Doctor's Command Dashboard.
-              </p>
+      {!(user?.role === 'doctor' || user?.role === 'admin') ? (
+        <motion.div 
+          id="connection-panel"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl shadow-slate-200 dark:shadow-blue-900/10 p-6 sm:p-10 mb-8 overflow-hidden relative"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3 relative z-10">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+              <Radio className="w-5 h-5" />
             </div>
-          </motion.div>
-        ) : (
-          <motion.div 
-            id="connection-panel"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl shadow-slate-200 dark:shadow-blue-900/10 p-6 sm:p-10 mb-8 overflow-hidden relative"
-          >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
-            
-            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-8 flex items-center gap-3 relative z-10">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
-                <Radio className="w-5 h-5" />
-              </div>
-              Connect to Arduino
-            </h2>
-
-          {/* Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6 sm:mb-8 relative z-10">
-            <button
-              onClick={() => setConnectionTab('watch')}
-              className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all border-2 ${
-                connectionTab === 'watch'
-                  ? 'bg-rose-600 text-white border-rose-600 shadow-lg shadow-rose-200 dark:shadow-rose-900/20'
-                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-800'
-              }`}
-            >
-              <Smartphone className="w-4 h-4 shrink-0" />
-              <span>WATCH LINK</span>
-            </button>
-            <button
-              onClick={() => setConnectionTab('bluetooth')}
-              className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all border-2 ${
-                connectionTab === 'bluetooth'
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200 dark:shadow-blue-900/20'
-                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800'
-              }`}
-            >
-              <Bluetooth className="w-4 h-4 shrink-0" />
-              <span>BLUETOOTH</span>
-            </button>
-            <button
-              onClick={() => setConnectionTab('serial')}
-              className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all border-2 ${
-                connectionTab === 'serial'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200 dark:shadow-none'
-                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-              }`}
-            >
-              <Cpu className="w-4 h-4 shrink-0" />
-              <span>SERIAL</span>
-            </button>
-            <button
-              onClick={() => setConnectionTab('wifi')}
-              className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all border-2 ${
-                connectionTab === 'wifi'
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200 dark:shadow-blue-900/20'
-                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800'
-              }`}
-            >
-              <Wifi className="w-4 h-4 shrink-0" />
-              <span>WIFI</span>
-            </button>
-            <button
-              onClick={() => setConnectionTab('cloud')}
-              className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all border-2 ${
-                connectionTab === 'cloud'
-                  ? 'bg-purple-650 text-white border-purple-600 shadow-lg shadow-purple-200 dark:shadow-purple-900/20'
-                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-purple-200 dark:hover:border-purple-800'
-              }`}
-            >
-              <Zap className="w-4 h-4 shrink-0" />
-              <span>NEURAL LINK</span>
-            </button>
-          </div>
-
-          <div className="relative z-10">
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-xs font-bold"
-              >
-                <AlertTriangle size={16} />
-                {error}
-              </motion.div>
-            )}
-
-            {connectionTab === 'watch' ? (
-              <div className="space-y-6">
-                <div className="bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800 rounded-2xl p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-2 rounded-xl text-rose-600 dark:text-rose-400 shadow-sm">
-                      <Smartphone className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm text-rose-900 dark:text-rose-200">
-                      <p className="font-bold mb-1">Samsung & Health Watch Relay</p>
-                      <p className="opacity-80 leading-relaxed">Connect directly to your Samsung Health, Apple Watch, or generic heart rate monitor. Uses standard GATT biometric protocols.</p>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsConnecting('watch');
-                    connectHealthWatch().finally(() => setIsConnecting(null));
-                  }}
-                  disabled={isConnecting !== null}
-                  className="w-full flex items-center justify-center gap-4 bg-rose-600 text-white py-5 rounded-[2rem] font-black text-lg hover:bg-rose-700 transition-all shadow-2xl shadow-rose-200 active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConnecting === 'watch' ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <Heart className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  )}
-                  <span>CONNECT SAMSUNG / HEALTH WATCH</span>
-                </button>
-                <p className="text-[10px] font-bold text-center text-slate-400 uppercase tracking-widest">
-                  Ensure "Heart Rate" broadcasting is enabled in your watch settings
-                </p>
-              </div>
-            ) : connectionTab === 'bluetooth' ? (
-              <div className="space-y-6">
-                <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-2xl p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-2 rounded-xl text-blue-600 dark:text-blue-400 shadow-sm">
-                      <Bluetooth className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm text-blue-900 dark:text-blue-200">
-                      <p className="font-bold mb-1">Wireless Bluetooth Link</p>
-                      <p className="opacity-80 leading-relaxed">Connect to your Arduino BLE module (HM-10, ESP32). Ensure your device is discoverable.</p>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleConnectBluetooth}
-                  disabled={isConnecting !== null}
-                  className="w-full flex items-center justify-center gap-4 bg-blue-600 text-white py-5 rounded-[2rem] font-black text-lg hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200 active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConnecting === 'bluetooth' ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <Bluetooth className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  )}
-                  <span>START BLUETOOTH PAIRING</span>
-                </button>
-              </div>
-            ) : connectionTab === 'serial' ? (
-              <div className="space-y-6">
-                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-2 rounded-xl text-slate-600 dark:text-slate-400 shadow-sm">
-                      <Cpu className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm text-slate-900 dark:text-slate-300">
-                      <p className="font-bold mb-1">Wired Serial Link</p>
-                      <p className="opacity-80 leading-relaxed">Connect your Arduino via USB. Ensure the baud rate is set to 9600 in your code.</p>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleConnectSerial}
-                  disabled={isConnecting !== null}
-                  className="w-full flex items-center justify-center gap-4 bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConnecting === 'serial' ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <Activity className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                  )}
-                  <span>CONNECT ARDUINO (USB)</span>
-                </button>
-              </div>
-            ) : connectionTab === 'cloud' ? (
-              <div className="space-y-6">
-                <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-2xl p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-2 rounded-xl text-purple-600 dark:text-purple-400 shadow-sm">
-                      <Zap className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm text-purple-900 dark:text-purple-200">
-                      <p className="font-bold mb-1">Real-Time Neural Cloud Sync</p>
-                      <p className="opacity-80 leading-relaxed">Streaming biometric data via WebSockets from any synchronized node. Automatic reconnection and end-to-end neural encryption enabled.</p>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsConnecting('cloud');
-                    connectWebSocket();
-                    setTimeout(() => setIsConnecting(null), 1000);
-                  }}
-                  disabled={isConnecting !== null}
-                  className="w-full flex items-center justify-center gap-4 bg-purple-600 text-white py-5 rounded-[2rem] font-black text-lg hover:bg-purple-700 transition-all shadow-2xl shadow-purple-200 active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConnecting === 'cloud' ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <Signal className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  )}
-                  <span>ESTABLISH NEURAL CLOUD LINK</span>
-                </button>
-              </div>
-            ) : connectionTab === 'wifi' ? (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Arduino IP Address</label>
-                  <input
-                    type="text"
-                    id="wifi-ip-input"
-                    value={wifiInput}
-                    onChange={(e) => setWifiInput(e.target.value)}
-                    placeholder="http://192.168.1.100"
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                    aria-label="Arduino IP Address"
-                  />
-                </div>
-                <div className="bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-2xl p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-2 rounded-xl text-emerald-600 dark:text-emerald-400 shadow-sm">
-                      <Wifi className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm text-emerald-900 dark:text-emerald-200">
-                      <p className="font-bold mb-1">Network WiFi Link</p>
-                      <p className="opacity-80 leading-relaxed">Enter the local IP of your Arduino WiFi module. It must serve JSON vitals at the <code className="bg-emerald-100/50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded font-mono text-xs">/vitals</code> endpoint.</p>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleConnectWiFi(wifiInput)}
-                  disabled={isConnecting !== null}
-                  className="w-full flex items-center justify-center gap-4 bg-emerald-600 text-white py-5 rounded-[2rem] font-black text-lg hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-200 active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConnecting === 'wifi' ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <Wifi className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                  )}
-                  <span>CONNECT VIA WIFI</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl text-blue-600 dark:text-blue-400 shadow-sm">
-                      <Cpu className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                      <p className="font-bold text-slate-900 dark:text-white mb-1 uppercase tracking-wide">Multi-Channel Pairing Protocol</p>
-                      <p className="opacity-80">Select any connection channel above to couple your physical ward hardware. For software simulation tests, access the open "Simulator Display" in the navigation tabs above.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            Connect to Arduino
+          </h2>
+          <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 relative z-10 flex flex-col items-center text-center max-w-xl mx-auto py-8">
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-full mb-4">
+              <ShieldAlert size={28} />
+            </div>
+            <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white mb-2">Ward Telemetry Setup Restricted</h3>
+            <p className="text-xs text-slate-550 text-slate-500 leading-relaxed font-bold uppercase">
+              Active transponder socket connection channels are managed securely by medical personnel and network administrators directly within the Doctor's Command Dashboard.
+            </p>
           </div>
         </motion.div>
-        )
+      ) : (
+        <DeviceTerminalPanel arduino={arduino} />
       )}
 
       {/* Vitals Dashboard */}
@@ -4483,7 +4229,11 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             ) : activeTab === 'neural' ? (
               <div className="space-y-8">
                  <BioSimulation user={user} onUpdateUser={onUpdateUser} />
-                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                 <div className="grid grid-cols-1 gap-8">
+                    <CognisAnalytics />
+                    <MachineNexusPanel arduino={arduino} />
+                 </div>
+                 <div className="hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
                        <CognisAnalytics />
                     </div>

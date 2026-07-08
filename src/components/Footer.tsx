@@ -225,11 +225,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <footer className="relative bg-[#f8fafc] dark:bg-[#030712] pt-16 sm:pt-20 pb-48 lg:pb-32 overflow-hidden border-t-2 border-slate-200 dark:border-slate-900/40 mt-auto transition-colors duration-300">
+    <footer className="relative bg-[#f8fafc] dark:bg-[#030712] pt-16 sm:pt-20 pb-48 lg:pb-32 overflow-hidden mt-auto transition-colors duration-300">
       
-      {/* Laser Gradient Accent Bar across the top of the footer */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 shadow-[0_1px_4px_rgba(59,130,246,0.3)]" />
-
       {/* Elegantly soft illumination backdrops */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
         <div className="absolute top-0 left-1/4 w-[450px] h-[350px] bg-gradient-to-br from-blue-500/10 to-transparent dark:from-blue-500/20 rounded-full blur-[120px]" />
@@ -237,7 +234,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="absolute top-1/2 right-10 w-[200px] h-[200px] bg-gradient-to-br from-emerald-500/10 to-transparent dark:from-emerald-500/20 rounded-full blur-[70px]" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 relative z-10">
+      <div className="max-w-none mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 relative z-10 w-full">
         
         {/* Features display container - bounded scrollable boundary without scrollbar or borders */}
         <div 
@@ -246,7 +243,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         >
           
           {/* Interactive System Status Top Row (Modern Grid Bar) / Highly visible grid boxes */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-indigo-950/20 rounded-[2rem] shadow-md dark:shadow-none hover:shadow-lg transition-shadow duration-300 backdrop-blur-md">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-white dark:bg-slate-900/40 rounded-[2rem] shadow-md dark:shadow-none hover:shadow-lg transition-shadow duration-300 backdrop-blur-md">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl shrink-0 shadow-inner">
                 <Server size={18} className="animate-pulse" />
@@ -260,7 +257,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </div>
             </div>
             
-            <div className="flex items-center gap-4 border-t md:border-t-0 md:border-x border-slate-200/50 dark:border-slate-800/40 pt-4 md:pt-0 md:px-6">
+            <div className="flex items-center gap-4 pt-4 md:pt-0 md:px-6">
               <div className="p-3 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl shrink-0 shadow-inner">
                 <Users size={18} />
               </div>
@@ -272,7 +269,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 border-t md:border-t-0 pt-4 md:pt-0 md:pl-6">
+            <div className="flex items-center gap-4 pt-4 md:pt-0 md:pl-6">
               <div className="p-3 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl shrink-0 shadow-inner">
                 <Radio size={18} className="animate-pulse" />
               </div>
@@ -286,7 +283,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           {/* Interactive Horizontally Scrollable Feature Rail */}
-          <div className="p-6 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 rounded-[2.5rem] space-y-5 backdrop-blur-md">
+          <div className="p-6 bg-slate-50 dark:bg-slate-900/30 rounded-[2.5rem] space-y-5 backdrop-blur-md">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -302,7 +299,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                     e.preventDefault();
                     if (railRef.current) railRef.current.scrollBy({ left: -300, behavior: 'smooth' });
                   }}
-                  className="w-9 h-9 rounded-xl bg-white dark:bg-slate-955 border border-slate-150 dark:border-slate-800/80 flex items-center justify-center text-slate-650 dark:text-slate-350 hover:text-blue-600 dark:hover:text-cyan-400 hover:border-blue-200 dark:hover:border-cyan-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-9 h-9 rounded-xl bg-white dark:bg-slate-955 flex items-center justify-center text-slate-650 dark:text-slate-350 hover:text-blue-600 dark:hover:text-cyan-400 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   title="Scroll Left"
                 >
                   <span className="font-bold text-sm">←</span>
@@ -312,7 +309,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                     e.preventDefault();
                     if (railRef.current) railRef.current.scrollBy({ left: 300, behavior: 'smooth' });
                   }}
-                  className="w-9 h-9 rounded-xl bg-white dark:bg-slate-955 border border-slate-150 dark:border-slate-800/80 flex items-center justify-center text-slate-655 dark:text-slate-355 hover:text-blue-600 dark:hover:text-cyan-400 hover:border-blue-200 dark:hover:border-cyan-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-9 h-9 rounded-xl bg-white dark:bg-slate-955 flex items-center justify-center text-slate-655 dark:text-slate-355 hover:text-blue-600 dark:hover:text-cyan-400 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-sm cursor-pointer active:scale-90 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   title="Scroll Right"
                 >
                   <span className="font-bold text-sm">→</span>
@@ -341,7 +338,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                     }
                   }}
                   aria-label={`Activate ${item.title} Pipeline`}
-                  className="min-w-[280px] md:min-w-[316px] max-w-[316px] shrink-0 snap-start bg-white dark:bg-slate-955 p-5 rounded-[2rem] border border-slate-155 dark:border-slate-800/70 hover:border-blue-500/30 dark:hover:border-cyan-500/30 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="min-w-[280px] md:min-w-[316px] max-w-[316px] shrink-0 snap-start bg-white dark:bg-slate-955 p-5 rounded-[2rem] shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 >
                   {/* Background soft glow on hover */}
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent dark:from-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
@@ -365,7 +362,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                     </div>
                   </div>
                   
-                  <div className="mt-5 pt-3 border-t border-slate-50 dark:border-slate-900 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-cyan-405 transition-colors relative z-10">
+                  <div className="mt-5 pt-3 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-cyan-450 transition-colors relative z-10">
                     <span>Activate Pipeline</span>
                     <ArrowRight size={12} className="group-hover:translate-x-1.5 transition-transform duration-200" />
                   </div>
@@ -398,13 +395,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               {/* Quick Contact Info */}
               <div className="flex flex-col gap-3 pt-2 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 <div className="flex items-center gap-3 group">
-                  <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 rounded-xl flex items-center justify-center transition-colors">
+                  <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 rounded-xl flex items-center justify-center transition-colors">
                     <Mail size={14} />
                   </div>
                   <span className="break-all select-all font-bold">{process.env.MTN_EMAIL || 'gloriajayakullo@gmail.com'}</span>
                 </div>
                 <div className="flex items-center gap-3 group">
-                  <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 text-slate-500 rounded-xl flex items-center justify-center">
+                  <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 text-slate-550 rounded-xl flex items-center justify-center">
                     <MapPin size={14} />
                   </div>
                   <span className="font-bold">Kampala Region, Uganda Node</span>
@@ -469,7 +466,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                         placeholder="ENTER TERMINAL EMAIL..."
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-850 dark:text-white placeholder:text-slate-400/90 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-950 transition-all"
+                        className="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-850 dark:text-white placeholder:text-slate-400/90 outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-slate-950 transition-all"
                       />
                       <button 
                         type="submit" 
@@ -492,7 +489,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 ) : (
                   <motion.div 
                     key="subscribe-success"
-                    className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3"
+                    className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-2xl flex items-center gap-3"
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                   >
@@ -516,7 +513,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
               © {currentYear} Doctorian AI. All rights reserved.
             </p>
-            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-500/20 dark:border-emerald-400/20 rounded-full shadow-sm shrink-0">
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 dark:bg-emerald-400/10 rounded-full shadow-sm shrink-0">
               <ShieldCheck size={12} className="text-emerald-600 dark:text-emerald-400 shadow-sm" />
               <span className="text-[8px] font-black tracking-widest uppercase text-emerald-600 dark:text-emerald-400">HIPAA & GDPR COMPLIANT NODE</span>
             </div>
@@ -529,7 +526,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </span>
             <button
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="p-3 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-md border border-slate-200 dark:border-slate-800 cursor-pointer"
+              className="p-3 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-md cursor-pointer"
               title="Return to Core Stream"
             >
               <ChevronUp size={16} />

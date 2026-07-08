@@ -54,6 +54,12 @@ export const useArduino = () => {
   const [neuralAlert, setNeuralAlert] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [watchMetadata, setWatchMetadata] = useState<{ battery?: number; manufacturer?: string } | null>(null);
+  const [connectionLogs, setConnectionLogs] = useState<string[]>([]);
+
+  const addConnectionLog = useCallback((msg: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setConnectionLogs(prev => [...prev.slice(-99), `[${timestamp}] [${type.toUpperCase()}] ${msg}`]);
+  }, []);
 
   const lastAiAnalysisTime = useRef<number>(0);
   const isAnalyzing = useRef<boolean>(false);
@@ -333,6 +339,8 @@ export const useArduino = () => {
   const connectBluetooth = useCallback(async () => {
     setError(null);
     disconnect();
+    addConnectionLog("Initializing Web Bluetooth (BLE) discovery pipeline...", "info");
+    addConnectionLog("Querying GATT primary service filters: HM-10 (0xFFE0) & Standard Heart Rate (0x180D)...", "info");
     try {
       const nav = navigator as any;
       if (!nav.bluetooth) {
@@ -340,28 +348,91 @@ export const useArduino = () => {
       }
       
       const device = await nav.bluetooth.requestDevice({
-        filters: [{ services: [0xffe0] }], // Standard HM-10 service
+        filters: [
+          { services: [0xffe0] }, // HM-10 Custom Serial Passthrough
+          { services: ['heart_rate'] } // Standard GATT Heart Rate monitors (Garmin, Polar, Apple Watch, etc)
+        ],
         optionalServices: ['battery_service', 'device_information']
       });
 
+      addConnectionLog(`Found BLE Device: "${device.name || 'Wireless Heart Rate Monitor'}"`, "success");
+      addConnectionLog("Establishing secure Bluetooth transponder socket...", "info");
+      
       bluetoothDeviceRef.current = device;
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(0xffe0);
-      const characteristic = await service.getCharacteristic(0xffe1);
+      addConnectionLog("GATT connection established. Querying services...", "success");
+      
+      let service;
+      let characteristic;
+      let isStandardHR = false;
 
+      try {
+        service = await server.getPrimaryService('heart_rate');
+        characteristic = await service.getCharacteristic('heart_rate_measurement');
+        isStandardHR = true;
+        addConnectionLog("Matched standard BLE SIG Heart Rate Service [0x180D] successfully.", "success");
+      } catch (err) {
+        addConnectionLog("Standard Heart Rate Service not present. Falling back to Arduino HM-10 Custom Serial...", "info");
+        service = await server.getPrimaryService(0xffe0);
+        characteristic = await service.getCharacteristic(0xffe1);
+      }
+
+      addConnectionLog(`Subscribing to active characteristic notify descriptors...`, "success");
       await characteristic.startNotifications();
+      addConnectionLog("GATT Telemetry Stream linked. Ingesting active frames...", "success");
+      
       characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
         const value = event.target.value;
-        const decoder = new TextDecoder();
-        const data = decoder.decode(value);
-        parseData(data);
+        
+        if (isStandardHR) {
+          // Parse standard BLE Heart Rate Measurement (Flags [1 byte] + Heart Rate Value [1 or 2 bytes])
+          const flags = value.getUint8(0);
+          const rate16 = flags & 0x01;
+          let hrValue = 0;
+          if (rate16) {
+            hrValue = value.getUint16(1, true);
+          } else {
+            hrValue = value.getUint8(1);
+          }
+          addConnectionLog(`[BLE GATT] Core pulse telemetry received: ${hrValue} BPM`, "success");
+          
+          setVitals(current => {
+            const previous = current || {
+              heartRate: 72,
+              temperature: 36.6,
+              spo2: 98,
+              systolicBP: 120,
+              diastolicBP: 80,
+              respiratoryRate: 14,
+              timestamp: Date.now()
+            };
+            const updated = {
+              ...previous,
+              heartRate: hrValue,
+              timestamp: Date.now()
+            };
+            
+            import('../utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+              VitalsSonifier.updatePresence(updated, calculateHealthStatus(updated).overall);
+            });
+            
+            return updated;
+          });
+        } else {
+          // Fallback to HM-10 custom serial (ASCII strings)
+          const decoder = new TextDecoder();
+          const data = decoder.decode(value);
+          addConnectionLog(`RX BLE FRAME: "${data.trim()}"`, "info");
+          parseData(data);
+        }
       });
 
       device.addEventListener('gattserverdisconnected', () => {
+        addConnectionLog("GATT remote server disconnected unexpectedly.", "warn");
         setConnection({ connected: false, type: null, deviceName: null });
       });
 
-      setConnection({ connected: true, type: 'bluetooth', deviceName: device.name || 'Arduino BLE' });
+      setConnection({ connected: true, type: 'bluetooth', deviceName: device.name || 'Wireless Heart Rate Monitor' });
     } catch (err: any) {
       console.error('Bluetooth error:', err);
       let friendlyMessage = 'Bluetooth connection failed.';
@@ -379,13 +450,15 @@ export const useArduino = () => {
         friendlyMessage = `Bluetooth Error: ${err.message || 'Unknown error'}. Please check if your device is in pairing mode and Bluetooth is on.`;
       }
       
+      addConnectionLog(`Bluetooth pairing blocked: ${err.message || err}`, "error");
       setError(friendlyMessage);
     }
-  }, [parseData]);
+  }, [parseData, addConnectionLog]);
 
   const connectSerial = useCallback(async () => {
     setError(null);
     disconnect();
+    addConnectionLog("Requesting Web Serial CDC-ACM port allocation...", "info");
     try {
       const nav = navigator as any;
       if (!nav.serial) {
@@ -393,8 +466,11 @@ export const useArduino = () => {
       }
 
       const port = await nav.serial.requestPort();
+      addConnectionLog("Port selected. Configuring UART connection profile: 9600 Baud, 8N1...", "info");
+      
       await port.open({ baudRate: 9600 });
       serialPortRef.current = port;
+      addConnectionLog("COM Port opened. Activating serial readable streams...", "success");
 
       setConnection({ connected: true, type: 'serial', deviceName: 'Arduino Serial' });
 
@@ -403,34 +479,46 @@ export const useArduino = () => {
       const inputStream = decoder.readable;
       const reader = inputStream.getReader();
       serialReaderRef.current = reader;
+      addConnectionLog("Serial buffer reader mounted. Parsing telemetry lines...", "success");
 
       let buffer = '';
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          addConnectionLog("Serial stream terminated (EOF).", "warn");
+          break;
+        }
         buffer += value;
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
         for (const line of lines) {
-          if (line.trim()) parseData(line);
+          if (line.trim()) {
+            addConnectionLog(`RX SERIAL FRAME: "${line.trim()}"`, "info");
+            parseData(line);
+          }
         }
       }
     } catch (err: any) {
       console.error('Serial error:', err);
+      addConnectionLog(`Serial channel allocation failed: ${err.message || err}`, "error");
       setError(err.message || 'Serial connection failed.');
     }
-  }, [parseData]);
+  }, [parseData, addConnectionLog]);
 
   const connectWiFi = useCallback(async (endpoint: string) => {
     setError(null);
     disconnect();
     setWifiEndpoint(endpoint);
+    addConnectionLog(`Starting Network WiFi telemetry poll to host "${endpoint}"...`, "info");
+    addConnectionLog("Target API Endpoint: GET /vitals", "info");
     setConnection({ connected: true, type: 'wifi', deviceName: endpoint });
 
     wifiIntervalRef.current = setInterval(async () => {
       try {
+        addConnectionLog(`GET ${endpoint}/vitals...`, "info");
         const res = await fetch(`${endpoint}/vitals`, { mode: 'cors' });
         const data = await res.json();
+        addConnectionLog(`HTTP 200 OK. Received telemetry payload: ${JSON.stringify(data)}`, "success");
         updateVitals({
           heartRate: data.hr || data.heartRate,
           temperature: data.temp || data.temperature,
@@ -442,10 +530,10 @@ export const useArduino = () => {
         });
       } catch (err: any) {
         console.error('WiFi Fetch Error:', err);
-        // Don't disconnect immediately on one failure, but maybe show a warning
+        addConnectionLog(`HTTP GET Request Failed: ${err.message || err}. Cross-Origin Resource Sharing (CORS) or network separation is active.`, "error");
       }
     }, 3000);
-  }, [disconnect, updateVitals]);
+  }, [disconnect, updateVitals, addConnectionLog]);
 
   const connectWebSocket = useCallback((isBroadcaster = false) => {
     setError(null);
@@ -457,11 +545,16 @@ export const useArduino = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/api/biometrics`;
     
+    addConnectionLog(`Initiating secure Neural WebSocket handshake: GET ${wsUrl}`, "info");
+    addConnectionLog("Request Headers: Upgrade: websocket | Connection: Upgrade", "info");
+    
     console.log(`[WS] Connecting to neural biometrics relay: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     webSocketRef.current = ws;
 
     ws.onopen = () => {
+      addConnectionLog("HTTP 101 Switching Protocols. Handshake approved!", "success");
+      addConnectionLog("WebSocket socket established. Stream is live & active.", "success");
       console.log('[WS] Neural Stream established.');
       if (!isBroadcaster) {
         setConnection({ connected: true, type: 'cloud', deviceName: 'Neural Relay (Cloud)' });
@@ -473,6 +566,7 @@ export const useArduino = () => {
     };
 
     ws.onmessage = (event) => {
+      addConnectionLog(`RX WEBSOCKET FRAME (${event.data.length} bytes)`, "info");
       try {
         const message = JSON.parse(event.data);
         if (message.type === 'vitals' || message.type === 'vitals_relay') {
@@ -487,6 +581,7 @@ export const useArduino = () => {
     };
 
     ws.onclose = () => {
+      addConnectionLog("WebSocket channel severed. Reconnect scheduled in 5 seconds...", "warn");
       console.log('[WS] Neural Stream connection lost.');
       if (!isBroadcaster) {
         setConnection({ connected: false, type: null, deviceName: null });
@@ -500,10 +595,11 @@ export const useArduino = () => {
     };
 
     ws.onerror = (err) => {
+      addConnectionLog("WebSocket runtime error detected.", "error");
       console.error('[WS] Neural Stream error:', err);
       setError('Neural stream synchronization failure. Attempting reconnection...');
     };
-  }, [disconnect, updateVitals, parseData]);
+  }, [disconnect, updateVitals, parseData, addConnectionLog]);
 
   const disconnectWebSocket = useCallback(() => {
     if (webSocketRef.current) {
@@ -657,6 +753,8 @@ export const useArduino = () => {
   const connectHealthWatch = useCallback(async () => {
     setError(null);
     disconnect();
+    addConnectionLog("Initializing direct Bluetooth SmartWatch GATT connection...", "info");
+    addConnectionLog("Querying standard heart_rate [0x180D] primary service...", "info");
     try {
       const nav = navigator as any;
       if (!nav.bluetooth) {
@@ -664,7 +762,6 @@ export const useArduino = () => {
       }
       
       console.log('[WATCH] Requesting Health Watch...');
-      // Standard services for heart rate and pulse oximeter
       const device = await nav.bluetooth.requestDevice({
         filters: [
           { services: ['heart_rate'] }
@@ -672,15 +769,22 @@ export const useArduino = () => {
         optionalServices: ['battery_service', 'device_information', 0x1822] // 0x1822 is Pulse Oximeter
       });
 
+      addConnectionLog(`Found Watch Node: "${device.name || 'GATT SmartWatch'}"`, "success");
+      addConnectionLog("Coupling with device GATT Server client host...", "info");
+
       bluetoothDeviceRef.current = device;
       console.log(`[WATCH] Connecting to ${device.name}...`);
       const server = await device.gatt.connect();
+      addConnectionLog("GATT remote host connected. Scanning biometric services...", "success");
       
       // Heart Rate Service
       try {
+        addConnectionLog("Accessing Heart Rate Service (0x180D)...", "info");
         const hrService = await server.getPrimaryService('heart_rate');
+        addConnectionLog("GATT Service 0x180D retrieved. Querying Heart Rate characteristic (0x2A37)...", "info");
         const hrChar = await hrService.getCharacteristic('heart_rate_measurement');
         
+        addConnectionLog("Establishing secure notify listener on characteristic 0x2A37...", "success");
         await hrChar.startNotifications();
         hrChar.addEventListener('characteristicvaluechanged', (event: any) => {
           const value = event.target.value;
@@ -688,6 +792,7 @@ export const useArduino = () => {
           const is16Bit = flags & 0x1;
           const heartRate = is16Bit ? value.getUint16(1, true) : value.getUint8(1);
           
+          addConnectionLog(`RX WATCH HR: ${heartRate} bpm`, "info");
           updateVitals({
             heartRate,
             temperature: 36.6,
@@ -700,33 +805,44 @@ export const useArduino = () => {
         });
       } catch (hrErr) {
         console.warn('Heart rate service not available:', hrErr);
+        addConnectionLog("Warning: Heart Rate GATT characteristic not exposed on this node.", "warn");
       }
 
       // Battery Service
       try {
+        addConnectionLog("Accessing Battery Service (0x180F)...", "info");
         const batteryService = await server.getPrimaryService('battery_service');
         const batteryChar = await batteryService.getCharacteristic('battery_level');
         const batteryVal = await batteryChar.readValue();
-        setWatchMetadata(prev => ({ ...prev, battery: batteryVal.getUint8(0) }));
+        const level = batteryVal.getUint8(0);
+        addConnectionLog(`Battery level synchronized: ${level}%`, "success");
+        setWatchMetadata(prev => ({ ...prev, battery: level }));
       } catch (battErr) {
         console.warn('Battery service not available:', battErr);
+        addConnectionLog("Warning: Battery service GATT profile rejected.", "warn");
       }
 
       // Device Information Service
       try {
+        addConnectionLog("Querying Device Information Service (0x180A)...", "info");
         const infoService = await server.getPrimaryService('device_information');
         const manufacturerChar = await infoService.getCharacteristic('manufacturer_name_string');
         const manufacturerVal = await manufacturerChar.readValue();
         const decoder = new TextDecoder();
-        setWatchMetadata(prev => ({ ...prev, manufacturer: decoder.decode(manufacturerVal) }));
+        const manufacturer = decoder.decode(manufacturerVal);
+        addConnectionLog(`GATT Hardware Manufacturer: "${manufacturer}"`, "success");
+        setWatchMetadata(prev => ({ ...prev, manufacturer }));
       } catch (infoErr) {
         console.warn('Device info service not available:', infoErr);
+        addConnectionLog("Warning: Device Info GATT descriptors unavailable.", "warn");
       }
 
       device.addEventListener('gattserverdisconnected', () => {
+        addConnectionLog("Watch GATT server disconnected.", "warn");
         setConnection({ connected: false, type: null, deviceName: null });
       });
 
+      addConnectionLog("GATT Handshake complete! Direct watch telemetry coupled.", "success");
       setConnection({ connected: true, type: 'bluetooth', deviceName: device.name || 'Health Watch' });
     } catch (err: any) {
       console.error('Watch connection error:', err);
@@ -738,9 +854,15 @@ export const useArduino = () => {
       } else if (err.name === 'NotFoundError' || friendlyError.includes('User cancelled')) {
         friendlyError = "Connection cancelled. Please choose or select your real-time smartwatch / heart-rate sensor from the pairing menu.";
       }
+      addConnectionLog(`Watch connection aborted: ${err.message || err}`, "error");
       setError(`Watch Link Failed: ${friendlyError}`);
     }
-  }, [disconnect, updateVitals]);
+  }, [disconnect, updateVitals, addConnectionLog]);
+
+  const injectRawTelemetry = useCallback((data: string) => {
+    addConnectionLog(`MANUAL PAYLOAD INJECTION: "${data.trim()}"`, 'success');
+    parseData(data);
+  }, [parseData, addConnectionLog]);
 
   return {
     vitals,
@@ -768,5 +890,8 @@ export const useArduino = () => {
     error,
     updateVitals,
     setConnection,
+    connectionLogs,
+    addConnectionLog,
+    injectRawTelemetry,
   };
 };

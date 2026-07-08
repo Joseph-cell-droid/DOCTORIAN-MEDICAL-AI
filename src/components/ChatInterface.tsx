@@ -9,7 +9,7 @@ import {
   Copy, Check, ThumbsUp, ThumbsDown, MessageSquarePlus, Smile,
   Activity, Brain, Heart, Download, Paperclip, FileText, Phone,
   ChevronDown, Shield, Cpu, Clock, Plus, MessageSquare, ArrowRight, Settings,
-  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut
+  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut, Keyboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -426,8 +426,13 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [voiceCallQuery, setVoiceCallQuery] = useState<string>('');
   const [voiceCallIsTranscribing, setVoiceCallIsTranscribing] = useState<boolean>(false);
   const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(false);
+  const [showVoiceKeyboard, setShowVoiceKeyboard] = useState<boolean>(false);
   
   const ringtoneCleanupRef = useRef<(() => void) | null>(null);
+  const callRecognitionRef = useRef<any>(null);
+  const isSpeechSpeakingRef = useRef<boolean>(false);
+  const isCallMutedRef = useRef<boolean>(false);
+  const isCallActiveRef = useRef<boolean>(false);
 
   // Play dual-tone synthesized telephone ringtone using Web Audio API
   const playRingtone = () => {
@@ -632,6 +637,128 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       speakVoiceCallText("System synchronization failure. Direct physical clinical check is advised.");
     }
   };
+
+  const startCallListening = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("SpeechRecognition not supported in this browser.");
+      return;
+    }
+    if (callRecognitionRef.current) {
+      try { callRecognitionRef.current.abort(); } catch (e) {}
+    }
+
+    const recognition = new SpeechRecognition();
+    callRecognitionRef.current = recognition;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      console.log("Call SpeechRecognition started. Listening to user...");
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript && transcript.trim()) {
+        console.log("Call voice captured:", transcript);
+        sendVoiceCallMessage(transcript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.warn("Call SpeechRecognition error:", event.error);
+      if (event.error === 'no-speech') {
+        restartCallListening();
+      }
+    };
+
+    recognition.onend = () => {
+      console.log("Call SpeechRecognition ended.");
+      restartCallListening();
+    };
+
+    try {
+      if (!isCallMutedRef.current && !isSpeechSpeakingRef.current && isCallActiveRef.current) {
+        recognition.start();
+      }
+    } catch (e) {
+      console.error("Failed to start call recognition:", e);
+    }
+  };
+
+  const restartCallListening = () => {
+    if (!isCallActiveRef.current || isCallMutedRef.current || isSpeechSpeakingRef.current) return;
+    setTimeout(() => {
+      if (!isCallActiveRef.current || isCallMutedRef.current || isSpeechSpeakingRef.current) return;
+      try {
+        if (callRecognitionRef.current) {
+          callRecognitionRef.current.start();
+        }
+      } catch (e) {
+        startCallListening();
+      }
+    }, 400);
+  };
+
+  const stopCallListening = () => {
+    if (callRecognitionRef.current) {
+      try {
+        callRecognitionRef.current.onend = null;
+        callRecognitionRef.current.onerror = null;
+        callRecognitionRef.current.onresult = null;
+        callRecognitionRef.current.abort();
+      } catch (e) {}
+      callRecognitionRef.current = null;
+    }
+  };
+
+  // Synchronize states with refs to prevent stale closure bugs in SpeechRecognition handlers
+  useEffect(() => {
+    isSpeechSpeakingRef.current = voiceIsSpeaking;
+    if (voiceIsSpeaking) {
+      if (callRecognitionRef.current) {
+        try { callRecognitionRef.current.abort(); } catch (e) {}
+      }
+    } else {
+      if (callState === 'connected' && !voiceCallMuted) {
+        restartCallListening();
+      }
+    }
+  }, [voiceIsSpeaking]);
+
+  useEffect(() => {
+    isCallMutedRef.current = voiceCallMuted;
+    if (voiceCallMuted) {
+      if (callRecognitionRef.current) {
+        try { callRecognitionRef.current.abort(); } catch (e) {}
+      }
+    } else {
+      if (callState === 'connected' && !voiceIsSpeaking) {
+        restartCallListening();
+      }
+    }
+  }, [voiceCallMuted]);
+
+  useEffect(() => {
+    isCallActiveRef.current = (callState === 'connected');
+    if (callState === 'connected') {
+      startCallListening();
+    } else {
+      stopCallListening();
+    }
+    return () => {
+      stopCallListening();
+    };
+  }, [callState]);
+
+  useEffect(() => {
+    if (!voiceCallerSpeaker) {
+      window.speechSynthesis?.cancel();
+      setVoiceIsSpeaking(false);
+    }
+  }, [voiceCallerSpeaker]);
 
   // Duration timer Hook
   useEffect(() => {
@@ -5876,208 +6003,298 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 
                  {/* ACTIVE CALL STATE (Calling, Connected, Disconnecting) */}
                  {(callState === 'calling' || callState === 'connected' || callState === 'disconnecting') && (
-                   <div className="flex flex-col flex-1 justify-between py-2 space-y-6 animate-in zoom-in-95 duration-300">
-                     
-                     <div className="text-center space-y-2 pt-4">
-                       <h3 className="text-lg font-semibold tracking-tight text-white">{voiceSelection} (Doctorian)</h3>
-                       <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-mono">
-                         {callState === 'calling' ? (
-                           <span className="text-amber-400 animate-pulse">Connecting...</span>
-                         ) : callState === 'disconnecting' ? (
-                           <span className="text-rose-400">Disconnecting...</span>
-                         ) : (
-                           `Connected • ${String(Math.floor(voiceCallDuration / 60)).padStart(2, '0')}:${String(voiceCallDuration % 60).padStart(2, '0')}`
-                         )}
-                       </p>
-                     </div>
+                  <div className="flex flex-col flex-1 justify-between py-2 space-y-6 animate-in zoom-in-95 duration-300 relative">
+                    
+                    {/* Subtly floating ambient background glow fields (Gemini aesthetic) */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[2rem]">
+                      <div className="absolute -top-10 -left-10 w-44 h-44 rounded-full bg-indigo-600/10 blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+                      <div className="absolute -bottom-10 -right-10 w-44 h-44 rounded-full bg-cyan-600/10 blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
+                    </div>
 
-                     {/* Modern Plain Centered Fluid Breathing Ring */}
-                     <div className="flex flex-col items-center justify-center py-6">
-                       <div className="relative w-44 h-44 flex items-center justify-center">
-                         {/* Ambient fluid glow rings */}
-                         <div className={`absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/10 to-blue-600/10 blur-xl transition-all duration-700 ${voiceIsSpeaking ? 'scale-125 opacity-100' : 'scale-90 opacity-40'}`} />
-                         
-                         {/* Pulse Waves */}
-                         {voiceIsSpeaking && (
-                           <>
-                             <div className="absolute inset-0 rounded-full border border-cyan-500/25 animate-ping [animation-duration:2.5s]" />
-                             <div className="absolute inset-4 rounded-full border border-blue-500/20 animate-ping [animation-duration:1.8s]" />
-                           </>
-                         )}
+                    {/* Header info */}
+                    <div className="text-center space-y-1 pt-2 z-10">
+                      <h3 className="text-xl font-bold tracking-tight text-white">{voiceSelection}</h3>
+                      <p className="text-xs text-slate-400 font-medium">Doctorian AI Voice Specialist</p>
+                      <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                        {callState === 'connected' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />}
+                        <span className="text-[10px] uppercase font-bold tracking-widest font-mono text-slate-500">
+                          {callState === 'calling' ? (
+                            <span className="text-amber-400 animate-pulse">Establishing secure link...</span>
+                          ) : callState === 'disconnecting' ? (
+                            <span className="text-rose-400">Disconnecting...</span>
+                          ) : (
+                            `Connected • ${String(Math.floor(voiceCallDuration / 60)).padStart(2, '0')}:${String(voiceCallDuration % 60).padStart(2, '0')}`
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-                         {/* Core glowing orb mimicking Gemini voice call UI */}
-                         <div className={`w-32 h-32 rounded-full flex items-center justify-center relative transition-all duration-500 border ${
-                           voiceIsSpeaking 
-                             ? 'bg-gradient-to-br from-cyan-950/80 to-blue-950/80 border-cyan-500/40 shadow-2xl shadow-cyan-500/15 scale-105' 
-                             : voiceCallIsTranscribing
-                             ? 'bg-gradient-to-br from-indigo-950/80 to-purple-950/80 border-indigo-500/30 shadow-xl shadow-indigo-500/10 animate-pulse'
-                             : 'bg-slate-900/90 border-slate-800 shadow-md scale-95'
-                         }`}>
-                           {/* Rotating internal gradient layer when thinking */}
-                           {voiceCallIsTranscribing && (
-                             <div className="absolute inset-1.5 rounded-full border border-t-cyan-400 border-r-indigo-500 border-b-transparent border-l-transparent animate-spin [animation-duration:1s]" />
-                           )}
+                    {/* Immersive Central Orb (Gemini Live inspired) */}
+                    <div className="flex flex-col items-center justify-center py-6 z-10 flex-1 min-h-[220px]">
+                      <div className="relative w-56 h-56 flex items-center justify-center">
+                        
+                        {/* Layer 1: Ambient outer blur aura */}
+                        <motion.div 
+                          animate={{
+                            scale: voiceIsSpeaking ? [1, 1.2, 1] : [1, 1.05, 1],
+                            opacity: voiceIsSpeaking ? [0.4, 0.7, 0.4] : [0.2, 0.35, 0.2]
+                          }}
+                          transition={{
+                            duration: voiceIsSpeaking ? 1.5 : 3,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                          className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500 via-indigo-500 via-purple-500 to-pink-500 blur-3xl"
+                        />
+                        
+                        {/* Layer 2: Floating ripple shockwaves when speaking */}
+                        {voiceIsSpeaking && (
+                          <>
+                            <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ping [animation-duration:3s]" />
+                            <div className="absolute inset-4 rounded-full border border-cyan-500/30 animate-ping [animation-duration:2s]" />
+                            <div className="absolute inset-8 rounded-full border border-pink-500/20 animate-ping [animation-duration:2.5s]" />
+                          </>
+                        )}
 
-                           <div className="flex items-end gap-1.5 h-8">
-                             {voiceIsSpeaking ? (
-                               // Live elegant equalizers
-                               [...Array(6)].map((_, i) => (
-                                 <div 
-                                   key={i} 
-                                   className="w-1 bg-cyan-400 rounded-full animate-bounce"
-                                   style={{
-                                     height: `${30 + Math.random() * 70}%`,
-                                     animationDuration: `${0.4 + Math.random() * 0.4}s`,
-                                     animationDelay: `${i * 0.08}s`
-                                   }}
-                                 />
-                               ))
-                             ) : voiceCallIsTranscribing ? (
-                               <div className="text-[10px] uppercase tracking-widest font-bold text-indigo-400 animate-pulse">Thinking</div>
-                             ) : (
-                               // Inactive soft breathing bars
-                               [...Array(4)].map((_, i) => (
-                                 <div 
-                                   key={i} 
-                                   className="w-1 h-1.5 bg-slate-600 rounded-full animate-pulse"
-                                   style={{ animationDelay: `${i * 0.15}s` }}
-                                 />
-                               ))
-                             )}
-                           </div>
-                         </div>
-                       </div>
-                       
-                       <p className="text-xs text-slate-400 mt-4 h-4 font-medium">
-                         {voiceIsSpeaking ? "Doctorian is speaking" : voiceCallIsTranscribing ? "Synthesizing stream..." : "Listening..."}
-                       </p>
-                     </div>
+                        {/* Layer 3: Main morphing fluid body */}
+                        <motion.div 
+                          animate={{
+                            borderRadius: voiceIsSpeaking 
+                              ? ["42% 58% 70% 30% / 45% 45% 55% 55%", "70% 30% 52% 48% / 60% 40% 60% 40%", "42% 58% 70% 30% / 45% 45% 55% 55%"] 
+                              : ["50%", "45% 55% 48% 52% / 52% 48% 52% 48%", "50%"],
+                            scale: voiceIsSpeaking ? [1, 1.08, 1] : voiceCallIsTranscribing ? [0.95, 1.02, 0.95] : [0.98, 1.02, 0.98],
+                            rotate: voiceCallIsTranscribing ? 360 : [0, 90, 180, 270, 360]
+                          }}
+                          transition={{
+                            borderRadius: { duration: 6, repeat: Infinity, ease: "easeInOut" },
+                            scale: { duration: voiceIsSpeaking ? 1 : 4, repeat: Infinity, ease: "easeInOut" },
+                            rotate: { duration: voiceCallIsTranscribing ? 2 : 25, repeat: Infinity, ease: "linear" }
+                          }}
+                          className={`w-36 h-36 flex items-center justify-center relative shadow-2xl transition-all duration-700 ${
+                            voiceIsSpeaking 
+                              ? 'bg-gradient-to-tr from-cyan-400 via-blue-500 via-indigo-600 via-purple-500 to-pink-500 border border-white/20' 
+                              : voiceCallIsTranscribing
+                              ? 'bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 border border-white/10 animate-pulse'
+                              : voiceCallMuted
+                              ? 'bg-slate-900/90 border border-rose-500/30'
+                              : 'bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950/60 border border-slate-700/60'
+                          }`}
+                        >
+                          {/* Inner rotating core when thinking */}
+                          {voiceCallIsTranscribing && (
+                            <div className="absolute inset-1.5 rounded-full border border-t-white border-r-transparent border-b-white border-l-transparent animate-spin [animation-duration:1.2s]" />
+                          )}
 
-                     {/* Collapsible Transcript Container */}
-                     <div className="space-y-2 text-left bg-slate-900/30 border border-slate-900 rounded-2xl overflow-hidden">
-                       <button
-                         type="button"
-                         onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
-                         className="w-full px-4 py-2.5 flex items-center justify-between text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all outline-none"
-                       >
-                         <span className="font-semibold uppercase tracking-wider text-[9px]">Live Dialogue Transcript</span>
-                         <div className="flex items-center gap-1">
-                           <span className="text-[9px] font-medium">{showVoiceTranscript ? 'Hide' : 'Show'}</span>
-                           <ChevronDown size={12} className={`transform transition-transform ${showVoiceTranscript ? 'rotate-180' : ''}`} />
-                         </div>
-                       </button>
+                          {/* Equalizer / Status icons in the exact center of the orb */}
+                          <div className="flex items-center justify-center w-full h-full z-20">
+                            {voiceIsSpeaking ? (
+                              // Dynamic micro equalizers matching speaking cadence
+                              <div className="flex items-end gap-1.5 h-7">
+                                {[...Array(5)].map((_, i) => (
+                                  <div 
+                                    key={i} 
+                                    className="w-1 bg-white rounded-full animate-bounce"
+                                    style={{
+                                      height: `${40 + Math.random() * 60}%`,
+                                      animationDuration: `${0.4 + Math.random() * 0.4}s`,
+                                      animationDelay: `${i * 0.08}s`
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            ) : voiceCallIsTranscribing ? (
+                              <Sparkles size={28} className="text-white animate-pulse" />
+                            ) : voiceCallMuted ? (
+                              <MicOff size={28} className="text-rose-400" />
+                            ) : (
+                              // Gentle sound wave rings for listening
+                              <div className="flex items-center gap-1.5">
+                                {[...Array(4)].map((_, i) => (
+                                  <div 
+                                    key={i} 
+                                    className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"
+                                    style={{ animationDelay: `${i * 0.15}s` }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      </div>
+                      
+                      {/* Real-time Subtitle/Active Phrase Text (Very friendly and clean) */}
+                      <div className="mt-6 px-8 text-center min-h-[3rem] flex items-center justify-center max-w-sm">
+                        <AnimatePresence mode="wait">
+                          <motion.p 
+                            key={voiceIsSpeaking ? 'speaking' : voiceCallIsTranscribing ? 'transcribing' : voiceCallMuted ? 'muted' : 'listening'}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="text-xs font-semibold tracking-wide"
+                          >
+                            {voiceIsSpeaking ? (
+                              <span className="text-slate-100 italic leading-relaxed font-sans text-sm">
+                                {voiceCallTranscript[voiceCallTranscript.length - 1]?.text || "Speaking..."}
+                              </span>
+                            ) : voiceCallIsTranscribing ? (
+                              <span className="text-indigo-400 animate-pulse uppercase tracking-widest text-[10px]">Processing health query...</span>
+                            ) : voiceCallMuted ? (
+                              <span className="text-rose-400 uppercase tracking-widest text-[10px]">Microphone Muted</span>
+                            ) : (
+                              <span className="text-cyan-400 animate-pulse uppercase tracking-widest text-[10px]">Listening for your voice...</span>
+                            )}
+                          </motion.p>
+                        </AnimatePresence>
+                      </div>
+                    </div>
 
-                       {showVoiceTranscript && (
-                         <div className="h-32 p-4 overflow-y-auto space-y-3 flex flex-col custom-scrollbar border-t border-slate-900/50 text-[11px] animate-in slide-in-from-top-2 duration-200">
-                           {voiceCallTranscript.map((log, i) => (
-                             <div 
-                               key={i} 
-                               className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
-                                 log.role === 'user' 
-                                   ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/10 self-end' 
-                                   : 'bg-slate-900/80 text-slate-200 border border-slate-800/40 self-start'
-                               }`}
-                             >
-                               <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
-                                 {log.role === 'user' ? 'You' : voiceSelection}
-                               </span>
-                               <p className={`m-0 ${log.role === 'user' ? 'font-black text-cyan-200' : ''}`}>{log.text}</p>
-                             </div>
-                           ))}
-                         </div>
-                       )}
-                     </div>
+                    {/* Sliding Transcript Drawer Toggle (clean, low profile) */}
+                    <div className="px-6 z-10">
+                      <div className="bg-slate-900/40 border border-slate-900/60 rounded-2xl overflow-hidden transition-all duration-300">
+                        <button
+                          type="button"
+                          onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
+                          className="w-full px-4 py-3 flex items-center justify-between text-xs text-slate-400 hover:text-white transition-all outline-none"
+                        >
+                          <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">Dialogue History</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] font-semibold">{showVoiceTranscript ? 'Hide' : 'Show'}</span>
+                            <ChevronDown size={12} className={`transform transition-transform duration-300 ${showVoiceTranscript ? 'rotate-180' : ''}`} />
+                          </div>
+                        </button>
 
-                     {/* Quick Prompt Phrases Selector */}
-                     <div className="bg-slate-900/20 border border-slate-900/50 rounded-2xl p-3.5 space-y-2.5 text-left">
-                       <div className="flex flex-wrap gap-1.5">
-                         {[
-                           "Explain malaria prevention",
-                           "Explain child immunization",
-                           "My back is hurting badly",
-                           "What is Musujja treatment?"
-                         ].map((promptText, i) => (
-                           <button
-                             key={i}
-                             type="button"
-                             onClick={() => {
-                               setVoiceCallQuery(promptText);
-                               sendVoiceCallMessage(promptText);
-                             }}
-                             className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 text-[9px] text-slate-300 hover:text-white rounded-lg transition-all border border-slate-850 cursor-pointer font-medium"
-                           >
-                             "{promptText}"
-                           </button>
-                         ))}
-                       </div>
+                        {showVoiceTranscript && (
+                          <div className="h-28 p-4 overflow-y-auto space-y-3.5 flex flex-col custom-scrollbar border-t border-slate-900/50 text-[11px] animate-in slide-in-from-top-2 duration-200 bg-slate-950/40">
+                            {voiceCallTranscript.map((log, i) => (
+                              <div 
+                                key={i} 
+                                className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
+                                  log.role === 'user' 
+                                    ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/10 self-end' 
+                                    : 'bg-slate-900/60 text-slate-200 border border-slate-800/40 self-start'
+                                }`}
+                              >
+                                <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
+                                  {log.role === 'user' ? 'You' : voiceSelection}
+                                </span>
+                                <p className="m-0 font-medium">{log.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                       {/* Alternative Text Prompt Input */}
-                       <div className="flex gap-2">
-                         <input
-                           type="text"
-                           placeholder="Type to talk instead..."
-                           value={voiceCallQuery}
-                           onChange={(e) => setVoiceCallQuery(e.target.value)}
-                           onKeyDown={(e) => {
-                             if (e.key === 'Enter') {
-                               e.preventDefault();
-                               sendVoiceCallMessage();
-                             }
-                           }}
-                           className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-left"
-                         />
-                         <button
-                           type="button"
-                           onClick={() => sendVoiceCallMessage()}
-                           className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-semibold rounded-xl transition-all cursor-pointer"
-                         >
-                           Send
-                         </button>
-                       </div>
-                     </div>
+                    {/* Keyboard Input Drawer (Toggled by the Keyboard Button) */}
+                    {showVoiceKeyboard && (
+                      <div className="px-6 z-10 animate-in slide-in-from-bottom-3 duration-300">
+                        <div className="bg-slate-900/60 border border-slate-850 rounded-2xl p-3.5 space-y-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              "Explain malaria prevention",
+                              "Explain child immunization",
+                              "My back is hurting badly",
+                              "What is Musujja treatment?"
+                            ].map((promptText, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => {
+                                  setVoiceCallQuery(promptText);
+                                  sendVoiceCallMessage(promptText);
+                                }}
+                                className="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-900 text-[9px] text-slate-300 hover:text-white rounded-lg transition-all border border-slate-850 cursor-pointer font-medium"
+                              >
+                                "{promptText}"
+                              </button>
+                            ))}
+                          </div>
 
-                     {/* Clean Control Toolbar */}
-                     <div className="pt-4 flex items-center justify-between gap-4 border-t border-slate-900/40">
-                       <div className="flex gap-2">
-                         <button
-                           type="button"
-                           onClick={() => setVoiceCallMuted(!voiceCallMuted)}
-                           className={`p-3 rounded-2xl border transition-all cursor-pointer ${
-                             voiceCallMuted 
-                               ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' 
-                               : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white'
-                           }`}
-                           title={voiceCallMuted ? "Unmute Mic" : "Mute Mic"}
-                         >
-                           {voiceCallMuted ? <MicOff size={16} /> : <Mic size={16} />}
-                         </button>
-                         
-                         <button
-                           type="button"
-                           onClick={() => setVoiceCallerSpeaker(!voiceCallerSpeaker)}
-                           className={`p-3 rounded-2xl border transition-all cursor-pointer ${
-                             !voiceCallerSpeaker 
-                               ? 'bg-slate-900 border-slate-850 text-slate-600' 
-                               : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400'
-                           }`}
-                           title="Toggle Speaker Boost"
-                         >
-                           {voiceCallerSpeaker ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                         </button>
-                       </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Type to talk instead..."
+                              value={voiceCallQuery}
+                              onChange={(e) => setVoiceCallQuery(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  sendVoiceCallMessage();
+                                }
+                              }}
+                              className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-left"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => sendVoiceCallMessage()}
+                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-semibold rounded-xl transition-all cursor-pointer"
+                            >
+                              Send
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                       <button
-                         type="button"
-                         onClick={terminateVoiceCallSession}
-                         className="px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-semibold shadow-lg shadow-rose-500/10 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
-                       >
-                         <Phone size={14} className="rotate-[135deg]" />
-                         End Consultation
-                       </button>
-                     </div>
-                   </div>
-                 )}
-               </div>
+                    {/* Ergonomic & Beautiful Controls Dock (Gemini Call style) */}
+                    <div className="pt-4 px-6 pb-2 flex items-center justify-between gap-4 border-t border-slate-900/40 z-10">
+                      <div className="flex gap-2.5">
+                        {/* Keyboard/Text Input Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => setShowVoiceKeyboard(!showVoiceKeyboard)}
+                          className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
+                            showVoiceKeyboard 
+                              ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
+                              : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
+                          }`}
+                          title="Toggle typing mode"
+                        >
+                          <Keyboard size={18} />
+                        </button>
+
+                        {/* Mic Mute Button */}
+                        <button
+                          type="button"
+                          onClick={() => setVoiceCallMuted(!voiceCallMuted)}
+                          className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
+                            voiceCallMuted 
+                              ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
+                              : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
+                          }`}
+                          title={voiceCallMuted ? "Unmute Mic" : "Mute Mic"}
+                        >
+                          {voiceCallMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                        </button>
+                      </div>
+
+                      {/* Centered Red End Call Button */}
+                      <button
+                        type="button"
+                        onClick={terminateVoiceCallSession}
+                        className="w-12 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                        title="End Consultation"
+                      >
+                        <Phone size={20} className="rotate-[135deg]" />
+                      </button>
+
+                      {/* Speaker Output Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setVoiceCallerSpeaker(!voiceCallerSpeaker)}
+                        className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
+                          !voiceCallerSpeaker 
+                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
+                            : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
+                        }`}
+                        title={voiceCallerSpeaker ? "Mute Speaker" : "Unmute Speaker"}
+                      >
+                        {voiceCallerSpeaker ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
              </motion.div>
            </div>
          )}

@@ -5,11 +5,37 @@ import {
   Loader2, Radio, Activity, Send, FileText, CheckCircle2, ChevronRight, 
   Volume2, VolumeX, PlusCircle, Trash, Clock, ShieldAlert, History, Filter, 
   AlertTriangle, BadgePlus, Share2, ClipboardList, Pill, Upload, Camera, 
-  Monitor, Bluetooth, Wifi, Cpu, Key, HelpCircle, Fingerprint, Shield
+  Monitor, Bluetooth, Wifi, Cpu, Key, HelpCircle, Fingerprint, Shield,
+  ArrowRight, Check, Calendar, CheckSquare, Plus, AlertCircle, RefreshCw, Layers
 } from 'lucide-react';
-import { api, Doctor } from '../api';
+import { api, Doctor as APIDoctor } from '../api';
 import { useArduinoContext } from '../ArduinoContext';
 import { CyberSecurityPanel } from './CyberSecurityPanel';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  initOfflineDatabase,
+  isNetworkOnline,
+  setNetworkOnline,
+  getPatients,
+  getDoctors,
+  getPrescriptions,
+  getMedicines,
+  getMedicationLogs,
+  getSyncRecords,
+  createPrescription,
+  syncOfflineRecords,
+  updateMedicationIntakeStatus,
+  getMedicinesForPrescription,
+  getReminders,
+  getNotifications,
+  caregiverVerifyIntake,
+  Patient,
+  Doctor,
+  Prescription,
+  Medicine,
+  MedicationLog,
+  SyncRecord
+} from '../utils/offlineDb';
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
@@ -370,19 +396,155 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
     }
   };
 
-  // Prescription Digitizer / Process parameters from MedicationTracker
+  // OFFLINE CLINICAL DATABASE STATE INTEGRATION
+  const [offlinePatients, setOfflinePatients] = useState<Patient[]>([]);
+  const [offlineDoctors, setOfflineDoctors] = useState<Doctor[]>([]);
+  const [offlinePrescriptions, setOfflinePrescriptions] = useState<Prescription[]>([]);
+  const [offlineLogs, setOfflineLogs] = useState<MedicationLog[]>([]);
+  const [offlineSyncRecords, setOfflineSyncRecords] = useState<SyncRecord[]>([]);
+  const [isOnlineState, setIsOnlineState] = useState<boolean>(true);
+  const [isSyncingState, setIsSyncingState] = useState<boolean>(false);
+
+  // Form State for creating prescription
+  const [rxFormPatientId, setRxFormPatientId] = useState('PAT-001');
+  const [rxFormDoctorId, setRxFormDoctorId] = useState('DOC-002');
+  const [rxFormDiagnosis, setRxFormDiagnosis] = useState('');
+  const [rxFormFollowUpDate, setRxFormFollowUpDate] = useState('');
+  const [rxFormMedicines, setRxFormMedicines] = useState<Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    reminderTimes: string[];
+  }>>([
+    { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
+  ]);
+
+  const [activeQrCodeValue, setActiveQrCodeValue] = useState<string | null>(null);
+
+  // Initialize and load offline DB
+  useEffect(() => {
+    initOfflineDatabase();
+    refreshOfflineData();
+
+    // Check periodically for smart reminders
+    const interval = setInterval(() => {
+      // Just check for reminder updates to mock real-time push alerts
+      refreshOfflineData();
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const refreshOfflineData = () => {
+    setOfflinePatients(getPatients());
+    setOfflineDoctors(getDoctors());
+    setOfflinePrescriptions(getPrescriptions());
+    setOfflineLogs(getMedicationLogs());
+    setOfflineSyncRecords(getSyncRecords());
+    setIsOnlineState(isNetworkOnline());
+  };
+
+  const handleToggleOnlineStatus = () => {
+    const nextState = !isOnlineState;
+    setNetworkOnline(nextState);
+    setIsOnlineState(nextState);
+    if (addToast) {
+      addToast(nextState ? "🌐 Clinical Network ONLINE. Sync channel active." : "🔌 Mode offline. Saving to safe local storage.", "info");
+    }
+    refreshOfflineData();
+  };
+
+  const handleForceSync = async () => {
+    setIsSyncingState(true);
+    if (addToast) addToast("🔄 Initializing cloud database synchronization tunnel...", "info");
+    
+    // Call the offlineDb sync records function
+    const result = await syncOfflineRecords();
+    setIsSyncingState(false);
+    if (result.success) {
+      if (addToast) addToast(`✨ Synchronization complete! Pushed ${result.count} records to cloud database.`, "success");
+    } else {
+      if (addToast) addToast("Sync handshake timed out. Check connection.", "error");
+    }
+    refreshOfflineData();
+  };
+
+  const handleAddNewMedicineRow = () => {
+    setRxFormMedicines(prev => [
+      ...prev,
+      { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
+    ]);
+  };
+
+  const handleRemoveMedicineRow = (idx: number) => {
+    if (rxFormMedicines.length === 1) return;
+    setRxFormMedicines(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateMedicineRow = (idx: number, field: string, val: any) => {
+    setRxFormMedicines(prev => prev.map((med, i) => {
+      if (i === idx) {
+        return { ...med, [field]: val };
+      }
+      return med;
+    }));
+  };
+
+  const handleAuthorizeNewPrescription = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rxFormPatientId) {
+      if (addToast) addToast("Please select a target patient.", "error");
+      return;
+    }
+    if (!rxFormDoctorId) {
+      if (addToast) addToast("Please select an authorizing clinical doctor.", "error");
+      return;
+    }
+    if (!rxFormDiagnosis.trim()) {
+      if (addToast) addToast("Diagnosis field is required.", "error");
+      return;
+    }
+    
+    // validate all medicines
+    const invalidMed = rxFormMedicines.find(m => !m.name.trim());
+    if (invalidMed) {
+      if (addToast) addToast("Please specify medicine names for all rows.", "error");
+      return;
+    }
+
+    try {
+      const created = createPrescription(
+        rxFormPatientId,
+        rxFormDoctorId,
+        rxFormDiagnosis,
+        rxFormFollowUpDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        rxFormMedicines
+      );
+
+      if (addToast) {
+        addToast(`💊 Prescription ${created.id} issued successfully ${isOnlineState ? 'and synced!' : '(saved offline!)'}`, "success");
+      }
+
+      // Display QR code of the new prescription
+      setActiveQrCodeValue(created.qrCodeValue);
+
+      // Reset form
+      setRxFormDiagnosis('');
+      setRxFormFollowUpDate('');
+      setRxFormMedicines([
+        { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
+      ]);
+      refreshOfflineData();
+    } catch (err) {
+      if (addToast) addToast("Failed to formulate prescription.", "error");
+    }
+  };
+
   const [isReadingPrescription, setIsReadingPrescription] = useState(false);
   const [prescriptionImage, setPrescriptionImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [extractionResults, setExtractionResults] = useState<any[] | null>(null);
-  const [medManualForm, setMedManualForm] = useState({
-    name: '',
-    dosage: '500mg',
-    frequency: 'Daily',
-    time: '08:00',
-    category: 'prescription' as 'prescription' | 'supplement',
-    remindersEnabled: true
-  });
 
   const processPrescriptionFile = async (file: File) => {
     const reader = new FileReader();
@@ -408,20 +570,26 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
         const extractedMeds = JSON.parse(text);
         
         if (Array.isArray(extractedMeds)) {
-          const addedArray: any[] = [];
-          for (const m of extractedMeds) {
-             const created = await api.medications.create({
-                name: m.name,
-                dosage: m.dosage || '500mg',
-                frequency: m.frequency || 'Daily',
-                time: m.time || '08:00',
-                category: m.category || 'prescription',
-                remindersEnabled: true
-             });
-             addedArray.push(created);
-          }
-          setExtractionResults(addedArray);
-          if (addToast) addToast(`✨ Digitized and authorized ${addedArray.length} medications!`, 'success');
+          const formattedMeds = extractedMeds.map(m => ({
+            name: m.name || 'Unknown Drug',
+            dosage: m.dosage || '500mg',
+            frequency: m.frequency || 'Daily',
+            duration: '7 Days',
+            reminderTimes: [m.time || '08:00']
+          }));
+
+          const created = createPrescription(
+            rxFormPatientId || 'PAT-001',
+            rxFormDoctorId || 'DOC-002',
+            'OCR Automated Optical Extraction',
+            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            formattedMeds
+          );
+
+          setExtractionResults(extractedMeds);
+          if (addToast) addToast(`✨ OCR Digitized prescription ${created.id} saved in database!`, 'success');
+          setActiveQrCodeValue(created.qrCodeValue);
+          refreshOfflineData();
         }
       } catch (err) {
         console.error("Prescription reading failed:", err);
@@ -437,35 +605,6 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
     const file = e.target.files?.[0];
     if (!file) return;
     await processPrescriptionFile(file);
-  };
-
-  const handleManualPrescribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!medManualForm.name) {
-      if (addToast) addToast("Medication name is a required field", "error");
-      return;
-    }
-    try {
-      const created = await api.medications.create({
-        name: medManualForm.name,
-        dosage: medManualForm.dosage,
-        frequency: medManualForm.frequency,
-        time: medManualForm.time,
-        category: medManualForm.category,
-        remindersEnabled: medManualForm.remindersEnabled
-      });
-      if (addToast) addToast(`💊 Prescription issued for: ${created.name} (${created.dosage})`, "success");
-      setMedManualForm({
-        name: '',
-        dosage: '500mg',
-        frequency: 'Daily',
-        time: '08:00',
-        category: 'prescription',
-        remindersEnabled: true
-      });
-    } catch (e) {
-      if (addToast) addToast("Failed to write prescription", "error");
-    }
   };
 
 
@@ -1136,153 +1275,633 @@ Provide a professional, direct, academic, and clinical response assisting the ph
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+            className="space-y-8"
           >
-            {/* Left: OCR Scanner */}
-            <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm space-y-6">
-              <div>
-                <h3 className="text-xl font-extrabold uppercase tracking-tight text-slate-900 dark:text-white">Bio-Pharmacy Prescription OCR Scanner</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase mt-1">Digitize traditional diagnostic sheets into standard biochemical molecules in the database.</p>
+            {/* CONNECTION & CLOUD SYNCHRONIZATION BAR */}
+            <div className="bg-slate-900 text-white rounded-[2rem] p-6 border border-slate-800 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-3.5 rounded-full ${isOnlineState ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                  {isOnlineState ? <Wifi size={24} className="animate-pulse" /> : <Wifi size={24} className="opacity-60" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black uppercase tracking-wider">Clinical Synchronization Channel</h4>
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${isOnlineState ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'}`}>
+                      {isOnlineState ? 'ONLINE: BACK-SYNC ACTIVE' : 'OFFLINE MODE'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 uppercase font-bold mt-1">
+                    {isOnlineState 
+                      ? 'Local modifications are instantly pushed to the clinical cloud database.' 
+                      : 'Prescriptions save to local tables. Reconnect to sync.'}
+                  </p>
+                </div>
               </div>
 
-              {!isReadingPrescription && !extractionResults && (
-                <div 
-                  className={`border-2 border-dashed rounded-[2rem] p-10 text-center cursor-pointer transition-all ${
-                    isDragging ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-200 hover:border-slate-300 dark:border-slate-800'
-                  }`}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={async (e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) await processPrescriptionFile(file);
-                  }}
-                  onClick={() => document.getElementById('dashboard-prescription-upload')?.click()}
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Connection Toggle */}
+                <div className="flex items-center gap-2 bg-slate-950/60 px-4 py-2.5 rounded-2xl border border-slate-800">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Offline Mode</span>
+                  <button
+                    onClick={handleToggleOnlineStatus}
+                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 outline-none ${
+                      !isOnlineState ? 'bg-amber-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-200 ${
+                        !isOnlineState ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Queue status */}
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Pending Sync Queue</p>
+                  <p className="text-xs font-mono font-black text-white">{offlineSyncRecords.filter(r => r.status === 'pending').length} Records Waiting</p>
+                </div>
+
+                <button
+                  onClick={handleForceSync}
+                  disabled={isSyncingState || offlineSyncRecords.filter(r => r.status === 'pending').length === 0}
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 shadow"
                 >
-                  <input type="file" id="dashboard-prescription-upload" className="hidden" accept="image/*" onChange={handlePrescriptionRead} />
-                  <div className="flex flex-col items-center">
-                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-2xl mb-4">
-                      <Upload size={28} />
+                  {isSyncingState ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      Handshaking...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={12} />
+                      Sync Cloud Now
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* DUAL MODE LAYOUT: FORMULATOR & ANALYTICS */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+              
+              {/* LEFT COLUMN: ACTIVE FORMULATOR */}
+              <div className="xl:col-span-8 space-y-8">
+                
+                {/* MULTI-MEDICINE COMPILER & AUTHORIZATION FORM */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 sm:p-8 shadow-sm space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-50 dark:border-slate-800 pb-5">
+                    <div>
+                      <h3 className="text-xl font-extrabold uppercase tracking-tight text-slate-900 dark:text-white">Formulate Clinical Prescription</h3>
+                      <p className="text-xs text-slate-400 font-bold uppercase mt-1">Authorized physician medical compiler with offline-first log scheduling.</p>
                     </div>
-                    <span className="text-xs font-black uppercase text-slate-800 dark:text-white tracking-widest">Select Prescription Sheet</span>
-                    <p className="text-[9px] text-slate-400 font-extrabold uppercase mt-1">Supports drag-and-drop or local file browser</p>
-                  </div>
-                </div>
-              )}
-
-              {isReadingPrescription && (
-                <div className="p-10 text-center bg-slate-950 text-white rounded-[2rem] border border-white/5 space-y-4">
-                  <Loader2 className="animate-spin text-emerald-500 mx-auto" size={32} />
-                  <h4 className="text-xs font-black uppercase tracking-widest text-emerald-400">Synthesizing clinical image tokens</h4>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold">Connecting to optical character analysis pathways...</p>
-                </div>
-              )}
-
-              {extractionResults && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 bg-emerald-50 text-emerald-850 p-4 rounded-2xl border border-emerald-500/15">
-                    <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-                    <span className="text-[10px] font-black uppercase">OCR digitisation of {extractionResults.length} clinical structures fulfilled successfully.</span>
+                    
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('dashboard-prescription-upload')?.click()}
+                      className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-2 self-start sm:self-auto"
+                    >
+                      <Upload size={14} className="text-blue-500" />
+                      OCR Import Sheet
+                      <input type="file" id="dashboard-prescription-upload" className="hidden" accept="image/*" onChange={handlePrescriptionRead} />
+                    </button>
                   </div>
 
-                  <div className="space-y-2">
-                    {extractionResults.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 rounded-xl">
+                  {/* OCR Reading State */}
+                  {isReadingPrescription && (
+                    <div className="p-8 text-center bg-slate-950 text-white rounded-[2rem] border border-white/5 space-y-4">
+                      <Loader2 className="animate-spin text-blue-500 mx-auto" size={28} />
+                      <h4 className="text-xs font-black uppercase tracking-widest text-blue-400">Optical Neural Extractors Active</h4>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold">Scanning chemical formulations and mapping to standard patient records...</p>
+                    </div>
+                  )}
+
+                  {/* Extraction success banner */}
+                  {extractionResults && (
+                    <div className="flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 p-4 rounded-2xl border border-emerald-500/15">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                        <span className="text-[10px] font-black uppercase">OCR Digitization of {extractionResults.length} chemicals compiled successfully!</span>
+                      </div>
+                      <button 
+                        onClick={() => setExtractionResults(null)}
+                        className="text-[9px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg text-slate-600 border"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAuthorizeNewPrescription} className="space-y-6">
+                    {/* Patient & Doctor Selector Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Target Patient ID *</label>
+                        <select
+                          value={rxFormPatientId}
+                          onChange={e => setRxFormPatientId(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                        >
+                          {offlinePatients.map(p => (
+                            <option key={p.id} value={p.id}>{p.id} - {p.name} (Age {p.age}, {p.conditions})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Authorizing Doctor *</label>
+                        <select
+                          value={rxFormDoctorId}
+                          onChange={e => setRxFormDoctorId(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                        >
+                          {offlineDoctors.map(d => (
+                            <option key={d.id} value={d.id}>{d.name} ({d.specialty})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Diagnosis & Follow-Up Date */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Diagnosis & Clinical Code *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="E.g., Stage II Chronic Hypertension, High Cardiovascular Risk"
+                          value={rxFormDiagnosis}
+                          onChange={e => setRxFormDiagnosis(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Follow-Up Date *</label>
+                        <input
+                          type="date"
+                          required
+                          value={rxFormFollowUpDate}
+                          onChange={e => setRxFormFollowUpDate(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                        />
+                      </div>
+                    </div>
+
+                    {/* MEDICINE ROWS BUILDER */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Medicines & Scheduling List</h4>
+                        <button
+                          type="button"
+                          onClick={handleAddNewMedicineRow}
+                          className="text-[9px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-500 flex items-center gap-1.5"
+                        >
+                          <PlusCircle size={14} />
+                          Add Drug Row
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {rxFormMedicines.map((med, idx) => (
+                          <div key={idx} className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl relative space-y-4">
+                            
+                            {/* Delete button for rows */}
+                            {rxFormMedicines.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedicineRow(idx)}
+                                className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 transition-colors"
+                              >
+                                <Trash size={14} />
+                              </button>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                              <div className="md:col-span-5 space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-400">Chemical / Medicine Name *</label>
+                                <input
+                                  type="text"
+                                  placeholder="E.g., Amlodipine Besylate"
+                                  value={med.name}
+                                  onChange={e => handleUpdateMedicineRow(idx, 'name', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2 space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-400">Dosage *</label>
+                                <input
+                                  type="text"
+                                  placeholder="5mg"
+                                  value={med.dosage}
+                                  onChange={e => handleUpdateMedicineRow(idx, 'dosage', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2 space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-400">Frequency *</label>
+                                <select
+                                  value={med.frequency}
+                                  onChange={e => handleUpdateMedicineRow(idx, 'frequency', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                                >
+                                  <option value="Daily">Daily</option>
+                                  <option value="Twice daily">Twice daily</option>
+                                  <option value="Three times daily">3 Times daily</option>
+                                  <option value="Nightly">Nightly</option>
+                                  <option value="As needed">As needed (PRN)</option>
+                                </select>
+                              </div>
+
+                              <div className="md:col-span-3 space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-400">Duration *</label>
+                                <select
+                                  value={med.duration}
+                                  onChange={e => handleUpdateMedicineRow(idx, 'duration', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                                >
+                                  <option value="7 Days">7 Days</option>
+                                  <option value="14 Days">14 Days</option>
+                                  <option value="30 Days">30 Days</option>
+                                  <option value="90 Days">90 Days</option>
+                                  <option value="Chronic">Chronic Treatment</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-400">Reminder Times (Comma-separated 24h)</label>
+                                <input
+                                  type="text"
+                                  placeholder="08:00, 20:00"
+                                  value={med.reminderTimes.join(', ')}
+                                  onChange={e => {
+                                    const times = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                                    handleUpdateMedicineRow(idx, 'reminderTimes', times);
+                                  }}
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
+                                />
+                              </div>
+                              <div className="flex items-end text-[9px] text-slate-400 uppercase font-extrabold pb-2.5">
+                                💡 Scheduled alarms automatically register in the patient's daily checklist.
+                              </div>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-xl text-[10px] font-black uppercase tracking-widest shadow shadow-blue-500/10 flex items-center justify-center gap-2"
+                    >
+                      <BadgePlus size={16} />
+                      Authorize & Digitally Issue Prescription Record
+                    </button>
+                  </form>
+                </div>
+
+                {/* AUTHORIZED PRESCRIPTIONS HISTORICAL ARCHIVE */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 sm:p-8 shadow-sm space-y-6">
+                  <div>
+                    <h3 className="text-lg font-extrabold uppercase text-slate-900 dark:text-white">Active Authorized Prescriptions</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase mt-1">Audit ledger of issued molecular structures with retrieval QR nodes.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {offlinePrescriptions.length === 0 ? (
+                      <p className="text-slate-400 text-xs text-center py-6">No prescription records authorized yet.</p>
+                    ) : (
+                      offlinePrescriptions.map(rx => {
+                        const pat = offlinePatients.find(p => p.id === rx.patientId);
+                        const doc = offlineDoctors.find(d => d.id === rx.doctorId);
+                        const rxMeds = getMedicinesForPrescription(rx.id);
+                        
+                        return (
+                          <div key={rx.id} className="bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 p-5 flex flex-col md:flex-row justify-between gap-6 hover:border-slate-200 dark:hover:border-slate-800 transition-all">
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3">
+                                <span className="bg-blue-50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full font-mono text-xs font-extrabold">
+                                  {rx.id}
+                                </span>
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                                  Issued: {rx.date}
+                                </span>
+                                {!rx.synced && (
+                                  <span className="bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[8px] font-black uppercase px-2 py-0.5 rounded">
+                                    Local Save
+                                  </span>
+                                )}
+                              </div>
+
+                              <div>
+                                <h4 className="text-xs text-slate-405 uppercase font-bold tracking-wide">Patient: <span className="font-extrabold text-slate-900 dark:text-white">{pat?.name || 'Unknown'}</span></h4>
+                                <p className="text-xs text-slate-405 uppercase font-bold tracking-wide">Doctor: <span className="text-slate-700 dark:text-slate-300">{doc?.name || 'Unknown'}</span></p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="text-xs font-extrabold text-slate-900 dark:text-white uppercase">Clinical Diagnosis:</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border dark:border-slate-800">{rx.diagnosis}</p>
+                              </div>
+
+                              {/* Medicines list detail */}
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase text-slate-400">Prescribed Compounds:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {rxMeds.map(m => (
+                                    <span key={m.id} className="text-[10px] font-extrabold uppercase bg-slate-200/60 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg border border-slate-300/40 dark:border-slate-800">
+                                      💊 {m.name} ({m.dosage}) - {m.frequency} [{m.duration}]
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* QR Trigger widget */}
+                            <div className="flex flex-col items-center justify-center bg-white dark:bg-slate-900 border dark:border-slate-800 p-4 rounded-2xl text-center md:w-44 shrink-0 hover:shadow transition-all">
+                              <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded-xl mb-2 cursor-pointer" onClick={() => setActiveQrCodeValue(rx.qrCodeValue)}>
+                                <QRCodeSVG value={rx.qrCodeValue} size={84} />
+                              </div>
+                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">RETRIEVAL CODE</span>
+                              <button
+                                onClick={() => setActiveQrCodeValue(rx.qrCodeValue)}
+                                className="text-[8px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-500 mt-2 bg-blue-50 dark:bg-slate-950 px-2.5 py-1 rounded-lg"
+                              >
+                                View QR Code
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* RIGHT COLUMN: DOCTORS COMPLIANCE & DATABASE INSPECTION */}
+              <div className="xl:col-span-4 space-y-8">
+                
+                {/* DOCTORS COMPLIANCE MONITOR */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 shadow-sm space-y-6">
+                  <div>
+                    <h3 className="text-lg font-extrabold uppercase text-slate-900 dark:text-white">Patient Adherence Dashboard</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase mt-1">Real-time compliance analytics on offline intake records.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {offlinePatients.map(pat => {
+                      const complianceColor = pat.complianceRate >= 80 
+                        ? 'text-emerald-500' 
+                        : pat.complianceRate >= 65 
+                          ? 'text-amber-500' 
+                          : 'text-rose-500';
+
+                      const complianceBg = pat.complianceRate >= 80 
+                        ? 'bg-emerald-500/10' 
+                        : pat.complianceRate >= 65 
+                          ? 'bg-amber-500/10' 
+                          : 'bg-rose-500/10';
+
+                      const patLogs = offlineLogs.filter(l => l.patientId === pat.id);
+                      const missedCount = patLogs.filter(l => l.status === 'missed').length;
+                      const takenCount = patLogs.filter(l => l.status === 'taken').length;
+
+                      return (
+                        <div key={pat.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-extrabold uppercase text-xs text-slate-900 dark:text-white">{pat.name}</h4>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase">{pat.conditions}</p>
+                            </div>
+
+                            <div className={`px-3 py-1.5 rounded-xl text-xs font-mono font-black ${complianceColor} ${complianceBg}`}>
+                              {pat.complianceRate}% OK
+                            </div>
+                          </div>
+
+                          {/* Mini adherence metrics */}
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="p-2 bg-white dark:bg-slate-900 border dark:border-slate-850 rounded-xl">
+                              <p className="text-[8px] font-black uppercase text-slate-400">Scheduled</p>
+                              <p className="text-xs font-black font-mono mt-0.5 text-slate-750 dark:text-white">{patLogs.length}</p>
+                            </div>
+                            <div className="p-2 bg-white dark:bg-slate-900 border dark:border-slate-850 rounded-xl">
+                              <p className="text-[8px] font-black uppercase text-emerald-500">Taken</p>
+                              <p className="text-xs font-black font-mono mt-0.5 text-emerald-500">{takenCount}</p>
+                            </div>
+                            <div className="p-2 bg-white dark:bg-slate-900 border dark:border-slate-850 rounded-xl">
+                              <p className="text-[8px] font-black uppercase text-rose-500 font-bold">Missed</p>
+                              <p className="text-xs font-black font-mono mt-0.5 text-rose-500">{missedCount}</p>
+                            </div>
+                          </div>
+
+                          {/* Progress slider bar */}
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-300 ${
+                                pat.complianceRate >= 80 ? 'bg-emerald-500' : pat.complianceRate >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                              }`} 
+                              style={{ width: `${pat.complianceRate}%` }} 
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* MEDICATION VERIFICATION ALERT & SUPERVISION HUB */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 shadow-sm space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="text-rose-500 animate-pulse" size={20} />
+                      <h3 className="text-lg font-extrabold uppercase text-slate-900 dark:text-white">Verification & Alert Hub</h3>
+                    </div>
+                    <p className="text-xs text-slate-400 font-bold uppercase mt-1">High-Trust Adherence Verification Alerts & Caregiver Supervision</p>
+                  </div>
+
+                  {/* SECTION 1: SYSTEM ANOMALIES & LOW-CONFIDENCE ALERTS */}
+                  <div className="space-y-3">
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Low-Confidence & Anomaly alerts</span>
+                    
+                    {(() => {
+                      const anomalies = offlineLogs.filter(l => l.anomalyDetected || (l.confidenceScore !== undefined && l.confidenceScore < 70));
+                      if (anomalies.length === 0) {
+                        return (
+                          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/25 border border-emerald-500/10 rounded-2xl flex items-center gap-3">
+                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                            <p className="text-[9.5px] uppercase font-bold text-emerald-600 dark:text-emerald-400">All ingestion logs validated. No adherence anomalies detected.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {anomalies.map(log => {
+                            const pat = offlinePatients.find(p => p.id === log.patientId);
+                            return (
+                              <div key={log.id} className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/20 rounded-2xl space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white truncate max-w-[120px]">
+                                      {pat ? pat.name : 'Unknown Patient'}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] font-mono font-black uppercase text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded">
+                                    CONFIDENCE: {log.confidenceScore || 0}%
+                                  </span>
+                                </div>
+
+                                <p className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-none">
+                                  {log.medicineName} • {log.dosage}
+                                </p>
+
+                                <p className="text-[8.5px] font-medium text-amber-700 dark:text-amber-400 leading-normal uppercase bg-white/50 dark:bg-slate-900/50 p-2 rounded-lg">
+                                  Anomaly: {log.anomalyReason || 'Suspected placeholder or self-reported mismatch'}
+                                </p>
+
+                                <div className="text-[8px] text-slate-400 uppercase flex justify-between items-center">
+                                  <span>Time: {log.takenAt ? new Date(log.takenAt).toLocaleTimeString() : 'N/A'}</span>
+                                  <span>Method: {log.verificationMethod || 'Self-Reported'}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* SECTION 2: CAREGIVER / HEALTHCARE PROVIDER SUPERVISION */}
+                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Caregiver & Provider Approvals</span>
+                    
+                    {(() => {
+                      // Filter list of recent logs that can be approved/supervised (or showing verification states)
+                      const logsToSupervise = offlineLogs.filter(l => l.status === 'taken').slice(0, 3);
+                      
+                      if (logsToSupervise.length === 0) {
+                        return (
+                          <p className="text-[9px] uppercase font-bold text-slate-400 text-center py-2">No active ingestion logs available for supervision override.</p>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-2">
+                          {logsToSupervise.map(log => {
+                            const pat = offlinePatients.find(p => p.id === log.patientId);
+                            const isAlreadyVerified = log.caregiverVerified;
+                            return (
+                              <div key={log.id} className="p-3.5 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">{pat ? pat.name : 'Patient'}</p>
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{log.medicineName} ({log.dosage})</p>
+                                  </div>
+
+                                  {isAlreadyVerified ? (
+                                    <span className="text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                                      <CheckCircle2 size={10} />
+                                      Approved
+                                    </span>
+                                  ) : (
+                                    <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-550/10 px-2 py-0.5 rounded-lg shrink-0">
+                                      Awaiting Oversight
+                                    </span>
+                                  )}
+                                </div>
+
+                                {!isAlreadyVerified && (
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      id={`caregiver-name-${log.id}`}
+                                      placeholder="Caregiver Name"
+                                      defaultValue="Dr. Alex Carter"
+                                      className="flex-1 text-[9.5px] px-2 py-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg text-slate-800 dark:text-white uppercase font-bold focus:outline-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const inputEl = document.getElementById(`caregiver-name-${log.id}`) as HTMLInputElement;
+                                        const name = inputEl?.value || 'Dr. Alex Carter';
+                                        const ok = caregiverVerifyIntake(log.id, name, true);
+                                        if (ok) {
+                                          if (addToast) addToast(`✅ Clinical Override: Dose verified by supervisor ${name}!`, "success");
+                                          refreshOfflineData();
+                                        }
+                                      }}
+                                      className="px-3 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[8.5px] font-black uppercase tracking-wider hover:bg-slate-800 transition-all shrink-0"
+                                    >
+                                      Approve Intake
+                                    </button>
+                                  </div>
+                                )}
+
+                                {isAlreadyVerified && (
+                                  <p className="text-[8px] uppercase font-bold text-slate-400 leading-none pl-1">
+                                    Verified by: {log.caregiverVerifiedBy || 'Supervisor'} at {log.takenAt ? new Date(log.takenAt).toLocaleTimeString() : 'N/A'}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* DB TABLE INSPECTOR (SATISFIES THE "SEPARATE TABLES" REQUIREMENT) */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 text-slate-900 dark:text-white">
+                    <Layers size={18} className="text-blue-500" />
+                    <h3 className="text-sm font-black uppercase tracking-wider">Database Tables Inspector</h3>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase leading-normal">
+                    Inspect individual client-side database tables representing separate, secured logical schemas.
+                  </p>
+
+                  <div className="space-y-3">
+                    {[
+                      { name: 'patients_table', count: offlinePatients.length, desc: 'Patient demographics & metrics' },
+                      { name: 'doctors_table', count: offlineDoctors.length, desc: 'Authorizing medical officers' },
+                      { name: 'prescriptions_table', count: offlinePrescriptions.length, desc: 'Standardized prescription forms' },
+                      { name: 'medicines_table', count: getMedicines().length, desc: 'Prescribed drug configurations' },
+                      { name: 'medication_logs_table', count: offlineLogs.length, desc: 'Compliance & intake history' },
+                      { name: 'reminders_table', count: getReminders().length, desc: 'Smart scheduled alarms' },
+                      { name: 'notifications_table', count: getNotifications().length, desc: 'User alerts & reminder push logs' },
+                      { name: 'synchronization_records_table', count: offlineSyncRecords.length, desc: 'Cloud replication ledger' }
+                    ].map(tbl => (
+                      <div key={tbl.name} className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
                         <div>
-                          <span className="text-[10px] text-slate-405 uppercase font-bold tracking-wider">{item.category}</span>
-                          <h5 className="font-extrabold uppercase text-xs text-slate-900 dark:text-white mt-0.5">{item.name}</h5>
+                          <p className="font-mono text-[10px] font-black text-slate-800 dark:text-blue-400 leading-none">
+                            {tbl.name}
+                          </p>
+                          <p className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold mt-1 uppercase leading-none">
+                            {tbl.desc}
+                          </p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-mono font-black text-xs text-slate-850 dark:text-white leading-none">{item.dosage}</p>
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{item.frequency}</p>
-                        </div>
+                        <span className="font-mono text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded border font-black text-slate-700 dark:text-slate-300">
+                          {tbl.count} Row{tbl.count !== 1 ? 's' : ''}
+                        </span>
                       </div>
                     ))}
                   </div>
-
-                  <button 
-                    onClick={() => { setExtractionResults(null); setPrescriptionImage(null); }} 
-                    className="w-full bg-slate-900 text-white dark:bg-slate-800 h-11 text-[10px] font-black uppercase rounded-xl tracking-widest"
-                  >
-                    Load New Prescription Sheet
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Right: Manual Prescription formulation */}
-            <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm">
-              <h3 className="text-xl font-extrabold uppercase tracking-tight text-slate-900 dark:text-white mb-6">Authorize Medication Record</h3>
-              
-              <form onSubmit={handleManualPrescribe} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Medication Name</label>
-                  <input 
-                    type="text" 
-                    value={medManualForm.name} 
-                    onChange={e => setMedManualForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-150 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="E.g., AMOXICILLIN"
-                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Dosage Size</label>
-                    <input 
-                      type="text" 
-                      value={medManualForm.dosage} 
-                      onChange={e => setMedManualForm(prev => ({ ...prev, dosage: e.target.value }))}
-                      className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-150 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                    />
-                  </div>
+              </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Category Type</label>
-                    <select 
-                      value={medManualForm.category} 
-                      onChange={e => setMedManualForm(prev => ({ ...prev, category: e.target.value as any }))}
-                      className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-150 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider outline-none"
-                    >
-                      <option value="prescription">Prescription</option>
-                      <option value="supplement">Supplement</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Frequency Matrix</label>
-                    <input 
-                      type="text" 
-                      value={medManualForm.frequency} 
-                      onChange={e => setMedManualForm(prev => ({ ...prev, frequency: e.target.value }))}
-                      className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-150 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Schedule Time</label>
-                    <input 
-                      type="time" 
-                      value={medManualForm.time} 
-                      onChange={e => setMedManualForm(prev => ({ ...prev, time: e.target.value }))}
-                      className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-150 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="w-full bg-blue-600 text-white h-12 rounded-xl text-[10px] font-black uppercase tracking-widest mt-4 shadow shadow-blue-500/10 hover:bg-blue-500 transition-all"
-                >
-                  Authorize & Issue Prescription
-                </button>
-              </form>
             </div>
           </motion.div>
         )}
+
 
         {/* VIEW 4: ARDUINO TELEMETRY BIOMETRIC CONNECTION MANAGER */}
         {activeSubTab === 'connection' && (
@@ -1990,6 +2609,82 @@ Provide a professional, direct, academic, and clinical response assisting the ph
           </motion.div>
         </div>
       )}
+
+      {/* ----------------- MODAL: PRESCRIPTION RETRIEVAL QR CODE ----------------- */}
+      {activeQrCodeValue && (
+        <div className="fixed inset-0 bg-slate-950/70 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-slate-900 rounded-[2.5rem] max-w-md w-full p-8 border border-slate-100 dark:border-slate-800 shadow-2xl relative text-center space-y-6"
+          >
+            <button 
+              onClick={() => setActiveQrCodeValue(null)} 
+              className="absolute top-6 right-6 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-550 dark:text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-750 transition-colors"
+            >
+              <X size={14} />
+            </button>
+            
+            <div>
+              <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full">
+                Clinical Retrieval Key
+              </span>
+              <h3 className="text-lg font-extrabold uppercase text-slate-900 dark:text-white mt-3">Prescription Verification</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 leading-normal">
+                Scan at clinical terminal or pharmacy portal for instant lookup.
+              </p>
+            </div>
+
+            {/* Premium QR Code stage */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-950 rounded-[2rem] border border-slate-100 dark:border-slate-850 flex justify-center items-center shadow-inner mx-auto max-w-[220px]">
+              <QRCodeSVG value={activeQrCodeValue} size={160} />
+            </div>
+
+            {/* Split value data fields */}
+            <div className="text-left bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-850 space-y-2">
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">DECIPHERED DOCK PAYLOAD</span>
+              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                <div>
+                  <p className="text-slate-400 uppercase font-bold">PRESCRIPTION</p>
+                  <p className="text-slate-900 dark:text-white font-black">{activeQrCodeValue.split('|')[0]}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 uppercase font-bold">PATIENT ID</p>
+                  <p className="text-slate-900 dark:text-white font-black">{activeQrCodeValue.split('|')[1]}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 uppercase font-bold">AUTHORIZER</p>
+                  <p className="text-slate-900 dark:text-white font-black">{activeQrCodeValue.split('|')[2] || 'DOC-002'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 uppercase font-bold">SYNC KEY</p>
+                  <p className="text-emerald-500 font-black">LOCAL_DB_OK</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(activeQrCodeValue);
+                  if (addToast) addToast("📋 Clinical Retrieval String Copied!", "success");
+                }}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-white h-11 rounded-xl text-[10px] font-black uppercase tracking-widest"
+              >
+                Copy Key
+              </button>
+              <button
+                onClick={() => setActiveQrCodeValue(null)}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white h-11 rounded-xl text-[10px] font-black uppercase tracking-widest"
+              >
+                Done
+              </button>
+            </div>
+
+          </motion.div>
+        </div>
+      )}
+
 
     </div>
   );

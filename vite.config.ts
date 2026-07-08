@@ -46,6 +46,25 @@ export default defineConfig(({mode}) => {
                 return 'vendor-ai';
               }
               return 'vendor-core';
+            } else if (id.includes('src/components/')) {
+              if (id.includes('PatientMonitor')) {
+                return 'comp-patient-monitor';
+              }
+              if (id.includes('AdminDashboard')) {
+                return 'comp-admin-dashboard';
+              }
+              if (id.includes('DoctorsDashboard')) {
+                return 'comp-doctors-dashboard';
+              }
+              if (id.includes('ChatInterface')) {
+                return 'comp-chat-interface';
+              }
+              if (id.includes('SpecialistFinder')) {
+                return 'comp-specialist-finder';
+              }
+              if (id.includes('HealthProgressTracker')) {
+                return 'comp-health-progress';
+              }
             }
           },
         },

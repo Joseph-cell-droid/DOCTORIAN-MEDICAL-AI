@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Bluetooth, 
   X, 
@@ -25,7 +26,13 @@ import {
   ArrowRight,
   Lock,
   ChevronRight,
-  Check
+  Check,
+  MapPin,
+  Compass,
+  Droplet,
+  Sparkles,
+  Send,
+  Bell
 } from 'lucide-react';
 import { useArduinoContext } from '../ArduinoContext';
 
@@ -42,7 +49,7 @@ interface TelemetryLog {
 
 export const WearableConnector: React.FC<WearableConnectorProps> = ({ isOpen, onClose }) => {
   const arduino = useArduinoContext();
-  const [activeTab, setActiveTab] = useState<'healthconnect' | 'ble'>('healthconnect');
+  const [activeTab, setActiveTab] = useState<'healthconnect' | 'ble' | 'smart_monitoring'>('healthconnect');
   
   // Direct BLE States
   const [isScanning, setIsScanning] = useState(false);
@@ -63,6 +70,52 @@ export const WearableConnector: React.FC<WearableConnectorProps> = ({ isOpen, on
   const [hcLogList, setHcLogList] = useState<TelemetryLog[]>([]);
   const [showCodeGuide, setShowCodeGuide] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<'healthy' | 'warning' | 'critical'>('healthy');
+
+  // =======================================================
+  // SMARTPHONE & BLUETOOTH INTEGRATED SENSOR HUB STATES
+  // =======================================================
+  const [isLiveMotion, setIsLiveMotion] = useState(false);
+  const [motionData, setMotionData] = useState({ ax: 0, ay: 0, az: 9.8, alpha: 0, beta: 0, gamma: 0 });
+  const [motionSteps, setMotionSteps] = useState(5840);
+  const [motionActivity, setMotionActivity] = useState<'Stationary' | 'Walking' | 'Running' | 'Fallen'>('Stationary');
+  const [motionCal, setMotionCal] = useState(245.5);
+  const [isFallCountActive, setIsFallCountActive] = useState(false);
+  const [fallCountdown, setFallCountdown] = useState(10);
+  const fallCountTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // GPS Coordinates (emergency location sharing)
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsShared, setGpsShared] = useState(false);
+
+  // Bluetooth Compatible Medical Devices
+  const [bleDevicesConnected, setBleDevicesConnected] = useState({
+    hr: false,
+    ox: false,
+    bp: false,
+    glu: false,
+    scale: false,
+    sleep: false,
+  });
+
+  // Dynamic parameters for Bluetooth peripherals
+  const [bleHeartRate, setBleHeartRate] = useState(74);
+  const [bleSpo2, setBleSpo2] = useState(98);
+  const [bleSystolic, setBleSystolic] = useState(118);
+  const [bleDiastolic, setBleDiastolic] = useState(76);
+  const [bleGlucose, setBleGlucose] = useState(104);
+  const [bleWeight, setBleWeight] = useState(72.5);
+  const [bleBmi, setBleBmi] = useState(22.4);
+  const [bleSleepDuration, setBleSleepDuration] = useState(7.2);
+  const [bleSleepQuality, setBleSleepQuality] = useState('Excellent');
+
+  // Presets
+  const [glucosePreset, setGlucosePreset] = useState<'normal' | 'high' | 'low'>('normal');
+  const [bpPreset, setBpPreset] = useState<'normal' | 'high' | 'low'>('normal');
+
+  // AI Real-time Telemetry Co-pilot Analysis
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiReport, setAiReport] = useState<string | null>(null);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
   const hcLogsEndRef = useRef<HTMLDivElement>(null);
@@ -147,6 +200,291 @@ export const WearableConnector: React.FC<WearableConnectorProps> = ({ isOpen, on
       hcLogsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [hcLogList]);
+
+  // =======================================================
+  // SMARTPHONE & BLUETOOTH INTEGRATED SENSOR HUB HANDLERS
+  // =======================================================
+
+  // Sync BP Preset changes
+  useEffect(() => {
+    if (bpPreset === 'normal') {
+      setBleSystolic(118);
+      setBleDiastolic(76);
+    } else if (bpPreset === 'high') {
+      setBleSystolic(188);
+      setBleDiastolic(114);
+    } else if (bpPreset === 'low') {
+      setBleSystolic(82);
+      setBleDiastolic(54);
+    }
+  }, [bpPreset]);
+
+  // Sync Glucose Preset changes
+  useEffect(() => {
+    if (glucosePreset === 'normal') {
+      setBleGlucose(104);
+    } else if (glucosePreset === 'high') {
+      setBleGlucose(245);
+    } else if (glucosePreset === 'low') {
+      setBleGlucose(52);
+    }
+  }, [glucosePreset]);
+
+  // Handle continuous live sensor stream (W3C DeviceMotion & DeviceOrientation APIs)
+  useEffect(() => {
+    if (!isLiveMotion) return;
+
+    let stepTimer: NodeJS.Timeout;
+    
+    const handleDeviceMotion = (event: DeviceMotionEvent) => {
+      const x = event.accelerationIncludingGravity?.x || 0;
+      const y = event.accelerationIncludingGravity?.y || 0;
+      const z = event.accelerationIncludingGravity?.z || 0;
+      
+      setMotionData(prev => ({
+        ...prev,
+        ax: parseFloat(x.toFixed(2)),
+        ay: parseFloat(y.toFixed(2)),
+        az: parseFloat(z.toFixed(2)),
+      }));
+
+      // Calculate vector magnitude for step counting and impact checks
+      const magnitude = Math.sqrt(x * x + y * y + z * z);
+
+      // Accelerometer step-detection algorithm
+      if (magnitude > 13.5 && magnitude <= 17.5) {
+        setMotionSteps(s => s + 1);
+        setMotionCal(c => parseFloat((c + 0.05).toFixed(2)));
+        setMotionActivity('Walking');
+      } else if (magnitude > 17.5) {
+        setMotionSteps(s => s + 1);
+        setMotionCal(c => parseFloat((c + 0.12).toFixed(2)));
+        setMotionActivity('Running');
+      }
+
+      // Smartphone Gyroscope / Accelerometer Fall Detection Algorithm
+      // Total acceleration vector magnitude exceeding 26 m/s^2 represents a heavy sudden impact.
+      if (magnitude > 26.0 && !isFallCountActive) {
+        setIsFallCountActive(true);
+        setMotionActivity('Fallen');
+        setFallCountdown(10);
+        addLog("🚨 SENSOR CRITICAL: Smartphone Accelerometer/Gyroscope detected a heavy impact (suspected fall)!", "error");
+        addLog("Initiating 10-second automatic caregiver & emergency dispatch countdown...", "warn");
+      }
+    };
+
+    const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
+      setMotionData(prev => ({
+        ...prev,
+        alpha: parseFloat((event.alpha || 0).toFixed(1)),
+        beta: parseFloat((event.beta || 0).toFixed(1)),
+        gamma: parseFloat((event.gamma || 0).toFixed(1)),
+      }));
+    };
+
+    window.addEventListener('devicemotion', handleDeviceMotion, true);
+    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+
+    // Dynamic fallback step simulator in case hardware is simulated or doesn't support active DeviceMotion (e.g. desktop)
+    stepTimer = setInterval(() => {
+      setMotionSteps(s => {
+        const delta = Math.random() > 0.4 ? 1 : 0;
+        if (delta > 0) {
+          setMotionCal(c => parseFloat((c + 0.05).toFixed(2)));
+          setMotionActivity(Math.random() > 0.85 ? 'Walking' : 'Stationary');
+        }
+        return s + delta;
+      });
+    }, 2800);
+
+    return () => {
+      window.removeEventListener('devicemotion', handleDeviceMotion, true);
+      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+      clearInterval(stepTimer);
+    };
+  }, [isLiveMotion, isFallCountActive]);
+
+  // Fall countdown interval
+  useEffect(() => {
+    if (isFallCountActive) {
+      fallCountTimerRef.current = setInterval(() => {
+        setFallCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(fallCountTimerRef.current!);
+            dispatchEmergencyAlert();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (fallCountTimerRef.current) {
+        clearInterval(fallCountTimerRef.current);
+      }
+    }
+    return () => {
+      if (fallCountTimerRef.current) clearInterval(fallCountTimerRef.current);
+    };
+  }, [isFallCountActive]);
+
+  const cancelFallAlert = () => {
+    setIsFallCountActive(false);
+    setMotionActivity('Stationary');
+    addLog("✓ Handshake Safe: Fall alert dismissed by patient. Countdown cancelled.", "success");
+  };
+
+  const dispatchEmergencyAlert = () => {
+    setIsFallCountActive(false);
+    addLog("🚨 CLINICAL DISPATCH TRIGGERED: No response from patient after accelerometer fall event!", "error");
+    addLog(`Sharing GPS telemetry [Lat: ${gpsCoords?.lat || '37.7749'}, Lng: ${gpsCoords?.lng || '-122.4194'}] with care circle and primary physician Dr. Alex Carter.`, "warn");
+    
+    // Trigger main applet's emergency registry simulation
+    arduino.simulateEmergency();
+  };
+
+  const triggerFallAlert = () => {
+    setIsFallCountActive(true);
+    setMotionActivity('Fallen');
+    setFallCountdown(10);
+    addLog("🚨 SENSOR CRITICAL: Smartphone Accelerometer/Gyroscope detected a heavy impact (suspected fall)!", "error");
+    addLog("Initiating 10-second automatic caregiver & emergency dispatch countdown...", "warn");
+  };
+
+  const handleGetGPS = () => {
+    setGpsLoading(true);
+    addLog("Accessing HTML5 Geolocation API service client...", "info");
+    
+    if (!navigator.geolocation) {
+      addLog("Geolocation is not supported by this browser environment. Using secure high-accuracy caregiver mock coordinate bundle.", "warn");
+      setGpsCoords({ lat: 37.7749, lng: -122.4194, accuracy: 15 });
+      setGpsLoading(false);
+      setGpsShared(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsCoords({
+          lat: parseFloat(pos.coords.latitude.toFixed(6)),
+          lng: parseFloat(pos.coords.longitude.toFixed(6)),
+          accuracy: Math.round(pos.coords.accuracy),
+        });
+        addLog(`✓ GPS coordinates locked: Lat ${pos.coords.latitude.toFixed(5)}, Lng ${pos.coords.longitude.toFixed(5)} (~${Math.round(pos.coords.accuracy)}m precision)`, "success");
+        setGpsLoading(false);
+        setGpsShared(true);
+      },
+      (err) => {
+        console.warn("GPS acquire rejected:", err);
+        addLog(`GPS secure service access rejected: ${err.message}. Mapping fallback caregiver home location.`, "warn");
+        setGpsCoords({ lat: 37.7749, lng: -122.4194, accuracy: 12 });
+        setGpsLoading(false);
+        setGpsShared(true);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  };
+
+  // Connect/disconnect Bluetooth Compatible Medical Peripherals
+  const toggleDeviceConnection = (device: keyof typeof bleDevicesConnected) => {
+    const isConnected = bleDevicesConnected[device];
+    setBleDevicesConnected(prev => ({ ...prev, [device]: !isConnected }));
+    
+    const deviceNames = {
+      hr: "Continuous Heart Rate Monitor Node [0x2A37]",
+      ox: "BioSense Pulse Oximeter [SpO2]",
+      bp: "Omron SmartBP-880 Blood Pressure Cuff",
+      glu: "Accu-Chek Instant Blood Glucose Glucometer",
+      scale: "Withings Body+ Smart Weight & BMI Scale",
+      sleep: "Oura sleep tracker band V4",
+    };
+
+    if (!isConnected) {
+      addLog(`Connecting Bluetooth Peripheral: [${deviceNames[device]}]`, "info");
+      addLog(`✓ GATT Handshake success. Subscribed to dynamic bio-channels for ${device.toUpperCase()}`, "success");
+      
+      // Update the main Arduino vitals so the patient monitor displays synced peripheral metrics!
+      syncAllMetricsToGlobal(device, true);
+    } else {
+      addLog(`Terminated Bluetooth session with peripheral [${deviceNames[device]}].`, "warn");
+    }
+  };
+
+  const syncAllMetricsToGlobal = (deviceKey: keyof typeof bleDevicesConnected, forceConnectedState: boolean) => {
+    const activeHR = deviceKey === 'hr' && forceConnectedState ? bleHeartRate : (arduino.vitals?.heartRate || 72);
+    const activeSpo2 = deviceKey === 'ox' && forceConnectedState ? bleSpo2 : (arduino.vitals?.spo2 || 98);
+    const activeSys = deviceKey === 'bp' && forceConnectedState ? bleSystolic : (arduino.vitals?.systolicBP || 118);
+    const activeDia = deviceKey === 'bp' && forceConnectedState ? bleDiastolic : (arduino.vitals?.diastolicBP || 76);
+    const activeTemp = arduino.vitals?.temperature || 36.6;
+    const activeResp = arduino.vitals?.respiratoryRate || 14;
+
+    arduino.updateVitals({
+      heartRate: activeHR,
+      temperature: activeTemp,
+      spo2: activeSpo2,
+      systolicBP: activeSys,
+      diastolicBP: activeDia,
+      respiratoryRate: activeResp,
+      timestamp: Date.now(),
+    });
+
+    arduino.setConnection({
+      connected: true,
+      type: 'bluetooth',
+      deviceName: 'Doctorian Multi-Peripheral Bluetooth Hub'
+    });
+  };
+
+  const analyzeSensorsWithAI = async () => {
+    setIsAiAnalyzing(true);
+    setAiReport(null);
+    addLog("Compiling comprehensive physical sensors & medical device telemetry dataset...", "info");
+    addLog("Piping metrics to Doctorian AI Real-Time Trend Co-pilot (Gemini)...", "info");
+
+    const telemetryPayload = `
+=== PATIENT CONTINUOUS HEALTH MONITORING DATA ===
+-- ACCELEROMETER & GYROSCOPE (Smartphone Sensors):
+- Motion Steps: ${motionSteps} steps
+- Calorie Expenditure: ${motionCal.toFixed(1)} kcal
+- Active Motion State: ${motionActivity} (Live readings: ax=${motionData.ax}, ay=${motionData.ay}, az=${motionData.az})
+- Emergency GPS Coordinates: Lat ${gpsCoords?.lat || '37.7749'}, Lng ${gpsCoords?.lng || '-122.4194'} (Location Shared with Caregivers: ${gpsShared ? 'YES' : 'NO'})
+
+-- COMPATIBLE BLUETOOTH MEDICAL PERIPHERALS:
+- Heart Rate Monitor: ${bleDevicesConnected.hr ? `${bleHeartRate} bpm` : 'DISCONNECTED'}
+- Pulse Oximeter (SpO2): ${bleDevicesConnected.ox ? `${bleSpo2}% SpO2` : 'DISCONNECTED'}
+- Blood Pressure Cuff: ${bleDevicesConnected.bp ? `${bleSystolic}/${bleDiastolic} mmHg (Preset: ${bpPreset})` : 'DISCONNECTED'}
+- Continuous Glucometer: ${bleDevicesConnected.glu ? `${bleGlucose} mg/dL (Preset: ${glucosePreset})` : 'DISCONNECTED'}
+- Smart Weight Scale: ${bleDevicesConnected.scale ? `${bleWeight} kg, BMI: ${bleBmi}` : 'DISCONNECTED'}
+- Sleep Tracker Band: ${bleDevicesConnected.sleep ? `${bleSleepDuration} hrs, Quality: ${bleSleepQuality}` : 'DISCONNECTED'}
+    `;
+
+    const systemPrompt = `You are Doctorian AI, a highly specialized real-time clinical telemetry analyst and emergency advisor.
+Analyze the patient's continuous health monitoring metrics from the smartphone and connected Bluetooth medical equipment.
+Formulate a professional diagnostic report with:
+1. CLINICAL OVERVIEW & TREND ANALYSIS: Discuss steps, calorie goals, sleep patterns, weight, BMI, and vital trends.
+2. ABNORMALITY IDENTIFICATION: Explicitly detect anomalies like hyperglycemia, hypertensive events, hypoxia, abnormal bradycardia/tachycardia, or deceleration impacts (falls).
+3. CLINICIAN NOTIFICATION & CAREGIVER OVERRIDE: Advise exactly what conditions require notifying healthcare providers (like Dr. Alex Carter).
+4. EMERGENCY DISPATCH ASSESSMENT: State if emergency conditions are active and indicate GPS coordinates action.
+
+Ensure the output is highly clinical, professional, well-structured, clean, and styled with bullet points. Do not mention system-level code or paths.`;
+
+    try {
+      // Import api from the global API namespace or verify direct calling is supported
+      const apiModule = await import('../api');
+      const response = await apiModule.api.ai.aiChat(
+        `Analyze the following continuous telemetry bundle:\n${telemetryPayload}`,
+        systemPrompt,
+        "gemini-3.5-flash"
+      );
+      setAiReport(response.text);
+      addLog("✓ Continuous sensor trend analysis successfully compiled by Doctorian AI.", "success");
+    } catch (err: any) {
+      console.error(err);
+      addLog(`AI Analysis lookup failed: ${err.message || err}`, "error");
+      setAiReport("Unable to fetch real-time AI trend analysis. Please verify your connection.");
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
 
   // Handler for BLE Pairing
   const handlePairWatch = async () => {
@@ -368,11 +706,11 @@ export const WearableConnector: React.FC<WearableConnectorProps> = ({ isOpen, on
             </div>
             
             {/* Elegant Tab Switcher */}
-            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-205 dark:border-slate-800/80 shrink-0 select-none">
+            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-205 dark:border-slate-800/80 shrink-0 select-none overflow-x-auto gap-1">
               <button
                 type="button"
                 onClick={() => setActiveTab('healthconnect')}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'healthconnect' 
                     ? 'bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm border border-slate-200 dark:border-slate-800' 
                     : 'text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -383,13 +721,24 @@ export const WearableConnector: React.FC<WearableConnectorProps> = ({ isOpen, on
               <button
                 type="button"
                 onClick={() => setActiveTab('ble')}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'ble' 
                     ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-800' 
                     : 'text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 📡 Direct Bluetooth GATT
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('smart_monitoring')}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'smart_monitoring' 
+                    ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm border border-slate-200 dark:border-slate-800' 
+                    : 'text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                📱 Continuous Sensor Monitoring
               </button>
             </div>
           </div>
@@ -1088,6 +1437,744 @@ class HealthConnectService(private val context: Context) {
                 </div>
               </div>
             )}
+
+            {/* TAB: SMARTPHONE & MULTI-PERIPHERAL SENSOR MONITORING */}
+            {activeTab === 'smart_monitoring' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                
+                {/* Fall Alarm Countdown Banner */}
+                {isFallCountActive && (
+                  <div className="p-6 bg-rose-500 text-white rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4 text-left shadow-lg animate-bounce">
+                    <div className="flex items-start gap-4">
+                      <AlertTriangle className="animate-spin text-white shrink-0" size={32} />
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-black uppercase tracking-wider">🚨 CRITICAL IMPACT FALL ALARM ACTIVE 🚨</h3>
+                        <p className="text-xs font-semibold text-rose-100">
+                          Sudden deceleration detected! Caregiver dispatch in <strong className="text-white text-sm font-black">{fallCountdown} seconds</strong> unless dismissed.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={cancelFallAlert}
+                        className="px-5 py-2.5 bg-white text-rose-600 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-rose-50 transition shadow cursor-pointer select-none border border-transparent"
+                      >
+                        ✓ I'm Safe (Cancel Alert)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grid 1: Smartphone Internal Sensors */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                  
+                  {/* Smartphone Live Motion Hub */}
+                  <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3 items-center">
+                        <div className="p-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-2xl">
+                          <Smartphone size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-450 dark:text-slate-400">Smartphone Sensors</h4>
+                          <h3 className="text-sm font-black text-slate-800 dark:text-white mt-0.5">Live Core Motion Hub</h3>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsLiveMotion(!isLiveMotion);
+                          addLog(isLiveMotion ? "Paused continuous smartphone sensor monitoring." : "Initiated continuous 3-axis smartphone accelerometer stream.", isLiveMotion ? "warn" : "info");
+                        }}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                          isLiveMotion 
+                            ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-md' 
+                            : 'bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                        }`}
+                      >
+                        {isLiveMotion ? "⏸ Pause Stream" : "▶ Start Stream"}
+                      </button>
+                    </div>
+
+                    {/* Vitals Summary Row */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-950/35 rounded-2xl border border-slate-100 dark:border-slate-850">
+                        <span className="text-[8px] font-black text-slate-450 dark:text-slate-450 uppercase tracking-wider">Activity Mode</span>
+                        <p className={`text-xs font-black mt-1 ${
+                          motionActivity === 'Fallen' ? 'text-rose-500 animate-pulse' :
+                          motionActivity === 'Running' ? 'text-indigo-500' :
+                          motionActivity === 'Walking' ? 'text-emerald-500' :
+                          'text-slate-700 dark:text-slate-300'
+                        }`}>
+                          🏃‍♂️ {motionActivity}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-950/35 rounded-2xl border border-slate-100 dark:border-slate-850">
+                        <span className="text-[8px] font-black text-slate-450 dark:text-slate-450 uppercase tracking-wider">Steps Counted</span>
+                        <p className="text-xs font-black text-slate-850 dark:text-white mt-1">
+                          {motionSteps.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-950/35 rounded-2xl border border-slate-100 dark:border-slate-850">
+                        <span className="text-[8px] font-black text-slate-450 dark:text-slate-450 uppercase tracking-wider">Energy Burn</span>
+                        <p className="text-xs font-black text-slate-850 dark:text-white mt-1">
+                          🔥 {motionCal.toFixed(1)} kcal
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Accel & Gyro Vectors */}
+                    <div className="p-4 bg-slate-950 text-slate-300 rounded-2xl font-mono text-[10px] space-y-1">
+                      <div className="flex justify-between border-b border-slate-800/85 pb-1 mb-1 text-slate-450">
+                        <span>3-Axis Telemetry</span>
+                        <span>Value (m/s²)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Accelerometer X-axis:</span>
+                        <span className={motionData.ax !== 0 ? "text-emerald-400 font-bold" : "text-slate-500"}>
+                          {motionData.ax > 0 ? `+${motionData.ax}` : motionData.ax}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Accelerometer Y-axis:</span>
+                        <span className={motionData.ay !== 0 ? "text-emerald-400 font-bold" : "text-slate-500"}>
+                          {motionData.ay > 0 ? `+${motionData.ay}` : motionData.ay}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Accelerometer Z-axis:</span>
+                        <span className={motionData.az !== 9.8 ? "text-emerald-400 font-bold" : "text-slate-500"}>
+                          {motionData.az > 0 ? `+${motionData.az}` : motionData.az}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-900 pt-1 mt-1 text-slate-450">
+                        <span>Goniometer / Rotation</span>
+                        <span>Angle (°)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Yaw (Alpha):</span>
+                        <span className="text-teal-400">{motionData.alpha}°</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Pitch (Beta):</span>
+                        <span className="text-teal-400">{motionData.beta}°</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Roll (Gamma):</span>
+                        <span className="text-teal-400">{motionData.gamma}°</span>
+                      </div>
+                    </div>
+
+                    {/* Simulation buttons */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={triggerFallAlert}
+                        className="flex-1 py-3 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 border border-rose-200/50 dark:border-rose-900/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer select-none text-center"
+                      >
+                        🚨 Simulate Fall Event
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMotionSteps(s => s + Math.floor(Math.random() * 80 + 30));
+                          setMotionCal(c => parseFloat((c + Math.random() * 4 + 1).toFixed(2)));
+                          setMotionActivity('Running');
+                          addLog("Simulated heavy continuous running steps session.", "success");
+                        }}
+                        className="flex-1 py-3 bg-slate-50 dark:bg-slate-850 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer select-none text-center"
+                      >
+                        🏃‍♂️ Simulate Walk Steps
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* High Precision GPS Lock & Geolocation */}
+                  <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex gap-3 items-center">
+                        <div className="p-2.5 bg-teal-50 dark:bg-teal-950/20 text-teal-500 rounded-2xl">
+                          <MapPin size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-450 dark:text-slate-400">Emergency Geolocation</h4>
+                          <h3 className="text-sm font-black text-slate-800 dark:text-white mt-0.5">GPS Caregiver Dispatch Lock</h3>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-550 dark:text-slate-400 leading-relaxed text-left">
+                        Doctorian registers real-time GPS coordinates to direct emergency medical services (EMS) and caregivers instantly if a severe fall or critical telemetry failure occurs.
+                      </p>
+
+                      {/* Display Coordinates */}
+                      {gpsCoords ? (
+                        <div className="p-4 bg-teal-50/50 dark:bg-teal-950/15 border border-teal-100 dark:border-teal-900/30 rounded-2xl text-left space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[8px] font-black text-teal-650 dark:text-teal-400 uppercase tracking-wider">Status: Shared with Care Circle</span>
+                            <span className="text-[7.5px] font-mono uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded leading-none font-bold">Active</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div>
+                              <span className="text-[9px] text-slate-400">Latitude</span>
+                              <p className="font-bold text-slate-800 dark:text-white mt-0.5">{gpsCoords.lat}° N</p>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400">Longitude</span>
+                              <p className="font-bold text-slate-800 dark:text-white mt-0.5">{gpsCoords.lng}° W</p>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 border-t border-teal-100/40 dark:border-teal-900/10 pt-1.5 flex items-center gap-1.5">
+                            <Compass size={12} className="text-teal-500 shrink-0" />
+                            <span>Precision radius: ± {gpsCoords.accuracy} meters (HTML5 Locked)</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-5 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800/80 text-center py-8">
+                          <MapPin size={28} className="text-slate-400 mx-auto opacity-60 animate-pulse" />
+                          <p className="text-xs font-semibold text-slate-450 dark:text-slate-400 mt-2">GPS Telemetry Unlocked</p>
+                          <p className="text-[10px] text-slate-400 mt-1 max-w-[190px] mx-auto">Authorize location to protect your primary caregiver connections.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleGetGPS}
+                      disabled={gpsLoading}
+                      className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none border flex items-center justify-center gap-2 ${
+                        gpsCoords 
+                          ? 'bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/20 dark:hover:bg-teal-950/30 text-teal-600 dark:text-teal-400 border-teal-200/50 dark:border-teal-900/30' 
+                          : 'bg-teal-600 hover:bg-teal-700 text-white border-transparent shadow-md'
+                      }`}
+                    >
+                      {gpsLoading ? (
+                        <>
+                          <RefreshCw className="animate-spin" size={14} />
+                          Locating Satellite Core...
+                        </>
+                      ) : gpsCoords ? (
+                        <>
+                          <Check size={14} />
+                          ✓ Update Sat GPS coordinates
+                        </>
+                      ) : (
+                        <>
+                          <Compass size={14} />
+                          Acquire Sat GPS Geolocation Lock
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Grid 2: Multi-Peripheral Bluetooth Medical Devices */}
+                <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-sm text-left space-y-6">
+                  <div className="flex gap-3 items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 rounded-2xl">
+                      <Bluetooth size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-450 dark:text-slate-400">Bluetooth Medical Peripheral Devices</h4>
+                      <h3 className="text-sm font-black text-slate-800 dark:text-white mt-0.5">Compatible Biometric Telemetry Hub</h3>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    
+                    {/* Device 1: continuous heart rate monitor */}
+                    <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      bleDevicesConnected.hr 
+                        ? 'bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30' 
+                        : 'bg-slate-50/60 dark:bg-slate-950/20 border-slate-200 dark:border-slate-850'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Heart className={`shrink-0 ${bleDevicesConnected.hr ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} size={16} />
+                          <span className="text-xs font-black text-slate-800 dark:text-white">Continuous HR Tracker</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ${
+                          bleDevicesConnected.hr 
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {bleDevicesConnected.hr ? "Paired" : "Disconnected"}
+                        </span>
+                      </div>
+
+                      {bleDevicesConnected.hr ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-[26px] font-black text-slate-850 dark:text-white leading-none">
+                              {bleHeartRate} <span className="text-xs font-semibold text-slate-450">BPM</span>
+                            </span>
+                            <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">✓ ECG GATT Profile Active</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-black uppercase text-slate-400">Interactive Biofeedback:</span>
+                            <input 
+                              type="range" 
+                              min="40" 
+                              max="180" 
+                              value={bleHeartRate}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                setBleHeartRate(val);
+                                syncAllMetricsToGlobal('hr', true);
+                              }}
+                              className="flex-1 accent-emerald-500 h-1 rounded cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 leading-relaxed">
+                          Synchronizes continuous GATT electrocardiogram heart rate.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => toggleDeviceConnection('hr')}
+                        className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer select-none ${
+                          bleDevicesConnected.hr 
+                            ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {bleDevicesConnected.hr ? "Disconnect Device" : "Connect Device"}
+                      </button>
+                    </div>
+
+                    {/* Device 2: Pulse Oximeter SpO2 */}
+                    <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      bleDevicesConnected.ox 
+                        ? 'bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30' 
+                        : 'bg-slate-50/60 dark:bg-slate-950/20 border-slate-200 dark:border-slate-850'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Activity className={`shrink-0 ${bleDevicesConnected.ox ? 'text-indigo-500 animate-pulse' : 'text-slate-400'}`} size={16} />
+                          <span className="text-xs font-black text-slate-800 dark:text-white">Pulse Oximeter [SpO₂]</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ${
+                          bleDevicesConnected.ox 
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {bleDevicesConnected.ox ? "Paired" : "Disconnected"}
+                        </span>
+                      </div>
+
+                      {bleDevicesConnected.ox ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-[26px] font-black text-slate-850 dark:text-white leading-none">
+                              {bleSpo2} <span className="text-xs font-semibold text-slate-450">% SpO₂</span>
+                            </span>
+                            <span className={`text-[9px] font-bold uppercase ${bleSpo2 < 95 ? 'text-rose-500' : 'text-emerald-600'}`}>
+                              {bleSpo2 < 95 ? '⚠️ Hypoxia Hazard' : '✓ Normal'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-black uppercase text-slate-400">Interactive:</span>
+                            <input 
+                              type="range" 
+                              min="80" 
+                              max="100" 
+                              value={bleSpo2}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                setBleSpo2(val);
+                                syncAllMetricsToGlobal('ox', true);
+                              }}
+                              className="flex-1 accent-indigo-500 h-1 rounded cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 leading-relaxed">
+                          Measures arterial blood oxygen saturation saturation levels.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => toggleDeviceConnection('ox')}
+                        className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer select-none ${
+                          bleDevicesConnected.ox 
+                            ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {bleDevicesConnected.ox ? "Disconnect Device" : "Connect Device"}
+                      </button>
+                    </div>
+
+                    {/* Device 3: Blood Pressure Cuff */}
+                    <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      bleDevicesConnected.bp 
+                        ? 'bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30' 
+                        : 'bg-slate-50/60 dark:bg-slate-950/20 border-slate-200 dark:border-slate-850'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Sliders className={`shrink-0 ${bleDevicesConnected.bp ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`} size={16} />
+                          <span className="text-xs font-black text-slate-800 dark:text-white">Smart BP Cuff</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ${
+                          bleDevicesConnected.bp 
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {bleDevicesConnected.bp ? "Paired" : "Disconnected"}
+                        </span>
+                      </div>
+
+                      {bleDevicesConnected.bp ? (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-end">
+                            <span className="text-2xl font-black text-slate-850 dark:text-white leading-none">
+                              {bleSystolic}/{bleDiastolic} <span className="text-[10px] font-semibold text-slate-450">mmHg</span>
+                            </span>
+                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                              bpPreset === 'high' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 animate-pulse' :
+                              bpPreset === 'low' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' :
+                              'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              {bpPreset === 'high' ? '🚨 Hypertensive crisis' : bpPreset === 'low' ? '⚠️ Hypotension' : 'Normal'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center gap-1.5 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl">
+                            <button
+                              onClick={() => setBpPreset('normal')}
+                              className={`flex-1 py-1 text-[8px] font-black uppercase tracking-wider rounded ${bpPreset === 'normal' ? 'bg-white dark:bg-slate-850 text-emerald-600 dark:text-emerald-400 shadow' : 'text-slate-450'}`}
+                            >
+                              Normal
+                            </button>
+                            <button
+                              onClick={() => setBpPreset('high')}
+                              className={`flex-1 py-1 text-[8px] font-black uppercase tracking-wider rounded ${bpPreset === 'high' ? 'bg-rose-500 text-white shadow' : 'text-slate-450'}`}
+                            >
+                              High BP
+                            </button>
+                            <button
+                              onClick={() => setBpPreset('low')}
+                              className={`flex-1 py-1 text-[8px] font-black uppercase tracking-wider rounded ${bpPreset === 'low' ? 'bg-amber-500 text-white shadow' : 'text-slate-450'}`}
+                            >
+                              Low BP
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 leading-relaxed">
+                          Captures systolic & diastolic blood pressure curves.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => toggleDeviceConnection('bp')}
+                        className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer select-none ${
+                          bleDevicesConnected.bp 
+                            ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {bleDevicesConnected.bp ? "Disconnect Device" : "Connect Device"}
+                      </button>
+                    </div>
+
+                    {/* Device 4: Continuous Glucometer */}
+                    <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      bleDevicesConnected.glu 
+                        ? 'bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30' 
+                        : 'bg-slate-50/60 dark:bg-slate-950/20 border-slate-200 dark:border-slate-850'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Droplet className={`shrink-0 ${bleDevicesConnected.glu ? 'text-rose-500' : 'text-slate-400'}`} size={16} />
+                          <span className="text-xs font-black text-slate-800 dark:text-white">Continuous Glucometer [CGM]</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ${
+                          bleDevicesConnected.glu 
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {bleDevicesConnected.glu ? "Paired" : "Disconnected"}
+                        </span>
+                      </div>
+
+                      {bleDevicesConnected.glu ? (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-end">
+                            <span className="text-2xl font-black text-slate-850 dark:text-white leading-none">
+                              {bleGlucose} <span className="text-[10px] font-semibold text-slate-450">mg/dL</span>
+                            </span>
+                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                              glucosePreset === 'high' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 animate-pulse' :
+                              glucosePreset === 'low' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' :
+                              'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              {glucosePreset === 'high' ? '🚨 Hyperglycemia' : glucosePreset === 'low' ? '⚠️ Hypoglycemia' : 'Normal'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center gap-1.5 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl">
+                            <button
+                              onClick={() => setGlucosePreset('normal')}
+                              className={`flex-1 py-1 text-[8px] font-black uppercase tracking-wider rounded ${glucosePreset === 'normal' ? 'bg-white dark:bg-slate-850 text-emerald-600 dark:text-emerald-400 shadow' : 'text-slate-450'}`}
+                            >
+                              Normal
+                            </button>
+                            <button
+                              onClick={() => setGlucosePreset('high')}
+                              className={`flex-1 py-1 text-[8px] font-black uppercase tracking-wider rounded ${glucosePreset === 'high' ? 'bg-rose-500 text-white shadow' : 'text-slate-450'}`}
+                            >
+                              High GLU
+                            </button>
+                            <button
+                              onClick={() => setGlucosePreset('low')}
+                              className={`flex-1 py-1 text-[8px] font-black uppercase tracking-wider rounded ${glucosePreset === 'low' ? 'bg-amber-500 text-white shadow' : 'text-slate-450'}`}
+                            >
+                              Low GLU
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 leading-relaxed">
+                          Sub-dermal interstitial blood sugar monitoring curves.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => toggleDeviceConnection('glu')}
+                        className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer select-none ${
+                          bleDevicesConnected.glu 
+                            ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {bleDevicesConnected.glu ? "Disconnect Device" : "Connect Device"}
+                      </button>
+                    </div>
+
+                    {/* Device 5: Weight & BMI Scale */}
+                    <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      bleDevicesConnected.scale 
+                        ? 'bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30' 
+                        : 'bg-slate-50/60 dark:bg-slate-950/20 border-slate-200 dark:border-slate-850'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Sliders className={`shrink-0 ${bleDevicesConnected.scale ? 'text-teal-500' : 'text-slate-400'}`} size={16} />
+                          <span className="text-xs font-black text-slate-800 dark:text-white">Smart Scale [Weight/BMI]</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ${
+                          bleDevicesConnected.scale 
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {bleDevicesConnected.scale ? "Paired" : "Disconnected"}
+                        </span>
+                      </div>
+
+                      {bleDevicesConnected.scale ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-[22px] font-black text-slate-850 dark:text-white leading-none">
+                              {bleWeight} <span className="text-xs font-semibold text-slate-450">kg</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-teal-650 dark:text-teal-400">BMI: {bleBmi}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-black uppercase text-slate-400">Interact:</span>
+                            <input 
+                              type="range" 
+                              min="400" 
+                              max="1500" 
+                              value={bleWeight * 10}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) / 10;
+                                setBleWeight(val);
+                                // Formula for BMI weight-adjusted
+                                const bmi = parseFloat((val / 1.80**2).toFixed(1));
+                                setBleBmi(bmi);
+                                addLog(`Weight updated to ${val} kg, BMI recalculated to ${bmi}`, "info");
+                              }}
+                              className="flex-1 accent-teal-500 h-1 rounded cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 leading-relaxed">
+                          Registers weight impedance & lean body mass values.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => toggleDeviceConnection('scale')}
+                        className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer select-none ${
+                          bleDevicesConnected.scale 
+                            ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {bleDevicesConnected.scale ? "Disconnect Device" : "Connect Device"}
+                      </button>
+                    </div>
+
+                    {/* Device 6: Sleep tracker band */}
+                    <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      bleDevicesConnected.sleep 
+                        ? 'bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30' 
+                        : 'bg-slate-50/60 dark:bg-slate-950/20 border-slate-200 dark:border-slate-850'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Clock className={`shrink-0 ${bleDevicesConnected.sleep ? 'text-indigo-500' : 'text-slate-400'}`} size={16} />
+                          <span className="text-xs font-black text-slate-800 dark:text-white">Smart Sleep Band</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ${
+                          bleDevicesConnected.sleep 
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {bleDevicesConnected.sleep ? "Paired" : "Disconnected"}
+                        </span>
+                      </div>
+
+                      {bleDevicesConnected.sleep ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-[22px] font-black text-slate-850 dark:text-white leading-none">
+                              {bleSleepDuration} <span className="text-xs font-semibold text-slate-450">hrs</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-indigo-650 dark:text-indigo-400">Quality: {bleSleepQuality}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            {['Poor', 'Fair', 'Good', 'Excellent'].map((lvl) => (
+                              <button
+                                key={lvl}
+                                onClick={() => {
+                                  setBleSleepQuality(lvl);
+                                  addLog(`Sleep quality index calibrated to: ${lvl}`, "success");
+                                }}
+                                className={`flex-1 py-1 text-[7px] font-black rounded uppercase ${bleSleepQuality === lvl ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-850 text-slate-500'}`}
+                              >
+                                {lvl.slice(0, 4)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 leading-relaxed">
+                          Extracts multi-phase sleep latency, REM & heart rate cycles.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => toggleDeviceConnection('sleep')}
+                        className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer select-none ${
+                          bleDevicesConnected.sleep 
+                            ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {bleDevicesConnected.sleep ? "Disconnect Device" : "Connect Device"}
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* AI Real-time Telemetry Co-pilot Analysis */}
+                <div className="p-6 bg-slate-900 text-white rounded-3xl border border-slate-800 shadow-xl text-left space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div className="flex gap-3 items-center">
+                      <div className="p-2.5 bg-rose-500/20 text-rose-400 rounded-2xl">
+                        <Sparkles size={20} className="animate-pulse" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-rose-400">Doctorian AI trend co-pilot</h4>
+                        <h3 className="text-sm font-black text-white mt-0.5">Real-Time Clinical Telemetry Analyst</h3>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={analyzeSensorsWithAI}
+                      disabled={isAiAnalyzing}
+                      className="px-6 py-3 bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-md select-none border border-transparent disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isAiAnalyzing ? (
+                        <>
+                          <RefreshCw className="animate-spin" size={14} />
+                          Analyzing Telemetry...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={14} />
+                          Analyze Telemetry with AI
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* AI Analysis Outcome Display */}
+                  {isAiAnalyzing ? (
+                    <div className="space-y-4 animate-pulse py-4">
+                      <div className="h-4 bg-slate-800 rounded w-1/3"></div>
+                      <div className="space-y-2.5">
+                        <div className="h-3.5 bg-slate-800 rounded w-full"></div>
+                        <div className="h-3.5 bg-slate-800 rounded w-5/6"></div>
+                        <div className="h-3.5 bg-slate-800 rounded w-4/5"></div>
+                        <div className="h-3.5 bg-slate-800 rounded w-11/12"></div>
+                      </div>
+                    </div>
+                  ) : aiReport ? (
+                    <div className="prose prose-invert max-w-none text-xs leading-relaxed text-slate-300 bg-slate-950/55 p-6 rounded-2xl border border-slate-800/60 max-h-[350px] overflow-y-auto font-sans">
+                      <ReactMarkdown>{aiReport}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/20 py-12">
+                      <Sparkles size={32} className="text-slate-600 mx-auto opacity-50 mb-3" />
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No active analysis generated</p>
+                      <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">Click "Analyze Telemetry with AI" above to run diagnostic and emergency risk checks on current active sensors.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Telemetry Log diagnostic console */}
+                <div className="pt-4 text-left space-y-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                      <Terminal size={16} className="text-slate-600 dark:text-slate-400" />
+                      Continuous Session Telemetry Logs
+                    </h4>
+                  </div>
+                  <div className="bg-slate-950 rounded-2xl border border-slate-805 p-5 font-mono text-[10px] leading-relaxed max-h-[160px] overflow-y-auto space-y-1.5 select-text shadow-inner">
+                    {logs.length === 0 ? (
+                      <p className="text-slate-500 italic font-mono">No active signals logged in this session.</p>
+                    ) : (
+                      logs.map((log, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <span className="text-slate-500 shrink-0 font-bold">{log.timestamp}</span>
+                          <span className={`shrink-0 uppercase font-black tracking-wider text-[8px] px-1 rounded ${
+                            log.type === 'success' ? 'bg-emerald-500/15 text-emerald-400' :
+                            log.type === 'warn' ? 'bg-amber-500/15 text-amber-400' :
+                            log.type === 'error' ? 'bg-rose-500/15 text-rose-400' :
+                            'bg-blue-500/15 text-blue-400'
+                          }`}>
+                            {log.type}
+                          </span>
+                          <p className={`flex-1 ${
+                            log.type === 'success' ? 'text-emerald-350 font-semibold' :
+                            log.type === 'warn' ? 'text-amber-300 font-semibold' :
+                            log.type === 'error' ? 'text-rose-300 font-semibold' :
+                            'text-slate-350'
+                          }`}>
+                            {log.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                    <div ref={logsEndRef} />
+                  </div>
+                </div>
+
+              </div>
+            )}
+
 
           </div>
 

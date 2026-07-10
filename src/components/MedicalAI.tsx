@@ -17,9 +17,10 @@ interface MedicalAIProps {
   arduino?: any;
   onUpgradeRequested?: () => void;
   currentLanguage?: string;
+  onChangeLanguage?: (lang: string) => void;
 }
 
-export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, onUpgradeRequested, currentLanguage }: MedicalAIProps) {
+export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, onUpgradeRequested, currentLanguage, onChangeLanguage }: MedicalAIProps) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
   const [operationalIdea, setOperationalIdea] = useState<string | null>(null);
@@ -100,6 +101,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
             arduino={arduino} 
             onUpgradeRequested={onUpgradeRequested}
             currentLanguage={currentLanguage}
+            onChangeLanguage={onChangeLanguage}
             onNavigate={onNavigate}
             onShowNeuralVisualizer={() => setShowVisualizer(true)}
           />

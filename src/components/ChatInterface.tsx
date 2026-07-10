@@ -9,7 +9,7 @@ import {
   Copy, Check, ThumbsUp, ThumbsDown, MessageSquarePlus, Smile,
   Activity, Brain, Heart, Download, Paperclip, FileText, Phone,
   ChevronDown, Shield, Cpu, Clock, Plus, MessageSquare, ArrowRight, Settings,
-  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut, Keyboard
+  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut, Keyboard, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -90,7 +90,7 @@ const PERSONAS = {
 };
 
 const BASE_SYSTEM_INSTRUCTION = `You are Doctorian, a Universal Medical Intelligence Core (UMIC).
-Powered by EBRO company. Created by Akora Joseph.
+Powered by EBROPUS company. Created by Akora Joseph.
 Specialized in NEURAL-CLINICAL SYNTHESIS, ADVANCED CLINICAL MEDICAL EDUCATION, and localized medical decision support systems.
 
 COGNITIVE ARCHITECTURE & CLINICAL BRAIN STRUCTURE:
@@ -276,7 +276,7 @@ const isMedicalQuery = (text: string): boolean => {
   return keywords.some(k => text.toLowerCase().includes(k));
 };
 
-export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage, onNavigate, onShowNeuralVisualizer }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string, onNavigate?: (view: any) => void, onShowNeuralVisualizer?: () => void }) {
+export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage, onChangeLanguage, onNavigate, onShowNeuralVisualizer }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string, onChangeLanguage?: (lang: string) => void, onNavigate?: (view: any) => void, onShowNeuralVisualizer?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -410,7 +410,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // ==========================================
   const [callState, setCallState] = useState<'idle' | 'incoming' | 'calling' | 'connected' | 'disconnecting'>('idle');
   const [callType, setCallType] = useState<'webrtc' | 'mtn' | 'airtel'>('webrtc');
-  const [voiceSelection, setVoiceSelection] = useState<'Charon' | 'Dr. Obote Mentor' | 'Nurse Atwine'>('Charon');
+  const [voiceSelection, setVoiceSelection] = useState<'Joseph' | 'Misty' | 'Promise'>('Joseph');
   const [speechModel, setSpeechModel] = useState<'Whisper'>('Whisper');
   const [voiceBrainModel, setVoiceBrainModel] = useState<'Qwen2.5-3B-Instruct' | 'Gemini-3.5-Flash'>('Gemini-3.5-Flash');
   const [voiceCallMuted, setVoiceCallMuted] = useState<boolean>(false);
@@ -493,6 +493,58 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     }
   };
 
+  // Piano Tone Generator for Interactive Visual-Acoustic Chime
+  const playPianoTone = (freq = 329.63, volume = 0.08) => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(freq, ctx.currentTime);
+      
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
+      
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1000, ctx.currentTime);
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+      
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start();
+      osc2.start();
+      
+      osc1.stop(ctx.currentTime + 1.3);
+      osc2.stop(ctx.currentTime + 1.3);
+      
+      setTimeout(() => {
+        try { ctx.close(); } catch (e) {}
+      }, 1500);
+    } catch (e) {
+      console.warn("Error playing piano tone:", e);
+    }
+  };
+
+  const playPianoIntercom = () => {
+    // Elegant arpeggiated low-volume piano chord chime (E4 -> B4)
+    playPianoTone(329.63, 0.05);
+    setTimeout(() => {
+      playPianoTone(493.88, 0.04);
+    }, 120);
+  };
+
   // Helper for triggering an incoming consultation call simulation
   const triggerIncomingCall = () => {
     if (callState !== 'idle') return;
@@ -518,9 +570,14 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     setVoiceCallLogs(prev => [
       ...prev,
       'SYS: Stream status: ACTIVE',
-      'SYS: Connection completed successfully'
+      'SYS: Connection completed successfully',
+      'SYS: Standby - waiting for user voice signal...'
     ]);
-    speakVoiceCallText(`Hello! This is your Doctorian AI Health Specialist, speaking with ${voiceSelection} profile. I've successfully connected to your secure channel. How are you feeling today?`);
+    
+    // Play interactive piano chime instead of speaking an unprompted verbal greeting
+    playPianoIntercom();
+    
+    setVoiceCallTranscript([{ role: 'assistant', text: "📞 Connection active. I am listening, please speak..." }]);
   };
 
   // Decline/End call
@@ -555,8 +612,16 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
 
     setTimeout(() => {
       setCallState('connected');
-      setVoiceCallLogs(prev => [...prev, 'SYS: Stream status: ACTIVE']);
-      speakVoiceCallText(`Hello and welcome! This is your Doctorian AI Voice consultation portal, connected on a secure pipeline. I am ready to assist you. How are you feeling today?`);
+      setVoiceCallLogs(prev => [
+        ...prev, 
+        'SYS: Stream status: ACTIVE',
+        'SYS: Standby - waiting for user voice signal...'
+      ]);
+      
+      // Play interactive piano chime instead of speaking an unprompted verbal greeting
+      playPianoIntercom();
+      
+      setVoiceCallTranscript([{ role: 'assistant', text: "📞 Secure link active. I am listening, please speak..." }]);
     }, 1500);
   };
 
@@ -587,17 +652,41 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     
     const voices = window.speechSynthesis.getVoices();
     let preferredVoice = null;
-    if (voiceSelection === 'Charon') {
+
+    // Prioritize African accent voices or Swahili voices for regional warmth if available
+    const africanVoice = voices.find(v => 
+      v.lang.startsWith('en-ZA') || 
+      v.lang.startsWith('en-NG') || 
+      v.lang.startsWith('en-KE') || 
+      v.lang.startsWith('sw-TZ') || 
+      v.lang.startsWith('sw-KE') ||
+      v.name.toLowerCase().includes('south africa') ||
+      v.name.toLowerCase().includes('nigeria') ||
+      v.name.toLowerCase().includes('kenya') ||
+      v.name.toLowerCase().includes('swahili')
+    );
+
+    if (africanVoice) {
+      preferredVoice = africanVoice;
+    } else if (voiceSelection === 'Joseph') {
       preferredVoice = voices.find(v => v.name.includes('David') || v.name.includes('Male') || v.lang.startsWith('en')) || voices[0];
-    } else if (voiceSelection === 'Dr. Obote Mentor') {
-      preferredVoice = voices.find(v => v.name.includes('Google US English') || v.lang.startsWith('en-US')) || voices[0];
     } else {
       preferredVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Female')) || voices[0];
     }
     
     if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.rate = 1.0;
-    utterance.pitch = voiceSelection === 'Nurse Atwine' ? 1.1 : 0.95;
+    
+    // Set speech rate to 0.82 to deliver extremely clear, slow, respectful, and compassionate advice suited for villagers
+    utterance.rate = 0.82;
+    utterance.pitch = voiceSelection === 'Joseph' ? 0.88 : voiceSelection === 'Misty' ? 1.05 : 1.0;
+    
+    // Set appropriate language tag
+    if (targetLanguage === 'Swahili') {
+      utterance.lang = 'sw-TZ';
+    } else if (targetLanguage && targetLanguage !== 'English (US)' && targetLanguage !== 'English (UK)' && targetLanguage !== 'Auto Detect') {
+      // For local Ugandan languages, use Swahili as closest regional TTS fallback or South African English for phonetic phonetic cadence
+      utterance.lang = africanVoice ? africanVoice.lang : 'en-ZA';
+    }
     
     utterance.onend = () => {
       setVoiceIsSpeaking(false);
@@ -625,9 +714,11 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
 
     try {
       setVoiceCallLogs(prev => [...prev, `USER: "${query}" (Whisper Transcribed)`]);
-      const res = await api.ai.voiceChat(query, voiceSelection);
+      const res = await api.ai.voiceChat(query, voiceSelection, targetLanguage);
       setVoiceCallIsTranscribing(false);
       if (res && res.text) {
+        // Play the premium piano intercom chime right before speaking the response
+        playPianoIntercom();
         speakVoiceCallText(res.text);
       } else {
         speakVoiceCallText("I have received your speech, but my synthesized logic was lost. Please retry or verify stable network.");
@@ -662,6 +753,29 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       if (transcript && transcript.trim()) {
+        const clean = transcript.trim().toLowerCase();
+        
+        // Filter out very short voice capture fragments that are likely background noise
+        const words = clean.split(/\s+/).filter(w => w.length > 0);
+        
+        // Common static noises and short non-substantive voice captures
+        const fillerWords = ['a', 'i', 'the', 'of', 'and', 'or', 'if', 'to', 'in', 'is', 'it', 'so', 'oh', 'ah', 'um', 'uh', 'hm', 'huh', 'yes', 'no', 'ok', 'hey', 'hi'];
+        if (words.length === 1) {
+          const w = words[0];
+          if (w.length < 3 || fillerWords.includes(w)) {
+            console.log("Call voice ignored (single short/filler word likely background noise):", transcript);
+            return;
+          }
+        }
+        
+        if (words.length > 0) {
+          const hasMeaningfulWord = words.some(w => w.length >= 3 && !fillerWords.includes(w));
+          if (!hasMeaningfulWord) {
+            console.log("Call voice ignored (no meaningful words found, likely background noise):", transcript);
+            return;
+          }
+        }
+
         console.log("Call voice captured:", transcript);
         sendVoiceCallMessage(transcript);
       }
@@ -1121,6 +1235,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   const [intakeSpO2, setIntakeSpO2] = useState<number>(96);
 
   const [showNewChatDropdown, setShowNewChatDropdown] = useState<boolean>(false);
+  const [showExtraToolsDropdown, setShowExtraToolsDropdown] = useState<boolean>(false);
 
   const defaultPatients = [
     {
@@ -1188,7 +1303,8 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     sessionBaseTextRef.current = latestInputRef.current; // Store current input text
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    const isLanguageNativelySupported = targetLanguage === 'English (US)' || targetLanguage === 'English (UK)' || targetLanguage === 'Swahili';
+    if (SpeechRecognition && isLanguageNativelySupported) {
       try {
         if (micRecognitionRef.current) {
           try { micRecognitionRef.current.abort(); } catch (e) {}
@@ -1200,7 +1316,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
         
         let langCode = 'en-US';
         if (targetLanguage === 'Swahili') langCode = 'sw-TZ';
-        else if (targetLanguage === 'Luganda') langCode = 'lg-UG';
+        else if (targetLanguage === 'English (UK)') langCode = 'en-GB';
         
         recognition.lang = langCode;
 
@@ -1275,7 +1391,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
         reader.onloadend = async () => {
           const base64Audio = reader.result as string;
           try {
-            setTerminalLogs(prev => [...prev.slice(-3), `AI: Engaging NLLB Translator for ${targetLanguage}...`]);
+            setTerminalLogs(prev => [...prev.slice(-3), `AI: Engaging Voice-to-Text Pipeline for ${targetLanguage}...`]);
             const result = await api.ai.speechToText(base64Audio, 'audio/webm', targetLanguage) as any;
             
             if (result && result.success) {
@@ -1284,8 +1400,8 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
               setInput(latestInputRef.current + separator + displayText);
               setTerminalLogs(prev => [...prev.slice(-3), `AI: Decoded ${targetLanguage} packet`]);
               
-              if (result.english && targetLanguage !== 'English') {
-                setTerminalLogs(prev => [...prev.slice(-3), `AI: Clinical English Link: "${result.english.substring(0, 20)}..."`]);
+              if (result.english && targetLanguage !== 'English (US)' && targetLanguage !== 'English (UK)') {
+                setTerminalLogs(prev => [...prev.slice(-3), `AI: Clinical English Translation: "${result.english.substring(0, 40)}..."`]);
               }
             }
           } catch (err) {
@@ -3013,65 +3129,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-[65vw] md:max-w-[75vw] lg:max-w-none shrink-0 py-1.5 whitespace-nowrap flex-nowrap scroll-smooth">
-              {/* VHT Community Registry Sync */}
-              <button
-                onClick={() => {
-                  handleToggleVHTLogs();
-                  triggerFeatureTip('vht_registry', `VHT Registry: ${!isVHTLogsActive ? 'Synced' : 'Standby'}`);
-                }}
-                className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full border transition-all text-[8.5px] sm:text-[9px] font-black uppercase tracking-wider cursor-pointer shrink-0 ${
-                  isVHTLogsActive
-                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm shadow-emerald-500/10'
-                    : 'bg-emerald-555/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
-                }`}
-                title="VHT Patient Community Registry"
-              >
-                <Users size={12} className={isVHTLogsActive ? 'animate-pulse text-white' : 'text-emerald-500'} />
-                <AnimatePresence>
-                  {activeFeatureTip?.id === 'vht_registry' && (
-                    <motion.span
-                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                    >
-                      {activeFeatureTip.text}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
-
-              {/* Bio-Stethoscope Acoustic Monitor */}
-              <button 
-                onClick={() => {
-                  handleTriggerBioStethoscope();
-                  triggerFeatureTip('bio_stethoscope', 'Bioacoustic Scan');
-                }}
-                className={`flex items-center gap-1 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border transition-all text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider shadow-sm cursor-pointer shrink-0 ${
-                  isBioStethoscopeActive
-                    ? 'bg-rose-600 text-white border-rose-500 animate-pulse'
-                    : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-150 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:border-rose-500'
-                }`}
-                title="Bio-Stethoscope Acoustic Monitor"
-              >
-                <Stethoscope size={12} className={isBioStethoscopeActive ? 'text-white' : 'text-rose-500'} />
-                <AnimatePresence>
-                  {activeFeatureTip?.id === 'bio_stethoscope' && (
-                    <motion.span
-                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                    >
-                      {activeFeatureTip.text}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
-
+              <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-[65vw] md:max-w-[75vw] lg:max-w-none shrink-0 py-1.5 whitespace-nowrap flex-nowrap scroll-smooth">
               {/* Active Fine-Tuned Weights Indicator Badge */}
               {activeFineTunedModel && (
                 <div className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-500 text-[9px] font-black uppercase tracking-wider shrink-0">
@@ -3079,118 +3137,6 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <span>FT: {activeFineTunedModel.customName}</span>
                 </div>
               )}
-
-              {/* EMR Case Intake & Formulator Trigger */}
-              {onShowNeuralVisualizer && (
-                <button 
-                  onClick={() => {
-                    onShowNeuralVisualizer();
-                    triggerFeatureTip('anatomical_synth', 'Anatomical Synth');
-                  }}
-                  className={`p-1.5 sm:p-2 transition-all flex items-center gap-1 sm:gap-1.5 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-500 hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-900 bg-white dark:bg-slate-950 cursor-pointer shrink-0 ${
-                    activeFeatureTip?.id === 'anatomical_synth' ? 'bg-blue-50 border-blue-200 dark:bg-slate-900 dark:border-slate-800' : ''
-                  }`}
-                  title="Anatomical Synth Visualizer"
-                >
-                  <Brain size={14} className="text-blue-500" />
-                  <AnimatePresence>
-                    {activeFeatureTip?.id === 'anatomical_synth' && (
-                      <motion.span
-                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="hidden sm:inline-block text-[9.5px] font-[1000] uppercase tracking-wider text-blue-600 dark:text-blue-400 overflow-hidden whitespace-nowrap"
-                      >
-                        {activeFeatureTip.text}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              )}
-
-              {/* Chatbot Zoom Controls */}
-              <div className="flex items-center gap-1 sm:gap-1.5 border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 px-1 sm:px-1.5 py-1 shrink-0">
-                <button
-                  onClick={handleZoomOut}
-                  className="p-1 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
-                  title="Zoom Out"
-                  disabled={zoomLevel <= 80}
-                >
-                  <ZoomOut size={13} className={zoomLevel <= 80 ? "opacity-40" : ""} />
-                </button>
-                <span 
-                  onClick={handleZoomReset}
-                  className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600 cursor-pointer select-none px-0.5 sm:px-1"
-                  title="Reset Zoom to 100%"
-                >
-                  {zoomLevel}%
-                </span>
-                <button
-                  onClick={handleZoomIn}
-                  className="p-1 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
-                  title="Zoom In"
-                  disabled={zoomLevel >= 150}
-                >
-                  <ZoomIn size={13} className={zoomLevel >= 150 ? "opacity-40" : ""} />
-                </button>
-              </div>
-
-              {onNavigate && (
-                <button 
-                  onClick={() => {
-                    onNavigate('genomic_longevity');
-                    triggerFeatureTip('genomic_omics', 'Genomic Omics');
-                  }}
-                  className={`p-1.5 sm:p-2 transition-all flex items-center gap-1 sm:gap-1.5 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-500 hover:text-pink-600 hover:bg-slate-50 dark:hover:bg-slate-900 bg-white dark:bg-slate-950 cursor-pointer shrink-0 ${
-                    activeFeatureTip?.id === 'genomic_omics' ? 'bg-pink-50 border-pink-200 dark:bg-slate-900 dark:border-slate-800' : ''
-                  }`}
-                  title="Genomic Omics Core"
-                >
-                  <Dna size={14} className="text-pink-500 shrink-0" />
-                  <AnimatePresence>
-                    {activeFeatureTip?.id === 'genomic_omics' && (
-                      <motion.span
-                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="hidden sm:inline-block text-[9.5px] font-[1000] uppercase tracking-wider text-pink-600 dark:text-pink-400 overflow-hidden whitespace-nowrap"
-                      >
-                        {activeFeatureTip.text}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              )}
-
-              <button 
-                onClick={() => {
-                  setShowToolHub(!showToolHub);
-                  triggerFeatureTip('case_intake', showToolHub ? 'EHR Closed' : 'EHR Intake Open');
-                }} 
-                className={`p-1.5 sm:p-2 transition-all flex items-center gap-1 sm:gap-1.5 rounded-xl border cursor-pointer shrink-0 ${
-                  showToolHub 
-                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-mono font-bold font-black' 
-                    : 'text-slate-400 hover:text-blue-600 border-transparent bg-transparent'
-                }`}
-                title="Patient Intake & Case EMR Formulator"
-              >
-                <FileText size={15} className="shrink-0" />
-                <AnimatePresence>
-                  {activeFeatureTip?.id === 'case_intake' && (
-                    <motion.span
-                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="hidden sm:inline-block text-[9px] font-black uppercase tracking-widest text-inherit overflow-hidden whitespace-nowrap"
-                    >
-                      {activeFeatureTip.text}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
 
               {/* Modernized Add Chat button with instant start template dropdown */}
               <div className="relative shrink-0">
@@ -3219,196 +3165,171 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <ChevronDown size={11} className={`hidden sm:inline-block transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
-              <AnimatePresence>
-                {showNewChatDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowNewChatDropdown(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl z-50 p-2 space-y-1 text-left"
+                <AnimatePresence>
+                  {showNewChatDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowNewChatDropdown(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl z-50 p-2 space-y-1 text-left"
+                      >
+                        <div className="px-3 py-2 border-b border-slate-50 dark:border-slate-850">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Start Clinical Template</span>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            createNewSession('Clinical Intake Formulator');
+                            setActiveTool('case_intake');
+                            setShowToolHub(true);
+                            setShowNewChatDropdown(false);
+                          }}
+                          className="w-full text-left p-2.5 bg-blue-50/50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-bold border border-blue-100/30 rounded-xl transition-all flex items-start gap-2.5"
+                        >
+                          <div className="w-7 h-7 bg-blue-150/40 dark:bg-blue-900/40 rounded-lg flex items-center justify-center shrink-0">
+                            <FileText size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase leading-none">Intake Formulator</p>
+                            <p className="text-[9px] text-slate-500 font-semibold leading-tight mt-1.5">Interactive EHR Patient Intake & SOAP Note Generator</p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            createNewSession('Primary Consultation');
+                            setActivePersona('general');
+                            setShowNewChatDropdown(false);
+                          }}
+                          className="w-full text-left p-2.5 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
+                        >
+                          <div className="w-7 h-7 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
+                            <Bot size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Primary Care</p>
+                            <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Primary clinic and baseline wellness guidelines</p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            createNewSession('Lab Assessment');
+                            setActiveTool('lab_interpreter');
+                            setShowToolHub(true);
+                            setShowNewChatDropdown(false);
+                          }}
+                          className="w-full text-left p-2.5 hover:bg-emerald-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
+                        >
+                          <div className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                            <Activity size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Lab Interpreter</p>
+                            <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Hb, WBC, Platelets, Urine & Malaria diagnostics</p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            createNewSession('Obstetric Assessment');
+                            setActiveTool('obstetric');
+                            setShowToolHub(true);
+                            setShowNewChatDropdown(false);
+                          }}
+                          className="w-full text-left p-2.5 hover:bg-rose-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
+                        >
+                          <div className="w-7 h-7 bg-rose-100 dark:bg-rose-900/40 rounded-lg flex items-center justify-center text-rose-600 shrink-0">
+                            <AlertCircle size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Obstetric Risk</p>
+                            <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Maternal risk levels & pre-eclampsia checking</p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            createNewSession('Fluid Infusion Resus');
+                            setActiveTool('fluid_infusion');
+                            setShowToolHub(true);
+                            setShowNewChatDropdown(false);
+                          }}
+                          className="w-full text-left p-2.5 hover:bg-amber-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
+                        >
+                          <div className="w-7 h-7 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
+                            <Sparkles size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Fluid Infusion</p>
+                            <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Dehydration severity & mass resuscitation SOPs</p>
+                          </div>
+                        </button>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Voice Consultation Gateway Button */}
+              <button 
+                onClick={() => {
+                  setShowVoiceCallModal(true);
+                  setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Loaded Doctorian Voice and Calling Portal.']);
+                  triggerFeatureTip('voice_call', 'Voice Call');
+                }} 
+                className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1.5 rounded-full border border-emerald-500/20 cursor-pointer text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider shrink-0"
+                title="Doctorian Voice consultation & Calling Portal"
+              >
+                <Phone size={12} className="animate-pulse" />
+                <span>Voice Call</span>
+                <AnimatePresence>
+                  {activeFeatureTip?.id === 'voice_call' && (
+                    <motion.span
+                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
+                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
                     >
-                      <div className="px-3 py-2 border-b border-slate-50 dark:border-slate-850">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Start Clinical Template</span>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => {
-                          createNewSession('Clinical Intake Formulator');
-                          setActiveTool('case_intake');
-                          setShowToolHub(true);
-                          setShowNewChatDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 bg-blue-50/50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-bold border border-blue-100/30 rounded-xl transition-all flex items-start gap-2.5"
-                      >
-                        <div className="w-7 h-7 bg-blue-150/40 dark:bg-blue-900/40 rounded-lg flex items-center justify-center shrink-0">
-                          <FileText size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase leading-none">Intake Formulator</p>
-                          <p className="text-[9px] text-slate-500 font-semibold leading-tight mt-1.5">Interactive EHR Patient Intake & SOAP Note Generator</p>
-                        </div>
-                      </button>
+                      {activeFeatureTip.text}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          createNewSession('Primary Consultation');
-                          setActivePersona('general');
-                          setShowNewChatDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
-                      >
-                        <div className="w-7 h-7 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
-                          <Bot size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Primary Care</p>
-                          <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Primary clinic and baseline wellness guidelines</p>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          createNewSession('Lab Assessment');
-                          setActiveTool('lab_interpreter');
-                          setShowToolHub(true);
-                          setShowNewChatDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 hover:bg-emerald-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
-                      >
-                        <div className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
-                          <Activity size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Lab Interpreter</p>
-                          <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Hb, WBC, Platelets, Urine & Malaria diagnostics</p>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          createNewSession('Obstetric Assessment');
-                          setActiveTool('obstetric');
-                          setShowToolHub(true);
-                          setShowNewChatDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 hover:bg-rose-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
-                      >
-                        <div className="w-7 h-7 bg-rose-100 dark:bg-rose-900/40 rounded-lg flex items-center justify-center text-rose-600 shrink-0">
-                          <AlertCircle size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Obstetric Risk</p>
-                          <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Maternal risk levels & pre-eclampsia checking</p>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          createNewSession('Fluid Infusion Resus');
-                          setActiveTool('fluid_infusion');
-                          setShowToolHub(true);
-                          setShowNewChatDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 hover:bg-amber-50/50 dark:hover:bg-slate-800/50 rounded-xl transition-all flex items-start gap-2.5"
-                      >
-                        <div className="w-7 h-7 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
-                          <Sparkles size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">Fluid Infusion</p>
-                          <p className="text-[9px] text-slate-400 font-semibold leading-tight mt-1.5">Dehydration severity & mass resuscitation SOPs</p>
-                        </div>
-                      </button>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+              {/* Friendly Unified Clinical Tools Hub Button */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => {
+                    setShowToolHub(!showToolHub);
+                    triggerFeatureTip('tools_hub', showToolHub ? 'Clinical Tools Closed' : 'Clinical Tools Open');
+                  }}
+                  className={`px-3 py-1.5 transition-all flex items-center gap-2 rounded-full border text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 ${
+                    showToolHub 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-blue-50/50 dark:bg-slate-900 border-blue-100 dark:border-slate-800 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'
+                  }`}
+                  title="Clinical Utilities Hub"
+                >
+                  <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 dark:bg-slate-850 px-2 py-0.5 rounded-full border border-blue-500/10">
+                    <BrainCircuit size={12} className={showToolHub ? 'text-blue-600' : 'text-blue-500 animate-pulse'} />
+                    <Stethoscope size={12} className="text-rose-500" />
+                    <Dna size={12} className="text-teal-500" />
+                  </div>
+                  <span>Tools Hub</span>
+                  <ChevronDown size={11} className={`transform transition-transform ${showToolHub ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
             </div>
-
-            <button 
-              onClick={() => {
-                setShowVoiceCallModal(true);
-                setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Loaded Doctorian Voice and Calling Portal.']);
-                triggerFeatureTip('voice_call', 'Voice Call');
-              }} 
-              className="p-2 px-2.5 hover:bg-emerald-500/15 dark:hover:bg-emerald-550/20 text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1 bg-emerald-500/10 rounded-xl border border-emerald-500/20 cursor-pointer"
-              title="Doctorian Voice consultation & Calling Portal"
-            >
-              <Phone size={13} className="animate-pulse" />
-              <AnimatePresence>
-                {activeFeatureTip?.id === 'voice_call' && (
-                  <motion.span
-                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                  >
-                    {activeFeatureTip.text}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-
-            <button 
-              onClick={() => {
-                const newWS = !isWidescreen;
-                setIsWidescreen(newWS);
-                localStorage.setItem("doctorian_chat_widescreen", String(newWS));
-                setTerminalLogs(prev => [...prev.slice(-3), `SYS: UI dynamic layout shifted to [${newWS ? 'Widescreen' : 'Standard'}] mode.`]);
-                triggerFeatureTip('widescreen', newWS ? 'Widescreen' : 'Standard View');
-              }} 
-              className={`p-2 px-2.5 transition-all flex items-center gap-1.5 rounded-xl border cursor-pointer ${isWidescreen ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 font-mono font-bold hover:bg-indigo-500/20' : 'text-slate-400 hover:text-blue-600 border-transparent bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/45'}`}
-              title={isWidescreen ? "Switch to Standard Compact View" : "Switch to Full Explorer Widescreen View for friendly reading room"}
-            >
-              {isWidescreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              <AnimatePresence>
-                {activeFeatureTip?.id === 'widescreen' && (
-                  <motion.span
-                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                  >
-                    {activeFeatureTip.text}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-
-            <button 
-              onClick={() => {
-                setShowSettings(!showSettings);
-                triggerFeatureTip('settings', showSettings ? 'Closed Settings' : 'Settings Opened');
-              }} 
-              className="p-2 text-slate-400 hover:text-blue-600 transition-all animate-spin-slow cursor-pointer flex items-center gap-1 shrink-0" 
-              title="Doctorian Settings"
-            >
-              <Settings size={14} />
-              <AnimatePresence>
-                {activeFeatureTip?.id === 'settings' && (
-                  <motion.span
-                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-blue-600"
-                  >
-                    {activeFeatureTip.text}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          </div>
         </header>
 
         {/* Navigation Tabs - Chat, My Health Log, Resources */}
@@ -4114,6 +4035,45 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     className="hidden" 
                   />
                   
+                  <div className="relative flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 rounded-full px-2.5 py-1.5 hover:border-blue-500/30 dark:hover:border-blue-500/40 transition-all shrink-0">
+                    <Globe size={14} className="text-slate-400 dark:text-slate-500 shrink-0 mr-1" />
+                    <select
+                      value={targetLanguage}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetLanguage(val);
+                        setTerminalLogs(prev => [...prev.slice(-3), `SYS: Calibrating voice link for ${val}...`]);
+                        if (onChangeLanguage) {
+                          onChangeLanguage(val);
+                        }
+                      }}
+                      className="bg-transparent border-none outline-none pr-4 font-black uppercase text-[9px] tracking-widest cursor-pointer appearance-none text-slate-600 dark:text-slate-300 focus:ring-0 focus:outline-none"
+                    >
+                      {[
+                        'Auto Detect',
+                        'English (US)',
+                        'English (UK)',
+                        'Luganda',
+                        'Runyankole-Rukiga',
+                        'Acholi-Luo',
+                        'Langi',
+                        'Iteso',
+                        'Lusoga',
+                        'Lugbara',
+                        'Runyoro-Rutooro',
+                        'Rukonjo',
+                        'Samia',
+                        'Karamojong',
+                        'Swahili'
+                      ].map(lang => (
+                        <option key={lang} value={lang} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold uppercase">
+                          {lang}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 absolute right-2 pointer-events-none" />
+                  </div>
+
                   <button 
                     onClick={() => {
                       if (isRecording) {
@@ -4123,7 +4083,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       }
                     }}
                     className={`flex p-2.5 sm:p-3 rounded-full transition-all relative shrink-0 ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-                    title={isRecording ? "Stop voice query recording" : "Record voice query via Web Speech API"}
+                    title={isRecording ? "Stop voice query recording" : "Record voice query in chosen language"}
                   >
                     <Mic size={18} className={`sm:w-5 sm:h-5 ${isRecording ? 'animate-pulse' : ''}`} />
                     {isRecording && (
@@ -4559,16 +4519,169 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex flex-wrap items-center justify-between bg-white dark:bg-slate-950/80 backdrop-blur-md">
               <div>
                 <h3 className="text-sm font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-1.5 leading-none">
-                  <FileText size={16} className="text-blue-600 animate-pulse" /> EMR Case Intake Core
+                  <BrainCircuit size={16} className="text-blue-600 animate-pulse" /> Clinical Tools Hub
                 </h3>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Patient Intake & Case Formulator</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Unified Diagnostic & Clinical Systems</p>
               </div>
               <button 
                 onClick={() => setShowToolHub(false)} 
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
+            </div>
+
+            {/* Interactive System Utilities Section */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800/50 space-y-2.5 shrink-0">
+              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">
+                🔴 Interactive System Utilities
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Bioacoustic Monitor */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTriggerBioStethoscope();
+                    triggerFeatureTip('bio_stethoscope', 'Bioacoustic Scan');
+                  }}
+                  className={`p-2 rounded-xl transition-all flex items-center gap-2 text-left border cursor-pointer ${
+                    isBioStethoscopeActive 
+                      ? 'bg-rose-500/10 border-rose-200 dark:border-rose-950/40 text-rose-600 dark:text-rose-400 font-bold' 
+                      : 'bg-white border-slate-100 hover:border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-lg flex items-center justify-center shrink-0 ${isBioStethoscopeActive ? 'bg-rose-500/20' : 'bg-rose-500/10'}`}>
+                    <Stethoscope size={13} className={isBioStethoscopeActive ? 'text-rose-500 animate-pulse' : 'text-rose-500'} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase leading-tight truncate">Bioacoustic</p>
+                    <p className="text-[7.5px] text-slate-400 font-semibold truncate">Auscultation Scan</p>
+                  </div>
+                </button>
+
+                {/* Community Registry */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleVHTLogs();
+                    triggerFeatureTip('vht_registry', `VHT Registry: ${!isVHTLogsActive ? 'Synced' : 'Standby'}`);
+                  }}
+                  className={`p-2 rounded-xl transition-all flex items-center gap-2 text-left border cursor-pointer ${
+                    isVHTLogsActive 
+                      ? 'bg-emerald-500/10 border-emerald-200 dark:border-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold' 
+                      : 'bg-white border-slate-100 hover:border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-lg flex items-center justify-center shrink-0 ${isVHTLogsActive ? 'bg-emerald-500/20' : 'bg-emerald-500/10'}`}>
+                    <Users size={13} className={isVHTLogsActive ? 'text-emerald-500' : 'text-emerald-500'} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase leading-tight truncate">Village Sync</p>
+                    <p className="text-[7.5px] text-slate-400 font-semibold truncate">VHT Registry</p>
+                  </div>
+                </button>
+
+                {/* Anatomical Synth */}
+                {onShowNeuralVisualizer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onShowNeuralVisualizer();
+                      triggerFeatureTip('anatomical_synth', 'Anatomical Synth');
+                    }}
+                    className="p-2 rounded-xl transition-all flex items-center gap-2 text-left border bg-white border-slate-100 hover:border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    <div className="p-1.5 rounded-lg flex items-center justify-center bg-purple-500/10 dark:bg-purple-500/20 shrink-0">
+                      <Brain size={13} className="text-purple-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase leading-tight truncate">Anatomical Synth</p>
+                      <p className="text-[7.5px] text-slate-400 font-semibold truncate">Neural Visual Model</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Genomic Omics */}
+                {onNavigate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onNavigate('genomic_longevity');
+                      triggerFeatureTip('genomic_omics', 'Genomic Omics');
+                    }}
+                    className="p-2 rounded-xl transition-all flex items-center gap-2 text-left border bg-white border-slate-100 hover:border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    <div className="p-1.5 rounded-lg flex items-center justify-center bg-teal-500/10 dark:bg-teal-500/20 shrink-0">
+                      <Dna size={13} className="text-teal-500 animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase leading-tight truncate">Genomic Omics</p>
+                      <p className="text-[7.5px] text-slate-400 font-semibold truncate">Genetic Profiling</p>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Layout & Scale Settings Section */}
+            <div className="px-4 py-2 bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 shrink-0 text-[9px] font-black">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 uppercase tracking-widest">Scale:</span>
+                <span className="text-slate-600 dark:text-slate-350 bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded">{zoomLevel}%</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleZoomOut}
+                    disabled={zoomLevel <= 80}
+                    className="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-slate-500 hover:text-blue-600 disabled:opacity-45 cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleZoomReset}
+                    className="px-1 h-5 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-slate-500 hover:text-blue-600 cursor-pointer"
+                  >
+                    Rst
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleZoomIn}
+                    disabled={zoomLevel >= 150}
+                    className="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-slate-500 hover:text-blue-600 disabled:opacity-45 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newWS = !isWidescreen;
+                    setIsWidescreen(newWS);
+                    localStorage.setItem("doctorian_chat_widescreen", String(newWS));
+                    triggerFeatureTip('widescreen', newWS ? 'Widescreen' : 'Standard View');
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded uppercase tracking-wider text-slate-600 dark:text-slate-350 hover:text-blue-600 cursor-pointer"
+                >
+                  {isWidescreen ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
+                  <span>{isWidescreen ? "Compact" : "Widescreen"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSettings(!showSettings);
+                    triggerFeatureTip('settings', showSettings ? 'Closed Settings' : 'Settings Opened');
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded uppercase tracking-wider text-slate-600 dark:text-slate-350 hover:text-blue-600 cursor-pointer animate-spin-slow"
+                >
+                  <Settings size={10} />
+                  <span>Settings</span>
+                </button>
+              </div>
             </div>
 
             {/* Selector Tabs */}
@@ -4576,37 +4689,37 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               <button 
                 type="button"
                 onClick={() => setActiveTool('rag_clinical_hub')}
-                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'rag_clinical_hub' ? 'bg-indigo-650 dark:bg-indigo-950/80 text-white shadow-sm border border-indigo-500/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-800/10 border border-transparent'}`}
+                className={`py-1.5 px-2.5 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 ${activeTool === 'rag_clinical_hub' ? 'bg-indigo-650 dark:bg-indigo-950/80 text-white shadow-sm border border-indigo-500/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-800/10 border border-transparent'}`}
               >
-                🩺 Clinical RAG
+                <span>🩺 Clinical RAG</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('case_intake')}
-                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'case_intake' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2.5 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 ${activeTool === 'case_intake' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
-                EMR Intake
+                <span>📝 EMR Intake</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('lab_interpreter')}
-                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'lab_interpreter' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2.5 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 ${activeTool === 'lab_interpreter' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
-                Lab Interpreter
+                <span>🧪 Lab Interpreter</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('obstetric')}
-                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'obstetric' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2.5 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 ${activeTool === 'obstetric' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
-                Obstetric Care
+                <span>🤰 Obstetric Care</span>
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTool('fluid_infusion')}
-                className={`py-1.5 px-2 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all ${activeTool === 'fluid_infusion' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
+                className={`py-1.5 px-2.5 text-[8.5px] font-[1000] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 ${activeTool === 'fluid_infusion' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50 font-black' : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white'}`}
               >
-                Fluid Resus
+                <span>💧 Fluid Resus</span>
               </button>
             </div>
 
@@ -5850,18 +5963,18 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-lg bg-slate-950/95 border border-slate-800/80 text-white rounded-[2.5rem] shadow-3xl flex flex-col overflow-hidden max-h-[85vh] font-sans"
+               className="relative w-full max-w-lg animate-breathing-blue border border-blue-200/80 text-slate-900 rounded-[2.5rem] shadow-3xl flex flex-col overflow-hidden max-h-[85vh] font-sans"
              >
                {/* Modal Header */}
                <div className="p-6 flex items-center justify-between shrink-0 bg-transparent z-10">
                  <div className="text-left flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                   <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">AI Consultation</span>
+                   <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                   <span className="text-xs font-black tracking-wider text-slate-500 uppercase">AI Consultation</span>
                  </div>
                  {callState === 'idle' && (
                    <button 
                      onClick={() => setShowVoiceCallModal(false)} 
-                     className="p-2 hover:bg-white/5 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                     className="p-2 hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-colors cursor-pointer"
                    >
                      <X size={18} />
                    </button>
@@ -5875,60 +5988,35 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                  {callState === 'idle' && (
                    <div className="flex flex-col flex-1 justify-center space-y-8 py-4 animate-in fade-in duration-300">
                      <div className="text-center space-y-2">
-                       <h3 className="text-2xl font-semibold tracking-tight text-white">Secure Voice Portal</h3>
-                       <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                       <h3 className="text-2xl font-black tracking-tight text-slate-900">Secure Voice Portal</h3>
+                       <p className="text-xs text-slate-600 font-semibold max-w-sm mx-auto">
                          Connect with our clinical intelligence core. Powered by real-time translation and modern neural models.
                        </p>
                      </div>
 
                      {/* Clean Configuration Card */}
-                     <div className="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-5 space-y-5 text-left">
+                     <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 space-y-5 text-left shadow-sm">
                        {/* Voice Selection */}
                        <div className="space-y-2.5">
-                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Clinician Voice</span>
+                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Clinician Voice</span>
                          <div className="grid grid-cols-3 gap-2">
                            {[
-                             { id: 'Charon' as const, label: 'Charon', desc: 'Male Voice' },
-                             { id: 'Dr. Obote Mentor' as const, label: 'Dr. Obote', desc: 'Tutor Voice' },
-                             { id: 'Nurse Atwine' as const, label: 'Nurse Atwine', desc: 'Midwife Voice' }
+                             { id: 'Joseph' as const, label: 'Joseph', desc: 'Cloned African Voice' },
+                             { id: 'Misty' as const, label: 'Misty', desc: 'Compassionate Voice' },
+                             { id: 'Promise' as const, label: 'Promise', desc: 'Gentle Clinical Voice' }
                            ].map(voice => (
                              <button
                                key={voice.id}
                                type="button"
                                onClick={() => setVoiceSelection(voice.id)}
-                               className={`p-3 rounded-2xl border text-center transition-all ${
+                               className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                                  voiceSelection === voice.id 
-                                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' 
-                                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-white hover:border-slate-700'
+                                   ? 'border-blue-500 bg-blue-500/15 text-blue-700 shadow-sm font-bold' 
+                                   : 'border-slate-200/80 bg-white/60 text-slate-500 hover:text-slate-800 hover:bg-white hover:border-slate-300'
                                }`}
                              >
-                               <p className="text-xs font-semibold leading-none">{voice.label}</p>
-                               <p className="text-[9px] text-slate-500 mt-1 leading-none">{voice.desc}</p>
-                             </button>
-                           ))}
-                         </div>
-                       </div>
-
-                       {/* Cognitive Brain Selection */}
-                       <div className="space-y-2.5">
-                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Cognitive AI Brain</span>
-                         <div className="grid grid-cols-2 gap-2">
-                           {[
-                             { id: 'Gemini-3.5-Flash' as const, label: 'Gemini 3.5 Flash', desc: 'Ultra-fast Clinical Reasoning' },
-                             { id: 'Qwen2.5-3B-Instruct' as const, label: 'Qwen 2.5 (Local)', desc: 'Secure Offline Model' }
-                           ].map(brain => (
-                             <button
-                               key={brain.id}
-                               type="button"
-                               onClick={() => setVoiceBrainModel(brain.id)}
-                               className={`p-3 rounded-2xl border text-left transition-all ${
-                                 voiceBrainModel === brain.id 
-                                   ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' 
-                                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-white hover:border-slate-700'
-                               }`}
-                             >
-                               <p className="text-xs font-semibold leading-none">{brain.label}</p>
-                               <p className="text-[9px] text-slate-500 mt-1 leading-none">{brain.desc}</p>
+                               <p className="text-xs font-black leading-none">{voice.label}</p>
+                               <p className="text-[9px] text-slate-400 mt-1 leading-none font-bold">{voice.desc}</p>
                              </button>
                            ))}
                          </div>
@@ -5940,19 +6028,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                        <button
                          type="button"
                          onClick={startVoiceCallSession}
-                         className="w-full py-4 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-2xl font-semibold tracking-wider text-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                         className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-black tracking-wider text-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-blue-500/15"
                        >
                          <Phone size={14} />
                          Initiate Direct Call
-                       </button>
-
-                       <button
-                         type="button"
-                         onClick={triggerIncomingCall}
-                         className="w-full py-4 bg-slate-900 hover:bg-slate-800/80 text-white rounded-2xl font-semibold tracking-wider text-xs border border-slate-800 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
-                       >
-                         <Sparkles size={14} className="text-blue-400" />
-                         Receive Incoming Call Demo
                        </button>
                      </div>
                    </div>
@@ -6012,22 +6091,21 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     </div>
 
                     {/* Header info */}
-                    <div className="text-center space-y-1 pt-2 z-10">
-                      <h3 className="text-xl font-bold tracking-tight text-white">{voiceSelection}</h3>
-                      <p className="text-xs text-slate-400 font-medium">Doctorian AI Voice Specialist</p>
-                      <div className="flex items-center justify-center gap-1.5 mt-1.5">
-                        {callState === 'connected' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />}
-                        <span className="text-[10px] uppercase font-bold tracking-widest font-mono text-slate-500">
-                          {callState === 'calling' ? (
-                            <span className="text-amber-400 animate-pulse">Establishing secure link...</span>
-                          ) : callState === 'disconnecting' ? (
-                            <span className="text-rose-400">Disconnecting...</span>
-                          ) : (
-                            `Connected • ${String(Math.floor(voiceCallDuration / 60)).padStart(2, '0')}:${String(voiceCallDuration % 60).padStart(2, '0')}`
-                          )}
-                        </span>
+                    {callState !== 'connected' && (
+                      <div className="text-center space-y-1 pt-2 z-10">
+                        <h3 className="text-xl font-bold tracking-tight text-white">{voiceSelection}</h3>
+                        <p className="text-xs text-slate-400 font-medium">Doctorian AI Voice Specialist</p>
+                        <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                          <span className="text-[10px] uppercase font-bold tracking-widest font-mono text-slate-500">
+                            {callState === 'calling' ? (
+                              <span className="text-amber-400 animate-pulse">Establishing secure link...</span>
+                            ) : (
+                              <span className="text-rose-400">Disconnecting...</span>
+                            )}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Immersive Central Orb (Gemini Live inspired) */}
                     <div className="flex flex-col items-center justify-center py-6 z-10 flex-1 min-h-[220px]">
@@ -6123,70 +6201,74 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       </div>
                       
                       {/* Real-time Subtitle/Active Phrase Text (Very friendly and clean) */}
-                      <div className="mt-6 px-8 text-center min-h-[3rem] flex items-center justify-center max-w-sm">
-                        <AnimatePresence mode="wait">
-                          <motion.p 
-                            key={voiceIsSpeaking ? 'speaking' : voiceCallIsTranscribing ? 'transcribing' : voiceCallMuted ? 'muted' : 'listening'}
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -5 }}
-                            className="text-xs font-semibold tracking-wide"
-                          >
-                            {voiceIsSpeaking ? (
-                              <span className="text-slate-100 italic leading-relaxed font-sans text-sm">
-                                {voiceCallTranscript[voiceCallTranscript.length - 1]?.text || "Speaking..."}
-                              </span>
-                            ) : voiceCallIsTranscribing ? (
-                              <span className="text-indigo-400 animate-pulse uppercase tracking-widest text-[10px]">Processing health query...</span>
-                            ) : voiceCallMuted ? (
-                              <span className="text-rose-400 uppercase tracking-widest text-[10px]">Microphone Muted</span>
-                            ) : (
-                              <span className="text-cyan-400 animate-pulse uppercase tracking-widest text-[10px]">Listening for your voice...</span>
-                            )}
-                          </motion.p>
-                        </AnimatePresence>
-                      </div>
+                      {callState !== 'connected' && (
+                        <div className="mt-6 px-8 text-center min-h-[3rem] flex items-center justify-center max-w-sm">
+                          <AnimatePresence mode="wait">
+                            <motion.p 
+                              key={voiceIsSpeaking ? 'speaking' : voiceCallIsTranscribing ? 'transcribing' : voiceCallMuted ? 'muted' : 'listening'}
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -5 }}
+                              className="text-xs font-semibold tracking-wide"
+                            >
+                              {voiceIsSpeaking ? (
+                                <span className="text-slate-100 italic leading-relaxed font-sans text-sm">
+                                  {voiceCallTranscript[voiceCallTranscript.length - 1]?.text || "Speaking..."}
+                                </span>
+                              ) : voiceCallIsTranscribing ? (
+                                <span className="text-indigo-400 animate-pulse uppercase tracking-widest text-[10px]">Processing health query...</span>
+                              ) : voiceCallMuted ? (
+                                <span className="text-rose-400 uppercase tracking-widest text-[10px]">Microphone Muted</span>
+                              ) : (
+                                <span className="text-cyan-400 animate-pulse uppercase tracking-widest text-[10px]">Listening for your voice...</span>
+                              )}
+                            </motion.p>
+                          </AnimatePresence>
+                        </div>
+                      )}
                     </div>
 
                     {/* Sliding Transcript Drawer Toggle (clean, low profile) */}
-                    <div className="px-6 z-10">
-                      <div className="bg-slate-900/40 border border-slate-900/60 rounded-2xl overflow-hidden transition-all duration-300">
-                        <button
-                          type="button"
-                          onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
-                          className="w-full px-4 py-3 flex items-center justify-between text-xs text-slate-400 hover:text-white transition-all outline-none"
-                        >
-                          <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">Dialogue History</span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-semibold">{showVoiceTranscript ? 'Hide' : 'Show'}</span>
-                            <ChevronDown size={12} className={`transform transition-transform duration-300 ${showVoiceTranscript ? 'rotate-180' : ''}`} />
-                          </div>
-                        </button>
+                    {callState !== 'connected' && (
+                      <div className="px-6 z-10">
+                        <div className="bg-slate-900/40 border border-slate-900/60 rounded-2xl overflow-hidden transition-all duration-300">
+                          <button
+                            type="button"
+                            onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
+                            className="w-full px-4 py-3 flex items-center justify-between text-xs text-slate-400 hover:text-white transition-all outline-none"
+                          >
+                            <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">Dialogue History</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] font-semibold">{showVoiceTranscript ? 'Hide' : 'Show'}</span>
+                              <ChevronDown size={12} className={`transform transition-transform duration-300 ${showVoiceTranscript ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
 
-                        {showVoiceTranscript && (
-                          <div className="h-28 p-4 overflow-y-auto space-y-3.5 flex flex-col custom-scrollbar border-t border-slate-900/50 text-[11px] animate-in slide-in-from-top-2 duration-200 bg-slate-950/40">
-                            {voiceCallTranscript.map((log, i) => (
-                              <div 
-                                key={i} 
-                                className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
-                                  log.role === 'user' 
-                                    ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/10 self-end' 
-                                    : 'bg-slate-900/60 text-slate-200 border border-slate-800/40 self-start'
-                                }`}
-                              >
-                                <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
-                                  {log.role === 'user' ? 'You' : voiceSelection}
-                                </span>
-                                <p className="m-0 font-medium">{log.text}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                          {showVoiceTranscript && (
+                            <div className="h-28 p-4 overflow-y-auto space-y-3.5 flex flex-col custom-scrollbar border-t border-slate-900/50 text-[11px] animate-in slide-in-from-top-2 duration-200 bg-slate-950/40">
+                              {voiceCallTranscript.map((log, i) => (
+                                <div 
+                                  key={i} 
+                                  className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
+                                    log.role === 'user' 
+                                      ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/10 self-end' 
+                                      : 'bg-slate-900/60 text-slate-200 border border-slate-800/40 self-start'
+                                  }`}
+                                >
+                                  <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
+                                    {log.role === 'user' ? 'You' : voiceSelection}
+                                  </span>
+                                  <p className="m-0 font-medium">{log.text}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Keyboard Input Drawer (Toggled by the Keyboard Button) */}
-                    {showVoiceKeyboard && (
+                    {showVoiceKeyboard && callState !== 'connected' && (
                       <div className="px-6 z-10 animate-in slide-in-from-bottom-3 duration-300">
                         <div className="bg-slate-900/60 border border-slate-850 rounded-2xl p-3.5 space-y-3">
                           <div className="flex flex-wrap gap-1.5">
@@ -6240,18 +6322,20 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     <div className="pt-4 px-6 pb-2 flex items-center justify-between gap-4 border-t border-slate-900/40 z-10">
                       <div className="flex gap-2.5">
                         {/* Keyboard/Text Input Toggle */}
-                        <button
-                          type="button"
-                          onClick={() => setShowVoiceKeyboard(!showVoiceKeyboard)}
-                          className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
-                            showVoiceKeyboard 
-                              ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
-                              : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
-                          }`}
-                          title="Toggle typing mode"
-                        >
-                          <Keyboard size={18} />
-                        </button>
+                        {callState !== 'connected' && (
+                          <button
+                            type="button"
+                            onClick={() => setShowVoiceKeyboard(!showVoiceKeyboard)}
+                            className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
+                              showVoiceKeyboard 
+                                ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
+                                : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
+                            }`}
+                            title="Toggle typing mode"
+                          >
+                            <Keyboard size={18} />
+                          </button>
+                        )}
 
                         {/* Mic Mute Button */}
                         <button

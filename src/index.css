@@ -8,8 +8,20 @@
   
   --animate-spin-slow: spin 8s linear infinite;
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-breathing-blue: breathing-blue 10s ease-in-out infinite;
   
   --shadow-3xl: 0 35px 60px -15px rgba(0, 0, 0, 0.5);
+
+  @keyframes breathing-blue {
+    0%, 100% {
+      background-color: #ffffff;
+      background-image: radial-gradient(circle at 50% 50%, #f0f9ff 0%, #ffffff 100%);
+    }
+    50% {
+      background-color: #f0fdf4;
+      background-image: radial-gradient(circle at 50% 50%, #dbeafe 0%, #f5f9ff 100%);
+    }
+  }
 }
 
 /* Markdown Sizing for Chat */

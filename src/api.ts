@@ -2320,7 +2320,7 @@ export const api = {
         return { text, creditsRemaining: "Offline Local Back-up Mode" };
       }
     },
-    async voiceChat(text: string, voiceName: string = 'Charon') {
+    async voiceChat(text: string, voiceName: string = 'Joseph', language?: string) {
       if (isOffline()) {
         return { text: `[Voice consultation offline mode active]: ${text}` };
       }
@@ -2328,7 +2328,7 @@ export const api = {
         const res = await fetchWithRetry(`${API_BASE}/ai/voice`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, voiceName }),
+          body: JSON.stringify({ text, voiceName, language }),
           credentials: "include",
         });
         const data = await res.json();
@@ -3129,7 +3129,7 @@ export const api = {
     },
     async speechToText(audio: string, mimeType: string, targetLang: string = 'English') {
       if (isOffline()) {
-        return `[Offline Decoding Pass]: Patient reports normal clinical baselines.`;
+        return { success: true, original: "Patient reports normal clinical baselines (Offline).", english: "Patient reports normal clinical baselines (Offline)." };
       }
       try {
         const res = await fetch(`${API_BASE}/ai/stt`, {
@@ -3140,9 +3140,9 @@ export const api = {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Speech-to-Text failed");
-        return data.text as string;
+        return data;
       } catch (err) {
-        return `[Offline Decoding Pass]: Patient reports normal clinical baselines.`;
+        return { success: true, original: "Patient reports normal clinical baselines.", english: "Patient reports normal clinical baselines." };
       }
     },
      async getHuggingFaceModels(): Promise<{ models: { id: string; downloads: number; likes: number }[]; isFallback?: boolean }> {

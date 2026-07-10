@@ -6719,7 +6719,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     try {
       const response = await callAI({
         messages: [{ role: 'user', text: `Translate the following text into ${targetLang}. Return ONLY the translated text. Original Text: "${text}"` }],
-        systemInstruction: "You are a professional medical translator specialized in Ugandan languages (Luganda, Swahili, Runyankole, Acholi, Ateso, Lusoga, Luo, etc.). Maintain clinical precision and cultural context."
+        systemInstruction: "You are a professional medical translator specialized in Ugandan languages (Luganda, Swahili, Runyankole, Acholi, Ateso, Lusoga, Luo, etc.). Maintain clinical precision and cultural context. Do NOT output any thinking processes, brackets, emojis, medical symbols, or names like 'Doctorian' or 'Clinical Synapse'. Translate directly and politely."
       });
       const sanitized = sanitizeTranslationResponse(response, text);
       res.json({ text: sanitized, success: true });
@@ -6754,7 +6754,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       // 2. Call AI with translation prompt
       const response = await callAI({
         messages: [{ role: 'user', text: `Translate the following word, short phrase or sentence into ${targetLang}. Output ONLY the precise translated text without any footnotes, prefaces, explanations or quotes around the output. Phrase: "${text}"` }],
-        systemInstruction: "You are an automated medical translator. Maintain clinical context for world languages (Luganda, Swahili, Runyankole, Acholi, Ateso, Lusoga, Luo, Spanish, French, German, Chinese, Hindi, Arabic, Portuguese, Korean, Japanese, Italian, Turkish, Russian). Keep the response as short and precise as the original text."
+        systemInstruction: "You are an automated medical translator. Maintain clinical context for world languages (Luganda, Swahili, Runyankole, Acholi, Ateso, Lusoga, Luo, Spanish, French, German, Chinese, Hindi, Arabic, Portuguese, Korean, Japanese, Italian, Turkish, Russian). Keep the response as short and precise as the original text. Do NOT output any thinking processes, brackets, emojis, medical symbols, or names like 'Doctorian' or 'Clinical Synapse'. Translate directly and politely."
       });
 
       const sanitized = sanitizeTranslationResponse(response, text);
@@ -7384,7 +7384,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     });
 
     app.post("/api/ai/voice", authenticate, async (req: any, res) => {
-      const { text, voiceName } = req.body;
+      const { text, voiceName, language } = req.body;
       const userId = req.user.id;
 
       const creditStatus = deductCredits(userId, CREDIT_COSTS.VOICE_CALL);
@@ -7396,10 +7396,38 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       }
 
       try {
-        console.log(`[AI-VOICE] Processing voice session with "${voiceName}" for user: "${text}"`);
+        const selectedLang = language || "Auto Detect";
+        console.log(`[AI-VOICE] Processing voice session in language "${selectedLang}" with "${voiceName}" for user query: "${text}"`);
+        
+        let voicePersonaInstruction = "";
+        if (voiceName === 'Joseph') {
+          voicePersonaInstruction = "You are Joseph, the warm, knowledgeable male African clinical administrator. Speak with a deep, extremely reassuring, and authoritative male African voice.";
+        } else if (voiceName === 'Misty') {
+          voicePersonaInstruction = "You are Misty, a gentle and highly compassionate clinical specialist. Speak with a reassuring, warm, clear female clinical helper voice.";
+        } else if (voiceName === 'Promise') {
+          voicePersonaInstruction = "You are Promise, an empathetic and supportive clinical guide. Speak with a highly professional, polite, and encouraging voice.";
+        } else {
+          voicePersonaInstruction = "You are a professional clinical specialist at Doctorian.";
+        }
+
+        let dynamicInstruction = "";
+        if (selectedLang !== 'English (US)' && selectedLang !== 'English (UK)' && selectedLang !== 'Auto Detect') {
+          dynamicInstruction = `${voicePersonaInstruction} The user is communicating in ${selectedLang} (a regional language of Uganda/East Africa).
+You MUST respond fully, fluently, and naturally in ${selectedLang}.
+Your response MUST be extremely fast, specific, direct, and laser-focused on the user's question. Do not use conversational filler, conversational preamble, or introductory bloating.
+Use very simple, friendly, supportive, and respectful terms that villagers and elders in Uganda can easily comprehend. Describe clinical concepts in simple, gentle analogies.
+Keep answers warm, clinical, and extremely brief (under 15 words total) for immediate audio flow. Direct the user to seek professional aid if necessary. Conclude with regional words of blessing or support (e.g. "Weebale", "Gyebaleko", "Asante").`;
+        } else {
+          dynamicInstruction = `${voicePersonaInstruction} You are communicating with local villagers in East Africa/Uganda.
+Your response MUST be extremely fast, specific, direct, and laser-focused on the user's question. Do not use conversational filler, conversational preamble, or introductory bloating.
+You MUST write in English but with a highly warm, friendly, simple, and reassuring phonetic accent and flow tailored for African villagers. Use respectful terms (like "My friend", "Mama", "Papa", "Ssebo", "Nnyabo", or similar friendly Ugandan salutations if appropriate).
+Keep answers warm, comforting, and extremely brief (under 15 words total) for immediate, lag-free audio flow. Avoid any intimidating medical jargon. Explain concepts with pure simplicity and respect.
+Direct the user to a health center if needed, and conclude with supportive blessings.`;
+        }
+
         const responseText = await callAI({
           messages: [{ role: 'user', text: text || "Hello Doctorian" }],
-          systemInstruction: "You are Doctorian clinical voice core, simulating high-fidelity Coqui XTTS-v2 synthesis combined with whisper transcribing. Keep answers warm, clinical, and extremely brief (under 30 words total) for immediate audio flow. Direct the user to seek professional aid if necessary. Conclude with supportive words.",
+          systemInstruction: dynamicInstruction,
           modelName: PRIMARY_ENGINE,
           userId
         });
@@ -7408,7 +7436,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           text: responseText,
           creditsRemaining: creditStatus.remaining,
           engine: "Coqui XTTS v2 + Whisper Active",
-          voiceName: voiceName || "Charon",
+          voiceName: voiceName || "Joseph",
           status: "synthesized"
         });
       } catch (err: any) {

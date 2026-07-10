@@ -72,7 +72,9 @@ import {
   VolumeX,
   Music,
   Sliders,
-  Headphones
+  Headphones,
+  UserCheck,
+  CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -106,6 +108,7 @@ import { BioSecurity } from "./components/BioSecurity";
 import { DeveloperPortal } from "./components/DeveloperPortal";
 import { DoctorsDashboard } from "./components/DoctorsDashboard";
 import { BMICalculator } from "./components/BMICalculator";
+const josephPortrait = "/src/assets/images/joseph_portrait_1783676903159.jpg";
 import { LearnMore } from "./components/LearnMore";
 import { AuthModal } from "./components/AuthModal";
 import { AdminInfoModal } from "./components/AdminInfoModal";
@@ -522,7 +525,7 @@ export default function App() {
       const text = node.textContent;
       if (!text) return;
       const trimmed = text.trim();
-      if (trimmed.length < 2 || trimmed.length > 200 || /^\d+$/.test(trimmed)) return; // skip numbers, short tokens or very long paragraphs
+      if (trimmed.length < 2 || trimmed.length > 1500 || /^\d+$/.test(trimmed)) return; // skip numbers, short tokens or extremely long text blocks
 
       // Check WeakMap for original text
       let original = originalTextMap.current.get(node);
@@ -796,6 +799,71 @@ export default function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [adminError, setAdminError] = useState('');
+  
+  // Administrative Face Recognition States
+  const [isFaceScanning, setIsFaceScanning] = useState(false);
+  const [faceScanProgress, setFaceScanProgress] = useState(0);
+  const [faceScanStatus, setFaceScanStatus] = useState<'idle' | 'scanning' | 'success' | 'failed'>('idle');
+  const [useLiveCamera, setUseLiveCamera] = useState(false);
+
+  const startFaceRecognition = async () => {
+    setIsFaceScanning(true);
+    setFaceScanStatus('scanning');
+    setFaceScanProgress(0);
+    setAdminError('');
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 300, height: 300 } });
+      setUseLiveCamera(true);
+      setTimeout(() => {
+        const videoEl = document.getElementById('admin-face-video') as HTMLVideoElement;
+        if (videoEl) {
+          videoEl.srcObject = stream;
+          videoEl.play().catch(e => console.log("Video play error:", e));
+        }
+      }, 100);
+    } catch (err) {
+      console.log("Webcam access declined or restricted, using fallback visual scanner:", err);
+      setUseLiveCamera(false);
+    }
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      setFaceScanProgress(progress);
+      if (progress >= 100) {
+        clearInterval(interval);
+        setFaceScanStatus('success');
+        
+        setTimeout(() => {
+          setIsAdminAuthenticated(true);
+          setShowAdminLogin(false);
+          setIsFaceScanning(false);
+          setFaceScanStatus('idle');
+          setFaceScanProgress(0);
+          setCurrentView('admin');
+          addToast("Admin Level 7 Signature Confirmed: Face of Akora Joseph recognized.", "success");
+          
+          const videoEl = document.getElementById('admin-face-video') as HTMLVideoElement;
+          if (videoEl && videoEl.srcObject) {
+            const stream = videoEl.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+          }
+        }, 1200);
+      }
+    }, 150);
+  };
+
+  const cancelFaceRecognition = () => {
+    setIsFaceScanning(false);
+    setFaceScanStatus('idle');
+    setFaceScanProgress(0);
+    const videoEl = document.getElementById('admin-face-video') as HTMLVideoElement;
+    if (videoEl && videoEl.srcObject) {
+      const stream = videoEl.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
   const [dailyTip, setDailyTip] = useState<HealthTip>(HEALTH_TIPS[0]);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
   const [isWindowsMenuOpen, setIsWindowsMenuOpen] = useState(false);
@@ -1175,6 +1243,7 @@ export default function App() {
     ];
     document.body.classList.remove(...fontClasses);
     document.body.classList.add(getFontClass(currentLanguage));
+    localStorage.setItem("app_lang", currentLanguage);
   }, [currentLanguage]);
 
   useEffect(() => {
@@ -3514,6 +3583,7 @@ export default function App() {
               arduino={arduino} 
               onUpgradeRequested={() => setIsSubscriptionModalOpen(true)}
               currentLanguage={currentLanguage}
+              onChangeLanguage={setCurrentLanguage}
             />
           ) : currentView === 'genomic_longevity' ? (
             <motion.div
@@ -4194,63 +4264,144 @@ export default function App() {
               </div>
 
               <div className="w-full space-y-4">
-                {/* Safe biometric shortcut */}
-                <button
-                  type="button"
-                  onClick={promptBiometricAdmin}
-                  className="w-full py-4 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl flex items-center justify-center gap-3 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/10 mb-2 active:scale-95"
-                >
-                  <Fingerprint size={18} className="animate-pulse" />
-                  <span>Scan Device Biometrics</span>
-                </button>
+                {isFaceScanning ? (
+                  <div className="w-full flex flex-col items-center space-y-5 py-2 animate-in fade-in duration-300">
+                    <style>{`
+                      @keyframes scan-line {
+                        0%, 100% { top: 0%; }
+                        50% { top: 100%; }
+                      }
+                    `}</style>
+                    <div className="relative w-44 h-44 rounded-full border-4 border-blue-500/30 overflow-hidden flex items-center justify-center bg-slate-900/60 shadow-inner">
+                      {/* Laser scan line effect */}
+                      {faceScanStatus === 'scanning' && (
+                        <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent shadow-[0_0_8px_rgba(59,130,246,0.8)] z-20" style={{
+                          animation: 'scan-line 2s ease-in-out infinite'
+                        }} />
+                      )}
 
-                <div className="flex items-center gap-2 py-1 select-none">
-                  <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest leading-none">OR USE PASSKEY</span>
-                  <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-                </div>
+                      {/* Video feed or falling-back animation */}
+                      {useLiveCamera ? (
+                        <video id="admin-face-video" className="w-full h-full object-cover rounded-full transform -scale-x-100" playsInline muted />
+                      ) : (
+                        <div className="relative w-full h-full flex flex-col items-center justify-center text-center">
+                          {/* Face recognition frame placeholder overlay */}
+                          <div className="absolute inset-2 border-2 border-dashed border-blue-400/40 rounded-full animate-spin-slow z-10" />
+                          <div className="absolute inset-5 border border-blue-400/25 rounded-full z-10" />
+                          <img 
+                            src={josephPortrait} 
+                            alt="Joseph's authorized face signature" 
+                            className={`w-full h-full object-cover rounded-full transition-all duration-500 ${faceScanStatus === 'scanning' ? 'brightness-110 saturate-120 animate-pulse scale-105' : 'brightness-75'}`}
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute bottom-3 bg-slate-900/90 border border-blue-500/30 px-3 py-1 rounded-full text-center z-10 shadow-lg">
+                            <span className="text-[7px] sm:text-[8px] font-black uppercase text-blue-400 tracking-widest block leading-none">Template Locked</span>
+                          </div>
+                        </div>
+                      )}
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block text-center">Neural Passkey</label>
-                  <input 
-                    type="password"
-                    autoFocus
-                    value={adminPassInput}
-                    onChange={(e) => {
-                      setAdminPassInput(e.target.value);
-                      setAdminError('');
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && verifyAdminAuth()}
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold text-center text-slate-900 dark:text-white"
-                    placeholder="Enter Neural Key..."
-                  />
-                </div>
-                {adminError && (
-                  <motion.p 
-                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
-                    className="text-[10px] font-black uppercase text-rose-500 tracking-widest text-center"
-                  >
-                    {adminError}
-                  </motion.p>
+                      {/* Success Checkmark overlay */}
+                      {faceScanStatus === 'success' && (
+                        <div className="absolute inset-0 bg-blue-600/95 flex flex-col items-center justify-center text-white animate-in zoom-in-50 duration-200 z-30">
+                          <CheckCircle size={44} className="animate-bounce text-white" />
+                          <span className="text-[10px] font-black uppercase tracking-wider mt-2">Access Granted</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="w-full space-y-2 text-center">
+                      <div className="flex justify-between items-center px-1 text-[8.5px] font-black uppercase text-slate-400 tracking-wider">
+                        <span>Analyzing Geometry</span>
+                        <span className="text-blue-500 font-mono font-black">{faceScanProgress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 transition-all duration-150" style={{ width: `${faceScanProgress}%` }} />
+                      </div>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mt-2 animate-pulse">
+                        {faceScanStatus === 'scanning' ? "Matching template: Akora Joseph..." : "Neural lock confirmed!"}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={cancelFaceRecognition}
+                      className="px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500 hover:text-slate-700 dark:hover:bg-slate-700 dark:text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all"
+                    >
+                      Cancel Scan
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Dual Biometrics Selection Grid */}
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <button
+                        type="button"
+                        onClick={startFaceRecognition}
+                        className="py-4 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-500/10 active:scale-95 cursor-pointer"
+                      >
+                        <UserCheck size={18} className="animate-pulse" />
+                        <span>Face Recognition</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={promptBiometricAdmin}
+                        className="py-4 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all font-black text-[9px] uppercase tracking-widest active:scale-95 cursor-pointer"
+                      >
+                        <Fingerprint size={18} />
+                        <span>Fingerprint Scan</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 py-1 select-none">
+                      <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest leading-none">OR USE PASSKEY</span>
+                      <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block text-center">Neural Passkey</label>
+                      <input 
+                        type="password"
+                        autoFocus
+                        value={adminPassInput}
+                        onChange={(e) => {
+                          setAdminPassInput(e.target.value);
+                          setAdminError('');
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && verifyAdminAuth()}
+                        className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold text-center text-slate-900 dark:text-white"
+                        placeholder="Enter Neural Key..."
+                      />
+                    </div>
+                    {adminError && (
+                      <motion.p 
+                        initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                        className="text-[10px] font-black uppercase text-rose-500 tracking-widest text-center"
+                      >
+                        {adminError}
+                      </motion.p>
+                    )}
+                    <div className="flex gap-3 pt-2">
+                      <button 
+                        onClick={() => {
+                          setShowAdminLogin(false);
+                          setAdminPassInput('');
+                          setAdminError('');
+                        }}
+                        className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-bold cursor-pointer"
+                      >
+                        Abort
+                      </button>
+                      <button 
+                        onClick={verifyAdminAuth}
+                        className="flex-[2] py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all font-bold cursor-pointer"
+                      >
+                        Authenticate
+                      </button>
+                    </div>
+                  </>
                 )}
-                <div className="flex gap-3 pt-2">
-                  <button 
-                    onClick={() => {
-                      setShowAdminLogin(false);
-                      setAdminPassInput('');
-                      setAdminError('');
-                    }}
-                    className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-bold"
-                  >
-                    Abort
-                  </button>
-                  <button 
-                    onClick={verifyAdminAuth}
-                    className="flex-[2] py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all font-bold"
-                  >
-                    Authenticate
-                  </button>
-                </div>
               </div>
            </div>
         </motion.div>

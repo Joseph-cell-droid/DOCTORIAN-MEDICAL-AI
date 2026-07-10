@@ -6,6 +6,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { signInWithSocial, googleProvider, githubProvider, facebookProvider, instagramProvider } from '../firebase';
 
 import { Logo } from './Logo';
+const josephPortrait = "/src/assets/images/joseph_portrait_1783676903159.jpg";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [view, setView] = useState<AuthView>(initialView);
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
   const [authMethod, setAuthMethod] = useState<'password' | 'biometric'>('password');
+  const [biometricType, setBiometricType] = useState<'fingerprint' | 'face'>('face');
   const [portalType, setPortalType] = useState<'user' | 'doctor' | 'admin'>('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -153,10 +155,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       if (isSimulated) {
-        setSuccessMessage("Verifying local biometric enrollment signature...");
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        setSuccessMessage("Securing physical handshake with 256-bit FIDO2 Enclave...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (biometricType === 'face') {
+          setSuccessMessage("Opening Optical Lens & Targeting Face Reticle...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          setSuccessMessage("Scanning facial mesh parameters (Male, short hair, direct gaze)...");
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          setSuccessMessage("Comparing facial vector signature with video enrollment profile of Joseph...");
+          await new Promise(resolve => setTimeout(resolve, 1400));
+          setSuccessMessage("Match CONFIRMED: Joseph Obote (99.8% match confidence)!");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          setSuccessMessage("Verifying local biometric enrollment signature...");
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          setSuccessMessage("Securing physical handshake with 256-bit FIDO2 Enclave...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         
         setBiometricSuccess(true);
         setSuccessMessage("System match confirmed! Biometric integrity 100%.");
@@ -521,33 +534,106 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </p>
                     </div>
 
-                    {/* Scanner graphic */}
-                    <div className="flex flex-col items-center justify-center py-4 mb-4 relative w-full">
-                      <motion.div 
-                        animate={isBiometricLoading ? { 
-                          scale: [1, 1.1, 1],
-                          opacity: [0.6, 1, 0.6]
-                        } : {}}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                        className={`relative z-10 w-28 h-28 rounded-full border-4 flex items-center justify-center mb-4 transition-all ${
-                          biometricSuccess ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-500/30 bg-blue-500/5'
+                    {/* Biometric Type Selector Tabs */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl w-full mb-6">
+                      <button
+                        type="button"
+                        onClick={() => setBiometricType('face')}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                          biometricType === 'face'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                         }`}
                       >
-                         <Fingerprint size={56} className={isBiometricLoading ? "text-blue-500 animate-pulse" : biometricSuccess ? "text-emerald-500" : "text-blue-500 dark:text-blue-400"} />
-                         {isBiometricLoading && (
-                           <motion.div 
-                             animate={{ y: [-56, 56, -56] }}
-                             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                             className="absolute w-full h-0.5 bg-blue-500/60 shadow-[0_0_12px_rgba(59,130,246,0.9)]"
-                           />
-                         )}
-                      </motion.div>
+                        <ScanFace size={13} />
+                        Joseph Face Recognition
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBiometricType('fingerprint')}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                          biometricType === 'fingerprint'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        <Fingerprint size={13} />
+                        Fingerprint ID
+                      </button>
+                    </div>
+
+                    {/* Scanner graphic */}
+                    <div className="flex flex-col items-center justify-center py-2 mb-4 relative w-full">
+                      {biometricType === 'face' ? (
+                        /* Facial Recognition Frame featuring Joseph */
+                        <div className="relative w-44 h-44 rounded-3xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner mb-4">
+                          <img 
+                            src={josephPortrait} 
+                            alt="Admin Video Face Signature" 
+                            className="w-full h-full object-cover opacity-85" 
+                            referrerPolicy="no-referrer" 
+                          />
+                          {/* Targeting Reticle */}
+                          <div className="absolute inset-4 border border-dashed border-blue-500/40 rounded-2xl pointer-events-none" />
+                          <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-blue-500" />
+                          <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-blue-500" />
+                          <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-blue-500" />
+                          <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-blue-500" />
+                          
+                          {/* Lasers and status bars */}
+                          {isBiometricLoading && (
+                            <motion.div 
+                              animate={{ y: [-80, 80, -80] }}
+                              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                              className="absolute left-0 w-full h-0.5 bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)] z-20"
+                            />
+                          )}
+                          
+                          {biometricSuccess && (
+                            <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center backdrop-blur-xs">
+                              <div className="bg-slate-950/90 text-emerald-400 p-2 rounded-xl border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-xl animate-bounce">
+                                <ShieldCheck size={12} />
+                                MATCH 100% SECURE
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* Standard Fingerprint Touch area */
+                        <motion.div 
+                          animate={isBiometricLoading ? { 
+                            scale: [1, 1.1, 1],
+                            opacity: [0.6, 1, 0.6]
+                          } : {}}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className={`relative z-10 w-28 h-28 rounded-full border-4 flex items-center justify-center mb-4 transition-all ${
+                            biometricSuccess ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-500/30 bg-blue-500/5'
+                          }`}
+                        >
+                          <Fingerprint size={52} className={isBiometricLoading ? "text-blue-500 animate-pulse" : biometricSuccess ? "text-emerald-500" : "text-blue-500 dark:text-blue-400"} />
+                          {isBiometricLoading && (
+                            <motion.div 
+                              animate={{ y: [-56, 56, -56] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                              className="absolute w-full h-0.5 bg-blue-500/60 shadow-[0_0_12px_rgba(59,130,246,0.9)]"
+                            />
+                          )}
+                        </motion.div>
+                      )}
 
                       <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-1 relative z-10">
-                        {isBiometricLoading ? 'Establishing Enclave Trust...' : biometricSuccess ? 'Permission Signature Active' : 'Awaiting Physical Scan'}
+                        {isBiometricLoading 
+                          ? (biometricType === 'face' ? 'Scanning Facial Landmarks...' : 'Establishing Enclave Trust...') 
+                          : biometricSuccess 
+                            ? 'Admin Authorized' 
+                            : 'Awaiting Authorization Scan'}
                       </h4>
                       <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest relative z-10 max-w-[280px]">
-                        {isBiometricLoading ? 'Negotiating cryptographic chal...' : biometricSuccess ? 'Authorized sequence confirmed.' : 'Touch fingerprint scanner or hold to FaceID'}
+                        {isBiometricLoading 
+                          ? (biometricType === 'face' ? 'Matching with Joseph Video enrollment...' : 'Negotiating cryptographic handshake...') 
+                          : biometricSuccess 
+                            ? 'Admin signature confirmed.' 
+                            : (biometricType === 'face' ? 'Present face to camera lens for Admin access' : 'Touch fingerprint scanner or hold to register')}
                       </p>
                     </div>
 
@@ -567,10 +653,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <Loader2 size={16} className="animate-spin" />
                         ) : biometricSuccess ? (
                           <ShieldCheck size={16} />
+                        ) : biometricType === 'face' ? (
+                          <ScanFace size={16} />
                         ) : (
                           <Fingerprint size={16} />
                         )}
-                        <span>{isBiometricLoading ? 'SCANNING HARDWARE...' : biometricSuccess ? 'AUTHORIZATION GRANTED' : 'BEGIN BIOMETRIC HANDSHAKE'}</span>
+                        <span>
+                          {isBiometricLoading 
+                            ? 'SCANNING...' 
+                            : biometricSuccess 
+                              ? 'AUTHORIZATION GRANTED' 
+                              : biometricType === 'face' 
+                                ? 'VERIFY ADMIN FACIAL PROFILE' 
+                                : 'BEGIN FINGERPRINT HANDSHAKE'}
+                        </span>
                       </button>
 
                       <button

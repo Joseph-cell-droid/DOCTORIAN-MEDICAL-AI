@@ -1556,7 +1556,13 @@ export const api = {
         body: JSON.stringify(user),
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to create user account");
       return data as { success: boolean; id: string };
     },
@@ -1567,7 +1573,13 @@ export const api = {
         body: JSON.stringify(updates),
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to update user details");
       return data.success as boolean;
     },
@@ -1576,7 +1588,13 @@ export const api = {
         method: "DELETE",
         credentials: "include",
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid response format: server returned HTML or non-JSON content.");
+      }
       if (!res.ok) throw new Error(data.error || "Failed to delete user");
       return data.success as boolean;
     },

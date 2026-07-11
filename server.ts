@@ -5398,10 +5398,10 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
   // Admin Create User Route
   app.post("/api/admin/users", requireAdmin, async (req: any, res) => {
-    const { id: reqId, email, password, displayName, role, credits, phone, institutionId, allergies, conditions, bloodGroup, hospitalPreference } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
-
     try {
+      const { id: reqId, email, password, displayName, role, credits, phone, institutionId, allergies, conditions, bloodGroup, hospitalPreference } = req.body || {};
+      if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
       const hashedPassword = await bcrypt.hash(password, 10);
       
       let finalId = reqId ? reqId.trim() : "";
@@ -5459,10 +5459,10 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
   // Admin Update User Route
   app.patch("/api/admin/users/:id/update", requireAdmin, async (req: any, res) => {
-    const { id } = req.params;
-    const { email, displayName, role, credits, phone, institutionId, password, status, allergies, conditions, bloodGroup, hospitalPreference } = req.body;
-
     try {
+      const { id } = req.params;
+      const { email, displayName, role, credits, phone, institutionId, password, status, allergies, conditions, bloodGroup, hospitalPreference } = req.body || {};
+
       // Fetch existing user
       const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
       if (!existing) return res.status(440).json({ error: "User not found" });
@@ -5506,7 +5506,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
       res.json({ success: true });
     } catch (err: any) {
-      console.error(`[ADMIN] Failed to update user ${id}:`, err.message);
+      console.error(`[ADMIN] Failed to update user:`, err.message);
       if (err.message.includes("UNIQUE constraint failed")) {
         return res.status(400).json({ error: "User with this email already exists" });
       }
@@ -5516,11 +5516,11 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
   // Toggle user status route
   app.patch("/api/admin/users/:id/status", requireAdmin, (req: any, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
-    if (!status) return res.status(400).json({ error: "Status is required" });
-
     try {
+      const { id } = req.params;
+      const { status } = req.body || {};
+      if (!status) return res.status(400).json({ error: "Status is required" });
+
       db.prepare("UPDATE users SET status = ? WHERE id = ?").run(status, id);
 
       // If blocking, immediately disconnect active session memory
@@ -5545,8 +5545,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
   // Revoke user active session route (force log out)
   app.post("/api/admin/users/:id/revoke", requireAdmin, (req: any, res) => {
-    const { id } = req.params;
     try {
+      const { id } = req.params;
       revokedSessions.add(id);
       activeUserSessions.delete(id);
 
@@ -5590,10 +5590,10 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   });
 
   app.delete("/api/admin/users/:id", requireAdmin, (req: any, res) => {
-    const { id } = req.params;
-    if (id === req.user.id) return res.status(400).json({ error: "Cannot delete yourself" });
-
     try {
+      const { id } = req.params;
+      if (id === req.user.id) return res.status(400).json({ error: "Cannot delete yourself" });
+
       const u = db.prepare("SELECT email FROM users WHERE id = ?").get(id) as any;
       const targetEmail = u ? u.email : id;
 
@@ -5611,7 +5611,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
       res.json({ success: true });
     } catch (err: any) {
-      console.error(`[ADMIN] Failed to delete user ${id}:`, err.message);
+      console.error(`[ADMIN] Failed to delete user:`, err.message);
       res.status(500).json({ error: "Failed to delete user" });
     }
   });
@@ -7411,26 +7411,115 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         }
 
         let dynamicInstruction = "";
+        
+        // Define language-specific cultural and greeting parameters for flawless regional execution
+        let regionalGuidance = "";
+        if (selectedLang === 'Luganda') {
+          regionalGuidance = `The user is speaking Luganda (Central Uganda). You MUST respond in high-quality, fluent Luganda.
+- Greeting: Use "Gyebaleko ssebo" (for male) or "Gyebaleko nnyabo" (for female).
+- Comforting phrasing: Use gentle Luganda words like "Mpaawo buzibu" (no problem), "Nsonyiwa" (sorry), or "Kola kino" (do this).
+- Clinical analogies: Explain clinical terms simply (e.g., blood pressure as "pulesa y'omusaayi", fever as "omusujja").
+- Sign-off: Conclude with "Weebale nnyo" (Thank you very much) or "Mukama akuwe omukisa" (May God bless you).`;
+        } else if (selectedLang === 'Runyankole-Rukiga') {
+          regionalGuidance = `The user is speaking Runyankole-Rukiga (South-Western Uganda). You MUST respond in fluent Runyankole-Rukiga.
+- Greeting: Use "Agandi" or "Osibire gye ssebo/nnyabo".
+- Comforting phrasing: Use warm Runyankole words like "Kare kare" or "Nyesiima".
+- Sign-off: Conclude with "Webare muno" (Thank you very much) or "Kare, Mungu akuhe omugisha".`;
+        } else if (selectedLang === 'Acholi-Luo') {
+          regionalGuidance = `The user is speaking Acholi-Luo (Northern Uganda). You MUST respond in fluent Acholi.
+- Greeting: Use "Kop ango?" or "Idire maber?".
+- Comforting phrasing: Use "Kwiya cwiny" (stay calm/be comforted).
+- Sign-off: Conclude with "Apwoyo matek" or "Rubanga ogwoki" (God protect you).`;
+        } else if (selectedLang === 'Langi') {
+          regionalGuidance = `The user is speaking Langi (Northern Lango region). You MUST respond in fluent Lango.
+- Greeting: Use "Kop ango?" or "Itye maber?".
+- Sign-off: Conclude with "Apwoyo matek" (Thank you very much) or "Obanga omed omugisa" (God add blessings).`;
+        } else if (selectedLang === 'Iteso') {
+          regionalGuidance = `The user is speaking Iteso (Ateso, Eastern Uganda). You MUST respond in fluent Ateso.
+- Greeting: Use "Yoga!" or "Yoga ssebo/nnyabo".
+- Sign-off: Conclude with "Eyalama matek" (Thank you very much) or "Amorone ikere" (be safe).`;
+        } else if (selectedLang === 'Lusoga') {
+          regionalGuidance = `The user is speaking Lusoga (Eastern Uganda). You MUST respond in fluent Lusoga.
+- Greeting: Use "Kodheyo" or "Osiibire otya ssebo/nnyabo".
+- Sign-off: Conclude with "Webale nnyo" or "Katonda wishing you blessings".`;
+        } else if (selectedLang === 'Lugbara') {
+          regionalGuidance = `The user is speaking Lugbara (West Nile region). You MUST respond in fluent Lugbara.
+- Greeting: Use "Mi muke?" or "Adro muke".
+- Sign-off: Conclude with "Awadifo" (Thank you) or "Mungu emu emi asizaza".`;
+        } else if (selectedLang === 'Runyoro-Rutooro') {
+          regionalGuidance = `The user is speaking Runyoro-Rutooro (Western Uganda). You MUST respond in fluent Runyoro-Rutooro.
+- Greeting: Use "Oraire ota" or "Osiibire ota".
+- Sign-off: Conclude with "Webale muno" or "Ruhanga akuhe omugisa".`;
+        } else if (selectedLang === 'Rukonjo') {
+          regionalGuidance = `The user is speaking Rukonjo (Rwenzori region). You MUST respond in fluent Rukonjo.
+- Greeting: Use "Mbuserege!" or "Wasingya".
+- Sign-off: Conclude with "Wasingya muno" or "Mungu akukuhe omugisa".`;
+        } else if (selectedLang === 'Samia') {
+          regionalGuidance = `The user is speaking Samia (Lusamia, South-Eastern Uganda). You MUST respond in fluent Samia.
+- Greeting: Use "Humanye!" or "Osiibire otie".
+- Sign-off: Conclude with "Weebale muno" or "Katonda akuhe emisa".`;
+        } else if (selectedLang === 'Karamojong') {
+          regionalGuidance = `The user is speaking Karamojong (North-Eastern Uganda). You MUST respond in fluent Karamojong.
+- Greeting: Use "Ejoka!" or "Ejoka ssebo/nnyabo".
+- Sign-off: Conclude with "Alakara matek" (Thank you very much) or "Akuj akorite ngomugisa".`;
+        } else if (selectedLang === 'Swahili') {
+          regionalGuidance = `The user is speaking Kiswahili (East Africa). You MUST respond in fluent, polite Swahili.
+- Greeting: Use "Habari yako" or "Jambo".
+- Sign-off: Conclude with "Asante sana" or "Mungu akubariki".`;
+        }
+
         if (selectedLang !== 'English (US)' && selectedLang !== 'English (UK)' && selectedLang !== 'Auto Detect') {
-          dynamicInstruction = `${voicePersonaInstruction} The user is communicating in ${selectedLang} (a regional language of Uganda/East Africa).
+          dynamicInstruction = `${voicePersonaInstruction}
+${regionalGuidance}
 You MUST respond fully, fluently, and naturally in ${selectedLang}.
-Your response MUST be extremely fast, specific, direct, and laser-focused on the user's question. Do not use conversational filler, conversational preamble, or introductory bloating.
+Your response MUST be extremely fast, specific, direct, and laser-focused. Do not use conversational filler, conversational preamble, or introductory bloating.
 Use very simple, friendly, supportive, and respectful terms that villagers and elders in Uganda can easily comprehend. Describe clinical concepts in simple, gentle analogies.
-Keep answers warm, clinical, and extremely brief (under 15 words total) for immediate audio flow. Direct the user to seek professional aid if necessary. Conclude with regional words of blessing or support (e.g. "Weebale", "Gyebaleko", "Asante").`;
+CRITICAL: Never give long monologues! Keep answers extremely brief (under 12 words total) for real-time back-and-forth conversational interaction. Speak like a real person on an active voice call—responsive, punchy, and helpful. Direct the user to seek professional aid if necessary. Conclude with the recommended regional words of blessing or support specified in the instructions above.`;
         } else {
-          dynamicInstruction = `${voicePersonaInstruction} You are communicating with local villagers in East Africa/Uganda.
+          dynamicInstruction = `${voicePersonaInstruction} You are communicating with local villagers in East Africa/Uganda on an interactive voice call.
 Your response MUST be extremely fast, specific, direct, and laser-focused on the user's question. Do not use conversational filler, conversational preamble, or introductory bloating.
 You MUST write in English but with a highly warm, friendly, simple, and reassuring phonetic accent and flow tailored for African villagers. Use respectful terms (like "My friend", "Mama", "Papa", "Ssebo", "Nnyabo", or similar friendly Ugandan salutations if appropriate).
-Keep answers warm, comforting, and extremely brief (under 15 words total) for immediate, lag-free audio flow. Avoid any intimidating medical jargon. Explain concepts with pure simplicity and respect.
+CRITICAL: Never give long monologues! Keep answers extremely brief, responsive, and interactive (under 12 words total) to allow natural back-and-forth conversational turn-taking. Avoid any intimidating medical jargon. Explain concepts with pure simplicity and respect.
 Direct the user to a health center if needed, and conclude with supportive blessings.`;
         }
 
-        const responseText = await callAI({
-          messages: [{ role: 'user', text: text || "Hello Doctorian" }],
-          systemInstruction: dynamicInstruction,
-          modelName: PRIMARY_ENGINE,
-          userId
-        });
+        let responseText = "";
+        const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || "";
+        if (geminiKey && geminiKey.trim().length > 10) {
+          try {
+            console.log("[AI-VOICE] Bypassing HuggingFace. Connecting to native ultra-fast Gemini-3.5-Flash for voice...");
+            const ai = new GoogleGenAI({
+              apiKey: geminiKey.trim(),
+              httpOptions: {
+                baseUrl: process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined,
+                headers: {
+                  'User-Agent': 'aistudio-build',
+                }
+              }
+            });
+            const response = await ai.models.generateContent({
+              model: "gemini-3.5-flash",
+              contents: text || "Hello",
+              config: {
+                systemInstruction: dynamicInstruction,
+                temperature: 0.2
+              }
+            });
+            responseText = response?.text?.trim() || "";
+            console.log(`[AI-VOICE] Direct Gemini response text: "${responseText}"`);
+          } catch (err: any) {
+            console.error("[AI-VOICE] Direct native Gemini voice response failed, falling back to routine pipeline:", err.message);
+          }
+        }
+
+        if (!responseText) {
+          responseText = await callAI({
+            messages: [{ role: 'user', text: text || "Hello Doctorian" }],
+            systemInstruction: dynamicInstruction,
+            modelName: PRIMARY_ENGINE,
+            userId
+          });
+        }
 
         res.json({
           text: responseText,
@@ -7838,6 +7927,9 @@ Direct the user to a health center if needed, and conclude with supportive bless
 
         let finalMessages = [...messages];
         let activeTargetLang = targetLanguage || 'English';
+        if (activeTargetLang.startsWith('English')) {
+          activeTargetLang = 'English';
+        }
 
         // Auto Language Detection
         if (activeTargetLang === 'Auto Detect') {
@@ -7851,6 +7943,10 @@ Direct the user to a health center if needed, and conclude with supportive bless
             activeTargetLang = match ? match[0] : "English";
             if (activeTargetLang.toLowerCase() === 'kiswahili') activeTargetLang = 'Swahili';
           } catch (e) { activeTargetLang = 'English'; }
+        }
+
+        if (activeTargetLang.startsWith('English')) {
+          activeTargetLang = 'English';
         }
 
         // Forward Translation

@@ -1011,12 +1011,13 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!isAuthReady) return;
     if (user) {
       localStorage.setItem('medical_user', JSON.stringify(user));
     } else {
       localStorage.removeItem('medical_user');
     }
-  }, [user]);
+  }, [user, isAuthReady]);
 
   // All Effects
   useEffect(() => {
@@ -1428,7 +1429,7 @@ export default function App() {
         fetchAiInsight();
       }
     }
-  }, [user, currentView, weatherData]);
+  }, [user, currentView]);
 
   useEffect(() => {
     sessionStorage.setItem('doctor_authenticated', 'true');
@@ -1436,19 +1437,23 @@ export default function App() {
     const checkAuth = async () => {
       console.log("[Doctorian] Initiating Auth Authentication Sequence...");
       
-      // Attempt immediate recovery from localStorage for seamless transition
+      // Attempt immediate recovery from localStorage for seamless transition on an existing authenticated device
       const savedUserStr = localStorage.getItem('medical_user');
+      let recoveredUser: User | null = null;
       if (savedUserStr) {
         try {
           const parsed = JSON.parse(savedUserStr);
           if (parsed && parsed.email) {
+            recoveredUser = parsed;
             setUser(parsed);
             setIsAuthReady(true);
-            console.log("[Doctorian] Recovered active local session:", parsed.email);
+            console.log("[Doctorian] Recovered active local session on this device:", parsed.email);
           }
         } catch (e) {
           console.error("Error parsing offline user profile:", e);
         }
+      } else {
+        console.log("[Doctorian] New device detected: No locally stored user session exists.");
       }
 
       let attempts = 0;
@@ -1456,7 +1461,6 @@ export default function App() {
       let authenticatedUser: User | null = null;
 
       while (attempts < maxAttempts) {
-        // Instantiate a separate timeout promise per retry attempt to avoid instant timeout on second attempt
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error("Auth Synchronization Timeout")), 30000)
         );
@@ -1467,30 +1471,21 @@ export default function App() {
             timeoutPromise
           ]) as User | null;
           
-          console.log("[Doctorian] Identity verified:", authenticatedUser ? authenticatedUser.email : "Guest");
+          console.log("[Doctorian] Identity verified from server:", authenticatedUser ? authenticatedUser.email : "Guest/No Account");
           if (authenticatedUser) {
             setUser(authenticatedUser);
-          } else if (!user) {
-            // No logged in session, provide a preconfigured clinician profile to allow flawless previews
-            const defaultUser: User = {
-              id: 'doctorian-preview-session',
-              email: 'gloriajayakullo@gmail.com',
-              displayName: 'Dr. Gloria Jayakullo',
-              role: 'clinician',
-              credits: 'Unlimited',
-              subscriptionTier: 'enterprise',
-              subscriptionStatus: 'active',
-              doctorName: 'Dr. Gloria Jayakullo',
-              mentorName: 'WHO Great Lakes Node',
-              phone: '+256 787674140',
-              doctorPhone: '+256 787674140',
-              doctorEmail: 'gloriajayakullo@gmail.com',
-              bloodGroup: 'O+',
-              allergies: 'None',
-              conditions: 'Optimal',
-              createdAt: new Date().toISOString()
-            };
-            setUser(defaultUser);
+          } else {
+            // No active server-side session. If this is a brand new device (no localStorage session),
+            // we start with NO ACCOUNT (null state) to protect privacy.
+            // This prevents automatic login as Gloria Jayakullo on shared devices via Bluetooth or Xender.
+            if (!savedUserStr) {
+              console.log("[Doctorian] Modern Security Active: New/unauthenticated device. Starting on clean landing page.");
+              setUser(null);
+            } else {
+              // On an existing device that previously had a saved session, we retain the recoveredUser
+              // so the user can continue using the application offline.
+              setUser(recoveredUser);
+            }
           }
           setIsAuthReady(true);
           console.log("[Doctorian] Neural Interface Ready.");
@@ -1499,27 +1494,12 @@ export default function App() {
           attempts++;
           console.warn(`[Doctorian] Auth Handshake Notice (Attempt ${attempts}):`, error?.message || error);
           if (attempts === maxAttempts) {
-            setAuthError(error.message || "Neural link synchronization failure");
-            if (!user) {
-              const defaultUser: User = {
-                id: 'doctorian-preview-session',
-                email: 'gloriajayakullo@gmail.com',
-                displayName: 'Dr. Gloria Jayakullo',
-                role: 'clinician',
-                credits: 'Unlimited',
-                subscriptionTier: 'enterprise',
-                subscriptionStatus: 'active',
-                doctorName: 'Dr. Gloria Jayakullo',
-                mentorName: 'WHO Great Lakes Node',
-                phone: '+256 787674140',
-                doctorPhone: '+256 787674140',
-                doctorEmail: 'gloriajayakullo@gmail.com',
-                bloodGroup: 'O+',
-                allergies: 'None',
-                conditions: 'Optimal',
-                createdAt: new Date().toISOString()
-              };
-              setUser(defaultUser);
+            // Link sync offline fallback
+            if (!savedUserStr) {
+              console.log("[Doctorian] Secure Offline Fallback: No credentials stored. Forcing guest registration/login.");
+              setUser(null);
+            } else {
+              setUser(recoveredUser);
             }
             setIsAuthReady(true);
             console.log("[Doctorian] Neural Interface Ready (Offline fallback active).");
@@ -1677,14 +1657,6 @@ export default function App() {
     setUser(null);
     setCurrentView('home');
   };
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('medical_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('medical_user');
-    }
-  }, [user]);
 
   // Close floating windows launcher when clicking elsewhere on the page
   useEffect(() => {

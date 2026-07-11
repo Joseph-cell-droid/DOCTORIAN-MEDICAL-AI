@@ -22,9 +22,42 @@ import {
   RotateCcw,
   Sparkles,
   Award,
-  Fingerprint
+  Fingerprint,
+  Save,
+  Download,
+  Trash2,
+  Clock,
+  FileText,
+  Plus,
+  TrendingUp
 } from 'lucide-react';
 import { useArduinoContext } from '../ArduinoContext';
+
+export interface TelemetrySession {
+  id: string;
+  name: string;
+  source: 'watch' | 'icu';
+  deviceBrandOrType: string;
+  vitalsPoints: {
+    heartRate: number;
+    temperature: number;
+    spo2: number;
+    systolicBP: number;
+    diastolicBP: number;
+    respiratoryRate: number;
+    timestamp: number;
+  }[];
+  createdAt: string;
+  durationSeconds: number;
+  aiAnalysis?: {
+    summary: string;
+    anomalyDetected: boolean;
+    anomaliesList: string[];
+    hardwareStatus: string;
+    clinicalRating: number;
+    suggestions: string[];
+  };
+}
 
 export const TelemetryCastManager: React.FC = () => {
   const arduino = useArduinoContext();
@@ -48,6 +81,240 @@ export const TelemetryCastManager: React.FC = () => {
 
   const [isConnecting, setIsConnecting] = useState<'watch' | 'serial' | 'bluetooth' | 'wifi' | null>(null);
   const [wifiInput, setWifiInput] = useState('http://192.168.1.100');
+
+  // Telemetry Recorder & AI Analysis States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedPoints, setRecordedPoints] = useState<any[]>([]);
+  const [recordingElapsed, setRecordingElapsed] = useState(0);
+  const [recordedSessions, setRecordedSessions] = useState<TelemetrySession[]>([]);
+  const [sessionNameInput, setSessionNameInput] = useState('');
+  const [selectedSessionForAnalysis, setSelectedSessionForAnalysis] = useState<TelemetrySession | null>(null);
+  const [isAnalyzingSession, setIsAnalyzingSession] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Load telemetry sessions from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('doctorian_telemetry_sessions');
+    if (saved) {
+      try {
+        setRecordedSessions(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse telemetry sessions:', e);
+      }
+    }
+  }, []);
+
+  // Update localStorage when sessions change
+  const saveSessions = (updatedSessions: TelemetrySession[]) => {
+    setRecordedSessions(updatedSessions);
+    localStorage.setItem('doctorian_telemetry_sessions', JSON.stringify(updatedSessions));
+  };
+
+  // Timer for active recording
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isRecording) {
+      timer = setInterval(() => {
+        setRecordingElapsed(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingElapsed(0);
+    }
+    return () => clearInterval(timer);
+  }, [isRecording]);
+
+  // Record live vitals point by point
+  useEffect(() => {
+    if (!isRecording || !arduino.vitals) return;
+
+    // Check if we already recorded this point (using timestamp check)
+    const lastPoint = recordedPoints[recordedPoints.length - 1];
+    if (lastPoint && lastPoint.timestamp === arduino.vitals.timestamp) return;
+
+    setRecordedPoints(prev => [...prev, arduino.vitals]);
+  }, [arduino.vitals, isRecording, recordedPoints]);
+
+  const handleStartRecording = () => {
+    if (!isCasting) {
+      addCastLog("Please initiate mirrored casting first to start telemetry recording.", "warn");
+      return;
+    }
+    setIsRecording(true);
+    setRecordedPoints([]);
+    setRecordingElapsed(0);
+    addCastLog("Real-time clinical telemetry recording session started.", "success");
+  };
+
+  const handleStopAndSaveRecording = () => {
+    setIsRecording(false);
+    if (recordedPoints.length < 3) {
+      addCastLog("Recording discarded. Not enough biometric data points captured (minimum 3 required).", "warn");
+      setRecordedPoints([]);
+      return;
+    }
+
+    const brandName = castSource === 'watch' ? selectedWatchBrand : selectedIcuDevice;
+    const sessionName = sessionNameInput.trim() || `Telemetry Stream (${brandName}) - ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    const newSession: TelemetrySession = {
+      id: `tel_session_${Date.now()}`,
+      name: sessionName,
+      source: castSource,
+      deviceBrandOrType: brandName,
+      vitalsPoints: [...recordedPoints],
+      createdAt: new Date().toISOString(),
+      durationSeconds: recordingElapsed,
+    };
+
+    const updated = [newSession, ...recordedSessions];
+    saveSessions(updated);
+    setSessionNameInput('');
+    setRecordedPoints([]);
+    addCastLog(`Saved Telemetry Session: "${sessionName}" with ${newSession.vitalsPoints.length} frames!`, "success");
+  };
+
+  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to permanently delete this telemetry recording?")) {
+      const updated = recordedSessions.filter(s => s.id !== id);
+      saveSessions(updated);
+      if (selectedSessionForAnalysis?.id === id) {
+        setSelectedSessionForAnalysis(null);
+      }
+      addCastLog("Telemetry recording deleted.", "warn");
+    }
+  };
+
+  const handleExportSession = (session: TelemetrySession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(session, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Telemetry_${session.name.replace(/\s+/g, '_')}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      addCastLog(`Exported telemetry session: ${session.name}`, "success");
+    } catch (err) {
+      console.error(err);
+      addCastLog("Export failed.", "warn");
+    }
+  };
+
+  const handleCommitToHealthRecords = async (session: TelemetrySession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    addCastLog(`Committing smartwatch/machine session "${session.name}" to global EHR...`, "info");
+    
+    try {
+      const { api } = await import('../api');
+      
+      // Calculate average metrics
+      const avgHR = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.heartRate, 0) / session.vitalsPoints.length);
+      const avgO2 = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.spo2, 0) / session.vitalsPoints.length);
+      const avgTemp = parseFloat((session.vitalsPoints.reduce((sum, p) => sum + p.temperature, 0) / session.vitalsPoints.length).toFixed(1));
+      const avgSys = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.systolicBP, 0) / session.vitalsPoints.length);
+      const avgDia = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.diastolicBP, 0) / session.vitalsPoints.length);
+      
+      const recordSummary = `Casted Wearable/Machine Recording: ${session.name}. Recorded ${session.vitalsPoints.length} telemetry frames across ${session.durationSeconds}s.`;
+      const recordDiagnosis = `Biometric Telemetry Waveform Analysis. Averages: HR ${avgHR} BPM | SpO2 ${avgO2}% | BP ${avgSys}/${avgDia} mmHg | Temp ${avgTemp}°C.`;
+      const recordTreatment = session.aiAnalysis 
+        ? `Doctorian AI Analysis Diagnostics: ${session.aiAnalysis.summary}\nStability Index: ${session.aiAnalysis.clinicalRating}/100. Recommendations: ${session.aiAnalysis.suggestions.join('; ')}`
+        : 'Telemetry data successfully kept. AI analysis pending.';
+
+      await api.records.create({
+        type: "Telemetry Recording",
+        value: `${avgHR} BPM`,
+        unit: "BPM",
+        notes: `${recordSummary}\n\n${recordDiagnosis}\n\n${recordTreatment}`,
+        date: new Date().toISOString()
+      });
+
+      addCastLog(`Successfully committed telemetry session to Patient Health Records!`, "success");
+      alert("🎉 Biometric stream successfully saved to Patient Health Records!");
+    } catch (err: any) {
+      console.error(err);
+      addCastLog(`Failed to commit record: ${err.message || err}`, "warn");
+    }
+  };
+
+  const handleRunAiAnalysis = async (session: TelemetrySession) => {
+    setSelectedSessionForAnalysis(session);
+    setIsAnalyzingSession(true);
+    setAnalysisError(null);
+    addCastLog(`Spinning up Doctorian AI Neural core to analyze telemetry stream...`, "info");
+
+    try {
+      const { api } = await import('../api');
+
+      const analysisPrompt = `
+        You are the Doctorian Neural Engine. Perform a high-precision, clinical-grade analysis on this real-life device telemetry session.
+        DEVICE CONTEXT: Source: ${session.source.toUpperCase()} (${session.deviceBrandOrType})
+        SESSION DURATION: ${session.durationSeconds}s
+        Biometric stream sample logs (JSON array):
+        ${JSON.stringify(session.vitalsPoints.slice(0, 50))}
+
+        Please evaluate:
+        1. GENERAL CLINICAL SUMMARY (1-2 sentences summarizing overall physiological status).
+        2. DETECTED ANOMALIES (List any abnormal cardiac spikes, Brady/Tachycardia, hypoxic drops under 95%, blood pressure fluctuations, etc.)
+        3. HARDWARE & NOISE DIAGNOSIS (Check stream quality, sensor noise, or calibration stability based on the vitals fluctuation).
+        4. CONFIDENCE SCORE (A clinical stability rating from 0 to 100, where 100 is optimal homeostatic health and 0 is emergency).
+        5. DIAGNOSTIC SUGGESTIONS (2-3 concrete bullet points for standard clinical follow-up or machine recalibration).
+
+        You must return the analysis strictly in JSON format matching this schema:
+        {
+          "summary": "1-2 sentence overall summary",
+          "anomalyDetected": true/false,
+          "anomaliesList": ["anomaly 1", "anomaly 2"],
+          "hardwareStatus": "Sensor coupling is stable and high quality / High interference detected",
+          "clinicalRating": 88,
+          "suggestions": ["suggest 1", "suggest 2"]
+        }
+      `;
+
+      const response = await api.ai.aiChat(
+        [{ role: 'user', text: analysisPrompt }],
+        "You are Doctorian, a clinical diagnostics AI specialized in high-resolution real-time wearable biometrics and machine telemetry analysis. Provide feedback in pure JSON.",
+        "gemini-3.5-flash"
+      );
+
+      let cleanText = response.text.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(cleanText);
+
+      // Save the analysis back into the session
+      const updatedSessions = recordedSessions.map(s => {
+        if (s.id === session.id) {
+          return {
+            ...s,
+            aiAnalysis: {
+              summary: result.summary || "Analysis completed.",
+              anomalyDetected: result.anomalyDetected ?? false,
+              anomaliesList: result.anomaliesList || [],
+              hardwareStatus: result.hardwareStatus || "Stable stream.",
+              clinicalRating: result.clinicalRating ?? 90,
+              suggestions: result.suggestions || []
+            }
+          };
+        }
+        return s;
+      });
+
+      saveSessions(updatedSessions);
+      // Update selected session to show results in UI
+      const updatedSession = updatedSessions.find(s => s.id === session.id);
+      if (updatedSession) {
+        setSelectedSessionForAnalysis(updatedSession);
+      }
+
+      addCastLog(`Doctorian AI biometrics evaluation complete for session: "${session.name}"`, "success");
+    } catch (err: any) {
+      console.error(err);
+      setAnalysisError(err.message || "Failed to communicate with AI core.");
+      addCastLog(`AI Analysis Failed: ${err.message || err}`, "warn");
+    } finally {
+      setIsAnalyzingSession(false);
+    }
+  };
 
   const handleConnectHealthWatch = async () => {
     setIsConnecting('watch');
@@ -850,6 +1117,435 @@ export const TelemetryCastManager: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* HORIZONTAL DIVIDER */}
+      <div className="border-t border-slate-100 dark:border-slate-800/80 my-8" />
+
+      {/* KEEP AND ANALYZE SECTION */}
+      <div id="doctorian-telemetry-vault" className="space-y-6 text-left">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h4 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5 text-base sm:text-lg uppercase tracking-tight">
+              <div className="p-2 bg-rose-50 dark:bg-rose-950/40 rounded-xl text-rose-600 dark:text-rose-450">
+                <Database size={18} />
+              </div>
+              Real-time Telemetry Recording Vault & AI Diagnostics
+            </h4>
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+              Keep live biometrics, record smartwatch casts, and perform clinical intelligence audits
+            </p>
+          </div>
+          
+          {/* Active recording state indicators */}
+          {isRecording && (
+            <div className="flex items-center gap-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 px-3.5 py-1.5 rounded-full animate-pulse">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
+              <span className="text-[10px] font-black uppercase text-rose-650 dark:text-rose-400 tracking-wider">
+                RECORDING LIVE: {String(Math.floor(recordingElapsed / 60)).padStart(2, '0')}:{String(recordingElapsed % 60).padStart(2, '0')}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* LEFT: RECORDER PANEL */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="bg-slate-50/75 dark:bg-slate-900/30 p-5 rounded-3xl border border-slate-150/50 dark:border-slate-800/80 flex flex-col justify-between space-y-4 min-h-[220px]">
+              <div>
+                <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest block mb-1">EHR DATA-KEEPING</span>
+                <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-tight">
+                  Biometric Stream Capture
+                </h5>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 leading-relaxed">
+                  Lock on to connected smartwatches or local machines. Record live continuous feeds to build comprehensive clinical histories.
+                </p>
+              </div>
+
+              {isRecording ? (
+                <div className="space-y-4 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-rose-100 dark:border-rose-950 shadow-sm text-left">
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Packets</span>
+                      <strong className="text-sm font-extrabold text-indigo-650 dark:text-indigo-400 font-mono">
+                        {recordedPoints.length}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Duration</span>
+                      <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                        {recordingElapsed}s
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-wider">Session Name / Case Identifier</label>
+                    <input
+                      type="text"
+                      value={sessionNameInput}
+                      onChange={(e) => setSessionNameInput(e.target.value)}
+                      placeholder="e.g. Cardio Study, Bedside 9 Sleep"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleStopAndSaveRecording}
+                    className="w-full py-2.5 bg-rose-650 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Save size={12} />
+                    <span>Stop & Keep Session</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleStartRecording}
+                    disabled={!isCasting}
+                    className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus size={14} className="animate-pulse" />
+                    <span>Start Telemetry Recording</span>
+                  </button>
+                  {!isCasting && (
+                    <p className="text-[9px] text-amber-500 font-bold uppercase tracking-wide text-center">
+                      ⚠️ Handshake connection cast first to record
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT: STORAGE VAULT LIST */}
+          <div className="lg:col-span-8 space-y-4">
+            <div className="bg-slate-50/75 dark:bg-slate-900/30 p-5 sm:p-6 rounded-3xl border border-slate-150/50 dark:border-slate-800/80 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-tight flex items-center gap-1.5">
+                    <Clock size={13} className="text-indigo-500" />
+                    Clinical Telemetry Records Vault ({recordedSessions.length})
+                  </h5>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500">Stored local smartwatch & biometric machine streams</p>
+                </div>
+              </div>
+
+              {recordedSessions.length === 0 ? (
+                <div className="text-center py-10 bg-white dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/60 p-6 flex flex-col items-center justify-center space-y-2">
+                  <Database size={24} className="text-slate-300 dark:text-slate-700" />
+                  <p className="text-xs text-slate-400 dark:text-slate-550 font-medium">
+                    No biometric recordings currently archived in this station.
+                  </p>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500">
+                    Connect real wearables or emulators, click "Start Telemetry Recording" and record clinical sessions.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  {recordedSessions.map((session) => {
+                    const avgHR = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.heartRate, 0) / session.vitalsPoints.length);
+                    const avgO2 = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.spo2, 0) / session.vitalsPoints.length);
+                    const isSelected = selectedSessionForAnalysis?.id === session.id;
+
+                    return (
+                      <div 
+                        key={session.id}
+                        onClick={() => setSelectedSessionForAnalysis(session)}
+                        className={`p-4 rounded-2xl bg-white dark:bg-slate-950 border transition-all cursor-pointer text-left flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-950 ${
+                          isSelected ? 'border-indigo-500 dark:border-indigo-600 ring-2 ring-indigo-500/10' : 'border-slate-100 dark:border-slate-800/80'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-mono">
+                              {session.source === 'watch' ? '⌚ WATCH' : '🎛️ MACHINE'}
+                            </span>
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 leading-tight">
+                              {session.name}
+                            </span>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[9.5px] text-slate-400 font-mono">
+                            <span>Device: <strong className="text-slate-650 dark:text-slate-350">{session.deviceBrandOrType}</strong></span>
+                            <span>Frames: <strong className="text-slate-650 dark:text-slate-350">{session.vitalsPoints.length}</strong></span>
+                            <span>Time: <strong className="text-slate-650 dark:text-slate-350">{session.durationSeconds}s</strong></span>
+                            <span>Date: <strong className="text-slate-650 dark:text-slate-350">{new Date(session.createdAt).toLocaleDateString()}</strong></span>
+                          </div>
+
+                          <div className="flex items-center gap-3.5 pt-1.5 text-[9.5px]">
+                            <span className="text-rose-500 font-bold flex items-center gap-1">
+                              ❤️ Avg HR: <strong className="font-mono">{avgHR} BPM</strong>
+                            </span>
+                            <span className="text-cyan-500 font-bold flex items-center gap-1">
+                              🌌 Avg O2: <strong className="font-mono">{avgO2}%</strong>
+                            </span>
+                            {session.aiAnalysis && (
+                              <span className="text-amber-500 font-bold flex items-center gap-1">
+                                <Sparkles size={11} /> AI Scored: <strong className="font-mono">{session.aiAnalysis.clinicalRating}/100</strong>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions row */}
+                        <div className="flex items-center gap-1.5 self-end md:self-auto shrink-0">
+                          <button
+                            type="button"
+                            title="Run Doctorian AI Clinical Report"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRunAiAnalysis(session);
+                            }}
+                            className="p-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Sparkles size={13} />
+                          </button>
+                          
+                          <button
+                            type="button"
+                            title="Commit to Patient Health Records (Keep)"
+                            onClick={(e) => handleCommitToHealthRecords(session, e)}
+                            className="p-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900 text-emerald-600 dark:text-emerald-450 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Save size={13} />
+                          </button>
+
+                          <button
+                            type="button"
+                            title="Export Stream (JSON)"
+                            onClick={(e) => handleExportSession(session, e)}
+                            className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Download size={13} />
+                          </button>
+
+                          <button
+                            type="button"
+                            title="Delete Recording"
+                            onClick={(e) => handleDeleteSession(session.id, e)}
+                            className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-450 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* DETAILED DIAGNOSTICS & AI ANALYSIS Holographic Terminal */}
+        <AnimatePresence>
+          {selectedSessionForAnalysis && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 15 }}
+              className="bg-slate-950 text-slate-100 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden mt-6 text-left"
+            >
+              {/* Header */}
+              <div className="bg-slate-900/60 px-6 py-4 border-b border-slate-800 flex justify-between items-center font-mono">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                    DOCTORIAN AI BIOMETRIC DIAGNOSTICS TERMINAL
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSelectedSessionForAnalysis(null)}
+                  className="text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-850">
+                  <div className="space-y-1">
+                    <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest font-mono block">Selected Case ID</span>
+                    <h3 className="text-md sm:text-lg font-extrabold text-white tracking-tight">
+                      {selectedSessionForAnalysis.name}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-mono">
+                      Biometric recording spanning {selectedSessionForAnalysis.durationSeconds}s | Date: {new Date(selectedSessionForAnalysis.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+
+                  {/* Clinical Stability Dial */}
+                  <div className="flex items-center gap-4 bg-slate-900/85 p-4 rounded-2xl border border-slate-800">
+                    <div className="relative w-16 h-16 flex items-center justify-center font-mono select-none">
+                      <svg className="absolute w-full h-full transform -rotate-90">
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="26"
+                          stroke="#1e293b"
+                          strokeWidth="5"
+                          fill="transparent"
+                        />
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="26"
+                          stroke={
+                            !selectedSessionForAnalysis.aiAnalysis ? '#6366f1' :
+                            selectedSessionForAnalysis.aiAnalysis.clinicalRating > 80 ? '#10b981' :
+                            selectedSessionForAnalysis.aiAnalysis.clinicalRating > 60 ? '#f59e0b' : '#ef4444'
+                          }
+                          strokeWidth="5"
+                          fill="transparent"
+                          strokeDasharray={2 * Math.PI * 26}
+                          strokeDashoffset={2 * Math.PI * 26 * (1 - (!selectedSessionForAnalysis.aiAnalysis ? 0 : selectedSessionForAnalysis.aiAnalysis.clinicalRating / 100))}
+                          className="transition-all duration-1000"
+                        />
+                      </svg>
+                      <span className="text-sm font-black text-white">
+                        {selectedSessionForAnalysis.aiAnalysis ? `${selectedSessionForAnalysis.aiAnalysis.clinicalRating}%` : '--'}
+                      </span>
+                    </div>
+
+                    <div className="text-left font-mono">
+                      <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest block">Homeostatic stability index</span>
+                      <strong className={`text-xs uppercase font-extrabold tracking-wide ${
+                        !selectedSessionForAnalysis.aiAnalysis ? 'text-indigo-400' :
+                        selectedSessionForAnalysis.aiAnalysis.clinicalRating > 80 ? 'text-emerald-400' :
+                        selectedSessionForAnalysis.aiAnalysis.clinicalRating > 60 ? 'text-amber-400' : 'text-rose-500'
+                      }`}>
+                        {!selectedSessionForAnalysis.aiAnalysis ? 'Awaiting diagnostics' :
+                         selectedSessionForAnalysis.aiAnalysis.clinicalRating > 80 ? 'Stable homeostasis' :
+                         selectedSessionForAnalysis.aiAnalysis.clinicalRating > 60 ? 'Fluctuating / Caution' : 'CRITICAL FLUCTUATION'}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {isAnalyzingSession ? (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-3 font-mono text-center">
+                    <RefreshCw className="text-indigo-400 animate-spin" size={32} />
+                    <p className="text-xs text-indigo-300 font-bold uppercase tracking-widest animate-pulse">
+                      Analyzing live smartwatch pulses and calibration data...
+                    </p>
+                    <p className="text-[10px] text-slate-500 max-w-sm">
+                      Running diagnostic linter to compare biometric deviation records, PPG notches, and oxygen delivery metrics.
+                    </p>
+                  </div>
+                ) : selectedSessionForAnalysis.aiAnalysis ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-mono text-left">
+                    <div className="space-y-4">
+                      {/* Summary */}
+                      <div className="space-y-1.5 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
+                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <FileText size={12} className="text-indigo-400" /> Clinical Diagnostic Abstract
+                        </span>
+                        <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
+                          {selectedSessionForAnalysis.aiAnalysis.summary}
+                        </p>
+                      </div>
+
+                      {/* Anomaly Alerts */}
+                      <div className="space-y-2 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
+                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <AlertTriangle size={12} className="text-amber-400" /> Physiological Anomalies Log
+                        </span>
+                        
+                        {selectedSessionForAnalysis.aiAnalysis.anomaliesList.length === 0 ? (
+                          <div className="flex items-center gap-2 text-emerald-450 text-[10.5px]">
+                            <CheckCircle2 size={13} />
+                            <span>Optimal signal. No physiological anomalies or abnormal spikes detected in this telemetry frame.</span>
+                          </div>
+                        ) : (
+                          <ul className="space-y-1.5 text-[10.5px]">
+                            {selectedSessionForAnalysis.aiAnalysis.anomaliesList.map((anomaly, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-rose-450 font-bold">
+                                <span className="text-rose-500 select-none">▶</span>
+                                <span>{anomaly}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Calibration status */}
+                      <div className="space-y-1.5 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
+                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Cpu size={12} className="text-indigo-400" /> Wearable & Machine Sensor Diagnostic
+                        </span>
+                        <p className="text-[10.5px] text-slate-350 leading-relaxed">
+                          {selectedSessionForAnalysis.aiAnalysis.hardwareStatus}
+                        </p>
+                      </div>
+
+                      {/* Clinical Recommendations */}
+                      <div className="space-y-2 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
+                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Sparkles size={11} className="text-indigo-400" /> Care & Calibration Protocols
+                        </span>
+                        <ul className="space-y-1.5 text-[10.5px] text-slate-300 font-medium">
+                          {selectedSessionForAnalysis.aiAnalysis.suggestions?.map((suggestion, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-indigo-500 select-none">✦</span>
+                              <span>{suggestion}</span>
+                            </li>
+                          )) || (
+                            <li className="italic text-slate-500">No suggestions compiled.</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4 font-mono text-center">
+                    <Sparkles className="text-indigo-500" size={28} />
+                    <p className="text-xs text-slate-400">
+                      Diagnostics are currently offline for this telemetry record.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleRunAiAnalysis(selectedSessionForAnalysis)}
+                      className="py-2.5 px-5 bg-indigo-650 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles size={12} />
+                      <span>Run Doctorian AI Clinical Diagnostics Report</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Footer Controls inside Terminal */}
+                {selectedSessionForAnalysis.aiAnalysis && (
+                  <div className="pt-6 border-t border-slate-850 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-[9px]">
+                    <p className="text-slate-500">
+                      Diagnosis authorized by: <strong className="text-slate-300">Doctorian Universal Intelligence Core v3.5-Flash</strong>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => handleCommitToHealthRecords(selectedSessionForAnalysis, e)}
+                        className="py-2 px-4 bg-emerald-650 hover:bg-emerald-700 text-white font-black uppercase tracking-wider rounded-xl transition-all shadow cursor-pointer"
+                      >
+                        Keep & Save Report to Patient Records
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSessionForAnalysis(null)}
+                        className="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                      >
+                        Dismiss Terminal
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -89,6 +89,153 @@ const PERSONAS = {
   }
 };
 
+const TRANSLATIONS: Record<string, Record<string, string>> = {
+  Swahili: {
+    'Doctorian Chat': 'Mazungumzo ya Doctorian',
+    'Core Clinical Assistant': 'Msaidizi Mkuu wa Kliniki',
+    'My Health Log': 'Kumbukumbu Yangu ya Afya',
+    'Offline Parameters': 'Vipimo vya Nje ya Mtandao',
+    'Resources': 'Rasilimali',
+    'Clinical Protocols': 'Itifaki za Kliniki',
+    'Active Symptoms & Observations': 'Dalili Zinazoendelea na Uchunguzi',
+    'Secure Sandboxed Storage Active': 'Uhifadhi Salama Umeamilishwa',
+    'Consult Doctorian': 'Wasiliana na Doctorian',
+    'Enter your medical query here...': 'Andika swali lako la matibabu hapa...',
+    'Sensing voice commands...': 'Kutambua amri za sauti...',
+    'Listening for your voice...': 'Inasikiliza sauti yako...',
+    'Muted': 'Imezimwa',
+    'Voice Call': 'Simu ya Sauti',
+    'Call Duration': 'Muda wa Simu',
+    'Mute Mic': 'Zima Maikrofoni',
+    'Mute Speaker': 'Zima Spika',
+    'End Call': 'Kata Simu',
+    'Send': 'Tuma',
+    'Symptom check': 'Uchunguzi wa dalili',
+    'Search Specialists': 'Tafuta Wataalamu',
+    'Hands-free voice link active': 'Kiungo cha sauti kiko hai',
+  },
+  Luganda: {
+    'Doctorian Chat': 'Okunyumya ne Doctorian',
+    'Core Clinical Assistant': 'Omuyambi mu Kujjanjaba',
+    'My Health Log': 'Eby\'obulamu Byange',
+    'Offline Parameters': 'Vipimo ku ssimu',
+    'Resources': 'Ebiwandiiko',
+    'Clinical Protocols': 'Ebiragiro by\'Abasawo',
+    'Active Symptoms & Observations': 'Obubonero bw\'obulwadde obuliwo',
+    'Secure Sandboxed Storage Active': 'Kutereka mu kukuumi obulungi',
+    'Consult Doctorian': 'Baza Doctorian',
+    'Enter your medical query here...': 'Wandiika ekikubaza ku bulamu wano...',
+    'Sensing voice commands...': 'Kuwuliriza biragiro bya sauti...',
+    'Listening for your voice...': 'Ndi kuwuliriza eddoboozi lyo...',
+    'Muted': 'Kisirisiddwa',
+    'Voice Call': 'Essimu ya Amaloboozi',
+    'Call Duration': 'Obudde bw\'Essimu',
+    'Mute Mic': 'Zikiza Maiku',
+    'Mute Speaker': 'Zikiza Sipiika',
+    'End Call': 'Komeza Essimu',
+    'Send': 'Weereza',
+    'Symptom check': 'Okwekebejja obubonero',
+    'Search Specialists': 'Noonya Abasawo Abakugu',
+    'Hands-free voice link active': 'Essimu ya amaloboozi ekola',
+  },
+  'Runyankole-Rukiga': {
+    'Doctorian Chat': 'Okugamba na Doctorian',
+    'Core Clinical Assistant': 'Omuhwezi w\'Abashaho',
+    'My Health Log': 'Eby\'amagara Gange',
+    'Offline Parameters': 'Eby\'okupima ku Ssimu',
+    'Resources': 'Ebitabo n\'Ebiwandiiko',
+    'Clinical Protocols': 'Emirigo y\'Abashaho',
+    'Active Symptoms & Observations': 'Obumanyiso bw\'oburwire oburiho',
+    'Secure Sandboxed Storage Active': 'Eby\'obulamu bikumirwe gye',
+    'Consult Doctorian': 'Baza Doctorian',
+    'Enter your medical query here...': 'Handiika ekikuremeire aha magara...',
+    'Sensing voice commands...': 'Kuhurira ebiragiro by\'iraka...',
+    'Listening for your voice...': 'Ndi kuhurira iraka ryaryo...',
+    'Muted': 'Kyasiriisiibwa',
+    'Voice Call': 'Ssimu y\'Iraka',
+    'Call Duration': 'Obwire bw\'esimu',
+    'Mute Mic': 'Zibira Maiku',
+    'Mute Speaker': 'Zibira Sipiika',
+    'End Call': 'Heza Esimu',
+    'Send': 'Yohereza',
+    'Symptom check': 'Okukebera obumanyiso',
+    'Search Specialists': 'Sherura Abashaho Abakugu',
+    'Hands-free voice link active': 'Esimu y\'iraka ekora',
+  },
+  'Acholi-Luo': {
+    'Doctorian Chat': 'Lok ki Doctorian',
+    'Core Clinical Assistant': 'Lakony pa Lakat',
+    'My Health Log': 'Yotkom na',
+    'Offline Parameters': 'Pimo Yotkom ki Sim',
+    'Resources': 'Waraga pa Lakat',
+    'Clinical Protocols': 'Cik pa Lakat',
+    'Active Symptoms & Observations': 'Nyas pa can yotkom matye',
+    'Secure Sandboxed Storage Active': 'Geno bot yotkom tye',
+    'Consult Doctorian': 'Penye Doctorian',
+    'Enter your medical query here...': 'Cwiny can kwena matye ka lok wano...',
+    'Sensing voice commands...': 'Winyo lok ki dwan...',
+    'Listening for your voice...': 'Kaye winyo dwan-ni...',
+    'Muted': 'Kaling',
+    'Voice Call': 'Sim ki Dwan',
+    'Call Duration': 'Cawa pa Sim',
+    'Mute Mic': 'Muku Maik',
+    'Mute Speaker': 'Muku Spika',
+    'End Call': 'Gik Sim',
+    'Send': 'Cwal',
+    'Symptom check': 'Pimo nyas yotkom',
+    'Search Specialists': 'Yeny Lakat matye',
+    'Hands-free voice link active': 'Dwan pa sim tye',
+  },
+  Langi: {
+    'Doctorian Chat': 'Lok i Doctorian',
+    'Core Clinical Assistant': 'Omoko Ati pa Daktar',
+    'My Health Log': 'Yotkom na',
+    'Offline Parameters': 'Bup pa Yotkom',
+    'Resources': 'Tij kulu kadi',
+    'Clinical Protocols': 'Cik kadi pa Daktar',
+    'Active Symptoms & Observations': 'Nyas pa can kadi tye',
+    'Secure Sandboxed Storage Active': 'Ngole tye',
+    'Consult Doctorian': 'Penye Doctorian',
+    'Enter your medical query here...': 'Andik lok kadi pa daktar wano...',
+    'Sensing voice commands...': 'Kop i dwan...',
+    'Listening for your voice...': 'Nyo winyo dwan...',
+    'Muted': 'Kaling',
+    'Voice Call': 'Sim dwan',
+    'Call Duration': 'Cawa dwan',
+    'Mute Mic': 'Muku Maik',
+    'Mute Speaker': 'Muku Spika',
+    'End Call': 'Gik Sim',
+    'Send': 'Cwal',
+    'Symptom check': 'Pimo nyas yotkom',
+    'Search Specialists': 'Yeny Daktar matye',
+    'Hands-free voice link active': 'Dwan pa sim tye',
+  },
+  Iteso: {
+    'Doctorian Chat': 'Okutubokin ne Doctorian',
+    'Core Clinical Assistant': 'Asingaren loka Doctor',
+    'My Health Log': 'Kukwasat aka yotkom',
+    'Offline Parameters': 'Kipenet loka Sim',
+    'Resources': 'Kitingat loka Doctor',
+    'Clinical Protocols': 'Irupes loka Doctor',
+    'Active Symptoms & Observations': 'Ikere loka ajiya matye',
+    'Secure Sandboxed Storage Active': 'Geyanet ikukumit',
+    'Consult Doctorian': 'Eisa Doctorian',
+    'Enter your medical query here...': 'Wadika lokan loka doctor wano...',
+    'Sensing voice commands...': 'Iwupun asutu loka dwan...',
+    'Listening for your voice...': 'Ngo ipupen dwan-kon...',
+    'Muted': 'Kasirikin',
+    'Voice Call': 'Sim loka Dwan',
+    'Call Duration': 'Cawa loka Sim',
+    'Mute Mic': 'Mukere Maik',
+    'Mute Speaker': 'Mukere Spika',
+    'End Call': 'Tukere Sim',
+    'Send': 'Julere',
+    'Symptom check': 'Kipen ikere',
+    'Search Specialists': 'Saku Abasawo loka asupet',
+    'Hands-free voice link active': 'Dwan loka sim tye',
+  }
+};
+
 const BASE_SYSTEM_INSTRUCTION = `You are Doctorian, a Universal Medical Intelligence Core (UMIC).
 Powered by EBROPUS company. Created by Akora Joseph.
 Specialized in NEURAL-CLINICAL SYNTHESIS, ADVANCED CLINICAL MEDICAL EDUCATION, and localized medical decision support systems.
@@ -286,6 +433,16 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [localKnowledge, setLocalKnowledge] = useState<any[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const [targetLanguage, setTargetLanguage] = useState('Auto Detect');
+
+  const t = useCallback((key: string): string => {
+    const langDict = TRANSLATIONS[targetLanguage];
+    if (langDict && langDict[key]) {
+      return langDict[key];
+    }
+    return key;
+  }, [targetLanguage]);
+
   const stopSynthesis = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -310,7 +467,6 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [thinkingStatus, setThinkingStatus] = useState('Doctorian is thinking...');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [targetLanguage, setTargetLanguage] = useState('Auto Detect');
   const [isRecording, setIsRecording] = useState(false);
 
   const [zoomLevel, setZoomLevel] = useState<number>(() => {
@@ -744,13 +900,50 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     callRecognitionRef.current = recognition;
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-US';
+    
+    // Map targetLanguage dynamically to BCP-47 codes (including all regional Ugandan languages)
+    let bcpLanguage = 'en-UG'; // Set default to Ugandan English for perfect regional accent capturing
+    if (targetLanguage === 'English (US)') bcpLanguage = 'en-US';
+    else if (targetLanguage === 'English (UK)') bcpLanguage = 'en-GB';
+    else if (targetLanguage === 'Swahili') bcpLanguage = 'sw-UG'; // Swahili (Uganda/East Africa)
+    else if (targetLanguage === 'Luganda') bcpLanguage = 'lg-UG'; // Luganda (Uganda)
+    else if (targetLanguage === 'Runyankole-Rukiga') bcpLanguage = 'nyn-UG'; // Runyankole (Uganda)
+    else if (targetLanguage === 'Acholi-Luo') bcpLanguage = 'ach-UG'; // Acholi (Uganda)
+    else if (targetLanguage === 'Langi') bcpLanguage = 'en-UG'; 
+    else if (targetLanguage === 'Iteso') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Lusoga') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Lugbara') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Runyoro-Rutooro') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Rukonjo') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Samia') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Karamojong') bcpLanguage = 'en-UG';
+    else if (targetLanguage === 'Auto Detect') bcpLanguage = 'en-UG'; // Fallback to en-UG
+    
+    recognition.lang = bcpLanguage;
 
     recognition.onstart = () => {
       console.log("Call SpeechRecognition started. Listening to user...");
     };
 
+    recognition.onspeechstart = () => {
+      console.log("User started speaking. Checking if we need to interrupt AI...");
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setVoiceIsSpeaking(false);
+        isSpeechSpeakingRef.current = false;
+        setVoiceCallLogs(prev => [...prev, "SYS: AI interrupted by user speaking..."]);
+      }
+    };
+
     recognition.onresult = (event: any) => {
+      // In case user speaks while AI is talking, stop the voice synthesis immediately
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setVoiceIsSpeaking(false);
+        isSpeechSpeakingRef.current = false;
+        setVoiceCallLogs(prev => [...prev, "SYS: AI interrupted by user speech."]);
+      }
+
       const transcript = event.results[0][0].transcript;
       if (transcript && transcript.trim()) {
         const clean = transcript.trim().toLowerCase();
@@ -794,7 +987,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     };
 
     try {
-      if (!isCallMutedRef.current && !isSpeechSpeakingRef.current && isCallActiveRef.current) {
+      if (!isCallMutedRef.current && isCallActiveRef.current) {
         recognition.start();
       }
     } catch (e) {
@@ -803,9 +996,9 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   };
 
   const restartCallListening = () => {
-    if (!isCallActiveRef.current || isCallMutedRef.current || isSpeechSpeakingRef.current) return;
+    if (!isCallActiveRef.current || isCallMutedRef.current) return;
     setTimeout(() => {
-      if (!isCallActiveRef.current || isCallMutedRef.current || isSpeechSpeakingRef.current) return;
+      if (!isCallActiveRef.current || isCallMutedRef.current) return;
       try {
         if (callRecognitionRef.current) {
           callRecognitionRef.current.start();
@@ -822,6 +1015,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         callRecognitionRef.current.onend = null;
         callRecognitionRef.current.onerror = null;
         callRecognitionRef.current.onresult = null;
+        callRecognitionRef.current.onspeechstart = null;
         callRecognitionRef.current.abort();
       } catch (e) {}
       callRecognitionRef.current = null;
@@ -831,11 +1025,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // Synchronize states with refs to prevent stale closure bugs in SpeechRecognition handlers
   useEffect(() => {
     isSpeechSpeakingRef.current = voiceIsSpeaking;
-    if (voiceIsSpeaking) {
-      if (callRecognitionRef.current) {
-        try { callRecognitionRef.current.abort(); } catch (e) {}
-      }
-    } else {
+    if (!voiceIsSpeaking) {
       if (callState === 'connected' && !voiceCallMuted) {
         restartCallListening();
       }
@@ -849,7 +1039,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         try { callRecognitionRef.current.abort(); } catch (e) {}
       }
     } else {
-      if (callState === 'connected' && !voiceIsSpeaking) {
+      if (callState === 'connected') {
         restartCallListening();
       }
     }
@@ -1303,7 +1493,8 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     sessionBaseTextRef.current = latestInputRef.current; // Store current input text
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const isLanguageNativelySupported = targetLanguage === 'English (US)' || targetLanguage === 'English (UK)' || targetLanguage === 'Swahili';
+    // Natively support all languages in our regional list for fast browser-side speech recognition
+    const isLanguageNativelySupported = true;
     if (SpeechRecognition && isLanguageNativelySupported) {
       try {
         if (micRecognitionRef.current) {
@@ -1314,9 +1505,22 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
         recognition.continuous = true;
         recognition.interimResults = true;
         
-        let langCode = 'en-US';
-        if (targetLanguage === 'Swahili') langCode = 'sw-TZ';
+        let langCode = 'en-UG';
+        if (targetLanguage === 'English (US)') langCode = 'en-US';
         else if (targetLanguage === 'English (UK)') langCode = 'en-GB';
+        else if (targetLanguage === 'Swahili') langCode = 'sw-UG';
+        else if (targetLanguage === 'Luganda') langCode = 'lg-UG';
+        else if (targetLanguage === 'Runyankole-Rukiga') langCode = 'nyn-UG';
+        else if (targetLanguage === 'Acholi-Luo') langCode = 'ach-UG';
+        else if (targetLanguage === 'Langi') langCode = 'en-UG';
+        else if (targetLanguage === 'Iteso') langCode = 'en-UG';
+        else if (targetLanguage === 'Lusoga') langCode = 'en-UG';
+        else if (targetLanguage === 'Lugbara') langCode = 'en-UG';
+        else if (targetLanguage === 'Runyoro-Rutooro') langCode = 'en-UG';
+        else if (targetLanguage === 'Rukonjo') langCode = 'en-UG';
+        else if (targetLanguage === 'Samia') langCode = 'en-UG';
+        else if (targetLanguage === 'Karamojong') langCode = 'en-UG';
+        else if (targetLanguage === 'Auto Detect') langCode = 'en-UG';
         
         recognition.lang = langCode;
 
@@ -1807,7 +2011,25 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     if (SpeechRecognition) {
       setIsSpeechSupported(true);
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.lang = 'en-US'; 
+      
+      let bcpLanguage = 'en-UG';
+      if (targetLanguage === 'English (US)') bcpLanguage = 'en-US';
+      else if (targetLanguage === 'English (UK)') bcpLanguage = 'en-GB';
+      else if (targetLanguage === 'Swahili') bcpLanguage = 'sw-UG';
+      else if (targetLanguage === 'Luganda') bcpLanguage = 'lg-UG';
+      else if (targetLanguage === 'Runyankole-Rukiga') bcpLanguage = 'nyn-UG';
+      else if (targetLanguage === 'Acholi-Luo') bcpLanguage = 'ach-UG';
+      else if (targetLanguage === 'Langi') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Iteso') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Lusoga') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Lugbara') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Runyoro-Rutooro') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Rukonjo') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Samia') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Karamojong') bcpLanguage = 'en-UG';
+      else if (targetLanguage === 'Auto Detect') bcpLanguage = 'en-UG';
+
+      recognitionRef.current.lang = bcpLanguage; 
       recognitionRef.current.continuous = false; 
       recognitionRef.current.interimResults = true;
 
@@ -1836,7 +2058,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
         setIsListening(false);
       };
     }
-  }, []);
+  }, [targetLanguage]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -3290,7 +3512,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                 title="Doctorian Voice consultation & Calling Portal"
               >
                 <Phone size={12} className="animate-pulse" />
-                <span>Voice Call</span>
+                <span>{t('Voice Call')}</span>
                 <AnimatePresence>
                   {activeFeatureTip?.id === 'voice_call' && (
                     <motion.span
@@ -3320,10 +3542,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   }`}
                   title="Clinical Utilities Hub"
                 >
-                  <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 dark:bg-slate-850 px-2 py-0.5 rounded-full border border-blue-500/10">
-                    <BrainCircuit size={12} className={showToolHub ? 'text-blue-600' : 'text-blue-500 animate-pulse'} />
-                    <Stethoscope size={12} className="text-rose-500" />
-                    <Dna size={12} className="text-teal-500" />
+                  <div className="flex items-center gap-1 shrink-0 bg-slate-100 dark:bg-slate-850 px-1.5 py-0.5 rounded-full border border-blue-500/10">
+                    <BrainCircuit size={10} className={showToolHub ? 'text-blue-600' : 'text-blue-500 animate-pulse'} />
+                    <Stethoscope size={10} className="text-rose-500" />
+                    <Dna size={10} className="text-teal-500" />
                   </div>
                   <span>Tools Hub</span>
                   <ChevronDown size={11} className={`transform transition-transform ${showToolHub ? 'rotate-180' : ''}`} />
@@ -3336,9 +3558,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
         <div className="bg-slate-50/50 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800/50 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-0.5">
             {[
-              { id: 'chat' as const, label: 'Doctorian Chat', icon: <MessageSquare size={14} />, desc: 'Core Clinical Assistant' },
-              { id: 'health_log' as const, label: 'My Health Log', icon: <History size={14} />, desc: 'Offline Parameters' },
-              { id: 'resources' as const, label: 'Resources', icon: <FileText size={14} />, desc: 'Clinical Protocols' }
+              { id: 'chat' as const, label: t('Doctorian Chat'), icon: <MessageSquare size={14} />, desc: t('Core Clinical Assistant') },
+              { id: 'health_log' as const, label: t('My Health Log'), icon: <History size={14} />, desc: t('Offline Parameters') },
+              { id: 'resources' as const, label: t('Resources'), icon: <FileText size={14} />, desc: t('Clinical Protocols') }
             ].map(tab => {
               const isActive = activeMainTab === tab.id;
               return (
@@ -3368,7 +3590,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
           </div>
           <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-100/50 dark:bg-slate-900 rounded-full border border-slate-100 dark:border-slate-800/40 font-sans text-[9px] font-black uppercase text-slate-450 tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Secure Sandboxed Storage Active</span>
+            <span>{t('Secure Sandboxed Storage Active')}</span>
           </div>
         </div>
 
@@ -4014,7 +4236,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       handleSend();
                     }
                   }}
-                  placeholder="Clinical query..."
+                  placeholder={t('Enter your medical query here...')}
                   className="flex-1 bg-transparent border-none outline-none py-4 text-[16px] font-medium text-slate-900 dark:text-white placeholder-slate-400 resize-none min-h-[56px] max-h-48"
                   rows={1}
                 />
@@ -4035,8 +4257,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     className="hidden" 
                   />
                   
-                  <div className="relative flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 rounded-full px-2.5 py-1.5 hover:border-blue-500/30 dark:hover:border-blue-500/40 transition-all shrink-0">
-                    <Globe size={14} className="text-slate-400 dark:text-slate-500 shrink-0 mr-1" />
+                  <div className="relative flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 rounded-full w-7 h-7 sm:w-8 sm:h-8 hover:border-blue-500/30 dark:hover:border-blue-500/40 transition-all shrink-0 cursor-pointer" title={`Language: ${targetLanguage}`}>
+                    <div className="flex items-center gap-0.5 pointer-events-none">
+                      <Globe size={11} className="text-slate-400 dark:text-slate-500" />
+                      <ChevronDown size={8} className="text-slate-400 dark:text-slate-500" />
+                    </div>
                     <select
                       value={targetLanguage}
                       onChange={(e) => {
@@ -4047,7 +4272,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           onChangeLanguage(val);
                         }
                       }}
-                      className="bg-transparent border-none outline-none pr-4 font-black uppercase text-[9px] tracking-widest cursor-pointer appearance-none text-slate-600 dark:text-slate-300 focus:ring-0 focus:outline-none"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     >
                       {[
                         'Auto Detect',
@@ -4071,7 +4296,6 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         </option>
                       ))}
                     </select>
-                    <ChevronDown size={10} className="text-slate-400 dark:text-slate-500 absolute right-2 pointer-events-none" />
                   </div>
 
                   <button 
@@ -4519,7 +4743,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex flex-wrap items-center justify-between bg-white dark:bg-slate-950/80 backdrop-blur-md">
               <div>
                 <h3 className="text-sm font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-1.5 leading-none">
-                  <BrainCircuit size={16} className="text-blue-600 animate-pulse" /> Clinical Tools Hub
+                  <BrainCircuit size={14} className="text-blue-600 animate-pulse" /> Clinical Tools Hub
                 </h3>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Unified Diagnostic & Clinical Systems</p>
               </div>
@@ -6201,7 +6425,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       </div>
                       
                       {/* Real-time Subtitle/Active Phrase Text (Very friendly and clean) */}
-                      {callState !== 'connected' && (
+                      {(callState === 'connected' || callState === 'calling' || callState === 'disconnecting') && (
                         <div className="mt-6 px-8 text-center min-h-[3rem] flex items-center justify-center max-w-sm">
                           <AnimatePresence mode="wait">
                             <motion.p 
@@ -6216,11 +6440,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                                   {voiceCallTranscript[voiceCallTranscript.length - 1]?.text || "Speaking..."}
                                 </span>
                               ) : voiceCallIsTranscribing ? (
-                                <span className="text-indigo-400 animate-pulse uppercase tracking-widest text-[10px]">Processing health query...</span>
+                                <span className="text-indigo-400 animate-pulse uppercase tracking-widest text-[10px]">{t('Processing health query...')}</span>
                               ) : voiceCallMuted ? (
-                                <span className="text-rose-400 uppercase tracking-widest text-[10px]">Microphone Muted</span>
+                                <span className="text-rose-400 uppercase tracking-widest text-[10px]">{t('Muted')}</span>
                               ) : (
-                                <span className="text-cyan-400 animate-pulse uppercase tracking-widest text-[10px]">Listening for your voice...</span>
+                                <span className="text-cyan-400 animate-pulse uppercase tracking-widest text-[10px]">{t('Listening for your voice...')}</span>
                               )}
                             </motion.p>
                           </AnimatePresence>
@@ -6229,7 +6453,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     </div>
 
                     {/* Sliding Transcript Drawer Toggle (clean, low profile) */}
-                    {callState !== 'connected' && (
+                    {(callState === 'connected' || callState === 'calling' || callState === 'disconnecting') && (
                       <div className="px-6 z-10">
                         <div className="bg-slate-900/40 border border-slate-900/60 rounded-2xl overflow-hidden transition-all duration-300">
                           <button
@@ -6237,9 +6461,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                             onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
                             className="w-full px-4 py-3 flex items-center justify-between text-xs text-slate-400 hover:text-white transition-all outline-none"
                           >
-                            <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">Dialogue History</span>
+                            <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">{t('Dialogue History')}</span>
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] font-semibold">{showVoiceTranscript ? 'Hide' : 'Show'}</span>
+                              <span className="text-[9px] font-semibold">{showVoiceTranscript ? t('Hide') : t('Show')}</span>
                               <ChevronDown size={12} className={`transform transition-transform duration-300 ${showVoiceTranscript ? 'rotate-180' : ''}`} />
                             </div>
                           </button>

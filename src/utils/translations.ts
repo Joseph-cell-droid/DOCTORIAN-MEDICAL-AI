@@ -704,7 +704,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kiseera Ky\'Omurimo',
     'Settings': 'Entebekesa',
     'Emergency SOS': 'Obusingye SOS',
-    'Clinical Systems Information': 'Makuru g\'Eddagala'
+    'Clinical Systems Information': 'Makuru g\'Eddagala',
+    'Doctorian AI Core': 'Omutima gwa Doctorian AI',
+    'Optimal': 'Gye Kirungi',
+    'Cardiac Flux': 'Okukuba kw’Omutima',
+    'Neural Energy': 'Amaanyi g’Omubiri',
+    'Resets Daily': 'Kigarurwaho Bulijo',
+    'Hydration': 'Okunywa Amaizi',
+    'Change UI Language': 'Kyusa Olulimi rwa Sistemu',
+    'Core Operations': 'Emirimo y’Ekiini',
+    "Doctors' Dashboard": 'Ebaandi y’Omushaho'
   },
   'Acholi-Luo': {
     'Dashboard': 'Pany kin mogo',
@@ -739,7 +748,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kawa me bur',
     'Settings': 'Ayuba',
     'Emergency SOS': 'Peke me SOS',
-    'Clinical Systems Information': 'Ngec me yat dduc'
+    'Clinical Systems Information': 'Ngec me yat dduc',
+    'Doctorian AI Core': 'Cwiny Doctorian AI',
+    'Optimal': 'Ber Adada',
+    'Cardiac Flux': 'Cwiny ma Kodo',
+    'Neural Energy': 'Teko me Kwo',
+    'Resets Daily': 'Yubbe nino dduc',
+    'Hydration': 'Okodo Pii',
+    'Change UI Language': 'Alook leb me lany',
+    'Core Operations': 'Tic ma Cal',
+    "Doctors' Dashboard": 'Pany pa Musawo'
   },
   'Langi': {
     'Dashboard': 'Kany me ngol',
@@ -774,7 +792,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Ting katic',
     'Settings': 'Apara geyo',
     'Emergency SOS': 'SOS neno mapi',
-    'Clinical Systems Information': 'Ngec me yat'
+    'Clinical Systems Information': 'Ngec me yat',
+    'Doctorian AI Core': 'Cwiny Doctorian Lango AI',
+    'Optimal': 'Ber Maber',
+    'Cardiac Flux': 'Kicor me Cwiny',
+    'Neural Energy': 'Teko me Kwo',
+    'Resets Daily': 'Apara nino dduc',
+    'Hydration': 'Okobo Pii',
+    'Change UI Language': 'Yub olulimi',
+    'Core Operations': 'Tic me Cencor',
+    "Doctors' Dashboard": 'Kany me Musawo'
   },
   'Iteso': {
     'Dashboard': 'Ebaandi eupaas',
@@ -809,7 +836,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Aitai naiton',
     'Settings': 'Aituboorot',
     'Emergency SOS': 'Atoigo SOS',
-    'Clinical Systems Information': 'Aituborot naka amedical'
+    'Clinical Systems Information': 'Aituborot naka amedical',
+    'Doctorian AI Core': 'Omutima loka Doctorian AI',
+    'Optimal': 'Ejokona Bulingo',
+    'Cardiac Flux': 'Omutima lok’Aijar',
+    'Neural Energy': 'Atorokin naka Aijar',
+    'Resets Daily': 'Aituboorot loka nino',
+    'Hydration': 'Okunwa Akipi',
+    'Change UI Language': 'Aijul olulimi',
+    'Core Operations': 'Aitiit naka aijar',
+    "Doctors' Dashboard": 'Ebaandi loka Musawo'
   },
   'Lusoga': {
     'Dashboard': 'Ebaandi ya Bulamu',
@@ -844,7 +880,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kiseera ekikola',
     'Settings': 'Entegeka',
     'Emergency SOS': 'SOS ya mangu',
-    'Clinical Systems Information': 'Ebyokumanya eby\'Eddagala'
+    'Clinical Systems Information': 'Ebyokumanya eby\'Eddagala',
+    'Doctorian AI Core': 'Omutima gwa Doctorian AI',
+    'Optimal': 'Bulungi Inho',
+    'Cardiac Flux': 'Okukuba kw’Omutima',
+    'Neural Energy': 'Amaani g’Omubiri',
+    'Resets Daily': 'Kizibwawo Bulijjo',
+    'Hydration': 'Okunywa Amaazzi',
+    'Change UI Language': 'Kyusa Olulimi lwa Sistemu',
+    'Core Operations': 'Emirimo gy’Ekiini',
+    "Doctors' Dashboard": 'Ebaandi y’Omusawo'
   },
   'Lugbara': {
     'Dashboard': 'Tanga be mve',
@@ -879,7 +924,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Saawa ozu be',
     'Settings': 'Erepi azini',
     'Emergency SOS': 'Dra be SOS',
-    'Clinical Systems Information': 'Efofo be drakpi'
+    'Clinical Systems Information': 'Efofo be drakpi',
+    'Doctorian AI Core': 'Bari be Doctorian AI',
+    'Optimal': 'Mve Maber',
+    'Cardiac Flux': 'Bari be Doctorian',
+    'Neural Energy': 'Akpara okpo be',
+    'Resets Daily': 'Erepi niko be',
+    'Hydration': 'Unya Iyi',
+    'Change UI Language': 'Asupi be ti',
+    'Core Operations': 'Ozu mve core',
+    "Doctors' Dashboard": 'Tanga be Musawo'
   },
   'Runyoro-Rutooro': {
     'Dashboard': 'Ebaandi y\'eMikorra',
@@ -914,7 +968,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Akapatiko Kaseera',
     'Settings': 'Entegereka oburungi',
     'Emergency SOS': 'SOS ya mangu',
-    'Clinical Systems Information': 'Enfomo y\'Eddagala'
+    'Clinical Systems Information': 'Enfomo y\'Eddagala',
+    'Doctorian AI Core': 'Omutima gwa Doctorian AI',
+    'Optimal': 'Kirungi muno',
+    'Cardiac Flux': 'Okukuba kw’Omutima',
+    'Neural Energy': 'Amaanyi g’Omubiri',
+    'Resets Daily': 'Kigarurwaho Bulijo',
+    'Hydration': 'Okunywamu Amaizi',
+    'Change UI Language': 'Kyusa Olulimi lwa Sistemu',
+    'Core Operations': 'Emikorra y’Ekiini',
+    "Doctors' Dashboard": 'Ebaandi y’Omushaho'
   },
   'Rukonjo': {
     'Dashboard': 'Ebbende y\'Emibiri',
@@ -949,7 +1012,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kaseera ko Molimo',
     'Settings': 'Amategheka',
     'Emergency SOS': 'SOS y\'omangu',
-    'Clinical Systems Information': 'Ebikwata ha Ddagala'
+    'Clinical Systems Information': 'Ebikwata ha Ddagala',
+    'Doctorian AI Core': 'Omutima gwa Doctorian AI',
+    'Optimal': 'Ghilhe Ndolo',
+    'Cardiac Flux': 'Okukuba kw’Omutima',
+    'Neural Energy': 'Engabi y’Omubiri',
+    'Resets Daily': 'Kigarurwaho Bulijo',
+    'Hydration': 'Okunywa Amaizi',
+    'Change UI Language': 'Kyusa Olulimi lwa Sistemu',
+    'Core Operations': 'Emirimo gy’Ekiini',
+    "Doctors' Dashboard": 'Ebbende y’Omusawo'
   },
   'Samia': {
     'Dashboard': 'Engalo y\'emilimo',
@@ -984,7 +1056,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Ekaari ey\'emilimo',
     'Settings': 'Ametekero',
     'Emergency SOS': 'SOS ya mangu',
-    'Clinical Systems Information': 'Amang\'ana ke eddagala'
+    'Clinical Systems Information': 'Amang\'ana ke eddagala',
+    'Doctorian AI Core': 'Omuteyo kwa Doctorian AI',
+    'Optimal': 'Mulungi muno',
+    'Cardiac Flux': 'Okuteera kw’Omuteyo',
+    'Neural Energy': 'Amakani g’Omubiri',
+    'Resets Daily': 'Khubula buli naye',
+    'Hydration': 'Khunywa Amaazi',
+    'Change UI Language': 'Khusa olulimi lwa sistu',
+    'Core Operations': 'Emilimo gy’ekitebe',
+    "Doctors' Dashboard": 'Engalo y’Omusawo'
   },
   'Karamojong': {
     'Dashboard': 'Epeta lotic',
@@ -1019,7 +1100,16 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Kaseera loka tic',
     'Settings': 'Aitelek',
     'Emergency SOS': 'SOS amapi',
-    'Clinical Systems Information': 'Ebikwata ka emedical'
+    'Clinical Systems Information': 'Ebikwata ka emedical',
+    'Doctorian AI Core': 'Tau loka Doctorian AI',
+    'Optimal': 'Ejokona Mabor',
+    'Cardiac Flux': 'Tau loka Doctorian',
+    'Neural Energy': 'Amoroki naka Aijar',
+    'Resets Daily': 'Aituboorot loka nino',
+    'Hydration': 'Okunywa Ngakipi',
+    'Change UI Language': 'Aijul olulimi',
+    'Core Operations': 'Epeta lotic core',
+    "Doctors' Dashboard": 'Epeta loka Emuron'
   }
 };
 

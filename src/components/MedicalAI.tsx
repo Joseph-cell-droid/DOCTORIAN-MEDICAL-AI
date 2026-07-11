@@ -48,36 +48,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
       {/* Universal Neural Content Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950/20 overflow-hidden">
 
-        <AnimatePresence>
-          {user?.subscriptionTier === 'enterprise' && user?.subscriptionStatus === 'active' && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-purple-600 p-3 sm:px-8 flex items-center justify-between gap-4 border-b border-purple-500/30 shrink-0"
-            >
-              <div className="flex items-center gap-3">
-                <Crown className="text-amber-300" size={18} />
-                <span className="text-[10px] font-black text-white uppercase tracking-widest hidden sm:inline">Universal Quantum Node Active</span>
-                <span className="text-[10px] font-black text-white uppercase tracking-widest sm:hidden">Neural Link: Quantum</span>
-              </div>
-              <div className="flex items-center gap-4">
-                 <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg max-w-[200px] sm:max-w-[400px] overflow-hidden">
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                   <span className="text-[9px] font-black text-white uppercase truncate">
-                     {isGeneratingIdea ? 'Doctorian Thinking...' : operationalIdea || 'Operational Strategy Live'}
-                   </span>
-                 </div>
-                 <button 
-                   onClick={fetchOperationalIdea}
-                   disabled={isGeneratingIdea}
-                   className="text-[10px] font-black text-white underline underline-offset-4 decoration-white/30 hover:decoration-white transition-all uppercase disabled:opacity-50"
-                 >
-                   {isGeneratingIdea ? 'Thinking...' : 'Generate Elite Idea'}
-                 </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
         
         <AnimatePresence>
           {user?.subscriptionStatus === 'pending' && (

@@ -27,6 +27,7 @@ import {
   ChevronRight,
   QrCode,
   Server,
+  Building,
   Cpu,
   Database,
   Fingerprint,
@@ -45,7 +46,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 
 export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback'>(() => {
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback' | 'sectors'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('admin_active_tab');
       if (saved) return saved as any;
@@ -63,6 +64,14 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   });
   const [notifications, setNotifications] = useState<any[]>([]);
   
+  // Sectors & Patient Data Release State
+  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [dataRequests, setDataRequests] = useState<any[]>([]);
+  const [loadingSectors, setLoadingSectors] = useState(false);
+  const [newHospital, setNewHospital] = useState({ id: '', name: '', address: '' });
+  const [isRegisteringHospital, setIsRegisteringHospital] = useState(false);
+  const [adminNotesMap, setAdminNotesMap] = useState<Record<string, string>>({});
+
   // Feedback Admin State
   const [feedback, setFeedback] = useState<any[]>([]);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
@@ -624,6 +633,62 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     }
   };
 
+  const fetchSectorsAndRequests = async () => {
+    setLoadingSectors(true);
+    try {
+      const hospData = await api.hospitals.list();
+      setHospitals(hospData);
+      const reqData = await api.dataRequests.list();
+      setDataRequests(reqData);
+    } catch (err: any) {
+      console.error("Failed to load sectors/requests:", err);
+      if (addToast) addToast(err.message || "Failed to load sectoring data", "error");
+    } finally {
+      setLoadingSectors(false);
+    }
+  };
+
+  const handleRegisterHospital = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHospital.id || !newHospital.name) {
+      if (addToast) addToast("Hospital ID and Name are required", "error");
+      return;
+    }
+    setIsRegisteringHospital(true);
+    try {
+      await api.hospitals.create(newHospital);
+      if (addToast) addToast("Hospital sector registered successfully!", "success");
+      setNewHospital({ id: '', name: '', address: '' });
+      fetchSectorsAndRequests();
+    } catch (err: any) {
+      if (addToast) addToast(err.message || "Failed to register hospital sector", "error");
+    } finally {
+      setIsRegisteringHospital(false);
+    }
+  };
+
+  const handleApproveRequest = async (id: string) => {
+    try {
+      const notes = adminNotesMap[id] || "Database/Log access approved by main admin.";
+      await api.dataRequests.approve(id, notes);
+      if (addToast) addToast("Data request approved. Patient backup prepared.", "success");
+      fetchSectorsAndRequests();
+    } catch (err: any) {
+      if (addToast) addToast(err.message || "Approval failed", "error");
+    }
+  };
+
+  const handleRejectRequest = async (id: string) => {
+    try {
+      const notes = adminNotesMap[id] || "Request does not meet security policies.";
+      await api.dataRequests.reject(id, notes);
+      if (addToast) addToast("Data request rejected.", "info");
+      fetchSectorsAndRequests();
+    } catch (err: any) {
+      if (addToast) addToast(err.message || "Rejection failed", "error");
+    }
+  };
+
   const handleDeleteFeedback = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this feedback entry from the database?")) return;
     try {
@@ -646,6 +711,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       fetchDoctors();
     } else if (activeTab === 'feedback') {
       fetchFeedback();
+    } else if (activeTab === 'sectors') {
+      fetchSectorsAndRequests();
     } else {
       fetchTwilioStatus();
     }
@@ -974,6 +1041,17 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
           >
             <MessageSquare size={16} aria-hidden="true" />
             Feedback
+          </button>
+          <button 
+            onClick={() => setActiveTab('sectors')}
+            role="tab"
+            aria-selected={activeTab === 'sectors'}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
+              activeTab === 'sectors' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <Database size={16} aria-hidden="true" />
+            Sectors & Requests
           </button>
         </div>
       </div>
@@ -2700,7 +2778,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               </div>
             </div>
           </motion.div>
-        ) : (
+        ) : activeTab === 'feedback' ? (
           <motion.div
             key="feedback-tab"
             id="feedback-panel"
@@ -2781,7 +2859,231 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               )}
             </div>
           </motion.div>
-        )}
+        ) : activeTab === 'sectors' ? (
+          <motion.div
+            key="sectors-tab"
+            id="sectors-panel"
+            role="tabpanel"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Left Column: Register Hospital Sector */}
+              <div className="lg:col-span-1 space-y-8">
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                      <Plus size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Register Sector</h3>
+                      <p className="text-xs text-slate-500 font-medium">Add isolated hospital, clinic or personal branch</p>
+                    </div>
+                  </div>
+                  
+                  <form onSubmit={handleRegisterHospital} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sector/Hospital ID Key</label>
+                      <input 
+                        type="text"
+                        required
+                        value={newHospital.id}
+                        onChange={(e) => setNewHospital({...newHospital, id: e.target.value.toUpperCase().replace(/\s+/g, '-')})}
+                        placeholder="e.g. CLINIC-KAMPALA-NORTH"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      />
+                      <p className="text-[9px] text-slate-400 leading-tight">Must match the 'Institution ID Key' used during user registrations to segment database records.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Hospital Name</label>
+                      <input 
+                        type="text"
+                        required
+                        value={newHospital.name}
+                        onChange={(e) => setNewHospital({...newHospital, name: e.target.value})}
+                        placeholder="e.g. Kampala North General Hospital"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Physical Address</label>
+                      <input 
+                        type="text"
+                        value={newHospital.address}
+                        onChange={(e) => setNewHospital({...newHospital, address: e.target.value})}
+                        placeholder="e.g. Plot 12, Wandegeya, Kampala"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
+                      />
+                    </div>
+
+                    <button 
+                      type="submit"
+                      disabled={isRegisteringHospital}
+                      className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50 active:scale-95"
+                    >
+                      {isRegisteringHospital ? <Loader2 className="animate-spin" size={20} /> : <><CheckCircle2 size={18} /><span>Register Sector</span></>}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Right Column (span-2): Active Sectors List & Release Data Request Approvals */}
+              <div className="lg:col-span-2 space-y-8">
+                
+                {/* Registered Sectors List */}
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <Building size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Active Database Sectors</h3>
+                        <p className="text-xs text-slate-500 font-medium">Isolated multi-tenant registered hospital partitions</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={fetchSectorsAndRequests}
+                      className="p-2 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl transition-all"
+                      title="Reload"
+                    >
+                      <RefreshCw size={16} className={loadingSectors ? "animate-spin" : ""} />
+                    </button>
+                  </div>
+
+                  {loadingSectors ? (
+                    <div className="py-10 text-center">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
+                      <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Querying sectors list...</p>
+                    </div>
+                  ) : hospitals.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {hospitals.map((hosp) => (
+                        <div key={hosp.id} className="p-5 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-150/50 dark:border-slate-800 flex flex-col justify-between hover:border-blue-500/30 transition-all">
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest font-mono">ID: {hosp.id}</span>
+                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-[8px] font-black uppercase tracking-widest">Isolated</span>
+                            </div>
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{hosp.name}</h4>
+                            {hosp.address && (
+                              <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                📍 {hosp.address}
+                              </p>
+                            )}
+                          </div>
+                          <div className="pt-3 mt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center text-[9px] text-slate-450 uppercase font-bold font-mono">
+                            <span>Sectored: SQLite DB</span>
+                            <span>Registered: {new Date(hosp.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-400 font-bold text-xs uppercase">
+                      No multi-tenant hospital sectors registered yet. Standard users default to the main partition.
+                    </div>
+                  )}
+                </div>
+
+                {/* Patient Data Release Requests */}
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                        <FileText size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Clinical Data Release Requests</h3>
+                        <p className="text-xs text-slate-500 font-medium">Verify requests from clinicians/patients requesting diagnostic database backups</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {loadingSectors ? (
+                    <div className="py-10 text-center">
+                      <Loader2 className="w-8 h-8 text-rose-600 animate-spin mx-auto mb-2" />
+                      <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Querying release requests...</p>
+                    </div>
+                  ) : dataRequests.length > 0 ? (
+                    <div className="space-y-4">
+                      {dataRequests.map((req) => (
+                        <div key={req.id} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-150/50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-all">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-[9px] font-black uppercase tracking-wider font-mono">
+                                REQ: #{req.id}
+                              </span>
+                              <span className={`px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                                req.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' :
+                                req.status === 'rejected' ? 'bg-rose-500/10 text-rose-500' :
+                                'bg-amber-500/10 text-amber-500'
+                              }`}>
+                                {req.status.toUpperCase()}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono font-bold">Sector ID: {req.institutionId || 'GLOBAL'}</span>
+                            </div>
+                            <p className="text-sm font-black text-slate-900 dark:text-white">
+                              Patient: {req.patientName || 'Unknown Patient'} <span className="text-xs font-medium text-slate-400 font-mono">(UID: #{req.userId})</span>
+                            </p>
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                              Requested by: <span className="text-indigo-600 dark:text-indigo-400">{req.doctorName} ({req.doctorSpecialization})</span>
+                            </p>
+                            <p className="text-xs text-slate-500 italic bg-white dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                              Reason: "{req.reason}"
+                            </p>
+                            {req.adminNotes && (
+                              <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10">
+                                🛡️ Admin Notes: "{req.adminNotes}"
+                              </p>
+                            )}
+                          </div>
+
+                          {req.status === 'pending' && (
+                            <div className="flex flex-col gap-2 min-w-[200px]">
+                              <input 
+                                type="text"
+                                placeholder="Add auditing security notes..."
+                                value={adminNotesMap[req.id] || ''}
+                                onChange={(e) => setAdminNotesMap({...adminNotesMap, [req.id]: e.target.value})}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleApproveRequest(req.id)}
+                                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                                >
+                                  Approve Release
+                                </button>
+                                <button
+                                  onClick={() => handleRejectRequest(req.id)}
+                                  className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-400 font-bold text-xs uppercase">
+                      No clinical data release requests recorded in system auditing.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+            </div>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
 
       {/* User Records Modal */}

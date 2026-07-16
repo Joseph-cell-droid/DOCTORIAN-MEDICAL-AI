@@ -3652,7 +3652,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
-                          title: 'Doctorian Local Flash (Gemma 3)', 
+                          title: 'EBP Doctorian 3.8 Local Flash (Gemma 3)', 
                           desc: 'Doctorian Offline Engine', 
                           license: 'Always Free Local (Active)', 
                           payment: 'No External API Keys Required', 
@@ -3661,7 +3661,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'gemma-cloud' as const, 
-                          title: 'Google Gemma 3 (Cloud Core)', 
+                          title: 'EBP Doctorian 3.8 Cloud Core (Gemma 3)', 
                           desc: 'Full Cloud Clinical Intelligence', 
                           license: 'Always Free Cloud (Active)', 
                           payment: 'No External Keys Required', 
@@ -3670,7 +3670,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'huggingface' as const, 
-                          title: 'Hugging Face Cloud Brain', 
+                          title: 'EBP Doctorian 3.8 Cloud Brain (HF Hub)', 
                           desc: 'Realistic Open Source Serverless API', 
                           license: 'Cloud Connection (Active)', 
                           payment: 'Access Token Configured', 
@@ -3679,7 +3679,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'llama-clinical' as const, 
-                          title: 'Doctorian Llama 3.1 Pro', 
+                          title: 'EBP Doctorian 3.8 Llama 3.1 Pro', 
                           desc: 'High-Performance Clinical Core', 
                           license: 'Fully Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -3688,7 +3688,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'medlm-medium' as const, 
-                          title: 'Doctorian MedLM Pro', 
+                          title: 'EBP Doctorian 3.8 MedLM Pro', 
                           desc: 'Specialized High-Performance Diagnostics', 
                           license: 'Clinical Co-Pilot Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -3697,7 +3697,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'Doctorian MedLM Ultra', 
+                          title: 'EBP Doctorian 3.8 MedLM Ultra', 
                           desc: 'Deep-Reasoning Advanced Diagnostic Core', 
                           license: 'Deep Reasoning Core Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -5838,12 +5838,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {[
-                        { id: 'gemma3-tfjs' as const, label: 'Doctorian Local (Gemma 3)', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
-                        { id: 'gemma-cloud' as const, label: 'Google Gemma 3 (Cloud)', desc: 'Gemma 3 Cloud Core', tier: 'Standard (Free)' },
-                        { id: 'huggingface' as const, label: 'Hugging Face Cloud', desc: 'Realistic Open Source', tier: 'Standard (Free)' },
-                        { id: 'llama-clinical' as const, label: 'Doctorian Llama 3.1', desc: 'Clinical Core', tier: 'Standard (Free)' },
-                        { id: 'medlm-medium' as const, label: 'Doctorian MedLM Pro', desc: 'Specialized Pro', tier: 'Pro Required' },
-                        { id: 'medlm-large' as const, label: 'Doctorian MedLM Ultra', desc: 'Deep Reasoning', tier: 'Matrix Required' }
+                        { id: 'gemma3-tfjs' as const, label: 'EBP Doctorian 3.8 Local', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
+                        { id: 'gemma-cloud' as const, label: 'EBP Doctorian 3.8 Cloud (Gemma)', desc: 'Gemma 3 Cloud Core', tier: 'Standard (Free)' },
+                        { id: 'huggingface' as const, label: 'EBP Doctorian 3.8 Cloud (HF)', desc: 'Realistic Open Source', tier: 'Standard (Free)' },
+                        { id: 'llama-clinical' as const, label: 'EBP Doctorian 3.8 Llama 3.1', desc: 'Clinical Core', tier: 'Standard (Free)' },
+                        { id: 'medlm-medium' as const, label: 'EBP Doctorian 3.8 MedLM Pro', desc: 'Specialized Pro', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'EBP Doctorian 3.8 MedLM Ultra', desc: 'Deep Reasoning', tier: 'Matrix Required' }
                       ].map(engineOption => {
                         const { hasAccess, tierName } = checkModelAccess(engineOption.id);
                         const isSelected = clinicalEngine === engineOption.id;
@@ -6148,11 +6148,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'gemma-cloud' ? 'Google Gemma 3 Cloud' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'EBP Doctorian 3.8 Local' : (clinicalEngine === 'gemma-cloud' ? 'EBP Doctorian 3.8 Cloud (Gemma)' : (clinicalEngine === 'huggingface' ? 'EBP Doctorian 3.8 Cloud (HF)' : (clinicalEngine === 'medlm-medium' ? 'EBP Doctorian 3.8 MedLM Pro' : (clinicalEngine === 'medlm-large' ? 'EBP Doctorian 3.8 MedLM Ultra' : 'EBP Doctorian 3.8 Llama 3.1'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Gemma 3 4B Local' : (clinicalEngine === 'gemma-cloud' ? 'Google Gemma 3 Cloud' : (clinicalEngine === 'huggingface' ? 'Hugging Face Cloud' : (clinicalEngine === 'medlm-medium' ? 'Google MedLM' : (clinicalEngine === 'medlm-large' ? 'MedLM Reasoning' : 'Llama 3.1'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'EBP Doctorian 3.8 Local' : (clinicalEngine === 'gemma-cloud' ? 'EBP Doctorian 3.8 Cloud (Gemma)' : (clinicalEngine === 'huggingface' ? 'EBP Doctorian 3.8 Cloud (HF)' : (clinicalEngine === 'medlm-medium' ? 'EBP Doctorian 3.8 MedLM Pro' : (clinicalEngine === 'medlm-large' ? 'EBP Doctorian 3.8 MedLM Ultra' : 'EBP Doctorian 3.8 Llama 3.1'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}

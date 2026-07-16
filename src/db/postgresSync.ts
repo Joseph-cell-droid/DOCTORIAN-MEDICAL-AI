@@ -60,7 +60,23 @@ export function translateSqlToPg(sqliteSql: string, tableNameHint?: string): str
     lastUnitReset: "last_unit_reset",
     attachmentURL: "attachment_url",
     expiresAt: "expires_at",
-    lastActive: "last_active"
+    lastActive: "last_active",
+    bloodGroup: "blood_group",
+    hospitalPreference: "hospital_preference",
+    subscriptionTier: "subscription_tier",
+    subscriptionStatus: "subscription_status",
+    lastPaymentDate: "last_payment_date",
+    paymentEvidence: "payment_evidence",
+    patientId: "patient_id",
+    patientName: "patient_name",
+    vitalAlertSource: "vital_alert_source",
+    dispatchCode: "dispatch_code",
+    ambulanceUnit: "ambulance_unit",
+    paramedicTeam: "paramedic_team",
+    destinationHospital: "destination_hospital",
+    equipmentStatus: "equipment_status",
+    etaMinutes: "eta_minutes",
+    distanceKm: "distance_km"
   };
 
   for (const [camel, snake] of Object.entries(columnReplacements)) {
@@ -102,7 +118,7 @@ export function translateSqlToPg(sqliteSql: string, tableNameHint?: string): str
 }
 
 // Background Replication Task
-let bypassPostgresSync = false;
+let bypassPostgresSync = !process.env.SQL_HOST;
 
 export function setBypassPostgresSync(val: boolean) {
   bypassPostgresSync = val;
@@ -156,8 +172,71 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
     });
     await Promise.race([probeQuery, timeout]);
     console.log("[POSTGRES-SYNC] Cloud PostgreSQL connection active. Pulling data...");
+
+    // Run active schema migrations on startup
+    console.log("[POSTGRES-SYNC] Ensuring PostgreSQL schemas are updated...");
+    try {
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS emergency_contacts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          role TEXT NOT NULL,
+          email TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS ambulance_dispatches (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          patient_name TEXT NOT NULL,
+          vital_alert_source TEXT,
+          severity TEXT NOT NULL,
+          dispatch_code TEXT NOT NULL,
+          ambulance_unit TEXT NOT NULL,
+          paramedic_team TEXT NOT NULL,
+          destination_hospital TEXT NOT NULL,
+          status TEXT NOT NULL,
+          equipment_status TEXT NOT NULL,
+          eta_minutes INTEGER DEFAULT 15,
+          distance_km REAL DEFAULT 5.2,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      const addCol = async (tableName: string, colName: string, sqlConstraint: string) => {
+        const check = await pgPool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = $1 AND column_name = $2
+        `, [tableName, colName]);
+        if (check.rows.length === 0) {
+          console.log(`[POSTGRES-SYNC] Adding column ${colName} to table ${tableName} in PostgreSQL...`);
+          await pgPool.query(`ALTER TABLE ${tableName} ADD COLUMN ${colName} ${sqlConstraint}`);
+        }
+      };
+
+      await addCol("users", "allergies", "TEXT");
+      await addCol("users", "conditions", "TEXT");
+      await addCol("users", "blood_group", "TEXT");
+      await addCol("users", "hospital_preference", "TEXT");
+      await addCol("users", "subscription_tier", "TEXT DEFAULT 'free'");
+      await addCol("users", "subscription_status", "TEXT DEFAULT 'inactive'");
+      await addCol("users", "last_payment_date", "TEXT");
+      await addCol("users", "payment_evidence", "TEXT");
+      await addCol("records", "attachment_url", "TEXT");
+      
+    } catch (migErr: any) {
+      console.error("[POSTGRES-SYNC-MIGRATION-ERROR] Failed to verify schema:", migErr.message);
+    }
+
   } catch (probeErr: any) {
     console.warn("[POSTGRES-SYNC-INFO] Under-configured or unreachable cloud PostgreSQL. System will operate on standalone local SQLite mode.", probeErr.message);
+    setBypassPostgresSync(true);
     return;
   }
 
@@ -180,7 +259,9 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
       { name: "knowledge_base", idCol: "id" },
       { name: "developer_keys", idCol: "id" },
       { name: "fine_tuning_jobs", idCol: "id" },
-      { name: "feedback", idCol: "id" }
+      { name: "feedback", idCol: "id" },
+      { name: "emergency_contacts", idCol: "id" },
+      { name: "ambulance_dispatches", idCol: "id" }
     ];
 
     for (const table of tablesToSync) {
@@ -224,6 +305,22 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
               if (key === "api_key") camelKey = "apiKey";
               if (key === "last_used") camelKey = "lastUsed";
               if (key === "last_active") camelKey = "lastActive";
+              if (key === "blood_group") camelKey = "bloodGroup";
+              if (key === "hospital_preference") camelKey = "hospitalPreference";
+              if (key === "subscription_tier") camelKey = "subscriptionTier";
+              if (key === "subscription_status") camelKey = "subscriptionStatus";
+              if (key === "last_payment_date") camelKey = "lastPaymentDate";
+              if (key === "payment_evidence") camelKey = "paymentEvidence";
+              if (key === "patient_id") camelKey = "patientId";
+              if (key === "patient_name") camelKey = "patientName";
+              if (key === "vital_alert_source") camelKey = "vitalAlertSource";
+              if (key === "dispatch_code") camelKey = "dispatchCode";
+              if (key === "ambulance_unit") camelKey = "ambulanceUnit";
+              if (key === "paramedic_team") camelKey = "paramedicTeam";
+              if (key === "destination_hospital") camelKey = "destinationHospital";
+              if (key === "equipment_status") camelKey = "equipmentStatus";
+              if (key === "eta_minutes") camelKey = "etaMinutes";
+              if (key === "distance_km") camelKey = "distanceKm";
 
               sqliteRow[camelKey] = row[key];
             }

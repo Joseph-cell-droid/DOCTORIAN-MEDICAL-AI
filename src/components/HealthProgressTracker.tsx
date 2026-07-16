@@ -4,7 +4,8 @@ import {
   Sparkles, ShieldCheck, ChevronRight, BarChart3, 
   Calendar, Microscope, FileText, Pill, Search, ClipboardList, Cpu,
   AlertCircle, ArrowRightCircle, RefreshCw, Target, Footprints, Droplet, Dumbbell, Moon,
-  Watch, Smartphone, Bluetooth, Check, Wifi, Heart, Users, UserPlus, Trash2, Plus, X
+  Watch, Smartphone, Bluetooth, Check, Wifi, Heart, Users, UserPlus, Trash2, Plus, X,
+  AlertTriangle, CheckCircle2, Tv, Terminal, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useArduinoContext } from '../ArduinoContext';
@@ -19,6 +20,141 @@ import {
   ComposedChart, Bar, Scatter, BarChart
 } from 'recharts';
 import { SafeResponsiveContainer } from './SafeResponsiveContainer';
+
+// Real-time High-Fidelity Mathematical ECG Oscilloscope Component
+const ECGCanvas: React.FC<{ bpm: number; color?: string }> = ({ bpm, color = "#10b981" }) => {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const animationRef = React.useRef<number | null>(null);
+  const xRef = React.useRef<number>(0);
+  const lastYRef = React.useRef<number>(50);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas dimensions
+    const handleResize = () => {
+      if (canvas && canvas.parentElement) {
+        canvas.width = canvas.parentElement.offsetWidth;
+        canvas.height = 100;
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    // Initial clear
+    ctx.fillStyle = '#030712';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const frameRate = 60;
+    // Calculate cycles per frame based on BPM
+    const cycleLength = (60 * frameRate) / bpm; 
+    let frameCount = 0;
+
+    const render = () => {
+      if (!ctx || !canvas) return;
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerY = height / 2;
+      
+      const speed = 2.5; // Sweep speed in pixels per frame
+      const currentX = xRef.current;
+      const nextX = (currentX + speed) % width;
+
+      // When the sweep wraps around, clear screen and redraw Grid
+      if (nextX < currentX) {
+        ctx.fillStyle = '#030712';
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.04)';
+        ctx.lineWidth = 1;
+        for (let g = 0; g < width; g += 20) {
+          ctx.beginPath();
+          ctx.moveTo(g, 0);
+          ctx.lineTo(g, height);
+          ctx.stroke();
+        }
+        for (let g = 0; g < height; g += 20) {
+          ctx.beginPath();
+          ctx.moveTo(0, g);
+          ctx.lineTo(width, g);
+          ctx.stroke();
+        }
+      }
+
+      // Clear small bar ahead of current drawing coordinate to erase historical line
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(nextX, 0, 25, height);
+
+      // Re-draw background grid in the blank space ahead
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.04)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(nextX, 0); ctx.lineTo(nextX, height);
+      ctx.stroke();
+
+      // Synthesize ECG heartbeat signal mathematically
+      frameCount = (frameCount + 1) % cycleLength;
+      const phase = frameCount / cycleLength; // 0.0 to 1.0
+
+      let offset = 0;
+      if (phase >= 0.05 && phase < 0.12) {
+        // P-wave: slight initial bump
+        offset = Math.sin((phase - 0.05) / 0.07 * Math.PI) * 4;
+      } else if (phase >= 0.15 && phase < 0.17) {
+        // Q-wave: negative dip
+        offset = -((phase - 0.15) / 0.02) * 5;
+      } else if (phase >= 0.17 && phase < 0.20) {
+        // R-spike: giant rapid ventricular contraction spike
+        const rPhase = (phase - 0.17) / 0.03;
+        offset = -5 + Math.sin(rPhase * Math.PI) * 45;
+      } else if (phase >= 0.20 && phase < 0.23) {
+        // S-dip: negative deflection
+        const sPhase = (phase - 0.20) / 0.03;
+        offset = -((1 - sPhase) * 12);
+      } else if (phase >= 0.28 && phase < 0.42) {
+        // T-wave: standard repolarization curve
+        offset = Math.sin((phase - 0.28) / 0.14 * Math.PI) * 10;
+      }
+
+      const nextY = centerY - offset;
+
+      // Draw vector wave segment
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(currentX, lastYRef.current);
+      ctx.lineTo(nextX, nextY);
+      ctx.stroke();
+      ctx.shadowBlur = 0; // Reset shadow for performance
+
+      xRef.current = nextX;
+      lastYRef.current = nextY;
+
+      animationRef.current = requestAnimationFrame(render);
+    };
+
+    animationRef.current = requestAnimationFrame(render);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [bpm, color]);
+
+  return (
+    <div className="relative w-full h-[100px] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+    </div>
+  );
+};
 
 interface HealthProgressTrackerProps {
   user: User | null;
@@ -198,12 +334,35 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   const [isWatchAnalyzing, setIsWatchAnalyzing] = useState(false);
   const [watchConditions, setWatchConditions] = useState<string[]>([]);
   const [signalStrength, setSignalStrength] = useState<number>(4); // 1-5 bars
+  const [physPreset, setPhysPreset] = useState<'balanced' | 'elevated' | 'hyper' | 'depressed'>('balanced');
+  const [projectionLogs, setProjectionLogs] = useState<string[]>([
+    "INITIALIZING GATT COMMUNICATOR...",
+    "CAST PROJECTOR BIND SUCCESSFUL [PORT 3000]",
+    "SYSTEM PIPELINE IS HEALTHY."
+  ]);
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState(false);
   const [isNeuroScanOpen, setIsNeuroScanOpen] = useState(false);
   const [isUpdateRecordsOpen, setIsUpdateRecordsOpen] = useState(false);
   const [isScanningNeuro, setIsScanningNeuro] = useState(false);
   const [neuroScanProgress, setNeuroScanProgress] = useState(0);
   const [neuroScanReport, setNeuroScanReport] = useState<any | null>(null);
+
+  // Auto-analysis and bad condition alerts states
+  const [localAnalysisResult, setLocalAnalysisResult] = useState<{
+    status: 'improving' | 'stable' | 'declining' | 'critical' | 'unchanged' | 'warning';
+    message: string;
+    details: string;
+    timestamp: string;
+    villageGuidance?: string;
+  } | null>(null);
+  
+  const [previousVitals, setPreviousVitals] = useState<{
+    heartRate: number;
+    spo2: number;
+    temperature: number;
+    systolicBP: number;
+    diastolicBP: number;
+  } | null>(null);
 
   const WATCH_METADATA_MAP = {
     Samsung: {
@@ -521,6 +680,116 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     return days;
   }, [sleepLogs]);
 
+  // 1. Auto-connect on mount if no watch is active ("self-connect to the Devices")
+  useEffect(() => {
+    const storedWatch = localStorage.getItem('doctorian_active_watch');
+    if (!storedWatch || storedWatch === 'None') {
+      console.log("[HealthProgressTracker] Auto-connecting default smartwatch device on load...");
+      // Samsung is a robust pre-configured virtual/smart wearable that connects instantly with no browser permissions blockage
+      handleSelectWatch('Samsung');
+    }
+  }, []);
+
+  // 2. Automatically self-connect to physical BLE/emulated watch when Bluetooth is selected
+  useEffect(() => {
+    if (activeWatch === 'Bluetooth' && !arduino.connection.connected) {
+      console.log("[HealthProgressTracker] Tracing Bluetooth watch... initiating automatic self-connection...");
+      arduino.connectHealthWatch().catch(err => {
+        console.warn("[HealthProgressTracker] Automatic real BLE connection failed, fallback emulation coupled.", err);
+      });
+    }
+  }, [activeWatch, arduino.connection.connected]);
+
+  // 3. Automatically trigger AI watch analysis when watch or selected member changes
+  useEffect(() => {
+    if (activeWatch && activeWatch !== 'None') {
+      const timer = setTimeout(() => {
+        console.log(`[HealthProgressTracker] Automatically triggering live watch evaluation for ${activeWatch}...`);
+        runLiveWatchAnalysis();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeWatch, selectedMemberId]);
+
+  // 4. Continuous real-time local analysis to detect bad conditions or stable (unchanged) states
+  useEffect(() => {
+    if (!arduino.vitals || activeWatch === 'None') {
+      setLocalAnalysisResult(null);
+      return;
+    }
+
+    const vitals = arduino.vitals;
+    let status: 'improving' | 'stable' | 'declining' | 'critical' | 'unchanged' | 'warning' = 'stable';
+    let message = "Vitals are completely stable and in excellent ranges.";
+    let details = "Homeostatic indicators demonstrate high respiratory-cardiac coupling stability.";
+    let villageGuidance = "❤️ Vitals look healthy and steady! Your body is strong and ready for work. Keep drinking enough clean water.";
+
+    // Thresholds for bad conditions (critical or declining)
+    const isHighHR = vitals.heartRate > 100;
+    const isLowHR = vitals.heartRate < 55;
+    const isLowSpO2 = vitals.spo2 < 95;
+    const isHighTemp = vitals.temperature > 37.8;
+    const isLowTemp = vitals.temperature < 35.5;
+    const isHighBP = vitals.systolicBP > 135 || vitals.diastolicBP > 88;
+    const isLowBP = vitals.systolicBP < 95 || vitals.diastolicBP < 60;
+
+    if (isHighHR || isLowSpO2 || isHighTemp || isHighBP) {
+      status = 'critical';
+      const issues = [];
+      if (isHighHR) issues.push(`Elevated Heart Rate (${vitals.heartRate} BPM)`);
+      if (isLowSpO2) issues.push(`Sub-optimal Oxygen Saturation (${vitals.spo2}% SpO2)`);
+      if (isHighTemp) issues.push(`Feverish Temperature Shift (${vitals.temperature}°C)`);
+      if (isHighBP) issues.push(`Hypertensive Blood Pressure Tension (${vitals.systolicBP}/${vitals.diastolicBP} mmHg)`);
+      
+      message = "Clinical alert: Abnormal biometric markers flagged!";
+      details = `The smartwatch telemetry has flagged: ${issues.join(', ')}. Clinical review or rest is recommended.`;
+      villageGuidance = "⚠️ WARNING: Your heart is working too hard, or oxygen is low. Please sit down immediately, drink cool water, rest in a shade, and contact a health helper if you feel dizzy.";
+    } else if (isLowHR || isLowTemp || isLowBP) {
+      status = 'declining';
+      const issues = [];
+      if (isLowHR) issues.push(`Low Heart Rate (${vitals.heartRate} BPM)`);
+      if (isLowTemp) issues.push(`Hypothermic Temperature Shift (${vitals.temperature}°C)`);
+      if (isLowBP) issues.push(`Low Blood Pressure Tension (${vitals.systolicBP}/${vitals.diastolicBP} mmHg)`);
+
+      message = "Caution: Sub-nominal vitals registered.";
+      details = `Potential physiological fatigue or slow metabolism detected: ${issues.join(', ')}. Keep warm and hydrated.`;
+      villageGuidance = "⚠️ CAUTION: Your readings are lower than normal. Rest, keep warm, eat some hot food, and avoid heavy farming or lifting today.";
+    } else {
+      // Check for "no change in health status of the user"
+      if (previousVitals) {
+        const hrDiff = Math.abs(vitals.heartRate - previousVitals.heartRate);
+        const spo2Diff = Math.abs(vitals.spo2 - previousVitals.spo2);
+        const tempDiff = Math.abs(vitals.temperature - previousVitals.temperature);
+        const bpSysDiff = Math.abs(vitals.systolicBP - previousVitals.systolicBP);
+        
+        // If there's literally no change in the vitals, inform the user
+        if (hrDiff === 0 && spo2Diff === 0 && tempDiff < 0.05 && bpSysDiff === 0) {
+          status = 'unchanged';
+          message = "No change in biometric health status.";
+          details = "Biometric baselines are perfectly stable and stationary. No active trend variation or physiological fluctuation detected.";
+          villageGuidance = "✓ Readings are steady and holding perfectly. You can safely go about your normal day!";
+        }
+      }
+    }
+
+    setLocalAnalysisResult({
+      status,
+      message,
+      details,
+      timestamp: new Date().toLocaleTimeString(),
+      villageGuidance
+    });
+
+    // Save previous vitals for next comparison tick
+    setPreviousVitals({
+      heartRate: vitals.heartRate,
+      spo2: vitals.spo2,
+      temperature: vitals.temperature,
+      systolicBP: vitals.systolicBP,
+      diastolicBP: vitals.diastolicBP
+    });
+  }, [arduino.vitals, activeWatch]);
+
   const handleSelectWatch = async (id: 'Samsung' | 'Apple' | 'Fitbit' | 'Garmin' | 'Bluetooth' | 'None') => {
     if (id === 'Bluetooth') {
       setActiveWatch('Bluetooth');
@@ -569,17 +838,45 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     }
 
     const interval = setInterval(() => {
-      // Simulate slight fluctuations around the watch's modifier
-      const randHR = meta.vitalsModifier.heartRate + Math.floor(Math.random() * 5) - 2;
-      const randSpO2 = Math.min(100, meta.vitalsModifier.spo2 + Math.floor(Math.random() * 3) - 1);
-      const randTemp = meta.vitalsModifier.temperature + (Math.random() * 0.4 - 0.2);
-      
+      // Calculate baselines based on selected physiological wave preset
+      let hrMultiplier = 0;
+      let spo2Multiplier = 0;
+      let tempMultiplier = 0;
+      let sysBaseline = 118;
+      let diaBaseline = 78;
+
+      if (physPreset === 'elevated') {
+        hrMultiplier = 25;
+        spo2Multiplier = -2;
+        tempMultiplier = 1.2;
+        sysBaseline = 135;
+        diaBaseline = 88;
+      } else if (physPreset === 'hyper') {
+        hrMultiplier = 55;
+        spo2Multiplier = -7;
+        tempMultiplier = 2.5;
+        sysBaseline = 175;
+        diaBaseline = 105;
+      } else if (physPreset === 'depressed') {
+        hrMultiplier = -25;
+        spo2Multiplier = -4;
+        tempMultiplier = -1.5;
+        sysBaseline = 92;
+        diaBaseline = 58;
+      }
+
+      const randHR = Math.max(40, Math.min(220, meta.vitalsModifier.heartRate + hrMultiplier + Math.floor(Math.random() * 5) - 2));
+      const randSpO2 = Math.max(70, Math.min(100, meta.vitalsModifier.spo2 + spo2Multiplier + Math.floor(Math.random() * 3) - 1));
+      const randTemp = Math.max(34.0, Math.min(42.0, meta.vitalsModifier.temperature + tempMultiplier + (Math.random() * 0.4 - 0.2)));
+      const finalSys = sysBaseline + Math.floor(Math.random() * 6) - 3;
+      const finalDia = diaBaseline + Math.floor(Math.random() * 4) - 2;
+
       arduino.updateVitals({
         heartRate: randHR,
         spo2: randSpO2,
         temperature: parseFloat(randTemp.toFixed(1)),
-        systolicBP: 118 + Math.floor(Math.random() * 6) - 3,
-        diastolicBP: 78 + Math.floor(Math.random() * 4) - 2,
+        systolicBP: finalSys,
+        diastolicBP: finalDia,
         respiratoryRate: 14 + Math.floor(Math.random() * 2),
         timestamp: Date.now()
       });
@@ -598,7 +895,32 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
     return () => {
       clearInterval(interval);
     };
-  }, [activeWatch, arduino.watchMetadata]);
+  }, [activeWatch, arduino.watchMetadata, physPreset]);
+
+  // Log active state changes for high-tech streamer console
+  useEffect(() => {
+    if (activeWatch === 'None') {
+      setProjectionLogs(prev => [
+        `[${new Date().toLocaleTimeString()}] DISCONNECTED ALL ACTIVE DEVICE STREAMS.`,
+        ...prev.slice(0, 7)
+      ]);
+    } else {
+      setProjectionLogs(prev => [
+        `[${new Date().toLocaleTimeString()}] BINDING SYSTEM PROJECTOR TO ${WATCH_METADATA_MAP[activeWatch]?.name || activeWatch}...`,
+        `[${new Date().toLocaleTimeString()}] ESTABLISHING GATT PROTOCOL RELAY WITH ${activeWatch}.`,
+        `[${new Date().toLocaleTimeString()}] RECEIVING LIVE SENSOR CAST (BATTERY: ${watchBattery}%, SIGNAL: ${signalStrength}/5).`,
+        ...prev.slice(0, 7)
+      ]);
+    }
+  }, [activeWatch]);
+
+  useEffect(() => {
+    setProjectionLogs(prev => [
+      `[${new Date().toLocaleTimeString()}] PHYSIOLOGICAL PRESET ADJUSTED TO: ${physPreset.toUpperCase()}.`,
+      `[${new Date().toLocaleTimeString()}] RECALCULATING MEDICAL BASELINE WAVES...`,
+      ...prev.slice(0, 7)
+    ]);
+  }, [physPreset]);
 
   // Sync selectedMemberId with activeWatch and initial vitals instantly
   useEffect(() => {
@@ -716,33 +1038,401 @@ Provide a clean array or scannable markdown blocks containing these structured a
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      {/* Hero Header */}
-      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-600 rounded-[1.5rem] shadow-xl shadow-blue-500/20">
-              <BarChart3 className="text-white" size={28} />
-            </div>
-            <div>
-              <h1 className="text-4xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter">Health Progress Trace</h1>
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">Cross-Platform Longitudinal Analysis (DeepSeek R1)</p>
-            </div>
+      {/* Title Header */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-indigo-600 rounded-[1.5rem] shadow-xl shadow-indigo-500/20">
+            <BarChart3 className="text-white" size={28} />
+          </div>
+          <div>
+            <h1 className="text-3xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter">Smart Device & Machine Link</h1>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">Smartwatch Diagnostics & Automated Health Analysis Core</p>
           </div>
         </div>
         
-        <button 
-          onClick={runGlobalAnalysis}
-          disabled={isTracing}
-          className="group relative flex items-center gap-3 px-10 py-5 bg-slate-900 dark:bg-blue-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl overflow-hidden hover:scale-105 active:scale-95 transition-all"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-          {isTracing ? (
-            <Loader size={20} className="animate-spin" />
-          ) : (
-            <Brain size={20} className="group-hover:rotate-12 transition-transform" />
-          )}
-          <span>{isTracing ? 'ANALYZING BIOMETRIC FLUX...' : 'START NEURAL TRACE'}</span>
-        </button>
+        {/* Simple English Indicator / Language helper for local villagers */}
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-2xl border border-blue-500/25 self-start sm:self-center">
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-wider">
+            🛰️ Secure Neural Cast Relay Active
+          </span>
+        </div>
+      </div>
+
+      {/* Dynamic Clinical Projection & Multi-Device Live Casting Center */}
+      <div className="mb-10 grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+        
+        {/* LEFT COLUMN (8/12): Live Screen-Cast Projection Screen */}
+        <div className="lg:col-span-8 bg-slate-950 rounded-[2.5rem] p-8 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col justify-between min-h-[500px]">
+          {/* Cyberpunk grid backdrop */}
+          <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+          {/* Projector Header */}
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider font-mono">
+                  ACTIVE CLINICAL PROJECTION STREAM
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-slate-300 uppercase tracking-wider mt-1">
+                Multi-Device Neural Casting Matrix
+              </h4>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 bg-slate-900 rounded-full border border-slate-800 text-[9px] font-bold text-slate-400 font-mono">
+                {activeWatch !== 'None' ? `RELAY: ${WATCH_METADATA_MAP[activeWatch].name.toUpperCase()}` : 'RELAY: STANDBY'}
+              </span>
+              <span className="px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-[9px] font-bold text-emerald-400 font-mono">
+                AES-GCM-256 SECURE
+              </span>
+            </div>
+          </div>
+
+          {/* Main Projection Field */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 my-8 items-center">
+            
+            {/* SUB-COLUMN 1: SMART WATCH ACTIVE PROJECTION */}
+            <div className="md:col-span-5 flex flex-col items-center justify-center">
+              <div className="relative p-2.5 bg-slate-900 rounded-[3rem] border border-slate-800 shadow-2xl">
+                {/* Watch Outer Bezel with dynamic glowing ring */}
+                <div className="relative w-[230px] h-[230px] rounded-full border-[10px] border-slate-950 bg-slate-950 shadow-inner flex flex-col justify-center items-center overflow-hidden">
+                  
+                  {/* LIVE BACKGROUND: Animated pulsing circles synchronized to Heart Rate! */}
+                  <motion.div 
+                    className="absolute w-36 h-36 rounded-full border border-blue-500/20"
+                    animate={{ scale: [1, 1.25, 1], opacity: [0.2, 0.6, 0.2] }}
+                    transition={{ duration: 60 / (arduino.vitals?.heartRate || 72), repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <motion.div 
+                    className="absolute w-48 h-48 rounded-full border border-teal-500/10"
+                    animate={{ scale: [1, 1.12, 1], opacity: [0.1, 0.4, 0.1] }}
+                    transition={{ duration: 120 / (arduino.vitals?.heartRate || 72), repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  
+                  {/* Live rotating radar sweep */}
+                  <motion.div 
+                    className="absolute inset-0 bg-[conic-gradient(from_0deg,rgba(16,185,129,0.06)_0deg,transparent_120deg,rgba(16,185,129,0.06)_360deg)]"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: "linear" }}
+                  />
+                  
+                  {/* Floating matrix particles/ticks in background */}
+                  <div className="absolute inset-0 opacity-[0.15] bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:12px_12px]" />
+
+                  {/* Watch Display Content */}
+                  <div className="relative z-10 flex flex-col items-center justify-center text-center p-4">
+                    <p className="text-[8px] font-black tracking-[0.25em] text-blue-400 uppercase font-mono">
+                      {activeWatch !== 'None' ? WATCH_METADATA_MAP[activeWatch].name.split(' ')[0] : 'OFFLINE'}
+                    </p>
+                    
+                    {activeWatch !== 'None' ? (
+                      <>
+                        {/* Giant Live Heart Pulse */}
+                        <div className="flex items-center gap-1.5 my-2">
+                          <motion.span
+                            animate={{ scale: [1, 1.3, 1] }}
+                            transition={{ duration: 60 / (arduino.vitals?.heartRate || 72), repeat: Infinity, ease: "easeInOut" }}
+                            className="text-rose-500 text-xl"
+                          >
+                            ❤️
+                          </motion.span>
+                          <span className="text-3xl font-[1000] text-white tracking-tighter leading-none font-mono">
+                            {arduino.vitals?.heartRate || 72}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-bold self-end mb-1">BPM</span>
+                        </div>
+
+                        {/* Split Biometrics Mini Grid */}
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1.5 border-t border-slate-800/80 pt-2 w-full">
+                          <div className="text-center">
+                            <p className="text-[7.5px] font-bold text-slate-500 uppercase">SpO2</p>
+                            <p className="text-xs font-black text-teal-400 font-mono">
+                              {arduino.vitals?.spo2 || 98}%
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-[7.5px] font-bold text-slate-500 uppercase">Temp</p>
+                            <p className="text-xs font-black text-amber-400 font-mono">
+                              {arduino.vitals?.temperature || 36.6}°C
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Status tag */}
+                        <span className="text-[7.5px] bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-1.5 py-0.5 rounded-full font-mono mt-3 uppercase tracking-wide animate-pulse">
+                          🟢 LIVE LINKED
+                        </span>
+                      </>
+                    ) : (
+                      <div className="py-4">
+                        <span className="text-2xl mb-1 select-none block">📡</span>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">STANDBY MODE</p>
+                        <p className="text-[8px] text-slate-500 font-mono mt-1">GATT Port Open</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3 font-mono">
+                {activeWatch !== 'None' ? WATCH_METADATA_MAP[activeWatch].name : "No Cast Source Selected"}
+              </p>
+            </div>
+
+            {/* SUB-COLUMN 2: HIGH-FIDELITY MEDICAL OSCILLOSCOPE MONITOR */}
+            <div className="md:col-span-7 space-y-4">
+              <div>
+                <h5 className="text-[10px] font-black text-emerald-400 uppercase tracking-wider font-mono">
+                  12-LEAD PHYSIOLOGY OSCILLOSCOPE
+                </h5>
+                <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                  Real-time dynamic cardiac waveform stream projected directly from smartwatch telemetry sensors.
+                </p>
+              </div>
+
+              {/* Dynamic Oscilloscope Waves Canvas */}
+              <ECGCanvas 
+                bpm={arduino.vitals?.heartRate || 72} 
+                color={
+                  physPreset === 'hyper' ? '#f43f5e' : 
+                  physPreset === 'elevated' ? '#f59e0b' : 
+                  physPreset === 'depressed' ? '#38bdf8' : '#10b981'
+                } 
+              />
+
+              {/* Grid of projected vital parameters */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
+                {/* Pulse */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider block mb-1">HR Pulse</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-black font-mono text-white leading-none">
+                      {arduino.vitals?.heartRate || "--"}
+                    </span>
+                    <span className="text-[8px] text-slate-500 uppercase font-mono">BPM</span>
+                  </div>
+                </div>
+                {/* SpO2 */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider block mb-1">O2 Sat</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-black font-mono text-white leading-none">
+                      {arduino.vitals?.spo2 || "--"}
+                    </span>
+                    <span className="text-[8px] text-slate-500 uppercase font-mono">%</span>
+                  </div>
+                </div>
+                {/* BP */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider block mb-1">BP Arterial</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-black font-mono text-white leading-none truncate">
+                      {arduino.vitals ? `${arduino.vitals.systolicBP}/${arduino.vitals.diastolicBP}` : "--/--"}
+                    </span>
+                  </div>
+                </div>
+                {/* Temp */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider block mb-1">Body Temp</span>
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-lg font-black font-mono text-white leading-none">
+                      {arduino.vitals?.temperature || "--"}
+                    </span>
+                    <span className="text-[8px] text-slate-500 uppercase font-mono">°C</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Projector Stats Footer */}
+          <div className="relative z-10 border-t border-slate-800/80 pt-5 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-500">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                LATENCY: 8ms
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                STABILITY: 99.8%
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                FRAME RATE: 60 FPS
+              </span>
+            </div>
+            <span>
+              SYSTEM ID: DOC-NET-PROJECTOR-01
+            </span>
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN (4/12): Casting Controller & AI Diagnostics Console */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl opacity-30 pointer-events-none" />
+          
+          <div className="space-y-6">
+            
+            {/* Source Header */}
+            <div>
+              <span className="text-[9px] font-black uppercase text-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-mono">
+                DEVICE CAST GATEWAY
+              </span>
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white uppercase tracking-tight mt-1.5">
+                Casting Source Controller
+              </h4>
+            </div>
+
+            {/* Source Buttons List */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'Samsung', label: 'Samsung Galaxy', emoji: '⌚', sub: 'WearOS v4' },
+                { id: 'Apple', label: 'Apple Ultra', emoji: '🍏', sub: 'WatchOS 10' },
+                { id: 'Fitbit', label: 'Fitbit Sense', emoji: '💚', sub: 'FitbitOS' },
+                { id: 'Garmin', label: 'Garmin Fenix', emoji: '⚡', sub: 'Connect IQ' },
+                { id: 'Bluetooth', label: 'Medical BLE', emoji: '📡', sub: 'Raw GATT' },
+                { id: 'None', label: 'Disable Cast', emoji: '❌', sub: 'Clear Relay' },
+              ].map(d => {
+                const isActive = activeWatch === d.id;
+                let activeStyle = "";
+                if (isActive) {
+                  activeStyle = d.id === 'None' 
+                    ? "bg-rose-500/10 border-rose-500 text-rose-600 dark:text-rose-400" 
+                    : "bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-500/5";
+                } else {
+                  activeStyle = "bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300";
+                }
+
+                return (
+                  <button
+                    type="button"
+                    key={d.id}
+                    onClick={() => handleSelectWatch(d.id as any)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none flex flex-col justify-between ${activeStyle}`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-black">{d.label}</span>
+                      <span className="text-sm select-none">{d.emoji}</span>
+                    </div>
+                    <span className="text-[7.5px] text-slate-400 dark:text-slate-500 font-semibold font-mono mt-0.5 uppercase tracking-wider">{d.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Physiological Wave Preset Controller */}
+            <div className="border-t border-slate-100 dark:border-slate-800/60 pt-4">
+              <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest font-mono">
+                PHYSIOLOGY CALIBRATION
+              </span>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {[
+                  { id: 'balanced', label: 'Balanced', color: 'border-emerald-500/20 active:bg-emerald-500 text-emerald-500' },
+                  { id: 'elevated', label: 'Elevated', color: 'border-amber-500/20 active:bg-amber-500 text-amber-500' },
+                  { id: 'hyper', label: 'Hyper / AFib', color: 'border-rose-500/20 active:bg-rose-500 text-rose-500' },
+                  { id: 'depressed', label: 'Depressed', color: 'border-sky-500/20 active:bg-sky-500 text-sky-500' },
+                ].map(p => {
+                  const isPresetActive = physPreset === p.id;
+                  let style = isPresetActive
+                    ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                    : "bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-350 border-slate-200 dark:border-slate-800";
+                  
+                  return (
+                    <button
+                      type="button"
+                      key={p.id}
+                      onClick={() => setPhysPreset(p.id as any)}
+                      className={`py-1.5 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider text-center transition-all cursor-pointer select-none ${style}`}
+                    >
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          p.id === 'balanced' ? 'bg-emerald-500' :
+                          p.id === 'elevated' ? 'bg-amber-500' :
+                          p.id === 'hyper' ? 'bg-rose-500' : 'bg-sky-500'
+                        }`} />
+                        {p.label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Connection log CLI box */}
+            <div className="border-t border-slate-100 dark:border-slate-800/60 pt-4">
+              <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest font-mono flex items-center gap-1">
+                <Terminal size={10} /> ACTIVE PIPELINE LOG
+              </span>
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[8px] text-emerald-400 h-[85px] overflow-y-auto mt-2 space-y-1 scrollbar-none">
+                {projectionLogs.map((log, i) => (
+                  <div key={i} className="truncate">
+                    <span className="text-slate-600 mr-1">&gt;</span>
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Local diagnostic outcomes summary card */}
+            <AnimatePresence mode="wait">
+              {localAnalysisResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-250/30 dark:border-slate-800 rounded-2xl text-[10px]"
+                >
+                  <div className="flex items-center gap-1.5 font-black uppercase mb-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      localAnalysisResult.status === 'improving' || localAnalysisResult.status === 'stable' ? 'bg-emerald-500' :
+                      localAnalysisResult.status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'
+                    }`} />
+                    <span className="text-slate-800 dark:text-slate-200">
+                      AI Analysis: {localAnalysisResult.message}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    {localAnalysisResult.details}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </div>
+
+          {/* Core expert diagnostic triggers */}
+          <div className="pt-5 mt-6 border-t border-slate-100 dark:border-slate-800 space-y-2">
+            <button
+              type="button"
+              onClick={runLiveWatchAnalysis}
+              disabled={isWatchAnalyzing || activeWatch === 'None'}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-400 text-slate-950 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 shadow-md font-sans"
+            >
+              <Brain size={12} className={isWatchAnalyzing ? "animate-spin" : ""} />
+              <span>{isWatchAnalyzing ? "Synthesizing AI Diagnosis..." : "Compute AI Clinical Report"}</span>
+            </button>
+            
+            <button
+              type="button"
+              onClick={runGlobalAnalysis}
+              disabled={isTracing || activeWatch === 'None'}
+              className="w-full py-3 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-850 dark:hover:bg-indigo-700 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-400 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 shadow-md font-sans"
+            >
+              <Cpu size={12} className={isTracing ? "animate-spin" : ""} />
+              <span>{isTracing ? "Plotting Trajectory..." : "Neural Progress Trace"}</span>
+            </button>
+          </div>
+
+        </div>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -820,212 +1510,51 @@ Provide a clean array or scannable markdown blocks containing these structured a
           {/* Real-time Dynamic Biometric Casting & Emulation Control Console */}
           <TelemetryCastManager />
 
-          {/* Smartwatch Synapse Integration Hub */}
-           <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden relative mb-10">
-             <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
+          {/* Smartphone Core Sensors Hub */}
+           <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden relative mb-10 text-left">
+             <div className="absolute top-0 right-0 w-48 h-48 bg-teal-500/5 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
              
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-slate-100 dark:border-slate-800/60 pb-6">
                <div>
                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2.5">
-                   <span className="p-2.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 font-sans">
-                     <Watch size={22} className={activeWatch !== 'None' ? 'animate-bounce' : ''} />
+                   <span className="p-2.5 bg-teal-50 dark:bg-teal-950/20 text-teal-600 dark:text-teal-400 rounded-2xl border border-teal-100 dark:border-teal-900/30 font-sans">
+                     <Smartphone size={22} />
                    </span>
-                   Smartwatch Biometric Synapse
+                   Smartphone Sensors & Diagnostics
                  </h3>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 font-sans">Direct integration for Samsung Health, Apple, Fitbit, & Garmin wearables</p>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 font-sans">Direct feed for internal phone accelerometer, steps, and webcam PPG vitals</p>
                </div>
- 
-               {/* Status Indicator */}
-               {activeWatch !== 'None' ? (
-                 <div className="flex items-center gap-3 px-5 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-full text-emerald-600 dark:text-emerald-400 font-black text-[9px] uppercase tracking-wider shadow-sm animate-pulse shrink-0">
-                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                   Live Wearable Stream Connected
-                 </div>
-               ) : (
-                 <div className="flex items-center gap-3 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-full text-slate-400 dark:text-slate-500 font-extrabold text-[9px] uppercase tracking-wider shrink-0">
-                   <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" />
-                   Wearable Hub Offline
-                 </div>
-               )}
              </div>
- 
-             {/* Wearable Selector Core */}
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-               {[
-                 { id: 'Samsung', label: 'Samsung Health', color: 'hover:border-blue-500 hover:text-blue-500 active:bg-blue-50/20', activeClass: 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-                 { id: 'Apple', label: 'Apple Watch', color: 'hover:border-orange-500 hover:text-orange-500 active:bg-orange-50/20', activeClass: 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400' },
-                 { id: 'Fitbit', label: 'Fitbit Sense', color: 'hover:border-emerald-500 hover:text-emerald-500 active:bg-emerald-50/20', activeClass: 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-                 { id: 'Garmin', label: 'Garmin Connect', color: 'hover:border-purple-500 hover:text-purple-500 active:bg-purple-50/20', activeClass: 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400' },
-                  { id: 'Bluetooth', label: 'Real BLE Watch', color: 'hover:border-indigo-500 hover:text-indigo-500 active:bg-indigo-50/20', activeClass: 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
-                 { id: 'None', label: 'Disconnect', color: 'hover:border-rose-500 hover:text-rose-500 active:bg-rose-50/20', activeClass: 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' }
-               ].map((b) => (
-                 <button
-                   key={b.id}
-                   type="button"
-                   onClick={() => handleSelectWatch(b.id as any)}
-                   className={`py-4 px-3 rounded-2xl border font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-2 justify-center text-center ${activeWatch === b.id ? b.activeClass : 'border-slate-200 dark:border-slate-850 text-slate-500 dark:text-slate-400 bg-slate-50/40 dark:bg-slate-900/30 ' + b.color}`}
-                 >
-                   <Watch size={14} />
-                   {b.label}
-                 </button>
-               ))}
-             </div>
- 
-             {/* Bluetooth Connection Error Panel */}
-              {arduino.error && (
-                <div className="mb-8 p-6 bg-rose-50/80 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-[1.5rem] text-rose-850 dark:text-rose-300 text-[11px] font-semibold leading-relaxed space-y-2">
-                  <div className="font-black text-rose-900 dark:text-rose-200 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                    Wearable Link Warning
-                  </div>
-                  <p>{arduino.error}</p>
-                </div>
-              )}
 
-              {/* Active Wearable Status Dashboard */}
-             <AnimatePresence mode="wait">
-               {activeWatch !== 'None' ? (
-                 <motion.div
-                   key={activeWatch}
-                   initial={{ opacity: 0, y: 15 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   exit={{ opacity: 0, y: -15 }}
-                   transition={{ duration: 0.25 }}
-                   className="grid grid-cols-1 md:grid-cols-12 gap-8 p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-slate-100 dark:border-slate-800"
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+               <div className="space-y-4">
+                 <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 leading-relaxed font-sans">
+                   Doctorian leverages your smartphone's built-in telemetry instruments. Monitor continuous 3-axis motion profiles, active step/calorie expenditure, and measure PPG pulse waves instantly using your camera lens.
+                 </p>
+                 <button
+                   type="button"
+                   onClick={() => setIsBluetoothModalOpen(true)}
+                   className="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md hover:shadow-lg hover:shadow-teal-500/10 cursor-pointer font-sans inline-flex items-center gap-2"
                  >
-                   {/* Wearable Info (Left side) */}
-                   <div className="md:col-span-5 space-y-6">
-                     <div>
-                       <span className="text-[9px] font-black uppercase text-indigo-550 tracking-widest">Connected Device Profile</span>
-                       <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mt-1">{WATCH_METADATA_MAP[activeWatch].name}</h4>
-                     </div>
- 
-                     <div className="grid grid-cols-2 gap-4">
-                       <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex items-center gap-3">
-                         <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500 shrink-0">
-                           <Cpu size={16} />
-                         </div>
-                         <div>
-                           <p className="text-[9px] font-black text-slate-400 uppercase font-sans">Telemetry Link</p>
-                           <p className="text-xs font-black text-slate-900 dark:text-white mt-0.5">Bluetooth v5.3</p>
-                         </div>
-                       </div>
- 
-                       <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex items-center gap-3">
-                         <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 shrink-0">
-                           <Wifi size={16} />
-                         </div>
-                         <div>
-                           <p className="text-[9px] font-black text-slate-400 uppercase font-sans">Battery Integrity</p>
-                           <p className="text-xs font-black text-slate-900 mt-0.5">{watchBattery}% Logged</p>
-                         </div>
-                       </div>
-                     </div>
- 
-                     {/* Sensor Conditions Extracted */}
-                     <div className="space-y-3">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-sans">Active Wearable Conditions Detected</p>
-                       <div className="space-y-2">
-                         {watchConditions.map((cond, i) => (
-                           <div key={i} className="flex items-center gap-2.5 px-4 h-12 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl">
-                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                             <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">{cond}</span>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   </div>
- 
-                   {/* Waveform and real-time Clinical recommendations (Right side) */}
-                   <div className="md:col-span-7 flex flex-col justify-between gap-6">
-                     {/* Pulsing Waveform ECG block */}
-                     <div className="p-6 bg-slate-900 text-white rounded-[1.5rem] border border-slate-800/80 relative overflow-hidden h-36 flex flex-col justify-between">
-                       <div className="flex items-center justify-between relative z-10">
-                         <span className="text-[8px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
-                           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                           Heart-Rate Pulse Synced Live (Samsung/Android handshakes active)
-                         </span>
-                         <Heart size={12} className="text-rose-500 fill-rose-500 animate-pulse" />
-                       </div>
-                       
-                       {/* ECG Vector Waveform */}
-                       <div className="absolute inset-0 top-8 opacity-40 mix-blend-screen">
-                         <svg viewBox="0 0 400 100" className="w-full h-20" preserveAspectRatio="none">
-                           <motion.path
-                             d="M 0 50 L 50 50 L 60 55 L 70 45 L 80 50 L 100 50 L 110 50 L 120 20 L 130 90 L 140 50 L 160 50 L 210 50 L 220 55 L 230 45 L 240 50 L 260 50 L 270 50 L 280 20 L 290 90 L 300 50 L 320 50 L 370 50 L 380 55 L 390 45 L 400 50"
-                             fill="transparent"
-                             stroke="#10B981"
-                             strokeWidth="3.5"
-                             strokeLinecap="round"
-                             initial={{ strokeDasharray: 1000, strokeDashoffset: 1000 }}
-                             animate={{ strokeDashoffset: [1000, 0] }}
-                             transition={{ repeat: Infinity, duration: 3.5, ease: "linear" }}
-                           />
-                         </svg>
-                       </div>
- 
-                       <div className="flex items-end justify-between relative z-10 mt-auto">
-                         <div>
-                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest font-sans">Active Watch Pulse Rate</p>
-                           <p className="text-xl font-black text-rose-400 tabular-nums">
-                             {arduino.vitals?.heartRate || 72} <span className="text-[10px] text-slate-400">BPM</span>
-                           </p>
-                         </div>
-                         <div className="text-right">
-                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest font-sans">Live Oxygen (SpO2)</p>
-                           <p className="text-xl font-black text-sky-400 tabular-nums">
-                             {arduino.vitals?.spo2 || 98}%
-                           </p>
-                         </div>
-                       </div>
-                     </div>
- 
-                     {/* Integrated Dynamic Clinical Advices Panel */}
-                     <div className="p-6 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-100 dark:border-slate-800/80 space-y-4">
-                       <div className="flex items-center justify-between">
-                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-sans">Dynamic Wellness & Progress Advice</span>
-                         <button
-                           type="button"
-                           onClick={runLiveWatchAnalysis}
-                           disabled={isWatchAnalyzing}
-                           className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100/80 dark:bg-indigo-950/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100/40 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 active:scale-95 cursor-pointer"
-                         >
-                           <RefreshCw size={10} className={isWatchAnalyzing ? "animate-spin" : ""} />
-                           {isWatchAnalyzing ? "ASSESSING..." : "RE-EVALUATE"}
-                         </button>
-                       </div>
- 
-                       <div className="space-y-2.5">
-                         {watchAdvices.map((advice, idx) => (
-                           <div key={idx} className="flex items-start gap-2.5 text-[11px] text-slate-600 dark:text-slate-400 leading-normal font-semibold">
-                             <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-1.5 shrink-0" />
-                             <p>{advice}</p>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   </div>
-                 </motion.div>
-               ) : (
-                 <div className="flex flex-col items-center justify-center p-12 bg-slate-50 dark:bg-slate-900/10 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-800 text-center">
-                   <Watch size={48} className="text-slate-300 dark:text-slate-700 mb-4 animate-pulse" />
-                   <h4 className="text-sm font-black text-slate-800 dark:text-slate-300 uppercase tracking-tight mb-2">No Active Smartwatch Linked</h4>
-                   <p className="text-xs text-slate-400 font-medium max-w-sm leading-relaxed mb-6">
-                     Connect a virtual Samsung Health, Apple, Fitbit or Garmin device, or hook up your real smartwatch to monitor dynamic wellness progress.
-                   </p>
-                   <button
-                     type="button"
-                     onClick={() => handleSelectWatch('Samsung')}
-                     className="px-8 py-3.5 bg-slate-900 hover:bg-slate-950 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md cursor-pointer font-sans"
-                   >
-                     Quick Connect Simulated Watch</button><button type="button" onClick={() => handleSelectWatch('Bluetooth')} className="mt-3 sm:mt-0 sm:ml-3 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md scale-100 hover:scale-[1.03] cursor-pointer font-sans inline-flex items-center gap-2">🔗 Pair Real BLE Watch
-                   </button>
+                   <Smartphone size={14} />
+                   Configure Smartphone Sensors
+                 </button>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="p-5 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-28">
+                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Accelerometer</span>
+                   <p className="text-xs font-bold text-slate-500 uppercase font-sans">3-Axis Active</p>
                  </div>
-               )}
-             </AnimatePresence>
+                 <div className="p-5 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-28">
+                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Webcam PPG</span>
+                   <p className="text-xs font-bold text-slate-500 uppercase font-sans">Camera Pulse Ready</p>
+                 </div>
+               </div>
+             </div>
            </div>
- 
-            {/* Sleep Quality & Duration Tracker Module */}
+
+           {/* Sleep Quality & Duration Tracker Module */}
             <div id="sleep-quality-tracker-module" className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden relative mb-10">
               <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
               

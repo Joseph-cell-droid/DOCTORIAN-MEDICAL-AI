@@ -348,6 +348,35 @@ function getGenAI(apiKey: string): GoogleGenAI | null {
   });
 }
 
+function isApiRetriableError(err: any): boolean {
+  if (!err) return false;
+  const errMsg = (err.message || "").toLowerCase();
+  return (
+    errMsg.includes("429") ||
+    errMsg.includes("503") ||
+    errMsg.includes("quota") ||
+    errMsg.includes("resource_exhausted") ||
+    errMsg.includes("high demand") ||
+    errMsg.includes("spikes in demand") ||
+    errMsg.includes("overloaded") ||
+    errMsg.includes("service unavailable") ||
+    errMsg.includes("temporary") ||
+    errMsg.includes("try again later")
+  );
+}
+
+function isDailyQuotaExceeded(err: any): boolean {
+  if (!err) return false;
+  const errMsg = (err.message || "").toLowerCase();
+  return (
+    errMsg.includes("limit: 20") ||
+    errMsg.includes("daily") ||
+    errMsg.includes("requestsperday") ||
+    errMsg.includes("free_tier_requests") ||
+    errMsg.includes("exceeded your current quota")
+  );
+}
+
 function isMedicalQuery(text: string): boolean {
   const medicalKeywords = [
     'diagnosis', 'treatment', 'symptoms', 'disease', 'condition', 'health',
@@ -1087,42 +1116,64 @@ async function* callAIStream(options: {
                     break;
                   } catch (streamInitErr: any) {
                     streamAttempts++;
-                    const is429 = streamInitErr.message?.includes("429") || streamInitErr.message?.includes("Quota") || streamInitErr.message?.includes("RESOURCE_EXHAUSTED") || streamInitErr.message?.toLowerCase().includes("quota");
-                    if (is429 && streamAttempts < maxStreamAttempts) {
-                      console.log(`[AI-STREAM] 429 Rate Limited on attempt ${streamAttempts}. Retrying in ${streamAttempts * 1000}ms...`);
+                    const isRetriable = isApiRetriableError(streamInitErr);
+                    const isDailyQuota = isDailyQuotaExceeded(streamInitErr);
+                    if (isDailyQuota) {
+                      console.log(`[AI-STREAM] Daily quota limit hit on ${providerModel}. Shifting instantly to fallbacks.`);
+                      streamAttempts = maxStreamAttempts; // force breakout
+                    }
+                    if (isRetriable && !isDailyQuota && streamAttempts < maxStreamAttempts) {
+                      console.log(`[AI-STREAM] Temporary API error (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Retrying in ${streamAttempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, streamAttempts * 1000));
                     } else {
                       let cleanErrMessage = streamInitErr.message || "";
                       if (cleanErrMessage.includes("429") || cleanErrMessage.includes("Quota") || cleanErrMessage.includes("RESOURCE_EXHAUSTED") || cleanErrMessage.toLowerCase().includes("quota")) {
                         cleanErrMessage = "Temporary Rate Limit (429)";
+                      } else if (cleanErrMessage.includes("503") || cleanErrMessage.toLowerCase().includes("high demand") || cleanErrMessage.toLowerCase().includes("overloaded")) {
+                        cleanErrMessage = "High Demand / Service Unavailable (503)";
                       } else if (cleanErrMessage.length > 150) {
                         cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                       }
                       console.log("[AI-STREAM] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                       const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                       for (const modelId of modelsToTry) {
-                        try {
-                          console.log(`[AI-STREAM] Shifting link to fallback model: ${modelId}`);
-                          resultStream = await aiClient.models.generateContentStream({
-                            model: modelId,
-                            contents: formattedContents,
-                            config: {
-                              systemInstruction: effectiveSystemInstruction,
-                              temperature: temperature || 0.7
+                        let retryAttempts = 0;
+                        const maxRetryAttempts = 2;
+                        while (retryAttempts < maxRetryAttempts) {
+                          try {
+                            console.log(`[AI-STREAM] Shifting link to fallback model: ${modelId} (Attempt ${retryAttempts + 1}/${maxRetryAttempts})`);
+                            resultStream = await aiClient.models.generateContentStream({
+                              model: modelId,
+                              contents: formattedContents,
+                              config: {
+                                systemInstruction: effectiveSystemInstruction,
+                                temperature: temperature || 0.7
+                              }
+                            });
+                            success = true;
+                            break;
+                          } catch (retryErr: any) {
+                            retryAttempts++;
+                            const isRetryRetriable = isApiRetriableError(retryErr);
+                            if (isRetryRetriable && retryAttempts < maxRetryAttempts) {
+                              console.log(`[AI-STREAM] Fallback model ${modelId} hit temporary API error. Retrying in 1000ms...`);
+                              await new Promise(resolve => setTimeout(resolve, 1000));
+                              continue;
                             }
-                          });
-                          success = true;
-                          break;
-                        } catch (retryErr: any) {
-                          let cleanRetryErrMessage = retryErr.message || "";
-                          if (cleanRetryErrMessage.includes("429") || cleanRetryErrMessage.includes("Quota") || cleanRetryErrMessage.includes("RESOURCE_EXHAUSTED") || cleanRetryErrMessage.toLowerCase().includes("quota")) {
-                            cleanRetryErrMessage = "Temporary Rate Limit (429)";
-                          } else if (cleanRetryErrMessage.length > 150) {
-                            cleanRetryErrMessage = cleanRetryErrMessage.substring(0, 150) + "...";
+                            
+                            let cleanRetryErrMessage = retryErr.message || "";
+                            if (cleanRetryErrMessage.includes("429") || cleanRetryErrMessage.includes("Quota") || cleanRetryErrMessage.includes("RESOURCE_EXHAUSTED") || cleanRetryErrMessage.toLowerCase().includes("quota")) {
+                              cleanRetryErrMessage = "Temporary Rate Limit (429)";
+                            } else if (cleanRetryErrMessage.includes("503") || cleanRetryErrMessage.toLowerCase().includes("high demand") || cleanRetryErrMessage.toLowerCase().includes("overloaded")) {
+                              cleanRetryErrMessage = "High Demand / Service Unavailable (503)";
+                            } else if (cleanRetryErrMessage.length > 150) {
+                              cleanRetryErrMessage = cleanRetryErrMessage.substring(0, 150) + "...";
+                            }
+                            console.log(`[AI-STREAM] Shifting link tried ${modelId} but bypassed:`, cleanRetryErrMessage);
+                            if (modelId === modelsToTry[modelsToTry.length - 1] && retryAttempts === maxRetryAttempts) throw retryErr;
                           }
-                          console.log(`[AI-STREAM] Shifting link tried ${modelId} but bypassed:`, cleanRetryErrMessage);
-                          if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
                         }
+                        if (success) break;
                       }
                       break;
                     }
@@ -1581,9 +1632,14 @@ async function callAIWorkflow(options: {
                     break;
                   } catch (genErr: any) {
                     attempts++;
-                    const is429 = genErr.message?.includes("429") || genErr.message?.includes("Quota") || genErr.message?.includes("RESOURCE_EXHAUSTED") || genErr.message?.toLowerCase().includes("quota");
-                    if (is429 && attempts < maxAttempts) {
-                      console.log(`[AI-BRAIN] 429 Rate Limited on attempt ${attempts}. Retrying in ${attempts * 1000}ms...`);
+                    const isRetriable = isApiRetriableError(genErr);
+                    const isDailyQuota = isDailyQuotaExceeded(genErr);
+                    if (isDailyQuota) {
+                      console.log(`[AI-BRAIN] Daily quota limit hit on ${providerModel}. Shifting instantly to fallbacks.`);
+                      attempts = maxAttempts; // force breakout
+                    }
+                    if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
+                      console.log(`[AI-BRAIN] Temporary API error (${genErr.message || "503/429"}) on attempt ${attempts}. Retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
                     } else {
                       throw genErr;
@@ -1597,6 +1653,8 @@ async function callAIWorkflow(options: {
                 let cleanErrMessage = genErr.message || "";
                 if (cleanErrMessage.includes("429") || cleanErrMessage.includes("Quota") || cleanErrMessage.includes("RESOURCE_EXHAUSTED") || cleanErrMessage.toLowerCase().includes("quota")) {
                   cleanErrMessage = "Temporary Rate Limit (429)";
+                } else if (cleanErrMessage.includes("503") || cleanErrMessage.toLowerCase().includes("high demand") || cleanErrMessage.toLowerCase().includes("overloaded")) {
+                  cleanErrMessage = "High Demand / Service Unavailable (503)";
                 } else if (cleanErrMessage.length > 150) {
                   cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                 }
@@ -1605,26 +1663,40 @@ async function callAIWorkflow(options: {
                 if (aiClient) {
                   const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
-                    try {
-                      console.log(`[AI-BRAIN] Shifting link to fallback model: ${modelId}`);
-                      const result = await aiClient.models.generateContent({
-                        model: modelId,
-                        contents: messages.map(m => ({
-                          role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
-                          parts: [{ text: m.text }]
-                        })),
-                        config: { temperature: temperature || 0.7 }
-                      });
-                      return result.text;
-                    } catch (retryErr: any) {
-                      let cleanRetryErrMessage = retryErr.message || "";
-                      if (cleanRetryErrMessage.includes("429") || cleanRetryErrMessage.includes("Quota") || cleanRetryErrMessage.includes("RESOURCE_EXHAUSTED") || cleanRetryErrMessage.toLowerCase().includes("quota")) {
-                        cleanRetryErrMessage = "Temporary Rate Limit (429)";
-                      } else if (cleanRetryErrMessage.length > 150) {
-                        cleanRetryErrMessage = cleanRetryErrMessage.substring(0, 150) + "...";
+                    let retryAttempts = 0;
+                    const maxRetryAttempts = 2;
+                    while (retryAttempts < maxRetryAttempts) {
+                      try {
+                        console.log(`[AI-BRAIN] Shifting link to fallback model: ${modelId} (Attempt ${retryAttempts + 1}/${maxRetryAttempts})`);
+                        const result = await aiClient.models.generateContent({
+                          model: modelId,
+                          contents: messages.map(m => ({
+                            role: (m.role === 'bot' || m.role === 'model' || m.role === 'assistant') ? 'model' : 'user',
+                            parts: [{ text: m.text }]
+                          })),
+                          config: { temperature: temperature || 0.7 }
+                        });
+                        return result.text;
+                      } catch (retryErr: any) {
+                        retryAttempts++;
+                        const isRetryRetriable = isApiRetriableError(retryErr);
+                        if (isRetryRetriable && retryAttempts < maxRetryAttempts) {
+                          console.log(`[AI-BRAIN] Fallback model ${modelId} hit temporary API error. Retrying in 1000ms...`);
+                          await new Promise(resolve => setTimeout(resolve, 1000));
+                          continue;
+                        }
+
+                        let cleanRetryErrMessage = retryErr.message || "";
+                        if (cleanRetryErrMessage.includes("429") || cleanRetryErrMessage.includes("Quota") || cleanRetryErrMessage.includes("RESOURCE_EXHAUSTED") || cleanRetryErrMessage.toLowerCase().includes("quota")) {
+                          cleanRetryErrMessage = "Temporary Rate Limit (429)";
+                        } else if (cleanRetryErrMessage.includes("503") || cleanRetryErrMessage.toLowerCase().includes("high demand") || cleanRetryErrMessage.toLowerCase().includes("overloaded")) {
+                          cleanRetryErrMessage = "High Demand / Service Unavailable (503)";
+                        } else if (cleanRetryErrMessage.length > 150) {
+                          cleanRetryErrMessage = cleanRetryErrMessage.substring(0, 150) + "...";
+                        }
+                        console.log(`[AI-BRAIN] Shifting link tried ${modelId} but bypassed:`, cleanRetryErrMessage);
+                        if (modelId === modelsToTry[modelsToTry.length - 1] && retryAttempts === maxRetryAttempts) throw retryErr;
                       }
-                      console.log(`[AI-BRAIN] Shifting link tried ${modelId} but bypassed:`, cleanRetryErrMessage);
-                      if (modelId === modelsToTry[modelsToTry.length - 1]) throw retryErr;
                     }
                   }
                 } else {
@@ -2126,10 +2198,47 @@ const schemas = [
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(userId) REFERENCES users(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS hospitals (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    address TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS data_requests (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    institutionId TEXT,
+    dataType TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    adminNotes TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    releasedData TEXT,
+    FOREIGN KEY(userId) REFERENCES users(id)
   )`
 ];
 
 schemas.forEach(schema => db.exec(schema));
+
+try {
+  // Pre-seed some default hospitals if table is empty
+  const hospitalCount = (db.prepare("SELECT COUNT(*) as count FROM hospitals").get() as any).count;
+  if (hospitalCount === 0) {
+    const seedHospitals = [
+      { id: "hosp_mulago", name: "Mulago National Referral Hospital", address: "Kampala, Uganda" },
+      { id: "hosp_lubaga", name: "Lubaga Hospital", address: "Kampala, Uganda" },
+      { id: "hosp_clinical_hub", name: "Doctorian Specialized Clinical Hub", address: "Entebbe, Uganda" },
+      { id: "hosp_mbarara", name: "Mbarara Regional Referral Hospital", address: "Mbarara, Uganda" }
+    ];
+    const insertStmt = db.prepare("INSERT INTO hospitals (id, name, address) VALUES (?, ?, ?)");
+    for (const h of seedHospitals) {
+      insertStmt.run(h.id, h.name, h.address);
+    }
+    console.log("[DB] Pre-seeded default Ugandan hospital nodes.");
+  }
+} catch (hospSeedErr: any) {
+  console.error("[DB ERROR] Failed to seed default hospitals:", hospSeedErr.message);
+}
 
 try {
   const pragma = db.prepare("PRAGMA table_info(users)").all() as any[];
@@ -2141,6 +2250,8 @@ try {
   const hasConditions = pragma.some((col: any) => col.name === 'conditions');
   const hasBloodGroup = pragma.some((col: any) => col.name === 'bloodGroup');
   const hasHospitalPreference = pragma.some((col: any) => col.name === 'hospitalPreference');
+  const hasUseMode = pragma.some((col: any) => col.name === 'useMode');
+  const hasIsMainDoctor = pragma.some((col: any) => col.name === 'isMainDoctor');
 
   if (!hasToken) {
     db.prepare("ALTER TABLE users ADD COLUMN huggingfaceToken TEXT").run();
@@ -2173,6 +2284,14 @@ try {
   if (!hasHospitalPreference) {
     db.prepare("ALTER TABLE users ADD COLUMN hospitalPreference TEXT").run();
     console.log("[MIGRATION] Successfully added hospitalPreference column to users table.");
+  }
+  if (!hasUseMode) {
+    db.prepare("ALTER TABLE users ADD COLUMN useMode TEXT DEFAULT 'personal'").run();
+    console.log("[MIGRATION] Successfully added useMode column to users table.");
+  }
+  if (!hasIsMainDoctor) {
+    db.prepare("ALTER TABLE users ADD COLUMN isMainDoctor INTEGER DEFAULT 0").run();
+    console.log("[MIGRATION] Successfully added isMainDoctor column to users table.");
   }
 } catch (migErr: any) {
   console.error("[MIGRATION ERROR] Failed to run database migrations check:", migErr.message);
@@ -2386,6 +2505,49 @@ function sendAutonomousAlert(phoneNumber: string, name: string, message: string,
     .run(Math.random().toString(36).substring(2, 11), `EMERGENCY_${type}_SENT`, `Sent to ${name} (${phoneNumber}): ${message.substring(0, 50)}...`);
 }
 
+function notifySectorAdmins(patientId: string, originalMessage: string) {
+  try {
+    const patient = db.prepare("SELECT * FROM users WHERE id = ?").get(patientId) as any;
+    if (!patient) return;
+
+    // Get all admins for this specific hospital
+    const sectorAdmins = patient.institutionId ? db.prepare("SELECT * FROM users WHERE role = 'admin' AND institutionId = ?").all(patient.institutionId) as any[] : [];
+    
+    // Also include overall owner / main admin in copy
+    const ownerEmail = "gloriajayakullo@gmail.com";
+    const owner = db.prepare("SELECT * FROM users WHERE LOWER(email) = ?").get(ownerEmail) as any;
+    
+    const targetAdmins = [...sectorAdmins];
+    if (owner && !targetAdmins.some(a => a.id === owner.id)) {
+      targetAdmins.push(owner);
+    }
+
+    const silentMsg = `[SILENT SECTOR ALERT] Patient ${patient.displayName} has triggered an emergency alert. Sector: ${patient.institutionId || 'Personal Use'}. Vitals logged.`;
+
+    for (const admin of targetAdmins) {
+      // 1. Database Notification
+      const notifId = "notif-" + Math.random().toString(36).substring(2, 11);
+      db.prepare(`
+        INSERT INTO notifications (id, title, content, type, recipientId, createdAt)
+        VALUES (?, ?, ?, 'warning', ?, ?)
+      `).run(
+        notifId,
+        "🔇 SILENT SECTOR ALERT: EMERGENCY IN PROGRESS",
+        silentMsg,
+        admin.id,
+        new Date().toISOString()
+      );
+
+      // 2. Dispatch silent SMS if admin has a phone number
+      if (admin.phone) {
+        sendAutonomousAlert(admin.phone, admin.displayName || "Admin", silentMsg, 'SMS');
+      }
+    }
+  } catch (err: any) {
+    console.error("[SECTOR ALERT Helper] Failed to notify sector admins:", err.message);
+  }
+}
+
 function checkPatientStability() {
   console.log("[NEURAL MONITOR] Scanning patient biological stability...");
   try {
@@ -2452,6 +2614,9 @@ function checkPatientStability() {
         const notifId = Math.random().toString(36).substring(2, 11);
         db.prepare("INSERT INTO notifications (id, title, content, type, recipientId) VALUES (?, ?, ?, ?, ?)")
           .run(notifId, "🔴 CRITICAL INSTABILITY DETECTED", message, "error", userId);
+
+        // Silent notification to hospital Admins & app Owner
+        notifySectorAdmins(userId, message);
       }
     }
   } catch (err) {
@@ -2804,8 +2969,27 @@ async function startServer() {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    let decoded: any;
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET) as any;
+      } catch (verifyErr: any) {
+        if (verifyErr && verifyErr.name === "TokenExpiredError") {
+          // Token is expired but signature is authentic. Silently renew.
+          decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+          const { id, email, role } = decoded;
+          const newToken = jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: "7d" });
+          res.cookie("token", newToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+          });
+          console.log(`[AUTH] Silently renewed expired token for ${email} on ${req.path}`);
+        } else {
+          throw verifyErr;
+        }
+      }
       
       // Enforce session revocation
       if (decoded && decoded.id && revokedSessions.has(decoded.id)) {
@@ -2845,7 +3029,26 @@ async function startServer() {
         }
       }
 
-      req.user = decoded;
+      if (decoded && decoded.id) {
+        try {
+          const dbUser = db.prepare("SELECT role, institutionId, useMode, isMainDoctor FROM users WHERE id = ?").get(decoded.id) as any;
+          if (dbUser) {
+            req.user = {
+              ...decoded,
+              role: dbUser.role || decoded.role || 'user',
+              institutionId: dbUser.institutionId || null,
+              useMode: dbUser.useMode || 'personal',
+              isMainDoctor: dbUser.isMainDoctor || 0
+            };
+          } else {
+            req.user = decoded;
+          }
+        } catch (dbErr) {
+          req.user = decoded;
+        }
+      } else {
+        req.user = decoded;
+      }
       next();
     } catch (err: any) {
       console.error(`[AUTH] Token verification failed for ${req.path}:`, err.message);
@@ -2861,9 +3064,9 @@ async function startServer() {
 
   const requireAdmin = (req: any, res: any, next: any) => {
     authenticate(req, res, () => {
-      if (req.user.role !== 'admin' && req.user.role !== 'doctor') {
+      if (req.user.role !== 'admin' && req.user.role !== 'doctor' && req.user.role !== 'nurse') {
         console.warn(`[AUTH] Forbidden access attempt to ${req.path} by user ${req.user.id} (Role: ${req.user.role})`);
-        return res.status(403).json({ error: "Forbidden: Admin access required" });
+        return res.status(403).json({ error: "Forbidden: Admin or clinical access required" });
       }
       next();
     });
@@ -4774,7 +4977,25 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     if (!token) return res.json({ user: null });
 
     try {
-      const decoded: any = jwt.verify(token, JWT_SECRET);
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (verifyErr: any) {
+        if (verifyErr && verifyErr.name === "TokenExpiredError") {
+          decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+          const { id, email, role } = decoded;
+          const newToken = jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: "7d" });
+          res.cookie("token", newToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+          });
+          console.log(`[AUTH] Silently renewed expired token for ${email} in /api/auth/me`);
+        } else {
+          throw verifyErr;
+        }
+      }
       const user: any = db.prepare("SELECT id, email, displayName, photoURL, role, credits, subscriptionTier, subscriptionStatus, lastPaymentDate, phone, doctorPhone, doctorEmail, mentorPhone, mentorEmail, doctorId, mentorId, allergies, conditions, bloodGroup, hospitalPreference, enableExternalAI, ollamaUrl, ollamaModel, huggingfaceToken, huggingfaceModel, createdAt FROM users WHERE id = ?").get(decoded.id);
       res.json({ user });
     } catch (err) {
@@ -5316,18 +5537,204 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
+  // Hospital Sector Routes
+  app.get("/api/hospitals", authenticate, (req: any, res) => {
+    try {
+      const hospitals = db.prepare("SELECT * FROM hospitals ORDER BY name ASC").all();
+      res.json({ hospitals });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch hospitals: " + err.message });
+    }
+  });
+
+  app.post("/api/hospitals", authenticate, (req: any, res) => {
+    try {
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      if (!isMainAdmin && !isMainDoc) {
+        return res.status(403).json({ error: "Forbidden: Only overall Main Admin or Main Doctor can register new hospitals." });
+      }
+
+      const { id, name, address } = req.body;
+      if (!id || !name) return res.status(400).json({ error: "Hospital ID and Name are required" });
+
+      db.prepare("INSERT INTO hospitals (id, name, address) VALUES (?, ?, ?)").run(id, name, address || "");
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to register hospital: " + err.message });
+    }
+  });
+
+  // Patient / Institutional Sector Data Requests
+  app.post("/api/data-requests", authenticate, (req: any, res) => {
+    const { dataType } = req.body;
+    if (!dataType) return res.status(400).json({ error: "DataType is required (e.g. 'all', 'records', 'medications', 'workouts')" });
+    try {
+      const reqId = "req-" + Math.random().toString(36).substring(2, 11);
+      const createdAt = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO data_requests (id, userId, institutionId, dataType, status, createdAt)
+        VALUES (?, ?, ?, ?, 'pending', ?)
+      `).run(reqId, req.user.id, req.user.institutionId || null, dataType, createdAt);
+      res.json({ success: true, id: reqId });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to create data request: " + err.message });
+    }
+  });
+
+  app.get("/api/data-requests", authenticate, (req: any, res) => {
+    try {
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      let requests = [];
+      if (isGlobalPrivileged) {
+        // Overall Main Admin or Main Doctor can see all requests
+        requests = db.prepare(`
+          SELECT dr.*, u.displayName as userName, u.email as userEmail, h.name as hospitalName
+          FROM data_requests dr
+          JOIN users u ON dr.userId = u.id
+          LEFT JOIN hospitals h ON dr.institutionId = h.id
+          ORDER BY dr.createdAt DESC
+        `).all();
+      } else if (req.user.role === 'admin' || req.user.role === 'doctor' || req.user.role === 'nurse') {
+        // Hospital Admin, Doctor, or Nurse can see requests of their own hospital sector
+        requests = db.prepare(`
+          SELECT dr.*, u.displayName as userName, u.email as userEmail, h.name as hospitalName
+          FROM data_requests dr
+          JOIN users u ON dr.userId = u.id
+          LEFT JOIN hospitals h ON dr.institutionId = h.id
+          WHERE dr.institutionId = ?
+          ORDER BY dr.createdAt DESC
+        `).all(req.user.institutionId || "");
+      } else {
+        // Normal patient can only see their own requests
+        requests = db.prepare(`
+          SELECT dr.*, u.displayName as userName, u.email as userEmail, h.name as hospitalName
+          FROM data_requests dr
+          JOIN users u ON dr.userId = u.id
+          LEFT JOIN hospitals h ON dr.institutionId = h.id
+          WHERE dr.userId = ?
+          ORDER BY dr.createdAt DESC
+        `).all(req.user.id);
+      }
+      res.json({ requests });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch data requests: " + err.message });
+    }
+  });
+
+  app.post("/api/data-requests/:id/approve", requireAdmin, (req: any, res) => {
+    const { id } = req.params;
+    const { adminNotes } = req.body || {};
+
+    if (req.user.role === 'nurse') {
+      return res.status(403).json({ error: "Forbidden: Nurses cannot approve data release requests." });
+    }
+
+    try {
+      const request = db.prepare("SELECT * FROM data_requests WHERE id = ?").get(id) as any;
+      if (!request) return res.status(404).json({ error: "Data request not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && request.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You cannot approve requests from other hospital sectors." });
+      }
+
+      const targetUserId = request.userId;
+
+      // Gather data depending on request.dataType
+      const dataDump: any = {
+        metadata: {
+          releasedAt: new Date().toISOString(),
+          releasedBy: req.user.email,
+          dataType: request.dataType,
+          institutionId: request.institutionId
+        }
+      };
+
+      if (request.dataType === 'all' || request.dataType === 'records') {
+        dataDump.records = db.prepare("SELECT * FROM records WHERE userId = ? ORDER BY date DESC").all(targetUserId);
+      }
+      if (request.dataType === 'all' || request.dataType === 'medications') {
+        dataDump.medications = db.prepare("SELECT * FROM medications WHERE userId = ?").all(targetUserId);
+        dataDump.medicationIntakes = db.prepare("SELECT * FROM medication_intakes WHERE userId = ?").all(targetUserId);
+      }
+      if (request.dataType === 'all' || request.dataType === 'workouts') {
+        dataDump.workouts = db.prepare("SELECT * FROM workouts WHERE userId = ? ORDER BY date DESC").all(targetUserId);
+      }
+
+      const serializedData = JSON.stringify(dataDump, null, 2);
+
+      db.prepare(`
+        UPDATE data_requests
+        SET status = 'approved', adminNotes = ?, releasedData = ?
+         WHERE id = ?
+      `).run(adminNotes || "Approved and compiled.", serializedData, id);
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to approve request: " + err.message });
+    }
+  });
+
+  app.post("/api/data-requests/:id/reject", requireAdmin, (req: any, res) => {
+    const { id } = req.params;
+    const { adminNotes } = req.body || {};
+
+    if (req.user.role === 'nurse') {
+      return res.status(403).json({ error: "Forbidden: Nurses cannot reject data release requests." });
+    }
+
+    try {
+      const request = db.prepare("SELECT * FROM data_requests WHERE id = ?").get(id) as any;
+      if (!request) return res.status(404).json({ error: "Data request not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && request.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You cannot reject requests from other hospital sectors." });
+      }
+
+      db.prepare(`
+        UPDATE data_requests
+        SET status = 'rejected', adminNotes = ?
+        WHERE id = ?
+      `).run(adminNotes || "Rejected.", id);
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to reject request: " + err.message });
+    }
+  });
+
   // Admin Routes
   app.get("/api/admin/users", requireAdmin, (req: any, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 15;
       const search = (req.query.search as string || "").trim();
-      const institution = (req.query.institution as string || "").trim();
+      let institution = (req.query.institution as string || "").trim();
 
       const offset = (page - 1) * limit;
 
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      // If not overall main admin/doctor, enforce sectoring strictly!
+      if (!isGlobalPrivileged) {
+        institution = req.user.institutionId || "NOT_ASSIGNED_HOSPITAL";
+      }
+
       let countQuery = "SELECT COUNT(*) as count FROM users WHERE 1=1";
-      let selectQuery = "SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, status, lastActive, allergies, conditions, bloodGroup, hospitalPreference, createdAt FROM users WHERE 1=1";
+      let selectQuery = "SELECT id, email, displayName, photoURL, role, credits, phone, institutionId, status, lastActive, allergies, conditions, bloodGroup, hospitalPreference, useMode, isMainDoctor, createdAt FROM users WHERE 1=1";
       const params: any[] = [];
 
       if (search) {
@@ -5367,16 +5774,30 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         };
       });
 
-      // Calculate the global online/offline metrics for registered users/patients
+      // Calculate online/offline metrics based on access partition
       let onlineCount = 0;
       for (const [userId, session] of activeUserSessions.entries()) {
         if (Date.now() - session.lastActive < 120000) {
-          onlineCount++;
+          // Verify if this online user belongs to the supervisor's sector
+          if (isGlobalPrivileged) {
+            onlineCount++;
+          } else {
+            try {
+              const uRow = db.prepare("SELECT institutionId FROM users WHERE id = ?").get(userId) as any;
+              if (uRow && uRow.institutionId === req.user.institutionId) {
+                onlineCount++;
+              }
+            } catch (err) {}
+          }
         }
       }
       
-      // Get the database total count of all users (for global statistics)
-      const globalTotalUsers = (db.prepare("SELECT COUNT(*) as count FROM users").get() as any).count;
+      let globalTotalUsers = 0;
+      if (isGlobalPrivileged) {
+        globalTotalUsers = (db.prepare("SELECT COUNT(*) as count FROM users").get() as any).count;
+      } else {
+        globalTotalUsers = (db.prepare("SELECT COUNT(*) as count FROM users WHERE institutionId = ?").get(req.user.institutionId || "") as any).count;
+      }
       const offlineCount = Math.max(0, globalTotalUsers - onlineCount);
 
       const pages = Math.ceil(totalCount / limit) || 1;
@@ -5399,8 +5820,29 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   // Admin Create User Route
   app.post("/api/admin/users", requireAdmin, async (req: any, res) => {
     try {
-      const { id: reqId, email, password, displayName, role, credits, phone, institutionId, allergies, conditions, bloodGroup, hospitalPreference } = req.body || {};
+      // Reject nurses from registering users/patients directly if you prefer strict separation, but let's allow read-only
+      if (req.user.role === 'nurse') {
+        return res.status(403).json({ error: "Forbidden: Nurse accounts do not have write permissions for user management." });
+      }
+
+      const { id: reqId, email, password, displayName, role, credits, phone, institutionId, allergies, conditions, bloodGroup, hospitalPreference, useMode } = req.body || {};
       if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      let finalInstitutionId = institutionId;
+      let finalRole = role || 'user';
+
+      if (!isGlobalPrivileged) {
+        // Enforce same institution!
+        finalInstitutionId = req.user.institutionId;
+        // Local admins cannot create other admins or overall main doctor
+        if (finalRole === 'admin' && req.user.role !== 'admin') {
+          return res.status(403).json({ error: "Forbidden: Non-admin users cannot designate other users as Administrators." });
+        }
+      }
 
       const hashedPassword = await bcrypt.hash(password, 10);
       
@@ -5420,22 +5862,23 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       db.prepare(`
         INSERT INTO users (
           id, email, password, displayName, role, credits, phone, institutionId, 
-          allergies, conditions, bloodGroup, hospitalPreference, createdAt
+          allergies, conditions, bloodGroup, hospitalPreference, useMode, createdAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         finalId,
         email,
         hashedPassword,
         displayName || email.split("@")[0],
-        role || 'user',
+        finalRole,
         credits !== undefined ? Number(credits) : 400,
         phone || null,
-        institutionId || null,
+        finalInstitutionId || null,
         allergies || null,
         conditions || null,
         bloodGroup || null,
         hospitalPreference || null,
+        useMode || 'personal',
         createdAt
       );
 
@@ -5461,11 +5904,25 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   app.patch("/api/admin/users/:id/update", requireAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { email, displayName, role, credits, phone, institutionId, password, status, allergies, conditions, bloodGroup, hospitalPreference } = req.body || {};
+      const { email, displayName, role, credits, phone, institutionId, password, status, allergies, conditions, bloodGroup, hospitalPreference, useMode, isMainDoctor } = req.body || {};
+
+      if (req.user.role === 'nurse') {
+        return res.status(403).json({ error: "Forbidden: Nurse accounts are restricted to read-only clinical duties." });
+      }
 
       // Fetch existing user
       const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
-      if (!existing) return res.status(440).json({ error: "User not found" });
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged) {
+        if (existing.institutionId !== req.user.institutionId) {
+          return res.status(403).json({ error: "Forbidden: You do not have permission to modify users in another hospital sector." });
+        }
+      }
 
       let hashedPassword = existing.password;
       if (password && password.trim().length > 0) {
@@ -5475,15 +5932,27 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         hashedPassword = await bcrypt.hash(password, 10);
       }
 
+      // Sector and Privilege restriction
+      let finalRole = role || existing.role;
+      let finalIsMainDoctor = isMainDoctor !== undefined ? Number(isMainDoctor) : (existing.isMainDoctor || 0);
+      let finalUseMode = useMode || existing.useMode || 'personal';
+
+      if (!isMainAdmin) {
+        if (role === 'admin' && existing.role !== 'admin') {
+          return res.status(403).json({ error: "Forbidden: Only the App Owner can grant administrator privileges." });
+        }
+        finalIsMainDoctor = existing.isMainDoctor || 0;
+      }
+
       db.prepare(`
         UPDATE users 
         SET email = ?, displayName = ?, role = ?, credits = ?, phone = ?, institutionId = ?, password = ?, status = ?,
-            allergies = ?, conditions = ?, bloodGroup = ?, hospitalPreference = ?
+            allergies = ?, conditions = ?, bloodGroup = ?, hospitalPreference = ?, useMode = ?, isMainDoctor = ?
         WHERE id = ?
       `).run(
         email || existing.email,
         displayName !== undefined ? displayName : existing.displayName,
-        role || existing.role,
+        finalRole,
         credits !== undefined ? Number(credits) : existing.credits,
         phone !== undefined ? phone : existing.phone,
         institutionId !== undefined ? institutionId : existing.institutionId,
@@ -5493,6 +5962,8 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         conditions !== undefined ? conditions : existing.conditions,
         bloodGroup !== undefined ? bloodGroup : existing.bloodGroup,
         hospitalPreference !== undefined ? hospitalPreference : existing.hospitalPreference,
+        finalUseMode,
+        finalIsMainDoctor,
         id
       );
 
@@ -5521,6 +5992,21 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       const { status } = req.body || {};
       if (!status) return res.status(400).json({ error: "Status is required" });
 
+      if (req.user.role === 'nurse') {
+        return res.status(403).json({ error: "Forbidden: Nurse accounts are restricted to read-only clinical duties." });
+      }
+
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && existing.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to modify users in another hospital sector." });
+      }
+
       db.prepare("UPDATE users SET status = ? WHERE id = ?").run(status, id);
 
       // If blocking, immediately disconnect active session memory
@@ -5547,6 +6033,22 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   app.post("/api/admin/users/:id/revoke", requireAdmin, (req: any, res) => {
     try {
       const { id } = req.params;
+
+      if (req.user.role === 'nurse') {
+        return res.status(403).json({ error: "Forbidden: Nurse accounts are restricted to read-only clinical duties." });
+      }
+
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && existing.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to modify users in another hospital sector." });
+      }
+
       revokedSessions.add(id);
       activeUserSessions.delete(id);
 
@@ -5594,8 +6096,22 @@ Focus on providing high-fidelity clinical and technical insights related to medi
       const { id } = req.params;
       if (id === req.user.id) return res.status(400).json({ error: "Cannot delete yourself" });
 
-      const u = db.prepare("SELECT email FROM users WHERE id = ?").get(id) as any;
-      const targetEmail = u ? u.email : id;
+      if (req.user.role === 'nurse') {
+        return res.status(403).json({ error: "Forbidden: Nurse accounts are restricted to read-only clinical duties." });
+      }
+
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && existing.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to delete users in another hospital sector." });
+      }
+
+      const targetEmail = existing.email || id;
 
       db.prepare("DELETE FROM users WHERE id = ?").run(id);
       db.prepare("DELETE FROM records WHERE userId = ?").run(id);
@@ -5619,6 +6135,17 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   app.get("/api/admin/users/:id/records", requireAdmin, (req: any, res) => {
     const { id } = req.params;
     try {
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && existing.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to access patient records in another hospital sector." });
+      }
+
       const records = db.prepare("SELECT * FROM records WHERE userId = ? ORDER BY date DESC").all(id);
       res.json({ records });
     } catch (err: any) {
@@ -5630,6 +6157,17 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   app.get("/api/admin/users/:id/full-profile", requireAdmin, (req: any, res) => {
     const { id } = req.params;
     try {
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && existing.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to access patient records in another hospital sector." });
+      }
+
       const records = db.prepare("SELECT * FROM records WHERE userId = ? ORDER BY date DESC").all(id);
       
       let medications = [];
@@ -5675,8 +6213,12 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     const { id } = req.params;
     const { role } = req.body;
     
-    if (!['user', 'doctor', 'admin'].includes(role)) {
+    if (!['user', 'doctor', 'nurse', 'admin'].includes(role)) {
       return res.status(400).json({ error: "Invalid role" });
+    }
+
+    if (req.user.role === 'nurse') {
+      return res.status(403).json({ error: "Forbidden: Nurse accounts are restricted to read-only clinical duties." });
     }
 
     if (id === req.user.id) {
@@ -5684,7 +6226,22 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
 
     try {
-      const u = db.prepare("SELECT email FROM users WHERE id = ?").get(id) as any;
+      const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+      if (!existing) return res.status(404).json({ error: "User not found" });
+
+      const isMainAdmin = req.user.email.toLowerCase() === "gloriajayakullo@gmail.com";
+      const isMainDoc = req.user.isMainDoctor === 1 || req.user.role === 'main_doctor';
+      const isGlobalPrivileged = isMainAdmin || isMainDoc;
+
+      if (!isGlobalPrivileged && existing.institutionId !== req.user.institutionId) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to modify users in another hospital sector." });
+      }
+
+      // Local admins cannot escalate roles to admin
+      if (role === 'admin' && !isMainAdmin) {
+        return res.status(403).json({ error: "Forbidden: Only the App Owner can grant administrator privileges." });
+      }
+
       db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
 
       // Log this action
@@ -5692,7 +6249,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         .run(
           Math.random().toString(36).substring(2, 11),
           "USER_ROLE_CHANGE_ADMIN",
-          `Admin (${req.user.email}) updated role of ${u ? u.email : id} to ${role}`
+          `Admin (${req.user.email}) updated role of ${existing ? existing.email : id} to ${role}`
         );
 
       res.json({ success: true, role });
@@ -6242,6 +6799,11 @@ Focus on providing high-fidelity clinical and technical insights related to medi
 
     await Promise.all(promises);
 
+    // Call silent admin notifications for patient's hospital sector
+    if (req.user && req.user.id) {
+      notifySectorAdmins(req.user.id, message);
+    }
+
     const allFailed = results.every(r => r.status === 'failed');
     if (allFailed && results.length > 0) {
       return res.status(500).json({ error: "Failed to send SMS alerts", details: results });
@@ -6585,6 +7147,11 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     const allFailed = results.every(r => r.status === 'failed');
     if (allFailed && results.length > 0) {
       return res.status(500).json({ error: "Failed to initiate voice calls", details: results });
+    }
+
+    // Call silent admin notifications for patient's hospital sector
+    if (req.user && req.user.id) {
+      notifySectorAdmins(req.user.id, message);
     }
 
     res.json({ 
@@ -8166,18 +8733,25 @@ Direct the user to a health center if needed, and conclude with supportive bless
 
   // Seed demo user
   const seedDemoUser = async () => {
-    const email = "doctor@medical-ai.studio";
-    const existing = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
-    if (!existing) {
+    const email = "doctor@medical.ai";
+    const id = "demo-doctor-id";
+    const existingByEmail = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+    const existingById = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+
+    if (existingByEmail) {
+      if (existingByEmail.role !== "admin") {
+        db.prepare("UPDATE users SET role = 'admin' WHERE email = ?").run(email);
+        console.log("[SEED] Demo user updated to admin (by email)");
+      }
+    } else if (existingById) {
+      db.prepare("UPDATE users SET email = ?, role = 'admin' WHERE id = ?").run(email, id);
+      console.log("[SEED] Demo user found by ID, updated email and role to admin");
+    } else {
       const hashedPassword = await bcrypt.hash("Password123!", 10);
-      const id = "demo-doctor-id";
       const createdAt = new Date().toISOString();
       db.prepare("INSERT INTO users (id, email, password, displayName, role, createdAt) VALUES (?, ?, ?, ?, ?, ?)")
         .run(id, email, hashedPassword, "Dr. Demo", "admin", createdAt);
       console.log("[SEED] Demo admin user created");
-    } else if (existing.role !== 'admin') {
-      db.prepare("UPDATE users SET role = 'admin' WHERE email = ?").run(email);
-      console.log("[SEED] Demo user updated to admin");
     }
   };
   await seedDemoUser();
@@ -8228,7 +8802,17 @@ Direct the user to a health center if needed, and conclude with supportive bless
     }
 
     try {
-      const decoded: any = jwt.verify(token, JWT_SECRET);
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (wsVerifyErr: any) {
+        if (wsVerifyErr && wsVerifyErr.name === "TokenExpiredError") {
+          decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+          console.log(`[WS] Authorized expired token (authentic signature) for user: ${decoded.email}`);
+        } else {
+          throw wsVerifyErr;
+        }
+      }
       console.log(`[WS] Neural Voice established for user: ${decoded.email}`);
       arduinoClients.add(ws);
 

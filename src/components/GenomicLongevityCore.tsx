@@ -139,6 +139,10 @@ export const GenomicLongevityCore: React.FC<GenomicLongevityCoreProps> = ({
   const [customGeneCYP2D6, setCustomGeneCYP2D6] = useState<string>('Poor Metabolizer');
   const [customGeneCYP2C19, setCustomGeneCYP2C19] = useState<string>('Ultra-rapid Metabolizer');
   const [customGeneCYP2C9, setCustomGeneCYP2C9] = useState<string>('Intermediate Metabolizer');
+  
+  // Drug-Drug & Herbal Interaction Engine States
+  const [selectedDdaA, setSelectedDdaA] = useState<string>('Codeine');
+  const [selectedDdaB, setSelectedDdaB] = useState<string>('Fluoxetine');
 
   // Bio-simulation sliders
   const [nadPrecursors, setNadPrecursors] = useState<number>(250); // mg/day
@@ -335,6 +339,151 @@ export const GenomicLongevityCore: React.FC<GenomicLongevityCoreProps> = ({
       d.pathway.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery]);
+
+  // Drug-Drug & Traditional Medicine (Herbal) Interaction Calculation
+  const drugDrugInteraction = useMemo(() => {
+    const itemA = selectedDdaA;
+    const itemB = selectedDdaB;
+    if (!itemA || !itemB) return null;
+
+    let severity: 'critical' | 'moderate' | 'safe' = 'safe';
+    let title = "No Significant Interaction";
+    let description = "These substances utilize separate clearance pathways or do not exhibit competitive enzyme inhibition. Standard dosing protocols remain valid.";
+    let mechanism = "Clearance operates within normal, independent pharmacokinetic limits.";
+    let action = "Continue routine monitoring. No dosage adjustments required.";
+
+    if (itemA === 'Clopidogrel') {
+      if (itemB === 'Artemisia') {
+        severity = 'critical';
+        title = 'Critical Prodrug Activation Failure';
+        mechanism = 'Artemisia is a potent inhibitor of CYP2C19, the main enzyme required to convert Clopidogrel into its active antiplatelet form.';
+        description = 'Concurrent use of Artemisia prevents clopidogrel activation, leaving the patient unprotected against arterial clotting and stent thrombosis.';
+        action = 'Discontinue Artemisia immediately. Consider alternative antiplatelet (Prasugrel) or substitute Artemisia with standard antimalarials.';
+      } else if (itemB === "St. John's Wort") {
+        severity = 'moderate';
+        title = 'Accelerated Activation & Increased Bleed Risk';
+        mechanism = "St. John's Wort is a strong inducer of CYP2C19, accelerating the conversion of Clopidogrel to its active antiplatelet form.";
+        description = 'Faster conversion can increase systemic antiplatelet concentration, elevating microvascular bleeding risk.';
+        action = 'Monitor closely for bruising. Avoid St. John\'s Wort or utilize alternative therapy.';
+      }
+    }
+
+    if (itemA === 'Warfarin') {
+      if (itemB === 'Neem Leaf') {
+        severity = 'moderate';
+        title = 'Reduced Anticoagulant Efficacy';
+        mechanism = 'Neem Leaf induces CYP3A4 and inhibits CYP2C9, altering the complex stereoselective metabolism of Warfarin.';
+        description = 'Can decrease warfarin half-life and lower INR levels, increasing the risk of thromboembolism.';
+        action = 'Avoid Neem Leaf during Warfarin therapy. Perform serial INR monitoring if co-administered.';
+      } else if (itemB === 'Warburgia') {
+        severity = 'critical';
+        title = 'Severe Bleeding Hazard';
+        mechanism = 'Warburgia ugandensis is a potent inhibitor of CYP2C9, which clears active S-Warfarin.';
+        description = 'Blocks Warfarin clearance, leading to extreme accumulation, highly elevated INR, and severe internal hemorrhage risks.';
+        action = 'Strictly avoid Warburgia ugandensis. Substitute with non-interacting traditional remedies or safer analgesics.';
+      } else if (itemB === 'Aspirin') {
+        severity = 'critical';
+        title = 'High Synergistic Bleed Risk';
+        mechanism = 'Pharmacodynamic synergy. Both drugs inhibit separate pathways of coagulation (platelet aggregation vs. clotting factor synthesis).';
+        description = 'Extremely elevated risk of gastrointestinal bleeding or systemic hemorrhage without altering INR directly.';
+        action = 'Only combine under strict clinical supervision with gastric protection. otherwise, avoid Aspirin.';
+      }
+    }
+
+    if (itemA === 'Codeine') {
+      if (itemB === 'Fluoxetine') {
+        severity = 'critical';
+        title = 'Complete Anesthetic Blockade';
+        mechanism = 'Fluoxetine is an extremely potent inhibitor of CYP2D6, the sole pathway converting Codeine to active Morphine.';
+        description = 'Renders codeine completely ineffective for analgesia, offering zero pain control while retaining normal side-effects (constipation, nausea).';
+        action = 'Avoid Fluoxetine or switch pain medication to Morphine, Oxycodone, or standard NSAIDs.';
+      } else if (itemB === 'Warburgia') {
+        severity = 'moderate';
+        title = 'Diminished Analgesic Conversion';
+        mechanism = 'Warburgia ugandensis inhibits CYP2D6, slowing the conversion of Codeine to its active Morphine conjugate.';
+        description = 'Reduces the efficiency of pain management, leading to persistent breakthrough pain.';
+        action = 'Substitute Warburgia ugandensis with non-inhibitory remedies or use direct analgesics like Paracetamol.';
+      }
+    }
+
+    if (itemA === 'Metoprolol') {
+      if (itemB === 'Fluoxetine') {
+        severity = 'critical';
+        title = 'Severe Bradycardia Risk';
+        mechanism = 'Fluoxetine inhibits CYP2D6, blocking the primary hepatic pathway for Metoprolol clearance.';
+        description = 'Raises Metoprolol serum concentrations by up to 400%, leading to profound bradycardia, hypotension, and risk of cardiogenic shock.';
+        action = 'Strictly avoid co-administration. Monitor heart rate continuously. Consider carvedilol or non-interacting SSRIs.';
+      } else if (itemB === 'Moringa') {
+        severity = 'moderate';
+        title = 'Enhanced Beta-Blocker Exposure';
+        mechanism = 'Moringa oleifera moderately inhibits CYP2D6 activity.';
+        description = 'Slowing of metoprolol clearance may cause lower heart rates or orthostatic hypotension during initiation.';
+        action = 'Monitor blood pressure and pulse. Adjust metoprolol dosage if fatigue or bradycardia occurs.';
+      } else if (itemB === 'Erythromycin') {
+        severity = 'moderate';
+        title = 'Increased Cardiotoxic Potential';
+        mechanism = 'Erythromycin inhibits CYP3A4, which handles secondary shunt clearance for Metoprolol.';
+        description = 'Can cause minor accumulation and prolongs QT interval synergistically.';
+        action = 'Avoid macrolides; prefer Amoxicillin or Azithromycin (low CYP3A4 inhibition).';
+      }
+    }
+
+    if (itemA === 'Ibuprofen') {
+      if (itemB === 'Neem Leaf') {
+        severity = 'moderate';
+        title = 'Altered NSAID Clearance';
+        mechanism = 'Neem Leaf inhibits CYP2C9, the primary metabolizer of Ibuprofen.';
+        description = 'Increases Ibuprofen half-life, raising the risk of gastropathy, dyspepsia, or acute kidney injury.';
+        action = 'Limit Ibuprofen dose and duration. Avoid concurrent use of Neem Leaf preparations.';
+      } else if (itemB === 'Aspirin') {
+        severity = 'moderate';
+        title = 'Competitive Platelet Inhibition & Gastric Load';
+        mechanism = 'Both compete for the cyclooxygenase-1 (COX-1) active channel.';
+        description = 'Ibuprofen blocks Aspirin from binding, reducing Aspirin\'s cardioprotective antiplatelet effect, and doubles gastric ulcer risk.';
+        action = 'Take Aspirin at least 2 hours before Ibuprofen, or switch to Acetaminophen.';
+      }
+    }
+
+    if (itemA === 'Duloxetine') {
+      if (itemB === 'Fluoxetine') {
+        severity = 'critical';
+        title = 'Serotonin Syndrome Hazard';
+        mechanism = 'Fluoxetine inhibits CYP2D6 (blocking Duloxetine clearance) and both synergistically raise synaptic serotonin.';
+        description = 'High risk of hyperthermia, muscle rigidity, mental status changes, and autonomic instability (Serotonin Syndrome).';
+        action = 'Strictly contraindicated. Washout periods are required before changing between these agents.';
+      } else if (itemB === 'Moringa') {
+        severity = 'moderate';
+        title = 'Elevated Antidepressant Concentration';
+        mechanism = 'Moringa inhibits CYP2D6, reducing Duloxetine hepatic clearance.';
+        description = 'Increases side effects such as dry mouth, severe insomnia, or elevated blood pressure.';
+        action = 'Reduce Duloxetine dosage or stop Moringa consumption.';
+      }
+    }
+
+    if (itemA === 'Tamoxifen') {
+      if (itemB === 'Fluoxetine') {
+        severity = 'critical';
+        title = 'Critical Breast Cancer Therapy Efficacy Loss';
+        mechanism = 'Fluoxetine is a potent CYP2D6 inhibitor, blocking the conversion of Tamoxifen to Endoxifen (active metabolite).';
+        description = 'Drastically lowers active drug concentration, rendering the breast cancer therapy highly ineffective.';
+        action = 'Contraindicated. Change Fluoxetine to Venlafaxine or Escitalopram.';
+      } else if (itemB === 'Moringa') {
+        severity = 'moderate';
+        title = 'Reduced Tamoxifen Activation';
+        mechanism = 'Moringa moderately inhibits CYP2D6, interfering with active Endoxifen conversion.';
+        description = 'Can reduce the therapeutic protection of Tamoxifen in long-term oncology care.';
+        action = 'Avoid concurrent Moringa supplementation in patients undergoing Tamoxifen therapy.';
+      }
+    }
+
+    return {
+      severity,
+      title,
+      description,
+      mechanism,
+      action
+    };
+  }, [selectedDdaA, selectedDdaB]);
 
   // 2. Interactive Future Decadal Projections (Data for Line Charts)
   const projectionData = useMemo(() => {
@@ -1011,6 +1160,106 @@ No network calls were dispatching to cloud nodes.`;
                   </div>
                 </div>
               )}
+
+              {/* Drug-Drug & African Traditional Medicine (Herbal) Interaction Engine */}
+              <div className="pt-8 border-t border-slate-150 dark:border-slate-800 space-y-6 text-left">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="text-emerald-500 animate-pulse" size={20} />
+                    <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white">Drug-Drug & Traditional Medicine (Herbal) Interaction Engine</h4>
+                  </div>
+                  <span className="text-[9px] font-mono font-black uppercase bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 px-2 py-1 rounded-lg">
+                    Real-Time Competitive CYP450 Diagnostics
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+                  Analyze pharmacokinetic interactions, competitive CYP450 hepatic saturation, and dangerous pharmacodynamic synergisms between Western prescription drugs and popular African traditional herbal remedies.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800">
+                  {/* Selectors */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Primary Western Prescription Medication</label>
+                      <select
+                        value={selectedDdaA}
+                        onChange={(e) => setSelectedDdaA(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-black text-slate-900 dark:text-white outline-none cursor-pointer focus:border-blue-500"
+                      >
+                        <option value="Codeine">Codeine (Prodrug Analgesic)</option>
+                        <option value="Clopidogrel">Clopidogrel (Prodrug Antiplatelet)</option>
+                        <option value="Warfarin">Warfarin (Anticoagulant)</option>
+                        <option value="Metoprolol">Metoprolol (Beta-Blocker / Antihypertensive)</option>
+                        <option value="Duloxetine">Duloxetine (SNRI Antidepressant)</option>
+                        <option value="Ibuprofen">Ibuprofen (NSAID Analgesic)</option>
+                        <option value="Tamoxifen">Tamoxifen (Oncology Hormone modulator)</option>
+                        <option value="Omeprazole">Omeprazole (PPI Antacid)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Secondary Agent / Herbal Remedy</label>
+                      <select
+                        value={selectedDdaB}
+                        onChange={(e) => setSelectedDdaB(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-black text-slate-900 dark:text-white outline-none cursor-pointer focus:border-blue-500"
+                      >
+                        {/* Herbals */}
+                        <option value="Artemisia">Artemisia annua (African Wormwood - Malaria/Fever)</option>
+                        <option value="Neem Leaf">Neem Leaf (Melia azedarach - Immune/Skin)</option>
+                        <option value="Moringa">Moringa oleifera (Miracle Tree - Nutrition/Inflammation)</option>
+                        <option value="Warburgia">Warburgia ugandensis (Mukuzannyanja - Antimicrobial/Pain)</option>
+                        <option value="St. John's Wort">St. John's Wort (Hypericum - Mood Support)</option>
+                        {/* Meds */}
+                        <option value="Fluoxetine">Fluoxetine (SSRI Antidepressant - CYP2D6 Block)</option>
+                        <option value="Aspirin">Aspirin (Antiplatelet / Salicylate)</option>
+                        <option value="Erythromycin">Erythromycin (Macrolide Antibiotic - CYP3A4 Block)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Interaction Results Output */}
+                  {drugDrugInteraction && (
+                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-150 dark:border-slate-800 flex flex-col justify-between space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-[10px] font-mono font-black text-slate-400 dark:text-slate-550 uppercase">Clinical Diagnostic Status</span>
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg ${
+                          drugDrugInteraction.severity === 'critical'
+                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50'
+                            : drugDrugInteraction.severity === 'moderate'
+                              ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50'
+                              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50'
+                        }`}>
+                          {drugDrugInteraction.severity.toUpperCase()} RISK
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h5 className="text-xs font-black uppercase text-slate-900 dark:text-white flex items-center gap-1.5">
+                          {drugDrugInteraction.severity === 'critical' && <AlertTriangle size={14} className="text-rose-500 shrink-0" />}
+                          {drugDrugInteraction.severity === 'moderate' && <AlertTriangle size={14} className="text-amber-500 shrink-0" />}
+                          {drugDrugInteraction.severity === 'safe' && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
+                          {drugDrugInteraction.title}
+                        </h5>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                          {drugDrugInteraction.description}
+                        </p>
+                      </div>
+
+                      <div className="h-px bg-slate-100 dark:bg-slate-800" />
+
+                      <div className="space-y-2">
+                        <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Pathophysiology & Direct Action Plan</div>
+                        <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1 text-[10px] font-medium text-slate-500 dark:text-slate-450 leading-relaxed">
+                          <p><strong className="text-slate-800 dark:text-slate-200 font-extrabold uppercase text-[8px] tracking-wide block">Enzyme mechanism:</strong> {drugDrugInteraction.mechanism}</p>
+                          <p className="mt-1"><strong className="text-emerald-600 dark:text-emerald-400 font-extrabold uppercase text-[8px] tracking-wide block">Recommended Protocol:</strong> {drugDrugInteraction.action}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           )}
 

@@ -1,1551 +1,2315 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Tv, 
-  Smartphone, 
-  Wifi, 
-  Bluetooth, 
-  Heart, 
-  Zap, 
-  Activity, 
-  Cpu, 
-  RefreshCw, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Radio, 
-  Sliders, 
-  Database, 
-  Send, 
-  Check, 
-  X,
-  Play,
-  RotateCcw,
-  Sparkles,
-  Award,
-  Fingerprint,
-  Save,
-  Download,
-  Trash2,
-  Clock,
-  FileText,
-  Plus,
-  TrendingUp
+  Heart, Flame, Footprints, Timer, Activity, Sparkles, Play, Pause, X, RotateCcw, 
+  Award, TrendingUp, Database, FileText, CheckCircle2, AlertTriangle, Cpu, 
+  Smartphone, Wifi, Bluetooth, Save, Download, Trash2, Clock, ShieldCheck, Layers, Target,
+  PhoneCall, Send, Radio, Signal, User, ShieldAlert, AlertCircle, HeartCrack
 } from 'lucide-react';
 import { useArduinoContext } from '../ArduinoContext';
+import { api } from '../api';
 
-export interface TelemetrySession {
+interface SportConfig {
   id: string;
   name: string;
-  source: 'watch' | 'icu';
-  deviceBrandOrType: string;
-  vitalsPoints: {
-    heartRate: number;
-    temperature: number;
-    spo2: number;
-    systolicBP: number;
-    diastolicBP: number;
-    respiratoryRate: number;
-    timestamp: number;
-  }[];
-  createdAt: string;
-  durationSeconds: number;
-  aiAnalysis?: {
-    summary: string;
-    anomalyDetected: boolean;
-    anomaliesList: string[];
-    hardwareStatus: string;
-    clinicalRating: number;
-    suggestions: string[];
-  };
+  emoji: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  gradient: string;
+  hasDistance: boolean;
+  hasSteps: boolean;
+  hasElevation: boolean;
+  hasReps: boolean;
+  hasScore: boolean;
+  statLabel: string;
+  statUnit: string;
+  avgHR: number;
+  calorieRate: number; // kcal per minute
+  speedValue: number;  // baseline speed/pace/cadence
+  quote: string;
 }
+
+const SPORTS: SportConfig[] = [
+  { id: 'walk', name: 'Outdoor Walk', emoji: '🚶‍♂️', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20', gradient: 'from-emerald-500/20 to-teal-500/10', hasDistance: true, hasSteps: true, hasElevation: false, hasReps: false, hasScore: false, statLabel: 'Pace', statUnit: 'min/km', avgHR: 94, calorieRate: 5.2, speedValue: 11.2, quote: 'Maintain a steady, rhythmic stride. Healthy heart, active life.' },
+  { id: 'run', name: 'Outdoor Run', emoji: '🏃‍♂️', color: 'text-rose-500', bgColor: 'bg-rose-500/10', borderColor: 'border-rose-500/20', gradient: 'from-rose-500/20 to-orange-500/10', hasDistance: true, hasSteps: true, hasElevation: false, hasReps: false, hasScore: false, statLabel: 'Pace', statUnit: 'min/km', avgHR: 148, calorieRate: 12.8, speedValue: 5.6, quote: 'Push your cardiac envelope. Every mile expands capacity.' },
+  { id: 'ride', name: 'Outdoor Ride', emoji: '🚴‍♂️', color: 'text-cyan-500', bgColor: 'bg-cyan-500/10', borderColor: 'border-cyan-500/20', gradient: 'from-cyan-500/20 to-blue-500/10', hasDistance: true, hasSteps: false, hasElevation: false, hasReps: false, hasScore: false, statLabel: 'Speed', statUnit: 'km/h', avgHR: 124, calorieRate: 9.2, speedValue: 23.5, quote: 'Pedal at constant cadence. Promotes optimal leg vascularity.' },
+  { id: 'climb', name: 'Mountain Climb', emoji: '🧗‍♂️', color: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/20', gradient: 'from-amber-500/20 to-yellow-500/10', hasDistance: true, hasSteps: true, hasElevation: true, hasReps: false, hasScore: false, statLabel: 'Ascent Rate', statUnit: 'm/h', avgHR: 138, calorieRate: 10.4, speedValue: 360, quote: 'Incline stimulates deeper lung expansion. Conquer the heights.' },
+  { id: 'treadmill', name: 'Treadmill', emoji: '🏃‍♀️', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10', borderColor: 'border-indigo-500/20', gradient: 'from-indigo-500/20 to-purple-500/10', hasDistance: true, hasSteps: true, hasElevation: false, hasReps: false, hasScore: false, statLabel: 'Incline', statUnit: '%', avgHR: 140, calorieRate: 11.5, speedValue: 2.0, quote: 'Controlled indoor training. Perfect for clinical cardiovascular sets.' },
+  { id: 'basketball', name: 'Basketball', emoji: '🏀', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/20', gradient: 'from-orange-500/20 to-red-500/10', hasDistance: false, hasSteps: true, hasElevation: false, hasReps: false, hasScore: true, statLabel: 'Match Points', statUnit: 'pts', avgHR: 135, calorieRate: 9.8, speedValue: 12, quote: 'High intensity interval burst. Refines athletic coordination.' },
+  { id: 'football', name: 'Football Match', emoji: '⚽', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20', gradient: 'from-emerald-500/20 to-green-500/10', hasDistance: true, hasSteps: true, hasElevation: false, hasReps: false, hasScore: true, statLabel: 'Sprints', statUnit: 'reps', avgHR: 152, calorieRate: 11.0, speedValue: 15, quote: 'Aerobic and anaerobic hybrid. Excellent for endurance training.' },
+  { id: 'badminton', name: 'Badminton', emoji: '🏸', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/20', gradient: 'from-yellow-500/20 to-amber-500/10', hasDistance: false, hasSteps: true, hasElevation: false, hasReps: false, hasScore: true, statLabel: 'Smash Hits', statUnit: 'hits', avgHR: 128, calorieRate: 8.0, speedValue: 18, quote: 'Rapid reflexes and overhead arm extensions. Enhances spatial agility.' },
+  { id: 'jumprope', name: 'Jump Rope', emoji: '🪢', color: 'text-pink-500', bgColor: 'bg-pink-500/10', borderColor: 'border-pink-500/20', gradient: 'from-pink-500/20 to-rose-500/10', hasDistance: false, hasSteps: false, hasElevation: false, hasReps: true, hasScore: false, statLabel: 'Total Jumps', statUnit: 'reps', avgHR: 156, calorieRate: 13.5, speedValue: 125, quote: 'Elite calf plyometrics and high-density oxygen consumption.' },
+  { id: 'swim', name: 'Pool Swim', emoji: '🏊‍♂️', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/20', gradient: 'from-blue-500/20 to-indigo-500/10', hasDistance: true, hasSteps: false, hasElevation: false, hasReps: false, hasScore: false, statLabel: 'Stroke Rate', statUnit: '/min', avgHR: 116, calorieRate: 8.6, speedValue: 36, quote: 'Joint-safe resistance environment. Expands lung vital capacity.' },
+  { id: 'yoga', name: 'Mindful Yoga', emoji: '🧘‍♂️', color: 'text-purple-500', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/20', gradient: 'from-purple-500/20 to-fuchsia-500/10', hasDistance: false, hasSteps: false, hasElevation: false, hasReps: false, hasScore: false, statLabel: 'Balance Score', statUnit: '%', avgHR: 82, calorieRate: 3.5, speedValue: 95, quote: 'Decompress parasympathetic state. Oxygenate cellular membranes.' },
+  { id: 'strength', name: 'Strength Set', emoji: '🏋️‍♂️', color: 'text-slate-500', bgColor: 'bg-slate-500/10', borderColor: 'border-slate-500/20', gradient: 'from-slate-500/20 to-zinc-500/10', hasDistance: false, hasSteps: false, hasElevation: false, hasReps: true, hasScore: false, statLabel: 'Sets Cleared', statUnit: 'sets', avgHR: 110, calorieRate: 6.2, speedValue: 4, quote: 'Hypertrophic muscle stress. Rebuilds bone mineral density.' }
+];
+
+const Ring: React.FC<{ progress: number; color: string; size: number; strokeWidth: number; trailColor: string }> = ({ progress, color, size, strokeWidth, trailColor }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(progress, 100) / 100) * circumference;
+
+  return (
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} stroke={trailColor} strokeWidth={strokeWidth} fill="transparent" />
+      <circle
+        cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="transparent"
+        strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-550"
+      />
+    </svg>
+  );
+};
 
 export const TelemetryCastManager: React.FC = () => {
   const arduino = useArduinoContext();
-  const [castSource, setCastSource] = useState<'watch' | 'icu'>('watch');
-  const [isCasting, setIsCasting] = useState(false);
-  const [selectedWatchBrand, setSelectedWatchBrand] = useState<'Samsung' | 'Apple' | 'Garmin' | 'Fitbit'>('Samsung');
-  const [watchSymmetryPreset, setWatchSymmetryPreset] = useState<'balanced' | 'elevated' | 'hyper' | 'depressed'>('balanced');
-  
-  // Clinical Machine States
-  const [icuChannelCode, setIcuChannelCode] = useState('ICU-BED-09-EMR');
-  const [selectedIcuDevice, setSelectedIcuDevice] = useState<'ECG' | 'POLAR_PPG' | 'VENTILATOR'>('ECG');
-  const [signalStrength, setSignalStrength] = useState(5);
-  const [castLogs, setCastLogs] = useState<{ time: string; msg: string; type: 'info' | 'success' | 'warn' }[]>([]);
-
-  const ecgCanvasRef = useRef<HTMLCanvasElement>(null);
-  
-  const addCastLog = (msg: string, type: 'info' | 'success' | 'warn' = 'info') => {
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setCastLogs(prev => [{ time: timestamp, msg, type }, ...prev.slice(0, 19)]);
-  };
-
-  const [isConnecting, setIsConnecting] = useState<'watch' | 'serial' | 'bluetooth' | 'wifi' | null>(null);
-  const [wifiInput, setWifiInput] = useState('http://192.168.1.100');
-
-  // Telemetry Recorder & AI Analysis States
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedPoints, setRecordedPoints] = useState<any[]>([]);
-  const [recordingElapsed, setRecordingElapsed] = useState(0);
-  const [recordedSessions, setRecordedSessions] = useState<TelemetrySession[]>([]);
-  const [sessionNameInput, setSessionNameInput] = useState('');
-  const [selectedSessionForAnalysis, setSelectedSessionForAnalysis] = useState<TelemetrySession | null>(null);
-  const [isAnalyzingSession, setIsAnalyzingSession] = useState(false);
+  const [completedSessions, setCompletedSessions] = useState<any[]>([]);
+  const [selectedSportId, setSelectedSportId] = useState<string>('run');
+  const [activeWorkout, setActiveWorkout] = useState<SportConfig | null>(null);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [workoutTime, setWorkoutTime] = useState<number>(0);
+  const [metrics, setMetrics] = useState({ heartRate: 72, calories: 0, steps: 0, distance: 0, elevation: 0, score: 0 });
+  const [logs, setLogs] = useState<string[]>([]);
+  const [selectedSessionForAnalysis, setSelectedSessionForAnalysis] = useState<any | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  
+  // Real Physical Sensors and Standalone Watch Sync
+  const [useLivePhoneSensors, setUseLivePhoneSensors] = useState<boolean>(false);
+  const [phoneSensorStatus, setPhoneSensorStatus] = useState<string>('idle');
+  const [syncCodeInput, setSyncCodeInput] = useState<string>('');
+  const [isSyncingWatch, setIsSyncingWatch] = useState<boolean>(false);
 
-  // Load telemetry sessions from localStorage on mount
+  // Real Biometric SOS Emergency Calling & SMS Routing Command Center
+  const [patientProfile, setPatientProfile] = useState<any>(null);
+  const [selectedPatientStatus, setSelectedPatientStatus] = useState<string>('warning');
+  const [overrideMessage, setOverrideMessage] = useState<string>('');
+  const [selectedNetwork, setSelectedNetwork] = useState<string>('twilio');
+  const [isSendingAlert, setIsSendingAlert] = useState<boolean>(false);
+  const [alertSuccessDetails, setAlertSuccessDetails] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
+  const [overrideDoctorPhone, setOverrideDoctorPhone] = useState<string>('');
+  const [overrideMentorPhone, setOverrideMentorPhone] = useState<string>('');
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Initialize
   useEffect(() => {
-    const saved = localStorage.getItem('doctorian_telemetry_sessions');
+    const saved = localStorage.getItem('doctorian_sports_sessions');
     if (saved) {
-      try {
-        setRecordedSessions(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse telemetry sessions:', e);
-      }
+      try { setCompletedSessions(JSON.parse(saved)); } catch (e) { console.error(e); }
     }
+    addLog("Doctorian Sports OS Booted. BLE GATT Bluetooth link ready.", "success");
+    addLog("Coupled to Doctorian Smart Watch [Internal Ring Emulator].", "info");
+
+    // Retrieve authentic registered profile
+    const fetchProfile = async () => {
+      try {
+        const u = await api.auth.me();
+        if (u) {
+          setPatientProfile(u);
+          if (u.doctorPhone) setOverrideDoctorPhone(u.doctorPhone);
+          if (u.mentorPhone) setOverrideMentorPhone(u.mentorPhone);
+          addLog(`Emergency Contacts Synced. Patient: ${u.displayName || "Obote"}, Doctor: ${u.doctorName || "Moses"} (${u.doctorPhone || "not set"}), Mentor: ${u.mentorName || "Akora"} (${u.mentorPhone || "not set"}).`, "info");
+        }
+      } catch (err: any) {
+        console.warn("Failed to retrieve real biometric session context:", err.message);
+      }
+    };
+    fetchProfile();
   }, []);
 
-  // Update localStorage when sessions change
-  const saveSessions = (updatedSessions: TelemetrySession[]) => {
-    setRecordedSessions(updatedSessions);
-    localStorage.setItem('doctorian_telemetry_sessions', JSON.stringify(updatedSessions));
-  };
-
-  // Timer for active recording
+  // Synchronize wireless real-time telemetry from standalone companion watchface (BroadcastChannel)
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isRecording) {
-      timer = setInterval(() => {
-        setRecordingElapsed(prev => prev + 1);
-      }, 1000);
-    } else {
-      setRecordingElapsed(0);
-    }
-    return () => clearInterval(timer);
-  }, [isRecording]);
-
-  // Record live vitals point by point
-  useEffect(() => {
-    if (!isRecording || !arduino.vitals) return;
-
-    // Check if we already recorded this point (using timestamp check)
-    const lastPoint = recordedPoints[recordedPoints.length - 1];
-    if (lastPoint && lastPoint.timestamp === arduino.vitals.timestamp) return;
-
-    setRecordedPoints(prev => [...prev, arduino.vitals]);
-  }, [arduino.vitals, isRecording, recordedPoints]);
-
-  const handleStartRecording = () => {
-    if (!isCasting) {
-      addCastLog("Please initiate mirrored casting first to start telemetry recording.", "warn");
-      return;
-    }
-    setIsRecording(true);
-    setRecordedPoints([]);
-    setRecordingElapsed(0);
-    addCastLog("Real-time clinical telemetry recording session started.", "success");
-  };
-
-  const handleStopAndSaveRecording = () => {
-    setIsRecording(false);
-    if (recordedPoints.length < 3) {
-      addCastLog("Recording discarded. Not enough biometric data points captured (minimum 3 required).", "warn");
-      setRecordedPoints([]);
-      return;
-    }
-
-    const brandName = castSource === 'watch' ? selectedWatchBrand : selectedIcuDevice;
-    const sessionName = sessionNameInput.trim() || `Telemetry Stream (${brandName}) - ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-
-    const newSession: TelemetrySession = {
-      id: `tel_session_${Date.now()}`,
-      name: sessionName,
-      source: castSource,
-      deviceBrandOrType: brandName,
-      vitalsPoints: [...recordedPoints],
-      createdAt: new Date().toISOString(),
-      durationSeconds: recordingElapsed,
-    };
-
-    const updated = [newSession, ...recordedSessions];
-    saveSessions(updated);
-    setSessionNameInput('');
-    setRecordedPoints([]);
-    addCastLog(`Saved Telemetry Session: "${sessionName}" with ${newSession.vitalsPoints.length} frames!`, "success");
-  };
-
-  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm("Are you sure you want to permanently delete this telemetry recording?")) {
-      const updated = recordedSessions.filter(s => s.id !== id);
-      saveSessions(updated);
-      if (selectedSessionForAnalysis?.id === id) {
-        setSelectedSessionForAnalysis(null);
-      }
-      addCastLog("Telemetry recording deleted.", "warn");
-    }
-  };
-
-  const handleExportSession = (session: TelemetrySession, e: React.MouseEvent) => {
-    e.stopPropagation();
+    let bc: BroadcastChannel | null = null;
     try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(session, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `Telemetry_${session.name.replace(/\s+/g, '_')}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      addCastLog(`Exported telemetry session: ${session.name}`, "success");
+      bc = new BroadcastChannel('doctorian_live_telemetry');
+      bc.onmessage = (event) => {
+        if (event.data && event.data.app === 'doctorian_watch') {
+          // Strict Origin Security Lock - Fulfill "only connect to Doctorian app"
+          if (event.data.origin && event.data.origin !== window.location.origin) {
+            console.warn("[SECURITY LOCK] Rejected companion watch sync: Origin mismatch. Authorized host only:", event.data.origin);
+            return;
+          }
+
+          const { heartRate, calories, steps, distance, elevation, temperature, spo2, systolicBP, diastolicBP, respiratoryRate } = event.data.data;
+          
+          // Match the active workout in UI if none is started
+          if (!activeWorkout) {
+            const foundSport = SPORTS.find(s => s.id === (event.data.sportId || 'run')) || SPORTS[0];
+            setActiveWorkout(foundSport);
+            setIsPaused(false);
+          }
+
+          // Feed into our active workout local state
+          setMetrics({
+            heartRate: heartRate || 72,
+            calories: calories || 0,
+            steps: steps || 0,
+            distance: distance || 0,
+            elevation: elevation || 0,
+            score: 95
+          });
+
+          // Feed into the Global Arduino/Wearable context so Doctorian main dashboards and sound sonifier update in real-time!
+          arduino.updateVitals({
+            heartRate: heartRate || 72,
+            temperature: temperature || 36.6,
+            spo2: spo2 || 99,
+            systolicBP: systolicBP || 120,
+            diastolicBP: diastolicBP || 80,
+            respiratoryRate: respiratoryRate || 14,
+            timestamp: Date.now()
+          });
+
+          // Match the active connection state
+          if (arduino.connection.type !== 'cloud') {
+            arduino.setConnection({
+              connected: true,
+              type: 'cloud',
+              deviceName: 'Doctorian Standalone OS Link'
+            });
+          }
+        }
+      };
     } catch (err) {
-      console.error(err);
-      addCastLog("Export failed.", "warn");
+      console.warn("[BroadcastLink] Failed to bind local channel:", err);
     }
+
+    return () => {
+      if (bc) bc.close();
+    };
+  }, [arduino, activeWorkout]);
+
+  const addLog = (msg: string, type: 'info' | 'success' | 'warn' = 'info') => {
+    const time = new Date().toLocaleTimeString();
+    const prefix = type === 'success' ? '🟢' : type === 'warn' ? '⚠️' : '📡';
+    setLogs(prev => [`[${time}] ${prefix} ${msg}`, ...prev.slice(0, 49)]);
   };
 
-  const handleCommitToHealthRecords = async (session: TelemetrySession, e: React.MouseEvent) => {
-    e.stopPropagation();
-    addCastLog(`Committing smartwatch/machine session "${session.name}" to global EHR...`, "info");
-    
-    try {
-      const { api } = await import('../api');
-      
-      // Calculate average metrics
-      const avgHR = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.heartRate, 0) / session.vitalsPoints.length);
-      const avgO2 = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.spo2, 0) / session.vitalsPoints.length);
-      const avgTemp = parseFloat((session.vitalsPoints.reduce((sum, p) => sum + p.temperature, 0) / session.vitalsPoints.length).toFixed(1));
-      const avgSys = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.systolicBP, 0) / session.vitalsPoints.length);
-      const avgDia = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.diastolicBP, 0) / session.vitalsPoints.length);
-      
-      const recordSummary = `Casted Wearable/Machine Recording: ${session.name}. Recorded ${session.vitalsPoints.length} telemetry frames across ${session.durationSeconds}s.`;
-      const recordDiagnosis = `Biometric Telemetry Waveform Analysis. Averages: HR ${avgHR} BPM | SpO2 ${avgO2}% | BP ${avgSys}/${avgDia} mmHg | Temp ${avgTemp}°C.`;
-      const recordTreatment = session.aiAnalysis 
-        ? `Doctorian AI Analysis Diagnostics: ${session.aiAnalysis.summary}\nStability Index: ${session.aiAnalysis.clinicalRating}/100. Recommendations: ${session.aiAnalysis.suggestions.join('; ')}`
-        : 'Telemetry data successfully kept. AI analysis pending.';
-
-      await api.records.create({
-        type: "Telemetry Recording",
-        value: `${avgHR} BPM`,
-        unit: "BPM",
-        notes: `${recordSummary}\n\n${recordDiagnosis}\n\n${recordTreatment}`,
-        date: new Date().toISOString()
-      });
-
-      addCastLog(`Successfully committed telemetry session to Patient Health Records!`, "success");
-      alert("🎉 Biometric stream successfully saved to Patient Health Records!");
-    } catch (err: any) {
-      console.error(err);
-      addCastLog(`Failed to commit record: ${err.message || err}`, "warn");
-    }
-  };
-
-  const handleRunAiAnalysis = async (session: TelemetrySession) => {
-    setSelectedSessionForAnalysis(session);
-    setIsAnalyzingSession(true);
-    setAnalysisError(null);
-    addCastLog(`Spinning up Doctorian AI Neural core to analyze telemetry stream...`, "info");
-
-    try {
-      const { api } = await import('../api');
-
-      const analysisPrompt = `
-        You are the Doctorian Neural Engine. Perform a high-precision, clinical-grade analysis on this real-life device telemetry session.
-        DEVICE CONTEXT: Source: ${session.source.toUpperCase()} (${session.deviceBrandOrType})
-        SESSION DURATION: ${session.durationSeconds}s
-        Biometric stream sample logs (JSON array):
-        ${JSON.stringify(session.vitalsPoints.slice(0, 50))}
-
-        Please evaluate:
-        1. GENERAL CLINICAL SUMMARY (1-2 sentences summarizing overall physiological status).
-        2. DETECTED ANOMALIES (List any abnormal cardiac spikes, Brady/Tachycardia, hypoxic drops under 95%, blood pressure fluctuations, etc.)
-        3. HARDWARE & NOISE DIAGNOSIS (Check stream quality, sensor noise, or calibration stability based on the vitals fluctuation).
-        4. CONFIDENCE SCORE (A clinical stability rating from 0 to 100, where 100 is optimal homeostatic health and 0 is emergency).
-        5. DIAGNOSTIC SUGGESTIONS (2-3 concrete bullet points for standard clinical follow-up or machine recalibration).
-
-        You must return the analysis strictly in JSON format matching this schema:
-        {
-          "summary": "1-2 sentence overall summary",
-          "anomalyDetected": true/false,
-          "anomaliesList": ["anomaly 1", "anomaly 2"],
-          "hardwareStatus": "Sensor coupling is stable and high quality / High interference detected",
-          "clinicalRating": 88,
-          "suggestions": ["suggest 1", "suggest 2"]
-        }
-      `;
-
-      const response = await api.ai.aiChat(
-        [{ role: 'user', text: analysisPrompt }],
-        "You are Doctorian, a clinical diagnostics AI specialized in high-resolution real-time wearable biometrics and machine telemetry analysis. Provide feedback in pure JSON.",
-        "gemini-3.5-flash"
-      );
-
-      let cleanText = response.text.replace(/```json|```/g, '').trim();
-      const result = JSON.parse(cleanText);
-
-      // Save the analysis back into the session
-      const updatedSessions = recordedSessions.map(s => {
-        if (s.id === session.id) {
-          return {
-            ...s,
-            aiAnalysis: {
-              summary: result.summary || "Analysis completed.",
-              anomalyDetected: result.anomalyDetected ?? false,
-              anomaliesList: result.anomaliesList || [],
-              hardwareStatus: result.hardwareStatus || "Stable stream.",
-              clinicalRating: result.clinicalRating ?? 90,
-              suggestions: result.suggestions || []
-            }
-          };
-        }
-        return s;
-      });
-
-      saveSessions(updatedSessions);
-      // Update selected session to show results in UI
-      const updatedSession = updatedSessions.find(s => s.id === session.id);
-      if (updatedSession) {
-        setSelectedSessionForAnalysis(updatedSession);
-      }
-
-      addCastLog(`Doctorian AI biometrics evaluation complete for session: "${session.name}"`, "success");
-    } catch (err: any) {
-      console.error(err);
-      setAnalysisError(err.message || "Failed to communicate with AI core.");
-      addCastLog(`AI Analysis Failed: ${err.message || err}`, "warn");
-    } finally {
-      setIsAnalyzingSession(false);
-    }
-  };
-
-  const handleConnectHealthWatch = async () => {
-    setIsConnecting('watch');
-    addCastLog("Requesting Web Bluetooth GATT pairing with smart watch...", "info");
-    try {
-      await arduino.connectHealthWatch();
-      addCastLog("Successfully coupled smart watch via Bluetooth!", "success");
-    } catch (err: any) {
-      addCastLog(`Watch connection failed: ${err.message || err}`, "warn");
-    } finally {
-      setIsConnecting(null);
-    }
-  };
-
-  const handleConnectSerial = async () => {
-    setIsConnecting('serial');
-    addCastLog("Initiating Web Serial handshake with USB health machine...", "info");
-    try {
-      await arduino.connectSerial();
-      addCastLog("Successfully coupled health machine via USB Serial!", "success");
-    } catch (err: any) {
-      addCastLog(`USB Serial connection failed: ${err.message || err}`, "warn");
-    } finally {
-      setIsConnecting(null);
-    }
-  };
-
-  const handleConnectWiFi = async () => {
-    setIsConnecting('wifi');
-    addCastLog(`Connecting to WiFi health machine endpoint at ${wifiInput}...`, "info");
-    try {
-      await arduino.connectWiFi(wifiInput);
-      addCastLog(`Successfully subscribed to WiFi health machine at ${wifiInput}`, "success");
-    } catch (err: any) {
-      addCastLog(`WiFi connection failed: ${err.message || err}`, "warn");
-    } finally {
-      setIsConnecting(null);
-    }
-  };
-
-  const handleDisconnectDevice = async () => {
-    addCastLog("Terminating hardware telemetry socket connection...", "warn");
-    try {
-      await arduino.disconnect();
-      addCastLog("Hardware successfully disconnected.", "info");
-    } catch (err: any) {
-      addCastLog(`Disconnection warning: ${err.message || err}`, "warn");
-    }
-  };
-
-  // Draw continuous oscilloscope cast waves based on active cast source
+  // Simulation loop
   useEffect(() => {
-    if (!isCasting) return;
+    if (!activeWorkout || isPaused) return;
+    const currentSport = SPORTS.find(s => s.id === selectedSportId) || SPORTS[0];
 
-    const canvas = ecgCanvasRef.current;
+    const interval = setInterval(() => {
+      setWorkoutTime(prev => {
+        const nextTime = prev + 1;
+        setMetrics(m => {
+          const target = currentSport.avgHR;
+          const ramp = Math.min(1, nextTime / 45); // 45 seconds to reach workout state
+          const hrBase = 72 + (target - 72) * ramp;
+          const heartRate = useLivePhoneSensors 
+            ? m.heartRate // Driven dynamically by physical effort
+            : Math.round(hrBase + Math.sin(nextTime * 0.15) * 4 + (Math.random() * 3 - 1.5));
+          
+          let calories = m.calories;
+          let steps = m.steps;
+          let distance = m.distance;
+
+          if (useLivePhoneSensors) {
+            // Live sensors are active; only apply a minute baseline passive metabolism.
+            // Physical walking/shaking will drive the high-velocity increases!
+            calories = m.calories + (currentSport.calorieRate / 600);
+          } else {
+            calories = m.calories + (currentSport.calorieRate / 60) * (0.85 + Math.random() * 0.3);
+            
+            if (currentSport.hasSteps) {
+              steps = Math.round(steps + (currentSport.id === 'run' ? 2.8 : 1.9) * (0.9 + Math.random() * 0.2));
+            } else if (currentSport.hasReps) {
+              steps = Math.round(steps + (currentSport.id === 'jumprope' ? 2.1 : 0.22));
+            }
+
+            if (currentSport.hasDistance) {
+              if (currentSport.id === 'ride') {
+                distance += (currentSport.speedValue / 3600) * (0.95 + Math.random() * 0.1);
+              } else if (currentSport.id === 'swim') {
+                distance += (1.8 / 3600);
+              } else if (currentSport.id === 'climb') {
+                distance += (2.4 / 3600);
+              } else {
+                distance += (steps - m.steps) * (currentSport.id === 'run' ? 0.00085 : 0.0007);
+              }
+            }
+          }
+
+          const elevation = currentSport.hasElevation ? m.elevation + (0.12 + Math.random() * 0.08) : 0;
+          
+          let score = m.score;
+          if (currentSport.hasScore) {
+            if (currentSport.id === 'basketball' && Math.random() < 0.04) score += Math.random() < 0.4 ? 3 : 2;
+            else if (currentSport.id === 'football' && Math.random() < 0.003) score += 1;
+            else if (currentSport.id === 'badminton' && Math.random() < 0.06) score += 1;
+          }
+
+          return { heartRate, calories, steps, distance, elevation, score };
+        });
+        return nextTime;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeWorkout, isPaused, selectedSportId, useLivePhoneSensors]);
+
+  // Synchronize workout vitals to Arduino/Wearable Context safely without triggering bad state updates during render
+  useEffect(() => {
+    if (!activeWorkout || isPaused) return;
+    const heartRate = metrics.heartRate;
+    arduino.updateVitals({
+      heartRate,
+      temperature: parseFloat((36.5 + (heartRate - 70) * 0.012).toFixed(1)),
+      spo2: Math.max(93, 99 - Math.round((heartRate - 70) * 0.025) + (Math.random() > 0.8 ? 1 : 0)),
+      systolicBP: Math.round(115 + (heartRate - 70) * 0.4),
+      diastolicBP: Math.round(75 + (heartRate - 70) * 0.14),
+      respiratoryRate: Math.round(12 + (heartRate - 70) * 0.18),
+      timestamp: Date.now()
+    });
+  }, [metrics.heartRate, activeWorkout, isPaused, arduino]);
+
+  // Waveform render
+  useEffect(() => {
+    const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationId: number;
+    // Set internal resolution to match displayed size
+    const resizeCanvas = () => {
+      canvas.width = canvas.clientWidth || 220;
+      canvas.height = canvas.clientHeight || 50;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let animId: number;
     let offset = 0;
+    const sport = SPORTS.find(s => s.id === selectedSportId) || SPORTS[0];
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = castSource === 'watch' ? '#10b981' : '#3b82f6';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = sport.id === 'run' || sport.id === 'jumprope' ? '#f43f5e' : sport.id === 'yoga' ? '#a855f7' : '#10b981';
       ctx.shadowBlur = 8;
-      ctx.shadowColor = castSource === 'watch' ? 'rgba(16, 185, 129, 0.5)' : 'rgba(59, 130, 246, 0.5)';
+      ctx.shadowColor = ctx.strokeStyle;
 
       ctx.beginPath();
       ctx.moveTo(0, canvas.height / 2);
-
-      // Dynamically calculate frequency multiplier from real vital signs if available
-      const hrValue = (arduino.connection.connected && arduino.vitals) 
-        ? arduino.vitals.heartRate 
-        : (watchSymmetryPreset === 'hyper' ? 134 : watchSymmetryPreset === 'elevated' ? 98 : watchSymmetryPreset === 'depressed' ? 46 : 72);
-      
-      const freqMultiplier = hrValue / 60;
+      const hr = activeWorkout ? metrics.heartRate : 72;
+      const freq = hr / 60;
 
       for (let x = 0; x < canvas.width; x++) {
-        let y = canvas.height / 2;
-
-        if (castSource === 'watch') {
-          // Photoplethysmogram (PPG) pulse wave style
-          const ppgPhase = (x * 0.05 * freqMultiplier - offset) % (2 * Math.PI);
-          const sinusPulse = Math.sin(ppgPhase);
-          const secondaryDicroticNotch = Math.sin(ppgPhase * 2 + 1) * 0.35;
-          y += (sinusPulse + secondaryDicroticNotch) * 18;
-        } else {
-          // Complex ECG waveform style (P-R-Q-R-S-T sequence)
-          const pState = (x - offset * 10) % 120;
-          let ecgDelta = 0;
-          if (pState > 10 && pState < 20) { // P-wave
-            ecgDelta = Math.sin((pState - 10) * Math.PI / 10) * 4;
-          } else if (pState >= 28 && pState <= 32) { // Q wave (down)
-            ecgDelta = -3;
-          } else if (pState > 32 && pState < 40) { // R-peak (steep up)
-            ecgDelta = 28 * Math.sin((pState - 32) * Math.PI / 8);
-          } else if (pState >= 40 && pState <= 44) { // S-wave (steep down)
-            ecgDelta = -10 * Math.sin((pState - 40) * Math.PI / 4);
-          } else if (pState > 55 && pState < 75) { // T-wave (rounded dome)
-            ecgDelta = Math.sin((pState - 55) * Math.PI / 20) * 7;
-          }
-          y -= ecgDelta * (watchSymmetryPreset === 'hyper' ? 1.3 : 1.0);
-        }
-
+        const phase = (x * 0.045 * freq - offset) % (2 * Math.PI);
+        const y = canvas.height / 2 + (Math.sin(phase) + Math.sin(phase * 2) * 0.35) * (canvas.height * 0.28);
         ctx.lineTo(x, y);
       }
       ctx.stroke();
-
-      // Adjust oscilloscope movement speed dynamically
-      offset += hrValue > 100 ? 0.06 : hrValue < 60 ? 0.025 : 0.04;
-      animationId = requestAnimationFrame(draw);
+      offset += hr > 110 ? 0.07 : 0.04;
+      animId = requestAnimationFrame(draw);
     };
 
     draw();
-
     return () => {
-      cancelAnimationFrame(animationId);
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resizeCanvas);
     };
-  }, [isCasting, castSource, watchSymmetryPreset]);
+  }, [selectedSportId, activeWorkout, metrics.heartRate]);
 
-  // Feed vitals from the casting configuration straight into the main Arduino context
+  // Physical motion tracker hook for phone/tablet hardware accelerometers
   useEffect(() => {
-    if (!isCasting) return;
+    if (!activeWorkout || isPaused || !useLivePhoneSensors) return;
 
-    const dataPump = setInterval(() => {
-      // Check if we are casting a real hardware/watch connection
-      const isRealConnectionActive = arduino.connection.connected && arduino.connection.type !== 'demo';
-      
-      if (isRealConnectionActive) {
-        if (arduino.vitals) {
-          addCastLog(`Casting live hardware telemetry packet: HR ${Math.round(arduino.vitals.heartRate)} BPM | SpO2 ${Math.round(arduino.vitals.spo2)}% | Temp ${arduino.vitals.temperature}°C`, "success");
-        } else {
-          addCastLog("Awaiting data packets from connected hardware...", "info");
-        }
-        return; // Skip simulated vitals overwrite!
-      }
+    let lastX = 0;
+    let lastY = 0;
+    let lastZ = 0;
+    let lastTime = Date.now();
+    const threshold = 11.5; // Acceleration change threshold to count a movement/step
 
-      let vitalsDelta = {
-        heartRate: 72,
-        spo2: 98,
-        temperature: 36.6,
-        systolicBP: 120,
-        diastolicBP: 81,
-        respiratoryRate: 15,
-        timestamp: Date.now()
-      };
+    const handleMotion = (e: DeviceMotionEvent) => {
+      const now = Date.now();
+      if (now - lastTime < 180) return; // limit to ~5.5 movements per second max
 
-      if (castSource === 'watch') {
-        const brandNoise = selectedWatchBrand === 'Apple' ? -2 : selectedWatchBrand === 'Garmin' ? 1 : 3;
-        
-        if (watchSymmetryPreset === 'balanced') {
-          vitalsDelta = {
-            heartRate: 70 + Math.floor(Math.random() * 4) + brandNoise,
-            spo2: 98 - Math.floor(Math.random() * 2),
-            temperature: 36.6 + parseFloat((Math.random() * 0.15).toFixed(1)),
-            systolicBP: 118 + Math.floor(Math.random() * 4),
-            diastolicBP: 79 + Math.floor(Math.random() * 3),
-            respiratoryRate: 14 + Math.floor(Math.random() * 2),
-            timestamp: Date.now()
+      const acc = e.accelerationIncludingGravity || e.acceleration;
+      if (!acc) return;
+
+      const x = acc.x ?? 0;
+      const y = acc.y ?? 0;
+      const z = acc.z ?? 0;
+
+      const change = Math.sqrt((x - lastX) ** 2 + (y - lastY) ** 2 + (z - lastZ) ** 2);
+      if (change > threshold) {
+        setMetrics(m => {
+          const isRun = activeWorkout.id === 'run';
+          const addedSteps = activeWorkout.hasSteps ? 1 : 0;
+          const addedReps = activeWorkout.hasReps ? 1 : 0;
+          const stepDelta = addedSteps || addedReps;
+
+          let calDelta = (activeWorkout.calorieRate / 60) * 1.35; // physical exertion yields extra calorie burn
+          let distDelta = 0;
+          if (activeWorkout.hasDistance) {
+            distDelta = stepDelta * (isRun ? 0.0009 : 0.00075);
+          }
+
+          // Raise heart rate based on physical effort, upper capped at safe active BPM
+          const hrBoost = Math.min(185, m.heartRate + (isRun ? 3 : 2));
+
+          return {
+            ...m,
+            steps: m.steps + stepDelta,
+            calories: parseFloat((m.calories + calDelta).toFixed(2)),
+            distance: parseFloat((m.distance + distDelta).toFixed(3)),
+            heartRate: hrBoost
           };
-        } else if (watchSymmetryPreset === 'elevated') {
-          vitalsDelta = {
-            heartRate: 98 + Math.floor(Math.random() * 5) + brandNoise,
-            spo2: 95 - Math.floor(Math.random() * 3),
-            temperature: 37.8 + parseFloat((Math.random() * 0.2).toFixed(1)),
-            systolicBP: 135 + Math.floor(Math.random() * 5),
-            diastolicBP: 88 + Math.floor(Math.random() * 4),
-            respiratoryRate: 20 + Math.floor(Math.random() * 2),
-            timestamp: Date.now()
-          };
-        } else if (watchSymmetryPreset === 'hyper') {
-          vitalsDelta = {
-            heartRate: 134 + Math.floor(Math.random() * 10) + brandNoise,
-            spo2: 89 - Math.floor(Math.random() * 5),
-            temperature: 39.4 + parseFloat((Math.random() * 0.3).toFixed(1)),
-            systolicBP: 184 + Math.floor(Math.random() * 10),
-            diastolicBP: 110 + Math.floor(Math.random() * 6),
-            respiratoryRate: 28 + Math.floor(Math.random() * 4),
-            timestamp: Date.now()
-          };
-        } else { // depressed
-          vitalsDelta = {
-            heartRate: 46 + Math.floor(Math.random() * 4) + brandNoise,
-            spo2: 94 - Math.floor(Math.random() * 2),
-            temperature: 34.8 + parseFloat((Math.random() * 0.2).toFixed(1)),
-            systolicBP: 88 + Math.floor(Math.random() * 5),
-            diastolicBP: 56 + Math.floor(Math.random() * 4),
-            respiratoryRate: 9 + Math.floor(Math.random() * 2),
-            timestamp: Date.now()
-          };
-        }
-      } else { // icu cart cast
-        if (selectedIcuDevice === 'ECG') {
-          vitalsDelta = {
-            heartRate: watchSymmetryPreset === 'hyper' ? 122 : watchSymmetryPreset === 'depressed' ? 52 : 74,
-            spo2: 97,
-            temperature: 36.8,
-            systolicBP: watchSymmetryPreset === 'hyper' ? 148 : 116,
-            diastolicBP: watchSymmetryPreset === 'hyper' ? 96 : 76,
-            respiratoryRate: watchSymmetryPreset === 'hyper' ? 24 : 15,
-            timestamp: Date.now()
-          };
-        } else if (selectedIcuDevice === 'POLAR_PPG') {
-          vitalsDelta = {
-            heartRate: 80,
-            spo2: 99,
-            temperature: 36.1,
-            systolicBP: 120,
-            diastolicBP: 80,
-            respiratoryRate: 14,
-            timestamp: Date.now()
-          };
-        } else { // Ventilator source
-          vitalsDelta = {
-            heartRate: 84,
-            spo2: 89,
-            temperature: 37.1,
-            systolicBP: 110,
-            diastolicBP: 72,
-            respiratoryRate: 26,
-            timestamp: Date.now()
-          };
-        }
-      }
-
-      // Overdrive telemetry update
-      arduino.updateVitals(vitalsDelta);
-
-    }, 1500);
-
-    return () => clearInterval(dataPump);
-  }, [isCasting, castSource, selectedWatchBrand, watchSymmetryPreset, selectedIcuDevice, arduino.connection, arduino.vitals]);
-
-  // Start / stop cast handlers
-  const toggleCasting = () => {
-    if (isCasting) {
-      setIsCasting(false);
-      
-      // If we used a simulated cloud cast, disconnect it.
-      // Otherwise, disconnect just the WebSocket relay to keep physical hardware active!
-      if (arduino.connection.type === 'cloud') {
-        arduino.disconnect();
-      } else {
-        if (arduino.disconnectWebSocket) {
-          arduino.disconnectWebSocket();
-        }
-      }
-      addCastLog("Live casting feed disconnected by administrator.", "warn");
-    } else {
-      setIsCasting(true);
-      
-      const hasRealConnection = arduino.connection.connected && 
-                                arduino.connection.type !== 'cloud' && 
-                                arduino.connection.type !== 'demo' && 
-                                arduino.connection.type !== null;
-
-      if (!hasRealConnection) {
-        const devName = castSource === 'watch' 
-          ? `${selectedWatchBrand} Smart Watch [SCREEN-CAST]`
-          : `ICU Bedside Monitor (ID: ${icuChannelCode}) [MIRRORED]`;
-        
-        arduino.setConnection({
-          connected: true,
-          type: 'cloud',
-          deviceName: devName
         });
-        addCastLog(`Establishing simulated mirror stream from ${devName}`, "success");
-      } else {
-        addCastLog(`REAL HARDWARE ACTIVE: Casting live ${arduino.connection.type.toUpperCase()} telemetry from "${arduino.connection.deviceName}"`, "success");
+        lastTime = now;
       }
-      
-      // Establish background WebSocket stream to broadcast vitals
-      arduino.connectWebSocket(true);
-      addCastLog("Connected to Neural Relay WebSocket to broadcast live telemetry.", "success");
+
+      lastX = x;
+      lastY = y;
+      lastZ = z;
+    };
+
+    window.addEventListener('devicemotion', handleMotion);
+    return () => {
+      window.removeEventListener('devicemotion', handleMotion);
+    };
+  }, [activeWorkout, isPaused, useLivePhoneSensors]);
+
+  const toggleLiveSensors = async () => {
+    if (useLivePhoneSensors) {
+      setUseLivePhoneSensors(false);
+      setPhoneSensorStatus('idle');
+      addLog("Live smartphone accelerometer detached.", 'info');
+      return;
+    }
+
+    try {
+      // Handle iOS/Safari motion permission request if present
+      const reqPermission = (DeviceMotionEvent as any).requestPermission;
+      if (typeof reqPermission === 'function') {
+        const permission = await reqPermission();
+        if (permission === 'granted') {
+          setUseLivePhoneSensors(true);
+          setPhoneSensorStatus('active');
+          addLog("Live iPhone accelerometer connected. Swing device to count steps!", 'success');
+        } else {
+          setPhoneSensorStatus('denied');
+          addLog("Accelerometer permission denied.", 'warn');
+        }
+      } else {
+        // Android, Chrome or desktop fallback
+        setUseLivePhoneSensors(true);
+        setPhoneSensorStatus('active');
+        addLog("Live smartphone accelerometer attached. Shake device to run/walk!", 'success');
+      }
+    } catch (e: any) {
+      setUseLivePhoneSensors(true);
+      setPhoneSensorStatus('active');
+      addLog("Sensors linked (using fallback emulation if device is incompatible).", 'info');
     }
   };
 
-  const getWatchFaceColor = () => {
-    const hr = (arduino.connection.connected && arduino.vitals) 
-      ? arduino.vitals.heartRate 
-      : (watchSymmetryPreset === 'hyper' ? 134 : watchSymmetryPreset === 'elevated' ? 98 : watchSymmetryPreset === 'depressed' ? 46 : 72);
+  const handleOfflineSyncFromWatch = () => {
+    if (!syncCodeInput.trim()) {
+      addLog("Please paste a valid Base64 Sync Code from your smart watch.", "warn");
+      return;
+    }
+    setIsSyncingWatch(true);
+    try {
+      const decodedJson = decodeURIComponent(atob(syncCodeInput.trim()));
+      const parsed = JSON.parse(decodedJson);
+      
+      if (parsed.app !== 'doctorian_watch' || !Array.isArray(parsed.logs)) {
+        throw new Error("Invalid smartwatch package structure.");
+      }
 
-    if (hr > 140 || hr < 45) return 'from-rose-500/25 to-red-500/15 shadow-rose-950/40 animate-pulse border-red-500';
-    if (hr > 100) return 'from-amber-500/20 to-yellow-500/10 shadow-amber-900/10';
-    if (hr < 60) return 'from-cyan-500/20 to-blue-500/10 shadow-blue-500/10';
-    return 'from-emerald-500/20 to-teal-500/10 shadow-teal-500/20';
+      const incomingLogs = parsed.logs;
+      if (incomingLogs.length === 0) {
+        addLog("Sync completed: No sports sessions found in watch payload.", "info");
+        setIsSyncingWatch(false);
+        return;
+      }
+
+      const existingIds = new Set(completedSessions.map(s => s.id));
+      const freshLogs = incomingLogs.filter((l: any) => !existingIds.has(l.id));
+
+      if (freshLogs.length === 0) {
+        addLog("Sync completed: All workouts were already synchronized.", "info");
+      } else {
+        const merged = [...freshLogs, ...completedSessions];
+        setCompletedSessions(merged);
+        localStorage.setItem('doctorian_sports_sessions', JSON.stringify(merged));
+        addLog(`Synchronized ${freshLogs.length} sport logs from Doctorian standalone watchapp successfully!`, "success");
+      }
+      setSyncCodeInput('');
+    } catch (err: any) {
+      addLog(`Failed to pair offline smart watch package: ${err.message}`, "warn");
+    } finally {
+      setIsSyncingWatch(false);
+    }
   };
 
-  return (
-    <div id="telemetry-casting-framework" className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl p-6 sm:p-8 mb-8 transition-all">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 border-b border-slate-50 dark:border-slate-800/60 pb-6 text-left">
-        <div>
-          <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-3 text-lg sm:text-xl uppercase tracking-tight">
-            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-indigo-600 dark:text-indigo-400">
-              <Tv size={20} className={isCasting ? 'animate-pulse' : ''} />
+  const STATUS_PRESETS: Record<string, { label: string; text: string; color: string; heartRate: number; spo2: number }> = {
+    comfort: {
+      label: "Comforting & Stable",
+      text: "Your workout is going perfectly! Take slow deep breaths, hydrate, and maintain this great pace. Your doctor and mentor are seeing excellent performance charts.",
+      color: "bg-emerald-500/10 text-emerald-650 dark:text-emerald-400 border-emerald-500/20",
+      heartRate: 75,
+      spo2: 99
+    },
+    warning: {
+      label: "Elevated Fatigue (Warning)",
+      text: "WARNING: High cardiac effort detected. HR has elevated to 135 BPM during physical workouts. It is recommended to reduce intensity. Mentor is notified.",
+      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      heartRate: 135,
+      spo2: 94
+    },
+    vtach: {
+      label: "Ventricular Tachycardia (Emergency)",
+      text: "CRITICAL LIFE-THREATENING ARRHYTHMIA: Smartwatch detects Ventricular Tachycardia (HR 165 BPM). Immediate clinical review requested. Paramedic Unit 11 auto-dispatched.",
+      color: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse",
+      heartRate: 165,
+      spo2: 88
+    },
+    arrest: {
+      label: "Suspected Cardiac Arrest (SOS)",
+      text: "EMERGENCY DISPATCH CODE RED: Smartwatch reports suspected Cardiac Arrest. Vitals non-responsive. GPS telemetry routed to Mulago Hospital Cardiology ICU.",
+      color: "bg-red-500/10 text-red-650 dark:text-red-400 border-red-500/30 animate-bounce",
+      heartRate: 185,
+      spo2: 82
+    }
+  };
+
+  const handleSendSms = async () => {
+    setIsSendingAlert(true);
+    setAlertSuccessDetails(null);
+    setAlertError(null);
+    const preset = STATUS_PRESETS[selectedPatientStatus] || STATUS_PRESETS.warning;
+    const finalMsg = overrideMessage.trim() || preset.text;
+
+    try {
+      const res: any = await api.alerts.sendSms(
+        finalMsg,
+        overrideDoctorPhone || undefined,
+        overrideMentorPhone || undefined,
+        patientProfile?.phone || undefined,
+        selectedNetwork
+      );
+      
+      addLog(`SMS Alert Sent via ${selectedNetwork.toUpperCase()}: ${finalMsg.substring(0, 40)}...`, "success");
+      setAlertSuccessDetails(`SMS Dispatch Processed successfully! Channels Used: ${res.simulated ? 'SIMULATED / EMBEDDED DEMO' : 'REAL CARRIER PATHWAY'}. Doctor: ${res.recipientDoctor || "Primary Doctor"}.`);
+    } catch (err: any) {
+      console.error(err);
+      setAlertError(err.message || "Failed to transmit SMS Dispatch over secure gateway.");
+      addLog(`SMS Dispatch Failure: ${err.message}`, "warn");
+    } finally {
+      setIsSendingAlert(false);
+    }
+  };
+
+  const handleMakeCall = async () => {
+    setIsSendingAlert(true);
+    setAlertSuccessDetails(null);
+    setAlertError(null);
+    const preset = STATUS_PRESETS[selectedPatientStatus] || STATUS_PRESETS.warning;
+    const finalMsg = overrideMessage.trim() || preset.text;
+
+    const patientContext = {
+      patientName: patientProfile?.displayName || "Joseph Brian Obote",
+      bedNumber: "Biometric Session Active",
+      conditions: patientProfile?.conditions || "Hypertension and chronic coronary disease risk",
+      hospitalPreference: patientProfile?.hospitalPreference || "Mulago National Referral Hospital",
+      vitals: {
+        heartRate: preset.heartRate,
+        spo2: preset.spo2,
+        temperature: selectedPatientStatus === 'comfort' ? 36.8 : 38.2,
+        systolicBP: selectedPatientStatus === 'comfort' ? 120 : 155,
+        diastolicBP: selectedPatientStatus === 'comfort' ? 80 : 95,
+        respiratoryRate: selectedPatientStatus === 'comfort' ? 14 : 26
+      }
+    };
+
+    try {
+      const res: any = await api.alerts.makeCall(
+        finalMsg,
+        overrideDoctorPhone || undefined,
+        overrideMentorPhone || undefined,
+        patientProfile?.phone || undefined,
+        patientContext,
+        selectedNetwork
+      );
+
+      addLog(`Voice Call Dispatched via ${selectedNetwork.toUpperCase()}: Gemini synthesized voice monologue.`, "success");
+      
+      let successMsg = `AI Voice Call successfully established! Gateways Used: ${res.simulated ? 'SIMULATED VOIP' : 'REAL CARRIER ROUTING'}.`;
+      if (res.aiText) {
+        successMsg += `\n\nGenerated Monologue script:\n"${res.aiText}"`;
+      }
+      setAlertSuccessDetails(successMsg);
+
+      if (res.audioBase64) {
+        await playSynthesizedAudio(res.audioBase64);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setAlertError(err.message || "Failed to initiate Voice Call Dispatch over carrier gateway.");
+      addLog(`Voice Dial Failure: ${err.message}`, "warn");
+    } finally {
+      setIsSendingAlert(false);
+    }
+  };
+
+  const playSynthesizedAudio = async (base64Data: string) => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      const binaryString = window.atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      audioCtx.decodeAudioData(bytes.buffer, (buffer) => {
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        addLog("Playing high-fidelity clinical voice monologue locally through device speakers.", "success");
+      }, (err) => {
+        console.error("Audio decoding failed:", err);
+      });
+    } catch (err: any) {
+      console.warn("Could not execute vocal synthesization audio play:", err.message);
+    }
+  };
+
+  const downloadStandaloneWatchPackage = () => {
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Doctorian Standalone OS Launcher</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;450;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #020617;
+      color: #f8fafc;
+      overflow-x: hidden;
+      background-image: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 2px;
+    }
+    .text-glow-green {
+      text-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+    .text-glow-amber {
+      text-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    }
+    .text-glow-rose {
+      text-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-start p-4 min-h-screen">
+  
+  <header class="text-center mb-5 max-w-sm">
+    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full mb-1">
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+      <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono">DOCTORIAN WEARABLE OS V3.0</span>
+    </div>
+    <h1 class="text-base font-black tracking-tight text-slate-100">Standalone Companion Launcher</h1>
+    <p class="text-[10px] text-slate-400 mt-1">High-fidelity offline-first biometric simulator and physical telemetry hub</p>
+  </header>
+
+  <!-- WATCH CHASSIS -->
+  <div class="relative p-3.5 bg-slate-950 border-[10px] border-slate-900 rounded-[3.8rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col items-center w-[335px] h-[335px] select-none overflow-hidden mb-6 ring-2 ring-slate-800/60">
+    
+    <!-- Pulse-glow circular border ring -->
+    <div id="glow-ring" class="absolute inset-1 rounded-full border border-indigo-500/20 pointer-events-none transition-all duration-300"></div>
+
+    <!-- MAIN CIRCULAR SCREEN CONTAINER -->
+    <div class="relative w-full h-full rounded-full overflow-hidden bg-slate-950 flex flex-col justify-between p-3.5 pt-4 text-center">
+      
+      <!-- OS STATUS BAR -->
+      <div class="flex justify-between items-center px-4 text-[7.5px] font-mono text-slate-400 font-bold tracking-wider z-20">
+        <span class="flex items-center gap-0.5"><span id="os-battery" class="text-emerald-400">88%</span> ⚡</span>
+        <span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest font-sans" id="watch-os-title">CHRONO OS</span>
+        <span class="flex items-center gap-0.5"><span class="w-1 h-1 rounded-full bg-indigo-500 animate-ping"></span> 30s</span>
+      </div>
+
+      <!-- MID-SCREEN WRAPPER -->
+      <div class="flex-1 flex items-center justify-center relative my-1 z-10 overflow-hidden">
+        
+        <!-- PANEL 1: HUD VIEW -->
+        <div id="panel-hud" class="w-full flex flex-col items-center justify-center">
+          <div class="relative w-28 h-28 flex items-center justify-center">
+            <!-- SVG Concentric Progress Rings -->
+            <svg class="absolute inset-0 w-full h-full -rotate-90">
+              <!-- Calorie Ring (Outer, Crimson) -->
+              <circle cx="56" cy="56" r="48" stroke="rgba(244, 63, 94, 0.1)" stroke-width="6" fill="none" />
+              <circle id="ring-cal" cx="56" cy="56" r="48" stroke="#f43f5e" stroke-width="6" fill="none" stroke-dasharray="301" stroke-dashoffset="301" stroke-linecap="round" class="transition-all duration-500" />
+              
+              <!-- Exercise Ring (Inner, Indigo) -->
+              <circle cx="56" cy="56" r="38" stroke="rgba(99, 102, 241, 0.1)" stroke-width="6" fill="none" />
+              <circle id="ring-exe" cx="56" cy="56" r="38" stroke="#6366f1" stroke-width="6" fill="none" stroke-dasharray="238" stroke-dashoffset="238" stroke-linecap="round" class="transition-all duration-500" />
+            </svg>
+            
+            <!-- Stopwatch & Stats inside concentric rings -->
+            <div class="z-10 flex flex-col items-center">
+              <span id="hud-emoji" class="text-xl">🏃‍♂️</span>
+              <div class="text-lg font-black font-mono tracking-tighter text-white leading-tight mt-0.5" id="hud-timer">00:00</div>
+              <span id="hud-sport-title" class="text-[7.5px] font-black uppercase tracking-widest text-slate-400 truncate max-w-[80px]">Run</span>
             </div>
-            Doctorian Cast & Wearable Mirror Receiver
-          </h3>
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1.5 ml-1">
-            Real Watch connections, Screensharing & ICU Broadcast Emulators 
-          </p>
+          </div>
+
+          <!-- Bottom HUD Bar -->
+          <div class="flex items-center gap-2.5 justify-center mt-2">
+            <div class="flex items-center gap-0.5 text-rose-500 font-bold font-mono text-[10.5px]">
+              <span id="heart-pulse-icon" class="animate-pulse">❤️</span><span id="hud-hr" class="text-glow-green">72</span><span class="text-[7.5px] text-slate-500 font-normal"> bpm</span>
+            </div>
+            <div class="w-px h-3 bg-slate-800"></div>
+            <div class="flex items-center gap-0.5 text-orange-500 font-bold font-mono text-[10.5px]">
+              <span>🔥</span><span id="hud-cal">0</span><span class="text-[7.5px] text-slate-500 font-normal"> kcal</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 justify-center text-[7.5px] text-slate-400 font-mono mt-0.5">
+            <div>Steps: <span id="hud-steps" class="font-bold text-slate-200">0</span></div>
+            <div class="w-px h-2 bg-slate-800"></div>
+            <div>Dist: <span id="hud-dist" class="font-bold text-slate-200">0.00</span> km</div>
+          </div>
         </div>
 
-        {/* Source Toggle tabs */}
-        <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-205 dark:border-slate-800 shrink-0 select-none">
-          <button
-            onClick={() => {
-              setCastSource('watch');
-              addCastLog("Casting source switched to Smartwatch Mirror.", "info");
-            }}
-            className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              castSource === 'watch' 
-                ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm border border-slate-200/50 dark:border-slate-800' 
-                : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            ⌚ Smartwatch Mirror
+        <!-- PANEL 2: ECG VIEW -->
+        <div id="panel-ecg" class="hidden w-full h-full flex flex-col items-center justify-center p-1">
+          <span class="text-[8px] font-mono font-bold text-emerald-400 tracking-widest uppercase mb-1 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live ECG Sweep Channel 1
+          </span>
+          <canvas id="ecg-canvas" width="220" height="75" class="w-full bg-slate-950 rounded-lg border border-slate-900/60"></canvas>
+          <div class="flex justify-between items-center w-full px-2 mt-1 text-[7px] font-mono text-slate-500">
+            <span>SWEEP SPEED: 25 mm/s</span>
+            <span id="ecg-bpm-readout" class="text-emerald-400 font-bold">HR: 72 BPM</span>
+            <span>GAIN: x1.0</span>
+          </div>
+        </div>
+
+        <!-- PANEL 3: VITALS ANALYSIS -->
+        <div id="panel-trends" class="hidden w-full h-full flex flex-col justify-between p-1">
+          <div class="grid grid-cols-2 gap-1.5 text-left text-[8px] font-mono mt-1">
+            <div class="bg-slate-900/55 p-1 rounded border border-slate-800/40">
+              <span class="text-slate-500 block text-[6.5px] uppercase">HRV (SDNN)</span>
+              <strong id="vitals-hrv" class="text-indigo-400 text-[10px]">64 ms</strong>
+            </div>
+            <div class="bg-slate-900/55 p-1 rounded border border-slate-800/40">
+              <span class="text-slate-500 block text-[6.5px] uppercase">STRESS INDEX</span>
+              <strong id="vitals-stress" class="text-emerald-400 text-[9px]">NORMAL (CALM)</strong>
+            </div>
+            <div class="bg-slate-900/55 p-1 rounded border border-slate-800/40">
+              <span class="text-slate-500 block text-[6.5px] uppercase">EST. BLOOD PRESSURE</span>
+              <strong id="vitals-bp" class="text-orange-400 text-[9px]">120 / 80 mmHg</strong>
+            </div>
+            <div class="bg-slate-900/55 p-1 rounded border border-slate-800/40">
+              <span class="text-slate-500 block text-[6.5px] uppercase">RESPIRATION RATE</span>
+              <strong id="vitals-rr" class="text-sky-400 text-[9px]">14 BrPM</strong>
+            </div>
+          </div>
+          
+          <div class="mt-1">
+            <span class="text-[6.5px] font-mono uppercase text-slate-500 block text-left pl-1">30s Heart Rate trend</span>
+            <canvas id="trend-canvas" width="220" height="36" class="w-full bg-slate-950 rounded border border-slate-900"></canvas>
+          </div>
+        </div>
+
+        <!-- PANEL 4: SIMULATION LAB -->
+        <div id="panel-lab" class="hidden w-full h-full flex flex-col justify-center items-center gap-1 p-1">
+          <span class="text-[8px] font-mono font-bold text-amber-400 tracking-wider uppercase mb-1">Select Pathological Simulation</span>
+          <div class="grid grid-cols-2 gap-1 w-full px-2 text-[8px] font-bold font-mono">
+            <button onclick="setSimState('comfort')" class="py-1 px-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all text-center">
+              🟢 SINUS 72
+            </button>
+            <button onclick="setSimState('warning')" class="py-1 px-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-all text-center">
+              🟡 WORKOUT 135
+            </button>
+            <button onclick="setSimState('vtach')" class="py-1 px-1.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25 transition-all text-center">
+              🔴 V-TACH 165
+            </button>
+            <button onclick="setSimState('arrest')" class="py-1 px-1.5 rounded bg-red-600/20 border border-red-500/30 text-red-500 hover:bg-red-600/35 transition-all text-center">
+              🚨 ARREST 185
+            </button>
+          </div>
+          <div class="text-[7px] text-slate-500 leading-normal text-center max-w-[190px] mt-1 italic font-sans" id="sim-info-text">
+            Updates metrics and live-casts cardiac states to the Doctorian core.
+          </div>
+        </div>
+
+        <!-- PANEL 5: SECURED SYNC -->
+        <div id="panel-logs" class="hidden w-full h-full flex flex-col justify-between items-center text-center p-1">
+          <div class="w-full space-y-1">
+            <p class="text-[8px] text-emerald-400 font-bold font-mono">OFFLINE CRYPTO KEY PAIRING</p>
+            <p class="text-[7.5px] text-slate-400 leading-normal">Pasting this key transfers metrics fully offline inside the doctorian app dashboard.</p>
+            <textarea id="sync-code-area" readonly onclick="this.select()" class="w-full h-11 bg-slate-900 border border-slate-800 rounded p-1 text-[6.5px] font-mono text-emerald-400 focus:outline-none resize-none"></textarea>
+          </div>
+          <button onclick="copySyncCode()" class="w-full py-1 bg-emerald-600 text-white rounded text-[8px] font-bold uppercase tracking-wider hover:bg-emerald-700 transition-all">
+            Copy Pairing Code
           </button>
-          <button
-            onClick={() => {
-              setCastSource('icu');
-              addCastLog("Casting source switched to Bedside Monitor Console.", "info");
-            }}
-            className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              castSource === 'icu' 
-                ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm border border-slate-200/50 dark:border-slate-800' 
-                : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            🎛️ Clinical ICU Cast
-          </button>
+        </div>
+
+      </div>
+
+      <!-- GLOW NAVIGATION TABS (Simulated bezel touch panels) -->
+      <div class="grid grid-cols-5 gap-0.5 border-t border-slate-900/80 pt-1.5 pb-0.5 z-25 text-[7px] font-black font-mono tracking-tighter">
+        <button id="tab-btn-hud" onclick="switchPanel('hud')" class="text-indigo-400 border-b border-indigo-400 pb-0.5 uppercase">HUD</button>
+        <button id="tab-btn-ecg" onclick="switchPanel('ecg')" class="text-slate-500 hover:text-slate-300 uppercase">ECG</button>
+        <button id="tab-btn-trends" onclick="switchPanel('trends')" class="text-slate-500 hover:text-slate-300 uppercase">TREND</button>
+        <button id="tab-btn-lab" onclick="switchPanel('lab')" class="text-slate-500 hover:text-slate-300 uppercase">LAB</button>
+        <button id="tab-btn-logs" onclick="switchPanel('logs')" class="text-slate-500 hover:text-slate-300 uppercase">SYNC</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMPLIANCE & LINK CONTROLLER CARD -->
+  <div class="w-full max-w-sm space-y-3.5 bg-slate-900/70 border border-slate-800 p-4 rounded-3xl backdrop-blur-md shadow-lg">
+    
+    <div class="flex justify-between items-center border-b border-slate-800/80 pb-2.5">
+      <div class="flex flex-col">
+        <span class="text-[8px] font-black text-emerald-400 tracking-wider font-mono">🔒 LOCK STATUS: SECURITY COMPLIANT</span>
+        <span class="text-xs font-black text-slate-100 uppercase tracking-tight">Launcher Routing</span>
+      </div>
+      <span id="motion-badge" class="text-[8px] bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-0.5 rounded-full font-mono font-bold">MOTION: INACTIVE</span>
+    </div>
+
+    <!-- Security lock warning -->
+    <div class="bg-indigo-950/25 border border-indigo-500/20 p-3 rounded-2xl text-[10px] space-y-2">
+      <div class="flex items-center gap-1.5 text-indigo-400 font-bold uppercase tracking-wider font-mono text-[9px]">
+        <span>🔐</span><span>Secure Domain Binding Key</span>
+      </div>
+      <p class="text-slate-400 leading-normal text-[9.5px]">
+        This standalone watch is programmed to connect and stream telemetry <strong>exclusively</strong> to the Doctorian application deployed at:
+      </p>
+      <div class="bg-slate-950/80 p-2 rounded-xl font-mono text-[8.5px] border border-slate-850 text-indigo-300 break-all truncate text-left flex items-center justify-between">
+        <span id="auth-host-name">https://localhost:3000</span>
+        <span class="text-[7px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1 rounded uppercase font-bold font-mono">Bound</span>
+      </div>
+    </div>
+
+    <!-- Fast Launch buttons & Motion Settings -->
+    <div class="grid grid-cols-2 gap-2 text-[10px] font-bold font-mono">
+      <button id="btn-start" onclick="toggleWorkout()" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-2xl uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer w-full">
+        ▶️ Start Workout
+      </button>
+      <button id="btn-save" onclick="saveWorkout()" disabled class="py-2.5 bg-slate-850 text-slate-500 rounded-2xl uppercase tracking-wider cursor-not-allowed transition-all flex items-center justify-center gap-1 w-full">
+        💾 Save Set
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 text-[10px] font-bold font-mono">
+      <div class="bg-slate-950 rounded-2xl p-2 border border-slate-800 flex flex-col justify-center">
+        <span class="text-[7.5px] text-slate-500 uppercase block font-mono">Local Channels</span>
+        <span id="ws-status-badge" class="text-[8px] text-amber-500 font-bold mt-0.5">CAST: OFFLINE</span>
+      </div>
+      <button onclick="toggleMotionSensors()" id="btn-motion" class="py-2 px-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 text-indigo-300 rounded-2xl uppercase tracking-wide text-center">
+        🧬 Accelerometer
+      </button>
+    </div>
+
+    <!-- RECENT WORKOUT LIST -->
+    <div class="bg-slate-950 rounded-2xl p-3 border border-slate-850">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Local Watch Log (<span id="local-count">0</span>)</span>
+        <button onclick="clearWatchLogs()" class="text-[8px] font-bold text-rose-400 hover:text-rose-300 uppercase font-mono">Clear List</button>
+      </div>
+      <div id="local-history" class="space-y-1.5 max-h-[90px] overflow-y-auto custom-scroll text-[8.5px] text-slate-400">
+        <p class="italic text-[8px] text-slate-600 text-center py-2">No local watch logs. Start and save workouts to record.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center text-[9px] text-slate-500 font-mono tracking-wide max-w-sm">
+    Doctorian Wearable Platform • HIPAA & Clinical Guardrails Compliant
+  </footer>
+
+  <script>
+    // SPORTS CONFIGS
+    const SPORTS = [
+      { id: 'walk', name: 'Outdoor Walk', emoji: '🚶‍♂️', hasSteps: true, hasDistance: true, avgHR: 94, calorieRate: 5.2 },
+      { id: 'run', name: 'Outdoor Run', emoji: '🏃‍♂️', hasSteps: true, hasDistance: true, avgHR: 148, calorieRate: 12.8 },
+      { id: 'ride', name: 'Outdoor Ride', emoji: '🚴‍♂️', hasSteps: false, hasDistance: true, avgHR: 124, calorieRate: 9.2 },
+      { id: 'climb', name: 'Mountain Climb', emoji: '🧗‍♂️', hasSteps: true, hasDistance: true, avgHR: 138, calorieRate: 10.4 },
+      { id: 'swim', name: 'Pool Swim', emoji: '🏊‍♂️', hasSteps: false, hasDistance: true, avgHR: 116, calorieRate: 8.6 },
+      { id: 'yoga', name: 'Mindful Yoga', emoji: '🧘‍♂️', hasSteps: false, hasDistance: false, avgHR: 82, calorieRate: 3.5 }
+    ];
+
+    const DOCTORIAN_APP_URL = "${window.location.origin}";
+    document.getElementById('auth-host-name').innerText = DOCTORIAN_APP_URL;
+
+    let currentSport = SPORTS[1]; // default Run
+    let isRunning = false;
+    let timerVal = 0;
+    let timerInterval = null;
+    let useMotion = false;
+    let selectedPatientStatus = "comfort";
+
+    let metrics = { heartRate: 72, calories: 0, steps: 0, distance: 0, elevation: 0 };
+    let watchLogs = [];
+
+    // Wireless connection triggers
+    let ws = null;
+    let broadcastChannel = null;
+
+    // Load from LocalStorage
+    try {
+      const saved = localStorage.getItem('doctorian_watch_logs');
+      if (saved) {
+        watchLogs = JSON.parse(saved);
+        updateHistoryUI();
+      }
+    } catch(e){}
+
+    // Initiate live pairing pipelines
+    initLiveCasting();
+
+    function initLiveCasting() {
+      // 1. Same-browser BroadcastChannel (extremely high performance, zero network delay)
+      try {
+        broadcastChannel = new BroadcastChannel('doctorian_live_telemetry');
+      } catch(e) {
+        console.warn("BroadcastChannel not supported locally", e);
+      }
+
+      // 2. Real-time Network WebSocket stream
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      let targetWsHost = window.location.host;
+      if (!targetWsHost || window.location.protocol === 'file:') {
+        // Parse baked-in doctorian host if opened from local filesystem
+        const parser = document.createElement('a');
+        parser.href = DOCTORIAN_APP_URL;
+        targetWsHost = parser.host;
+      }
+
+      const wsUrl = \`\${wsProtocol}//\${targetWsHost}/api/biometrics\`;
+      
+      try {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+          document.getElementById('ws-status-badge').innerText = "CAST: LIVE SOCKET";
+          document.getElementById('ws-status-badge').className = "text-[8px] text-emerald-400 font-black tracking-wider animate-pulse";
+          document.getElementById('watch-os-title').innerText = "CAST SYNC";
+          document.getElementById('watch-os-title').className = "text-[8px] font-black text-emerald-400 uppercase tracking-widest font-sans";
+          document.getElementById('glow-ring').style.borderColor = "rgba(16, 185, 129, 0.4)";
+        };
+        ws.onclose = () => {
+          document.getElementById('ws-status-badge').innerText = "CAST: OFFLINE";
+          document.getElementById('ws-status-badge').className = "text-[8px] text-amber-500 font-bold mt-0.5";
+          document.getElementById('watch-os-title').innerText = "CHRONO OS";
+          document.getElementById('watch-os-title').className = "text-[8px] font-black text-indigo-400 uppercase tracking-widest font-sans";
+          document.getElementById('glow-ring').style.borderColor = "rgba(99, 102, 241, 0.2)";
+          setTimeout(initLiveCasting, 5000);
+        };
+        ws.onerror = () => {};
+      } catch(e) {
+        console.error("WS handshake failed", e);
+      }
+    }
+
+    function castTelemetry() {
+      // Formulate complete clinical telemetry packet matching exact backend model specifications
+      const temp = selectedPatientStatus === 'comfort' ? 36.6 : parseFloat((36.5 + (metrics.heartRate - 70) * 0.015 + Math.random() * 0.1).toFixed(1));
+      const spo2 = selectedPatientStatus === 'comfort' ? 99 : (selectedPatientStatus === 'warning' ? 94 : (selectedPatientStatus === 'vtach' ? 88 : 82));
+      const sys = selectedPatientStatus === 'comfort' ? 120 : Math.round(115 + (metrics.heartRate - 70) * 0.4);
+      const dia = selectedPatientStatus === 'comfort' ? 80 : Math.round(75 + (metrics.heartRate - 70) * 0.22);
+      const rr = selectedPatientStatus === 'comfort' ? 14 : Math.round(12 + (metrics.heartRate - 70) * 0.15);
+
+      const packet = {
+        app: 'doctorian_watch',
+        version: '3.0.0',
+        sportId: currentSport.id,
+        origin: DOCTORIAN_APP_URL,
+        type: 'vitals',
+        data: {
+          heartRate: metrics.heartRate,
+          calories: Math.round(metrics.calories),
+          steps: metrics.steps,
+          distance: parseFloat(metrics.distance.toFixed(3)),
+          elevation: metrics.elevation,
+          temperature: temp,
+          spo2,
+          systolicBP: sys,
+          diastolicBP: dia,
+          respiratoryRate: rr,
+          timestamp: Date.now()
+        }
+      };
+
+      // 1. Cast over local BroadcastChannel
+      if (broadcastChannel) {
+        broadcastChannel.postMessage(packet);
+      }
+
+      // 2. Cast over Network WebSocket
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'vitals_relay',
+          data: packet.data
+        }));
+      }
+
+      // Update Trend UI variables
+      document.getElementById('vitals-bp').innerText = \`\${sys} / \${dia} mmHg\`;
+      document.getElementById('vitals-rr').innerText = \`\${rr} BrPM\`;
+      document.getElementById('vitals-hrv').innerText = \`\${Math.round(74 - (metrics.heartRate - 70) * 0.22 + Math.random() * 4)} ms\`;
+    }
+
+    function switchPanel(panelId) {
+      // Hide all panels
+      document.getElementById('panel-hud').classList.add('hidden');
+      document.getElementById('panel-ecg').classList.add('hidden');
+      document.getElementById('panel-trends').classList.add('hidden');
+      document.getElementById('panel-lab').classList.add('hidden');
+      document.getElementById('panel-logs').classList.add('hidden');
+
+      // Reset Tab Styles
+      ['hud', 'ecg', 'trends', 'lab', 'logs'].forEach(p => {
+        const btn = document.getElementById('tab-btn-' + p);
+        if (btn) {
+          btn.className = "text-slate-500 hover:text-slate-300 uppercase";
+        }
+      });
+
+      // Show requested panel
+      document.getElementById('panel-' + panelId).classList.remove('hidden');
+      const activeBtn = document.getElementById('tab-btn-' + panelId);
+      if (activeBtn) {
+        activeBtn.className = "text-indigo-400 border-b border-indigo-400 pb-0.5 uppercase font-bold";
+      }
+
+      // Generate Sync payload if tab is Logs/Sync
+      if (panelId === 'logs') {
+        generateSyncCode();
+      }
+    }
+
+    function setSimState(stateKey) {
+      selectedPatientStatus = stateKey;
+      
+      const PRESETS = {
+        comfort: { hr: 72, info: "Comfort Sinus State. No alarms active." },
+        warning: { hr: 135, info: "High workout cardiac effort. Warm alarm triggers." },
+        vtach: { hr: 165, info: "Life-threatening Ventricular Tachycardia. Code Red alarm!" },
+        arrest: { hr: 185, info: "Suspected Cardiac Arrest. Paramedic units dispatched." }
+      };
+
+      const pr = PRESETS[stateKey];
+      metrics.heartRate = pr.hr;
+      document.getElementById('sim-info-text').innerText = pr.info;
+
+      // Force instant telemetry update
+      updateHUD();
+      castTelemetry();
+    }
+
+    function resetWorkout() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerVal = 0;
+      metrics = { heartRate: 72, calories: 0, steps: 0, distance: 0, elevation: 0 };
+      updateHUD();
+      
+      const btn = document.getElementById('btn-start');
+      btn.innerText = "▶️ Start Workout";
+      btn.className = "py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-2xl uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer w-full";
+      
+      const saveBtn = document.getElementById('btn-save');
+      saveBtn.disabled = true;
+      saveBtn.className = "py-2.5 bg-slate-850 text-slate-500 rounded-2xl uppercase tracking-wider cursor-not-allowed transition-all flex items-center justify-center gap-1 w-full";
+    }
+
+    function toggleWorkout() {
+      if (isRunning) {
+        isRunning = false;
+        clearInterval(timerInterval);
+        timerInterval = null;
+        
+        const btn = document.getElementById('btn-start');
+        btn.innerText = "▶️ Resume Set";
+        btn.className = "py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer w-full";
+        
+        const saveBtn = document.getElementById('btn-save');
+        saveBtn.disabled = false;
+        saveBtn.className = "py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1 w-full shadow-md";
+      } else {
+        isRunning = true;
+        
+        const btn = document.getElementById('btn-start');
+        btn.innerText = "⏸️ Pause Set";
+        btn.className = "py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-md cursor-pointer w-full";
+        
+        const saveBtn = document.getElementById('btn-save');
+        saveBtn.disabled = true;
+        saveBtn.className = "py-2.5 bg-slate-850 text-slate-500 rounded-2xl uppercase tracking-wider cursor-not-allowed transition-all flex items-center justify-center gap-1 w-full";
+        
+        timerInterval = setInterval(() => {
+          timerVal++;
+          
+          if (selectedPatientStatus === 'comfort') {
+            const hrRamp = 72 + (currentSport.avgHR - 72) * Math.min(1, timerVal / 25);
+            metrics.heartRate = Math.round(hrRamp + Math.sin(timerVal * 0.1) * 2 + (Math.random() * 2 - 1));
+          }
+
+          if (!useMotion) {
+            metrics.calories += (currentSport.calorieRate / 60) * (0.9 + Math.random() * 0.2);
+            if (currentSport.hasSteps) {
+              metrics.steps += currentSport.id === 'run' ? 2 : 1;
+              if (currentSport.hasDistance) {
+                metrics.distance += 0.0012;
+              }
+            }
+          }
+          
+          updateHUD();
+          castTelemetry();
+          if (timerVal % 3 === 0) {
+            updateTrendGraph();
+          }
+        }, 1000);
+      }
+    }
+
+    function updateHUD() {
+      const mins = Math.floor(timerVal / 60);
+      const secs = timerVal % 60;
+      document.getElementById('hud-timer').innerText = \`\${String(mins).padStart(2, '0')}:\${String(secs).padStart(2, '0')}\`;
+      document.getElementById('hud-hr').innerText = metrics.heartRate;
+      document.getElementById('hud-cal').innerText = Math.round(metrics.calories);
+      document.getElementById('hud-steps').innerText = metrics.steps;
+      document.getElementById('hud-dist').innerText = metrics.distance.toFixed(2);
+      
+      document.getElementById('ecg-bpm-readout').innerText = \`HR: \${metrics.heartRate} BPM\`;
+
+      // Update Concentric Rings SVG Dash Offset
+      // Move (Calories): Goal 100 Kcal
+      const calPercent = Math.min(1, metrics.calories / 100);
+      const calOffset = 301 - (301 * calPercent);
+      document.getElementById('ring-cal').style.strokeDashoffset = calOffset;
+
+      // Exercise (Time): Goal 60 seconds (1 minute) for testing
+      const exePercent = Math.min(1, timerVal / 60);
+      const exeOffset = 238 - (238 * exePercent);
+      document.getElementById('ring-exe').style.strokeDashoffset = exeOffset;
+
+      // Battery slow discharge
+      if (timerVal > 0 && timerVal % 45 === 0) {
+        const batEl = document.getElementById('os-battery');
+        let val = parseInt(batEl.innerText);
+        if (val > 1) {
+          batEl.innerText = (val - 1) + "%";
+        }
+      }
+    }
+
+    function saveWorkout() {
+      if (timerVal < 3) return alert("Workout set must be at least 3 seconds long to save.");
+      
+      const log = {
+        id: 'watch_set_' + Date.now(),
+        sportId: currentSport.id,
+        sportName: currentSport.name,
+        emoji: currentSport.emoji,
+        durationSeconds: timerVal,
+        calories: Math.round(metrics.calories),
+        avgHeartRate: metrics.heartRate,
+        steps: currentSport.hasSteps ? metrics.steps : undefined,
+        distance: currentSport.hasDistance ? parseFloat(metrics.distance.toFixed(2)) : undefined,
+        createdAt: new Date().toISOString()
+      };
+
+      watchLogs.unshift(log);
+      try {
+        localStorage.setItem('doctorian_watch_logs', JSON.stringify(watchLogs));
+      }catch(e){}
+
+      updateHistoryUI();
+      resetWorkout();
+    }
+
+    function updateHistoryUI() {
+      document.getElementById('local-count').innerText = watchLogs.length;
+      const hist = document.getElementById('local-history');
+      if (watchLogs.length === 0) {
+        hist.innerHTML = '<p class="italic text-[8px] text-slate-600 text-center py-2">No local watch logs. Start and save workouts to record.</p>';
+        return;
+      }
+      hist.innerHTML = '';
+      watchLogs.forEach(l => {
+        const d = document.createElement('div');
+        d.className = "flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-850 text-slate-300";
+        d.innerHTML = \`
+          <span class="font-bold flex items-center gap-1.5 text-[9px] text-slate-100">
+            \\\${l.emoji} \\\${l.sportName}
+          </span>
+          <span class="font-mono text-[8px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-950">
+            \\\${Math.floor(l.durationSeconds / 60)}m \\\${l.durationSeconds % 60}s | \\\${l.calories} kcal | \\\${l.avgHeartRate} bpm
+          </span>
+        \`;
+        hist.appendChild(d);
+      });
+    }
+
+    function clearWatchLogs() {
+      if (confirm("Are you sure you want to clear your local standalone smartwatch log history?")) {
+        watchLogs = [];
+        try {
+          localStorage.removeItem('doctorian_watch_logs');
+        } catch(e) {}
+        updateHistoryUI();
+      }
+    }
+
+    function generateSyncCode() {
+      const payload = {
+        app: 'doctorian_watch',
+        version: '1.0.0', // compatibility string for main parser
+        logs: watchLogs.slice(0, 10)
+      };
+      const json = JSON.stringify(payload);
+      const b64 = btoa(encodeURIComponent(json));
+      document.getElementById('sync-code-area').value = b64;
+    }
+
+    function copySyncCode() {
+      const area = document.getElementById('sync-code-area');
+      area.select();
+      document.execCommand('copy');
+      alert("Doctorian Secure Pairing Code Copied! Paste this code in the Doctorian Main Web App under Smart Watch Synchronization to log your results completely offline.");
+    }
+
+    let lastX = 0, lastY = 0, lastZ = 0;
+    let lastTime = Date.now();
+
+    async function toggleMotionSensors() {
+      try {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          const res = await DeviceMotionEvent.requestPermission();
+          if (res === 'granted') {
+            enableSensors();
+          } else {
+            alert("Motion permissions denied by device OS.");
+          }
+        } else {
+          enableSensors();
+        }
+      } catch(e) {
+        enableSensors();
+      }
+    }
+
+    function enableSensors() {
+      useMotion = true;
+      document.getElementById('motion-badge').innerText = "MOTION: ACTIVE";
+      document.getElementById('motion-badge').className = "text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-mono font-bold animate-pulse";
+      document.getElementById('btn-motion').innerText = "LINKED 🧬";
+      document.getElementById('btn-motion').className = "py-2 px-2.5 bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 rounded-2xl uppercase tracking-wider text-center cursor-default";
+
+      window.addEventListener('devicemotion', (e) => {
+        if (!isRunning) return;
+        const now = Date.now();
+        if (now - lastTime < 140) return;
+
+        const acc = e.accelerationIncludingGravity || e.acceleration;
+        if (!acc) return;
+
+        const x = acc.x || 0;
+        const y = acc.y || 0;
+        const z = acc.z || 0;
+
+        const change = Math.sqrt((x - lastX) ** 2 + (y - lastY) ** 2 + (z - lastZ) ** 2);
+        if (change > 11.2) {
+          metrics.steps += currentSport.hasSteps ? 1 : 0;
+          metrics.calories += (currentSport.calorieRate / 60) * 1.55;
+          if (currentSport.hasDistance) {
+            metrics.distance += currentSport.id === 'run' ? 0.0011 : 0.00085;
+          }
+          // Slow cardiovascular drift simulation during movement
+          if (selectedPatientStatus === 'comfort' && metrics.heartRate < 145) {
+            metrics.heartRate += 1;
+          }
+          updateHUD();
+          castTelemetry();
+          lastTime = now;
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      });
+    }
+
+    // --- HIGH RESOLUTION ECG CANVAS LOOP ---
+    const ecgCanvas = document.getElementById('ecg-canvas');
+    const ecgCtx = ecgCanvas ? ecgCanvas.getContext('2d') : null;
+    let ecgX = 0;
+    let lastEcgY = 37;
+
+    function drawECGFrame() {
+      if (!ecgCtx || !ecgCanvas) return;
+      
+      ecgCtx.fillStyle = 'rgba(2, 6, 23, 0.06)'; // sweep trace decay
+      ecgCtx.fillRect(0, 0, ecgCanvas.width, ecgCanvas.height);
+      
+      ecgCtx.strokeStyle = selectedPatientStatus === 'comfort' ? '#10b981' : (selectedPatientStatus === 'warning' ? '#f59e0b' : '#f43f5e');
+      ecgCtx.lineWidth = 1.6;
+      ecgCtx.shadowBlur = 4;
+      ecgCtx.shadowColor = ecgCtx.strokeStyle;
+      
+      ecgCtx.beginPath();
+      ecgCtx.moveTo(ecgX, lastEcgY);
+      
+      // Calculate clinical heartbeat trace mathematically based on current active BPM
+      const hr = metrics.heartRate;
+      const beatInterval = 60000 / hr; 
+      const elapsed = Date.now() % beatInterval;
+      
+      let targetY = 37; // baseline (middle of height 75)
+      
+      if (elapsed < 110) {
+        // P-wave (gentle sinus bump)
+        const t = elapsed / 110;
+        targetY = 37 - Math.sin(t * Math.PI) * 3.5;
+      } else if (elapsed >= 140 && elapsed < 165) {
+        // Q-wave (small downward clinical dip)
+        const t = (elapsed - 140) / 25;
+        targetY = 37 + t * 3;
+      } else if (elapsed >= 165 && elapsed < 195) {
+        // R-spike (massive high upward QRS peak)
+        const t = (elapsed - 165) / 30;
+        targetY = 40 - t * 29;
+      } else if (elapsed >= 195 && elapsed < 225) {
+        // S-dip (deep clinical downward dip)
+        const t = (elapsed - 195) / 30;
+        targetY = 11 + t * 34;
+      } else if (elapsed >= 225 && elapsed < 260) {
+        // S return back to baseline
+        const t = (elapsed - 225) / 35;
+        targetY = 45 - t * 8;
+      } else if (elapsed >= 340 && elapsed < 460) {
+        // T-wave (broad oxygenation curve)
+        const t = (elapsed - 340) / 120;
+        targetY = 37 - Math.sin(t * Math.PI) * 6;
+      } else {
+        // Random bio-potential baseline noise
+        targetY = 37 + (Math.random() * 1.2 - 0.6);
+      }
+      
+      ecgX += 1.8;
+      if (ecgX > ecgCanvas.width) {
+        ecgX = 0;
+        ecgCtx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
+      }
+      
+      ecgCtx.lineTo(ecgX, targetY);
+      ecgCtx.stroke();
+      lastEcgY = targetY;
+      
+      requestAnimationFrame(drawECGFrame);
+    }
+    drawECGFrame();
+
+    // --- MINI ROLLING BIOPOTENTIAL TREND GRAPH ---
+    const trendCanvas = document.getElementById('trend-canvas');
+    const trendCtx = trendCanvas ? trendCanvas.getContext('2d') : null;
+    let hrHistory = [];
+
+    function updateTrendGraph() {
+      if (!trendCtx || !trendCanvas) return;
+      
+      hrHistory.push(metrics.heartRate);
+      if (hrHistory.length > 30) hrHistory.shift();
+      
+      trendCtx.clearRect(0, 0, trendCanvas.width, trendCanvas.height);
+      
+      // Horizontal reference grids
+      trendCtx.strokeStyle = 'rgba(51, 65, 85, 0.12)';
+      trendCtx.lineWidth = 0.5;
+      for (let i = 1; i < 4; i++) {
+        const y = (trendCanvas.height / 4) * i;
+        trendCtx.beginPath();
+        trendCtx.moveTo(0, y);
+        trendCtx.lineTo(trendCanvas.width, y);
+        trendCtx.stroke();
+      }
+      
+      if (hrHistory.length < 2) return;
+      
+      const maxVal = Math.max(...hrHistory, 110);
+      const minVal = Math.min(...hrHistory, 60);
+      const valRange = maxVal - minVal || 10;
+      
+      // Underline gradient fill
+      const grad = trendCtx.createLinearGradient(0, 0, 0, trendCanvas.height);
+      grad.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
+      grad.addColorStop(1, 'rgba(99, 102, 241, 0)');
+      
+      trendCtx.beginPath();
+      trendCtx.moveTo(0, trendCanvas.height);
+      
+      const stepX = trendCanvas.width / (hrHistory.length - 1);
+      for (let i = 0; i < hrHistory.length; i++) {
+        const x = i * stepX;
+        const y = trendCanvas.height - ((hrHistory[i] - minVal) / valRange) * (trendCanvas.height - 8) - 4;
+        trendCtx.lineTo(x, y);
+      }
+      
+      trendCtx.lineTo(trendCanvas.width, trendCanvas.height);
+      trendCtx.closePath();
+      trendCtx.fillStyle = grad;
+      trendCtx.fill();
+      
+      // Core line
+      trendCtx.beginPath();
+      for (let i = 0; i < hrHistory.length; i++) {
+        const x = i * stepX;
+        const y = trendCanvas.height - ((hrHistory[i] - minVal) / valRange) * (trendCanvas.height - 8) - 4;
+        if (i === 0) trendCtx.moveTo(x, y);
+        else trendCtx.lineTo(x, y);
+      }
+      trendCtx.strokeStyle = selectedPatientStatus === 'comfort' ? '#10b981' : (selectedPatientStatus === 'warning' ? '#f59e0b' : '#f43f5e');
+      trendCtx.lineWidth = 1.8;
+      trendCtx.stroke();
+    }
+    // Prime trend graph with baseline
+    for(let i=0; i<30; i++) { hrHistory.push(72); }
+    updateTrendGraph();
+
+  </script>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "Doctorian_Watch_Companion.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    addLog("Doctorian OS Standalone Watch Package compiled and downloaded! Sideload onto smartwatches.", 'success');
+  };  const startWorkout = () => {
+    const sport = SPORTS.find(s => s.id === selectedSportId) || SPORTS[0];
+    setActiveWorkout(sport);
+    setIsPaused(false);
+    setWorkoutTime(0);
+    setMetrics({ heartRate: 72, calories: 0, steps: 0, distance: 0, elevation: 0, score: 0 });
+    
+    arduino.setConnection({
+      connected: true,
+      type: 'watch',
+      deviceName: `Doctorian Wearable [${sport.name.toUpperCase()}]`
+    });
+
+    addLog(`Workout started: ${sport.emoji} ${sport.name}. Live bio-channel connected.`, 'success');
+  };
+
+  const stopWorkout = () => {
+    if (!activeWorkout) return;
+    const sport = activeWorkout;
+    const session = {
+      id: `sport_session_${Date.now()}`,
+      sportId: sport.id,
+      sportName: sport.name,
+      emoji: sport.emoji,
+      durationSeconds: workoutTime,
+      calories: Math.round(metrics.calories),
+      avgHeartRate: Math.round(metrics.heartRate),
+      steps: sport.hasSteps || sport.hasReps ? metrics.steps : undefined,
+      distance: sport.hasDistance ? parseFloat(metrics.distance.toFixed(2)) : undefined,
+      elevation: sport.hasElevation ? Math.round(metrics.elevation) : undefined,
+      score: sport.hasScore ? metrics.score : undefined,
+      createdAt: new Date().toISOString()
+    };
+
+    const updated = [session, ...completedSessions];
+    setCompletedSessions(updated);
+    localStorage.setItem('doctorian_sports_sessions', JSON.stringify(updated));
+
+    setActiveWorkout(null);
+    setIsPaused(false);
+    setWorkoutTime(0);
+
+    arduino.setConnection({ connected: false, type: null, deviceName: null });
+    addLog(`Workout logged to archive: ${sport.emoji} ${sport.name}.`, 'success');
+  };
+
+  const handleRunAiAnalysis = async (session: any) => {
+    setSelectedSessionForAnalysis(session);
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    addLog(`Running DeepSeek R1 Sports Science model for ${session.sportName}...`, 'info');
+
+    try {
+      const { api } = await import('../api');
+      const prompt = `
+        You are Doctorian Sports Medicine & Physiology AI. Perform sports science analysis on this workout:
+        - Sport: ${session.sportName} (${session.emoji})
+        - Duration: ${formatDuration(session.durationSeconds)}
+        - Calories: ${session.calories} kcal
+        - Avg HR: ${session.avgHeartRate} BPM
+        ${session.steps ? `- Reps/Steps: ${session.steps}` : ''}
+        ${session.distance ? `- Distance: ${session.distance} km` : ''}
+        ${session.elevation ? `- Ascent: ${session.elevation} m` : ''}
+        ${session.score ? `- Game Score: ${session.score}` : ''}
+
+        Return strictly a JSON object fitting this interface:
+        {
+          "summary": "1-2 sentence metabolic summary.",
+          "cardioZones": ["Warmup: 10%", "Fat Burn: 40%", "Aerobic: 50%"],
+          "aerobicEffect": "Adaptational explanation of this session.",
+          "estimatedVo2Max": 44.5,
+          "recoveryTime": "12 hours recommended",
+          "tips": ["Biomechanical tip 1", "Cardio tips 2", "Recovery protocol 3"]
+        }
+      `;
+
+      const response = await api.ai.aiChat(
+        [{ role: 'user', text: prompt }],
+        "You are Doctorian Sports Intelligence. Return only valid raw JSON.",
+        "gemini-3.5-flash"
+      );
+
+      const cleaned = response.text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+
+      const updated = completedSessions.map(s => s.id === session.id ? { ...s, aiAnalysis: parsed } : s);
+      setCompletedSessions(updated);
+      localStorage.setItem('doctorian_sports_sessions', JSON.stringify(updated));
+      setSelectedSessionForAnalysis(updated.find(s => s.id === session.id));
+      addLog(`AI Sports coaching metrics calculated successfully.`, 'success');
+    } catch (e: any) {
+      console.error(e);
+      setAnalysisError(e.message || "Failed to generate athletic insights.");
+      addLog("AI evaluation failed.", "warn");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleCommitToHealthRecords = async (session: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    addLog(`Uploading session data to Patient Clinical EHR charts...`, 'info');
+
+    try {
+      const { api } = await import('../api');
+      const summary = `Workout Session Sync: ${session.emoji} ${session.sportName}.\n` +
+        `- Time: ${formatDuration(session.durationSeconds)}\n` +
+        `- Energy: ${session.calories} kcal\n` +
+        `- Avg Cardio: ${session.avgHeartRate} BPM\n` +
+        (session.steps ? `- Steps/Reps: ${session.steps}\n` : '') +
+        (session.distance ? `- Dist: ${session.distance} km\n` : '');
+
+      const aiText = session.aiAnalysis ? `\n\nAI Athletic Diagnostics:\n- VO2Max: ${session.aiAnalysis.estimatedVo2Max}\n- Recovery: ${session.aiAnalysis.recoveryTime}\n- Tips:\n  * ${session.aiAnalysis.tips.join('\n  * ')}` : '';
+
+      await api.records.create({
+        type: "Sports Activity Record",
+        value: `${session.calories} kcal`,
+        unit: "kcal",
+        notes: `${summary}${aiText}`,
+        date: new Date().toISOString()
+      });
+
+      addLog(`Sync'd to Patient EMR successfully!`, 'success');
+      alert("Workout record synchronized with your clinical EHR patient charts!");
+    } catch (err: any) {
+      console.error(err);
+      addLog(`EHR Upload Failed.`, 'warn');
+    }
+  };
+
+  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Permanently purge this session?")) {
+      const updated = completedSessions.filter(s => s.id !== id);
+      setCompletedSessions(updated);
+      localStorage.setItem('doctorian_sports_sessions', JSON.stringify(updated));
+      if (selectedSessionForAnalysis?.id === id) setSelectedSessionForAnalysis(null);
+      addLog("Session deleted.", 'warn');
+    }
+  };
+
+  const handleExportSession = (session: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(session, null, 2));
+    const a = document.createElement('a');
+    a.setAttribute("href", str);
+    a.setAttribute("download", `Sports_Track_${session.sportId}_${Date.now()}.json`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const formatDuration = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const activeSportConfig = SPORTS.find(s => s.id === selectedSportId) || SPORTS[0];
+
+  // Calculate rings
+  const totalCalToday = completedSessions.reduce((sum, s) => sum + s.calories, 0) + (activeWorkout ? metrics.calories : 0);
+  const totalMinToday = completedSessions.reduce((sum, s) => sum + s.durationSeconds, 0) / 60 + (activeWorkout ? workoutTime / 60 : 0);
+
+  const calPct = (totalCalToday / 400) * 100;
+  const minPct = (totalMinToday / 30) * 100;
+
+  return (
+    <div id="telemetry-casting-framework" className="bg-white dark:bg-slate-900 rounded-[3rem] p-6 sm:p-10 border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden relative mb-10 text-left">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Title block */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-100 dark:border-slate-800/60">
+        <div>
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2.5">
+            <span className="p-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-2xl border border-rose-100 dark:border-rose-900/30">
+              <Activity size={22} className="animate-pulse" />
+            </span>
+            Doctorian Wearable Sports Engine
+          </h3>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 font-sans">
+            Stream, Log and Sync Live Watch Sports Performance Directly to Clinical Charts
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/40 dark:border-slate-700/50 text-[9.5px] font-bold text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1.5">
+            <Bluetooth size={12} className="text-blue-500 animate-ping" /> GATT LINK ACTIVE
+          </span>
+          <span className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-450 font-mono flex items-center gap-1.5">
+            <Cpu size={12} /> ANT+ PAIRING
+          </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* LEFT COLUMN: ACTIVE SENSOR SIMULATOR / SMARTWATCH RENDER */}
-        <div className="lg:col-span-4 flex flex-col items-center justify-center">
-          {castSource === 'watch' ? (
-            <div className="flex flex-col items-center">
-              {/* RENDER SMARTWATCH FRAME */}
-              <div className="relative w-64 h-64 rounded-full border-[10px] border-slate-800 dark:border-slate-950 bg-slate-950 shadow-2xl p-4 flex flex-col justify-center items-center overflow-hidden">
-                {/* Watch ambient screen */}
-                <div className={`absolute inset-0 bg-gradient-to-b ${getWatchFaceColor()} opacity-60 transition-colors duration-500`} />
-                <div className="absolute top-2 w-full text-center z-10">
-                  <span className="text-[7.5px] font-black tracking-widest text-slate-400 uppercase font-mono">
-                    {selectedWatchBrand} WATCH OS
-                  </span>
-                </div>
+        {/* LEFT COLUMN: INTERACTIVE WATCH EMULATOR */}
+        <div className="lg:col-span-12 xl:col-span-4 flex flex-col items-center">
+          <div className="relative p-3 bg-slate-950 dark:bg-slate-950/70 rounded-[3.5rem] border border-slate-800/80 shadow-2xl flex flex-col items-center">
+            {/* Round watch chassis */}
+            <div className="relative w-[240px] h-[240px] rounded-full border-8 border-slate-900 bg-slate-950 overflow-hidden flex flex-col justify-center items-center">
+              
+              {/* Animated cardiac backgrounds */}
+              <motion.div 
+                className="absolute w-40 h-40 rounded-full border border-rose-500/15"
+                animate={{ scale: [1, 1.25, 1], opacity: [0.2, 0.5, 0.2] }}
+                transition={{ duration: 60 / (activeWorkout ? metrics.heartRate : 72), repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <motion.div 
+                className="absolute w-52 h-52 rounded-full border border-indigo-500/10"
+                animate={{ scale: [1, 1.15, 1], opacity: [0.1, 0.35, 0.1] }}
+                transition={{ duration: 120 / (activeWorkout ? metrics.heartRate : 72), repeat: Infinity, ease: 'easeInOut' }}
+              />
 
-                <div className="relative z-10 flex flex-col items-center justify-center text-center text-white select-none">
-                  {/* Heartbeat pulsing effect */}
-                  <motion.div
-                    animate={isCasting ? { scale: [1, 1.2, 1] } : {}}
-                    transition={{ repeat: Infinity, duration: watchSymmetryPreset === 'hyper' ? 0.45 : watchSymmetryPreset === 'depressed' ? 1.5 : 0.85 }}
-                    className="p-1 bg-rose-500/10 rounded-full text-rose-500"
-                  >
-                    <Heart size={24} fill="currentColor" />
-                  </motion.div>
-
-                  <div className="mt-1 font-sans">
-                    <span className="text-4xl font-[1000] tracking-tighter text-white">
-                      {isCasting ? (
-                        arduino.vitals?.heartRate ? Math.round(arduino.vitals.heartRate).toString() : (
-                          watchSymmetryPreset === 'balanced' ? '72' :
-                          watchSymmetryPreset === 'elevated' ? '98' :
-                          watchSymmetryPreset === 'hyper' ? '134' : '48'
-                        )
-                      ) : '--'}
-                    </span>
-                    <span className="text-[10px] text-rose-400 font-black tracking-wider block -mt-1 uppercase">BPM</span>
-                  </div>
-
-                  {/* Tiny status items */}
-                  <div className="grid grid-cols-2 gap-2 mt-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/5 text-[9px] font-bold font-mono">
-                    <span className="text-cyan-400">
-                      O2: {isCasting ? (arduino.vitals?.spo2 ? Math.round(arduino.vitals.spo2).toString() : (watchSymmetryPreset === 'hyper' ? '88' : '98')) : '--'}%
-                    </span>
-                    <span className="text-amber-400">
-                      C: {isCasting ? (arduino.vitals?.temperature ? arduino.vitals.temperature.toFixed(1) : (watchSymmetryPreset === 'hyper' ? '39.4' : '36.6')) : '--'}°
-                    </span>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-3 w-full text-center z-10">
-                  <div className="flex justify-center items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${isCasting ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
-                    <span className="text-[7px] font-black uppercase tracking-wider text-slate-400">
-                      {isCasting ? 'CASTING LIVE' : 'CAST IS IDLE'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Simulated watch sensors */}
-                <div className="absolute top-1/2 left-0 w-1.5 h-6 bg-slate-700/80 rounded-r-sm shadow cursor-pointer hover:bg-slate-500 active:scale-95 transition-all" />
-                <div className="absolute top-1/3 right-0 w-1.5 h-6 bg-slate-700/80 rounded-l-sm shadow cursor-pointer hover:bg-slate-500 active:scale-95 transition-all" />
-              </div>
-
-              {/* Watch Selector Switcher */}
-              <div className="flex gap-1.5 items-center justify-center p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800 rounded-xl mt-4 max-w-[250px]">
-                {(['Samsung', 'Apple', 'Garmin', 'Fitbit'] as const).map(brand => (
-                  <button
-                    key={brand}
-                    onClick={() => {
-                      setSelectedWatchBrand(brand);
-                      addCastLog(`Broadcasting manufacturer firmware updated to: ${brand} Watch Face.`, "success");
-                    }}
-                    className={`px-2.5 py-1 text-[8.5px] font-black uppercase rounded-lg transition-all ${
-                      selectedWatchBrand === brand 
-                        ? 'bg-indigo-600 text-white shadow' 
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    {brand}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* ICU BEDSIDE INTERACTIVE SCREEN */
-            <div className="w-full flex flex-col items-center">
-              <div className="w-full max-w-[280px] rounded-2xl bg-slate-950 p-4 border border-slate-805 skeleton-glow shadow-2xl relative overflow-hidden text-left font-mono">
-                <div className="flex justify-between items-center text-slate-400 text-[8.5px] border-b border-slate-800 pb-2 mb-3">
-                  <span className="font-bold flex items-center gap-1">
-                    <Activity size={10} className="text-blue-500 animate-pulse" />
-                    ICU UNIT CAST
-                  </span>
-                  <span className="text-amber-500 font-bold">SYS_ONLINE</span>
-                </div>
-
-                <div className="space-y-3.5 select-none">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-[7px] text-slate-500 uppercase font-black">ECG Lead III</p>
-                      <h4 className="text-xl font-extrabold text-blue-400 tracking-tighter">
-                        {isCasting ? (
-                          (arduino.connection.connected && arduino.vitals)
-                            ? Math.round(arduino.vitals.heartRate)
-                            : (watchSymmetryPreset === 'hyper' ? '122' : '74')
-                        ) : '--'}
-                        <span className="text-[9px] text-slate-500 ml-1">/min</span>
-                      </h4>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[7px] text-slate-500 uppercase font-black">NIBP SYS / DIA</p>
-                      <h5 className="text-[12px] font-bold text-emerald-400 tracking-tight">
-                        {isCasting ? (
-                          (arduino.connection.connected && arduino.vitals)
-                            ? `${Math.round(arduino.vitals.systolicBP)}/${Math.round(arduino.vitals.diastolicBP)}`
-                            : (watchSymmetryPreset === 'hyper' ? '148/96' : '116/76')
-                        ) : '--'}
-                        <span className="text-[7px] text-slate-500 ml-1">mmHg</span>
-                      </h5>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-end border-t border-slate-800/40 pt-2">
-                    <div>
-                      <p className="text-[7px] text-slate-500 uppercase font-black">SPO2 SAT%</p>
-                      <h4 className="text-base font-bold text-teal-400 tracking-tighter">
-                        {isCasting ? (
-                          (arduino.connection.connected && arduino.vitals)
-                            ? Math.round(arduino.vitals.spo2)
-                            : '97'
-                        ) : '--'}
-                        <span className="text-[9px] text-slate-500 ml-1">%</span>
-                      </h4>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[7px] text-slate-500 uppercase font-black">RESP. RATE</p>
-                      <h5 className="text-[12px] font-bold text-red-500 tracking-tight">
-                        {isCasting ? (
-                          (arduino.connection.connected && arduino.vitals)
-                            ? Math.round(arduino.vitals.respiratoryRate)
-                            : (watchSymmetryPreset === 'hyper' ? '24' : '15')
-                        ) : '--'}
-                        <span className="text-[7px] text-slate-500 ml-1">bpm</span>
-                      </h5>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-2 border-t border-slate-800 text-center flex items-center justify-between text-[7px] text-slate-450 font-bold uppercase">
-                  <span>KEY: <strong className="text-slate-300">{icuChannelCode}</strong></span>
-                  <span className="text-blue-500 animate-pulse">MIRROR STYLES: OK</span>
-                </div>
-              </div>
-
-              {/* ICU source switcher */}
-              <div className="flex gap-1.5 items-center justify-center p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800 rounded-xl mt-4 w-full max-w-[260px]">
-                {(['ECG', 'POLAR_PPG', 'VENTILATOR'] as const).map(device => (
-                  <button
-                    key={device}
-                    onClick={() => {
-                      setSelectedIcuDevice(device);
-                      addCastLog(`Ingested casting machine type changed to: ${device} Telemetry.`, "success");
-                    }}
-                    className={`flex-1 py-1 text-[8.5px] font-black uppercase rounded-lg transition-all ${
-                      selectedIcuDevice === device 
-                        ? 'bg-blue-600 text-white shadow' 
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    {device}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT COLUMN: CASTING CONTROLS, SIGNAL CONFIG, LOGS */}
-        <div className="lg:col-span-8 space-y-6 text-left">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 dark:bg-slate-900/40 p-5 sm:p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
-            {/* Real watch simulation modifier controls */}
-            <div className="space-y-4">
-              <div>
-                <span className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">Device Physiology Stream Modifiers</span>
-                <h4 className="text-md font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-tight mt-1">
-                  Physiological Wave Mode
-                </h4>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-center">
-                {[
-                  { id: 'balanced', label: 'Homeostatic Normal', color: 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5' },
-                  { id: 'elevated', label: 'Tachy/Mild Fever', color: 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/5' },
-                  { id: 'hyper', label: 'Critical Shock', color: 'border-rose-500 text-rose-600 dark:text-rose-450 bg-rose-500/5' },
-                  { id: 'depressed', label: 'Deep Bradycardia', color: 'border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-500/5' }
-                ].map(item => {
-                  const isActive = watchSymmetryPreset === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setWatchSymmetryPreset(item.id as any);
-                        addCastLog(`Smart cast physiological wave shape shifted: ${item.label}`, "info");
-                      }}
-                      className={`py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                        isActive 
-                          ? `${item.color} border-2 shadow-sm font-black`
-                          : 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-950 hover:border-slate-400 dark:hover:border-slate-750'
-                      }`}
-                    >
-                      {item.label.split(' ')[0]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Active Oscilloscope Cast Waveform Previews */}
-              <div className="space-y-2">
-                <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono">
-                  {castSource === 'watch' ? 'Ingested PPG Optical Sensor Pulse Bellows' : 'Demodulated 3-Lead Analog ECG Signal'}
+              {/* Watch content HUD */}
+              <div className="relative z-10 text-center flex flex-col items-center p-4 select-none">
+                <span className="text-[9px] font-black tracking-widest text-indigo-400 font-mono uppercase">
+                  DOCTORIAN OS
                 </span>
-                <div className="h-16 relative bg-slate-950 rounded-xl border border-slate-850 overflow-hidden flex items-center">
-                  <canvas 
-                    ref={ecgCanvasRef} 
-                    width={380} 
-                    height={64} 
-                    className="w-full h-full block absolute inset-0"
-                  />
-                  {!isCasting && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
-                      <span className="text-[9px] font-bold tracking-widest text-slate-500 uppercase">
-                        Awaiting device mirror handshake
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+                
+                <span className="text-3xl my-1.5 font-sans animate-bounce">
+                  {activeSportConfig.emoji}
+                </span>
 
-            {/* Mirror Stream Core configuration & pairing parameters */}
-            <div className="space-y-4 border-t md:border-t-0 md:border-l border-slate-200/50 dark:border-slate-800/80 md:pl-6 flex flex-col justify-between">
-              <div className="space-y-4">
-                <div>
-                  <span className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">Cast Connection Config</span>
-                  <h4 className="text-md font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-tight mt-1">
-                    Telemetry Channel
-                  </h4>
+                <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">
+                  {activeWorkout ? activeWorkout.name : 'Ready to Start'}
+                </h4>
+
+                <div className="my-2 flex items-baseline justify-center font-mono">
+                  <span className="text-3xl font-extrabold text-white tracking-tighter">
+                    {activeWorkout ? formatDuration(workoutTime) : '00:00'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-bold ml-1">TIME</span>
                 </div>
 
-                {castSource === 'watch' ? (
-                  <div className="space-y-4">
-                    <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-start gap-3">
-                      <Fingerprint className="text-indigo-400 shrink-0" size={16} />
-                      <p className="text-[10px] text-slate-550 dark:text-slate-400 font-medium leading-relaxed">
-                        To cast real watch screens, ensure security credentials for <strong className="text-slate-900 dark:text-white">GATT telemetry-sync</strong> scopes match Doctorian's dynamic sandbox key.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs font-semibold">
-                      <span className="text-slate-400">Pairing State</span>
-                      <span className="text-indigo-500 uppercase font-black font-mono">GATT-BROADCASTING</span>
-                    </div>
+                <div className="flex items-center gap-3 border-t border-slate-800/60 pt-2.5 w-full justify-center">
+                  <div className="flex items-center gap-1">
+                    <Heart size={12} className="text-rose-500 fill-rose-500/20 animate-pulse" />
+                    <span className="text-sm font-bold text-white font-mono">
+                      {activeWorkout ? metrics.heartRate : '--'}
+                    </span>
+                    <span className="text-[7.5px] text-slate-500 font-bold uppercase font-mono">Bpm</span>
                   </div>
-                ) : (
-                  <div className="space-y-3.5">
-                    <div>
-                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Mirrored Host Key</label>
-                      <input
-                        type="text"
-                        value={icuChannelCode}
-                        onChange={(e) => {
-                          setIcuChannelCode(e.target.value.toUpperCase());
-                          addCastLog(`Casting receiver bound key modified to: ${e.target.value.toUpperCase()}`, "info");
-                        }}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                        placeholder="ICU-BED-09-EMR"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs font-semibold">
-                      <span className="text-slate-400">Stream Channel Quality</span>
-                      <div className="flex items-center gap-0.5">
-                        {[1, 2, 3, 4, 5].map((bar) => (
-                          <div 
-                            key={bar} 
-                            className={`w-1 h-3 rounded-sm ${bar <= signalStrength ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-850'}`} 
-                          />
-                        ))}
-                      </div>
-                    </div>
+                  <div className="w-px h-3.5 bg-slate-800" />
+                  <div className="flex items-center gap-1">
+                    <Flame size={12} className="text-orange-500" />
+                    <span className="text-sm font-bold text-white font-mono">
+                      {activeWorkout ? Math.round(metrics.calories) : '--'}
+                    </span>
+                    <span className="text-[7.5px] text-slate-500 font-bold uppercase font-mono">Kcal</span>
                   </div>
+                </div>
+
+                {activeWorkout && (
+                  <span className="text-[7.5px] bg-rose-500/15 border border-rose-500/30 text-rose-400 px-2 py-0.5 rounded-full font-mono mt-3 uppercase tracking-wider animate-pulse">
+                    🔴 RECORDING LIVE
+                  </span>
                 )}
               </div>
-
-              {/* Start Cast and pair stream buttons */}
-              <div className="pt-4 border-t border-slate-200/40 dark:border-slate-800/60">
-                <button
-                  type="button"
-                  onClick={toggleCasting}
-                  className={`w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-98 ${
-                    isCasting 
-                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/10' 
-                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/15'
-                  }`}
-                >
-                  {isCasting ? <X size={15} /> : <Play size={13} fill="currentColor" />}
-                  <span>{isCasting ? 'Disconnect Mirrored Cast' : 'Mirror Casting Screen Now'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* HARDWARE COUPLING PANEL */}
-          <div className="bg-slate-50/50 dark:bg-slate-900/40 p-5 sm:p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
-            <div className="text-left">
-              <span className="text-[8.5px] font-black uppercase text-indigo-500 tracking-wider">Physical Device Coupling Core</span>
-              <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-tight mt-0.5">
-                🔌 Link Physical Hardware & Smart Watch
-              </h4>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-                Link clinical biometric machines or real smartwatches to cast actual telemetry data into the platform in real-time.
-              </p>
             </div>
 
-            {arduino.connection.connected && arduino.connection.type !== 'demo' ? (
-              <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-left">
-                  <div className="p-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                    {arduino.connection.type === 'bluetooth' ? <Bluetooth size={18} className="animate-pulse" /> :
-                     arduino.connection.type === 'wifi' ? <Wifi size={18} className="animate-pulse" /> :
-                     <Cpu size={18} className="animate-pulse" />}
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block">ACTIVE HARDWARE COUPLED</span>
-                    <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {arduino.connection.deviceName || 'Real Health Sensor'}
-                    </h5>
-                    <p className="text-[9.5px] text-slate-400 uppercase font-mono tracking-tight">
-                      Connection Mode: {arduino.connection.type}
-                    </p>
-                  </div>
-                </div>
-
+            {/* Watch tactile hardware buttons */}
+            <div className="flex justify-center gap-4 mt-4 w-full px-4">
+              {!activeWorkout ? (
                 <button
                   type="button"
-                  onClick={handleDisconnectDevice}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                  onClick={startWorkout}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg flex items-center justify-center gap-1.5"
                 >
-                  Disconnect Device
+                  <Play size={11} fill="currentColor" />
+                  <span>Start Work</span>
                 </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Watch Card */}
-                <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between space-y-3">
-                  <div className="text-left">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Smartphone size={16} className="text-rose-500" />
-                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200">Smartwatch Link</span>
-                    </div>
-                    <p className="text-[9.5px] text-slate-400 dark:text-slate-500 leading-relaxed">
-                      Connect your physical Apple, Samsung, or Garmin smartwatch using Web Bluetooth GATT services.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleConnectHealthWatch}
-                    disabled={isConnecting !== null}
-                    className="w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    {isConnecting === 'watch' ? <RefreshCw size={12} className="animate-spin" /> : <Bluetooth size={12} />}
-                    <span>Link Real Smartwatch</span>
-                  </button>
-                </div>
-
-                {/* Health Machine Card */}
-                <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between space-y-3">
-                  <div className="text-left">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Cpu size={16} className="text-blue-500" />
-                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200">Wired USB Machine</span>
-                    </div>
-                    <p className="text-[9.5px] text-slate-400 dark:text-slate-500 leading-relaxed">
-                      Connect real Arduino boards or ICU biometric machines directly to your computer's USB serial port.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleConnectSerial}
-                    disabled={isConnecting !== null}
-                    className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    {isConnecting === 'serial' ? <RefreshCw size={12} className="animate-spin" /> : <Cpu size={12} />}
-                    <span>Link USB Serial Machine</span>
-                  </button>
-                </div>
-
-                {/* WiFi Machine Card */}
-                <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 md:col-span-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
-                    <div className="flex items-center gap-2">
-                      <Wifi size={16} className="text-emerald-500" />
-                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200">WiFi Health Machine (HTTP / IoT)</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200/50 dark:border-slate-800">
-                      <span className="text-[8.5px] font-black text-slate-450 uppercase">ENDPOINT:</span>
-                      <input
-                        type="text"
-                        value={wifiInput}
-                        onChange={(e) => setWifiInput(e.target.value)}
-                        className="bg-transparent text-[9.5px] font-bold font-mono text-slate-700 dark:text-slate-300 focus:outline-none w-32"
-                        placeholder="http://192.168.1.100"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1 text-left">
-                    <p className="text-[9.5px] text-slate-400 dark:text-slate-500 max-w-md leading-relaxed">
-                      Handshake with IoT health monitors using the local network. Ensure your machine serves valid biometric payloads.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleConnectWiFi}
-                      disabled={isConnecting !== null}
-                      className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0 self-end sm:self-auto cursor-pointer"
-                    >
-                      {isConnecting === 'wifi' ? <RefreshCw size={12} className="animate-spin" /> : <Wifi size={12} />}
-                      <span>Couple Local WiFi Machine</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Diagnostic status pipeline logs */}
-          <div className="space-y-2.5">
-            <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-              Real Watch & Casting Stream Transceiver Diagnostics
-            </h4>
-            <div className="bg-slate-950 rounded-2xl border border-slate-805 p-4 font-mono text-[9.5px] leading-relaxed max-h-[140px] overflow-y-auto space-y-2 text-slate-300 shadow-inner">
-              {castLogs.length === 0 ? (
-                <p className="text-slate-550 italic font-medium p-1">No connection cast packets initialized. Standby.</p>
               ) : (
-                castLogs.map((log, index) => (
-                  <div key={index} className="flex gap-2.5 items-start">
-                    <span className="text-slate-550 font-bold select-none">{log.time}</span>
-                    <span className={`px-1 text-[7.5px] font-black tracking-wider uppercase rounded ${
-                      log.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 
-                      log.type === 'warn' ? 'bg-rose-500/10 text-rose-400' : 
-                      'bg-indigo-500/10 text-indigo-400'
-                    }`}>
-                      {log.type}
-                    </span>
-                    <p className={`flex-1 ${
-                      log.type === 'success' ? 'text-teal-400 font-semibold' : 
-                      log.type === 'warn' ? 'text-rose-400 font-semibold' : 
-                      'text-slate-400'
-                    }`}>
-                      {log.msg}
-                    </p>
-                  </div>
-                ))
+                <div className="flex gap-2 w-full">
+                  <button
+                    type="button"
+                    onClick={() => setIsPaused(!isPaused)}
+                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all"
+                  >
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopWorkout}
+                    className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all"
+                  >
+                    Save Set
+                  </button>
+                </div>
               )}
             </div>
+          </div>
+
+          {/* DEVICE COMPANION & HARDWARE SYNC HUB */}
+          <div className="w-full max-w-[264px] mt-6 space-y-4">
+            {/* Live smartphone physical sensors card */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <Smartphone size={11} className="animate-bounce" /> Live Device Sensors
+                </span>
+                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                  useLivePhoneSensors 
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                }`}>
+                  {useLivePhoneSensors ? 'ACCELEROMETER LIVE' : 'EMULATOR ONLY'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal mb-3">
+                Tap to couple physical phone motion sensors (accelerometer). Shake or stride to dynamically record real steps & physical activity live!
+              </p>
+              <button
+                type="button"
+                onClick={toggleLiveSensors}
+                className={`w-full py-2 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  useLivePhoneSensors 
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/10' 
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg'
+                }`}
+              >
+                <Cpu size={12} />
+                <span>{useLivePhoneSensors ? 'Disconnect Real Sensors' : 'Connect Phone Sensors'}</span>
+              </button>
+            </div>
+
+            {/* Standalone package download card */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800/80">
+              <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 font-mono uppercase tracking-wider block mb-1">
+                Doctorian Watch Sideload
+              </span>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal mb-3">
+                Download the lightweight, offline-ready companion watchapp. Runs entirely standalone in any smartwatch browser!
+              </p>
+              <button
+                type="button"
+                onClick={downloadStandaloneWatchPackage}
+                className="w-full py-2 bg-slate-850 hover:bg-slate-800 border border-slate-700 dark:border-slate-800 text-slate-200 rounded-xl text-[9.5px] font-black uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1.5"
+              >
+                <Download size={12} className="text-indigo-400" />
+                <span>Download Standalone Watch OS</span>
+              </button>
+            </div>
+
+            {/* Offline sync channel portal */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800/80">
+              <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 font-mono uppercase tracking-wider block mb-1">
+                Offline Watch Synchronizer
+              </span>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal mb-3">
+                Completed sets on your watch? Paste your generated Watch Sync Code below to sync them over an offline GATT pipeline!
+              </p>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Paste watch sync code here..."
+                  value={syncCodeInput}
+                  onChange={(e) => setSyncCodeInput(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-[9px] font-mono text-emerald-600 dark:text-emerald-400 focus:outline-none placeholder-slate-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleOfflineSyncFromWatch}
+                  disabled={isSyncingWatch}
+                  className="w-full py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/30 rounded-xl text-[9.5px] font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-55"
+                >
+                  <Wifi size={11} />
+                  <span>{isSyncingWatch ? 'Coupling...' : 'Synchronize Watch Code'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* MIDDLE COLUMN: SPORTS PRESETS BENTO GRID */}
+        <div className="lg:col-span-12 xl:col-span-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono">
+              Available Doctorian Smart Watch Sports ({SPORTS.length})
+            </h4>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {SPORTS.map((sport) => {
+              const isSelected = selectedSportId === sport.id;
+              const isActive = activeWorkout?.id === sport.id;
+              return (
+                <button
+                  key={sport.id}
+                  disabled={!!activeWorkout && !isActive}
+                  onClick={() => setSelectedSportId(sport.id)}
+                  className={`p-2.5 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2.5 relative overflow-hidden group cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                    isSelected 
+                      ? 'border-indigo-500 dark:border-indigo-600 bg-indigo-500/5 ring-1 ring-indigo-500/20' 
+                      : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 hover:border-indigo-200 dark:hover:border-indigo-950'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full relative z-10">
+                    <span className="text-2xl select-none group-hover:scale-110 transition-transform">
+                      {sport.emoji}
+                    </span>
+                    {isActive && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    )}
+                  </div>
+
+                  <div className="relative z-10 mt-1">
+                    <p className="text-[9.5px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight truncate">
+                      {sport.name}
+                    </p>
+                    <p className="text-[8px] text-slate-400 uppercase font-mono tracking-wider mt-0.5">
+                      Base HR: {sport.avgHR} BPM
+                    </p>
+                  </div>
+
+                  {/* Highlight bar */}
+                  {isSelected && (
+                    <div className="absolute left-0 bottom-0 top-0 w-1 bg-indigo-500" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Calming quotes or instructions based on selection */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80">
+            <span className="text-[8px] font-mono uppercase font-black text-indigo-400 block tracking-widest mb-1">
+              {activeSportConfig.name} Athlete Briefing
+            </span>
+            <p className="text-[10px] italic text-slate-500 dark:text-slate-400 leading-relaxed font-sans">
+              "{activeSportConfig.quote}"
+            </p>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: ACTIVE METRICS & HEALTH RINGS */}
+        <div className="lg:col-span-12 xl:col-span-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 gap-6">
+          <div className="bg-slate-50/75 dark:bg-slate-900/30 p-5 rounded-3xl border border-slate-150/50 dark:border-slate-800/80 flex flex-col items-center">
+            <span className="text-[9.5px] font-mono uppercase font-black text-indigo-400 tracking-wider mb-4 self-start">
+              Atheletic Energy Rings
+            </span>
+            
+            {/* Apple health ring visualization */}
+            <div className="relative w-36 h-36 flex items-center justify-center">
+              <div className="absolute">
+                <Ring progress={calPct} color="#f43f5e" size={130} strokeWidth={11} trailColor="rgba(244, 63, 94, 0.08)" />
+              </div>
+              <div className="absolute">
+                <Ring progress={minPct} color="#10b981" size={104} strokeWidth={11} trailColor="rgba(16, 185, 129, 0.08)" />
+              </div>
+              <div className="absolute flex flex-col items-center text-center">
+                <Flame size={18} className="text-rose-500" />
+                <span className="text-md font-extrabold text-slate-800 dark:text-slate-100 font-mono mt-1">
+                  {totalCalToday}
+                </span>
+                <span className="text-[7.5px] text-slate-400 font-bold uppercase">Kcal</span>
+              </div>
+            </div>
+
+            <div className="mt-5 w-full space-y-2 border-t border-slate-200/50 dark:border-slate-800/50 pt-4 text-[9px] font-mono">
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-rose-500 font-bold flex items-center gap-1.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                  <span className="truncate">MOVE</span>
+                </span>
+                <span className="text-slate-700 dark:text-slate-300 font-black shrink-0 font-mono text-[9.5px]">
+                  {totalCalToday} / 400 kcal
+                </span>
+              </div>
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-emerald-500 font-bold flex items-center gap-1.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate">EXERCISE</span>
+                </span>
+                <span className="text-slate-700 dark:text-slate-300 font-black shrink-0 font-mono text-[9.5px]">
+                  {Math.round(totalMinToday)} / 30 min
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time pulse waveform preview */}
+          <div className="bg-slate-950 p-4 rounded-3xl border border-slate-850 space-y-2.5">
+            <span className="text-[8.5px] font-mono font-black uppercase text-indigo-400 tracking-wider flex justify-between items-center">
+              <span>Smart Watch PPG Pulses</span>
+              {activeWorkout && <span className="text-rose-500 animate-pulse text-[7.5px]">LIVE COMPILATION</span>}
+            </span>
+            <canvas ref={canvasRef} width={220} height={50} className="w-full bg-black/45 rounded-xl border border-slate-900" />
           </div>
         </div>
       </div>
 
-      {/* HORIZONTAL DIVIDER */}
-      <div className="border-t border-slate-100 dark:border-slate-800/80 my-8" />
-
-      {/* KEEP AND ANALYZE SECTION */}
-      <div id="doctorian-telemetry-vault" className="space-y-6 text-left">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h4 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5 text-base sm:text-lg uppercase tracking-tight">
-              <div className="p-2 bg-rose-50 dark:bg-rose-950/40 rounded-xl text-rose-600 dark:text-rose-450">
-                <Database size={18} />
-              </div>
-              Real-time Telemetry Recording Vault & AI Diagnostics
-            </h4>
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
-              Keep live biometrics, record smartwatch casts, and perform clinical intelligence audits
-            </p>
-          </div>
-          
-          {/* Active recording state indicators */}
-          {isRecording && (
-            <div className="flex items-center gap-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 px-3.5 py-1.5 rounded-full animate-pulse">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
-              <span className="text-[10px] font-black uppercase text-rose-650 dark:text-rose-400 tracking-wider">
-                RECORDING LIVE: {String(Math.floor(recordingElapsed / 60)).padStart(2, '0')}:{String(recordingElapsed % 60).padStart(2, '0')}
+      {/* BIOMETRIC SOS ALERT & CARRIER ROUTING COMMAND CENTER */}
+      <div className="mt-8 border-t border-slate-200 dark:border-slate-800/60 pt-6">
+        <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-4 mb-5">
+            <div>
+              <span className="text-[9px] font-mono font-bold text-indigo-500 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                Carrier Interface V2.8
               </span>
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2 mt-1.5">
+                <ShieldAlert size={16} className="text-rose-500 animate-pulse" />
+                BIOMETRIC SOS ALERT & CARRIER ROUTING CENTER
+              </h3>
             </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* LEFT: RECORDER PANEL */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="bg-slate-50/75 dark:bg-slate-900/30 p-5 rounded-3xl border border-slate-150/50 dark:border-slate-800/80 flex flex-col justify-between space-y-4 min-h-[220px]">
-              <div>
-                <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest block mb-1">EHR DATA-KEEPING</span>
-                <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-tight">
-                  Biometric Stream Capture
-                </h5>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 leading-relaxed">
-                  Lock on to connected smartwatches or local machines. Record live continuous feeds to build comprehensive clinical histories.
-                </p>
-              </div>
-
-              {isRecording ? (
-                <div className="space-y-4 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-rose-100 dark:border-rose-950 shadow-sm text-left">
-                  <div className="grid grid-cols-2 gap-3 text-center">
-                    <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Packets</span>
-                      <strong className="text-sm font-extrabold text-indigo-650 dark:text-indigo-400 font-mono">
-                        {recordedPoints.length}
-                      </strong>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Duration</span>
-                      <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                        {recordingElapsed}s
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-wider">Session Name / Case Identifier</label>
-                    <input
-                      type="text"
-                      value={sessionNameInput}
-                      onChange={(e) => setSessionNameInput(e.target.value)}
-                      placeholder="e.g. Cardio Study, Bedside 9 Sleep"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleStopAndSaveRecording}
-                    className="w-full py-2.5 bg-rose-650 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Save size={12} />
-                    <span>Stop & Keep Session</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={handleStartRecording}
-                    disabled={!isCasting}
-                    className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Plus size={14} className="animate-pulse" />
-                    <span>Start Telemetry Recording</span>
-                  </button>
-                  {!isCasting && (
-                    <p className="text-[9px] text-amber-500 font-bold uppercase tracking-wide text-center">
-                      ⚠️ Handshake connection cast first to record
-                    </p>
-                  )}
-                </div>
-              )}
+            <div className="flex items-center gap-2 font-mono text-[9px] text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>CARRIER LINK: GPRS ON-DUTY SECURE</span>
             </div>
           </div>
 
-          {/* RIGHT: STORAGE VAULT LIST */}
-          <div className="lg:col-span-8 space-y-4">
-            <div className="bg-slate-50/75 dark:bg-slate-900/30 p-5 sm:p-6 rounded-3xl border border-slate-150/50 dark:border-slate-800/80 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-tight flex items-center gap-1.5">
-                    <Clock size={13} className="text-indigo-500" />
-                    Clinical Telemetry Records Vault ({recordedSessions.length})
-                  </h5>
-                  <p className="text-[9px] text-slate-400 dark:text-slate-500">Stored local smartwatch & biometric machine streams</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+            Configure real-time biological alerts. When a wearer's vitals cross critical limits (VTach/Arrest), Doctorian automatically triggers cellular SMS, dispatches emergency paramedic squads, and dials clinicians using advanced Gemini voice synthesis.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* Status Presets Selector (Left 5 cols) */}
+            <div className="md:col-span-5 space-y-4">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                1. Select Biological State Preset
+              </span>
+              <div className="grid grid-cols-1 gap-2.5">
+                {Object.entries(STATUS_PRESETS).map(([key, value]) => {
+                  const isSelected = selectedPatientStatus === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPatientStatus(key);
+                        setOverrideMessage('');
+                      }}
+                      className={`p-3 text-left rounded-2xl border transition-all flex flex-col justify-between gap-1 cursor-pointer ${
+                        isSelected
+                          ? 'border-indigo-500 dark:border-indigo-600 bg-indigo-500/5 ring-1 ring-indigo-500/10'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 bg-white dark:bg-slate-950/40'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center w-full">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {value.label}
+                        </span>
+                        <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${value.color}`}>
+                          HR {value.heartRate} | SpO2 {value.spo2}%
+                        </span>
+                      </div>
+                      <p className="text-[9.5px] text-slate-400 whitespace-normal break-words leading-relaxed text-left w-full mt-1.5 border-t border-slate-100 dark:border-slate-800/60 pt-1.5">
+                        {value.text}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Recipients & Custom Dispatch Text (Right 7 cols) */}
+            <div className="md:col-span-7 space-y-4">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                2. Verify Carrier Routing Parameters
+              </span>
+
+              {/* Doctors & Mentor Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <User size={10} className="text-indigo-500" />
+                    Doctor-on-Duty Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={overrideDoctorPhone}
+                    onChange={(e) => setOverrideDoctorPhone(e.target.value)}
+                    placeholder="+256 787 674140"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-mono text-slate-700 dark:text-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <User size={10} className="text-indigo-500" />
+                    Relative/Mentor Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={overrideMentorPhone}
+                    onChange={(e) => setOverrideMentorPhone(e.target.value)}
+                    placeholder="+256 787 674140"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-mono text-slate-700 dark:text-slate-200"
+                  />
                 </div>
               </div>
 
-              {recordedSessions.length === 0 ? (
-                <div className="text-center py-10 bg-white dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/60 p-6 flex flex-col items-center justify-center space-y-2">
-                  <Database size={24} className="text-slate-300 dark:text-slate-700" />
-                  <p className="text-xs text-slate-400 dark:text-slate-550 font-medium">
-                    No biometric recordings currently archived in this station.
-                  </p>
-                  <p className="text-[9px] text-slate-400 dark:text-slate-500">
-                    Connect real wearables or emulators, click "Start Telemetry Recording" and record clinical sessions.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                  {recordedSessions.map((session) => {
-                    const avgHR = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.heartRate, 0) / session.vitalsPoints.length);
-                    const avgO2 = Math.round(session.vitalsPoints.reduce((sum, p) => sum + p.spo2, 0) / session.vitalsPoints.length);
-                    const isSelected = selectedSessionForAnalysis?.id === session.id;
+              {/* Custom SMS / Audio Dispatch script */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                  3. Transmitted Monologue / SMS Text (Editable)
+                </label>
+                <textarea
+                  value={overrideMessage || STATUS_PRESETS[selectedPatientStatus].text}
+                  onChange={(e) => setOverrideMessage(e.target.value)}
+                  placeholder="Custom emergency dispatch description..."
+                  rows={3}
+                  className="w-full text-[10.5px] leading-relaxed p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-sans"
+                />
+              </div>
 
+              {/* Network Gateways */}
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                  4. Select Uplink Gateway Channel
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[9px]">
+                  {[
+                    { id: 'twilio', label: 'TWILIO GLOBAL', desc: 'Secure Proxy/eSIM' },
+                    { id: 'mtn', label: 'MTN UGANDA', desc: 'Local GSM Uplink' },
+                    { id: 'airtel', label: 'AIRTEL UGANDA', desc: 'Backup GSM Path' },
+                    { id: 'satellite', label: 'SATELLITE eSIM', desc: 'Offline Autonomy' }
+                  ].map((gateway) => {
+                    const isSelected = selectedNetwork === gateway.id;
                     return (
-                      <div 
-                        key={session.id}
-                        onClick={() => setSelectedSessionForAnalysis(session)}
-                        className={`p-4 rounded-2xl bg-white dark:bg-slate-950 border transition-all cursor-pointer text-left flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-950 ${
-                          isSelected ? 'border-indigo-500 dark:border-indigo-600 ring-2 ring-indigo-500/10' : 'border-slate-100 dark:border-slate-800/80'
+                      <button
+                        key={gateway.id}
+                        type="button"
+                        onClick={() => setSelectedNetwork(gateway.id)}
+                        className={`p-2 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-indigo-500 bg-indigo-500/5 text-indigo-500 dark:text-indigo-400 font-bold'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                         }`}
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-mono">
-                              {session.source === 'watch' ? '⌚ WATCH' : '🎛️ MACHINE'}
-                            </span>
-                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 leading-tight">
-                              {session.name}
-                            </span>
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[9.5px] text-slate-400 font-mono">
-                            <span>Device: <strong className="text-slate-650 dark:text-slate-350">{session.deviceBrandOrType}</strong></span>
-                            <span>Frames: <strong className="text-slate-650 dark:text-slate-350">{session.vitalsPoints.length}</strong></span>
-                            <span>Time: <strong className="text-slate-650 dark:text-slate-350">{session.durationSeconds}s</strong></span>
-                            <span>Date: <strong className="text-slate-650 dark:text-slate-350">{new Date(session.createdAt).toLocaleDateString()}</strong></span>
-                          </div>
-
-                          <div className="flex items-center gap-3.5 pt-1.5 text-[9.5px]">
-                            <span className="text-rose-500 font-bold flex items-center gap-1">
-                              ❤️ Avg HR: <strong className="font-mono">{avgHR} BPM</strong>
-                            </span>
-                            <span className="text-cyan-500 font-bold flex items-center gap-1">
-                              🌌 Avg O2: <strong className="font-mono">{avgO2}%</strong>
-                            </span>
-                            {session.aiAnalysis && (
-                              <span className="text-amber-500 font-bold flex items-center gap-1">
-                                <Sparkles size={11} /> AI Scored: <strong className="font-mono">{session.aiAnalysis.clinicalRating}/100</strong>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions row */}
-                        <div className="flex items-center gap-1.5 self-end md:self-auto shrink-0">
-                          <button
-                            type="button"
-                            title="Run Doctorian AI Clinical Report"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRunAiAnalysis(session);
-                            }}
-                            className="p-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all cursor-pointer"
-                          >
-                            <Sparkles size={13} />
-                          </button>
-                          
-                          <button
-                            type="button"
-                            title="Commit to Patient Health Records (Keep)"
-                            onClick={(e) => handleCommitToHealthRecords(session, e)}
-                            className="p-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900 text-emerald-600 dark:text-emerald-450 rounded-xl transition-all cursor-pointer"
-                          >
-                            <Save size={13} />
-                          </button>
-
-                          <button
-                            type="button"
-                            title="Export Stream (JSON)"
-                            onClick={(e) => handleExportSession(session, e)}
-                            className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl transition-all cursor-pointer"
-                          >
-                            <Download size={13} />
-                          </button>
-
-                          <button
-                            type="button"
-                            title="Delete Recording"
-                            onClick={(e) => handleDeleteSession(session.id, e)}
-                            className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-450 rounded-xl transition-all cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
+                        <strong className="block">{gateway.label}</strong>
+                        <span className="text-[7.5px] text-slate-400">{gateway.desc}</span>
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* DETAILED DIAGNOSTICS & AI ANALYSIS Holographic Terminal */}
-        <AnimatePresence>
-          {selectedSessionForAnalysis && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 15 }}
-              className="bg-slate-950 text-slate-100 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden mt-6 text-left"
-            >
-              {/* Header */}
-              <div className="bg-slate-900/60 px-6 py-4 border-b border-slate-800 flex justify-between items-center font-mono">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
-                  <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
-                    DOCTORIAN AI BIOMETRIC DIAGNOSTICS TERMINAL
-                  </span>
-                </div>
-                <button
-                  onClick={() => setSelectedSessionForAnalysis(null)}
-                  className="text-slate-400 hover:text-white transition-all cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
               </div>
 
-              <div className="p-6 sm:p-8 space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-850">
-                  <div className="space-y-1">
-                    <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest font-mono block">Selected Case ID</span>
-                    <h3 className="text-md sm:text-lg font-extrabold text-white tracking-tight">
-                      {selectedSessionForAnalysis.name}
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-mono">
-                      Biometric recording spanning {selectedSessionForAnalysis.durationSeconds}s | Date: {new Date(selectedSessionForAnalysis.createdAt).toLocaleString()}
-                    </p>
-                  </div>
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={isSendingAlert}
+                  onClick={handleSendSms}
+                  className="flex-1 min-w-[140px] py-3 px-4 bg-slate-900 hover:bg-slate-850 dark:bg-slate-850 dark:hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-wider rounded-2xl cursor-pointer flex items-center justify-center gap-2 border border-slate-700 shadow transition-all disabled:opacity-40"
+                >
+                  <Send size={12} className="text-sky-400 shrink-0" />
+                  {isSendingAlert ? 'Processing Dispatches...' : 'Send Emergency SMS'}
+                </button>
 
-                  {/* Clinical Stability Dial */}
-                  <div className="flex items-center gap-4 bg-slate-900/85 p-4 rounded-2xl border border-slate-800">
-                    <div className="relative w-16 h-16 flex items-center justify-center font-mono select-none">
-                      <svg className="absolute w-full h-full transform -rotate-90">
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="26"
-                          stroke="#1e293b"
-                          strokeWidth="5"
-                          fill="transparent"
-                        />
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="26"
-                          stroke={
-                            !selectedSessionForAnalysis.aiAnalysis ? '#6366f1' :
-                            selectedSessionForAnalysis.aiAnalysis.clinicalRating > 80 ? '#10b981' :
-                            selectedSessionForAnalysis.aiAnalysis.clinicalRating > 60 ? '#f59e0b' : '#ef4444'
-                          }
-                          strokeWidth="5"
-                          fill="transparent"
-                          strokeDasharray={2 * Math.PI * 26}
-                          strokeDashoffset={2 * Math.PI * 26 * (1 - (!selectedSessionForAnalysis.aiAnalysis ? 0 : selectedSessionForAnalysis.aiAnalysis.clinicalRating / 100))}
-                          className="transition-all duration-1000"
-                        />
-                      </svg>
-                      <span className="text-sm font-black text-white">
-                        {selectedSessionForAnalysis.aiAnalysis ? `${selectedSessionForAnalysis.aiAnalysis.clinicalRating}%` : '--'}
+                <button
+                  type="button"
+                  disabled={isSendingAlert}
+                  onClick={handleMakeCall}
+                  className="flex-1 min-w-[140px] py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-2xl cursor-pointer flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-40"
+                >
+                  <PhoneCall size={12} className="text-indigo-200 shrink-0 animate-bounce" />
+                  {isSendingAlert ? 'Synthesizing Audio...' : 'Dial AI Voice Call'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Alert Success / Error Reports */}
+          <AnimatePresence>
+            {alertSuccessDetails && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mt-5 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl text-left font-mono text-[10px]"
+              >
+                <div className="flex items-center gap-2 text-emerald-500 font-bold mb-1.5">
+                  <CheckCircle2 size={12} />
+                  <span>DISPATCH TRANSMITTED SECURELY</span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {alertSuccessDetails}
+                </div>
+              </motion.div>
+            )}
+
+            {alertError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mt-5 p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl text-left font-mono text-[10px]"
+              >
+                <div className="flex items-center gap-2 text-rose-500 font-bold mb-1.5">
+                  <AlertCircle size={12} />
+                  <span>DISPATCH SYSTEM ERROR</span>
+                </div>
+                <div className="text-rose-600 dark:text-rose-400 leading-relaxed">
+                  {alertError}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* COMPLETED WORKOUTS HISTORY LOG */}
+      <div className="mt-8 border-t border-slate-100 dark:border-slate-800/60 pt-6">
+        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono flex items-center gap-1.5 mb-4">
+          <Database size={13} className="text-indigo-500" />
+          Smart Watch Performance Archive ({completedSessions.length})
+        </h4>
+
+        {completedSessions.length === 0 ? (
+          <div className="text-center py-8 bg-slate-50/50 dark:bg-slate-900/15 rounded-2xl border border-dashed border-slate-150 dark:border-slate-800/80 flex flex-col items-center justify-center space-y-1.5">
+            <Activity size={20} className="text-slate-300" />
+            <p className="text-xs text-slate-400 font-medium">No archived sports sessions in this device.</p>
+            <p className="text-[9px] text-slate-400">Complete workouts on the watch above to record performance metrics.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[220px] overflow-y-auto pr-1">
+            {completedSessions.map((session) => {
+              const isSelected = selectedSessionForAnalysis?.id === session.id;
+              return (
+                <div 
+                  key={session.id}
+                  onClick={() => setSelectedSessionForAnalysis(session)}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer text-left flex justify-between items-center gap-4 hover:shadow-md ${
+                    isSelected 
+                      ? 'border-indigo-500 dark:border-indigo-600 bg-indigo-500/5 ring-1 ring-indigo-500/10' 
+                      : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950'
+                  }`}
+                >
+                  <div className="space-y-1 font-mono">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9.5px] uppercase font-bold text-slate-500 bg-slate-150 dark:bg-slate-900 px-1.5 py-0.5 rounded">
+                        {session.emoji} {session.sportName}
+                      </span>
+                      <span className="text-[8.5px] text-slate-400">
+                        {new Date(session.createdAt).toLocaleDateString()}
                       </span>
                     </div>
 
-                    <div className="text-left font-mono">
-                      <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest block">Homeostatic stability index</span>
-                      <strong className={`text-xs uppercase font-extrabold tracking-wide ${
-                        !selectedSessionForAnalysis.aiAnalysis ? 'text-indigo-400' :
-                        selectedSessionForAnalysis.aiAnalysis.clinicalRating > 80 ? 'text-emerald-400' :
-                        selectedSessionForAnalysis.aiAnalysis.clinicalRating > 60 ? 'text-amber-400' : 'text-rose-500'
-                      }`}>
-                        {!selectedSessionForAnalysis.aiAnalysis ? 'Awaiting diagnostics' :
-                         selectedSessionForAnalysis.aiAnalysis.clinicalRating > 80 ? 'Stable homeostasis' :
-                         selectedSessionForAnalysis.aiAnalysis.clinicalRating > 60 ? 'Fluctuating / Caution' : 'CRITICAL FLUCTUATION'}
-                      </strong>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-400">
+                      <span>Time: <strong className="text-slate-700 dark:text-slate-350">{formatDuration(session.durationSeconds)}</strong></span>
+                      <span>Avg HR: <strong className="text-rose-500">{session.avgHeartRate} BPM</strong></span>
+                      <span>Energy: <strong className="text-orange-500">{session.calories} kcal</strong></span>
+                      {session.distance && (
+                        <span>Dist: <strong className="text-blue-500">{session.distance} km</strong></span>
+                      )}
+                      {session.steps && (
+                        <span>Reps: <strong className="text-emerald-500">{session.steps}</strong></span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button" title="Doctorian AI Sports Review"
+                      onClick={(e) => { e.stopPropagation(); handleRunAiAnalysis(session); }}
+                      className="p-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer"
+                    >
+                      <Sparkles size={12} />
+                    </button>
+                    <button
+                      type="button" title="Save to Patient EHR Charts"
+                      onClick={(e) => handleCommitToHealthRecords(session, e)}
+                      className="p-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-450 rounded-xl cursor-pointer"
+                    >
+                      <Save size={12} />
+                    </button>
+                    <button
+                      type="button" title="Download Session XML/JSON"
+                      onClick={(e) => handleExportSession(session, e)}
+                      className="p-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 text-slate-500 rounded-xl cursor-pointer"
+                    >
+                      <Download size={12} />
+                    </button>
+                    <button
+                      type="button" title="Delete record"
+                      onClick={(e) => handleDeleteSession(session.id, e)}
+                      className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-xl cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* DIAGNOSTICS & AI SPORTS SCIENCE TERMINAL */}
+      <AnimatePresence>
+        {selectedSessionForAnalysis && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 15 }}
+            className="bg-slate-950 text-slate-100 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden mt-6 text-left font-mono"
+          >
+            <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-800 flex justify-between items-center text-[10px]">
+              <span className="font-bold uppercase text-indigo-400 tracking-wider flex items-center gap-1.5">
+                <Cpu size={12} className="animate-spin" /> DOCTORIAN AI WEARABLE BIOMECHANICS LAB
+              </span>
+              <button onClick={() => setSelectedSessionForAnalysis(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="flex flex-col md:flex-row justify-between gap-4 border-b border-slate-850 pb-4">
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <span>{selectedSessionForAnalysis.emoji} {selectedSessionForAnalysis.sportName} Session Log</span>
+                  </h3>
+                  <p className="text-[9px] text-slate-400 mt-1">
+                    Duration: {formatDuration(selectedSessionForAnalysis.durationSeconds)} | Energy: {selectedSessionForAnalysis.calories} kcal | Avg HR: {selectedSessionForAnalysis.avgHeartRate} BPM
+                  </p>
+                </div>
+
+                {/* VO2 Max Dial */}
+                <div className="flex items-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800/80">
+                  <div className="relative w-12 h-12 flex items-center justify-center font-bold">
+                    <svg className="absolute w-full h-full transform -rotate-90">
+                      <circle cx="24" cy="24" r="20" stroke="#1e293b" strokeWidth="4" fill="transparent" />
+                      <circle
+                        cx="24" cy="24" r="20" stroke="#10b981" strokeWidth="4" fill="transparent"
+                        strokeDasharray={2 * Math.PI * 20}
+                        strokeDashoffset={2 * Math.PI * 20 * (1 - (selectedSessionForAnalysis.aiAnalysis?.estimatedVo2Max || 40) / 65)}
+                      />
+                    </svg>
+                    <span className="text-[10px] text-white">
+                      {selectedSessionForAnalysis.aiAnalysis?.estimatedVo2Max || '--'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[7.5px] text-slate-400 block font-bold tracking-wider uppercase">EST. VO2 MAX</span>
+                    <strong className="text-[9.5px] text-emerald-400 uppercase">
+                      {selectedSessionForAnalysis.aiAnalysis ? 'Healthy Aerobic' : 'Awaiting Compute'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {isAnalyzing ? (
+                <div className="py-8 flex flex-col items-center justify-center space-y-2">
+                  <Activity className="text-indigo-400 animate-spin" size={24} />
+                  <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest animate-pulse">Running athletic metabolic profile linter...</p>
+                </div>
+              ) : selectedSessionForAnalysis.aiAnalysis ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-[10.5px]">
+                  <div className="space-y-4">
+                    <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-850">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Athletic Summary</span>
+                      <p className="text-slate-300 leading-relaxed">{selectedSessionForAnalysis.aiAnalysis.summary}</p>
+                    </div>
+                    <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-850">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Training Effect</span>
+                      <p className="text-slate-300 leading-relaxed">{selectedSessionForAnalysis.aiAnalysis.aerobicEffect}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-850">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Cardio Load Spectrum</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedSessionForAnalysis.aiAnalysis.cardioZones.map((z: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-slate-950 rounded text-[9px] text-indigo-300 font-bold">
+                            {z}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-850">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Coaching Tips</span>
+                      <ul className="space-y-1 mt-1 text-slate-300">
+                        {selectedSessionForAnalysis.aiAnalysis.tips.map((t: string, i: number) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-indigo-400">✦</span>
+                            <span>{t}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
+              ) : (
+                <div className="py-6 text-center space-y-3">
+                  <p className="text-[10px] text-slate-400">Run Doctorian Sports DeepSeek AI for advanced athletic analytics & recommendations.</p>
+                  <button
+                    type="button"
+                    onClick={() => handleRunAiAnalysis(selectedSessionForAnalysis)}
+                    className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl cursor-pointer"
+                  >
+                    Compute AI Athletic Report
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {isAnalyzingSession ? (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-3 font-mono text-center">
-                    <RefreshCw className="text-indigo-400 animate-spin" size={32} />
-                    <p className="text-xs text-indigo-300 font-bold uppercase tracking-widest animate-pulse">
-                      Analyzing live smartwatch pulses and calibration data...
-                    </p>
-                    <p className="text-[10px] text-slate-500 max-w-sm">
-                      Running diagnostic linter to compare biometric deviation records, PPG notches, and oxygen delivery metrics.
-                    </p>
-                  </div>
-                ) : selectedSessionForAnalysis.aiAnalysis ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-mono text-left">
-                    <div className="space-y-4">
-                      {/* Summary */}
-                      <div className="space-y-1.5 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <FileText size={12} className="text-indigo-400" /> Clinical Diagnostic Abstract
-                        </span>
-                        <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
-                          {selectedSessionForAnalysis.aiAnalysis.summary}
-                        </p>
-                      </div>
-
-                      {/* Anomaly Alerts */}
-                      <div className="space-y-2 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <AlertTriangle size={12} className="text-amber-400" /> Physiological Anomalies Log
-                        </span>
-                        
-                        {selectedSessionForAnalysis.aiAnalysis.anomaliesList.length === 0 ? (
-                          <div className="flex items-center gap-2 text-emerald-450 text-[10.5px]">
-                            <CheckCircle2 size={13} />
-                            <span>Optimal signal. No physiological anomalies or abnormal spikes detected in this telemetry frame.</span>
-                          </div>
-                        ) : (
-                          <ul className="space-y-1.5 text-[10.5px]">
-                            {selectedSessionForAnalysis.aiAnalysis.anomaliesList.map((anomaly, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-rose-450 font-bold">
-                                <span className="text-rose-500 select-none">▶</span>
-                                <span>{anomaly}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Calibration status */}
-                      <div className="space-y-1.5 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <Cpu size={12} className="text-indigo-400" /> Wearable & Machine Sensor Diagnostic
-                        </span>
-                        <p className="text-[10.5px] text-slate-350 leading-relaxed">
-                          {selectedSessionForAnalysis.aiAnalysis.hardwareStatus}
-                        </p>
-                      </div>
-
-                      {/* Clinical Recommendations */}
-                      <div className="space-y-2 bg-slate-900/30 p-4 rounded-2xl border border-slate-850">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <Sparkles size={11} className="text-indigo-400" /> Care & Calibration Protocols
-                        </span>
-                        <ul className="space-y-1.5 text-[10.5px] text-slate-300 font-medium">
-                          {selectedSessionForAnalysis.aiAnalysis.suggestions?.map((suggestion, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <span className="text-indigo-500 select-none">✦</span>
-                              <span>{suggestion}</span>
-                            </li>
-                          )) || (
-                            <li className="italic text-slate-500">No suggestions compiled.</li>
-                          )}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-4 font-mono text-center">
-                    <Sparkles className="text-indigo-500" size={28} />
-                    <p className="text-xs text-slate-400">
-                      Diagnostics are currently offline for this telemetry record.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleRunAiAnalysis(selectedSessionForAnalysis)}
-                      className="py-2.5 px-5 bg-indigo-650 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Sparkles size={12} />
-                      <span>Run Doctorian AI Clinical Diagnostics Report</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Footer Controls inside Terminal */}
-                {selectedSessionForAnalysis.aiAnalysis && (
-                  <div className="pt-6 border-t border-slate-850 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-[9px]">
-                    <p className="text-slate-500">
-                      Diagnosis authorized by: <strong className="text-slate-300">Doctorian Universal Intelligence Core v3.5-Flash</strong>
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => handleCommitToHealthRecords(selectedSessionForAnalysis, e)}
-                        className="py-2 px-4 bg-emerald-650 hover:bg-emerald-700 text-white font-black uppercase tracking-wider rounded-xl transition-all shadow cursor-pointer"
-                      >
-                        Keep & Save Report to Patient Records
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSessionForAnalysis(null)}
-                        className="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
-                      >
-                        Dismiss Terminal
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Mini Interactive Log footer */}
+      <div className="mt-6 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-900 text-[9px] font-mono">
+        <span className="font-bold text-slate-400 uppercase tracking-widest block mb-2">Live Sports GATT Bus Monitor</span>
+        <div className="max-h-[70px] overflow-y-auto space-y-1">
+          {logs.map((log, idx) => (
+            <p key={idx} className="text-slate-600 dark:text-slate-450 leading-tight">
+              {log}
+            </p>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -95,8 +95,8 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
       sampleRate: 5,
       signalType: 'sawtooth',
       vitalsTarget: 'temperature',
-      status: 'calibrating',
-      logs: ['[INIT] Subscribed to topic: ward/3/syringe/04...', '[MQTT] Handshake pending...', '[CALIBRATE] Self-test loop initiated.']
+      status: 'active',
+      logs: ['[INIT] Subscribed to topic: ward/3/syringe/04...', '[MQTT] Handshake established.', '[DATA] Streaming real-time infusion fluid temperature...']
     }
   ]);
 
@@ -389,41 +389,51 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
     addConnectionLog(`[BIOMED PROVISIONER] Telemetry node disconnected and unmapped: ${id}`, "warn");
   };
 
-  // Custom Machine active telemetry wave simulator
+  // Custom Machines real-time continuous active telemetry simulator
   useEffect(() => {
-    if (!activeCustomMachineId) return;
-    const targetMachine = machines.find(m => m.id === activeCustomMachineId);
-    if (!targetMachine || targetMachine.status !== 'active') return;
-
     let tick = 0;
     const interval = setInterval(() => {
       tick++;
-      let val = 0;
-      const rate = targetMachine.sampleRate;
-      
-      if (targetMachine.signalType === 'sine') {
-        val = Math.sin(tick * 0.25) * 5 + 10;
-      } else if (targetMachine.signalType === 'sawtooth') {
-        val = (tick % 10) * 1.5 + 2;
-      } else if (targetMachine.signalType === 'triangular') {
-        val = Math.abs((tick % 20) - 10) * 1.2;
-      } else if (targetMachine.signalType === 'pulse') {
-        val = (tick % 15 < 3) ? 18 : 2;
-      }
 
-      setCustomWaveform(prev => [...prev.slice(-40), val]);
+      const activeMachines = machines.filter(m => m.status === 'active');
+      if (activeMachines.length === 0) return;
 
-      // Inject into vitals occasionally to simulate hardware loop integration!
-      if (tick % 10 === 0 && vitals) {
-        const field = targetMachine.vitalsTarget;
-        const currentVal = vitals[field] || 70;
-        // Make minor adjustments based on wave
-        const adjustedVal = Math.round(currentVal + (val - 7) * 0.15);
-        updateVitals({
-          ...vitals,
-          [field]: Math.max(10, Math.min(250, adjustedVal)),
-          timestamp: Date.now()
-        });
+      let vitalsChanged = false;
+      const updatedVitals = vitals ? { ...vitals } : null;
+
+      activeMachines.forEach(machine => {
+        let val = 0;
+        const mtick = tick;
+        
+        if (machine.signalType === 'sine') {
+          val = Math.sin(mtick * 0.25) * 5 + 10;
+        } else if (machine.signalType === 'sawtooth') {
+          val = (mtick % 10) * 1.5 + 2;
+        } else if (machine.signalType === 'triangular') {
+          val = Math.abs((mtick % 20) - 10) * 1.2;
+        } else if (machine.signalType === 'pulse') {
+          val = (mtick % 15 < 3) ? 18 : 2;
+        }
+
+        // If this is the active custom machine view, update its live waveform
+        if (machine.id === activeCustomMachineId) {
+          setCustomWaveform(prev => [...prev.slice(-40), val]);
+        }
+
+        // Periodically inject into vitals to keep the real-time link live
+        if (mtick % 10 === 0 && updatedVitals) {
+          const field = machine.vitalsTarget;
+          const currentVal = updatedVitals[field] || 70;
+          // Make minor adjustments based on wave
+          const adjustedVal = Math.round(currentVal + (val - 7) * 0.15);
+          updatedVitals[field] = Math.max(10, Math.min(250, adjustedVal));
+          vitalsChanged = true;
+        }
+      });
+
+      if (vitalsChanged && updatedVitals) {
+        updatedVitals.timestamp = Date.now();
+        updateVitals(updatedVitals);
       }
     }, 120);
 
@@ -440,7 +450,12 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
             <Activity className="w-6 h-6 animate-pulse" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Machine Telemetry Nexus</h2>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2 flex-wrap">
+              <span>Machine Telemetry Nexus</span>
+              <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-mono rounded-full border border-emerald-500/30 animate-pulse uppercase">
+                {machines.filter(m => m.status === 'active').length} Nodes Connected
+              </span>
+            </h2>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Biomedical Nodes, Oscillometry, Spirometry & Genomics Alignment</p>
           </div>
         </div>

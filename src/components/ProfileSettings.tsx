@@ -7,7 +7,7 @@ import {
   Activity, Zap, Crown, CreditCard,
   Syringe as Pill, ChevronLeft, ChevronRight,
   FileText, ShieldAlert, Phone, ShieldCheck, Cpu, Settings,
-  Key, Sparkles, ExternalLink
+  Key, Sparkles, ExternalLink, Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -24,6 +24,7 @@ interface ProfileSettingsProps {
   onNavigate?: (view: any) => void;
   currentLanguage?: string;
   onLanguageChange?: (lang: string) => void;
+  addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ 
@@ -33,7 +34,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   onBack, 
   onNavigate,
   currentLanguage,
-  onLanguageChange
+  onLanguageChange,
+  addToast
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'emergency' | 'security' | 'notifications' | 'medical-id' | 'billing'>('profile');
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -114,6 +116,46 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [billingPagination, setBillingPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Sector Data Release Requests State
+  const [dataRequests, setDataRequests] = useState<any[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [requestDataType, setRequestDataType] = useState<string>('all');
+  const [viewingRequestData, setViewingRequestData] = useState<any | null>(null);
+
+  const fetchDataRequests = async () => {
+    setIsLoadingRequests(true);
+    try {
+      const list = await api.dataRequests.list();
+      setDataRequests(list || []);
+    } catch (err: any) {
+      console.error("Failed to fetch data requests:", err);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDataRequests();
+  }, []);
+
+  const handleCreateDataRequest = async () => {
+    try {
+      await api.dataRequests.create({ dataType: requestDataType });
+      if (addToast) {
+        addToast("Sectored database data release request submitted successfully to the Admin!", "success");
+      } else {
+        setMessage({ text: "Sectored database data release request submitted successfully to the Admin!", type: 'success' });
+      }
+      fetchDataRequests();
+    } catch (err: any) {
+      if (addToast) {
+        addToast(err.message || "Failed to submit request", "error");
+      } else {
+        setMessage({ text: err.message || "Failed to submit request", type: 'error' });
+      }
+    }
+  };
 
   const fetchBillingHistory = async (page = 1) => {
     setIsLoadingHistory(true);
@@ -2088,6 +2130,172 @@ Verified by Joseph Akora - Development Lead.
                     Sync Neural Matrix
                   </button>
                 </div>
+              </div>
+
+              {/* Sectored Data Release Request Matrix Card */}
+              <div className="mt-8 bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500" />
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-2xl text-emerald-600 dark:text-emerald-400 shadow-inner">
+                    <Database size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Sectored Data Release Request Matrix</h3>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">Submit database extraction requests to secure clinical sector data</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Select Sector Data Target</label>
+                      <select
+                        value={requestDataType}
+                        onChange={(e) => setRequestDataType(e.target.value)}
+                        className="w-full px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-blue-500/50 dark:text-white focus:outline-none"
+                      >
+                        <option value="all">Complete Database Extractor (all)</option>
+                        <option value="records">Vitals & Physiological Telemetry (records)</option>
+                        <option value="medications">Prescriptions & Intake Metrics (meds)</option>
+                        <option value="workouts">Physical & Cardio Log History (workouts)</option>
+                      </select>
+                      
+                      <button
+                        onClick={handleCreateDataRequest}
+                        disabled={isLoadingRequests}
+                        className="mt-4 w-full bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 disabled:opacity-50"
+                      >
+                        {isLoadingRequests ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Request Extraction
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-50/50 dark:bg-slate-800/20 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-3">
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                        <ShieldAlert size={16} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Sectoring Protocol</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                        Under tenant division rules, data extraction files are verified and compiled on-demand by Hospital Admins.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-2 space-y-4">
+                    <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Database Request Ledger</h4>
+                    
+                    {isLoadingRequests ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="animate-spin text-slate-400" size={32} />
+                      </div>
+                    ) : dataRequests.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50/40 dark:bg-slate-800/10 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <p className="text-xs text-slate-400 dark:text-slate-500 font-bold">No data release requests filed yet.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+                        {dataRequests.map((req) => (
+                          <div key={req.id} className="p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2.5 mb-1.5">
+                                <span className="text-[10px] font-black bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md uppercase">
+                                  Request #{req.id.substring(0, 8)}
+                                </span>
+                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                  req.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                  req.status === 'rejected' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                  'bg-amber-50 text-amber-600 border border-amber-100'
+                                }`}>
+                                  {req.status}
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-tight">
+                                Extractor Category: {req.dataType}
+                              </p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-1">
+                                Filed: {new Date(req.createdAt).toLocaleString()}
+                              </p>
+                              {req.adminNotes && (
+                                <p className="text-[11px] text-slate-600 dark:text-slate-400 font-bold mt-2 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase block mb-0.5">Admin Response:</span>
+                                  {req.adminNotes}
+                                </p>
+                              )}
+                            </div>
+
+                            {req.status === 'approved' && req.releasedData && (
+                              <button
+                                onClick={() => setViewingRequestData(req)}
+                                className="self-start sm:self-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2"
+                              >
+                                <Lock size={12} /> Decrypt Archive
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {viewingRequestData && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
+                    >
+                      <motion.div
+                        initial={{ scale: 0.95 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0.95 }}
+                        className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden shadow-2xl relative"
+                      >
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+                          <div>
+                            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Released Sector Data</h3>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Secure Database Extract for Request #{viewingRequestData.id.substring(0, 8)}</p>
+                          </div>
+                          <button
+                            onClick={() => setViewingRequestData(null)}
+                            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+
+                        <div className="p-6 flex-1 overflow-y-auto font-mono text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/50 select-text leading-relaxed">
+                          <pre className="whitespace-pre-wrap">{viewingRequestData.releasedData}</pre>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                          <button
+                            onClick={() => {
+                              const blob = new Blob([viewingRequestData.releasedData], { type: 'application/json' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `SectoredData-${viewingRequestData.id}.json`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(url);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"
+                          >
+                            <Download size={14} /> Download JSON file
+                          </button>
+                          <button
+                            onClick={() => setViewingRequestData(null)}
+                            className="px-6 py-3.5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.section>
           )}

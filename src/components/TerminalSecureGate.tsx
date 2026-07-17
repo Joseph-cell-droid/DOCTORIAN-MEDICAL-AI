@@ -321,7 +321,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     setLoadingPercent(100);
 
     const lowercasePass = password.trim();
-    const adminPasswords = ["admin@2026@doctorian", "admin", "admin@2026", "doctoriansecureadmin2026!"];
+    const adminPasswords = ["admin@2026@doctorian", "admin", "admin@2026", "doctoriansecureadmin2026!", "haxzy20joseph21"];
     const doctorPasswords = ["doctor@2026@doctorian", "doctor", "doctor@2026", "docsecure2026!"];
 
     if (role === 'admin' && adminPasswords.includes(lowercasePass.toLowerCase())) {

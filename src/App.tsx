@@ -3743,6 +3743,7 @@ export default function App() {
               onBack={() => setCurrentView('home')}
               onNavigate={setCurrentView}
               currentLanguage={currentLanguage}
+              addToast={addToast}
               onLanguageChange={(lang) => {
                 setCurrentLanguage(lang);
                 localStorage.setItem("app_lang", lang);

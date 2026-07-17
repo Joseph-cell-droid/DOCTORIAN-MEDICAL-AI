@@ -35,6 +35,8 @@ export interface User {
   isOnline?: boolean;
   ip?: string;
   userAgent?: string;
+  isMainDoctor?: number;
+  useMode?: string;
 }
 
 export interface HealthRecord {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, PlusCircle, Heart, GraduationCap, Wallet, Info, Loader2 } from 'lucide-react';
+import { Bell, PlusCircle, Heart, GraduationCap, Wallet, Info, Loader2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 
@@ -12,19 +12,20 @@ export const AdminInfoModal: React.FC<AdminInfoModalProps> = ({ isOpen, onClose 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const data = await api.notifications.list();
+      setNotifications(data);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
-      const fetchNotifications = async () => {
-        setLoading(true);
-        try {
-          const data = await api.notifications.list();
-          setNotifications(data);
-        } catch (err) {
-          console.error("Failed to fetch notifications:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
       fetchNotifications();
     }
   }, [isOpen]);
@@ -84,10 +85,22 @@ export const AdminInfoModal: React.FC<AdminInfoModalProps> = ({ isOpen, onClose 
             <div className="p-8 max-h-[60vh] overflow-y-auto space-y-8 custom-scrollbar">
               {/* Real Admin Notifications */}
               <section className="space-y-4" aria-labelledby="latest-broadcasts-title">
-                <h4 id="latest-broadcasts-title" className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                  <Bell size={14} aria-hidden="true" />
-                  Latest Broadcasts
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 id="latest-broadcasts-title" className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                    <Bell size={14} aria-hidden="true" />
+                    Latest Broadcasts
+                  </h4>
+                  <button
+                    onClick={fetchNotifications}
+                    disabled={loading}
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-600 active:scale-95 transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider disabled:opacity-50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                    title="Refresh broadcasts"
+                    aria-label="Refresh latest broadcasts"
+                  >
+                    <RefreshCw size={12} className={loading ? 'animate-spin text-blue-600' : ''} />
+                    Refresh
+                  </button>
+                </div>
                 
                 {loading ? (
                   <div className="flex justify-center py-8" role="status">

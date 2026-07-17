@@ -46,6 +46,18 @@ import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 
 export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
+  const currentUser = (() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('medical_user');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {
+        console.warn("Failed to parse current user:", e);
+      }
+    }
+    return null;
+  })();
+
   const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback' | 'sectors'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('admin_active_tab');
@@ -92,7 +104,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     conditions: '',
     bloodGroup: '',
     hospitalPreference: '',
-    status: 'active'
+    status: 'active',
+    isMainDoctor: 0,
+    useMode: 'personal'
   });
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -736,7 +750,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       fetchUsers(1);
     }, 400);
     return () => clearTimeout(delayDebounce);
-  }, [searchQuery, filterInstitution, activeTab]);
+  }, [searchQuery, filterInstitution]);
 
   const handleRegisterDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -853,7 +867,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       if (addToast) addToast("User registered successfully via database link!", "success");
       setSuccessMessage("User created successfully");
       setIsAddingUser(false);
-      setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active' });
+      setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active', isMainDoctor: 0, useMode: 'personal' });
       fetchUsers();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -869,7 +883,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       if (addToast) addToast("User updated successfully via database link!", "success");
       setSuccessMessage("User updated successfully");
       setEditingUser(null);
-      setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active' });
+      setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active', isMainDoctor: 0, useMode: 'personal' });
       fetchUsers();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -892,7 +906,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
       conditions: u.conditions || '',
       bloodGroup: u.bloodGroup || '',
       hospitalPreference: u.hospitalPreference || '',
-      status: u.status || 'active'
+      status: u.status || 'active',
+      isMainDoctor: u.isMainDoctor || 0,
+      useMode: u.useMode || 'personal'
     });
   };
 
@@ -1198,7 +1214,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               
               <button 
                 onClick={() => {
-                  setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active' });
+                  setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active', isMainDoctor: 0, useMode: 'personal' });
                   setIsAddingUser(true);
                 }}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
@@ -1357,11 +1373,14 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-transparent border border-transparent focus:ring-0 cursor-pointer transition-colors ${
                                 u.role === 'admin' || u.role === 'doctor'
                                   ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800/50'
+                                  : u.role === 'nurse'
+                                  ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 border-pink-100 dark:border-pink-800/50'
                                   : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/50'
                               }`}
                             >
                               <option value="user" className="dark:bg-slate-900 text-slate-900 dark:text-white">User</option>
                               <option value="doctor" className="dark:bg-slate-900 text-slate-900 dark:text-white">Doctor</option>
+                              <option value="nurse" className="dark:bg-slate-900 text-slate-900 dark:text-white">Nurse</option>
                               <option value="admin" className="dark:bg-slate-900 text-slate-900 dark:text-white">Admin</option>
                             </select>
                           </td>
@@ -3806,6 +3825,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     >
                       <option value="user">Standard Patient (user)</option>
                       <option value="doctor">Medical Specialist (doctor)</option>
+                      <option value="nurse">Medical Nurse (nurse)</option>
                       <option value="admin">Platform Admin (admin)</option>
                     </select>
                   </div>
@@ -3821,6 +3841,34 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white"
                     />
                   </div>
+
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Platform Use Mode</label>
+                    <select
+                      value={userForm.useMode || 'personal'}
+                      onChange={(e) => setUserForm({...userForm, useMode: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500/50 dark:bg-slate-800 dark:text-white focus:outline-none"
+                    >
+                      <option value="personal">Personal Use (patient)</option>
+                      <option value="hospital">Hospital Sector Use</option>
+                      <option value="clinical">Clinical Hub Use</option>
+                      <option value="large_people">Large Population Use</option>
+                    </select>
+                  </div>
+
+                  {userForm.role === 'doctor' && currentUser?.email?.toLowerCase() === "gloriajayakullo@gmail.com" && (
+                    <div className="col-span-2 sm:col-span-1 flex items-center h-full pt-6 pl-2">
+                      <label className="flex items-center gap-3 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={userForm.isMainDoctor === 1}
+                          onChange={(e) => setUserForm({...userForm, isMainDoctor: e.target.checked ? 1 : 0})}
+                          className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Designate as Main Doctor</span>
+                      </label>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institution Identification Key</label>

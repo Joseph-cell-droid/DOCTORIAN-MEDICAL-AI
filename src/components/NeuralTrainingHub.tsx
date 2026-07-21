@@ -234,10 +234,10 @@ export const NeuralTrainingHub: React.FC = () => {
   ];
 
   const BASE_MODELS = [
-    { id: 'google/gemma-3-4b-tfjs', label: 'Google Gemma 3 4B (TensorFlow.js Local DL)', desc: 'Run model 100% locally in-browser forever. No APIs, uses neural weights trained dynamically with WebGL acceleration.' },
-    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Meta Llama 3.1 8B (Recommended)', desc: 'High logical reasoning and clinical guideline synthesis.' },
-    { id: 'google/gemma-2-9b-it', label: 'Google Gemma 2 9B (Ultra-Fine)', desc: 'Optimized translation and patient conversational tone.' },
-    { id: 'deepseek-ai/DeepSeek-R1', label: 'DeepSeek R1 (Deep Reasoner Labs)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
+    { id: 'google/gemma-3-4b-tfjs', label: 'Doctorian Opus (Local Edge)', desc: 'Run model 100% locally in-browser forever. No APIs, uses neural weights trained dynamically with WebGL acceleration.' },
+    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Doctorian 1.5 (Cloud Core)', desc: 'High logical reasoning and clinical guideline synthesis.' },
+    { id: 'google/gemma-2-9b-it', label: 'Doctorian 2.5 (Clinical Brain)', desc: 'Optimized translation and patient conversational tone.' },
+    { id: 'deepseek-ai/DeepSeek-R1', label: 'Doctorian 3.5 (Max Brain)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
   ];
 
   const handleLanguageGenerate = async () => {
@@ -405,7 +405,7 @@ export const NeuralTrainingHub: React.FC = () => {
         const epochLogs: string[] = [];
         
         epochLogs.push(`[SYSTEM] TensorFlow.js client-side backend initialized: ${tf.getBackend()}`);
-        epochLogs.push(`[SYSTEM] Preparing model architecture optimized for Gemma 3 4B parameters...`);
+        epochLogs.push(`[SYSTEM] Preparing model architecture optimized for Doctorian Opus parameters...`);
         epochLogs.push(`[SYSTEM] Compiling local neural network over ${items.length || 1} active knowledge nodes...`);
 
         // Real tfjs tensor execution to verify and utilize tfjs
@@ -459,7 +459,7 @@ export const NeuralTrainingHub: React.FC = () => {
             if (epoch === ftEpochs) {
               thisJob.status = 'completed';
               thisJob.progress = 100;
-              thisJob.logs += `\n[SYSTEM] Model compilation finished. Gemma 3 4B custom clinical weights optimized.`;
+              thisJob.logs += `\n[SYSTEM] Model compilation finished. Doctorian Opus custom clinical weights optimized.`;
               thisJob.logs += `\n[SYSTEM] Local storage synchronized. Safe for air-gapped usage.`;
             }
           }
@@ -471,7 +471,7 @@ export const NeuralTrainingHub: React.FC = () => {
         yData.dispose();
         testModel.dispose();
 
-        setSuccessMsg("Gemma 3 4B Local optimization finished using TensorFlow.js!");
+        setSuccessMsg("Doctorian Opus Local optimization finished using TensorFlow.js!");
         setTimeout(() => setSuccessMsg(''), 4000);
 
       } catch (err: any) {
@@ -516,7 +516,7 @@ export const NeuralTrainingHub: React.FC = () => {
         localStorage.setItem('tfjs_active_model_id', jobId);
         localStorage.setItem('doctorian_clinical_engine', 'gemma3-tfjs');
 
-        setSuccessMsg("TensorFlow.js Gemma 3 4B Brain prioritized actively for client-side chat.");
+        setSuccessMsg("TensorFlow.js Doctorian Opus Brain prioritized actively for client-side chat.");
         setTimeout(() => setSuccessMsg(''), 4000);
         await fetchFineTuningJobs(true);
       } catch (err: any) {
@@ -554,7 +554,7 @@ export const NeuralTrainingHub: React.FC = () => {
       }
 
       await api.ai.deactivateFineTunedModels();
-      setSuccessMsg("Reverted neural brain to baseline Meta/Google cores.");
+      setSuccessMsg("Reverted neural brain to standard Doctorian base weights.");
       setTimeout(() => setSuccessMsg(''), 4000);
       await fetchFineTuningJobs(true);
     } catch (err: any) {

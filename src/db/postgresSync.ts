@@ -155,8 +155,12 @@ export async function syncToPostgres(sqliteSql: string, params: any[], tableName
 
     await pgPool.query(pgSql, pgParams);
   } catch (err: any) {
-    // Graceful logging without disrupting the main user experience thread
-    console.warn(`[POSTGRES-SYNC-WRITE-WARNING] Failed to replicate query to PostgreSQL: "${sqliteSql}". Reason:`, err.message);
+    if (err.message.includes("permission denied") || err.message.includes("is not allowed") || err.message.includes("Connection")) {
+      console.log(`[POSTGRES-SYNC-INFO] PostgreSQL sync write permission restricted or unreachable. Bypassing further PostgreSQL sync tasks.`);
+      setBypassPostgresSync(true);
+    } else {
+      console.log(`[POSTGRES-SYNC-INFO] PostgreSQL sync write bypassed: "${sqliteSql.substring(0, 40)}...". Reason:`, err.message);
+    }
   }
 }
 
@@ -176,6 +180,226 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
     // Run active schema migrations on startup
     console.log("[POSTGRES-SYNC] Ensuring PostgreSQL schemas are updated...");
     try {
+      // Ensure all major tables exist in PostgreSQL
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          display_name TEXT,
+          photo_url TEXT,
+          role TEXT DEFAULT 'user',
+          credits REAL DEFAULT 400,
+          last_unit_reset TEXT,
+          institution_id TEXT,
+          doctor_phone TEXT,
+          doctor_email TEXT,
+          doctor_name TEXT,
+          mentor_phone TEXT,
+          mentor_email TEXT,
+          mentor_name TEXT,
+          doctor_id TEXT,
+          mentor_id TEXT,
+          phone TEXT,
+          enable_external_ai INTEGER DEFAULT 0,
+          ollama_url TEXT,
+          ollama_model TEXT DEFAULT 'llama3',
+          huggingface_token TEXT,
+          huggingface_model TEXT DEFAULT 'google/gemma-3-4b-it',
+          allergies TEXT,
+          conditions TEXT,
+          blood_group TEXT,
+          hospital_preference TEXT,
+          subscription_tier TEXT DEFAULT 'free',
+          subscription_status TEXT DEFAULT 'inactive',
+          last_payment_date TEXT,
+          payment_evidence TEXT,
+          created_at TEXT NOT NULL
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          type TEXT DEFAULT 'info',
+          recipient_id TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS records (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          value TEXT NOT NULL,
+          unit TEXT,
+          date TEXT NOT NULL,
+          notes TEXT,
+          attachment_url TEXT
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS medications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          dosage TEXT,
+          frequency TEXT,
+          time TEXT,
+          category TEXT DEFAULT 'prescription',
+          reminders_enabled INTEGER DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS medication_intakes (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          taken_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          title TEXT,
+          persona TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          role TEXT NOT NULL,
+          text TEXT NOT NULL,
+          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS user_ai_context (
+          user_id TEXT PRIMARY KEY,
+          mood TEXT DEFAULT 'neutral',
+          preferred_greeting TEXT DEFAULT 'Professional',
+          last_greeting TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          deadline TEXT NOT NULL,
+          priority TEXT DEFAULT 'medium',
+          completed INTEGER DEFAULT 0,
+          notified INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS workouts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          duration INTEGER NOT NULL,
+          calories INTEGER,
+          intensity TEXT,
+          date TEXT NOT NULL,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS payments (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          amount REAL,
+          currency TEXT,
+          status TEXT,
+          external_id TEXT,
+          tier TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS knowledge_base (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          title TEXT,
+          content TEXT,
+          category TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS developer_keys (
+          id SERIAL PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          api_key TEXT UNIQUE NOT NULL,
+          label TEXT,
+          last_used TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS doctors (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          whatsapp_number TEXT NOT NULL,
+          specialization TEXT NOT NULL,
+          location TEXT NOT NULL,
+          image_url TEXT,
+          active INTEGER DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS fine_tuning_jobs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          base_model TEXT NOT NULL,
+          custom_name TEXT,
+          dataset_size INTEGER,
+          epochs INTEGER,
+          status TEXT NOT NULL,
+          progress INTEGER DEFAULT 0,
+          val_loss REAL DEFAULT 0.0,
+          val_accuracy REAL DEFAULT 0.0,
+          logs TEXT,
+          is_active INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS feedback (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          message_id TEXT NOT NULL,
+          rating TEXT NOT NULL,
+          suggestion TEXT,
+          timestamp TEXT NOT NULL
+        )
+      `);
+
       await pgPool.query(`
         CREATE TABLE IF NOT EXISTS emergency_contacts (
           id TEXT PRIMARY KEY,
@@ -231,7 +455,11 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
       await addCol("records", "attachment_url", "TEXT");
       
     } catch (migErr: any) {
-      console.error("[POSTGRES-SYNC-MIGRATION-ERROR] Failed to verify schema:", migErr.message);
+      console.log("[POSTGRES-SYNC-INFO] Schema verification bypassed or skipped:", migErr.message);
+      if (migErr.message.includes("permission denied") || migErr.message.includes("is not allowed")) {
+        console.log("[POSTGRES-SYNC-INFO] PostgreSQL public schema permission restricted. Falling back to local storage.");
+        setBypassPostgresSync(true);
+      }
     }
 
   } catch (probeErr: any) {
@@ -333,12 +561,12 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
             try {
               sqliteDb.prepare(`INSERT OR REPLACE INTO ${table.name} (${keys.join(", ")}) VALUES (${placeholders})`).run(...vals);
             } catch (sqliteErr: any) {
-              console.warn(`[POSTGRES-SYNC-WARNING] Skipping row sync on SQLite for table "${table.name}":`, sqliteErr.message);
+              console.log(`[POSTGRES-SYNC-INFO] Skipping row sync on SQLite for table "${table.name}":`, sqliteErr.message);
             }
           }
         })();
       } catch (err: any) {
-        console.warn(`[POSTGRES-SYNC-WARNING] Startup pull skipped for table "${table.name}". Postgres table might be clean or un-migrated. Details:`, err.message);
+        console.log(`[POSTGRES-SYNC-INFO] Startup pull skipped for table "${table.name}". Postgres table might be clean or un-migrated. Details:`, err.message);
       }
     }
 

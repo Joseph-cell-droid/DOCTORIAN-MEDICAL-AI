@@ -36,10 +36,11 @@ import {
   MedicationLog,
   SyncRecord
 } from '../utils/offlineDb';
+import { validateMoHClinicalDosage, validateDrugForDisease, validateDrugDrugInteractions, getOptimalReminderTimes } from '../utils/clinicalValidation';
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
-  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support'>('clinical_network');
+  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms'>('clinical_network');
   
   // Sound Configuration
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -405,6 +406,35 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
   const [isOnlineState, setIsOnlineState] = useState<boolean>(true);
   const [isSyncingState, setIsSyncingState] = useState<boolean>(false);
 
+  // Clinician Pager & Alarm telemetry state
+  const [activeDoctorId, setActiveDoctorId] = useState<string>(() => {
+    return localStorage.getItem('doctorian_active_viewing_doctor_id') || 'DOC-002';
+  });
+  const [doctorAlarms, setDoctorAlarms] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadAlarms = () => {
+      try {
+        const alarms = JSON.parse(localStorage.getItem('doctorian_active_doctor_alarms') || '[]');
+        setDoctorAlarms(alarms);
+      } catch (err) {
+        console.error("Failed to load doctorian alarms:", err);
+      }
+    };
+    loadAlarms();
+    window.addEventListener('doctorian_alarms_updated', loadAlarms);
+    return () => {
+      window.removeEventListener('doctorian_alarms_updated', loadAlarms);
+    };
+  }, []);
+
+  const handleSetActiveDoctorId = (id: string) => {
+    setActiveDoctorId(id);
+    localStorage.setItem('doctorian_active_viewing_doctor_id', id);
+  };
+
+  const [pendingRxRequests, setPendingRxRequests] = useState<any[]>([]);
+
   // Form State for creating prescription
   const [rxFormPatientId, setRxFormPatientId] = useState('PAT-001');
   const [rxFormDoctorId, setRxFormDoctorId] = useState('DOC-002');
@@ -419,6 +449,49 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
   }>>([
     { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
   ]);
+
+  // Clinical override controls for high-risk prescription alerts
+  const [rxOverrideChecked, setRxOverrideChecked] = useState(false);
+  const [rxOverrideJustification, setRxOverrideJustification] = useState('');
+
+  // Load and subscribe to pending requests
+  useEffect(() => {
+    const loadRequests = () => {
+      try {
+        const reqs = JSON.parse(localStorage.getItem('doctorian_pending_rx_requests') || '[]');
+        setPendingRxRequests(reqs.filter((r: any) => r.status === 'pending'));
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    loadRequests();
+
+    window.addEventListener('pending_rx_requests_updated', loadRequests);
+    return () => {
+      window.removeEventListener('pending_rx_requests_updated', loadRequests);
+    };
+  }, []);
+
+  const handleLoadPendingRequest = (req: any) => {
+    setRxFormPatientId(req.patientId || 'PAT-001');
+    setRxFormDoctorId(req.doctorId || 'DOC-002');
+    setRxFormDiagnosis(req.diagnosis || '');
+    setRxFormFollowUpDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    
+    // Auto-formulate standard medicine
+    setRxFormMedicines([
+      { name: `Targeted medication for ${req.diagnosis}`, dosage: '1 tablet or 500mg', frequency: 'Twice Daily', duration: '5 Days', reminderTimes: ['08:00', '20:00'] }
+    ]);
+    
+    if (addToast) addToast(`✨ Loaded AI diagnostic case dossier for ${req.patientName}! Form pre-populated.`, "info");
+    
+    // Scroll to the container
+    const el = document.getElementById('prescription-formulator-container');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const [activeQrCodeValue, setActiveQrCodeValue] = useState<string | null>(null);
 
@@ -485,6 +558,10 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
   const handleUpdateMedicineRow = (idx: number, field: string, val: any) => {
     setRxFormMedicines(prev => prev.map((med, i) => {
       if (i === idx) {
+        if (field === 'frequency') {
+          const optimalTimes = getOptimalReminderTimes(val);
+          return { ...med, frequency: val, reminderTimes: optimalTimes };
+        }
         return { ...med, [field]: val };
       }
       return med;
@@ -513,6 +590,45 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
       return;
     }
 
+    // Validate dosages, drug-disease mismatch, and drug-drug interactions against Uganda MOH Clinical Guidelines
+    let hasCriticalIssues = false;
+    const activePatient = offlinePatients.find(p => p.id === rxFormPatientId);
+    const patientConditions = activePatient ? activePatient.conditions : '';
+
+    const dosageWarnings: string[] = [];
+    rxFormMedicines.forEach(m => {
+      const validation = validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
+      if (!validation.isValid && validation.warning) {
+        dosageWarnings.push(validation.warning);
+        hasCriticalIssues = true;
+      }
+    });
+
+    const diseaseWarnings: string[] = [];
+    rxFormMedicines.forEach(m => {
+      const validation = validateDrugForDisease(m.name, patientConditions, rxFormDiagnosis);
+      if (!validation.isValid && validation.warning) {
+        diseaseWarnings.push(validation.warning);
+        hasCriticalIssues = true;
+      }
+    });
+
+    const interactionWarnings: string[] = [];
+    const interactionResult = validateDrugDrugInteractions(rxFormMedicines);
+    if (interactionResult.hasConflict && interactionResult.warning) {
+      interactionWarnings.push(`${interactionResult.warning} • Detail: ${interactionResult.clinicalExplanation}`);
+      if (interactionResult.severity === 'critical') {
+        hasCriticalIssues = true;
+      }
+    }
+
+    if (hasCriticalIssues && (!rxOverrideChecked || !rxOverrideJustification.trim())) {
+      if (addToast) {
+        addToast("⚠️ Authorization Blocked: Clinical safety warnings detected. Please acknowledge the Safety Analysis override and supply your signed medical justification.", "error");
+      }
+      return;
+    }
+
     try {
       const created = createPrescription(
         rxFormPatientId,
@@ -529,12 +645,29 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
       // Display QR code of the new prescription
       setActiveQrCodeValue(created.qrCodeValue);
 
+      // Clear matching pending requests
+      try {
+        const reqs = JSON.parse(localStorage.getItem('doctorian_pending_rx_requests') || '[]');
+        const updated = reqs.map((r: any) => 
+          (r.patientId === rxFormPatientId && r.status === 'pending') 
+            ? { ...r, status: 'completed' } 
+            : r
+        );
+        localStorage.setItem('doctorian_pending_rx_requests', JSON.stringify(updated));
+        setPendingRxRequests(updated.filter((r: any) => r.status === 'pending'));
+        window.dispatchEvent(new Event('pending_rx_requests_updated'));
+      } catch (e) {
+        console.error("Failed to clear resolved AI requests", e);
+      }
+
       // Reset form
       setRxFormDiagnosis('');
       setRxFormFollowUpDate('');
       setRxFormMedicines([
         { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
       ]);
+      setRxOverrideChecked(false);
+      setRxOverrideJustification('');
       refreshOfflineData();
     } catch (err) {
       if (addToast) addToast("Failed to formulate prescription.", "error");
@@ -577,6 +710,16 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
             duration: '7 Days',
             reminderTimes: [m.time || '08:00']
           }));
+
+          // Validate extracted dosages against Uganda MOH Clinical Guidelines
+          formattedMeds.forEach(m => {
+            const validation = validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
+            if (!validation.isValid && validation.warning) {
+              if (addToast) {
+                addToast(validation.warning, "error");
+              }
+            }
+          });
 
           const created = createPrescription(
             rxFormPatientId || 'PAT-001',
@@ -876,13 +1019,14 @@ Provide a professional, direct, academic, and clinical response assisting the ph
             { id: 'clinical_network', label: 'Network Matrix', icon: <Radio size={12} /> },
             { id: 'referrals', label: 'SOAP Handover', icon: <FileText size={12} /> },
             { id: 'prescriptions', label: 'Prescription', icon: <Pill size={12} /> },
+            { id: 'clinician_alarms', label: 'Clinician Pager Alerts', icon: <ShieldAlert size={12} />, badge: doctorAlarms.filter(a => a.doctorId === activeDoctorId).length },
             { id: 'decision_support', label: 'AI Diagnostic Co-Pilot', icon: <Brain size={12} /> },
             { id: 'connection', label: 'Hardware Link', icon: <Monitor size={12} /> }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id as any)}
-              className={`px-4 py-2.5 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 ${
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 relative ${
                 activeSubTab === tab.id 
                   ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-blue-400 shadow' 
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -890,6 +1034,11 @@ Provide a professional, direct, academic, and clinical response assisting the ph
             >
               {tab.icon}
               {tab.label}
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className="bg-red-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-full min-w-[16px] h-4 flex items-center justify-center animate-bounce">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -898,6 +1047,193 @@ Provide a professional, direct, academic, and clinical response assisting the ph
       {/* SUB TAB CONTROLS RENDERING */}
       <AnimatePresence mode="wait">
         
+        {/* VIEW: CLINICIAN ALARMS & PAGER ALERTS */}
+        {activeSubTab === 'clinician_alarms' && (
+          <motion.div
+            key="clinician_alarms"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            {/* Alarm Center Header with Doctor Profile Switcher */}
+            <div className="bg-slate-900 text-white p-6 md:p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
+              
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-rose-400 font-black text-xs uppercase tracking-widest">
+                    <ShieldAlert className="animate-bounce" size={16} />
+                    Clinician Critical Telemetry Pager
+                  </div>
+                  <h2 className="text-3xl font-[1000] uppercase tracking-tight">Active Duty Pager Terminal</h2>
+                  <p className="text-slate-400 text-xs font-bold max-w-xl leading-relaxed">
+                    This terminal receives secure live-stream ingestion alerts. Only alerts prescribed by the selected active physician are routed to this pager feed.
+                  </p>
+                </div>
+
+                {/* Active Doctor Selector */}
+                <div className="bg-slate-950 p-4 rounded-3xl border border-white/5 flex flex-col sm:flex-row items-center gap-4 shrink-0">
+                  <div className="text-center sm:text-left">
+                    <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest block">Logged-In Physician Profile</span>
+                    <span className="text-sm font-black uppercase tracking-tight text-slate-100 block mt-0.5">
+                      {offlineDoctors.find(d => d.id === activeDoctorId)?.name || 'Dr. Joseph Brian'}
+                    </span>
+                    <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider block">
+                      {offlineDoctors.find(d => d.id === activeDoctorId)?.specialty || 'General Practitioner'}
+                    </span>
+                  </div>
+                  <div className="h-px sm:h-10 w-full sm:w-px bg-white/10" />
+                  <select
+                    value={activeDoctorId}
+                    onChange={(e) => handleSetActiveDoctorId(e.target.value)}
+                    className="bg-slate-900 border border-white/15 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider text-slate-200 hover:text-white transition-all cursor-pointer outline-none shrink-0"
+                  >
+                    {offlineDoctors.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.name} ({doc.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Alarms Content Grid */}
+            <div className="grid grid-cols-1 gap-6">
+              {(() => {
+                const alarmsForDoctor = doctorAlarms.filter(a => a.doctorId === activeDoctorId);
+                
+                if (alarmsForDoctor.length === 0) {
+                  return (
+                    <div className="bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800 p-12 text-center flex flex-col items-center justify-center space-y-4">
+                      <div className="p-4 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 rounded-full">
+                        <ShieldCheck size={36} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black uppercase text-slate-800 dark:text-slate-150 tracking-tight">Pager Static: No Active Alarms</h3>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-1 max-w-sm mx-auto">
+                          Excellent clinical adherence detected across your patient base. All double-verification ingestion dockets are clear.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                        Live Paged Channels ({alarmsForDoctor.length} Active)
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (confirm("Clinical Handover Confirmation: Clear and acknowledge all currently routed pager alerts?")) {
+                            const keptAlarms = doctorAlarms.filter(a => a.doctorId !== activeDoctorId);
+                            localStorage.setItem('doctorian_active_doctor_alarms', JSON.stringify(keptAlarms));
+                            setDoctorAlarms(keptAlarms);
+                            window.dispatchEvent(new Event('doctorian_alarms_updated'));
+                            if (addToast) addToast("Clinician Pager Alerts cleared successfully.", "success");
+                          }
+                        }}
+                        className="text-slate-400 hover:text-rose-500 text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-850 px-3.5 py-2 rounded-xl transition-all"
+                      >
+                        Acknowledge All Alarms
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {alarmsForDoctor.map((alarm) => {
+                        const isSwallowed = alarm.swallowed;
+                        
+                        return (
+                          <motion.div
+                            key={alarm.id}
+                            initial={{ scale: 0.98, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className={`p-5 rounded-[2rem] border transition-all relative overflow-hidden flex flex-col justify-between ${
+                              isSwallowed 
+                                ? 'bg-emerald-500/5 dark:bg-emerald-950/5 border-emerald-500/20 text-slate-800 dark:text-slate-100' 
+                                : 'bg-rose-500/5 dark:bg-rose-950/5 border-rose-500/20 text-slate-800 dark:text-slate-100'
+                            }`}
+                          >
+                            {/* Ingestion Visual Sound Synthesizer Player / Audio Alert auto-trigger */}
+                            <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
+                              <div className={`w-full h-full rounded-full animate-ping ${isSwallowed ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ animationDuration: isSwallowed ? '3s' : '1.2s' }} />
+                            </div>
+
+                            <div>
+                              <div className="flex items-center justify-between gap-3 mb-3">
+                                <div className="flex items-center gap-2">
+                                  {isSwallowed ? (
+                                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-emerald-500/20">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      Verified Swallowed
+                                    </span>
+                                  ) : (
+                                    <span className="bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-rose-500/20 animate-pulse">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                                      CRITICAL: NOT SWALLOWED
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[8px] font-mono font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                                  {new Date(alarm.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Ingestion Patient Target</span>
+                                <h4 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white">{alarm.patientName}</h4>
+                              </div>
+
+                              {/* Alarm Details Card */}
+                              <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-black uppercase text-slate-400">Medication Ingested</span>
+                                  <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-100">{alarm.medicineName} ({alarm.dosage})</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-black uppercase text-slate-400">Adherence Score</span>
+                                  <span className={`text-[10px] font-black ${alarm.confidenceScore >= 70 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {alarm.confidenceScore}% {alarm.confidenceScore >= 70 ? 'Compliant' : 'Compromised'}
+                                  </span>
+                                </div>
+                                {alarm.reason && (
+                                  <div className="pt-2 border-t border-slate-50 dark:border-slate-800">
+                                    <span className="text-[8px] font-black uppercase text-slate-400 block mb-0.5">Clinical Diagnostics telemetry</span>
+                                    <p className="text-[9.5px] font-bold text-slate-500 leading-snug">{alarm.reason}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Clear Trigger button */}
+                            <div className="mt-4 flex gap-2">
+                              <button
+                                onClick={() => {
+                                  const keptAlarms = doctorAlarms.filter(a => a.id !== alarm.id);
+                                  localStorage.setItem('doctorian_active_doctor_alarms', JSON.stringify(keptAlarms));
+                                  setDoctorAlarms(keptAlarms);
+                                  window.dispatchEvent(new Event('doctorian_alarms_updated'));
+                                  if (addToast) addToast("Paging alert cleared.", "info");
+                                }}
+                                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-350 transition-all text-center"
+                              >
+                                Clear Alert Node
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </motion.div>
+        )}
+
         {/* VIEW 1: CLINICAL NETWORK & BROADCAST FEED */}
         {activeSubTab === 'clinical_network' && (
           <motion.div
@@ -1348,8 +1684,109 @@ Provide a professional, direct, academic, and clinical response assisting the ph
               {/* LEFT COLUMN: ACTIVE FORMULATOR */}
               <div className="xl:col-span-8 space-y-8">
                 
+                {/* PENDING AI DIAGNOSTIC CASE DOSSIERS QUEUE */}
+                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-850 rounded-[2.5rem] p-6 sm:p-8 space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-500/10 text-indigo-500 rounded-xl flex items-center justify-center">
+                        <FileText size={20} />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold uppercase text-xs text-slate-900 dark:text-white tracking-tight">Pending Case Dossiers from AI Diagnostic Core</h4>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Secure clinical handovers waiting for Physician authorization.</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-black font-mono">
+                      {pendingRxRequests.length} Active
+                    </span>
+                  </div>
+
+                  {pendingRxRequests.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 dark:text-slate-500 space-y-2">
+                      <FileText size={32} className="mx-auto opacity-30" />
+                      <p className="text-xs font-bold uppercase tracking-wider">No pending diagnostic dossiers in queue</p>
+                      <p className="text-[10px] max-w-md mx-auto leading-normal">
+                        Case dossiers securely transmitted by patients from the Diagnostic Symptom Checker appear here instantly.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
+                      {pendingRxRequests.map((req: any) => {
+                        const isCritical = req.riskLevel === 'critical';
+                        const isElevated = req.riskLevel === 'elevated';
+                        return (
+                          <div 
+                            key={req.id} 
+                            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100/80 dark:border-slate-800 flex flex-col justify-between gap-4 hover:shadow-md transition-all"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-50 dark:border-slate-800">
+                              <div>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Patient Profile</span>
+                                <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase">{req.patientName} ({req.patientId})</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2.5 py-1 rounded text-[9px] font-black uppercase ${
+                                  isCritical ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400' :
+                                  isElevated ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' :
+                                  'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                                }`}>
+                                  Risk: {req.riskLevel}
+                                </span>
+                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-[9px] font-black font-mono text-slate-500">
+                                  Sync Conf: {req.confidence}%
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">AI Probable Diagnosis</span>
+                              <h5 className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase">{req.diagnosis}</h5>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-serif italic">
+                                "{req.assessment}"
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-50 dark:border-slate-800">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Received: {req.timestamp}</span>
+                              <div className="flex gap-2 w-full sm:w-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadPendingRequest(req)}
+                                  className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 shadow"
+                                >
+                                  <Pill size={12} />
+                                  Formulate Rx
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm("Acknowledge: Dismiss this AI diagnostic case dossier?")) {
+                                      try {
+                                        const reqs = JSON.parse(localStorage.getItem('doctorian_pending_rx_requests') || '[]');
+                                        const updated = reqs.filter((r: any) => r.id !== req.id);
+                                        localStorage.setItem('doctorian_pending_rx_requests', JSON.stringify(updated));
+                                        setPendingRxRequests(updated.filter((r: any) => r.status === 'pending'));
+                                        window.dispatchEvent(new Event('pending_rx_requests_updated'));
+                                      } catch (e) {
+                                        console.error(e);
+                                      }
+                                    }
+                                  }}
+                                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider rounded-xl"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 {/* MULTI-MEDICINE COMPILER & AUTHORIZATION FORM */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 sm:p-8 shadow-sm space-y-6">
+                <div id="prescription-formulator-container" className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.5rem] p-6 sm:p-8 shadow-sm space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-50 dark:border-slate-800 pb-5">
                     <div>
                       <h3 className="text-xl font-extrabold uppercase tracking-tight text-slate-900 dark:text-white">Formulate Clinical Prescription</h3>
@@ -1555,6 +1992,121 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       </div>
                     </div>
 
+                    {/* Real-time pre-authorization Clinical Safety Analysis Scanner */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                      {(() => {
+                        // Collect active patient data
+                        const activePatient = offlinePatients.find(p => p.id === rxFormPatientId);
+                        const patientConditions = activePatient ? activePatient.conditions : '';
+
+                        // 1. Check dosage limits
+                        const dosageAnomalies = rxFormMedicines
+                          .map(m => {
+                            if (!m.name.trim()) return null;
+                            return validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
+                          })
+                          .filter((v): v is NonNullable<typeof v> => v !== null && !v.isValid && v.warning !== null);
+
+                        // 2. Check drug-disease mismatches
+                        const diseaseAnomalies = rxFormMedicines
+                          .map(m => {
+                            if (!m.name.trim()) return null;
+                            return validateDrugForDisease(m.name, patientConditions, rxFormDiagnosis);
+                          })
+                          .filter((v): v is NonNullable<typeof v> => v !== null && !v.isValid && v.warning !== null);
+
+                        // 3. Check drug-drug interactions
+                        const interactionAnomalies = [];
+                        const validMedsForInteractions = rxFormMedicines.filter(m => m.name.trim() !== '');
+                        const interactionResult = validateDrugDrugInteractions(validMedsForInteractions);
+                        if (interactionResult.hasConflict && interactionResult.warning) {
+                          interactionAnomalies.push(interactionResult);
+                        }
+
+                        const totalIssues = dosageAnomalies.length + diseaseAnomalies.length + interactionAnomalies.length;
+
+                        if (totalIssues === 0) {
+                          return (
+                            <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/15 rounded-2xl p-4 flex items-center gap-3">
+                              <ShieldCheck className="text-emerald-500 shrink-0" size={18} />
+                              <div className="text-left">
+                                <span className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Clinical Safety Status: Compliant</span>
+                                <p className="text-[8.5px] font-bold text-slate-400 uppercase mt-0.5">All compounds, dosages, and drug-disease matches cleared against Ministry of Health guidelines.</p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="bg-rose-50/70 dark:bg-rose-950/15 border border-rose-500/20 rounded-3xl p-5 space-y-4 text-left">
+                            <div className="flex items-center gap-2">
+                              <ShieldAlert className="text-rose-600 animate-pulse" size={20} />
+                              <div>
+                                <h4 className="text-xs font-black uppercase text-rose-700 dark:text-rose-400 tracking-wide">Clinical Safety Warning Matrix ({totalIssues} Alerts)</h4>
+                                <p className="text-[8.5px] text-slate-400 uppercase font-black">Pre-authorization screening flagged potential bio-chemical conflicts.</p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                              {/* Dosage anomalies */}
+                              {dosageAnomalies.map((a, i) => (
+                                <div key={`d-${i}`} className="p-3 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-xl space-y-1">
+                                  <span className="text-[8px] font-black uppercase text-rose-650 bg-rose-500/10 px-2 py-0.5 rounded">Dosage Limit Violation</span>
+                                  <p className="text-[9.5px] font-extrabold uppercase text-slate-800 dark:text-white leading-tight">{a.warning}</p>
+                                </div>
+                              ))}
+
+                              {/* Disease mismatch anomalies */}
+                              {diseaseAnomalies.map((a, i) => (
+                                <div key={`dis-${i}`} className="p-3 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-xl space-y-1">
+                                  <span className="text-[8px] font-black uppercase text-rose-650 bg-rose-500/10 px-2 py-0.5 rounded">Drug-Disease Mismatch</span>
+                                  <p className="text-[9.5px] font-extrabold uppercase text-slate-800 dark:text-white leading-tight">{a.warning}</p>
+                                </div>
+                              ))}
+
+                              {/* Interaction anomalies */}
+                              {interactionAnomalies.map((a, i) => (
+                                <div key={`int-${i}`} className="p-3 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-950/40 rounded-xl space-y-1">
+                                  <span className="text-[8px] font-black uppercase text-rose-650 bg-rose-500/10 px-2 py-0.5 rounded">{a.severity.toUpperCase()} INTERACTION</span>
+                                  <p className="text-[9.5px] font-extrabold uppercase text-slate-850 dark:text-white leading-tight">{a.warning}</p>
+                                  <p className="text-[9px] font-semibold text-slate-450 dark:text-slate-400 uppercase leading-relaxed mt-1">{a.clinicalExplanation}</p>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Override controls */}
+                            <div className="pt-3 border-t border-rose-200/50 dark:border-rose-950/40 space-y-3">
+                              <label className="flex items-start gap-2.5 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={rxOverrideChecked} 
+                                  onChange={e => setRxOverrideChecked(e.target.checked)}
+                                  className="mt-0.5 w-4.5 h-4.5 text-rose-600 bg-slate-150 border-slate-300 rounded focus:ring-rose-500 dark:focus:ring-rose-600 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
+                                />
+                                <div>
+                                  <span className="text-[10px] font-black uppercase text-slate-800 dark:text-white block">Acknowledge Safety Warnings & Apply Clinical Override</span>
+                                  <span className="text-[8.5px] font-bold text-slate-400 uppercase leading-none">I certify that this combination is medically indicated and that therapeutic benefits outweigh these risks.</span>
+                                </div>
+                              </label>
+
+                              {rxOverrideChecked && (
+                                <div className="space-y-1.5">
+                                  <label className="text-[8px] font-black uppercase tracking-wider text-slate-400 block">Medical Justification & Signature *</label>
+                                  <textarea
+                                    required
+                                    value={rxOverrideJustification}
+                                    onChange={e => setRxOverrideJustification(e.target.value)}
+                                    placeholder="E.g., Patient is monitored on-site; medication benefits for severe hypertension override hyperkalemia risks. Approved under clinical supervision."
+                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-rose-950/40 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none text-slate-800 dark:text-slate-200 focus:border-rose-500 h-16 resize-none"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
                     <button
                       type="submit"
                       className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-xl text-[10px] font-black uppercase tracking-widest shadow shadow-blue-500/10 flex items-center justify-center gap-2"
@@ -1744,29 +2296,46 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                           {anomalies.map(log => {
                             const pat = offlinePatients.find(p => p.id === log.patientId);
+                            const isOverdose = log.anomalyReason?.toLowerCase().includes('overdose') || log.anomalyReason?.toLowerCase().includes('toxic');
+                            const isMismatch = log.anomalyReason?.toLowerCase().includes('mismatch') || log.anomalyReason?.toLowerCase().includes('wrong drug') || log.anomalyReason?.toLowerCase().includes('disease');
+                            
+                            let cardBg = 'bg-amber-50 dark:bg-amber-950/20 border-amber-500/20';
+                            let tagText = 'COMPLIANCE ANOMALY';
+                            let tagClass = 'text-amber-600 bg-amber-500/10';
+                            
+                            if (isOverdose) {
+                              cardBg = 'bg-rose-50 dark:bg-rose-950/30 border-rose-500/30 ring-1 ring-rose-500/10';
+                              tagText = '🚨 OVERDOSE WARNING';
+                              tagClass = 'text-rose-600 dark:text-rose-400 bg-rose-500/15';
+                            } else if (isMismatch) {
+                              cardBg = 'bg-orange-50 dark:bg-orange-950/30 border-orange-500/30';
+                              tagText = '⚠️ DRUG-DISEASE MISMATCH';
+                              tagClass = 'text-orange-600 dark:text-orange-400 bg-orange-500/15';
+                            }
+
                             return (
-                              <div key={log.id} className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/20 rounded-2xl space-y-2">
+                              <div key={log.id} className={`p-4 rounded-2xl border space-y-2 transition-all hover:scale-[1.01] ${cardBg}`}>
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-1.5">
-                                    <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <AlertTriangle size={14} className={isOverdose ? "text-rose-600" : isMismatch ? "text-orange-600" : "text-amber-600"} />
                                     <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white truncate max-w-[120px]">
                                       {pat ? pat.name : 'Unknown Patient'}
                                     </span>
                                   </div>
-                                  <span className="text-[9px] font-mono font-black uppercase text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded">
-                                    CONFIDENCE: {log.confidenceScore || 0}%
+                                  <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${tagClass}`}>
+                                    {tagText}
                                   </span>
                                 </div>
 
-                                <p className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-none">
-                                  {log.medicineName} • {log.dosage}
+                                <p className="text-[9.5px] font-black text-slate-800 dark:text-slate-100 uppercase leading-none">
+                                  {log.medicineName} • <span className="text-slate-500">{log.dosage || 'Standard Dose'}</span>
                                 </p>
 
-                                <p className="text-[8.5px] font-medium text-amber-700 dark:text-amber-400 leading-normal uppercase bg-white/50 dark:bg-slate-900/50 p-2 rounded-lg">
-                                  Anomaly: {log.anomalyReason || 'Suspected placeholder or self-reported mismatch'}
+                                <p className={`text-[8.5px] font-semibold leading-normal uppercase p-2 rounded-lg ${isOverdose ? 'bg-rose-500/5 text-rose-700 dark:text-rose-400' : isMismatch ? 'bg-orange-500/5 text-orange-700 dark:text-orange-400' : 'bg-white/50 dark:bg-slate-900/50 text-amber-700 dark:text-amber-400'}`}>
+                                  Reason: {log.anomalyReason || 'Suspected placeholder or self-reported mismatch'}
                                 </p>
 
-                                <div className="text-[8px] text-slate-400 uppercase flex justify-between items-center">
+                                <div className="text-[8px] text-slate-400 uppercase flex justify-between items-center font-mono font-bold">
                                   <span>Time: {log.takenAt ? new Date(log.takenAt).toLocaleTimeString() : 'N/A'}</span>
                                   <span>Method: {log.verificationMethod || 'Self-Reported'}</span>
                                 </div>

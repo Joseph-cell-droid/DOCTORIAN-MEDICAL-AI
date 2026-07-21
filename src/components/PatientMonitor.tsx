@@ -959,6 +959,160 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [timeRange, setTimeRange] = useState<'Day' | 'Week' | 'Month'>('Day');
+
+  // Multi-patient telemetry machine & device live connection states
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [patientFilterStatus, setPatientFilterStatus] = useState<'all' | 'critical' | 'warning' | 'stable' | 'device'>('all');
+  
+  // Persistent tracking of which patients are connected to a hardware device (WiFi, Bluetooth, etc.)
+  const [connectedDevicesMap, setConnectedDevicesMap] = useState<Record<string, { connected: boolean; type: 'WiFi' | 'Bluetooth' | 'Serial' | 'Wearable'; nodeId: string }>>(() => {
+    const saved = localStorage.getItem('doctorian_connected_patient_devices');
+    if (saved) return JSON.parse(saved);
+    // Initial default connected devices
+    return {
+      'patient-joseph': { connected: true, type: 'Bluetooth', nodeId: 'ARD-BLE-12' },
+      'patient-jane': { connected: true, type: 'WiFi', nodeId: 'ARD-WIFI-04' },
+      'patient-sarah': { connected: false, type: 'WiFi', nodeId: 'ARD-WIFI-01' },
+      'patient-robert': { connected: true, type: 'Serial', nodeId: 'ARD-SER-09' }
+    };
+  });
+
+  const toggleDeviceConnection = (patientId: string) => {
+    setConnectedDevicesMap(prev => {
+      const current = prev[patientId] || { connected: false, type: 'WiFi', nodeId: `ARD-NODE-${Math.floor(10 + Math.random() * 90)}` };
+      const updated = {
+        ...prev,
+        [patientId]: {
+          ...current,
+          connected: !current.connected
+        }
+      };
+      localStorage.setItem('doctorian_connected_patient_devices', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // State to hold active double-alarm takeover details
+  const [doubleAlarmTarget, setDoubleAlarmTarget] = useState<{ patient: RegisteredPatient; vitals: any; count: number } | null>(null);
+
+  // Auto-teleport and jump back to Doctor's Portal when double-alarm fires
+  useEffect(() => {
+    if (doubleAlarmTarget) {
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('doctorian:jump_to_doctor_dashboard', {
+          detail: {
+            patientId: doubleAlarmTarget.patient.id,
+            patientName: doubleAlarmTarget.patient.name
+          }
+        }));
+        setDoubleAlarmTarget(null);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [doubleAlarmTarget]);
+
+  // Automated Background Telemetry Scanner for Alarms
+  useEffect(() => {
+    const scanInterval = setInterval(() => {
+      registeredPatients.forEach((p) => {
+        // Evaluate dynamic/live vitals
+        const preset = p.vitalsPreset || 'healthy';
+        const offset = p.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 10;
+        const timeSeconds = Math.floor(Date.now() / 2000) + offset;
+        const cycle = Math.sin(timeSeconds / 3);
+
+        const pVitals = (() => {
+          if (p.id === selectedPatientId && vitals) {
+            return vitals;
+          }
+          if (preset === 'critical') {
+            return {
+              heartRate: Math.round(135 + cycle * 7),
+              temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
+              spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
+              systolicBP: Math.round(191 + cycle * 9),
+              diastolicBP: Math.round(111 + cycle * 4),
+              respiratoryRate: Math.round(28 + cycle * 2)
+            };
+          } else if (preset === 'warning') {
+            return {
+              heartRate: Math.round(102 + cycle * 4),
+              temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
+              spo2: Math.round(91 + cycle * 2),
+              systolicBP: Math.round(136 + cycle * 5),
+              diastolicBP: Math.round(86 + cycle * 3),
+              respiratoryRate: Math.round(21 + cycle * 1)
+            };
+          } else {
+            return {
+              heartRate: Math.round(68 + cycle * 3),
+              temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
+              spo2: Math.round(96 + cycle * 1),
+              systolicBP: Math.round(118 + cycle * 3),
+              diastolicBP: Math.round(78 + cycle * 2),
+              respiratoryRate: Math.round(14 + cycle * 1)
+            };
+          }
+        })();
+
+        // Check if critical
+        const isPatCritical = pVitals.heartRate < thresholds.heartRate.min || pVitals.heartRate > thresholds.heartRate.max ||
+                              pVitals.temperature > thresholds.temperature.max ||
+                              pVitals.spo2 < thresholds.spo2.min ||
+                              pVitals.systolicBP > thresholds.systolicBP.max ||
+                              pVitals.diastolicBP > thresholds.diastolicBP.max ||
+                              pVitals.respiratoryRate < thresholds.respiratoryRate.min || pVitals.respiratoryRate > thresholds.respiratoryRate.max;
+
+        if (isPatCritical) {
+          const alarmCountsSaved = localStorage.getItem('doctorian_patient_alarm_counts');
+          const alarmCounts = alarmCountsSaved ? JSON.parse(alarmCountsSaved) : {};
+          const record = alarmCounts[p.id] || { count: 0, lastTriggered: 0 };
+
+          // Throttle alarm triggers to once every 20 seconds to give clinicians time to respond
+          if (Date.now() - record.lastTriggered > 20000) {
+            const nextCount = record.count + 1;
+            alarmCounts[p.id] = {
+              count: nextCount,
+              lastTriggered: Date.now(),
+              lastVitals: pVitals
+            };
+            localStorage.setItem('doctorian_patient_alarm_counts', JSON.stringify(alarmCounts));
+
+            // Push a critical alert to the Doctor's Active Alarms database
+            const activeAlarms = JSON.parse(localStorage.getItem('doctorian_active_doctor_alarms') || '[]');
+            const newAlarm = {
+              id: 'VITAL-ALARM-' + Date.now() + '-' + p.id,
+              doctorId: localStorage.getItem('doctorian_active_viewing_doctor_id') || 'DOC-002',
+              patientId: p.id,
+              patientName: p.name,
+              bedNumber: p.bedNumber,
+              medicineName: 'Biometric Telemetry Machine',
+              dosage: `HR: ${pVitals.heartRate} bpm, SpO2: ${pVitals.spo2}%`,
+              confidenceScore: 25, // low is critical
+              reason: `CRITICAL ALARM RECEIVED: Patient biometrics exceeded clinical thresholds. HR: ${pVitals.heartRate} bpm, SpO2: ${pVitals.spo2}%, Temp: ${pVitals.temperature}°C. This patient's alarm has triggered ${nextCount} times!`,
+              timestamp: Date.now(),
+              alarmCount: nextCount,
+              isDoubleAlarm: nextCount >= 2
+            };
+
+            activeAlarms.unshift(newAlarm);
+            localStorage.setItem('doctorian_active_doctor_alarms', JSON.stringify(activeAlarms));
+            window.dispatchEvent(new Event('doctorian_alarms_updated'));
+
+            if (nextCount === 2) {
+              setDoubleAlarmTarget({
+                patient: p,
+                vitals: pVitals,
+                count: nextCount
+              });
+            }
+          }
+        }
+      });
+    }, 5000);
+
+    return () => clearInterval(scanInterval);
+  }, [registeredPatients, vitals, selectedPatientId, thresholds]);
   const [historicalData, setHistoricalData] = useState<Vitals[]>([]);
   const [activeMachines, setActiveMachines] = useState<{ id: string; label: string; status: 'online' | 'offline'; type: string; lastSync?: string }[]>([
     { id: 'bp_cuff', label: 'Blood Pressure Cuff', status: 'online', type: 'Clinical', lastSync: '2m ago' },
@@ -2456,6 +2610,79 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
     return (
       <div className="space-y-10">
+        {/* Fullscreen Double Alarm Takeover Overlay */}
+        <AnimatePresence>
+          {doubleAlarmTarget && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6 text-center text-white select-none"
+            >
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.2),transparent_65%)] animate-pulse" style={{ animationDuration: '1.5s' }} />
+              </div>
+              
+              <div className="relative max-w-lg w-full space-y-6">
+                <div className="inline-flex p-5 bg-rose-500/15 border border-rose-500/30 text-rose-500 rounded-[2.5rem] animate-bounce shadow-[0_0_50px_rgba(239,68,68,0.3)] mx-auto">
+                  <ShieldAlert size={60} className="animate-pulse" />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="inline-block text-rose-500 font-mono tracking-widest text-xs font-black uppercase bg-rose-500/10 px-4 py-1.5 rounded-full border border-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                    CRITICAL TELEMETRY LEVEL REACHED SEVERALLY
+                  </span>
+                  <h2 className="text-3xl font-black uppercase tracking-tight text-white pt-2">
+                    {doubleAlarmTarget.patient.name}
+                  </h2>
+                  <p className="text-sm text-slate-300 font-bold uppercase tracking-wider">
+                    Bed {doubleAlarmTarget.patient.bedNumber} • Telemetry Incident #2 Detected!
+                  </p>
+                </div>
+
+                <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-[2rem] space-y-3.5 text-left font-mono">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 uppercase font-black">Pulse Node</span>
+                    <span className="text-rose-400 font-black">{doubleAlarmTarget.vitals.heartRate} bpm</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 uppercase font-black">Oxygen Level</span>
+                    <span className="text-rose-400 font-black">{doubleAlarmTarget.vitals.spo2}% SpO₂</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 uppercase font-black">Body Temp</span>
+                    <span className="text-rose-400 font-black">{doubleAlarmTarget.vitals.temperature}°C</span>
+                  </div>
+                  <div className="pt-2 border-t border-slate-800 text-[10px] leading-relaxed text-slate-400 font-bold uppercase">
+                    🚨 ALARM REPEATED SEVERALLY. Dynamic routing trigger matched. Transferring clinical priority to Doctor's Emergency Board immediately.
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2 text-xs font-black text-blue-400 uppercase tracking-widest">
+                    <Loader2 size={14} className="animate-spin" />
+                    Teleporting to Doctor's Portal in 4s...
+                  </div>
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('doctorian:jump_to_doctor_dashboard', {
+                        detail: {
+                          patientId: doubleAlarmTarget.patient.id,
+                          patientName: doubleAlarmTarget.patient.name
+                        }
+                      }));
+                      setDoubleAlarmTarget(null);
+                    }}
+                    className="mt-2 px-8 py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/20 active:scale-95 transition-all cursor-pointer"
+                  >
+                    Acknowledge & Teleport Now
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Registry Notification Toast */}
         <AnimatePresence>
           {registryNotification && (
@@ -4383,7 +4610,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       <div className="flex items-center gap-3 mb-4">
                         <Sparkles size={16} className={neuralAlert ? "text-rose-200 animate-pulse" : "text-blue-200"} />
                         <span className={`text-[10px] font-black uppercase tracking-widest ${neuralAlert ? "text-rose-100" : "text-blue-100"}`}>
-                          {neuralAlert ? "CRITICAL NEURAL ALERT" : "Live AI Clinical Insight (Gemma 2)"}
+                          {neuralAlert ? "CRITICAL NEURAL ALERT" : "Live AI Clinical Insight (Doctorian 1.5)"}
                         </span>
                       </div>
                       <p className={`text-xl font-bold italic leading-relaxed max-w-2xl ${neuralAlert ? "text-rose-50" : "text-white"}`}>
@@ -5123,6 +5350,58 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 </div>
               )}
 
+              {timeRange === 'Day' && (
+                <div className="mb-6 flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-50 dark:bg-slate-800/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  {/* Search Input */}
+                  <div className="relative w-full lg:max-w-xs">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search patient name or bed..."
+                      value={patientSearchQuery}
+                      onChange={(e) => setPatientSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-semibold"
+                    />
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    {(['all', 'critical', 'warning', 'stable', 'device'] as const).map((filter) => {
+                      const isActive = patientFilterStatus === filter;
+                      const counts = {
+                        all: registeredPatients.length,
+                        critical: registeredPatients.filter(p => p.vitalsPreset === 'critical').length,
+                        warning: registeredPatients.filter(p => p.vitalsPreset === 'warning').length,
+                        stable: registeredPatients.filter(p => p.vitalsPreset !== 'critical' && p.vitalsPreset !== 'warning').length,
+                        device: Object.values(connectedDevicesMap).filter(d => d.connected).length
+                      };
+                      
+                      const labels = {
+                        all: 'All Patients',
+                        critical: 'Critical Alarms',
+                        warning: 'Warning Bounds',
+                        stable: 'Stable Vitals',
+                        device: 'Live Connected Devices'
+                      };
+
+                      return (
+                        <button
+                          key={filter}
+                          onClick={() => setPatientFilterStatus(filter)}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
+                            isActive
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/15'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                          }`}
+                        >
+                          {labels[filter]} ({counts[filter]})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {timeRange === 'Day' ? (
                 /* Multi Patient Live Monitor (Day Mode) */
                 <div className="overflow-x-auto -mx-4 sm:-mx-8 px-4 sm:px-8">
@@ -5131,7 +5410,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-150 dark:border-slate-800 pb-3">
                         <th className="pb-4 pr-4 font-black">Patient Profile</th>
                         <th className="pb-4 pr-4 font-black text-center">Location Node</th>
-                        <th className="pb-4 pr-4 font-black">Clinical Diagnostic Conditions</th>
+                        <th className="pb-4 pr-4 font-black">Machine/Device Connection</th>
                         <th className="pb-4 pr-4 font-black">HR (bpm)</th>
                         <th className="pb-4 pr-4 font-black">Temp (°C)</th>
                         <th className="pb-4 pr-4 font-black">SpO2 (%)</th>
@@ -5141,178 +5420,231 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/50">
-                      {registeredPatients.map((p) => {
-                        // Dynamically obtain or simulate live vitals matching the patient's individual vitalsPreset
-                        const pVitals = (() => {
-                          if (p.id === selectedPatientId && vitals) {
-                            return vitals;
-                          }
-                          const preset = p.vitalsPreset || 'healthy';
-                          // Deterministic offset based on ID to keep fluctuations consistent yet dynamic
-                          const offset = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10;
-                          const timeSeconds = Math.floor(Date.now() / 2000) + offset;
-                          const cycle = Math.sin(timeSeconds / 3);
+                      {(() => {
+                        const filtered = registeredPatients.filter(p => {
+                          const matchesSearch = p.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) || 
+                                                p.bedNumber.toLowerCase().includes(patientSearchQuery.toLowerCase());
+                          if (!matchesSearch) return false;
+                          if (patientFilterStatus === 'all') return true;
+                          if (patientFilterStatus === 'critical') return p.vitalsPreset === 'critical';
+                          if (patientFilterStatus === 'warning') return p.vitalsPreset === 'warning';
+                          if (patientFilterStatus === 'stable') return p.vitalsPreset !== 'critical' && p.vitalsPreset !== 'warning';
+                          if (patientFilterStatus === 'device') return !!connectedDevicesMap[p.id]?.connected || p.id === selectedPatientId;
+                          return true;
+                        });
 
-                          if (preset === 'critical') {
-                            return {
-                              heartRate: Math.round(135 + cycle * 7),
-                              temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
-                              spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
-                              systolicBP: Math.round(191 + cycle * 9),
-                              diastolicBP: Math.round(111 + cycle * 4),
-                              respiratoryRate: Math.round(28 + cycle * 2)
-                            };
-                          } else if (preset === 'warning') {
-                            return {
-                              heartRate: Math.round(102 + cycle * 4),
-                              temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
-                              spo2: Math.round(91 + cycle * 2),
-                              systolicBP: Math.round(136 + cycle * 5),
-                              diastolicBP: Math.round(86 + cycle * 3),
-                              respiratoryRate: Math.round(21 + cycle * 1)
-                            };
-                          } else {
-                            return {
-                              heartRate: Math.round(68 + cycle * 3),
-                              temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
-                              spo2: Math.round(96 + cycle * 1),
-                              systolicBP: Math.round(118 + cycle * 3),
-                              diastolicBP: Math.round(78 + cycle * 2),
-                              respiratoryRate: Math.round(14 + cycle * 1)
-                            };
-                          }
-                        })();
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold text-xs italic">
+                                No registered patients found matching the active search or filters.
+                              </td>
+                            </tr>
+                          );
+                        }
 
-                        const hr = pVitals.heartRate;
-                        const temp = pVitals.temperature;
-                        const spo2 = pVitals.spo2;
-                        const sbp = pVitals.systolicBP;
-                        const dbp = pVitals.diastolicBP;
-                        const rr = pVitals.respiratoryRate;
+                        return filtered.map((p) => {
+                          const isCoupled = p.id === selectedPatientId;
+                          const isDeviceConnected = !!connectedDevicesMap[p.id]?.connected || isCoupled;
 
-                        const isCritical = p.vitalsPreset === 'critical';
-                        const isWarning = p.vitalsPreset === 'warning';
-                        const isCoupled = p.id === selectedPatientId;
+                          // Dynamically obtain or simulate live vitals matching the patient's individual vitalsPreset
+                          const pVitals = (() => {
+                            if (isCoupled && vitals) {
+                              return vitals;
+                            }
+                            if (!isDeviceConnected) {
+                              // Standby - display stable standard clinical readings
+                              return {
+                                heartRate: 72,
+                                temperature: 36.6,
+                                spo2: 98,
+                                systolicBP: 120,
+                                diastolicBP: 80,
+                                respiratoryRate: 14
+                              };
+                            }
+                            const preset = p.vitalsPreset || 'healthy';
+                            // Deterministic offset based on ID to keep fluctuations consistent yet dynamic
+                            const offset = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10;
+                            const timeSeconds = Math.floor(Date.now() / 2000) + offset;
+                            const cycle = Math.sin(timeSeconds / 3);
 
-                        return (
-                          <tr 
-                            key={p.id} 
-                            className={`group transition-all duration-150 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${
-                              isCoupled 
-                                ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l border-l-blue-600' 
-                                : ''
-                            }`}
-                          >
-                            <td className="py-4 pr-4">
-                              <div className="flex items-center gap-3">
-                                <span className={`w-2.5 h-2.5 rounded-full ring-4 shrink-0 shadow-sm ${
-                                  isCritical 
-                                    ? 'bg-rose-500 ring-rose-500/20' 
-                                    : isWarning 
-                                      ? 'bg-amber-500 ring-amber-500/20' 
-                                      : 'bg-emerald-500 ring-emerald-500/20'
-                                } ${isCritical ? 'animate-pulse' : ''}`} />
-                                <div>
-                                  <div className="font-extrabold text-slate-900 dark:text-white text-sm tracking-tight flex items-center gap-1.5">
-                                    {p.name}
-                                    {isCoupled && (
-                                      <span className="text-[8px] bg-blue-600 text-white uppercase px-1.5 py-0.5 rounded-full font-black tracking-widest shrink-0">
-                                        coupled
-                                      </span>
-                                    )}
+                            if (preset === 'critical') {
+                              return {
+                                heartRate: Math.round(135 + cycle * 7),
+                                temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
+                                spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
+                                systolicBP: Math.round(191 + cycle * 9),
+                                diastolicBP: Math.round(111 + cycle * 4),
+                                respiratoryRate: Math.round(28 + cycle * 2)
+                              };
+                            } else if (preset === 'warning') {
+                              return {
+                                heartRate: Math.round(102 + cycle * 4),
+                                temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
+                                spo2: Math.round(91 + cycle * 2),
+                                systolicBP: Math.round(136 + cycle * 5),
+                                diastolicBP: Math.round(86 + cycle * 3),
+                                respiratoryRate: Math.round(21 + cycle * 1)
+                              };
+                            } else {
+                              return {
+                                heartRate: Math.round(68 + cycle * 3),
+                                temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
+                                spo2: Math.round(96 + cycle * 1),
+                                systolicBP: Math.round(118 + cycle * 3),
+                                diastolicBP: Math.round(78 + cycle * 2),
+                                respiratoryRate: Math.round(14 + cycle * 1)
+                              };
+                            }
+                          })();
+
+                          const hr = pVitals.heartRate;
+                          const temp = pVitals.temperature;
+                          const spo2 = pVitals.spo2;
+                          const sbp = pVitals.systolicBP;
+                          const dbp = pVitals.diastolicBP;
+                          const rr = pVitals.respiratoryRate;
+
+                          const isCritical = isDeviceConnected && p.vitalsPreset === 'critical';
+                          const isWarning = isDeviceConnected && p.vitalsPreset === 'warning';
+
+                          return (
+                            <tr 
+                              key={p.id} 
+                              className={`group transition-all duration-150 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${
+                                isCoupled 
+                                  ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l border-l-blue-600' 
+                                  : ''
+                              }`}
+                            >
+                              <td className="py-4 pr-4">
+                                <div className="flex items-center gap-3">
+                                  <span className={`w-2.5 h-2.5 rounded-full ring-4 shrink-0 shadow-sm ${
+                                    !isDeviceConnected
+                                      ? 'bg-slate-400 ring-slate-400/10'
+                                      : isCritical 
+                                        ? 'bg-rose-500 ring-rose-500/20' 
+                                        : isWarning 
+                                          ? 'bg-amber-500 ring-amber-500/20' 
+                                          : 'bg-emerald-500 ring-emerald-500/20'
+                                  } ${isCritical ? 'animate-pulse' : ''}`} />
+                                  <div>
+                                    <div className="font-extrabold text-slate-900 dark:text-white text-sm tracking-tight flex items-center gap-1.5">
+                                      {p.name}
+                                      {isCoupled && (
+                                        <span className="text-[8px] bg-blue-600 text-white uppercase px-1.5 py-0.5 rounded-full font-black tracking-widest shrink-0 animate-pulse">
+                                          coupled
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
+                                      {p.age}y • {p.gender} • Type {p.bloodType} • {p.weight || '70kg'}
+                                    </div>
                                   </div>
-                                  <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
-                                    {p.age}y • {p.gender} • Type {p.bloodType} • {p.weight || '70kg'}
-                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="py-4 pr-4 text-center">
-                              <span className="font-mono text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
-                                {p.bedNumber}
-                              </span>
-                            </td>
-                            <td className="py-4 pr-4/10">
-                              <div className="max-w-[280px]">
-                                <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">
-                                  {p.conditions || "No recorded chronic pathologies"}
-                                </div>
-                                <div className={`text-[10px] font-black uppercase mt-1 tracking-wider ${
-                                  isCritical 
-                                    ? 'text-rose-600 dark:text-rose-400' 
-                                    : isWarning 
-                                      ? 'text-amber-600 dark:text-amber-400' 
-                                      : 'text-emerald-600 dark:text-emerald-400'
-                                }`}>
-                                  {isCritical 
-                                    ? '⚠️ CRITICAL: Hypoxia Distress' 
-                                    : isWarning 
-                                      ? '⚠️ BORDERLINE: Mild Pyrexia' 
-                                      : '✓ STABLE: Nominal Metabolism'}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-4 pr-4">
-                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
-                                isCritical 
-                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                  : isWarning 
-                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
-                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
-                              }`}>
-                                {hr}
-                              </span>
-                            </td>
-                            <td className="py-4 pr-4">
-                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
-                                isCritical 
-                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                  : isWarning 
-                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
-                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
-                              }`}>
-                                {temp.toFixed(1)}°
-                              </span>
-                            </td>
-                            <td className="py-4 pr-4">
-                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
-                                isCritical 
-                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                  : isWarning 
-                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
-                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
-                              }`}>
-                                {spo2}%
-                              </span>
-                            </td>
-                            <td className="py-4 pr-4 font-black text-xs text-slate-800 dark:text-slate-200">
-                              <span className="bg-slate-50 dark:bg-slate-800/40 px-2 py-1 rounded border border-slate-100 dark:border-slate-800">
-                                {sbp}/{dbp}
-                              </span>
-                            </td>
-                            <td className="py-4 pr-4 font-black text-sm text-slate-800 dark:text-slate-200">
-                              {rr}
-                            </td>
-                            <td className="py-4 text-right">
-                              {isCoupled ? (
-                                <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow-md cursor-default shadow-blue-500/20">
-                                  <Monitor size={10} className="stroke-[3]" />
-                                  Active Node
+                              </td>
+                              <td className="py-4 pr-4 text-center">
+                                <span className="font-mono text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+                                  {p.bedNumber}
                                 </span>
-                              ) : (
-                                <button
-                                  onClick={() => setSelectedPatientId(p.id)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-[9px] font-black uppercase tracking-wider rounded-xl border border-slate-200/50 dark:border-slate-700/50 transition-all cursor-pointer shadow-sm"
-                                >
-                                  <Stethoscope size={10} />
-                                  Observe patient
-                                  <ChevronRight size={10} />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+                              <td className="py-4 pr-4">
+                                <div className="max-w-[280px] space-y-1.5">
+                                  <div className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">
+                                    {p.conditions || "General Observation"}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isDeviceConnected ? (
+                                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[8px] font-black rounded-md border border-emerald-100 dark:border-emerald-900/20 shadow-sm">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        {connectedDevicesMap[p.id]?.type || 'Bluetooth'} LINKED • {connectedDevicesMap[p.id]?.nodeId || 'ARD-BLE-12'}
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[8px] font-extrabold rounded-md border border-slate-200 dark:border-slate-700/60">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                                        STANDBY (SIMULATED)
+                                      </div>
+                                    )}
+                                    
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleDeviceConnection(p.id);
+                                      }}
+                                      className={`px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded border cursor-pointer active:scale-95 transition-all ${
+                                        isDeviceConnected
+                                          ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
+                                          : 'bg-blue-600 text-white border-transparent hover:bg-blue-500 shadow-sm shadow-blue-500/10'
+                                      }`}
+                                    >
+                                      {isDeviceConnected ? 'Unlink' : 'Link Machine'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                  isCritical 
+                                    ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                    : isWarning 
+                                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                      : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                                }`}>
+                                  {hr}
+                                </span>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                  isCritical 
+                                    ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                    : isWarning 
+                                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                      : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                                }`}>
+                                  {temp.toFixed(1)}°
+                                </span>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                  isCritical 
+                                    ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                    : isWarning 
+                                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                      : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                                }`}>
+                                  {spo2}%
+                                </span>
+                              </td>
+                              <td className="py-4 pr-4 font-black text-xs text-slate-800 dark:text-slate-200">
+                                <span className="bg-slate-50 dark:bg-slate-800/40 px-2 py-1 rounded border border-slate-100 dark:border-slate-800">
+                                  {sbp}/{dbp}
+                                </span>
+                              </td>
+                              <td className="py-4 pr-4 font-black text-sm text-slate-800 dark:text-slate-200">
+                                {rr}
+                              </td>
+                              <td className="py-4 text-right">
+                                {isCoupled ? (
+                                  <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow-md cursor-default shadow-blue-500/20">
+                                    <Monitor size={10} className="stroke-[3]" />
+                                    Active Node
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setSelectedPatientId(p.id)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-[9px] font-black uppercase tracking-wider rounded-xl border border-slate-200/50 dark:border-slate-700/50 transition-all cursor-pointer shadow-sm"
+                                  >
+                                    <Stethoscope size={10} />
+                                    Observe patient
+                                    <ChevronRight size={10} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>

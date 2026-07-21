@@ -12,6 +12,7 @@ import { api } from '../api';
 import { NeuralHealthSummary } from './NeuralHealthSummary';
 import { exportMedicalReportPDF } from '../utils/pdfGenerator';
 import { DoctorVerificationModal } from './DoctorVerificationModal';
+import { validateMoHClinicalDosage } from '../utils/clinicalValidation';
 
 // ─── Types ────────────────────────────────────────────────
 interface Medication {
@@ -494,6 +495,14 @@ export const HealthRecords: React.FC = () => {
       showToast('Add at least one medication', 'error'); 
       return; 
     }
+
+    // Validate medication dosages against Uganda MOH Clinical Guidelines
+    filledMeds.forEach(m => {
+      const validation = validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
+      if (!validation.isValid && validation.warning) {
+        showToast(validation.warning, 'error');
+      }
+    });
     
     setIsSaving(true);
     try {

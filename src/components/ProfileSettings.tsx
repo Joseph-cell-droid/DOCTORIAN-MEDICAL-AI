@@ -65,12 +65,12 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   });
   const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
   const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
-  const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'gemma4');
+  const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'doctorian-2.5');
   const [localApiKey, setLocalApiKey] = useState(() => {
     return localStorage.getItem('doctorian_local_api_key') || '';
   });
   const [huggingfaceToken, setHuggingfaceToken] = useState(user?.huggingfaceToken || '');
-  const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'google/gemma-3-4b-it');
+  const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'doctorian-2.0');
   const [hfModels, setHfModels] = useState<{ id: string; downloads: number; likes: number }[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isVerifyingHf, setIsVerifyingHf] = useState(false);
@@ -271,9 +271,9 @@ Verified by Joseph Akora - Development Lead.
       setEnableExternalAI(user.enableExternalAI || false);
       setEnableDeepHealthInsights(user.enableDeepHealthInsights || false);
       setOllamaUrl(user.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
-      setOllamaModel(user.ollamaModel || 'gemma4');
+      setOllamaModel(user.ollamaModel || 'doctorian-2.5');
       setHuggingfaceToken(user.huggingfaceToken || '');
-      setHuggingfaceModel(user.huggingfaceModel || 'google/gemma-3-4b-it');
+      setHuggingfaceModel(user.huggingfaceModel || 'doctorian-2.0');
     }
   }, [user]);
 
@@ -409,7 +409,7 @@ Verified by Joseph Akora - Development Lead.
         </div>
 
         <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
-          Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">google/gemma-3-4b-it</span> if left empty.
+          Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">doctorian-2.0</span> if left empty.
         </p>
       </div>
     );
@@ -1213,7 +1213,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">In-Browser Local Brain</h5>
-                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">Google Gemma 3 (TFJS DL)</p>
+                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">Doctorian Opus (Local Edge)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Loads weights directly in-browser. 100% private execution on your GPU using WebGL/WebGPU.
                         </p>
@@ -1243,7 +1243,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Cloud Brain Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Google Gemini (Active Fallback)</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Doctorian 1.5 (Cloud Brain)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           High performance failover cloud synapse. Instant clinical reasoning & web search grounding.
                         </p>
@@ -1273,9 +1273,9 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Laptop Server Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Local Ollama / LM Studio</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Doctorian 2.5 Hub Link</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Run customized offline server models (Llama 3.1) on laptop port 11434 / 1234.
+                          Run customized offline Doctorian models on your laptop port 11434 / 1234.
                         </p>
                       </div>
                     </button>
@@ -1302,10 +1302,10 @@ Verified by Joseph Akora - Development Lead.
                         )}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Hugging Face Cloud</h5>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Realistic Open Models</p>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Doctorian 2.0 Cloud</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Doctorian 2.0 Core</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Fast, serverless execution of Llama 3.1 & Mistral via secure API keys.
+                          Fast, serverless execution of Doctorian 2.0 via secure API keys.
                         </p>
                       </div>
                     </button>
@@ -1328,14 +1328,14 @@ Verified by Joseph Akora - Development Lead.
                           <Sparkles size={20} className="text-blue-500" />
                         </div>
                         {aiBrainOption === 'gemma_cloud' && (
-                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Gemma 3</span>
+                          <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Doctorian</span>
                         )}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Google Gemma 3 Cloud</h5>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Gemma 3 4B Core</p>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Doctorian 3.0 Cloud</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Doctorian 3.0 Core</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Official cloud deployment of Google Gemma 3 with absolute high-performance medical analysis.
+                          Official cloud deployment of Doctorian 3.0 with absolute high-performance medical analysis.
                         </p>
                       </div>
                     </button>
@@ -1384,7 +1384,7 @@ Verified by Joseph Akora - Development Lead.
                               value={ollamaModel}
                               onChange={e => setOllamaModel(e.target.value)}
                               className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3.5 text-xs font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-600 transition-all outline-none"
-                              placeholder="e.g. llama3.1, gemma2, phi3"
+                              placeholder="e.g. doctorian-opus, doctorian-1.5, doctorian-2.5"
                             />
                           </div>
                         </div>
@@ -1393,7 +1393,7 @@ Verified by Joseph Akora - Development Lead.
                       <div>
                         <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quick Select Model Presets</label>
                         <div className="flex flex-wrap gap-2">
-                          {['gemma2', 'llama3.1', 'mistral', 'phi3'].map(preset => (
+                          {['doctorian-opus', 'doctorian-1.5', 'doctorian-2.5', 'doctorian-3.5'].map(preset => (
                             <button
                               key={preset}
                               type="button"
@@ -1462,11 +1462,11 @@ Verified by Joseph Akora - Development Lead.
                       <div className="max-w-md">
                         <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">External Neural Links</h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed mb-4">
-                          Enable higher-tier reasoning by connecting to specialized external matrices. This automatically utilizes <span className="text-violet-600 font-black">Meta Llama 3.1 8B</span> and <span className="text-blue-600 font-black">DeepSeek R1</span> for complex medical synthesis.
+                          Enable higher-tier reasoning by connecting to specialized external matrices. This automatically utilizes <span className="text-violet-600 font-black">Doctorian 2.5</span> and <span className="text-blue-600 font-black">Doctorian 3.5</span> for complex medical synthesis.
                         </p>
                         <div className="flex flex-wrap gap-2">
-                           <span className="px-3 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-[8px] font-black uppercase tracking-widest">Llama 3.1 8B</span>
-                           <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-[8px] font-black uppercase tracking-widest">Gemma</span>
+                           <span className="px-3 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-[8px] font-black uppercase tracking-widest">Doctorian 2.5</span>
+                           <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-[8px] font-black uppercase tracking-widest">Doctorian 1.5</span>
                            <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[8px] font-black uppercase tracking-widest">Active Reasoning</span>
                         </div>
                       </div>
@@ -1745,11 +1745,11 @@ Verified by Joseph Akora - Development Lead.
                         <div className="max-w-md">
                           <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">External Neural Links</h4>
                           <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed mb-4">
-                            Enable higher-tier reasoning by connecting to specialized external matrices. This automatically utilizes <span className="text-violet-600 font-black">Meta Llama 3.1 8B</span> and <span className="text-blue-600 font-black">DeepSeek R1</span> for complex medical synthesis.
+                            Enable higher-tier reasoning by connecting to specialized external matrices. This automatically utilizes <span className="text-violet-600 font-black">Doctorian 2.5</span> and <span className="text-blue-600 font-black">Doctorian 3.5</span> for complex medical synthesis.
                           </p>
                           <div className="flex flex-wrap gap-2">
-                             <span className="px-3 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-[8px] font-black uppercase tracking-widest">Llama 3.1 8B</span>
-                             <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-[8px] font-black uppercase tracking-widest">Gemma</span>
+                             <span className="px-3 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-[8px] font-black uppercase tracking-widest">Doctorian 2.5</span>
+                             <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-[8px] font-black uppercase tracking-widest">Doctorian 1.5</span>
                              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[8px] font-black uppercase tracking-widest">Active Reasoning</span>
                           </div>
                         </div>

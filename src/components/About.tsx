@@ -31,9 +31,9 @@ export const About: React.FC = () => {
 
   const techStack = [
     { icon: <Globe size={24} />, name: "Multi-Lingual Core", desc: "Fluent in 56+ Ugandan languages & technical English" },
-    { icon: <Brain size={24} />, name: "Llama 3.1 70B", desc: "Primary clinical reasoning core" },
-    { icon: <Layers size={24} />, name: "Gemma 2 27B", desc: "High-precision diagnostic logic" },
-    { icon: <Shield size={24} />, name: "DeepSeek R1", desc: "Deep analytical synthesis" },
+    { icon: <Brain size={24} />, name: "Doctorian Opus", desc: "Primary clinical reasoning core" },
+    { icon: <Layers size={24} />, name: "Doctorian 1.5", desc: "High-precision diagnostic logic" },
+    { icon: <Shield size={24} />, name: "Doctorian 3.5", desc: "Deep analytical synthesis" },
     { icon: <Database size={24} />, name: "Vector Indexing", desc: "Context-aware medical grounding" },
   ];
 
@@ -94,7 +94,7 @@ export const About: React.FC = () => {
         </motion.p>
 
         <div className="flex flex-wrap justify-center gap-4">
-          {['Llama 3.1 70B', 'Gemma 2 27B', 'DeepSeek R1', 'Mistral Large'].map((node, i) => (
+          {['Doctorian Opus', 'Doctorian 1.5', 'Doctorian 2.5', 'Doctorian 3.5'].map((node, i) => (
              <motion.div
                key={node}
                initial={{ opacity: 0, y: 10 }}
@@ -102,7 +102,7 @@ export const About: React.FC = () => {
                transition={{ delay: 0.2 + (i * 0.1) }}
                className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl shadow-slate-200/20 dark:shadow-none text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
              >
-               {node} Node Active
+               {node} Active
              </motion.div>
           ))}
         </div>

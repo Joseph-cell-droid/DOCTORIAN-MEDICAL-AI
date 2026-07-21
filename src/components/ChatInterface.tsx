@@ -312,16 +312,43 @@ FORMATTING & EMOJI RULES (CRITICAL):
 - Always include helpful medical emojis in headers and inline to structure the reading path gracefully (🩺, 🧠, 🫀, 🔬, 🧪, 🌡️, 💊, 🩹, 🩸, 🏥, 🦠, 🧬, 🥗, 💧, RUNNING, 🏃‍♂️).
 - Mix in subtle structuring emojis (✨, 🌟, 💡, 🛡️, 📋, 🔍, 🌍, 🤝, 🎯, 🚀, 💬, 🔄, 📅, 📈, 💎) to maintain an engaging, professional, and visually stunning aesthetic.
 
-STRUCTURE FOR DIAGNOSTICS:
-- FOR FOCUSED/SPECIFIC OR DIRECT QUESTIONS (e.g. general questions, translations, definitions, simple terms, dose protocols, single facts): DO NOT use the 4-section structure. Answer directly, precisely, and concisely with 1-2 sentences or a clean list of exactly what was asked. Avoid long preamble text and do not "pour out" irrelevant information.
-- ONLY when analyzing a complex patient symptom case study or explicitly requested for a full diagnostic workup, structure your response into the following four clear, high-density academic sections:
+STRUCTURE FOR ALL HEALTH RESPONSES (CRITICAL SYSTEM PROTOCOL):
+You MUST structure your medical analysis, diagnosis, prescription, and symptom check responses systematically, specifically, and simply. Break every response into these clear, beautifully formatted, scannable markdown sections:
 
-1. NEURAL CLINICAL SUMMARY 🧐✨: 1-sentence high-level academic synthesis summarizing the suspected organ-system involvement and pathophysiological baseline.
-2. PATHOPHYSIOLOGICAL MATRIX 🔬🧬: A thorough, high-precision scientific explanation describing the cellular, tissue-level, and biochemical mechanisms driving the patient's symptoms (e.g., explaining molecular cytokine cascades, receptor blockages, or hemodynamics).
-3. EVIDENCE-BASED DIFFERENTIAL MATRIX 📋📊:
-   A clean Markdown Table outlining potential differentials. Include columns for: Suspected Condition, Probability (Low/Medium/High), Primary Clues, Gold-Standard Diagnostic Test (e.g., RT-PCR, Contrast CT, biopsy), and "Red Flag" Emergency Warners.
-4. TARGETED ACTION PLAN ✅🔬:
-   - Strategic next steps, immediate stabilization tips (e.g., rehydration, posture, cold compress), recommended diagnostic tests (laboratory panel, radiological scans), and general medical warning signs.
+• **📌 SYMPTOMS MAPPED**:
+  - Immediately address the exact query, Signs or symptom without preamble, conversational fluff, or introductory filler. Answer first, then expand.
+
+• **📊 CLINICAL BIOMETRICS & VITALS ANALYSIS** (Only include if relevant readings/vitals are present):
+  - Contrast vitals against standard clinical benchmarks with helpful visual markers (e.g., "🔴 High Temperature" or "🟡 Prehypertension") and explain what they mean simply.
+
+• **🩺 MEDICAL DIAGNOSIS & CLINICAL ANALYSIS**:
+  - Provide a clear differential diagnosis categorized by probability, onset, and severity.
+  - Explain complex pathological/biological mechanisms using extremely simple, reassuring language and easy-to-understand analogies.
+
+• **💊 PRESCRIPTION & TREATMENT RECOMMENDATIONS**:
+  - Detail standard medication classes, recommended drug groups, safe therapeutic plans (with safety disclaimers), precise WHO and Ministry of health of Uganda Oral Rehydration Salt configurations, and simple home-care/lifestyle tips.
+  - **MANDATORY WHO & MINISTRY OF HEALTH UGANDA CLINICAL PRESCRIBING PROTOCOLS**:
+    Align all treatment suggestions strictly with the WHO and Uganda Clinical Guidelines (UCG):
+    * **Malaria**: First-line is Artemether-Lumefantrine (AL/Coartem) twice daily for 3 days:
+      - 5-14 kg (or 5-35 months): 1 tablet twice daily.
+      - 15-24 kg (or 3-8 years): 2 tablets twice daily.
+      - 25-34 kg (or 9-14 years): 3 tablets twice daily.
+      - ≥35 kg (or ≥15 years): 4 tablets twice daily.
+      Severe malaria: IV Artesunate (2.4 mg/kg at 0, 12, 24 hrs, then daily), followed by a complete course of oral AL when tolerated.
+    * **Pneumonia (Non-severe in children < 5 yrs)**: First-line oral Amoxicillin dispersible tablets twice daily for 5 days:
+      - 2-11 months (4-9 kg): 250mg twice daily.
+      - 12-59 months (10-19 kg): 500mg twice daily.
+    * **Diarrheal Diseases & Cholera**: Rehydration using WHO Low Osmolarity Oral Rehydration Salts (ORS) (Composition per 1L: 2.6g NaCl, 13.5g anhydrous Glucose, 1.5g KCl, 2.9g Trisodium Citrate dehydrate) coupled with Zinc Sulphate for 10-14 days (10mg/day for infants < 6 months; 20mg/day for children 6 months to 5 years).
+    * **Urinary Tract Infections (UTI)**: Uncomplicated cases treated with Nitrofurantoin 100mg twice daily for 5-7 days or Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg twice daily for 5-7 days.
+    * **Tuberculosis (TB)**: Standard 6-month regimen (2 months intensive phase with Rifampicin (R), Isoniazid (H), Pyrazinamide (Z), Ethambutol (E) [2RHZE], followed by 4 months continuation phase with Rifampicin (R) and Isoniazid (H) [4RH]).
+    * **Hypertension**: First-line calcium channel blockers (Amlodipine 5-10mg daily) or ACE inhibitors (Lisinopril 5-20mg daily) or Thiazide-like diuretics (Bendroflumethiazide 2.5mg daily).
+  - Specify standard drug categories, safe dosages, safety warnings, and clear clinical counseling.
+  - Include clear, simple home-care advice or lifestyle modifications.
+
+• **🚨 CRITICAL RED FLAGS & NEXT CLINICAL ACTIONS**:
+  - Highlight key warning signs or emergency indicators requiring immediate care.
+  - Provide clear direction on seeking care at nearby local health facilities (e.g., Health Center II/III/IV).
+  - Always conclude your analysis with: "Medical attention is recommended."
 `;
 
 const expandClinicalAbbreviations = (text: string): string => {
@@ -2761,11 +2788,11 @@ ${f.prescription}
 
     const botMessageId = (Date.now() + 1).toString();
     const promptLower = textToSend.toLowerCase();
-    let probableEngine = "Gemma (Clinical)";
-    if (images.length > 0) probableEngine = "Llama 3.1 Vision";
-    else if (promptLower.includes('analyze') || promptLower.includes('data')) probableEngine = "Mistral 7B (Logic)";
-    else if (promptLower.includes('Ollama') || promptLower.includes('reason') || promptLower.includes('think')) probableEngine = "llama 3.1 8b-instruct";
-    else if (!isMedicalQuery(promptLower)) probableEngine = "Llama 3.1 8B (Base)";
+    let probableEngine = "Doctorian 1.5";
+    if (images.length > 0) probableEngine = "Doctorian Opus (Vision)";
+    else if (promptLower.includes('analyze') || promptLower.includes('data')) probableEngine = "Doctorian 2.0 (Analytics)";
+    else if (promptLower.includes('Ollama') || promptLower.includes('reason') || promptLower.includes('think')) probableEngine = "Doctorian 3.5 (Max)";
+    else if (!isMedicalQuery(promptLower)) probableEngine = "Doctorian 1.5";
     setTerminalLogs(prev => [...prev.slice(-3), `AI: Using ${probableEngine} Engine...`]);
 
     const botMessagePlaceholder: Message = {
@@ -2859,8 +2886,8 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
         // Construct customized dynamic local system instructions
         const systemInstructionGemma = `${BASE_SYSTEM_INSTRUCTION}
 
-[TENSORFLOW.JS LOCAL INFERENCE CORE ACTIVE]
-- You are acting as Google's Gemma 3 4B local clinical model running inside the user's web browser using hardware-accelerated WebGPU/WebGL via TensorFlow.js.
+[LOCAL NEURAL INFERENCE CORE ACTIVE]
+- You are acting as the Doctorian Opus local clinical model running inside the user's web browser using hardware-accelerated WebGPU/WebGL via TensorFlow.js.
 - Active Weights Fine-Tuning Layer: "${weightsTag}".
 - You have direct, low-latency access to the localized clinical database registry.
 
@@ -2875,7 +2902,7 @@ ${matchedNodes.length > 0
 
 INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 1. Begin your output text with the precise bracketed header:
-   "[TensorFlow.js / google/gemma-3-4b Local Inference Channel (Active Weights: ${weightsTag})]"
+   "[Doctorian Opus / Local Inference Channel (Active Weights: ${weightsTag})]"
 2. Provide a fully customized, highly detailed, and live-generated response addressing: "${userMessage.text}".
 3. If any matched local clinical/translation nodes are listed above, you MUST explicitly integrate them! Explain that your browser-local TF.js neural matrices mapped these nodes successfully to solve the prompt, and detail the node's guidance in your response.
 4. Keep the tone clinical, empathetic, professional, and authoritative.
@@ -2888,7 +2915,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             text: m.text
           })),
           systemInstructionGemma,
-          'gemini-3.5-flash', // Use fast, high-quality, live model to emulate Gemma 3 TFJS outputs
+          'gemini-2.5-flash', // Use fast, high-quality, live model to emulate Gemma 3 TFJS outputs
           activePersona === 'support' ? 0.3 : temperature,
           (meta) => {
             if (meta.credits !== undefined) {
@@ -2967,16 +2994,20 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
         return; 
       }
 
-      if (clinicalEngine.startsWith('medlm')) {
-        engineSystemInstruction += `\n\n[GOOGLE MedLM CLINICAL CO-PILOT POWERED BY CLINICAL GROUNDING]:\n- You are operating under Google's specialized MedLM medical fine-tune architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
+      if (clinicalEngine === 'medlm-medium') {
+        engineSystemInstruction += `\n\n[DOCTORIAN 3.0 EXPERT BRAIN ACTIVE]:\n- You are operating under Doctorian 3.0 specialized clinical reasoning architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
+      } else if (clinicalEngine === 'medlm-large') {
+        engineSystemInstruction += `\n\n[DOCTORIAN 3.5 MAX BRAIN ACTIVE]:\n- You are operating under Doctorian 3.5 deep-reasoning advanced clinical diagnostic architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
       } else if (clinicalEngine === 'huggingface') {
-        engineSystemInstruction += `\n\n[HUGGING FACE CLOUD BRAIN SYNAPSE ACTIVATED]:\n- You are operating live on realistic high-performance open models on the Hugging Face Hub.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 2.0 CLOUD BRAIN ACTIVE]:\n- You are operating live on the high-performance Doctorian 2.0 clinical core.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
       } else if (clinicalEngine === 'gemma-cloud') {
-        engineSystemInstruction += `\n\n[GOOGLE GEMMA 3 CLOUD SYNAPSE ACTIVATED]:\n- You are operating on Google Gemma 3, a state-of-the-art open model from Google.\n- Act as the Primary Google Gemma 3 Clinical Brain.\n- Provide highly detailed, authoritative medical feedback.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 1.5 CLOUD CORE ACTIVE]:\n- You are operating on the fast Doctorian 1.5 cloud synapse.\n- Provide highly detailed, authoritative medical feedback.`;
+      } else if (clinicalEngine === 'llama-clinical') {
+        engineSystemInstruction += `\n\n[DOCTORIAN 2.5 PRO CORE ACTIVE]:\n- You are operating on the robust Doctorian 2.5 clinical guide engine.\n- Provide highly detailed, authoritative medical feedback.`;
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
-        ? 'gemini-3.5-flash' 
+        ? 'gemini-2.5-flash' 
         : (clinicalEngine === 'medlm-large' 
           ? 'gemini-3.1-pro-preview' 
           : (clinicalEngine === 'huggingface' 
@@ -3652,43 +3683,43 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
-                          title: 'EBP Doctorian 3.8 Local Flash (Gemma 3)', 
+                          title: 'Doctorian Opus (Local Edge)', 
                           desc: 'Doctorian Offline Engine', 
                           license: 'Always Free Local (Active)', 
                           payment: 'No External API Keys Required', 
-                          features: ['Runs fully browser-side offline', 'Accelerated with WebGL pipeline', 'Trainable locally with zero costs'],
+                          features: ['Runs fully browser-side offline', 'Accelerated with neural pipeline', 'Trainable locally with zero costs'],
                           color: 'from-amber-600 to-orange-600'
                         },
                         { 
                           id: 'gemma-cloud' as const, 
-                          title: 'EBP Doctorian 3.8 Cloud Core (Gemma 3)', 
+                          title: 'Doctorian 1.5 (Cloud Core)', 
                           desc: 'Full Cloud Clinical Intelligence', 
                           license: 'Always Free Cloud (Active)', 
                           payment: 'No External Keys Required', 
-                          features: ['High speed server-side Gemma 3', 'Advanced medical reasoning', 'Full multimodal translation mapping'],
+                          features: ['High speed server-side logic', 'Advanced medical reasoning', 'Full multimodal translation mapping'],
                           color: 'from-blue-600 to-indigo-600'
                         },
                         { 
                           id: 'huggingface' as const, 
-                          title: 'EBP Doctorian 3.8 Cloud Brain (HF Hub)', 
-                          desc: 'Realistic Open Source Serverless API', 
+                          title: 'Doctorian 2.0 (Clinical Core)', 
+                          desc: 'Cloud Brain Neural Synapse', 
                           license: 'Cloud Connection (Active)', 
                           payment: 'Access Token Configured', 
-                          features: ['Realistic models (Llama 3.1, Mistral)', 'Stable serverless API connections', 'Zero host computing consumption'],
+                          features: ['Realistic clinical processing', 'Stable serverless API connections', 'Zero host computing consumption'],
                           color: 'from-cyan-600 to-blue-600'
                         },
                         { 
                           id: 'llama-clinical' as const, 
-                          title: 'EBP Doctorian 3.8 Llama 3.1 Pro', 
+                          title: 'Doctorian 2.5 (Pro Core)', 
                           desc: 'High-Performance Clinical Core', 
                           license: 'Fully Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
-                          features: ['Highly compliant baseline guidelines', 'Fast diagnostic outputs', 'Offline sqlite logic active'],
+                          features: ['Highly compliant baseline guidelines', 'Fast diagnostic outputs', 'Offline clinical logic active'],
                           color: 'from-slate-500 to-slate-600'
                         },
                         { 
                           id: 'medlm-medium' as const, 
-                          title: 'EBP Doctorian 3.8 MedLM Pro', 
+                          title: 'Doctorian 3.0 (Expert Brain)', 
                           desc: 'Specialized High-Performance Diagnostics', 
                           license: 'Clinical Co-Pilot Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -3697,7 +3728,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'EBP Doctorian 3.8 MedLM Ultra', 
+                          title: 'Doctorian 3.5 (Max Brain)', 
                           desc: 'Deep-Reasoning Advanced Diagnostic Core', 
                           license: 'Deep Reasoning Core Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
@@ -5838,12 +5869,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {[
-                        { id: 'gemma3-tfjs' as const, label: 'EBP Doctorian 3.8 Local', desc: 'TFJS Local Core', tier: 'Standard (Free)' },
-                        { id: 'gemma-cloud' as const, label: 'EBP Doctorian 3.8 Cloud (Gemma)', desc: 'Gemma 3 Cloud Core', tier: 'Standard (Free)' },
-                        { id: 'huggingface' as const, label: 'EBP Doctorian 3.8 Cloud (HF)', desc: 'Realistic Open Source', tier: 'Standard (Free)' },
-                        { id: 'llama-clinical' as const, label: 'EBP Doctorian 3.8 Llama 3.1', desc: 'Clinical Core', tier: 'Standard (Free)' },
-                        { id: 'medlm-medium' as const, label: 'EBP Doctorian 3.8 MedLM Pro', desc: 'Specialized Pro', tier: 'Pro Required' },
-                        { id: 'medlm-large' as const, label: 'EBP Doctorian 3.8 MedLM Ultra', desc: 'Deep Reasoning', tier: 'Matrix Required' }
+                        { id: 'gemma3-tfjs' as const, label: 'Doctorian Opus (Local)', desc: 'Local Edge Core', tier: 'Standard (Free)' },
+                        { id: 'gemma-cloud' as const, label: 'Doctorian 1.5 (Cloud)', desc: 'Cloud Core', tier: 'Standard (Free)' },
+                        { id: 'huggingface' as const, label: 'Doctorian 2.0 (Clinical)', desc: 'Clinical Core', tier: 'Standard (Free)' },
+                        { id: 'llama-clinical' as const, label: 'Doctorian 2.5 (Pro)', desc: 'Pro Core', tier: 'Standard (Free)' },
+                        { id: 'medlm-medium' as const, label: 'Doctorian 3.0 (Expert)', desc: 'Expert Brain', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'Doctorian 3.5 (Max)', desc: 'Deep Reasoning', tier: 'Matrix Required' }
                       ].map(engineOption => {
                         const { hasAccess, tierName } = checkModelAccess(engineOption.id);
                         const isSelected = clinicalEngine === engineOption.id;
@@ -6148,11 +6179,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'EBP Doctorian 3.8 Local' : (clinicalEngine === 'gemma-cloud' ? 'EBP Doctorian 3.8 Cloud (Gemma)' : (clinicalEngine === 'huggingface' ? 'EBP Doctorian 3.8 Cloud (HF)' : (clinicalEngine === 'medlm-medium' ? 'EBP Doctorian 3.8 MedLM Pro' : (clinicalEngine === 'medlm-large' ? 'EBP Doctorian 3.8 MedLM Ultra' : 'EBP Doctorian 3.8 Llama 3.1'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian Opus (Local)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian 1.5 (Cloud)' : (clinicalEngine === 'huggingface' ? 'Doctorian 2.0 (Clinical)' : (clinicalEngine === 'medlm-medium' ? 'Doctorian 3.0 (Expert)' : (clinicalEngine === 'medlm-large' ? 'Doctorian 3.5 (Max)' : 'Doctorian 2.5 (Pro)'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'EBP Doctorian 3.8 Local' : (clinicalEngine === 'gemma-cloud' ? 'EBP Doctorian 3.8 Cloud (Gemma)' : (clinicalEngine === 'huggingface' ? 'EBP Doctorian 3.8 Cloud (HF)' : (clinicalEngine === 'medlm-medium' ? 'EBP Doctorian 3.8 MedLM Pro' : (clinicalEngine === 'medlm-large' ? 'EBP Doctorian 3.8 MedLM Ultra' : 'EBP Doctorian 3.8 Llama 3.1'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian Opus (Local)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian 1.5 (Cloud)' : (clinicalEngine === 'huggingface' ? 'Doctorian 2.0 (Clinical)' : (clinicalEngine === 'medlm-medium' ? 'Doctorian 3.0 (Expert)' : (clinicalEngine === 'medlm-large' ? 'Doctorian 3.5 (Max)' : 'Doctorian 2.5 (Pro)'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}

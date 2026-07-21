@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Pill, 
@@ -64,8 +64,13 @@ interface Medicine {
 }
 
 import { useArduinoContext } from '../ArduinoContext';
+import { validateMoHClinicalDosage, validateDrugForDisease, validateOverdoseFromLogs, getOptimalReminderTimes } from '../utils/clinicalValidation';
 
-export const MedicationTracker: React.FC = () => {
+interface MedicationTrackerProps {
+  addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
+}
+
+export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }) => {
   const arduino = useArduinoContext();
   const [notificationState, setNotificationState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
 
@@ -161,6 +166,13 @@ export const MedicationTracker: React.FC = () => {
     reason: string;
   } | null>(null);
 
+  // High-precision dosage verification inputs
+  const [intakeQuantity, setIntakeQuantity] = useState<number>(1);
+  const [simulatedDrugMatch, setSimulatedDrugMatch] = useState<'match' | 'wrong_drug' | 'wrong_dosage' | 'expired'>('match');
+  const [ingestionStatus, setIngestionStatus] = useState<'swallowed' | 'not_swallowed'>('swallowed');
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
   const [isAdding, setIsAdding] = useState(false);
   const [registerMode, setRegisterMode] = useState<'manual' | 'library' | 'scan'>('manual');
   const [showLibrary, setShowLibrary] = useState(false);
@@ -203,18 +215,32 @@ export const MedicationTracker: React.FC = () => {
         const extractedMeds = JSON.parse(text);
         
         if (Array.isArray(extractedMeds)) {
+          const formattedMeds = extractedMeds.map(m => ({
+            name: m.name,
+            dosage: m.dosage || '500mg',
+            frequency: m.frequency || 'Daily',
+            duration: '30 Days',
+            reminderTimes: [m.time || '08:00']
+          }));
+
+          // Validate against Uganda MOH guidelines
+          formattedMeds.forEach(m => {
+            const validation = validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
+            if (!validation.isValid && validation.warning) {
+              if (addToast) {
+                addToast(validation.warning, "error");
+              } else {
+                alert(validation.warning);
+              }
+            }
+          });
+
           createPrescription(
             activePatientId,
             'DOC-002',
             'OCR Neural Synthesized Diagnosis',
             new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            extractedMeds.map(m => ({
-              name: m.name,
-              dosage: m.dosage || '500mg',
-              frequency: m.frequency || 'Daily',
-              duration: '30 Days',
-              reminderTimes: [m.time || '08:00']
-            }))
+            formattedMeds
           );
           setExtractionResults(extractedMeds);
           refreshAllLocalData();
@@ -283,6 +309,17 @@ export const MedicationTracker: React.FC = () => {
   const handleAddMed = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMed.name) return;
+
+    // Validate against Uganda MOH guidelines
+    const validation = validateMoHClinicalDosage(newMed.name, newMed.dosage || '1 tablet', newMed.frequency);
+    if (!validation.isValid && validation.warning) {
+      if (addToast) {
+        addToast(validation.warning, "error");
+      } else {
+        alert(validation.warning);
+      }
+    }
+
     try {
       createPrescription(
         activePatientId,
@@ -318,6 +355,8 @@ export const MedicationTracker: React.FC = () => {
         setScannedCode(null);
         setIsRecording(false);
         setRecordTime(0);
+        setIntakeQuantity(1);
+        setSimulatedDrugMatch('match');
 
         // Standard questions list to assess consistency
         const questions = [
@@ -375,12 +414,40 @@ export const MedicationTracker: React.FC = () => {
     }
   };
 
+  const startLiveCamera = async () => {
+    try {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      setVideoStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.warn("Camera hardware access unavailable, using animated neural scanner fallback:", err);
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      setVideoStream(null);
+    }
+  };
+
+  const handleCancelVerification = () => {
+    stopLiveCamera();
+    setActiveVerifyLog(null);
+  };
+
   const handleSimulatePhoto = () => {
     setIsRecording(true);
     setTimeout(() => {
       setIsRecording(false);
       setCapturedPhoto("https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400");
       setVerifyStep('ai-question');
+      stopLiveCamera();
     }, 1500);
   };
 
@@ -394,6 +461,7 @@ export const MedicationTracker: React.FC = () => {
           setIsRecording(false);
           setRecordedVideo("verified_ingestion_video.mp4");
           setVerifyStep('ai-question');
+          stopLiveCamera();
           return 3;
         }
         return prev + 1;
@@ -415,6 +483,13 @@ export const MedicationTracker: React.FC = () => {
     let score = 40; // baseline
     let anomaly = false;
     let reasons: string[] = [];
+
+    // Critical Swallowing Verification check
+    if (ingestionStatus === 'not_swallowed') {
+      score = 15;
+      anomaly = true;
+      reasons.push("🚨 CLINICAL TELEMETRY ALERT: Ingestion verify process shows the patient did NOT swallow the pill (it was spit out, rejected, or skipped). This triggers an immediate pager dispatch to the prescribing doctor.");
+    }
 
     // Method weight
     if (verifyMethod === 'photo') score += 35;
@@ -439,35 +514,99 @@ export const MedicationTracker: React.FC = () => {
       reasons.push("Inconsistent AI Follow-up response: suspicious ingestion habit reported.");
     }
 
-    // Pattern Anomaly: 1. Logging multiple doses of same medicine within 1 hour
+    // 1. Fetch clinical context
+    const medicineItem = offlineMedicines.find(m => m.id === activeVerifyLog.medicineId);
+    const prescriptionItem = medicineItem ? offlinePrescriptions.find(p => p.id === medicineItem.prescriptionId) : null;
+    const patientItem = offlinePatients.find(p => p.id === activePatientId);
+    const conditionsStr = patientItem ? patientItem.conditions : '';
+    const diagnosisStr = prescriptionItem ? prescriptionItem.diagnosis : '';
+
+    // 2. Validate Overdose (today's cumulative intake checking)
+    const currentDosage = activeVerifyLog.dosage || (medicineItem ? medicineItem.dosage : '500mg');
+    const overdoseCheck = validateOverdoseFromLogs(
+      activeVerifyLog.medicineName,
+      currentDosage,
+      activePatientId,
+      offlineLogs,
+      offlineMedicines
+    );
+    if (!overdoseCheck.isValid && overdoseCheck.warning) {
+      score -= 40;
+      anomaly = true;
+      reasons.push(overdoseCheck.warning);
+    }
+
+    // 3. Validate Wrong Drug for Specific Disease
+    const diseaseCheck = validateDrugForDisease(
+      activeVerifyLog.medicineName,
+      conditionsStr,
+      diagnosisStr
+    );
+    if (!diseaseCheck.isValid && diseaseCheck.warning) {
+      score -= 45;
+      anomaly = true;
+      reasons.push(diseaseCheck.warning);
+    }
+
+    // 4. Simulated Smart Scanner Integrity checks (Right Medication & Strength)
+    if (simulatedDrugMatch === 'wrong_drug') {
+      score -= 60;
+      anomaly = true;
+      reasons.push(`CRITICAL MISMATCH: AI packaging scanner detected a substance matching Sildenafil (100mg) instead of prescribed ${activeVerifyLog.medicineName}. ADMIN ABORTED.`);
+    } else if (simulatedDrugMatch === 'wrong_dosage') {
+      score -= 35;
+      anomaly = true;
+      reasons.push(`STRENGTH MISMATCH: AI scanner identified a 1000mg pack formulation, but prescription calls for a 500mg tablet. High risk of accidental OVER-DOSING.`);
+    } else if (simulatedDrugMatch === 'expired') {
+      score -= 40;
+      anomaly = true;
+      reasons.push(`EXPIRED MOLECULE: Scanned lot has passed its safe shelf-life. Expired compounds suffer potency loss (risking under-dose) and can trigger renal toxicity.`);
+    }
+
+    // 5. Ingestion Quantity Accuracy checking (Preventing over/under dosing)
+    if (intakeQuantity > 1) {
+      score -= 40;
+      anomaly = true;
+      reasons.push(`ACCURACY DEVIATION (OVER-DOSE): Prescribed amount is exactly 1 tablet. Intake of ${intakeQuantity} tablets is an intentional or accidental double dose.`);
+    } else if (intakeQuantity < 1 && intakeQuantity > 0) {
+      score -= 25;
+      anomaly = true;
+      reasons.push(`ACCURACY DEVIATION (UNDER-DOSE): Prescribed amount is 1 tablet. Intake of ${intakeQuantity} tablets represents an under-dose, reducing clinical efficacy.`);
+    } else if (intakeQuantity === 0) {
+      score -= 45;
+      anomaly = true;
+      reasons.push(`UNDER-DOSE (SKIPPED DOSE): A value of 0 tablets means this critical scheduled intake has been omitted. Drug serum levels will decay below therapeutic bounds.`);
+    }
+
+    // 6. Right Time/Interval Checking
     const recentLogs = offlineLogs.filter(l => 
       l.patientId === activePatientId && 
       l.medicineId === activeVerifyLog.medicineId && 
       l.status === 'taken' &&
       l.takenAt && 
-      (Date.now() - new Date(l.takenAt).getTime() < 3600000)
+      (Date.now() - new Date(l.takenAt).getTime() < 14400000) // 4 hours
     );
     if (recentLogs.length > 0) {
       score -= 35;
       anomaly = true;
-      reasons.push("Suspicious Intake Frequency: Multiple logs submitted for this substance within a 1-hour interval.");
+      reasons.push(`TIMING WARNING (INTERVAL OVERLAP): Less than 4 hours has elapsed since your last recorded intake. Taking doses too close together causes cumulative concentration spikes, leading to hepatic/renal overloads.`);
     }
 
-    // 2. Extra dose warning
-    if (selectedAiAnswer.includes("extra dose")) {
-      score -= 25;
-      anomaly = true;
-      reasons.push("Clinical Warning: Patient reporting taking an unprescribed duplicate extra dose.");
-    }
-
-    // 3. Late intake threshold check (>4 hours delayed)
+    // Late intake (>4 hours delayed)
     const [schedHr, schedMin] = activeVerifyLog.scheduledTime.split(':').map(Number);
     const now = new Date();
     const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), schedHr, schedMin);
     const diffHours = (now.getTime() - scheduledDateTime.getTime()) / 3600000;
     if (diffHours > 4) {
       score -= 15;
-      reasons.push(`Delayed Ingestion: Logged ${Math.round(diffHours)} hours late.`);
+      reasons.push(`TIMING ANOMALY (LATE DOSE): Logged ${Math.round(diffHours)} hours late. Minimum therapeutic blood concentration is compromised.`);
+    }
+
+    // 7. Extra dose warning
+    if (selectedAiAnswer.includes("extra dose")) {
+      score -= 25;
+      anomaly = true;
+      reasons.push("CLINICAL MISSTEP: Swallowing duplicate extra doses to compensate for missed intakes violates core clinical pharmacology guidelines.");
     }
 
     // Clamp score
@@ -484,11 +623,20 @@ export const MedicationTracker: React.FC = () => {
   const handleSaveVerifiedDose = () => {
     if (!activeVerifyLog || !verificationResult) return;
     try {
+      // Find prescribing doctor ID from the prescription list
+      const rxList = JSON.parse(localStorage.getItem('rx_offline_prescriptions') || '[]');
+      const prescription = rxList.find((p: any) => p.id === activeVerifyLog.prescriptionId);
+      const doctorId = prescription ? prescription.doctorId : 'DOC-002'; // Default to DOC-002 if unspecified
+
+      // Find patient name
+      const patientItem = offlinePatients.find(p => p.id === activePatientId);
+      const patientName = patientItem ? patientItem.name : 'Unknown Patient';
+
       verifyAndLogMedicationIntake(
         activeVerifyLog.id,
         verifyMethod,
-        capturedPhoto || (recordedVideo ? 'video_playback_active.jpg' : scannedCode ? 'barcode_read.jpg' : 'self_report.jpg'),
-        scannedCode || recordedVideo || 'Photo Asset Verified',
+        capturedPhoto || (recordedVideo ? 'verified_ingestion_video.mp4' : scannedCode ? 'barcode_read.jpg' : 'self_report.jpg'),
+        scannedCode || recordedVideo || 'Camera Intake Media Asset Verified',
         aiQuestion,
         selectedAiAnswer || customAiAnswer || 'No answer',
         verificationResult.score,
@@ -496,6 +644,27 @@ export const MedicationTracker: React.FC = () => {
         verificationResult.reason
       );
       
+      // Save alarm payload targeting ONLY the prescribing doctor
+      const activeAlarms = JSON.parse(localStorage.getItem('doctorian_active_doctor_alarms') || '[]');
+      activeAlarms.push({
+        id: 'ALARM-' + Date.now(),
+        doctorId: doctorId,
+        patientName: patientName,
+        medicineName: activeVerifyLog.medicineName,
+        dosage: activeVerifyLog.dosage || '500mg',
+        swallowed: ingestionStatus === 'swallowed',
+        timestamp: new Date().toISOString(),
+        anomalyDetected: verificationResult.anomaly,
+        confidenceScore: verificationResult.score,
+        reason: verificationResult.reason
+      });
+      localStorage.setItem('doctorian_active_doctor_alarms', JSON.stringify(activeAlarms));
+
+      // Dispatch event to allow same-session real-time notifications in Doctor's Dashboard
+      window.dispatchEvent(new Event('doctorian_alarms_updated'));
+
+      // Clean up states
+      stopLiveCamera();
       setActiveVerifyLog(null);
       refreshAllLocalData();
     } catch (err) {
@@ -1054,7 +1223,15 @@ export const MedicationTracker: React.FC = () => {
                         <select 
                           className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold appearance-none"
                           value={newMed.frequency}
-                          onChange={(e) => setNewMed({...newMed, frequency: e.target.value})}
+                          onChange={(e) => {
+                            const freq = e.target.value;
+                            const optimalTimes = getOptimalReminderTimes(freq);
+                            setNewMed({
+                              ...newMed,
+                              frequency: freq,
+                              time: optimalTimes[0] || '08:00'
+                            });
+                          }}
                         >
                           <option>Daily</option>
                           <option>Twice Daily</option>
@@ -1212,7 +1389,7 @@ export const MedicationTracker: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setActiveVerifyLog(null)}
+              onClick={handleCancelVerification}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
             />
 
@@ -1234,7 +1411,7 @@ export const MedicationTracker: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setActiveVerifyLog(null)}
+                  onClick={handleCancelVerification}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl transition-all"
                 >
                   Cancel
@@ -1286,7 +1463,12 @@ export const MedicationTracker: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setVerifyStep('action')}
+                    onClick={async () => {
+                      setVerifyStep('action');
+                      if (verifyMethod === 'photo' || verifyMethod === 'video') {
+                        await startLiveCamera();
+                      }
+                    }}
                     className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
                   >
                     Launch Ingestion Scanner
@@ -1299,27 +1481,39 @@ export const MedicationTracker: React.FC = () => {
               {verifyStep === 'action' && (
                 <div className="space-y-6">
                   <div className="relative h-[220px] bg-slate-950 rounded-[2rem] border border-white/5 overflow-hidden flex flex-col items-center justify-center text-white">
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]" />
-                    <div className="absolute w-40 h-40 border border-white/10 rounded-full animate-[spin_20s_linear_infinite]" />
-                    <div className="absolute w-48 h-48 border border-dashed border-rose-500/20 rounded-full" />
+                    {videoStream ? (
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="absolute inset-0 w-full h-full object-cover z-0"
+                      />
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] z-0" />
+                        <div className="absolute w-40 h-40 border border-white/10 rounded-full animate-[spin_20s_linear_infinite] z-0" />
+                        <div className="absolute w-48 h-48 border border-dashed border-rose-500/20 rounded-full z-0" />
+                      </>
+                    )}
                     
-                    <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <div className="absolute top-4 left-4 flex items-center gap-2 z-10 bg-slate-900/80 px-2 py-1 rounded-md border border-white/10">
                       <div className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-500'}`} />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-200">
                         {verifyMethod === 'photo' && 'PHOTO VIEW'}
                         {verifyMethod === 'video' && `VIDEO REC ${recordTime}s`}
                         {verifyMethod === 'scan' && 'BARCODE RETICLE'}
                       </span>
                     </div>
 
-                    <div className="absolute top-4 right-4 bg-slate-900/80 px-2 py-1 rounded-md border border-white/10">
+                    <div className="absolute top-4 right-4 bg-slate-900/80 px-2 py-1 rounded-md border border-white/10 z-10">
                       <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">
                         {activeVerifyLog.id}
                       </span>
                     </div>
 
                     {isRecording ? (
-                      <div className="flex flex-col items-center z-10">
+                      <div className="flex flex-col items-center z-10 bg-slate-950/70 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
                         <Loader2 className="animate-spin text-rose-500 mb-3" size={32} />
                         <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
                           {verifyMethod === 'photo' && 'Capturing Pill Morphology...'}
@@ -1328,7 +1522,7 @@ export const MedicationTracker: React.FC = () => {
                         </span>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center z-10 p-6 text-center">
+                      <div className="flex flex-col items-center z-10 p-6 text-center bg-slate-950/70 m-4 rounded-2xl border border-white/5 backdrop-blur-sm">
                         {verifyMethod === 'photo' && (
                           <>
                             <Camera size={36} className="text-slate-400 mb-3" />
@@ -1353,6 +1547,141 @@ export const MedicationTracker: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* High-Precision Dose and Product Verification controls */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-[1.5rem] border border-slate-150 dark:border-slate-800 text-left space-y-4">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Precision Ingestion Scanner Controls</span>
+                    
+                    {/* 1. Ingestion Dosage Quantity Selection */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200">Intended Intake Quantity</span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded ${intakeQuantity === 1 ? 'bg-emerald-550/10 text-emerald-600' : intakeQuantity > 1 ? 'bg-rose-550/10 text-rose-600 animate-pulse' : 'bg-amber-550/10 text-amber-600'}`}>
+                          {intakeQuantity === 1 ? 'Correct Dose' : intakeQuantity > 1 ? '🚨 Overdose Warning!' : '⚠️ Underdose Alert!'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setIntakeQuantity(q => Math.max(0, q - 0.5))}
+                          className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-all text-sm"
+                        >
+                          -0.5
+                        </button>
+                        <div className="flex-1 text-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl h-10 flex flex-col justify-center">
+                          <span className="text-sm font-black text-slate-850 dark:text-white uppercase">
+                            {intakeQuantity} {intakeQuantity === 1 ? 'Tablet' : 'Tablets'}
+                          </span>
+                          <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-0.5">
+                            Prescribed: 1 Tablet ({activeVerifyLog.dosage})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIntakeQuantity(q => q + 0.5)}
+                          className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-all text-sm"
+                        >
+                          +0.5
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Simulated Smart Vision & Barcode Scanning results */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 block">Simulate Pack Integrity & Bio-Match Detector</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'match', label: '✅ Authentic Match', desc: 'Verified batch' },
+                          { id: 'wrong_drug', label: '❌ Wrong Drug', desc: 'E.g., Sildenafil' },
+                          { id: 'wrong_dosage', label: '⚠️ Strength Mismatch', desc: '1000mg vs 500mg' },
+                          { id: 'expired', label: '📅 Expired Batch', desc: 'Potency degraded' },
+                        ].map((item) => {
+                          const isSelected = simulatedDrugMatch === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setSimulatedDrugMatch(item.id as any)}
+                              className={`p-2.5 rounded-xl border text-left transition-all ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-850'}`}
+                            >
+                              <span className="text-[9.5px] font-black uppercase block leading-none">{item.label}</span>
+                              <span className="text-[8px] text-slate-400 font-semibold uppercase block mt-0.5">{item.desc}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 3. Ingestion Swallow Confirmation (Triggers custom clinician alerts) */}
+                    <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200">Patient Ingestion Integrity Affirmation</span>
+                        <span className={`text-[8.5px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${ingestionStatus === 'swallowed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 animate-pulse'}`}>
+                          {ingestionStatus === 'swallowed' ? 'Confirm Swallowed' : '🚨 Not Swallowed Alert'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIngestionStatus('swallowed')}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${ingestionStatus === 'swallowed' ? 'bg-emerald-50/50 dark:bg-emerald-950/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:text-slate-600'}`}
+                        >
+                          <span className="text-xs font-black uppercase tracking-wide">💊 SWALLOWED</span>
+                          <span className="text-[8px] font-bold uppercase text-slate-400 mt-1">Ingested and swallowed</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIngestionStatus('not_swallowed')}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${ingestionStatus === 'not_swallowed' ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400 shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:text-slate-650'}`}
+                        >
+                          <span className="text-xs font-black uppercase tracking-wide text-rose-650 dark:text-rose-450">❌ SPIT OUT / HELD</span>
+                          <span className="text-[8px] font-bold uppercase text-slate-400 mt-1">Spit out or not swallowed</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Timing Regulation Card */}
+                  {(() => {
+                    const timing = (() => {
+                      if (!activeVerifyLog) return { text: 'N/A', status: 'unknown', desc: '', timeInfo: '' };
+                      const [schedHr, schedMin] = activeVerifyLog.scheduledTime.split(':').map(Number);
+                      const now = new Date();
+                      const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), schedHr, schedMin);
+                      const diffMin = Math.round((now.getTime() - scheduledDateTime.getTime()) / 60000);
+                      const diffHours = Math.abs(diffMin / 60);
+
+                      if (Math.abs(diffMin) <= 120) {
+                        return {
+                          text: `TIMING COMPLIANT`,
+                          status: 'compliant',
+                          timeInfo: `Prescribed: ${activeVerifyLog.scheduledTime} | Intake: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                          desc: 'Within the safe therapeutic timing window (±2 hours).'
+                        };
+                      } else {
+                        const direction = diffMin > 0 ? 'LATE' : 'EARLY';
+                        return {
+                          text: `TIMING DEVIATION DETECTED (${direction})`,
+                          status: 'mismatched',
+                          timeInfo: `Prescribed: ${activeVerifyLog.scheduledTime} | Intake: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                          desc: `Intake is ${Math.round(diffHours * 10) / 10} hours ${direction.toLowerCase()}. This timing anomaly is automatically flagged for your physician.`
+                        };
+                      }
+                    })();
+
+                    return (
+                      <div className={`p-4 rounded-2xl border text-left ${timing.status === 'compliant' ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-amber-500/5 border-amber-500/10'}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Prescription Regulation Check</span>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${timing.status === 'compliant' ? 'bg-emerald-550/10 text-emerald-600' : 'bg-amber-550/10 text-amber-600'}`}>
+                            {timing.text}
+                          </span>
+                        </div>
+                        <p className="text-xs font-black uppercase text-slate-800 dark:text-slate-100 mt-1">{timing.timeInfo}</p>
+                        <p className="text-[10px] font-bold uppercase text-slate-400 leading-relaxed mt-0.5">{timing.desc}</p>
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex gap-3">
                     <button
@@ -1461,7 +1790,7 @@ export const MedicationTracker: React.FC = () => {
                   </div>
 
                   {verificationResult.anomaly ? (
-                    <div className="p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/20 rounded-[2rem] space-y-2">
+                    <div className="p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/20 rounded-[2rem] space-y-3">
                       <div className="flex items-center gap-2.5 text-amber-700 dark:text-amber-400">
                         <ShieldAlert size={20} className="flex-shrink-0" />
                         <h4 className="text-xs font-black uppercase tracking-wider">Clinical Adherence Exception Flagged</h4>
@@ -1469,6 +1798,13 @@ export const MedicationTracker: React.FC = () => {
                       <p className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400/80 leading-relaxed">
                         Reason: {verificationResult.reason}
                       </p>
+                      
+                      <div className="text-[9px] text-slate-500 bg-white dark:bg-slate-900 border border-amber-100 dark:border-slate-800/60 p-3 rounded-2xl space-y-2 font-bold uppercase">
+                        <span className="text-rose-600 dark:text-rose-400 font-black text-[10px] block">⚠️ Ministry of Health Safety Directives:</span>
+                        <p className="leading-relaxed"><strong className="text-slate-800 dark:text-white">1. TO PREVENT OVER-DOSE:</strong> Never double-dose or swallow extra tablets to make up for a missed schedule. If an interval is missed, wait and take the next scheduled dose as programmed.</p>
+                        <p className="leading-relaxed"><strong className="text-slate-800 dark:text-white">2. TO AVOID UNDER-DOSE:</strong> Strictly align ingestions within the ±2 hour therapeutic window. If delayed past 4 hours, verify matching blood serum guidance or contact your clinician.</p>
+                      </div>
+
                       <p className="text-[9px] text-slate-400 uppercase font-bold leading-relaxed pt-1 border-t border-amber-500/10">
                         Note: An alert dispatch has been scheduled for your doctor. Supervision and caregiver verification has been initialized.
                       </p>
@@ -1496,7 +1832,7 @@ export const MedicationTracker: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setActiveVerifyLog(null);
+                        handleCancelVerification();
                         refreshAllLocalData();
                       }}
                       className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"

@@ -26,6 +26,7 @@ import {
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { translations } from "./src/utils/translations";
 import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync.ts";
+import { initFirestoreSync, syncFromFirestoreToSqlite, syncToFirestore, syncRowToFirestore } from "./src/db/firestoreSync.ts";
 
 dotenv.config();
 if (!process.env.OPENROUTER_API_KEY) {
@@ -327,9 +328,9 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
 
   // Native Google key fallback (AIza...)
   if (m.includes('mistral')) {
-    return "gemini-3.5-flash"; // Native Google GenAI does not host Mistral, fallback to Gemini
+    return "gemini-2.5-flash"; // Native Google GenAI does not host Mistral, fallback to Gemini
   }
-  return "gemini-3.5-flash";
+  return "gemini-2.5-flash";
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
@@ -625,7 +626,7 @@ async function* callAIStream(options: {
   let activeHFModel = HUGGINGFACE_MODEL;
 
   if (modelName) {
-    if (modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
+    if (modelName === "gemini-2.5-flash" || modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
       activeHFModel = "google/gemma-3-4b-it";
     } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
       activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
@@ -1101,10 +1102,11 @@ async function* callAIStream(options: {
                 let success = false;
                 let streamAttempts = 0;
                 const maxStreamAttempts = 3;
+                let currentModelId = providerModel;
                 while (streamAttempts < maxStreamAttempts) {
                   try {
                     resultStream = await aiClient.models.generateContentStream({
-                      model: providerModel,
+                      model: currentModelId,
                       contents: formattedContents,
                       config: {
                         systemInstruction: effectiveSystemInstruction,
@@ -1119,11 +1121,18 @@ async function* callAIStream(options: {
                     const isRetriable = isApiRetriableError(streamInitErr);
                     const isDailyQuota = isDailyQuotaExceeded(streamInitErr);
                     if (isDailyQuota) {
-                      console.log(`[AI-STREAM] Daily quota limit hit on ${providerModel}. Shifting instantly to fallbacks.`);
+                      console.log(`[AI-STREAM] Daily quota limit hit on ${currentModelId}. Shifting instantly to fallbacks.`);
                       streamAttempts = maxStreamAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && streamAttempts < maxStreamAttempts) {
-                      console.log(`[AI-STREAM] Temporary API error (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Retrying in ${streamAttempts * 1000}ms...`);
+                      if (currentModelId === "gemini-3.5-flash") {
+                        currentModelId = "gemini-2.5-flash";
+                      } else if (currentModelId === "gemini-2.5-flash") {
+                        currentModelId = "gemini-1.5-flash";
+                      } else {
+                        currentModelId = "gemini-1.5-flash";
+                      }
+                      console.log(`[AI-STREAM] Temporary API busy status (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Rotating to ${currentModelId} and retrying in ${streamAttempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, streamAttempts * 1000));
                     } else {
                       let cleanErrMessage = streamInitErr.message || "";
@@ -1135,7 +1144,7 @@ async function* callAIStream(options: {
                         cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                       }
                       console.log("[AI-STREAM] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
-                      const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+                      const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.1-flash-lite"];
                       for (const modelId of modelsToTry) {
                         let retryAttempts = 0;
                         const maxRetryAttempts = 2;
@@ -1156,7 +1165,7 @@ async function* callAIStream(options: {
                             retryAttempts++;
                             const isRetryRetriable = isApiRetriableError(retryErr);
                             if (isRetryRetriable && retryAttempts < maxRetryAttempts) {
-                              console.log(`[AI-STREAM] Fallback model ${modelId} hit temporary API error. Retrying in 1000ms...`);
+                              console.log(`[AI-STREAM] Fallback model ${modelId} is temporarily busy. Retrying in 1000ms...`);
                               await new Promise(resolve => setTimeout(resolve, 1000));
                               continue;
                             }
@@ -1276,7 +1285,7 @@ async function callAIWorkflow(options: {
   let activeHFModel = HUGGINGFACE_MODEL;
 
   if (modelName) {
-    if (modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
+    if (modelName === "gemini-2.5-flash" || modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
       activeHFModel = "google/gemma-3-4b-it";
     } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
       activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
@@ -1582,7 +1591,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.5-flash";
+              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-2.5-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1599,10 +1608,11 @@ async function callAIWorkflow(options: {
                 let result;
                 let attempts = 0;
                 const maxAttempts = 3;
+                let currentModelId = effectiveModel;
                 while (attempts < maxAttempts) {
                   try {
                     result = await modernClient.models.generateContent({
-                      model: effectiveModel,
+                      model: currentModelId,
                       contents: messages.map(m => {
                         const parts: any[] = [{ text: m.text || "Continue analysis." }];
                         
@@ -1635,11 +1645,18 @@ async function callAIWorkflow(options: {
                     const isRetriable = isApiRetriableError(genErr);
                     const isDailyQuota = isDailyQuotaExceeded(genErr);
                     if (isDailyQuota) {
-                      console.log(`[AI-BRAIN] Daily quota limit hit on ${providerModel}. Shifting instantly to fallbacks.`);
+                      console.log(`[AI-BRAIN] Daily quota limit hit on ${currentModelId}. Shifting instantly to fallbacks.`);
                       attempts = maxAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
-                      console.log(`[AI-BRAIN] Temporary API error (${genErr.message || "503/429"}) on attempt ${attempts}. Retrying in ${attempts * 1000}ms...`);
+                      if (currentModelId === "gemini-3.5-flash") {
+                        currentModelId = "gemini-2.5-flash";
+                      } else if (currentModelId === "gemini-2.5-flash") {
+                        currentModelId = "gemini-1.5-flash";
+                      } else {
+                        currentModelId = "gemini-1.5-flash";
+                      }
+                      console.log(`[AI-BRAIN] Temporary API busy status (${genErr.message || "503/429"}) on attempt ${attempts}. Rotating to ${currentModelId} and retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
                     } else {
                       throw genErr;
@@ -1661,7 +1678,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = providerModel === "gemini-3.5-flash" ? ["gemini-3.1-flash-lite"] : ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+                  const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     let retryAttempts = 0;
                     const maxRetryAttempts = 2;
@@ -1681,7 +1698,7 @@ async function callAIWorkflow(options: {
                         retryAttempts++;
                         const isRetryRetriable = isApiRetriableError(retryErr);
                         if (isRetryRetriable && retryAttempts < maxRetryAttempts) {
-                          console.log(`[AI-BRAIN] Fallback model ${modelId} hit temporary API error. Retrying in 1000ms...`);
+                          console.log(`[AI-BRAIN] Fallback model ${modelId} is temporarily busy. Retrying in 1000ms...`);
                           await new Promise(resolve => setTimeout(resolve, 1000));
                           continue;
                         }
@@ -1967,8 +1984,48 @@ function wrapDatabaseWithPostgresSync(rawDb: any): any {
             run(...args: any[]) {
               const res = stmt.run(...args);
               syncToPostgres(sql, args).catch(err => {
-                console.error("[PG-SYNC-ERR] Replicate error:", err.message);
+                console.log("[PG-SYNC-INFO] PostgreSQL replication skipped/bypassed:", err.message);
               });
+              
+              // Sync to Cloud Firestore
+              syncToFirestore(sql, args).catch(err => {
+                console.log("[FIRESTORE-SYNC-INFO] Cloud Firestore replication skipped/bypassed:", err.message);
+              });
+
+              // Extract table name, ID, and sync complete row for pristine fidelity
+              try {
+                const upperSql = sql.toUpperCase();
+                if (upperSql.includes("INSERT") || upperSql.includes("UPDATE")) {
+                  let tableName = "";
+                  const insertMatch = sql.match(/INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)/i);
+                  const updateMatch = sql.match(/UPDATE\s+(\w+)/i);
+                  if (insertMatch) tableName = insertMatch[1].toLowerCase();
+                  else if (updateMatch) tableName = updateMatch[1].toLowerCase();
+
+                  const supportedTables = ["users", "records", "workouts", "medications", "tasks", "doctors"];
+                  if (tableName && supportedTables.includes(tableName)) {
+                    let id = args.find(arg => typeof arg === "string" && (arg.startsWith("us_") || arg.startsWith("rec_") || arg.startsWith("work_") || arg.startsWith("med_") || arg.startsWith("task_") || arg.startsWith("doc_") || arg.includes("@")));
+                    if (!id && args.length > 0) id = args[0];
+                    if (id && typeof id === "string") {
+                      const hasUserId = tableName !== "users" && tableName !== "doctors";
+                      const query = hasUserId 
+                        ? `SELECT * FROM ${tableName} WHERE id = ? OR userId = ?` 
+                        : `SELECT * FROM ${tableName} WHERE id = ?`;
+                      const row = hasUserId 
+                        ? target.prepare(query).get(id, id)
+                        : target.prepare(query).get(id);
+                      if (row) {
+                        syncRowToFirestore(tableName, row).catch(err => {
+                          console.log("[FIRESTORE-ROW-SYNC-INFO] Firestore row replication bypassed:", err.message);
+                        });
+                      }
+                    }
+                  }
+                }
+              } catch (rowSyncErr: any) {
+                console.log("[FIRESTORE-ROW-SYNC-INFO] Firestore row replication skipped:", rowSyncErr.message);
+              }
+
               return res;
             },
             get(...args: any[]) {
@@ -1984,7 +2041,10 @@ function wrapDatabaseWithPostgresSync(rawDb: any): any {
         return function (sql: string) {
           const res = target.exec(sql);
           syncToPostgres(sql, []).catch(err => {
-            console.error("[PG-SYNC-EXEC-ERR] Replicate error:", err.message);
+            console.log("[PG-SYNC-EXEC-INFO] PostgreSQL exec replication bypassed:", err.message);
+          });
+          syncToFirestore(sql, []).catch(err => {
+            console.log("[FIRESTORE-SYNC-EXEC-INFO] Cloud Firestore exec replication bypassed:", err.message);
           });
           return res;
         };
@@ -2808,8 +2868,18 @@ try {
 
 // Trigger boot-time master synchronization from cloud PostgreSQL down to local SQLite
 syncFromPostgresToSqlite(db).catch(err => {
-  console.error("[POSTGRES-SYNC-STARTUP-ERR] Failed to pull startup state from PG:", err.message);
+  console.log("[POSTGRES-SYNC-STARTUP-INFO] Bypassed pulling startup state from PG:", err.message);
 });
+
+// Initialize Cloud Firestore and trigger boot-time synchronization
+try {
+  initFirestoreSync();
+  syncFromFirestoreToSqlite(db).catch(err => {
+    console.log("[FIRESTORE-SYNC-STARTUP-INFO] Bypassed pulling startup state from Firestore:", err.message);
+  });
+} catch (fsErr: any) {
+  console.log("[FIRESTORE-INIT-INFO] Bypassed:", fsErr.message);
+}
 
 
 
@@ -6895,11 +6965,11 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         let textResponse;
         try {
           textResponse = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemini-2.5-flash",
             contents: prompt,
           });
         } catch (err: any) {
-          console.log("[AI-VOICE] gemini-3.5-flash failed:", err.message);
+          console.log("[AI-VOICE] gemini-2.5-flash failed:", err.message);
         }
 
         if (textResponse && textResponse.text) {
@@ -7209,7 +7279,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       let result;
       try {
         result = await aiClient.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents: [
             prompt,
             {
@@ -7221,7 +7291,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           ]
         });
       } catch (err: any) {
-        console.log("[AI-TRANSCRIBE] gemini-3.5-flash failed for audio modality:", err.message);
+        console.log("[AI-TRANSCRIBE] gemini-2.5-flash failed for audio modality:", err.message);
         throw err;
       }
 
@@ -8054,7 +8124,7 @@ Direct the user to a health center if needed, and conclude with supportive bless
         const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || "";
         if (geminiKey && geminiKey.trim().length > 10) {
           try {
-            console.log("[AI-VOICE] Bypassing HuggingFace. Connecting to native ultra-fast Gemini-3.5-Flash for voice...");
+            console.log("[AI-VOICE] Bypassing HuggingFace. Connecting to native ultra-fast Gemini-2.5-Flash for voice...");
             const ai = new GoogleGenAI({
               apiKey: geminiKey.trim(),
               httpOptions: {
@@ -8065,7 +8135,7 @@ Direct the user to a health center if needed, and conclude with supportive bless
               }
             });
             const response = await ai.models.generateContent({
-              model: "gemini-3.5-flash",
+              model: "gemini-2.5-flash",
               contents: text || "Hello",
               config: {
                 systemInstruction: dynamicInstruction,
@@ -8379,6 +8449,189 @@ Direct the user to a health center if needed, and conclude with supportive bless
       }
     });
 
+function detectSpecificDiseaseMapping(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  
+  // 1. Malaria
+  if (
+    lower.includes("malaria") || 
+    lower.includes("musujja") || 
+    lower.includes("chills") || 
+    lower.includes("shivering") || 
+    (lower.includes("fever") && (lower.includes("sweat") || lower.includes("vomit") || lower.includes("joint") || lower.includes("chill")))
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: MALARIA (Plasmodium falciparum) ACTIVE]
+- The patient's signs and symptoms strongly align with a tropical malaria clinical presentation.
+- You MUST focus heavily, smart, and specifically on Malaria clinical management:
+  * Emphasize immediate confirmation via Malaria Rapid Diagnostic Test (mRDT) or Blood Smear (BS) microscopy before starting therapy.
+  * Provide the complete weight-based and age-based Artemether-Lumefantrine (AL / Coartem) 3-day dosing schedule from the Uganda Ministry of Health (MoH) guidelines:
+    - 5-14 kg (or 5-35 months): 1 tablet twice daily for 3 days.
+    - 15-24 kg (or 3-8 years): 2 tablets twice daily for 3 days.
+    - 25-34 kg (or 9-14 years): 3 tablets twice daily for 3 days.
+    - ≥35 kg (or ≥15 years): 4 tablets twice daily for 3 days.
+  * Detail the physiological lifecycle of Plasmodium falciparum (sporozoites invade hepatocytes, replicate into merozoites, egress to invade red blood cells, undergoing erythrocytic schizogony where hemoglobin ingestion and synchronous cell lysis trigger cytokine-mediated pyrexia and rigors).
+  * Explain the pathophysiology of severe malaria (microvascular sequestration of parasitized erythrocytes in the brain, lungs, or kidneys via PfEMP1 adhesion molecules, leading to cerebral hypoxia, convulsions, severe anemia, metabolic lactic acidosis, and prostration) and specify that severe malaria requires intravenous (IV) Artesunate (2.4 mg/kg at 0h, 12h, 24h, then daily) until oral medication is tolerated.
+  * Conclude with the critical red flags: convulsions, jaundice (yellow eyes), inability to feed, or severe respiratory distress. Medical attention is recommended.`;
+  }
+
+  // 2. Pneumonia / Respiratory
+  if (
+    lower.includes("pneumonia") || 
+    lower.includes("cough") || 
+    lower.includes("breathing difficulty") || 
+    lower.includes("short of breath") || 
+    lower.includes("fast breathing") || 
+    lower.includes("wheez") || 
+    lower.includes("chest in-drawing") || 
+    lower.includes("dyspnea")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: ACUTE RESPIRATORY INFECTION / PNEUMONIA ACTIVE]
+- The patient's signs and symptoms strongly suggest a respiratory system infection or Pneumonia.
+- You MUST focus heavily, smart, and specifically on Pneumonia clinical management:
+  * Detail the physiological mechanisms of alveolar consolidation, where exudative inflammatory secretions (neutrophils, fibrin, and erythrocytes) fill the alveoli, resulting in ventilation-perfusion mismatch, reduced lung compliance, and arterial hypoxemia.
+  * Provide the WHO/MoH Uganda criteria for diagnosing Pneumonia based on respiratory rates (counting breathing for exactly 60 seconds of quiet observation):
+    - Infant under 2 months: ≥60 breaths per minute (Fast breathing).
+    - Child 2 to 11 months: ≥50 breaths per minute.
+    - Child 12 to 59 months: ≥40 breaths per minute.
+    - Adults: ≥20 breaths per minute with associated dyspnea.
+  * Provide the precise first-line oral Amoxicillin dispersible tablet twice daily for 5 days dosing guidelines for children under 5:
+    - 2-11 months (4-9 kg): 250mg oral twice daily for 5 days.
+    - 12-59 months (10-19 kg): 500mg oral twice daily for 5 days.
+  * Explain the pathophysiological difference between viral bronchiolitis and bacterial lobar pneumonia.
+  * Specify critical red flags: chest in-drawing (retractions), stridor or grunting, central cyanosis (blueness of tongue/lips), or inability to breastfeed/drink. Medical attention is recommended.`;
+  }
+
+  // 3. Diarrhea / Gastroenteritis / Cholera
+  if (
+    lower.includes("diarrhea") || 
+    lower.includes("diarrhoea") || 
+    lower.includes("watery stool") || 
+    lower.includes("loose motion") || 
+    lower.includes("cholera") || 
+    lower.includes("rice water") || 
+    lower.includes("dysentery") || 
+    (lower.includes("vomit") && lower.includes("stomach"))
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: DIARRHEAL DISEASE / CHOLERA PROTOCOL ACTIVE]
+- The patient's signs and symptoms strongly align with an acute diarrheal illness or Gastroenteritis/Cholera.
+- You MUST focus heavily, smart, and specifically on Dehydration and Diarrhea management:
+  * Detail the physiological mechanisms of secretory diarrhea (such as Vibrio cholerae cholera-toxin binding to GM1 ganglioside receptors, constitutively activating adenylate cyclase, raising intracellular cAMP, which hyperactivates CFTR channels to secrete massive amounts of Cl-, Na+, and water into the bowel lumen).
+  * Detail the WHO Low Osmolarity Oral Rehydration Salts (ORS) formula and preparation (1 packet fully dissolved in 1 Liter of safe boiled water) which utilizes the sodium-glucose cotransporter (SGLT-1) in the brush border membrane to drive water reabsorption even during severe secretory states.
+  * Emphasize the mandatory Zinc Sulphate supplementation for children under 5 for 10-14 days to regenerate the mucosal lining:
+    - Infants under 6 months: 10mg once daily.
+    - Children 6 months to 5 years: 20mg once daily.
+  * Provide a clear clinical dehydration assessment matrix (Some Dehydration: sunken eyes, dry mouth, slow skin turgor return <2s, restlessness; Severe Dehydration: lethargy/unconsciousness, skin turgor return >2s, inability to drink/suck).
+  * Highlight water, sanitation, and hygiene (WASH) standards. Medical attention is recommended.`;
+  }
+
+  // 4. UTI
+  if (
+    lower.includes("uti") || 
+    lower.includes("urinary") || 
+    lower.includes("urination") || 
+    lower.includes("urine") || 
+    lower.includes("dysuria") || 
+    lower.includes("burning")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: URINARY TRACT INFECTION (UTI) ACTIVE]
+- The patient's signs and symptoms strongly suggest a urinary tract or bladder mucosal infection.
+- You MUST focus heavily, smart, and specifically on UTI clinical management:
+  * Explain the pathophysiology of ascending bacterial migration (mostly Uropathogenic E. coli with fimbriae adhering to urothelial receptors) leading to urethritis or cystitis, triggering bladder spasms, dysuria, and local mucosal capillary dilation (hematuria).
+  * Outline the standard first-line therapies based on UCG (Ugandan Clinical Guidelines):
+    - Nitrofurantoin 100mg orally twice daily for 5-7 days (safe and highly effective, avoid in severe renal impairment).
+    - Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg orally twice daily for 5-7 days.
+  * Include smart, specific self-care guidance: high fluid intake (flushing 3-4L water daily), voiding immediately post-coitus, proper hygiene practices (wiping front-to-back), and avoiding bladder irritants (caffeine, alcohol).
+  * Emphasize critical warning signs like high spiking fever with chills and costovertebral flank pain, which indicates acute pyelonephritis requiring parenteral therapy. Medical attention is recommended.`;
+  }
+
+  // 5. Tuberculosis (TB)
+  if (
+    lower.includes("tuberculosis") || 
+    lower.includes("tb ") || 
+    lower.includes("hemoptysis") || 
+    lower.includes("night sweat") || 
+    lower.includes("coughing blood") || 
+    (lower.includes("cough") && lower.includes("weight loss")) || 
+    (lower.includes("cough") && lower.includes("weeks"))
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: TUBERCULOSIS (TB) ACTIVE]
+- The patient's signs and symptoms strongly align with pulmonary Tuberculosis.
+- You MUST focus heavily, smart, and specifically on Tuberculosis clinical management and DOTS protocols:
+  * Explain the pathophysiology of Mycobacterium tuberculosis (inhalation of droplet nuclei, alveolar macrophage phagocytosis, failure of phagosome-lysosome fusion, and subsequent granulomatous lesion / Ghon complex formation, yielding cell-mediated delayed-type hypersensitivity).
+  * Detail the standard 6-month DOTS chemotherapy regimen:
+    - Intensive Phase (2 months of RHZE): Rifampicin, Isoniazid, Pyrazinamide, Ethambutol [2RHZE].
+    - Continuation Phase (4 months of RH): Rifampicin and Isoniazid [4RH].
+  * Outline the essential diagnostic screening steps: sputum GeneXpert MTB/RIF assay, chest X-ray, and checking for household/close contacts.
+  * Conclude with critical warning signs like massive hemoptysis, severe chest pain, or progressive dyspnea. Medical attention is recommended.`;
+  }
+
+  // 6. Hypertension / High Blood Pressure
+  if (
+    lower.includes("hypertension") || 
+    lower.includes("high bp") || 
+    lower.includes("blood pressure") || 
+    lower.includes("elevated bp") || 
+    lower.includes("140/90") || 
+    lower.includes("150/100") || 
+    lower.includes("160/100") || 
+    lower.includes("130/80")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: HYPERTENSION ACTIVE]
+- The patient's signs and symptoms strongly align with systemic arterial Hypertension.
+- You MUST focus heavily, smart, and specifically on Hypertension clinical management:
+  * Explain the underlying biophysics of increased systemic vascular resistance (SVR), endothelial shear stress, sympathetic nervous system overactivity, and cardiac afterload compensation leading to ventricular remodeling.
+  * Provide the primary pharmacological drug classes from the MoH guidelines:
+    - Calcium Channel Blockers (CCBs): Amlodipine 5-10mg orally once daily.
+    - ACE Inhibitors: Lisinopril 5-20mg orally once daily.
+    - Thiazide-like Diuretics: Bendroflumethiazide 2.5mg orally once daily.
+  * Detail the essential non-pharmacological lifestyle counseling (DASH diet, reducing sodium intake to <2g/day, moderate aerobic exercise 150 mins/week, stress management, and avoiding tobacco/excessive alcohol).
+  * Highlight warning signs of hypertensive emergency (BP >180/120 mmHg accompanied by severe occipital headache, chest pain, dyspnea, blurry vision, or neurological deficits). Medical attention is recommended.`;
+  }
+
+  // 7. Diabetes Mellitus / DKA
+  if (
+    lower.includes("diabetes") || 
+    lower.includes("high sugar") || 
+    lower.includes("glucose") || 
+    lower.includes("diabetic") || 
+    lower.includes("hyperglycemia") || 
+    lower.includes("polyuria") || 
+    lower.includes("polydipsia") || 
+    lower.includes("polyphagia")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: DIABETES MELLITUS & METABOLIC DYSREGULATION ACTIVE]
+- The patient's signs and symptoms strongly align with hyperglycemia or Diabetes Mellitus.
+- You MUST focus heavily, smart, and specifically on Diabetes clinical management:
+  * Explain the cell-level pathophysiology of insulin deficiency (Type 1 destruction of beta cells) or insulin receptor resistance (Type 2 down-regulation) causing impaired GLUT4 translocation, cellular starvation, and resultant gluconeogenesis/glycogenolysis.
+  * Explain osmotic diuresis (renal threshold for glucose ~180mg/dL is exceeded, leading to glycosuria and passive water loss, causing dehydration, polyuria, and compensatory polydipsia).
+  * Outline standard clinical care (regular fasting blood glucose and HbA1c monitoring, Metformin first-line therapy, insulin therapy, or lifestyle adjustments).
+  * Outline the signs of Diabetic Ketoacidosis (DKA) as a critical medical emergency (elevated anion-gap metabolic acidosis from ketogenesis, deep rapid Kussmaul respirations, fruity breath odor, nausea/vomiting, and confusion) requiring aggressive saline hydration, insulin infusion, and potassium management. Medical attention is recommended.`;
+  }
+
+  // 8. Dermatological / Rash / Allergic Pruritus
+  if (
+    lower.includes("rash") || 
+    lower.includes("itching") || 
+    lower.includes("pruritus") || 
+    lower.includes("eczema") || 
+    lower.includes("hives") || 
+    lower.includes("skin allergy") || 
+    lower.includes("red spots")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: ACUTE PRURITUS / DERMATOLOGICAL RASH ACTIVE]
+- The patient's signs and symptoms strongly align with a localized or systemic skin rash or Pruritus.
+- You MUST focus heavily, smart, and specifically on Dermatological and Allergic management:
+  * Explain the pathophysiology of cutaneous inflammation (IgE-mediated mast cell degranulation releasing histamine, leukotrienes, and prostaglandins, leading to local dermal capillary vasodilation, edema, and nociceptor/sensory nerve ending stimulation causing intense pruritus).
+  * Outline the standard therapeutic options:
+    - Oral second-generation antihistamines (Cetirizine 10mg once daily or Loratadine 10mg once daily) to selectively block peripheral H1 receptors without significant central sedation.
+    - Topical application of 1% Hydrocortisone cream (cautious use) or Calamine lotion for localized symptom relief.
+  * Provide helpful lifestyle counseling: keep skin well-hydrated with emollients, avoid scratching to prevent secondary bacterial infection (Impetigo), and wear loose breathable cotton clothing.
+  * Highlight warning signs (facial/tongue swelling, difficulty breathing or swallowing, which indicates anaphylaxis and requires immediate intramuscular epinephrine). Medical attention is recommended.`;
+  }
+
+  return "";
+}
+
     app.post("/api/ai/chat", authenticate, async (req, res) => {
       if (req.body && req.body.encryptedPayload) {
         try {
@@ -8568,30 +8821,62 @@ Direct the user to a health center if needed, and conclude with supportive bless
 
         const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR LIMITATIONS - FORWARD PROPAGATION FORCE]:
 1. STRICT DOMAIN CONSTRAINT: You are trained and programmed to ONLY answer questions directly related to medicine, public health, healthcare, pharmacology, clinical vitals, biophysics, fitness, human biology, or the Doctorian application and its creators (Akora Joseph / EBRO company). Under absolutely no circumstances are you allowed to answer or entertain any queries outside this health data domain (e.g. general code generation, non-medical history, politics, sports, general math/science not related to biology, or general entertainment). If the query is outside these bounds, you must gently but strictly refuse, stating your core medical constraints.
-2. HEALTH DATA ANALYSIS CAPABILITY: You have direct access to the patient's real-time, live database records (vitals, health readings, medications, and workouts) provided in the [PATIENT REAL-TIME HEALTH DATA & RECORDS] block, AND any user-subjected health data (such as blood pressure readings, glucose levels, heart rates, workouts, lab results, or symptoms) entered in the conversation history.
-   - Whenever the user asks you to analyze, review, interpret, check, summarize, or evaluate health data, or when the user subjects/provides raw health logs, numbers, or symptoms in their message, you MUST perform a highly professional, clinical-grade analysis.
-   - Benchmark all values against standard clinical reference ranges:
-     * Blood Pressure (Normal < 120/80 mmHg. Prehypertension: 120-139 / 80-89. Stage 1 Hypertension: 140-159 / 90-99. Stage 2 Hypertension: >= 160 / >= 100).
-     * Blood Glucose (Normal Fasting: 4.0 - 7.0 mmol/L (72-126 mg/dL); Post-prandial: < 8.5 mmol/L (< 153 mg/dL)).
-     * SpO2 (Oxygen Saturation) (Normal: 95-100%; Mild Hypoxia: 90-94%; Severe Hypoxia: < 90%).
-     * Heart Rate (Normal: 60-100 bpm. Bradycardia: < 60 bpm. Tachycardia: > 100 bpm).
-     * Body Temperature (Normal: 36.1 - 37.2°C (97-99°F). Fever: >= 38.0°C (100.4°F)).
-   - Discuss any abnormal readings, evaluate possible causes, explain the biological/clinical significance in deep detail with thorough scientific explanations, offer highly specific actionable lifestyle or clinical guidance, and ALWAYS conclude with: "Medical attention is recommended."
+2. HIGHLY SYSTEMATIC RESPONSE FORMAT PROTOCOL:
+   For all medical questions, symptom checking, diagnostic queries, health problems, and data analyses, you MUST structure your response into the following clear, beautifully formatted, scannable markdown sections. Each section must have a bold header and use clean, simple bullet points or short, 2-3 sentence paragraphs to make the content highly readable, comforting, and simple:
+
+   • **📌 SYMPTOMS MAPPED**:
+     - Immediately address the exact query, signs, or symptoms without conversational fluff, preamble, or filler. Answer first, then expand.
+
+   • **📊 CLINICAL BIOMETRICS & VITALS ANALYSIS** (Include only if vitals, lab readings, or physical data are provided or in context):
+     - Present a clean analysis of the vitals (Heart Rate, SpO2, Blood Pressure, Temperature, or Glucose) compared against standard clinical reference baselines.
+     - Highlight any abnormal readings with a simple visual indicator (e.g., "🔴 High Temperature" or "🟡 Prehypertension") and explain what it means in simple terms.
+
+   • **🩺 MEDICAL DIAGNOSIS & CLINICAL ANALYSIS**:
+     - Provide a highly specific differential diagnosis based on the symptoms.
+     - Categorize potential conditions by severity, probability, and onset.
+     - Explain the underlying biological/pathological mechanism in *extremely simple and comforting* language, using simple analogies so that non-medical users can easily understand the biology.
+
+   • **💊 PRESCRIPTION & TREATMENT RECOMMENDATIONS**:
+     - Formulate a clear, structured medication, drug classification, or therapeutic support plan.
+     - **MANDATORY WHO & MINISTRY OF HEALTH UGANDA CLINICAL PRESCRIBING PROTOCOLS**:
+       You must align all treatment suggestions strictly with the WHO and Uganda Clinical Guidelines (UCG):
+       * **Malaria**: First-line for uncomplicated malaria is Artemether-Lumefantrine (AL) twice daily for 3 days. Band standard weight/age dosing:
+         - 5-14 kg (or 5-35 months): 1 tablet twice daily.
+         - 15-24 kg (or 3-8 years): 2 tablets twice daily.
+         - 25-34 kg (or 9-14 years): 3 tablets twice daily.
+         - ≥35 kg (or ≥15 years): 4 tablets twice daily.
+         Severe malaria is treated first with Intravenous (IV) Artesunate (2.4 mg/kg at 0, 12, 24 hrs, then daily) until oral medication can be tolerated, followed by a complete course of oral AL.
+       * **Pneumonia (Non-severe in children < 5 yrs)**: First-line is oral Amoxicillin dispersible tablets twice daily for 5 days:
+         - 2-11 months (4-9 kg): 250mg twice daily.
+         - 12-59 months (10-19 kg): 500mg twice daily.
+       * **Diarrheal Diseases & Cholera**: Rehydration using WHO Low Osmolarity Oral Rehydration Salts (ORS) (Composition per 1L: 2.6g Sodium Chloride, 13.5g anhydrous Glucose, 1.5g Potassium Chloride, 2.9g Trisodium Citrate dehydrate) coupled with Zinc Sulphate for 10-14 days (10mg/day for infants < 6 months; 20mg/day for children 6 months to 5 years).
+       * **Urinary Tract Infections (UTI)**: Uncomplicated cases treated with Nitrofurantoin 100mg twice daily for 5-7 days or Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg twice daily for 5-7 days.
+       * **Tuberculosis (TB)**: Standard 6-month regimen (2 months intensive phase with Rifampicin (R), Isoniazid (H), Pyrazinamide (Z), Ethambutol (E) [2RHZE], followed by 4 months continuation phase with Rifampicin (R) and Isoniazid (H) [4RH]).
+       * **Hypertension**: First-line calcium channel blockers (Amlodipine 5-10mg daily) or ACE inhibitors (Lisinopril 5-20mg daily) or Thiazide-like diuretics (Bendroflumethiazide 2.5mg daily).
+     - Specify drug categories, safe dosages, safety warnings, and clear clinical counseling.
+     - Include clear, simple home-care advice or lifestyle modifications.
+
+   • **🚨 CRITICAL RED FLAGS & NEXT CLINICAL ACTIONS**:
+     - Outline a list of critical warning signs or emergency indicators that require immediate professional care.
+     - Provide guidance on seeking help at local healthcare facilities (e.g., Community Health Centers like Health Center II, III, or IV).
+     - Always conclude with the exact text: "Medical attention is recommended."
+
 3. REAL-TIME SYMPTOM DIFFERENTIAL DIAGNOSIS STANDARD:
    - When users query about any symptom (e.g., headache, high temperature, chest discomfort, coughing, acute digestive issues, localized inflammation):
      * Instantly deploy clinical differential-diagnostic evaluation algorithms.
      * Categorize their presentation based on onset, potential severity, and associated risk indicators (like tropical epidemiological factors like Malaria, Typhoid, ARI/Pneumonia, or acute cardiovascular symptoms).
      * Provide step-by-step scientific explanations of the underlying pathophysiology (e.g. prostaglandin pathways, cytokine immune responses, systemic inflammatory response syndrome (SIRS)).
      * Highlight critical emergency red-flags (e.g. child chest indrawing, severe dehydration signs, hypoxic drop, sudden cardiac localized arm radiation) and route to localized community healthcare nodes (e.g. Ugandan Health Center II/III/IV).
-     * Emphasize clinical hydration standards (like WHO Oral Rehydration Salt configurations: 2.6g NaCl, 2.9g Trisodium Citrate, 1.5g KCl, 13.5g Anhydrous Glucose per 1L water) and continuous vital checks.
+     * Emphasize clinical hydration standards (like WHO Oral Rehydration Salt configurations) and continuous vital checks.
 4. REAL-TIME HEALTH CONSULTATION DIALOGUE COMPLIANCE:
    - Directly and cleanly target the user's explicit question first. Refrain from long repetitive preamble definitions, and cut straight to high-fidelity medical guidance.
    - Address health questions using standard clinical guidelines, keeping the explanation deeply scientific yet scannable and digestible. Always conclude with "Medical attention is recommended."`;
 
-        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with deep specificity, directly addressing the exact question asked with comprehensive, detailed, and well-rounded clinical explanations. Do not use generic, unrequested lists or templates unless they are directly relevant to solving the query.
+        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with deep specificity, directly addressing the exact question asked with comprehensive, detailed, systematic, and well-rounded clinical explanations. Do not use generic, unrequested lists or templates unless they are directly relevant to solving the query.
 - For greetings (e.g., "hello", "hi", "hey", "oli otya", "gyebaleko", etc.): Reply warmly, dynamically, and realistically as Doctorian. If there is a custom-trained greeting, local language translation, or custom reply node in the "INTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA)" above, you MUST explicitly learn and utilize that custom data to formulate your greeting reply! Explain that you have successfully mapped and learned this greeting from their custom Neural Training Hub.
-- For all medical, symptoms, wellness, or specific clinical questions: Provide a beautifully structured, highly detailed response that provides clear, step-by-step scientific explanations, mechanisms, clinical guidelines, and safety metrics. Be extremely specific, thorough, and precise, answering all parts of the user's inquiry with well-explained reasoning. Always conclude with "Medical attention is recommended."`;
-        const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${EMOJI_CHUNKS_DIRECTIVE}`;
+- For all medical, symptoms, wellness, or specific clinical questions: Provide a beautifully structured, highly detailed, systematic, and simple response that provides clear, step-by-step scientific explanations, mechanisms, clinical guidelines, and safety metrics. Be extremely specific, thorough, and precise, answering all parts of the user's inquiry with well-explained reasoning. Always conclude with "Medical attention is recommended."`;
+        const diseaseSpecificOverlay = detectSpecificDiseaseMapping(rawUserMessage);
+        const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${diseaseSpecificOverlay}${EMOJI_CHUNKS_DIRECTIVE}`;
 
         if (wantsStream) {
           res.setHeader('Content-Type', 'text/event-stream');

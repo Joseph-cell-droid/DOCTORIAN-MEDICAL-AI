@@ -1265,6 +1265,7 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('storage', checkStatus);
+    window.addEventListener('offline_forced_changed', checkStatus);
     
     // Periodically sync offline actions if online
     const interval = setInterval(() => {
@@ -1280,6 +1281,7 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('storage', checkStatus);
+      window.removeEventListener('offline_forced_changed', checkStatus);
       clearInterval(interval);
     };
   }, []);
@@ -1879,6 +1881,23 @@ export default function App() {
   const addToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
   };
+
+  React.useEffect(() => {
+    const handleJumpToDoctorDashboard = (e: any) => {
+      console.log("[Doctorian] Received jump_to_doctor_dashboard event:", e.detail);
+      setIsDoctorAuthenticated(true);
+      setCurrentView('doctors_dashboard');
+      if (e.detail?.patientName) {
+        addToast(`🚨 CRITICAL EMERGENCY: Patient ${e.detail.patientName}'s alarm triggered twice! Auto-routing stream to Doctor's Portal...`, "error");
+      } else {
+        addToast("🚨 CRITICAL EMERGENCY: Alarm repeated severally! Auto-routing stream to Doctor's Portal...", "error");
+      }
+    };
+    window.addEventListener('doctorian:jump_to_doctor_dashboard', handleJumpToDoctorDashboard);
+    return () => {
+      window.removeEventListener('doctorian:jump_to_doctor_dashboard', handleJumpToDoctorDashboard);
+    };
+  }, []);
 
   const triggerSOS = async () => {
     setAuthModalView('authorize');
@@ -3676,7 +3695,7 @@ export default function App() {
             exit={{ opacity: 0, scale: 1.05 }}
             className="w-full"
           >
-            <SymptomChecker user={user} onUpdateUser={setUser} />
+            <SymptomChecker user={user} onUpdateUser={setUser} onNavigate={setCurrentView} />
           </motion.div>
         ) : currentView === 'meds' ? (
           <motion.div
@@ -3686,7 +3705,7 @@ export default function App() {
             exit={{ opacity: 0, scale: 1.05 }}
             className="w-full"
           >
-            <MedicationTracker />
+            <MedicationTracker addToast={addToast} />
           </motion.div>
         ) : currentView === 'fitness' ? (
           <motion.div

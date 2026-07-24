@@ -10,6 +10,16 @@ interface WeatherData {
   locationName: string;
 }
 
+const WeatherIcon = ({ condition }: { condition: string }) => {
+  switch (condition) {
+    case 'Clear': return <Sun className="text-amber-500" />;
+    case 'Partly Cloudy': return <Cloud className="text-blue-400" />;
+    case 'Rainy': case 'Rain Showers': return <CloudRain className="text-blue-600" />;
+    case 'Thunderstorm': return <CloudLightning className="text-purple-600" />;
+    default: return <Cloud className="text-slate-400" />;
+  }
+};
+
 export const WeatherWidget: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,16 +104,6 @@ export const WeatherWidget: React.FC = () => {
     if (code >= 80 && code <= 82) return 'Rain Showers';
     if (code >= 95) return 'Thunderstorm';
     return 'Cloudy';
-  };
-
-  const WeatherIcon = ({ condition }: { condition: string }) => {
-    switch (condition) {
-      case 'Clear': return <Sun className="text-amber-500" />;
-      case 'Partly Cloudy': return <Cloud className="text-blue-400" />;
-      case 'Rainy': case 'Rain Showers': return <CloudRain className="text-blue-600" />;
-      case 'Thunderstorm': return <CloudLightning className="text-purple-600" />;
-      default: return <Cloud className="text-slate-400" />;
-    }
   };
 
   return (

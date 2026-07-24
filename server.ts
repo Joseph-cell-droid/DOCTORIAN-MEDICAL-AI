@@ -327,10 +327,13 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   }
 
   // Native Google key fallback (AIza...)
-  if (m.includes('mistral')) {
-    return "gemini-2.5-flash"; // Native Google GenAI does not host Mistral, fallback to Gemini
+  if (m.includes('image') || m.includes('vision')) {
+    return "gemini-3.1-flash-lite-image";
   }
-  return "gemini-2.5-flash";
+  if (m.includes('pro') || m.includes('complex') || m.includes('code') || m.includes('reason') || m.includes('deepseek')) {
+    return "gemini-3.1-pro-preview";
+  }
+  return "gemini-3.6-flash";
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
@@ -626,7 +629,7 @@ async function* callAIStream(options: {
   let activeHFModel = HUGGINGFACE_MODEL;
 
   if (modelName) {
-    if (modelName === "gemini-2.5-flash" || modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
+    if (modelName === "gemini-3.6-flash" || modelName === "medlm-medium") {
       activeHFModel = "google/gemma-3-4b-it";
     } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
       activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
@@ -1125,12 +1128,12 @@ async function* callAIStream(options: {
                       streamAttempts = maxStreamAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && streamAttempts < maxStreamAttempts) {
-                      if (currentModelId === "gemini-3.5-flash") {
-                        currentModelId = "gemini-2.5-flash";
-                      } else if (currentModelId === "gemini-2.5-flash") {
-                        currentModelId = "gemini-1.5-flash";
+                      if (currentModelId === "gemini-3.6-flash") {
+                        currentModelId = "gemini-3.1-pro-preview";
+                      } else if (currentModelId === "gemini-3.1-pro-preview") {
+                        currentModelId = "gemini-3.1-flash-lite";
                       } else {
-                        currentModelId = "gemini-1.5-flash";
+                        currentModelId = "gemini-3.1-flash-lite";
                       }
                       console.log(`[AI-STREAM] Temporary API busy status (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Rotating to ${currentModelId} and retrying in ${streamAttempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, streamAttempts * 1000));
@@ -1144,7 +1147,7 @@ async function* callAIStream(options: {
                         cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                       }
                       console.log("[AI-STREAM] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
-                      const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.1-flash-lite"];
+                      const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"];
                       for (const modelId of modelsToTry) {
                         let retryAttempts = 0;
                         const maxRetryAttempts = 2;
@@ -1285,7 +1288,7 @@ async function callAIWorkflow(options: {
   let activeHFModel = HUGGINGFACE_MODEL;
 
   if (modelName) {
-    if (modelName === "gemini-2.5-flash" || modelName === "gemini-3.5-flash" || modelName === "medlm-medium") {
+    if (modelName === "gemini-3.6-flash" || modelName === "medlm-medium") {
       activeHFModel = "google/gemma-3-4b-it";
     } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
       activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
@@ -1591,7 +1594,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-2.5-flash";
+              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.6-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1649,12 +1652,12 @@ async function callAIWorkflow(options: {
                       attempts = maxAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
-                      if (currentModelId === "gemini-3.5-flash") {
-                        currentModelId = "gemini-2.5-flash";
-                      } else if (currentModelId === "gemini-2.5-flash") {
-                        currentModelId = "gemini-1.5-flash";
+                      if (currentModelId === "gemini-3.6-flash") {
+                        currentModelId = "gemini-3.1-pro-preview";
+                      } else if (currentModelId === "gemini-3.1-pro-preview") {
+                        currentModelId = "gemini-3.1-flash-lite";
                       } else {
-                        currentModelId = "gemini-1.5-flash";
+                        currentModelId = "gemini-3.1-flash-lite";
                       }
                       console.log(`[AI-BRAIN] Temporary API busy status (${genErr.message || "503/429"}) on attempt ${attempts}. Rotating to ${currentModelId} and retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
@@ -1678,7 +1681,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.1-flash-lite"];
+                  const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"];
                   for (const modelId of modelsToTry) {
                     let retryAttempts = 0;
                     const maxRetryAttempts = 2;
@@ -6965,11 +6968,11 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         let textResponse;
         try {
           textResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.6-flash",
             contents: prompt,
           });
         } catch (err: any) {
-          console.log("[AI-VOICE] gemini-2.5-flash failed:", err.message);
+          console.log("[AI-VOICE] gemini-3.6-flash failed:", err.message);
         }
 
         if (textResponse && textResponse.text) {
@@ -7279,7 +7282,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
       let result;
       try {
         result = await aiClient.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.6-flash",
           contents: [
             prompt,
             {
@@ -7291,7 +7294,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
           ]
         });
       } catch (err: any) {
-        console.log("[AI-TRANSCRIBE] gemini-2.5-flash failed for audio modality:", err.message);
+        console.log("[AI-TRANSCRIBE] gemini-3.6-flash failed for audio modality:", err.message);
         throw err;
       }
 
@@ -7792,13 +7795,77 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     }
   });
 
+  function generateProfessionalTitle(rawText: string): string {
+    if (!rawText || !rawText.trim()) return "Clinical Inquiry";
+
+    let clean = rawText
+      .trim()
+      .replace(/^[\#\*\_\`\-\>\s]+/, '')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/\s+/g, ' ');
+
+    const prefixPatterns = [
+      /^(hi|hello|hey|greetings|good morning|good afternoon|good evening|doctorian|doctor|dr)[,\.\!\?\s]*/i,
+      /^(can you|could you|please|kindly|i need|i want|would you|help me|tell me|explain|describe|what is|what are|how to|how do i|how can i|give me|show me|list|summary of|detail|find|provide|is there|why does|why do|can we|can i)[,\.\!\?\s]*/i,
+      /^(can you tell me|can you explain|can you give me|i want to know|i need to know|what is the|what are the|how do i manage|how to treat|help with|details about|information on|guidelines for|protocol for)[,\.\!\?\s]*/i
+    ];
+
+    let phrase = clean;
+    for (let pass = 0; pass < 3; pass++) {
+      for (const pattern of prefixPatterns) {
+        phrase = phrase.replace(pattern, '');
+      }
+    }
+
+    phrase = phrase.replace(/[\?\!\.\,\:\;\-\_]+$/g, '').trim();
+
+    if (phrase.length < 3) {
+      phrase = clean.replace(/[\?\!\.\,\:\;\-\_]+$/g, '').trim();
+    }
+
+    if (!phrase) return "Clinical Consultation";
+
+    const words = phrase.split(' ');
+    if (words.length > 6) {
+      phrase = words.slice(0, 6).join(' ');
+    }
+
+    const minorWords = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'from', 'by', 'with', 'in', 'of', 'v', 'vs']);
+    const titleCased = phrase
+      .split(' ')
+      .map((w, idx) => {
+        if (!w) return '';
+        const lower = w.toLowerCase();
+        if (w === w.toUpperCase() && w.length >= 2 && w.length <= 5) {
+          return w;
+        }
+        if (idx > 0 && minorWords.has(lower)) {
+          return lower;
+        }
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      })
+      .filter(Boolean)
+      .join(' ');
+
+    if (titleCased.length > 38) {
+      const truncated = titleCased.substring(0, 36);
+      const lastSpace = truncated.lastIndexOf(' ');
+      if (lastSpace > 12) {
+        return truncated.substring(0, lastSpace) + '...';
+      }
+      return truncated + '...';
+    }
+
+    return titleCased || "Clinical Inquiry";
+  }
+
   app.post("/api/chat/sessions/:sessionId/messages", authenticate, (req: any, res) => {
     const { sessionId } = req.params;
     const { role, text } = req.body;
     const id = `msg_${Date.now()}`;
     try {
       // Security check: ensure session belongs to user
-      const session: any = db.prepare("SELECT userId FROM chat_sessions WHERE id = ?").get(sessionId);
+      const session: any = db.prepare("SELECT * FROM chat_sessions WHERE id = ?").get(sessionId);
       if (!session) return res.status(404).json({ error: "Session not found" });
       if (session.userId !== req.user.id && req.user.role !== 'admin') {
         return res.status(403).json({ error: "Neural link restricted" });
@@ -7806,9 +7873,44 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
 
       db.prepare("INSERT INTO chat_messages (id, sessionId, role, text) VALUES (?, ?, ?, ?)")
         .run(id, sessionId, role, text);
-      res.json({ id, success: true });
+
+      // Auto-update history card session title if user message and title is generic
+      let updatedTitle = session.title;
+      if (role === 'user' && text && text.trim()) {
+        const isGenericTitle = !session.title || 
+          session.title.includes("New Neural Link") || 
+          session.title.includes("Initial Consultation") || 
+          session.title.includes("New Session") ||
+          session.title.includes("New Consult Diagnostic") ||
+          session.title.includes("Untitled");
+        
+        const msgCount: any = db.prepare("SELECT COUNT(*) as count FROM chat_messages WHERE sessionId = ? AND role = 'user'").get(sessionId);
+        if (isGenericTitle || (msgCount && msgCount.count <= 1)) {
+          updatedTitle = generateProfessionalTitle(text);
+          db.prepare("UPDATE chat_sessions SET title = ? WHERE id = ?").run(updatedTitle, sessionId);
+        }
+      }
+
+      res.json({ id, success: true, updatedTitle });
     } catch (err) {
       res.status(500).json({ error: "Failed to persist neural packet" });
+    }
+  });
+
+  app.put("/api/chat/sessions/:sessionId", authenticate, (req: any, res) => {
+    const { sessionId } = req.params;
+    const { title } = req.body;
+    try {
+      const session: any = db.prepare("SELECT userId FROM chat_sessions WHERE id = ?").get(sessionId);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (session.userId !== req.user.id && req.user.role !== 'admin') {
+        return res.status(403).json({ error: "Neural link restricted" });
+      }
+
+      db.prepare("UPDATE chat_sessions SET title = ? WHERE id = ?").run(title || 'Untitled Session', sessionId);
+      res.json({ success: true, title });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update session title" });
     }
   });
 
@@ -8135,7 +8237,7 @@ Direct the user to a health center if needed, and conclude with supportive bless
               }
             });
             const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
+              model: "gemini-3.6-flash",
               contents: text || "Hello",
               config: {
                 systemInstruction: dynamicInstruction,
@@ -8462,16 +8564,19 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: MALARIA (Plasmodium falciparum) ACTIVE]
 - The patient's signs and symptoms strongly align with a tropical malaria clinical presentation.
-- You MUST focus heavily, smart, and specifically on Malaria clinical management:
-  * Emphasize immediate confirmation via Malaria Rapid Diagnostic Test (mRDT) or Blood Smear (BS) microscopy before starting therapy.
-  * Provide the complete weight-based and age-based Artemether-Lumefantrine (AL / Coartem) 3-day dosing schedule from the Uganda Ministry of Health (MoH) guidelines:
-    - 5-14 kg (or 5-35 months): 1 tablet twice daily for 3 days.
-    - 15-24 kg (or 3-8 years): 2 tablets twice daily for 3 days.
-    - 25-34 kg (or 9-14 years): 3 tablets twice daily for 3 days.
-    - ≥35 kg (or ≥15 years): 4 tablets twice daily for 3 days.
-  * Detail the physiological lifecycle of Plasmodium falciparum (sporozoites invade hepatocytes, replicate into merozoites, egress to invade red blood cells, undergoing erythrocytic schizogony where hemoglobin ingestion and synchronous cell lysis trigger cytokine-mediated pyrexia and rigors).
-  * Explain the pathophysiology of severe malaria (microvascular sequestration of parasitized erythrocytes in the brain, lungs, or kidneys via PfEMP1 adhesion molecules, leading to cerebral hypoxia, convulsions, severe anemia, metabolic lactic acidosis, and prostration) and specify that severe malaria requires intravenous (IV) Artesunate (2.4 mg/kg at 0h, 12h, 24h, then daily) until oral medication is tolerated.
-  * Conclude with the critical red flags: convulsions, jaundice (yellow eyes), inability to feed, or severe respiratory distress. Medical attention is recommended.`;
+- You MUST execute a precise Symptom-to-Prescription Mapping for Malaria:
+  * SYMPTOMS MAPPED: Periodic pyrexia (fever spike), rigors/chills, diaphoresis, arthralgia/myalgia, nausea/vomiting, splenomegaly, severe headache.
+  * DIAGNOSTIC GOLD STANDARD: Immediate confirmation via Malaria Rapid Diagnostic Test (mRDT) or Blood Smear (BS) Giemsa microscopy before starting antimicrobial therapy.
+  * PRESCRIPTION & DOSING (Uganda MoH & WHO Guidelines):
+    - First-line Uncomplicated Malaria: Artemether-Lumefantrine (AL / Coartem) oral tablets twice daily for 3 days:
+      • 5-14 kg (or 5-35 months): 1 tablet twice daily for 3 days.
+      • 15-24 kg (or 3-8 years): 2 tablets twice daily for 3 days.
+      • 25-34 kg (or 9-14 years): 3 tablets twice daily for 3 days.
+      • ≥35 kg (or ≥15 years): 4 tablets twice daily for 3 days.
+    - Second-line / Oral Alternative: Dihydroartemisinin-Piperaquine (DHA-PQP) once daily for 3 days.
+    - Severe Malaria (P. falciparum with danger signs): Intravenous (IV) Artesunate 2.4 mg/kg IV at 0h, 12h, 24h, then once daily until oral AL can be swallowed.
+  * CELLULAR PATHOPHYSIOLOGY: Sporozoite inoculation via female Anopheles mosquito, hepatic schizogony (1-2 weeks), erythrocyte invasion by merozoites, hemoglobin degradation yielding hemozoin, and synchronous RBC rupture releasing TNF-alpha and IL-1 (pyrexia). PfEMP1 endothelial cytoadherence causes cerebral microvascular sequestration.
+  * RED FLAGS: Convulsions, prostration, jaundice, hemoglobinuria (blackwater fever), severe respiratory distress. Medical attention is recommended.`;
   }
 
   // 2. Pneumonia / Respiratory
@@ -8481,27 +8586,48 @@ function detectSpecificDiseaseMapping(prompt: string): string {
     lower.includes("breathing difficulty") || 
     lower.includes("short of breath") || 
     lower.includes("fast breathing") || 
-    lower.includes("wheez") || 
     lower.includes("chest in-drawing") || 
     lower.includes("dyspnea")
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: ACUTE RESPIRATORY INFECTION / PNEUMONIA ACTIVE]
 - The patient's signs and symptoms strongly suggest a respiratory system infection or Pneumonia.
-- You MUST focus heavily, smart, and specifically on Pneumonia clinical management:
-  * Detail the physiological mechanisms of alveolar consolidation, where exudative inflammatory secretions (neutrophils, fibrin, and erythrocytes) fill the alveoli, resulting in ventilation-perfusion mismatch, reduced lung compliance, and arterial hypoxemia.
-  * Provide the WHO/MoH Uganda criteria for diagnosing Pneumonia based on respiratory rates (counting breathing for exactly 60 seconds of quiet observation):
-    - Infant under 2 months: ≥60 breaths per minute (Fast breathing).
-    - Child 2 to 11 months: ≥50 breaths per minute.
-    - Child 12 to 59 months: ≥40 breaths per minute.
-    - Adults: ≥20 breaths per minute with associated dyspnea.
-  * Provide the precise first-line oral Amoxicillin dispersible tablet twice daily for 5 days dosing guidelines for children under 5:
-    - 2-11 months (4-9 kg): 250mg oral twice daily for 5 days.
-    - 12-59 months (10-19 kg): 500mg oral twice daily for 5 days.
-  * Explain the pathophysiological difference between viral bronchiolitis and bacterial lobar pneumonia.
-  * Specify critical red flags: chest in-drawing (retractions), stridor or grunting, central cyanosis (blueness of tongue/lips), or inability to breastfeed/drink. Medical attention is recommended.`;
+- You MUST execute a precise Symptom-to-Prescription Mapping for Acute Respiratory Infection:
+  * SYMPTOMS MAPPED: Productive/dry cough, tachypnea, fever, pleuritic chest pain, dyspnea, crepitations/crackles on auscultation.
+  * DIAGNOSTIC TRIAGE: WHO Respiratory Rate Thresholds (counted for 60 seconds):
+    - <2 months: ≥60 breaths/min (Fast breathing)
+    - 2-11 months: ≥50 breaths/min
+    - 12-59 months: ≥40 breaths/min
+    - Adults: ≥20 breaths/min with respiratory effort.
+  * PRESCRIPTION & DOSING:
+    - Non-severe Pneumonia (Pediatric <5 yrs): Oral Amoxicillin dispersible tablets 250mg or 500mg twice daily for 5 days:
+      • 2-11 months (4-9 kg): 250mg oral twice daily for 5 days.
+      • 12-59 months (10-19 kg): 500mg oral twice daily for 5 days.
+    - Adult Community-Acquired Pneumonia (CAP): Amoxicillin 500mg-1g oral 8-hourly for 5-7 days OR Azithromycin 500mg once daily for 3-5 days.
+    - Severe CAP: IV Ceftriaxone 1g-2g once daily + IV Clarithromycin 500mg 12-hourly.
+  * CELLULAR PATHOPHYSIOLOGY: Microbial aspiration into terminal bronchioles, alveolar macrophage activation, neutrophil exuded intra-alveolar consolidation, V/Q mismatch, arterial hypoxemia.
+  * RED FLAGS: Subcostal chest in-drawing, grunting, central cyanosis, SpO2 < 90%, lethargy. Medical attention is recommended.`;
   }
 
-  // 3. Diarrhea / Gastroenteritis / Cholera
+  // 3. Asthma / Wheezing
+  if (
+    lower.includes("asthma") || 
+    lower.includes("wheez") || 
+    lower.includes("bronchospasm") || 
+    lower.includes("tight chest")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: ASTHMA & ACUTE BRONCHOSPASM ACTIVE]
+- The patient's signs and symptoms strongly align with Reactive Airway Disease or Asthma Exacerbation.
+- You MUST execute a precise Symptom-to-Prescription Mapping for Asthma (GINA Guidelines):
+  * SYMPTOMS MAPPED: Expiratory wheezing, chest tightness, nocturnal coughing, dyspnea, prolonged expiratory phase.
+  * PRESCRIPTION & DOSING:
+    - Short-Acting Beta-2 Agonist (SABA) Reliever: Inhaled Salbutamol (Albuterol) 100mcg/puff, 2-4 puffs via spacer every 20 minutes for up to 1 hour during acute spasm; or Nebulized Salbutamol 2.5mg-5mg.
+    - Controller / Anti-inflammatory: Inhaled Corticosteroid (ICS) Budesonide 200-400mcg twice daily or Formoterol-Budesonide combination.
+    - Moderate-Severe Exacerbation: Oral Prednisolone 40-50mg daily for 5 days (adults) or 1-2 mg/kg/day for 3-5 days (pediatrics).
+  * CELLULAR PATHOPHYSIOLOGY: IgE-mediated mast cell activation, histamine & leukotriene (LTC4, LTD4) release, bronchial smooth muscle constriction, mucosal edema, and goblet cell hypersecretion.
+  * RED FLAGS: Silent chest (no air movement), inability to complete sentences in one breath, paradoxical pulse, cyanosis. Medical attention is recommended.`;
+  }
+
+  // 4. Diarrhea / Gastroenteritis / Cholera
   if (
     lower.includes("diarrhea") || 
     lower.includes("diarrhoea") || 
@@ -8514,17 +8640,40 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: DIARRHEAL DISEASE / CHOLERA PROTOCOL ACTIVE]
 - The patient's signs and symptoms strongly align with an acute diarrheal illness or Gastroenteritis/Cholera.
-- You MUST focus heavily, smart, and specifically on Dehydration and Diarrhea management:
-  * Detail the physiological mechanisms of secretory diarrhea (such as Vibrio cholerae cholera-toxin binding to GM1 ganglioside receptors, constitutively activating adenylate cyclase, raising intracellular cAMP, which hyperactivates CFTR channels to secrete massive amounts of Cl-, Na+, and water into the bowel lumen).
-  * Detail the WHO Low Osmolarity Oral Rehydration Salts (ORS) formula and preparation (1 packet fully dissolved in 1 Liter of safe boiled water) which utilizes the sodium-glucose cotransporter (SGLT-1) in the brush border membrane to drive water reabsorption even during severe secretory states.
-  * Emphasize the mandatory Zinc Sulphate supplementation for children under 5 for 10-14 days to regenerate the mucosal lining:
-    - Infants under 6 months: 10mg once daily.
-    - Children 6 months to 5 years: 20mg once daily.
-  * Provide a clear clinical dehydration assessment matrix (Some Dehydration: sunken eyes, dry mouth, slow skin turgor return <2s, restlessness; Severe Dehydration: lethargy/unconsciousness, skin turgor return >2s, inability to drink/suck).
-  * Highlight water, sanitation, and hygiene (WASH) standards. Medical attention is recommended.`;
+- You MUST execute a precise Symptom-to-Prescription Mapping for Acute Diarrhea & Dehydration:
+  * SYMPTOMS MAPPED: Frequent watery bowel movements, abdominal cramps, emesis, dry mucous membranes, sunken eyes, skin tenting.
+  * PRESCRIPTION & REHYDRATION PROTOCOL:
+    - WHO Low-Osmolarity Oral Rehydration Salts (ORS): 1 sachet dissolved in 1L clean water. Administer 200-400ml after each loose stool. (Employs SGLT-1 Na+/Glucose co-transport).
+    - Oral Zinc Sulphate (Mandatory for pediatric <5 yrs for 10-14 days to repair intestinal mucosal lining):
+      • <6 months: 10mg once daily for 10-14 days.
+      • 6 months - 5 years: 20mg once daily for 10-14 days.
+    - Severe Dehydration / Cholera: Immediate IV Ringer's Lactate (100ml/kg in 3 hours) + Oral Ciprofloxacin 500mg BD or Doxycycline 300mg single dose for Cholera.
+  * CELLULAR PATHOPHYSIOLOGY: Enterotoxin (e.g. Vibrio cholerae CTX) binding GM1 receptor, adenylate cyclase activation, elevated intracellular cAMP, hyperactivation of CFTR chloride channels leading to massive luminal Cl- and water secretion.
+  * RED FLAGS: Lethargy, inability to drink, skin pinch returning >2 seconds, rice-water stools. Medical attention is recommended.`;
   }
 
-  // 4. UTI
+  // 5. Peptic Ulcer Disease (PUD) / GERD / Gastritis
+  if (
+    lower.includes("ulcer") || 
+    lower.includes("gastritis") || 
+    lower.includes("heartburn") || 
+    lower.includes("epigastric") || 
+    lower.includes("acid reflux") || 
+    lower.includes("gerd")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: PEPTIC ULCER DISEASE & GERD ACTIVE]
+- The patient's signs and symptoms strongly align with Acid-Peptic Disorder or Gastroesophageal Reflux.
+- You MUST execute a precise Symptom-to-Prescription Mapping for PUD/GERD:
+  * SYMPTOMS MAPPED: Burning epigastric pain (gnawing, relieved or exacerbated by meals), acid regurgitation, bloating, postprandial fullness, belching.
+  * PRESCRIPTION & DOSING:
+    - First-line Proton Pump Inhibitor (PPI): Omeprazole 20mg-40mg orally once daily 30 minutes before breakfast for 4-8 weeks (or Esomeprazole 40mg daily).
+    - H. Pylori Eradication Triple Therapy (14-day protocol if H. pylori positive): Omeprazole 20mg BD + Amoxicillin 1g BD + Clarithromycin 500mg BD for 14 days.
+    - Symptomatic Antacid/Alginate: Magnesium Trisilicate / Aluminium Hydroxide 10-20ml 1-3 hours after meals and at bedtime.
+  * CELLULAR PATHOPHYSIOLOGY: Imbalance between mucosal aggressive factors (gastric acid HCl via H+/K+ ATPase proton pump, pepsin, H. pylori, NSAID COX-1 inhibition) and protective factors (bicarbonate, mucus layer, prostaglandins E2/I2).
+  * RED FLAGS: Melena (black tarry stool), hematemesis (coffee-ground vomit), unexplained weight loss, persistent vomiting, dysphagia. Medical attention is recommended.`;
+  }
+
+  // 6. Urinary Tract Infection (UTI)
   if (
     lower.includes("uti") || 
     lower.includes("urinary") || 
@@ -8535,16 +8684,36 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: URINARY TRACT INFECTION (UTI) ACTIVE]
 - The patient's signs and symptoms strongly suggest a urinary tract or bladder mucosal infection.
-- You MUST focus heavily, smart, and specifically on UTI clinical management:
-  * Explain the pathophysiology of ascending bacterial migration (mostly Uropathogenic E. coli with fimbriae adhering to urothelial receptors) leading to urethritis or cystitis, triggering bladder spasms, dysuria, and local mucosal capillary dilation (hematuria).
-  * Outline the standard first-line therapies based on UCG (Ugandan Clinical Guidelines):
-    - Nitrofurantoin 100mg orally twice daily for 5-7 days (safe and highly effective, avoid in severe renal impairment).
-    - Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg orally twice daily for 5-7 days.
-  * Include smart, specific self-care guidance: high fluid intake (flushing 3-4L water daily), voiding immediately post-coitus, proper hygiene practices (wiping front-to-back), and avoiding bladder irritants (caffeine, alcohol).
-  * Emphasize critical warning signs like high spiking fever with chills and costovertebral flank pain, which indicates acute pyelonephritis requiring parenteral therapy. Medical attention is recommended.`;
+- You MUST execute a precise Symptom-to-Prescription Mapping for UTI:
+  * SYMPTOMS MAPPED: Dysuria (painful/burning urination), urinary frequency, urgency, suprapubic tenderness, cloudy or foul-smelling urine.
+  * PRESCRIPTION & DOSING (Uganda Clinical Guidelines):
+    - Uncomplicated Cystitis (First-line): Nitrofurantoin (Macrobid) 100mg orally twice daily with food for 5-7 days.
+    - Alternative First-line: Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg orally twice daily for 5-7 days OR Ciprofloxacin 500mg BD for 3 days.
+    - Urinary Analgesic / Symptom Relief: High fluid intake (3-4L water daily), Alkalinizing agents (Potassium Citrate).
+  * CELLULAR PATHOPHYSIOLOGY: Ascending colonization by Uropathogenic Escherichia coli (UPEC) utilizing Type 1 and P fimbriae to adhere to uroplakin receptors on urothelial cells, inciting acute mucosal inflammation and bladder detrusor spasms.
+  * RED FLAGS: High fever with rigors, flank pain (costovertebral angle tenderness), nausea/vomiting (indicating acute pyelonephritis requiring hospitalization). Medical attention is recommended.`;
   }
 
-  // 5. Tuberculosis (TB)
+  // 7. Typhoid Fever (Enteric Fever)
+  if (
+    lower.includes("typhoid") || 
+    lower.includes("salmonella") || 
+    lower.includes("enteric fever") || 
+    lower.includes("step ladder")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: TYPHOID FEVER (ENTERIC FEVER) ACTIVE]
+- The patient's signs and symptoms strongly align with Typhoid Fever (Salmonella enterica serovar Typhi).
+- You MUST execute a precise Symptom-to-Prescription Mapping for Typhoid Fever:
+  * SYMPTOMS MAPPED: Step-ladder fever, severe frontal headache, abdominal pain, constipation or pea-soup diarrhea, relative bradycardia (Faget sign), malaise, rose spots.
+  * PRESCRIPTION & DOSING:
+    - First-line Uncomplicated Typhoid: Oral Ciprofloxacin 500mg twice daily for 7-10 days OR Oral Azithromycin 500mg once daily for 7 days.
+    - Alternative / Resistant Strains: Oral Cefixime 400mg once daily for 10-14 days OR IV Ceftriaxone 2g once daily for 7-14 days.
+    - Antipyretic Support: Paracetamol 500mg-1g 6-hourly for fever management.
+  * CELLULAR PATHOPHYSIOLOGY: Salmonella Typhi invasion of intestinal Peyer's patches via M cells, macrophage phagocytosis survival, lymphatic transport to liver/spleen, bacteremic seeding and gallbladder reservoir colonization.
+  * RED FLAGS: Sudden severe abdominal pain with rigidity (intestinal perforation at ileal Peyer's patches), GI bleeding, altered mental status. Medical attention is recommended.`;
+  }
+
+  // 8. Tuberculosis (TB)
   if (
     lower.includes("tuberculosis") || 
     lower.includes("tb ") || 
@@ -8556,16 +8725,18 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: TUBERCULOSIS (TB) ACTIVE]
 - The patient's signs and symptoms strongly align with pulmonary Tuberculosis.
-- You MUST focus heavily, smart, and specifically on Tuberculosis clinical management and DOTS protocols:
-  * Explain the pathophysiology of Mycobacterium tuberculosis (inhalation of droplet nuclei, alveolar macrophage phagocytosis, failure of phagosome-lysosome fusion, and subsequent granulomatous lesion / Ghon complex formation, yielding cell-mediated delayed-type hypersensitivity).
-  * Detail the standard 6-month DOTS chemotherapy regimen:
-    - Intensive Phase (2 months of RHZE): Rifampicin, Isoniazid, Pyrazinamide, Ethambutol [2RHZE].
-    - Continuation Phase (4 months of RH): Rifampicin and Isoniazid [4RH].
-  * Outline the essential diagnostic screening steps: sputum GeneXpert MTB/RIF assay, chest X-ray, and checking for household/close contacts.
-  * Conclude with critical warning signs like massive hemoptysis, severe chest pain, or progressive dyspnea. Medical attention is recommended.`;
+- You MUST execute a precise Symptom-to-Prescription Mapping for Tuberculosis (DOTS Protocol):
+  * SYMPTOMS MAPPED: Chronic cough >2 weeks, hemoptysis (coughing blood), drenching night sweats, unexplained weight loss, low-grade evening fever, anorexia.
+  * DIAGNOSTIC GOLD STANDARD: Sputum GeneXpert MTB/RIF assay (detects M. tuberculosis DNA & Rifampicin resistance within 2 hours), Sputum AFB smear, Chest X-ray.
+  * PRESCRIPTION & DOSING (6-Month Standard DOTS Regimen):
+    - Intensive Phase (2 Months [2RHZE]): Fixed-Dose Combination of Rifampicin (R), Isoniazid (H), Pyrazinamide (Z), Ethambutol (E) daily.
+    - Continuation Phase (4 Months [4RH]): Rifampicin (R) and Isoniazid (H) daily.
+    - Adjunctive Neuroprotection: Pyridoxine (Vitamin B6) 25-50mg daily to prevent Isoniazid-induced peripheral neuropathy.
+  * CELLULAR PATHOPHYSIOLOGY: Inhalation of droplet nuclei, alveolar macrophage phagocytosis, inhibition of phagolysosomal fusion, T-cell mediated delayed hypersensitivity forming caseating granulomas (Ghon focus).
+  * RED FLAGS: Massive hemoptysis (>200ml/24h), severe chest pain, respiratory distress. Medical attention is recommended.`;
   }
 
-  // 6. Hypertension / High Blood Pressure
+  // 9. Hypertension / Cardiovascular
   if (
     lower.includes("hypertension") || 
     lower.includes("high bp") || 
@@ -8573,22 +8744,41 @@ function detectSpecificDiseaseMapping(prompt: string): string {
     lower.includes("elevated bp") || 
     lower.includes("140/90") || 
     lower.includes("150/100") || 
-    lower.includes("160/100") || 
-    lower.includes("130/80")
+    lower.includes("160/100")
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: HYPERTENSION ACTIVE]
-- The patient's signs and symptoms strongly align with systemic arterial Hypertension.
-- You MUST focus heavily, smart, and specifically on Hypertension clinical management:
-  * Explain the underlying biophysics of increased systemic vascular resistance (SVR), endothelial shear stress, sympathetic nervous system overactivity, and cardiac afterload compensation leading to ventricular remodeling.
-  * Provide the primary pharmacological drug classes from the MoH guidelines:
-    - Calcium Channel Blockers (CCBs): Amlodipine 5-10mg orally once daily.
-    - ACE Inhibitors: Lisinopril 5-20mg orally once daily.
-    - Thiazide-like Diuretics: Bendroflumethiazide 2.5mg orally once daily.
-  * Detail the essential non-pharmacological lifestyle counseling (DASH diet, reducing sodium intake to <2g/day, moderate aerobic exercise 150 mins/week, stress management, and avoiding tobacco/excessive alcohol).
-  * Highlight warning signs of hypertensive emergency (BP >180/120 mmHg accompanied by severe occipital headache, chest pain, dyspnea, blurry vision, or neurological deficits). Medical attention is recommended.`;
+- The patient's signs and symptoms strongly align with Systemic Arterial Hypertension.
+- You MUST execute a precise Symptom-to-Prescription Mapping for Hypertension:
+  * SYMPTOMS MAPPED: Occipital morning headache, dizziness, tinnitus, chest pressure, fatigue; often asymptomatic ("Silent Killer").
+  * PRESCRIPTION & DOSING (MoH Uganda & WHO Guidelines):
+    - First-line Calcium Channel Blocker (CCB): Amlodipine 5mg-10mg orally once daily.
+    - First-line ACE Inhibitor (especially in diabetes/renal protection): Lisinopril 5mg-20mg orally once daily (or Enalapril 5-10mg BD).
+    - First-line Thiazide Diuretic: Bendroflumethiazide 2.5mg once daily OR Hydrochlorothiazide 12.5-25mg once daily.
+  * CELLULAR PATHOPHYSIOLOGY: Elevated systemic vascular resistance (SVR) driven by sympathetic tone, renin-angiotensin-aldosterone system (RAAS) hyperactivation, endothelial dysfunction, arteriolosclerosis, and left ventricular hypertrophy.
+  * RED FLAGS: BP >180/120 mmHg with chest pain, dyspnea, blurry vision, severe headache, or focal neurological deficits (Hypertensive Emergency). Medical attention is recommended.`;
   }
 
-  // 7. Diabetes Mellitus / DKA
+  // 10. Acute Chest Pain / Coronary Syndrome
+  if (
+    lower.includes("chest pain") || 
+    lower.includes("heart attack") || 
+    lower.includes("angina") || 
+    lower.includes("myocardial")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: ACUTE CORONARY SYNDROME / CHEST PAIN ACTIVE]
+- The patient's signs and symptoms suggest Acute Coronary Syndrome (ACS) / Ischemia.
+- You MUST execute a precise Symptom-to-Prescription Mapping for Acute Chest Pain:
+  * SYMPTOMS MAPPED: Substernal crushing chest pain radiating to left shoulder/arm/jaw, diaphoresis, dyspnea, nausea, sense of impending doom.
+  * PRESCRIPTION & EMERGENCY FIRST-AID (MONA Protocol):
+    - Aspirin: 300mg chewable non-enteric coated tablet immediately (antiplatelet COX-1 inhibition).
+    - Sublingual Nitroglycerin: 0.4mg sublingual tablet every 5 mins (up to 3 doses if SBP >90 mmHg).
+    - High-dose Statin: Atorvastatin 80mg oral single loading dose.
+    - Anticoagulation / P2Y12 inhibitor: Clopidogrel 300-600mg loading dose in hospital setting.
+  * CELLULAR PATHOPHYSIOLOGY: Coronary atherosclerotic plaque rupture, intracellular tissue factor exposure, platelet aggregation, thrombus occlusion, myocardial ischemia leading to anaerobic glycolysis, lactate accumulation, and cardiomyocyte necrosis (Troponin release).
+  * RED FLAGS: Persistent pain >15 minutes, hemodynamic instability, syncope, ST-elevation on ECG. Medical attention is recommended.`;
+  }
+
+  // 11. Diabetes Mellitus / DKA
   if (
     lower.includes("diabetes") || 
     lower.includes("high sugar") || 
@@ -8596,37 +8786,78 @@ function detectSpecificDiseaseMapping(prompt: string): string {
     lower.includes("diabetic") || 
     lower.includes("hyperglycemia") || 
     lower.includes("polyuria") || 
-    lower.includes("polydipsia") || 
-    lower.includes("polyphagia")
+    lower.includes("polydipsia")
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: DIABETES MELLITUS & METABOLIC DYSREGULATION ACTIVE]
-- The patient's signs and symptoms strongly align with hyperglycemia or Diabetes Mellitus.
-- You MUST focus heavily, smart, and specifically on Diabetes clinical management:
-  * Explain the cell-level pathophysiology of insulin deficiency (Type 1 destruction of beta cells) or insulin receptor resistance (Type 2 down-regulation) causing impaired GLUT4 translocation, cellular starvation, and resultant gluconeogenesis/glycogenolysis.
-  * Explain osmotic diuresis (renal threshold for glucose ~180mg/dL is exceeded, leading to glycosuria and passive water loss, causing dehydration, polyuria, and compensatory polydipsia).
-  * Outline standard clinical care (regular fasting blood glucose and HbA1c monitoring, Metformin first-line therapy, insulin therapy, or lifestyle adjustments).
-  * Outline the signs of Diabetic Ketoacidosis (DKA) as a critical medical emergency (elevated anion-gap metabolic acidosis from ketogenesis, deep rapid Kussmaul respirations, fruity breath odor, nausea/vomiting, and confusion) requiring aggressive saline hydration, insulin infusion, and potassium management. Medical attention is recommended.`;
+- The patient's signs and symptoms strongly align with Hyperglycemia or Diabetes Mellitus.
+- You MUST execute a precise Symptom-to-Prescription Mapping for Diabetes:
+  * SYMPTOMS MAPPED: Polyuria (frequent urination), polydipsia (excessive thirst), polyphagia (excessive hunger), fatigue, blurred vision, slow wound healing.
+  * PRESCRIPTION & DOSING:
+    - First-line Oral Hypoglycemic (Type 2 DM): Metformin 500mg-850mg orally twice daily with meals (up to 2000mg/day). Reductions in hepatic gluconeogenesis.
+    - Second-line / Add-on: Sulfonylurea (Glibenclamide 2.5-5mg daily or Gliclazide 80mg daily) OR SGLT-2 inhibitor (Empagliflozin 10mg daily).
+    - Type 1 DM / Insulin Dependent: Basal-Bolus Insulin regimen (e.g. Isophane / NPH + Regular Insulin or Glargine + Lispro).
+  * CELLULAR PATHOPHYSIOLOGY: Impaired GLUT-4 glucose transporter translocation due to beta-cell destruction (Type 1) or peripheral insulin receptor resistance (Type 2). Hyperglycemia exceeds renal tubular glucose threshold (~180 mg/dL), driving osmotic diuresis.
+  * RED FLAGS: Kussmaul respirations (deep rapid breathing), fruity breath odor, severe dehydration, confusion (Diabetic Ketoacidosis / HHS). Medical attention is recommended.`;
   }
 
-  // 8. Dermatological / Rash / Allergic Pruritus
+  // 12. Headache / Migraine / Meningitis Triage
+  if (
+    lower.includes("headache") || 
+    lower.includes("migraine") || 
+    lower.includes("stiff neck") || 
+    lower.includes("photophobia")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: CEPHALALGIA / MIGRAINE / MENINGITIS TRIAGE ACTIVE]
+- The patient's signs and symptoms align with Acute Cephalalgia or Neurological Distress.
+- You MUST execute a precise Symptom-to-Prescription Mapping for Headache:
+  * SYMPTOMS MAPPED: Throbbing unilateral/bilateral head pain, photophobia, phonophobia, nausea, nuchal rigidity (stiff neck), pericranial muscle tenderness.
+  * PRESCRIPTION & DOSING:
+    - Acute Tension / Mild Migraine: Paracetamol 1g oral 6-hourly + Ibuprofen 400mg 8-hourly with food.
+    - Moderate-Severe Migraine: Sumatriptan 50mg-100mg oral at onset (repeat after 2 hours if needed, max 200mg/day) + Metoclopramide 10mg oral for anti-emesis.
+    - Bacterial Meningitis Emergency Protocol: High-dose IV Ceftriaxone 2g 12-hourly + IV Dexamethasone 10mg immediately prior to antibiotic administration.
+  * CELLULAR PATHOPHYSIOLOGY: Trigeminovascular system activation, release of calcitonin gene-related peptide (CGRP) causing neurogenic dural vasodilation and central sensitization. In meningitis, meningeal bacterial proliferation induces CSF purulent inflammation.
+  * RED FLAGS: Sudden "thunderclap" headache (peak <1 min), fever with neck stiffness, Kernig/Brudzinski sign positive, papilledema, focal weakness. Medical attention is recommended.`;
+  }
+
+  // 13. Pediatrics / Malnutrition (SAM & MAM)
+  if (
+    lower.includes("malnutrition") || 
+    lower.includes("kwashiorkor") || 
+    lower.includes("marasmus") || 
+    lower.includes("wasting") || 
+    lower.includes("edema") && lower.includes("child")
+  ) {
+    return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: SEVERE ACUTE MALNUTRITION (SAM/MAM) ACTIVE]
+- The patient's presentation aligns with Pediatric Acute Malnutrition (SAM/MAM).
+- You MUST execute a precise Symptom-to-Prescription Mapping for Malnutrition:
+  * SYMPTOMS MAPPED: Severe muscle wasting (Marasmus), bilateral pitting pedal edema (Kwashiorkor), hair changes (flag sign), flaky-paint dermatosis, apathy, MUAC < 11.5 cm.
+  * PRESCRIPTION & REFEEDING PROTOCOL (WHO Guidelines):
+    - Phase 1 Stabilization: Low-protein, low-sodium WHO F-75 formula (75 kcal/100ml) to prevent Refeeding Syndrome (hypophosphatemia/cardiac failure).
+    - Phase 2 Rehabilitation: WHO F-100 formula (100 kcal/100ml) + Ready-to-Use Therapeutic Food (RUTF / Plumpy'Nut).
+    - Routine Medical Management: Broad-spectrum Amoxicillin 15-20 mg/kg 8-hourly for 5 days, Vitamin A single high dose (100,000-200,000 IU), Mebendazole 500mg single dose, Folic acid 5mg day 1 then 1mg daily.
+  * CELLULAR PATHOPHYSIOLOGY: Hypoproteinemia reducing plasma oncotic pressure (causing interstitial edema in Kwashiorkor), catabolic muscle proteolysis and subcutaneous adipose depletion (Marasmus), sodium-potassium ATPase pump dysfunction.
+  * RED FLAGS: Hypothermia (<35.5°C), hypoglycemia (<3 mmol/L), severe dehydration, lethargy. Medical attention is recommended.`;
+  }
+
+  // 14. Dermatological / Rash / Allergic Pruritus
   if (
     lower.includes("rash") || 
     lower.includes("itching") || 
     lower.includes("pruritus") || 
     lower.includes("eczema") || 
     lower.includes("hives") || 
-    lower.includes("skin allergy") || 
-    lower.includes("red spots")
+    lower.includes("skin allergy")
   ) {
     return `\n\n[DISEASE-SPECIFIC CLINICAL PROTOCOL: ACUTE PRURITUS / DERMATOLOGICAL RASH ACTIVE]
-- The patient's signs and symptoms strongly align with a localized or systemic skin rash or Pruritus.
-- You MUST focus heavily, smart, and specifically on Dermatological and Allergic management:
-  * Explain the pathophysiology of cutaneous inflammation (IgE-mediated mast cell degranulation releasing histamine, leukotrienes, and prostaglandins, leading to local dermal capillary vasodilation, edema, and nociceptor/sensory nerve ending stimulation causing intense pruritus).
-  * Outline the standard therapeutic options:
-    - Oral second-generation antihistamines (Cetirizine 10mg once daily or Loratadine 10mg once daily) to selectively block peripheral H1 receptors without significant central sedation.
-    - Topical application of 1% Hydrocortisone cream (cautious use) or Calamine lotion for localized symptom relief.
-  * Provide helpful lifestyle counseling: keep skin well-hydrated with emollients, avoid scratching to prevent secondary bacterial infection (Impetigo), and wear loose breathable cotton clothing.
-  * Highlight warning signs (facial/tongue swelling, difficulty breathing or swallowing, which indicates anaphylaxis and requires immediate intramuscular epinephrine). Medical attention is recommended.`;
+- The patient's signs and symptoms strongly align with localized or systemic Skin Rash / Pruritus.
+- You MUST execute a precise Symptom-to-Prescription Mapping for Dermatological conditions:
+  * SYMPTOMS MAPPED: Erythematous papules/plaques, intense pruritus (itching), skin flaking, urticarial wheals, localized edema.
+  * PRESCRIPTION & DOSING:
+    - Oral Antihistamine (Second Generation): Cetirizine 10mg once daily OR Loratadine 10mg once daily (non-sedating H1 receptor antagonist).
+    - Topical Anti-inflammatory: 1% Hydrocortisone ointment/cream applied thinly twice daily for up to 7 days for inflammatory eczema/dermatitis.
+    - Soothing Agent: Calamine lotion applied topically as needed; Emollient aqueous cream for skin hydration.
+  * CELLULAR PATHOPHYSIOLOGY: Cutaneous mast cell degranulation via IgE cross-linking, releasing histamine, leukotrienes, and bradykinin. Dermal capillary vasodilation (erythema) and C-fiber nociceptor activation (pruritus).
+  * RED FLAGS: Mucosal involvement (lips/tongue swelling), stridor or respiratory distress (Anaphylaxis requiring immediate IM Epinephrine 0.3mg), blistering/skin sloughing (Stevens-Johnson Syndrome). Medical attention is recommended.`;
   }
 
   return "";

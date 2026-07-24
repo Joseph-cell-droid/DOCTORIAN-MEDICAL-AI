@@ -12,6 +12,37 @@ interface HistoricalTelemetryChartProps {
   preset: 'healthy' | 'warning' | 'critical';
 }
 
+// Design a clinical-styled custom interactive tooltip for Recharts
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-905 bg-slate-900 border border-slate-700/80 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
+        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2.5">
+          Timestamp: {label}
+        </p>
+        <div className="space-y-2">
+          {payload.map((item: any) => {
+            const isHR = item.name === 'Heart Rate';
+            return (
+              <div key={item.name} className="flex items-center gap-2.5">
+                <div 
+                  className="w-2.5 h-2.5 rounded-full" 
+                  style={{ backgroundColor: item.color }} 
+                />
+                <span className="text-xs font-bold text-slate-350">{item.name}:</span>
+                <span className="text-sm font-black text-white">
+                  {item.value} {isHR ? 'BPM' : '%'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> = ({ 
   vitals, 
   selectedPatientId, 
@@ -151,37 +182,6 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
       }
     };
   }, [chartData]);
-
-  // Design a clinical-styled custom interactive tooltip for Recharts
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-slate-905 bg-slate-900 border border-slate-700/80 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
-          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2.5">
-            Timestamp: {label}
-          </p>
-          <div className="space-y-2">
-            {payload.map((item: any) => {
-              const isHR = item.name === 'Heart Rate';
-              return (
-                <div key={item.name} className="flex items-center gap-2.5">
-                  <div 
-                    className="w-2.5 h-2.5 rounded-full" 
-                    style={{ backgroundColor: item.color }} 
-                  />
-                  <span className="text-xs font-bold text-slate-350">{item.name}:</span>
-                  <span className="text-sm font-black text-white">
-                    {item.value} {isHR ? 'BPM' : '%'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div id="historical-telemetry-panel" className="bg-white dark:bg-slate-900 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl p-6 sm:p-8 mb-8 transition-colors">

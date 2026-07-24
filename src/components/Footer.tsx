@@ -116,15 +116,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           {/* Brand Identity Panel */}
           <div className="lg:col-span-3 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl text-white shadow-lg shadow-blue-500/15 shrink-0 flex items-center justify-center">
-                <Logo className="w-5 h-5 text-white" showText={false} />
-              </div>
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-950 dark:text-white uppercase tracking-wider leading-none">
-                  Doctorian <span className="text-blue-600 dark:text-blue-500 font-black">AI</span>
-                </h2>
-                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5 leading-none">Clinical Security Core v2.4</p>
-              </div>
+              <Logo size="md" />
             </div>
 
             <p className="text-slate-600 dark:text-slate-300 text-xs font-semibold leading-relaxed max-w-sm">

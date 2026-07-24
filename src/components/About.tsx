@@ -31,10 +31,10 @@ export const About: React.FC = () => {
 
   const techStack = [
     { icon: <Globe size={24} />, name: "Multi-Lingual Core", desc: "Fluent in 56+ Ugandan languages & technical English" },
-    { icon: <Brain size={24} />, name: "Doctorian Opus", desc: "Primary clinical reasoning core" },
-    { icon: <Layers size={24} />, name: "Doctorian 1.5", desc: "High-precision diagnostic logic" },
-    { icon: <Shield size={24} />, name: "Doctorian 3.5", desc: "Deep analytical synthesis" },
-    { icon: <Database size={24} />, name: "Vector Indexing", desc: "Context-aware medical grounding" },
+    { icon: <Brain size={24} />, name: "DOCTORIAN 1.5 ORACLE", desc: "Fastest clinical reasoning edge core" },
+    { icon: <Layers size={24} />, name: "DOCTORIAN 2.0 ORACLE", desc: "Speed cloud diagnostic intelligence" },
+    { icon: <Shield size={24} />, name: "DOCTORIAN 4.0 NOVA EXPERTS", desc: "Deep neural expert reasoning engine" },
+    { icon: <Database size={24} />, name: "DOCTORIAN 5.0 OPUS EXPERTS", desc: "Quantum diagnostic multi-modal core" },
   ];
 
   const milestones = [
@@ -94,7 +94,7 @@ export const About: React.FC = () => {
         </motion.p>
 
         <div className="flex flex-wrap justify-center gap-4">
-          {['Doctorian Opus', 'Doctorian 1.5', 'Doctorian 2.5', 'Doctorian 3.5'].map((node, i) => (
+          {['DOCTORIAN 1.5 ORACLE', 'DOCTORIAN 2.0 ORACLE', 'DOCTORIAN 2.5 NEXUS', 'DOCTORIAN 3.0 NEXUS', 'DOCTORIAN 4.0 NOVA EXPERTS', 'DOCTORIAN 5.0 OPUS EXPERTS'].map((node, i) => (
              <motion.div
                key={node}
                initial={{ opacity: 0, y: 10 }}

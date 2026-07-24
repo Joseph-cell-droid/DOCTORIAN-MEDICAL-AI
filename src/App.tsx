@@ -108,7 +108,7 @@ import { BioSecurity } from "./components/BioSecurity";
 import { DeveloperPortal } from "./components/DeveloperPortal";
 import { DoctorsDashboard } from "./components/DoctorsDashboard";
 import { BMICalculator } from "./components/BMICalculator";
-const josephPortrait = "/src/assets/images/joseph_portrait_1783676903159.jpg";
+const josephPortrait = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400";
 import { LearnMore } from "./components/LearnMore";
 import { AuthModal } from "./components/AuthModal";
 import { AdminInfoModal } from "./components/AdminInfoModal";
@@ -742,7 +742,8 @@ export default function App() {
   const [activeSOS, setActiveSOS] = useState<any | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallButton, setShowInstallButton] = useState(false);
+  const [showInstallButton, setShowInstallButton] = useState(true);
+  const [showPackageInstallModal, setShowPackageInstallModal] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
   const [isOffline, setIsOffline] = useState(() => {
@@ -1629,15 +1630,22 @@ export default function App() {
   };
 
   const installApp = async () => {
-    if (!deferredPrompt) {
-      setToast({ message: 'To install, use your browser menu and "Add to Home Screen"', type: 'info' });
-      return;
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to install prompt: ${outcome}`);
+        setDeferredPrompt(null);
+        if (outcome === 'accepted') {
+          setShowInstallButton(false);
+          setToast({ message: '✨ Doctorian installed successfully (~25.4 MB package capacity cached)!', type: 'success' });
+          return;
+        }
+      } catch (err) {
+        console.warn("Direct install prompt trigger error:", err);
+      }
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-    setDeferredPrompt(null);
-    setShowInstallButton(false);
+    setShowPackageInstallModal(true);
   };
 
   const refreshUser = async () => {
@@ -1881,23 +1889,6 @@ export default function App() {
   const addToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
   };
-
-  React.useEffect(() => {
-    const handleJumpToDoctorDashboard = (e: any) => {
-      console.log("[Doctorian] Received jump_to_doctor_dashboard event:", e.detail);
-      setIsDoctorAuthenticated(true);
-      setCurrentView('doctors_dashboard');
-      if (e.detail?.patientName) {
-        addToast(`🚨 CRITICAL EMERGENCY: Patient ${e.detail.patientName}'s alarm triggered twice! Auto-routing stream to Doctor's Portal...`, "error");
-      } else {
-        addToast("🚨 CRITICAL EMERGENCY: Alarm repeated severally! Auto-routing stream to Doctor's Portal...", "error");
-      }
-    };
-    window.addEventListener('doctorian:jump_to_doctor_dashboard', handleJumpToDoctorDashboard);
-    return () => {
-      window.removeEventListener('doctorian:jump_to_doctor_dashboard', handleJumpToDoctorDashboard);
-    };
-  }, []);
 
   const triggerSOS = async () => {
     setAuthModalView('authorize');
@@ -2488,7 +2479,7 @@ export default function App() {
                   onClick={() => setCurrentView('home')}
                   aria-label="Go to Home"
                 >
-                  <Logo size="sm" className="scale-[0.8] lg:scale-100 shrink-0 [&_.logo-text]:hidden lg:[&_.logo-text]:flex" />
+                  <Logo size="sm" className="shrink-0" />
                 </motion.button>
               </div>
 
@@ -3482,7 +3473,7 @@ export default function App() {
                 <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
                 
                 <div className="flex justify-center mb-6 sm:mb-10">
-                  <Logo size="xl" showText={false} className="scale-110 sm:scale-125" />
+                  <Logo size="xl" className="scale-100 sm:scale-110" />
                 </div>
                 <h2 className="text-3xl sm:text-5xl lg:text-6xl font-[1000] text-slate-900 dark:text-white mb-4 sm:mb-8 tracking-tighter uppercase leading-[0.9] sm:leading-[0.85]">
                   Clinical <br />
@@ -4742,6 +4733,85 @@ export default function App() {
             )}
 
             <AnimatePresence>
+              {showPackageInstallModal && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+                >
+                  <motion.div 
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 20 }}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl overflow-hidden relative"
+                  >
+                    <button 
+                      onClick={() => setShowPackageInstallModal(false)}
+                      className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+
+                    <div className="flex items-center gap-4 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800">
+                      <Logo size="md" />
+                    </div>
+
+                    <div className="space-y-4 mb-6 text-xs text-slate-600 dark:text-slate-300">
+                      <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-blue-900 dark:text-blue-300">
+                          <Shield size={14} className="text-blue-600 dark:text-blue-400" />
+                          <span>Full Autonomous Standalone PWA Bundle</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                          Installs Doctorian with all offline diagnostic matrices, voice synthesizers, cardiac biometric monitors, and clinical lab engines cached locally into device storage (~25.4 MB capacity).
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 pt-2">
+                        <p className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-wider">
+                          📱 How to Install on Any Device:
+                        </p>
+                        <ul className="space-y-2 text-[11px]">
+                          <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <span className="font-bold text-blue-600">1.</span>
+                            <span><strong>Chrome / Edge (Laptops & Smartphones):</strong> Click the <strong>Install Icon</strong> in your address bar or browser menu (⋮) → select <strong>"Install Doctorian AI"</strong>.</span>
+                          </li>
+                          <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <span className="font-bold text-blue-600">2.</span>
+                            <span><strong>Safari (iPhones, iPads & Macs):</strong> Tap the <strong>Share Button</strong> (square with arrow) → scroll down and tap <strong>"Add to Home Screen"</strong>.</span>
+                          </li>
+                          <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <span className="font-bold text-blue-600">3.</span>
+                            <span><strong>Smartwatches & Wearables:</strong> Sync via Companion PWA directly from paired Smartphone application launcher.</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          if (deferredPrompt) {
+                            deferredPrompt.prompt();
+                          }
+                          setShowPackageInstallModal(false);
+                        }}
+                        className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 active:scale-95 transition-all text-center"
+                      >
+                        {deferredPrompt ? 'Direct One-Click Install' : 'Acknowledge & Install'}
+                      </button>
+                      <button
+                        onClick={() => setShowPackageInstallModal(false)}
+                        className="py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+
               {isMarianConsoleOpen && (
                 <MarianConsole
                   isOpen={isMarianConsoleOpen}

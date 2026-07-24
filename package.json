@@ -2,7 +2,7 @@
   "name": "medical-ai",
   "private": true,
   "version": "0.0.0",
-  "main": "server.ts",
+  "main": "dist/server.cjs",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -76,6 +76,7 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.14.0",
-    "@types/pg": "^8.20.0"
+    "@types/pg": "^8.20.0",
+    "sharp": "^0.35.3"
   }
 }

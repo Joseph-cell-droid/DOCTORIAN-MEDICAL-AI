@@ -691,6 +691,34 @@ const DnaMatrix: React.FC<{ dnaStatus: any; onStartSequencing: () => void }> = (
   );
 };
 
+const MiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = () => null;
+
+const ThresholdInput: React.FC<{
+  label: string;
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit: string;
+}> = ({ label, value, onChange, min, max, step = 1, unit }) => (
+  <div className="flex flex-col gap-2">
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
+      <span className="text-xs font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">{value}{unit}</span>
+    </div>
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+    />
+  </div>
+);
+
 export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpdateUser?: (u: User) => void }> = ({ arduino, user, onUpdateUser }) => {
   const {
     vitals, history, healthStatus, connection,
@@ -959,160 +987,6 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [timeRange, setTimeRange] = useState<'Day' | 'Week' | 'Month'>('Day');
-
-  // Multi-patient telemetry machine & device live connection states
-  const [patientSearchQuery, setPatientSearchQuery] = useState('');
-  const [patientFilterStatus, setPatientFilterStatus] = useState<'all' | 'critical' | 'warning' | 'stable' | 'device'>('all');
-  
-  // Persistent tracking of which patients are connected to a hardware device (WiFi, Bluetooth, etc.)
-  const [connectedDevicesMap, setConnectedDevicesMap] = useState<Record<string, { connected: boolean; type: 'WiFi' | 'Bluetooth' | 'Serial' | 'Wearable'; nodeId: string }>>(() => {
-    const saved = localStorage.getItem('doctorian_connected_patient_devices');
-    if (saved) return JSON.parse(saved);
-    // Initial default connected devices
-    return {
-      'patient-joseph': { connected: true, type: 'Bluetooth', nodeId: 'ARD-BLE-12' },
-      'patient-jane': { connected: true, type: 'WiFi', nodeId: 'ARD-WIFI-04' },
-      'patient-sarah': { connected: false, type: 'WiFi', nodeId: 'ARD-WIFI-01' },
-      'patient-robert': { connected: true, type: 'Serial', nodeId: 'ARD-SER-09' }
-    };
-  });
-
-  const toggleDeviceConnection = (patientId: string) => {
-    setConnectedDevicesMap(prev => {
-      const current = prev[patientId] || { connected: false, type: 'WiFi', nodeId: `ARD-NODE-${Math.floor(10 + Math.random() * 90)}` };
-      const updated = {
-        ...prev,
-        [patientId]: {
-          ...current,
-          connected: !current.connected
-        }
-      };
-      localStorage.setItem('doctorian_connected_patient_devices', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  // State to hold active double-alarm takeover details
-  const [doubleAlarmTarget, setDoubleAlarmTarget] = useState<{ patient: RegisteredPatient; vitals: any; count: number } | null>(null);
-
-  // Auto-teleport and jump back to Doctor's Portal when double-alarm fires
-  useEffect(() => {
-    if (doubleAlarmTarget) {
-      const timer = setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('doctorian:jump_to_doctor_dashboard', {
-          detail: {
-            patientId: doubleAlarmTarget.patient.id,
-            patientName: doubleAlarmTarget.patient.name
-          }
-        }));
-        setDoubleAlarmTarget(null);
-      }, 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [doubleAlarmTarget]);
-
-  // Automated Background Telemetry Scanner for Alarms
-  useEffect(() => {
-    const scanInterval = setInterval(() => {
-      registeredPatients.forEach((p) => {
-        // Evaluate dynamic/live vitals
-        const preset = p.vitalsPreset || 'healthy';
-        const offset = p.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 10;
-        const timeSeconds = Math.floor(Date.now() / 2000) + offset;
-        const cycle = Math.sin(timeSeconds / 3);
-
-        const pVitals = (() => {
-          if (p.id === selectedPatientId && vitals) {
-            return vitals;
-          }
-          if (preset === 'critical') {
-            return {
-              heartRate: Math.round(135 + cycle * 7),
-              temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
-              spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
-              systolicBP: Math.round(191 + cycle * 9),
-              diastolicBP: Math.round(111 + cycle * 4),
-              respiratoryRate: Math.round(28 + cycle * 2)
-            };
-          } else if (preset === 'warning') {
-            return {
-              heartRate: Math.round(102 + cycle * 4),
-              temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
-              spo2: Math.round(91 + cycle * 2),
-              systolicBP: Math.round(136 + cycle * 5),
-              diastolicBP: Math.round(86 + cycle * 3),
-              respiratoryRate: Math.round(21 + cycle * 1)
-            };
-          } else {
-            return {
-              heartRate: Math.round(68 + cycle * 3),
-              temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
-              spo2: Math.round(96 + cycle * 1),
-              systolicBP: Math.round(118 + cycle * 3),
-              diastolicBP: Math.round(78 + cycle * 2),
-              respiratoryRate: Math.round(14 + cycle * 1)
-            };
-          }
-        })();
-
-        // Check if critical
-        const isPatCritical = pVitals.heartRate < thresholds.heartRate.min || pVitals.heartRate > thresholds.heartRate.max ||
-                              pVitals.temperature > thresholds.temperature.max ||
-                              pVitals.spo2 < thresholds.spo2.min ||
-                              pVitals.systolicBP > thresholds.systolicBP.max ||
-                              pVitals.diastolicBP > thresholds.diastolicBP.max ||
-                              pVitals.respiratoryRate < thresholds.respiratoryRate.min || pVitals.respiratoryRate > thresholds.respiratoryRate.max;
-
-        if (isPatCritical) {
-          const alarmCountsSaved = localStorage.getItem('doctorian_patient_alarm_counts');
-          const alarmCounts = alarmCountsSaved ? JSON.parse(alarmCountsSaved) : {};
-          const record = alarmCounts[p.id] || { count: 0, lastTriggered: 0 };
-
-          // Throttle alarm triggers to once every 20 seconds to give clinicians time to respond
-          if (Date.now() - record.lastTriggered > 20000) {
-            const nextCount = record.count + 1;
-            alarmCounts[p.id] = {
-              count: nextCount,
-              lastTriggered: Date.now(),
-              lastVitals: pVitals
-            };
-            localStorage.setItem('doctorian_patient_alarm_counts', JSON.stringify(alarmCounts));
-
-            // Push a critical alert to the Doctor's Active Alarms database
-            const activeAlarms = JSON.parse(localStorage.getItem('doctorian_active_doctor_alarms') || '[]');
-            const newAlarm = {
-              id: 'VITAL-ALARM-' + Date.now() + '-' + p.id,
-              doctorId: localStorage.getItem('doctorian_active_viewing_doctor_id') || 'DOC-002',
-              patientId: p.id,
-              patientName: p.name,
-              bedNumber: p.bedNumber,
-              medicineName: 'Biometric Telemetry Machine',
-              dosage: `HR: ${pVitals.heartRate} bpm, SpO2: ${pVitals.spo2}%`,
-              confidenceScore: 25, // low is critical
-              reason: `CRITICAL ALARM RECEIVED: Patient biometrics exceeded clinical thresholds. HR: ${pVitals.heartRate} bpm, SpO2: ${pVitals.spo2}%, Temp: ${pVitals.temperature}°C. This patient's alarm has triggered ${nextCount} times!`,
-              timestamp: Date.now(),
-              alarmCount: nextCount,
-              isDoubleAlarm: nextCount >= 2
-            };
-
-            activeAlarms.unshift(newAlarm);
-            localStorage.setItem('doctorian_active_doctor_alarms', JSON.stringify(activeAlarms));
-            window.dispatchEvent(new Event('doctorian_alarms_updated'));
-
-            if (nextCount === 2) {
-              setDoubleAlarmTarget({
-                patient: p,
-                vitals: pVitals,
-                count: nextCount
-              });
-            }
-          }
-        }
-      });
-    }, 5000);
-
-    return () => clearInterval(scanInterval);
-  }, [registeredPatients, vitals, selectedPatientId, thresholds]);
   const [historicalData, setHistoricalData] = useState<Vitals[]>([]);
   const [activeMachines, setActiveMachines] = useState<{ id: string; label: string; status: 'online' | 'offline'; type: string; lastSync?: string }[]>([
     { id: 'bp_cuff', label: 'Blood Pressure Cuff', status: 'online', type: 'Clinical', lastSync: '2m ago' },
@@ -1988,1739 +1862,58 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     }
   };
 
-  const MiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = ({ preset, patientId }) => {
-    return null;
-  };
-
-  const DeadMiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = ({ preset, patientId }) => {
-    const [vitals, setVitals] = useState({
-      hr: preset === 'critical' ? 142 : preset === 'warning' ? 104 : 72,
-      spo2: preset === 'critical' ? 84 : preset === 'warning' ? 92 : 98,
-      bpSys: preset === 'critical' ? 180 : preset === 'warning' ? 142 : 120,
-      bpDia: preset === 'critical' ? 112 : preset === 'warning' ? 94 : 80,
-      rr: preset === 'critical' ? 32 : preset === 'warning' ? 24 : 15,
-      temp: preset === 'critical' ? 39.4 : preset === 'warning' ? 38.2 : 36.7
-    });
-
-    useEffect(() => {
-      const timer = setInterval(() => {
-        setVitals(prev => ({
-          hr: Math.round(prev.hr + (Math.random() - 0.5) * 2),
-          spo2: Math.min(100, Math.max(50, Math.round(prev.spo2 + (Math.random() > 0.8 ? (Math.random() - 0.5) * 2 : 0)))),
-          bpSys: Math.round(prev.bpSys + (Math.random() - 0.5) * 1.5),
-          bpDia: Math.round(prev.bpDia + (Math.random() - 0.5) * 1),
-          rr: Math.round(prev.rr + (Math.random() - 0.5) * 0.8),
-          temp: parseFloat((prev.temp + (Math.random() - 0.5) * 0.05).toFixed(1))
-        }));
-      }, 1200);
-      return () => clearInterval(timer);
-    }, [preset]);
-
-    const [pulsePhase, setPulsePhase] = useState(0);
-    useEffect(() => {
-      const animationFrame = setInterval(() => {
-        setPulsePhase(p => (p + 1) % 100);
-      }, 50);
-      return () => clearInterval(animationFrame);
-    }, []);
-
-    const getSgPath = () => {
-      let pts = [];
-      for (let x = 0; x <= 160; x += 4) {
-        let y = 15;
-        const cycle = (x + pulsePhase * 2) % 60;
-        if (cycle > 12 && cycle < 18) {
-          y = 2; 
-        } else if (cycle >= 18 && cycle < 22) {
-          y = 26; 
-        } else if (cycle >= 22 && cycle < 28) {
-          y = 8; 
-        }
-        pts.push(`${x},${y}`);
-      }
-      return `M ${pts.join(' L ')}`;
-    };
-
-    const statusColor = preset === 'critical' ? 'text-rose-500 bg-rose-500/10' : preset === 'warning' ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10';
-
-    const isMainCoupledPatient = patientId === selectedPatientId && arduino.connection.connected;
-    
-    const displayVitals = (isMainCoupledPatient && arduino.vitals) ? {
-      hr: Math.round(arduino.vitals.heartRate),
-      spo2: Math.round(arduino.vitals.spo2),
-      bpSys: Math.round(arduino.vitals.systolicBP),
-      bpDia: Math.round(arduino.vitals.diastolicBP),
-      rr: Math.round(arduino.vitals.respiratoryRate),
-      temp: parseFloat(arduino.vitals.temperature.toFixed(1))
-    } : vitals;
-
-    return (
-      <div className="mt-4 p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white space-y-3 font-sans shadow-inner">
-        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
-          <span className="flex items-center gap-1">
-            <Activity size={10} className="text-teal-400 rotate-12" />
-            Live Vital Node Signal
-          </span>
-          <span className={`px-2 py-0.5 rounded text-[8px] font-black ${statusColor}`}>
-            {preset.toUpperCase()} WAVE
-          </span>
-        </div>
-
-        <div className="h-10 bg-slate-950 rounded-lg overflow-hidden relative border border-slate-850 flex items-center">
-          <svg className="w-full h-8" viewBox="0 0 160 30">
-            <path
-              d={getSgPath()}
-              fill="none"
-              stroke={preset === 'critical' ? '#ef4444' : preset === 'warning' ? '#f59e0b' : '#10b981'}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="absolute top-1 right-2 text-[8px] font-black font-mono text-slate-600">{isMainCoupledPatient ? 'REAL TIME FEED' : '64HZ DIRECT'}</span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="p-1.5 bg-slate-950 rounded border border-slate-850">
-            <div className="text-[7px] font-bold text-slate-500 uppercase">Heart Rate</div>
-            <div className="text-xs font-black font-mono text-emerald-400 flex items-center justify-center gap-0.5 mt-0.5">
-              <Heart size={8} className="text-red-500 animate-pulse fill-red-500 shrink-0" />
-              {displayVitals.hr} <span className="text-[7px] font-normal text-slate-500">BPM</span>
-            </div>
-          </div>
-
-          <div className="p-1.5 bg-slate-950 rounded border border-slate-850">
-            <div className="text-[7px] font-bold text-slate-500 uppercase">SPO2 Oxygen</div>
-            <div className="text-xs font-black font-mono text-cyan-400 mt-0.5">
-              {displayVitals.spo2}%
-            </div>
-          </div>
-
-          <div className="p-1.5 bg-slate-950 rounded border border-slate-850">
-            <div className="text-[7px] font-bold text-slate-500 uppercase">SYS/DIA BP</div>
-            <div className="text-xs font-black font-mono text-amber-400 mt-0.5">
-              {displayVitals.bpSys}/{displayVitals.bpDia}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-center">
-          <div className="p-1.5 bg-slate-950 rounded border border-slate-850 flex items-center justify-between px-2">
-            <span className="text-[7px] font-bold text-slate-500 uppercase">Temperature</span>
-            <span className="text-[10px] font-black font-mono text-orange-400">{displayVitals.temp}°C</span>
-          </div>
-          <div className="p-1.5 bg-slate-950 rounded border border-slate-850 flex items-center justify-between px-2">
-            <span className="text-[7px] font-bold text-slate-500 uppercase">Resp. Rate</span>
-            <span className="text-[10px] font-black font-mono text-blue-400">{displayVitals.rr} RPM</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const ClinicalPatientRegistry: React.FC = () => {
-    return (
-      <ClinicalPatientRegistryStandalone
-        user={user}
-        onUpdateUser={onUpdateUser}
-        registeredPatients={registeredPatients}
-        setRegisteredPatients={setRegisteredPatients}
-        selectedPatientId={selectedPatientId}
-        setSelectedPatientId={setSelectedPatientId}
-        registryNotification={registryNotification}
-        setRegistryNotification={setRegistryNotification}
-        transferHistory={transferHistory}
-        setTransferHistory={setTransferHistory}
-        isAdmin={isAdmin}
-        setIsAdmin={setIsAdmin}
-        couplePatientToMonitor={couplePatientToMonitor}
-        triggerRegistryNotification={triggerRegistryNotification}
-        arduino={arduino}
-      />
-    );
-  };
-
-  const DeadClinicalPatientRegistry: React.FC = () => {
-    const [regName, setRegName] = useState('');
-    const [regBed, setRegBed] = useState('');
-    const [regAge, setRegAge] = useState('');
-    const [regGender, setRegGender] = useState('Male');
-    const [regWeight, setRegWeight] = useState('');
-    const [regBlood, setRegBlood] = useState('O+');
-    const [regPhone, setRegPhone] = useState('+256787674140');
-    const [regDoc, setRegDoc] = useState('+256787674140');
-    const [regMentor, setRegMentor] = useState('+256787674140');
-    const [regConditions, setRegConditions] = useState('');
-    const [regAllergies, setRegAllergies] = useState('');
-    const [regPreset, setRegPreset] = useState<'healthy' | 'warning' | 'critical'>('healthy');
-    const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-
-    // Editing State
-    const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
-    const [transferViewMode, setTransferViewMode] = useState<'timeline' | 'table'>('timeline');
-
-    // Display configuration and interactive toggles
-    const [registryDisplayMode, setRegistryDisplayMode] = useState<'cards' | 'floorplan'>('floorplan');
-    const [patientSearchQuery, setPatientSearchQuery] = useState('');
-    const [patientSeverityFilter, setPatientSeverityFilter] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all');
-
-    const searchedAndFilteredPatients = (() => {
-      return registeredPatients.filter(patient => {
-        const query = patientSearchQuery.trim().toLowerCase();
-        const nameMatch = patient.name.toLowerCase().includes(query);
-        const bedMatch = patient.bedNumber.toLowerCase().includes(query);
-        const conditionMatch = patient.conditions.toLowerCase().includes(query);
-        const searchMatch = !query || nameMatch || bedMatch || conditionMatch;
-
-        const severityMatch = patientSeverityFilter === 'all' || patient.vitalsPreset === patientSeverityFilter;
-
-        return searchMatch && severityMatch;
-      });
-    })();
-    const [isAutoCleanSmsEnabled, setIsAutoCleanSmsEnabled] = useState<boolean>(() => {
-      const saved = localStorage.getItem('doctorian_auto_sms_clean');
-      return saved !== 'false';
-    });
-    const [cleaningStaffSelected, setCleaningStaffSelected] = useState<string>(() => {
-      const saved = localStorage.getItem('doctorian_cleaner_phone');
-      return saved || '+256787555019';
-    });
-
-    interface CleaningSchedule {
-      id: string;
-      bedNumber: string;
-      patientDischarged: string;
-      scheduledTime: string;
-      phoneNotified: string;
-      status: 'Scheduled' | 'SMS Dispatched' | 'Completed';
-    }
-
-    const [cleaningSchedules, setCleaningSchedules] = useState<CleaningSchedule[]>(() => {
-      const saved = localStorage.getItem('doctorian_cleaning_schedules');
-      return saved ? JSON.parse(saved) : [
-        {
-          id: 'clean-baseline-1',
-          bedNumber: 'Bed A-04 (Ward A)',
-          patientDischarged: 'Kato Derrick Ssekajja',
-          scheduledTime: '08:05 AM',
-          phoneNotified: '+256787555019',
-          status: 'Completed'
-        },
-        {
-          id: 'clean-baseline-2',
-          bedNumber: 'Bed D-03 (ER)',
-          patientDischarged: 'Namubiru Maria',
-          scheduledTime: '08:24 AM',
-          phoneNotified: '+256787555019',
-          status: 'SMS Dispatched'
-        }
-      ];
-    });
-
-    // Floor Plan Bed Configuration Master List
-    const FLOOR_PLAN_BEDS = [
-      // Sections: General Ward A, ICU & High Accuity, Cardiac Care, Emergency Room
-      { id: 'A-01', label: 'Bed A-01 (Ward A)', section: 'Ward A (General)' },
-      { id: 'A-02', label: 'Bed A-02 (Ward A)', section: 'Ward A (General)' },
-      { id: 'A-03', label: 'Bed A-03 (Ward A)', section: 'Ward A (General)' },
-      { id: 'A-04', label: 'Bed A-04 (Ward A)', section: 'Ward A (General)' },
-      { id: 'A-05', label: 'Bed A-05 (Ward A)', section: 'Ward A (General)' },
-      { id: 'A-06', label: 'Bed A-06 (Ward A)', section: 'Ward A (General)' },
-      
-      { id: 'B-01', label: 'Bed B-01 (Ward A)', section: 'ICU & High Accuity' },
-      { id: 'B-02', label: 'Bed B-02 (ICU-Maternity)', section: 'ICU & High Accuity' },
-      { id: 'B-03', label: 'Bed B-03 (Cardiac Wing)', section: 'ICU & High Accuity' },
-      { id: 'B-04', label: 'Bed B-04 (ICU-Admissions)', section: 'ICU & High Accuity' },
-      
-      { id: 'C-01', label: 'Bed C-01 (Cardiac Care)', section: 'Cardiac Care Unit' },
-      { id: 'C-02', label: 'Bed C-02 (Cardiac Care)', section: 'Cardiac Care Unit' },
-      { id: 'C-03', label: 'Bed C-03 (Cardiac Care)', section: 'Cardiac Care Unit' },
-      { id: 'C-04', label: 'Bed C-04 (Cardiac Care)', section: 'Cardiac Care Unit' },
-
-      { id: 'D-01', label: 'Bed D-01 (ER)', section: 'Emergency Room' },
-      { id: 'D-02', label: 'Bed D-02 (ER)', section: 'Emergency Room' },
-      { id: 'D-03', label: 'Bed D-03 (ER)', section: 'Emergency Room' },
-      { id: 'D-04', label: 'Bed D-04 (ER)', section: 'Emergency Room' },
-    ];
-
-    const getWardSection = (bedNumber: string) => {
-      const normalized = bedNumber.toLowerCase();
-      if (normalized.includes('icu') || normalized.includes('maternity')) return 'ICU & High Accuity';
-      if (normalized.includes('cardiac') || normalized.includes('wing') || normalized.includes('c-')) return 'Cardiac Care Unit';
-      if (normalized.includes('emerg') || normalized.includes('observ') || normalized.includes('d-') || normalized.includes('bed b-04')) return 'Emergency Room';
-      return 'Ward A (General)';
-    };
-
-    const countOccupied = (section: string) => {
-      return registeredPatients.filter(p => getWardSection(p.bedNumber) === section).length;
-    };
-
-    const wardSections = [
-      { name: 'Ward A (General)', capacity: 6, color: '#06b6d4', text: 'text-cyan-500', bg: 'bg-cyan-500/10' },
-      { name: 'ICU & High Accuity', capacity: 4, color: '#3b82f6', text: 'text-blue-500', bg: 'bg-blue-500/10' },
-      { name: 'Cardiac Care Unit', capacity: 4, color: '#a855f7', text: 'text-purple-500', bg: 'bg-purple-500/10' },
-      { name: 'Emergency Room', capacity: 4, color: '#f43f5e', text: 'text-rose-500', bg: 'bg-rose-500/10' },
-    ];
-
-    const chartData = wardSections.map(ws => {
-      const occupied = countOccupied(ws.name);
-      return {
-        name: ws.name,
-        Occupied: occupied,
-        Available: Math.max(0, ws.capacity - occupied),
-        Capacity: ws.capacity
-      };
-    });
-
-    const totalBedsCount = wardSections.reduce((sum, ws) => sum + ws.capacity, 0);
-    const overallOccupied = registeredPatients.length;
-    const overallAvailable = Math.max(0, totalBedsCount - overallOccupied);
-    const occupancyRate = Math.round((overallOccupied / totalBedsCount) * 100);
-
-    // Save states to persistent localStorage
-    useEffect(() => {
-      localStorage.setItem('doctorian_cleaning_schedules', JSON.stringify(cleaningSchedules));
-    }, [cleaningSchedules]);
-
-    useEffect(() => {
-      localStorage.setItem('doctorian_auto_sms_clean', isAutoCleanSmsEnabled.toString());
-    }, [isAutoCleanSmsEnabled]);
-
-    useEffect(() => {
-      localStorage.setItem('doctorian_cleaner_phone', cleaningStaffSelected);
-    }, [cleaningStaffSelected]);
-
-    // Simulated Hygiene staff response logic for real-time visual realism
-    useEffect(() => {
-      const pendingDispatch = cleaningSchedules.filter(c => c.status === 'SMS Dispatched');
-      if (pendingDispatch.length === 0) return;
-
-      const timer = setTimeout(() => {
-        setCleaningSchedules(prev => {
-          let hasChange = false;
-          const updated = prev.map(c => {
-            if (c.status === 'SMS Dispatched') {
-              hasChange = true;
-              return { ...c, status: 'Completed' as const };
-            }
-            return c;
-          });
-          if (hasChange) {
-            triggerRegistryNotification("Hygiene Node Confirmation: Bed disinfected, sterilized, and returned to clinical intake rotation.", "success");
-          }
-          return updated;
-        });
-      }, 15000); // Sterile cleanup takes 15 seconds to simulate staff response
-
-      return () => clearTimeout(timer);
-    }, [cleaningSchedules]);
-
-    const findPatientForBed = (bedLabel: string, bedId: string) => {
-      const found = registeredPatients.find(p => {
-        const pBed = p.bedNumber.toLowerCase();
-        const bLabel = bedLabel.toLowerCase();
-        const bId = bedId.toLowerCase();
-        return pBed === bLabel || pBed.includes(bId) || bLabel.includes(pBed);
-      });
-      if (!found) return undefined;
-      const isFiltered = searchedAndFilteredPatients.some(p => p.id === found.id);
-      return isFiltered ? found : undefined;
-    };
-
-    const QuickTransferForm: React.FC = () => {
-      const [selectedId, setSelectedId] = useState(registeredPatients[0]?.id || '');
-      const [targetBedField, setTargetBedField] = useState('');
-      const [transferReason, setTransferReason] = useState('');
-
-      // Auto update selected ID if it defaults to empty but patients are available
-      useEffect(() => {
-        if (!selectedId && registeredPatients.length > 0) {
-          setSelectedId(registeredPatients[0].id);
-        }
-      }, [registeredPatients, selectedId]);
-
-      const currentPatient = registeredPatients.find(p => p.id === selectedId);
-
-      const runExecuteTransfer = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!isAdmin) {
-          triggerRegistryNotification("Security Lock: Admin credentials required to relocate patient beds.", "error");
-          document.getElementById('ehr-admin-portal')?.scrollIntoView({ behavior: 'smooth' });
-          return;
-        }
-        if (!selectedId || !targetBedField.trim()) {
-          triggerRegistryNotification("Please select a patient and indicate target bed.", "error");
-          return;
-        }
-
-        const patientObj = registeredPatients.find(p => p.id === selectedId);
-        if (!patientObj) {
-          triggerRegistryNotification("Patient record missing.", "error");
-          return;
-        }
-
-        if (patientObj.bedNumber.trim().toLowerCase() === targetBedField.trim().toLowerCase()) {
-          triggerRegistryNotification(`Patient is already allocated to ${targetBedField.trim()}.`, "error");
-          return;
-        }
-
-        const oldBedValue = patientObj.bedNumber;
-        const newBedValue = targetBedField.trim();
-
-        // Perform clinical state mutation
-        setRegisteredPatients(prev => prev.map(p => p.id === selectedId ? {
-          ...p,
-          bedNumber: newBedValue
-        } : p));
-
-        // Create transaction history entry
-        const latestRecord: BedTransferRecord = {
-          id: `transfer-${Date.now()}`,
-          patientName: patientObj.name,
-          fromBed: oldBedValue,
-          toBed: newBedValue,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + " - " + new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          reason: transferReason.trim() || 'Urgent physiological relocation'
-        };
-
-        setTransferHistory(prev => [latestRecord, ...prev]);
-
-        // Add automatic discharge alert for cleaning staff on vacated bed
-        const newCleaning: CleaningSchedule = {
-          id: `clean-${Date.now()}`,
-          bedNumber: oldBedValue,
-          patientDischarged: patientObj.name,
-          scheduledTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          phoneNotified: cleaningStaffSelected,
-          status: isAutoCleanSmsEnabled ? 'SMS Dispatched' : 'Scheduled'
-        };
-        setCleaningSchedules(prev => [newCleaning, ...prev]);
-
-        triggerRegistryNotification(
-          isAutoCleanSmsEnabled 
-            ? `Successfully transferred ${patientObj.name} to ${newBedValue}. SMS dispatched to CleanSquad to disinfect vacated ${oldBedValue}!`
-            : `Successfully transferred ${patientObj.name} to ${newBedValue}. Scheduled hygiene team to clean vacated ${oldBedValue}.`, 
-          "success"
-        );
-
-        // Clear variables
-        setTargetBedField('');
-        setTransferReason('');
-      };
-
-      return (
-        <form onSubmit={runExecuteTransfer} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Select Patient</label>
-            <select
-              value={selectedId}
-              onChange={e => setSelectedId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500"
-            >
-              <option value="" disabled>-- Select Active Patient --</option>
-              {registeredPatients.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.bedNumber})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800/80">
-            <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">Current Bed Assignment</span>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mt-1">
-              {currentPatient ? currentPatient.bedNumber : 'No patient selected'}
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">New Bed Allocation</label>
-            <input
-              type="text"
-              required
-              value={targetBedField}
-              onChange={e => setTargetBedField(e.target.value)}
-              placeholder="e.g. Bed B-02 (ICU)"
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Reason for relocation</label>
-            <input
-              type="text"
-              value={transferReason}
-              onChange={e => setTransferReason(e.target.value)}
-              placeholder="e.g. Needs cardiac ventilation telemetry"
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow active:scale-95 text-center block cursor-pointer"
-          >
-            Execute Transfer Alert
-          </button>
-        </form>
-      );
-    };
-
-    const handleRegister = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!isAdmin) {
-        triggerRegistryNotification("Security Lock: Admin credentials required to add or modify patients.", "error");
-        document.getElementById('ehr-admin-portal')?.scrollIntoView({ behavior: 'smooth' });
-        return;
-      }
-      if (!regName.trim() || !regBed.trim()) {
-        triggerRegistryNotification('Patient Name and Bed Number are required fields.', 'error');
-        return;
-      }
-
-      if (editingPatientId) {
-        // Find existing to check if bed changed
-        const originalPatient = registeredPatients.find(p => p.id === editingPatientId);
-        if (originalPatient && originalPatient.bedNumber !== regBed) {
-          const newTransfer: BedTransferRecord = {
-            id: `transfer-${Date.now()}`,
-            patientName: regName,
-            fromBed: originalPatient.bedNumber,
-            toBed: regBed,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + " - " + new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }),
-            reason: regConditions || 'Clinical assessment shift'
-          };
-          setTransferHistory(prev => [newTransfer, ...prev]);
-        }
-
-        // Edit Existing Patient List
-        setRegisteredPatients(prev => prev.map(p => p.id === editingPatientId ? {
-          ...p,
-          name: regName,
-          bedNumber: regBed,
-          age: regAge,
-          gender: regGender,
-          weight: regWeight,
-          bloodType: regBlood,
-          phone: regPhone,
-          doctorPhone: regDoc,
-          mentorPhone: regMentor,
-          conditions: regConditions,
-          allergies: regAllergies,
-          vitalsPreset: regPreset
-        } : p));
-
-        triggerRegistryNotification(`Synchronized details for ${regName} safely.`, 'success');
-        setEditingPatientId(null);
-      } else {
-        // Create New Patient
-        const newPatient: RegisteredPatient = {
-          id: `patient-${Date.now()}`,
-          name: regName,
-          bedNumber: regBed,
-          age: regAge || 'N/A',
-          gender: regGender,
-          weight: regWeight || 'N/A',
-          bloodType: regBlood,
-          phone: regPhone || '+256787674140',
-          doctorPhone: regDoc || '+256787674140',
-          mentorPhone: regMentor || '+256787674140',
-          conditions: regConditions || 'Stable standard surveillance',
-          allergies: regAllergies || 'Nil known',
-          vitalsPreset: regPreset
-        };
-
-        setRegisteredPatients(prev => [...prev, newPatient]);
-        triggerRegistryNotification(`Successfully registered and allocated ${regName} to ${regBed}!`, 'success');
-      }
-
-      // Reset Form fields
-      setRegName('');
-      setRegBed('');
-      setRegAge('');
-      setRegGender('Male');
-      setRegWeight('');
-      setRegBlood('O+');
-      setRegPhone('+256787674140');
-      setRegDoc('+256787674140');
-      setRegMentor('+256787674140');
-      setRegConditions('');
-      setRegAllergies('');
-      setRegPreset('healthy');
-      setShowRegistrationForm(false);
-    };
-
-    const handleDeregister = (id: string, name: string) => {
-      if (!isAdmin) {
-        triggerRegistryNotification("Security Lock: Admin credentials required to discharge patients.", "error");
-        document.getElementById('ehr-admin-portal')?.scrollIntoView({ behavior: 'smooth' });
-        return;
-      }
-      const patientObj = registeredPatients.find(p => p.id === id);
-      const vacatedBed = patientObj ? patientObj.bedNumber : 'General Ward Unit';
-
-      if (confirm(`Are you sure you want to discharge and de-register ${name}?`)) {
-        setRegisteredPatients(prev => prev.filter(p => p.id !== id));
-        if (selectedPatientId === id) {
-          const remaining = registeredPatients.filter(p => p.id !== id);
-          if (remaining.length > 0) {
-            setSelectedPatientId(remaining[0].id);
-          }
-        }
-
-        // Auto-schedule cleaning SMS alert
-        const newCleaning: CleaningSchedule = {
-          id: `clean-${Date.now()}`,
-          bedNumber: vacatedBed,
-          patientDischarged: name,
-          scheduledTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          phoneNotified: cleaningStaffSelected,
-          status: isAutoCleanSmsEnabled ? 'SMS Dispatched' : 'Scheduled'
-        };
-        setCleaningSchedules(prev => [newCleaning, ...prev]);
-
-        triggerRegistryNotification(
-          isAutoCleanSmsEnabled
-            ? `Discharged ${name}. Automated CleanSquad dispatch SMS triggered for vacated ${vacatedBed}!`
-            : `Discharged ${name}. Handover scheduled for vacated ${vacatedBed}.`,
-          'info'
-        );
-      }
-    };
-
-    const handleEditInitiate = (p: RegisteredPatient) => {
-      if (!isAdmin) {
-        triggerRegistryNotification("Security Lock: Admin credentials required to update profile data.", "error");
-        document.getElementById('ehr-admin-portal')?.scrollIntoView({ behavior: 'smooth' });
-        return;
-      }
-      setEditingPatientId(p.id);
-      setRegName(p.name);
-      setRegBed(p.bedNumber);
-      setRegAge(p.age);
-      setRegGender(p.gender);
-      setRegWeight(p.weight);
-      setRegBlood(p.bloodType);
-      setRegPhone(p.phone);
-      setRegDoc(p.doctorPhone);
-      setRegMentor(p.mentorPhone);
-      setRegConditions(p.conditions);
-      setRegAllergies(p.allergies);
-      setRegPreset(p.vitalsPreset);
-      setShowRegistrationForm(true);
-    };
-
-    return (
-      <div className="space-y-10">
-        {/* Fullscreen Double Alarm Takeover Overlay */}
-        <AnimatePresence>
-          {doubleAlarmTarget && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6 text-center text-white select-none"
-            >
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.2),transparent_65%)] animate-pulse" style={{ animationDuration: '1.5s' }} />
-              </div>
-              
-              <div className="relative max-w-lg w-full space-y-6">
-                <div className="inline-flex p-5 bg-rose-500/15 border border-rose-500/30 text-rose-500 rounded-[2.5rem] animate-bounce shadow-[0_0_50px_rgba(239,68,68,0.3)] mx-auto">
-                  <ShieldAlert size={60} className="animate-pulse" />
-                </div>
-
-                <div className="space-y-2">
-                  <span className="inline-block text-rose-500 font-mono tracking-widest text-xs font-black uppercase bg-rose-500/10 px-4 py-1.5 rounded-full border border-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
-                    CRITICAL TELEMETRY LEVEL REACHED SEVERALLY
-                  </span>
-                  <h2 className="text-3xl font-black uppercase tracking-tight text-white pt-2">
-                    {doubleAlarmTarget.patient.name}
-                  </h2>
-                  <p className="text-sm text-slate-300 font-bold uppercase tracking-wider">
-                    Bed {doubleAlarmTarget.patient.bedNumber} • Telemetry Incident #2 Detected!
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-[2rem] space-y-3.5 text-left font-mono">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 uppercase font-black">Pulse Node</span>
-                    <span className="text-rose-400 font-black">{doubleAlarmTarget.vitals.heartRate} bpm</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 uppercase font-black">Oxygen Level</span>
-                    <span className="text-rose-400 font-black">{doubleAlarmTarget.vitals.spo2}% SpO₂</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 uppercase font-black">Body Temp</span>
-                    <span className="text-rose-400 font-black">{doubleAlarmTarget.vitals.temperature}°C</span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-800 text-[10px] leading-relaxed text-slate-400 font-bold uppercase">
-                    🚨 ALARM REPEATED SEVERALLY. Dynamic routing trigger matched. Transferring clinical priority to Doctor's Emergency Board immediately.
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2 text-xs font-black text-blue-400 uppercase tracking-widest">
-                    <Loader2 size={14} className="animate-spin" />
-                    Teleporting to Doctor's Portal in 4s...
-                  </div>
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('doctorian:jump_to_doctor_dashboard', {
-                        detail: {
-                          patientId: doubleAlarmTarget.patient.id,
-                          patientName: doubleAlarmTarget.patient.name
-                        }
-                      }));
-                      setDoubleAlarmTarget(null);
-                    }}
-                    className="mt-2 px-8 py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/20 active:scale-95 transition-all cursor-pointer"
-                  >
-                    Acknowledge & Teleport Now
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Registry Notification Toast */}
-        <AnimatePresence>
-          {registryNotification && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={`fixed top-8 left-1/2 -translate-x-1/2 z-[200] max-w-md w-full p-4 rounded-2xl shadow-xl flex items-center gap-3 border font-bold text-xs ${
-                registryNotification.type === 'error' 
-                  ? 'bg-rose-50 border-rose-200 text-rose-600' 
-                  : registryNotification.type === 'info'
-                  ? 'bg-slate-50 border-slate-200 text-slate-600'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-600'
-              }`}
-            >
-              {registryNotification.type === 'error' ? <XCircle size={18} /> : <CheckCircle size={18} />}
-              <span>{registryNotification.message}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* EHR Administrative Override Controller */}
-        <div id="ehr-admin-portal" className={`p-6 sm:p-8 rounded-[2rem] border transition-all ${isAdmin ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-400' : 'bg-rose-500/5 border-rose-500/10 text-slate-800 dark:text-slate-200 shadow-sm'}`}>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-xl shrink-0 ${isAdmin ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'}`}>
-                {isAdmin ? <CheckCircle size={22} className="animate-pulse" /> : <ShieldAlert size={22} />}
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white">
-                  {isAdmin ? '🛡️ EHR Secure Authorized Session Established' : '🔒 Secure Read-Only Clinical Access'}
-                </h3>
-                <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed max-w-3xl">
-                  {isAdmin 
-                    ? 'EHR Database modifications, patient relocations, and profile terminations are fully authorized. Change audits require compliance with HIPAA, regional Ministry of Health regulations, and standard patient data logging.' 
-                    : 'Changes to patient vital presets, new bed registrations, discharges, and relocation schedules are currently locked under clinical security guidelines. Access PIN is required to unlock clinical database state mutations and overrides.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="shrink-0 flex items-center gap-3">
-              {isAdmin ? (
-                <button
-                  onClick={() => {
-                    setIsAdmin(false);
-                    localStorage.setItem('doctorian_is_admin', 'false');
-                    triggerRegistryNotification("Read-only clinical EMR session enforced successfully.", "info");
-                  }}
-                  className="px-5 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow cursor-pointer"
-                >
-                  Revoke Clinical Override
-                </button>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="relative">
-                    <input
-                      type="password"
-                      placeholder="Enter Admin PIN/Passkey"
-                      value={adminPin}
-                      onChange={e => {
-                        setAdminPin(e.target.value);
-                        setAdminPinError('');
-                      }}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-4 py-3.5 rounded-xl text-xs font-black placeholder:text-slate-400 outline-none w-full sm:w-56 focus:border-rose-500 text-slate-900 dark:text-white-0"
-                    />
-                    {adminPinError && (
-                      <span className="absolute -bottom-5 left-0 text-[9px] font-bold text-rose-500">{adminPinError}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (adminPin === '1234' || adminPin === 'admin@2026@Doctorian') {
-                        setIsAdmin(true);
-                        localStorage.setItem('doctorian_is_admin', 'true');
-                        setAdminPin('');
-                        setAdminPinError('');
-                        triggerRegistryNotification("EHR override authorized. Multi-channel mutation scope open.", "success");
-                      } else {
-                        setAdminPinError("Incorrect Security PIN code / Passkey");
-                        triggerRegistryNotification("EHR authentication fail. PIN rejected.", "error");
-                      }
-                    }}
-                    className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-md text-center"
-                  >
-                    Authenticate PIN
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Bed Occupancy Analytics & Automation Center */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-slate-100 dark:bg-slate-900/50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800">
-          
-          {/* Left Column (7 cols): Real-Time Bed Occupancy Recharts bar chart */}
-          <div className="lg:col-span-7 bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-[2rem] border border-slate-200/50 dark:border-slate-850 shadow-sm relative overflow-hidden flex flex-col justify-between">
-            <div className="w-full">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4 mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-gradient-to-br from-teal-500 to-cyan-500 text-white rounded-xl shadow-md">
-                    <Activity size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black uppercase text-slate-950 dark:text-white">Real-Time Bed Occupancy Analytics</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Dynamic Recharts Ward Intake Metrics</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-lg text-[9px] font-black uppercase tracking-wider border border-teal-200/30">
-                  <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-ping" />
-                  Live Stream
-                </div>
-              </div>
-
-              {/* Dynamic Capacity Indicators */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-center">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Total Capacity</span>
-                  <span className="font-mono text-xl font-black text-slate-900 dark:text-white block mt-0.5">{totalBedsCount}</span>
-                  <span className="text-[9px] font-bold text-slate-500 block">Configured beds</span>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-center">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Occupied Beds</span>
-                  <span className="font-mono text-xl font-black text-teal-600 dark:text-teal-400 block mt-0.5">{overallOccupied}</span>
-                  <span className="text-[9px] font-bold text-slate-500 block">{occupancyRate}% Load rate</span>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-center">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Available/Ready</span>
-                  <span className="font-mono text-xl font-black text-blue-600 dark:text-blue-400 block mt-0.5">{overallAvailable}</span>
-                  <span className="text-[9px] font-bold text-slate-500 block">Disinfected units</span>
-                </div>
-              </div>
-
-              {/* Bar Chart representing Ward occupancy */}
-              <div className="h-[210px] w-full mt-2 relative">
-                <SafeResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.08)" />
-                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '16px' }}
-                      labelStyle={{ fontWeight: 'black', color: '#fff', fontSize: '10px', textTransform: 'uppercase' }}
-                      itemStyle={{ color: '#94a3b8', fontSize: '10px' }}
-                    />
-                    <Legend verticalAlign="top" height={30} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                    <Bar dataKey="Occupied" stackId="a" fill="#14b8a6" name="Occupied" radius={[0, 0, 0, 0]}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-occ-${index}`} fill={wardSections[index].color} />
-                      ))}
-                    </Bar>
-                    <Bar dataKey="Available" stackId="a" fill="rgba(148, 163, 184, 0.12)" name="Available / Empty" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </SafeResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column (5 cols): Scheduled Discharge & Automatic Cleaner Alerts system */}
-          <div className="lg:col-span-5 bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-[2rem] border border-slate-200/50 dark:border-slate-850 shadow-sm flex flex-col justify-between space-y-4">
-            <div className="space-y-4 w-full">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-blue-500 text-white rounded-xl shadow-md">
-                    <Smartphone size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black uppercase text-slate-950 dark:text-white-0">Vacated Cleaning Dispatcher</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">SMS-Paging Rules & Schedules</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Automatic SMS Toggle Control */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-800/80 flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <span className="text-[11px] font-black uppercase text-slate-800 dark:text-slate-200 block">Automatic Discharge SMS Alert</span>
-                  <span className="text-[9px] text-slate-500 font-medium leading-tight block">Notifies cleaning staff instantly on patient discharge or relocation events</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAutoCleanSmsEnabled(prev => !prev)}
-                  className={`w-12 h-6.5 rounded-full p-1 transition-all duration-300 ${isAutoCleanSmsEnabled ? 'bg-indigo-600 flex justify-end' : 'bg-slate-300 dark:bg-slate-800 flex justify-start'}`}
-                >
-                  <span className="w-4.5 h-4.5 bg-white rounded-full shadow-md block" />
-                </button>
-              </div>
-
-              {/* Select Active Cleaning Team */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 pl-0.5 uppercase tracking-wider block">Active On-Duty Clean Team Contact</label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={cleaningStaffSelected}
-                    onChange={e => setCleaningStaffSelected(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-3 text-xs font-bold outline-none cursor-pointer"
-                  >
-                    <option value="+256787555019">Hygiene Specialist Crew Alpha (+256 787 555-019)</option>
-                    <option value="+256787999882">Infirmary Sanitation Crew Beta (+256 787 999-882)</option>
-                    <option value="+256787111222">Hospitaller Disinfection Sector 4 (+256 787 111-222)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Scheduled Alerts Output Log */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 pl-0.5 uppercase tracking-wider block">Recent SMS Logs & Scheduled Handover alerts ({cleaningSchedules.length})</span>
-                
-                <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
-                  {cleaningSchedules.length === 0 ? (
-                    <div className="p-4 text-center rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 text-[10px] text-slate-400 font-bold italic">
-                      No vacating events scheduled yet. Try initiating a discharge.
-                    </div>
-                  ) : (
-                    cleaningSchedules.map((schedule) => {
-                      const isCompleted = schedule.status === 'Completed';
-                      return (
-                        <div key={schedule.id} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-[10px] space-y-1.5 flex flex-col justify-between">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <strong className="text-slate-800 dark:text-slate-200 uppercase font-bold">{schedule.bedNumber}</strong>
-                              <span className="text-slate-400 leading-none block mt-0.5">Discharged: <span className="font-semibold text-slate-700 dark:text-slate-300">{schedule.patientDischarged}</span></span>
-                            </div>
-                            <span className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-tight rounded-md flex items-center gap-1 ${isCompleted ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/20' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400 border border-indigo-200/20 animate-pulse'}`}>
-                              {isCompleted ? <CheckCircle size={10} /> : <Clock size={10} />}
-                              {schedule.status === 'SMS Dispatched' ? 'SMS SENT' : schedule.status}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-[8px] text-slate-400 border-t border-slate-100 dark:border-slate-850/60 pt-1.5 mt-1 font-mono">
-                            <span>Phone: {schedule.phoneNotified}</span>
-                            <span>{schedule.scheduledTime}</span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Overview Row */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-slate-50 dark:bg-slate-850 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Clinical Bed allocations</h2>
-            <p className="text-slate-500 font-medium text-xs mt-1">
-              Active Registered Patients: <strong className="text-teal-600 dark:text-teal-400">{registeredPatients.length} occupied beds</strong>. Automatically dispatches alarms to respective mobile nodes.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setEditingPatientId(null);
-               setRegName(''); setRegBed(''); setRegAge(''); setRegGender('Male'); setRegWeight(''); setRegBlood('O+'); setRegPhone('+256787674140'); setRegDoc('+256787674140'); setRegMentor('+256787674140'); setRegConditions(''); setRegAllergies(''); setRegPreset('healthy');
-              setShowRegistrationForm(!showRegistrationForm);
-            }}
-            className="px-6 py-4 bg-teal-650 hover:bg-teal-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
-          >
-            {showRegistrationForm ? 'Hide Registration Form' : 'Register Patient / Allocate Bed'}
-          </button>
-        </div>
-
-        {/* Registration Expandable Form */}
-        <AnimatePresence>
-          {showRegistrationForm && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
-              <form onSubmit={handleRegister} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 sm:p-10 shadow-xl space-y-8">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                  <UserIcon size={18} className="text-teal-600" />
-                  {editingPatientId ? 'Modify Patient & Bed Properties' : 'Record New EMR Patient details'}
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Name */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Patient Name</label>
-                    <input 
-                      type="text"
-                      required
-                      value={regName}
-                      onChange={e => setRegName(e.target.value)}
-                      placeholder="Full Name (e.g. Nabasa Claire)"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Bed Number */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Bed Allocation</label>
-                    <input 
-                      type="text"
-                      required
-                      value={regBed}
-                      onChange={e => setRegBed(e.target.value)}
-                      placeholder="e.g. Bed B-04 (ICU)"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Age */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Age</label>
-                    <input 
-                      type="number"
-                      value={regAge}
-                      onChange={e => setRegAge(e.target.value)}
-                      placeholder="e.g. 28"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Gender */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Gender</label>
-                    <select
-                      value={regGender}
-                      onChange={e => setRegGender(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    >
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  {/* Weight */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Weight (kg)</label>
-                    <input 
-                      type="number"
-                      value={regWeight}
-                      onChange={e => setRegWeight(e.target.value)}
-                      placeholder="e.g. 70"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Blood Type */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Blood Type</label>
-                    <select
-                      value={regBlood}
-                      onChange={e => setRegBlood(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    >
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Patient Primary Phone */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Patient Mobile Phone</label>
-                    <input 
-                      type="tel"
-                      value={regPhone}
-                      onChange={e => setRegPhone(e.target.value)}
-                      placeholder="+256787674140"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Doctor Phone */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Primary Doctor Phone</label>
-                    <input 
-                      type="tel"
-                      value={regDoc}
-                      onChange={e => setRegDoc(e.target.value)}
-                      placeholder="+256787674140"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Mentor Phone */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Guardian Mentor Phone</label>
-                    <input 
-                      type="tel"
-                      value={regMentor}
-                      onChange={e => setRegMentor(e.target.value)}
-                      placeholder="+256787674140"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Clinical Preset */}
-                  <div className="space-y-2 md:col-span-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 font-bold">Biometrics Preset</label>
-                    <select
-                      value={regPreset}
-                      onChange={e => setRegPreset(e.target.value as any)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    >
-                      <option value="healthy">Normal Recovery (Stable HR 72, SpO2 98%)</option>
-                      <option value="warning">Mild Risk Warning (Elevated HR 105, SpO2 92%)</option>
-                      <option value="critical">Severe Alarm Condition (Critical HR 145, SpO2 84%)</option>
-                    </select>
-                  </div>
-
-                  {/* Pre-Existing Conditions */}
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Conditions / Diagnostics</label>
-                    <input 
-                      type="text"
-                      value={regConditions}
-                      onChange={e => setRegConditions(e.target.value)}
-                      placeholder="e.g. Hypertension, Recovering malaria"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Allergies */}
-                  <div className="space-y-2 md:col-span-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Known Allergies</label>
-                    <input 
-                      type="text"
-                      value={regAllergies}
-                      onChange={e => setRegAllergies(e.target.value)}
-                      placeholder="e.g. Sulfa, Penicillin, Peanuts"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4 justify-end pt-5 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setShowRegistrationForm(false)}
-                    className="px-6 py-3 bg-slate-150 dark:bg-slate-800 text-slate-600 hover:text-slate-800 rounded-xl font-bold text-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all"
-                  >
-                    {editingPatientId ? 'Synchronize Record' : 'Allocate Bed & Register'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Registry Selector Toggles */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-          <div className="flex bg-slate-150 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-1.5 rounded-2xl w-full sm:w-fit shadow-inner">
-            <button
-              type="button"
-              onClick={() => {
-                setRegistryDisplayMode('floorplan');
-                triggerRegistryNotification("Switched display to Interactive Ward Floor Plan Map", "info");
-              }}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer outline-none ${registryDisplayMode === 'floorplan' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-            >
-              🗺️ Interactive Ward Floor Plan Grid
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setRegistryDisplayMode('cards');
-                triggerRegistryNotification("Switched display to Traditional EMR Patient Cards list", "info");
-              }}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer outline-none ${registryDisplayMode === 'cards' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-            >
-              📋 Traditional Bed Cards list
-            </button>
-          </div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic">
-            *Clinical overview synchronized on element clicks
-          </p>
-        </div>
-
-        {/* Real-time Patient Search & Severity Filters Toolbar */}
-        <div className="mt-8 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-805 p-5 rounded-[2.2rem] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-sm">
-          {/* Search Input Box */}
-          <div className="relative flex-1">
-            <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400 font-bold text-xs select-none">
-              🔍
-            </span>
-            <input
-              type="text"
-              value={patientSearchQuery}
-              onChange={(e) => setPatientSearchQuery(e.target.value)}
-              placeholder="Search patients by name, bed index, diagnoses, or allergies..."
-              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800 rounded-2xl text-[11.5px] font-semibold text-slate-750 dark:text-slate-300 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none shadow-sm transition-all"
-            />
-          </div>
-
-          {/* Severity Filter Chips */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-405 font-mono mr-1">
-              Severity:
-            </span>
-            {[
-              { id: 'all', label: 'All Beds', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:bg-slate-950 dark:hover:bg-slate-850 dark:text-slate-300 border-slate-150 dark:border-slate-800', activeColor: 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/10' },
-              { id: 'healthy', label: 'Stable', color: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:hover:bg-emerald-955/40 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40', activeColor: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/10' },
-              { id: 'warning', label: 'Warning', color: 'bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/20 dark:hover:bg-amber-955/40 dark:text-amber-450 border-amber-100 dark:border-amber-900/40', activeColor: 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/10' },
-              { id: 'critical', label: 'Critical', color: 'bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/20 dark:hover:bg-rose-955/40 dark:text-rose-450 border-rose-100 dark:border-rose-900/40', activeColor: 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/10' }
-            ].map(chip => {
-              const isActive = patientSeverityFilter === chip.id;
-              return (
-                <button
-                  type="button"
-                  key={chip.id}
-                  onClick={() => {
-                    setPatientSeverityFilter(chip.id as any);
-                    triggerRegistryNotification(`Severity Filter: Selected ${chip.label}`, 'info');
-                  }}
-                  className={`px-4 py-2.5 rounded-xl text-[9.5px] font-[1000] uppercase tracking-wider border cursor-pointer select-none transition-all ${
-                    isActive ? chip.activeColor : `${chip.color}`
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-8"></div>
-
-        {registryDisplayMode === 'floorplan' ? (
-          <div className="space-y-8">
-            <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 sm:p-10 text-white space-y-6">
-              
-              {/* Floor Plan Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-                <div className="space-y-0.5">
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-                    <Layers size={20} className="text-teal-400 rotate-6" />
-                    Interactive Ward Floor Plan Grid
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    Pulsatile Location Matrix & Real-time Bed Telemetry Map
-                  </p>
-                </div>
-                
-                {/* Visual Legends */}
-                <div className="flex flex-wrap items-center gap-3.5 text-[9px] font-black uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow shadow-emerald-500/20" /> STABLE</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" /> WARNING</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" /> CRITICAL</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded border border-dashed border-slate-600 bg-slate-950/40" /> VACANT</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-indigo-500 animate-pulse" /> DISINFECTING</span>
-                </div>
-              </div>
-
-              {/* Floor Plan Main Grid Sections Map */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {wardSections.map((section) => {
-                  const sectionBeds = FLOOR_PLAN_BEDS.filter(b => b.section === section.name);
-                  
-                  return (
-                    <div key={section.name} className="bg-slate-950/50 p-6 rounded-3xl border border-slate-850 space-y-4">
-                      
-                      {/* Section Title Banner */}
-                      <div className="flex items-center justify-between">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg ${section.bg} ${section.text}`}>
-                          {section.name}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-500 uppercase">
-                          {sectionBeds.length} Physical Bed Slots
-                        </span>
-                      </div>
-
-                      {/* Quadrant grid cells */}
-                      <div className="grid grid-cols-2 gap-4">
-                        {sectionBeds.map(bed => {
-                          const patient = findPatientForBed(bed.label, bed.id);
-                          const activeCleaning = cleaningSchedules.find(c => c.bedNumber === bed.label && c.status === 'SMS Dispatched');
-                          
-                          if (patient) {
-                            // OCCUPIED bed representation
-                            const isSelected = selectedPatientId === patient.id;
-                            const level = patient.vitalsPreset;
-                            const borderStyle = 
-                              level === 'critical' ? 'border-rose-500 ring-rose-500/20 shadow-xl shadow-rose-950/10' :
-                              level === 'warning' ? 'border-amber-500 ring-amber-500/10 shadow-lg shadow-amber-950/10' :
-                              'border-emerald-550 ring-emerald-500/10 hover:shadow-emerald-900/10';
-
-                            return (
-                              <div
-                                key={bed.id}
-                                onClick={() => {
-                                  couplePatientToMonitor(patient);
-                                  triggerRegistryNotification(`Coupled telemetry feeds with ${patient.name} (${bed.id})`, "info");
-                                }}
-                                className={`p-4 bg-slate-900/95 rounded-2xl border transition-all duration-300 relative cursor-pointer group flex flex-col justify-between h-42 ${borderStyle} ${isSelected ? 'ring-4 border-teal-500 dark:border-teal-400' : 'hover:scale-102 border-slate-800'}`}
-                              >
-                                <div>
-                                  <div className="flex justify-between items-center text-[8px] font-mono text-slate-400 pr-1 leading-none">
-                                    <span className="font-extrabold">{bed.id}</span>
-                                    <span className="flex items-center gap-1 text-[7px] font-black">
-                                      <Activity size={8} className="animate-pulse text-rose-500" />
-                                      LIVE
-                                    </span>
-                                  </div>
-                                  <h4 className="text-xs font-black text-white mt-1.5 leading-tight truncate">{patient.name}</h4>
-                                  <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">Age: {patient.age} &bull; Blood {patient.bloodType}</p>
-                                </div>
-
-                                <div className="space-y-1.5 mt-auto">
-                                  {/* Dynamic vitals simulation banner inside grid map */}
-                                  <div className="flex items-center gap-1.5 mt-2 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-855">
-                                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${level === 'critical' ? 'bg-rose-500 shadow shadow-rose-500' : level === 'warning' ? 'bg-amber-500 shadow shadow-amber-500' : 'bg-emerald-550 shadow shadow-emerald-500'}`} />
-                                    <span className="text-[8px] font-mono font-bold text-slate-300 leading-none font-mono">
-                                      {level === 'critical' ? 'HR 145 / SPO2 84%' : level === 'warning' ? 'HR 105 / SPO2 92%' : 'HR 72 / SPO2 98%'}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center justify-between text-[8px] font-black uppercase text-teal-400 mt-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span>Couple Feed</span>
-                                    <span>Stream Node</span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          } else if (activeCleaning) {
-                            // DISINFECTING bed representation
-                            return (
-                              <div
-                                key={bed.id}
-                                className="p-3.5 bg-indigo-950/25 rounded-2xl border border-indigo-500/30 flex flex-col justify-between h-42 text-center relative group"
-                              >
-                                <div className="text-[8px] font-mono text-indigo-400 text-left leading-none">{bed.id}</div>
-                                <div className="my-auto space-y-1">
-                                  <div className="p-1 px-1.5 bg-indigo-500/20 text-indigo-300 rounded-lg text-[8px] font-black uppercase tracking-wider inline-flex items-center gap-1 mx-auto animate-pulse">
-                                    <Clock size={10} /> Disinfecting
-                                  </div>
-                                  <span className="text-[8px] text-slate-400 leading-tight block">Cleaning staff alerted via SMS</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCleaningSchedules(prev => prev.map(c => c.id === activeCleaning.id ? { ...c, status: 'Completed' as const } : c));
-                                    triggerRegistryNotification(`Sanitization certified for ${bed.id} manually.`, "success");
-                                  }}
-                                  className="text-[8px] font-black text-indigo-300 hover:text-indigo-100 uppercase tracking-widest border border-indigo-500/20 rounded-lg py-1.5 bg-indigo-950/45 cursor-pointer"
-                                >
-                                  Sterilize Bed Now
-                                </button>
-                              </div>
-                            );
-                          } else {
-                            // VACANT clean bed representation
-                            return (
-                              <div
-                                key={bed.id}
-                                onClick={() => {
-                                  setRegBed(bed.label);
-                                  setShowRegistrationForm(true);
-                                  triggerRegistryNotification(`Auto-configured admission location to ${bed.id}`, "info");
-                                  document.getElementById('ehr-admin-portal')?.scrollIntoView({ behavior: 'smooth' });
-                                }}
-                                className="p-4 bg-slate-950/40 rounded-2xl border border-dashed border-slate-705/60 hover:border-slate-505 hover:bg-slate-900/40 transition-all duration-300 cursor-pointer h-42 flex flex-col justify-between group"
-                              >
-                                <div className="text-[8px] font-mono text-slate-500 leading-none">{bed.id}</div>
-                                <div className="my-auto text-center space-y-1">
-                                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 block">Vacuum Cleaned</span>
-                                  <span className="px-2 py-0.5 bg-emerald-950/40 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded border border-emerald-900/30 inline-block">VACANT</span>
-                                </div>
-                                <span className="text-[8px] text-slate-450 font-black uppercase tracking-widest text-center opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                  + Click to Admit
-                                </span>
-                              </div>
-                            );
-                          }
-                        })}
-                      </div>
-
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {searchedAndFilteredPatients.length === 0 ? (
-              <div className="col-span-full py-16 p-10 bg-slate-50 dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-805 text-center space-y-4 shadow-sm animate-in fade-in duration-300">
-                <p className="text-4xl select-none">🔬</p>
-                <h4 className="text-base font-black uppercase text-slate-800 dark:text-slate-200 tracking-tight">No Patients Match Active Search</h4>
-                <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
-                  Modify the severity filter chips above or adjust your medical keyword criteria to locate the desired beds.
-                </p>
-              </div>
-            ) : (
-              searchedAndFilteredPatients.map(patient => {
-                const isCurrentlySelected = selectedPatientId === patient.id;
-                return (
-                  <div 
-                    key={patient.id}
-                    className={`flex flex-col justify-between p-6 sm:p-8 rounded-[2.2rem] bg-white dark:bg-slate-900 border transition-all duration-300 relative overflow-hidden shadow-sm ${
-                      isCurrentlySelected 
-                        ? 'border-teal-500 dark:border-teal-800 ring-4 ring-teal-500/10 shadow-xl' 
-                        : 'border-slate-100 dark:border-slate-800 hover:shadow-md'
-                    }`}
-                  >
-                    {/* Status indicator badge */}
-                    <div className="absolute top-0 right-0 p-6 flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full animate-pulse ${
-                        patient.vitalsPreset === 'critical' ? 'bg-rose-500 shadow-lg shadow-rose-300 dark:shadow-rose-950' :
-                        patient.vitalsPreset === 'warning' ? 'bg-amber-500 shadow-lg shadow-amber-300 dark:shadow-amber-950' : 
-                        'bg-emerald-500 shadow-lg shadow-emerald-300 dark:shadow-emerald-950'
-                      }`} />
-                      <span className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-tighter bg-slate-50 dark:bg-slate-950 px-2 py-1 rounded">{patient.bedNumber}</span>
-                    </div>
-
-                    <div className="space-y-5 relative z-10 w-full mb-6">
-                      <div>
-                        <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest font-sans">Patient Node</h4>
-                        <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1 leading-tight">{patient.name}</h3>
-                        
-                        <div className="flex flex-wrap items-center gap-2 mt-3">
-                          <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Age: {patient.age}</span>
-                          <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Gender: {patient.gender}</span>
-                          <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Type: {patient.bloodType}</span>
-                          {patient.weight && <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 rounded-lg text-[9px] font-black text-slate-500 uppercase">Wt: {patient.weight}kg</span>}
-                        </div>
-                      </div>
-
-                      <div className="border-t border-dashed border-slate-100 dark:border-slate-800 pt-4 space-y-2">
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-slate-400 font-bold">Patient Cell:</span>
-                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.phone}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-slate-400 font-bold">Duty Physician:</span>
-                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.doctorPhone}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-slate-400 font-bold">Duty Mentor:</span>
-                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{patient.mentorPhone}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1 bg-slate-50 dark:bg-slate-955 p-4 rounded-2xl text-[11px] border border-slate-100 dark:border-slate-800/80 leading-relaxed font-sans">
-                        <p className="text-[9px] font-black text-slate-405 uppercase tracking-widest pl-0.5 mb-1.5">Bioclinical Remarks</p>
-                        <div className="text-slate-600 dark:text-slate-400"><strong className="text-slate-800 dark:text-slate-200">Conditions:</strong> {patient.conditions}</div>
-                        <div className="text-slate-600 dark:text-slate-400"><strong className="text-slate-800 dark:text-slate-200">Allergies:</strong> {patient.allergies}</div>
-                        <div className="text-slate-500 dark:text-slate-500 text-[10px] italic mt-2">preset: {patient.vitalsPreset?.toUpperCase()} biometrics drift</div>
-                      </div>
-
-                      {/* Individual Patient Live Health Monitors */}
-                      <MiniPatientMonitor preset={patient.vitalsPreset} patientId={patient.id} />
-                    </div>
-
-                    <div className="flex gap-2.5 mt-auto border-t border-slate-100 dark:border-slate-800 pt-5">
-                      {isCurrentlySelected ? (
-                        <div className="flex-1 py-3 px-4 bg-teal-550/10 text-teal-600 dark:text-teal-400 rounded-xl text-center font-black text-[10px] uppercase tracking-[0.2em] border border-teal-200/40 flex items-center justify-center gap-2">
-                          <span className="w-2 h-2 bg-teal-550 rounded-full animate-ping" />
-                          Coupled & Live
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => couplePatientToMonitor(patient)}
-                          className="flex-grow py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 rounded-xl font-black text-[10.5px] uppercase tracking-widest transition-all shadow-md active:scale-95"
-                        >
-                          Couple Monitor
-                        </button>
-                      )}
-
-                      <div className="flex gap-1.5 justify-end shrink-0">
-                        <button
-                          onClick={() => handleEditInitiate(patient)}
-                          className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-605 dark:text-slate-300 rounded-xl hover:bg-slate-200 transition-colors"
-                          title="Edit Profile"
-                        >
-                          <Settings size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeregister(patient.id, patient.name)}
-                          className="p-3 bg-rose-50 dark:bg-rose-950/10 text-rose-605 rounded-xl hover:bg-rose-150 transition-colors"
-                          disabled={registeredPatients.length <= 1}
-                          title="Deregister / Discharge"
-                        >
-                          <XCircle size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {/* Patient Bed Transfer Center */}
-        <div className="bg-slate-50 dark:bg-slate-950 p-6 sm:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-10 mt-10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
-            <div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2.5">
-                <Clock className="text-teal-600 dark:text-teal-400" size={22} />
-                EMR Patient Bed Transfer & Telemetry Hub
-              </h3>
-              <p className="text-slate-500 font-bold text-xs mt-1">
-                Audits all clinical movements, sensor alignment events, and ward re-allocations instantly.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <span className="px-3 py-1.5 bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                Active Audit Safe
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-            {/* Quick Transfer Command Tool - XL: 4 Columns */}
-            <div className="xl:col-span-4 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-6">
-              <h4 className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider pb-3 border-b border-slate-100 dark:border-slate-850 flex items-center gap-2">
-                <Settings size={14} className="text-teal-600" />
-                Quick Transfer Tool
-              </h4>
-              <QuickTransferForm />
-            </div>
-
-            {/* Transfers Log Center - XL: 8 Columns */}
-            <div className="xl:col-span-8 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">
-                    Registry Logs ({transferHistory.length})
-                  </h4>
-                  <div className="flex bg-slate-150 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-1 rounded-xl w-fit">
-                    <button
-                      type="button"
-                      onClick={() => setTransferViewMode('timeline')}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        transferViewMode === 'timeline'
-                          ? 'bg-teal-600 text-white shadow'
-                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      Visual Timeline
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTransferViewMode('table')}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        transferViewMode === 'table'
-                          ? 'bg-teal-600 text-white shadow'
-                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      Audit Table View
-                    </button>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTransferHistory(defaultTransfers);
-                    triggerRegistryNotification("Reset transfer audit history to clinical defaults.", "info");
-                  }}
-                  className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest hover:opacity-85 text-left"
-                >
-                  Reset Log to baseline
-                </button>
-              </div>
-
-              {transferViewMode === 'timeline' ? (
-                <div className="relative pl-6 space-y-6 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800">
-                  {transferHistory.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] p-12 text-center text-slate-400 font-bold italic shadow-sm">
-                      No patient bed transfer operations logged.
-                    </div>
-                  ) : (
-                    transferHistory.map((transfer, idx) => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.05 }}
-                        key={transfer.id}
-                        className="relative group timeline-node-container"
-                      >
-                        {/* Connecting dot tag and radar glow wrapper */}
-                        <div className="absolute -left-[31px] top-4 z-10 flex items-center justify-center">
-                          <div className="w-5 h-5 rounded-full bg-teal-50 dark:bg-teal-950 flex items-center justify-center ring-4 ring-slate-50 dark:ring-slate-950 shadow-sm border border-teal-200 dark:border-teal-800">
-                            <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                          </div>
-                        </div>
-
-                        {/* Interactive Item Block */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm hover:shadow-md transition-all">
-                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                            
-                            {/* Left clinical transfer nodes */}
-                            <div className="space-y-3 flex-grow max-w-full">
-                              <div className="flex items-center gap-3">
-                                <span className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 font-black text-xs flex items-center justify-center uppercase shadow-sm border border-teal-200/40 dark:border-teal-800/60">
-                                  {transfer.patientName.charAt(0) || 'P'}
-                                </span>
-                                <div>
-                                  <h5 className="font-extrabold text-slate-950 dark:text-slate-100 text-sm leading-none">
-                                    {transfer.patientName}
-                                  </h5>
-                                  <span className="text-[9px] font-black text-teal-600 dark:text-teal-400 tracking-widest uppercase block mt-1 leading-none">
-                                    Approved Clinical Migration
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Bed Migration Flow Track */}
-                              <div className="flex flex-wrap items-center gap-3.5 bg-slate-50 dark:bg-slate-950 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 w-full sm:w-fit">
-                                <div className="flex flex-col">
-                                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Source Base Unit</span>
-                                  <span className="px-2.5 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold font-mono mt-1">
-                                    {transfer.fromBed}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-center p-1 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600">
-                                  <ChevronRight size={14} className="animate-pulse" />
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Assigned Dest Unit</span>
-                                  <span className="px-2.5 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-lg text-[10px] font-black font-mono border border-teal-200/20 mt-1">
-                                    {transfer.toBed}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Right side audit compliance data */}
-                            <div className="lg:text-right flex flex-col justify-between items-start lg:items-end gap-3 min-w-[200px] lg:max-w-[40%]">
-                              <div className="bg-amber-50/40 dark:bg-amber-950/10 p-3 rounded-2xl border border-amber-500/10 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 max-w-full italic leading-tight">
-                                "{transfer.reason}"
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 justify-start lg:justify-end w-full">
-                                <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-emerald-500/20 shadow-sm">
-                                  <CheckCircle size={10} className="text-emerald-500" />
-                                  EMR Cert Compliance
-                                </span>
-                                <span className="text-[9.5px] font-mono text-slate-400 dark:text-slate-500 block font-bold whitespace-nowrap">
-                                  {transfer.timestamp}
-                                </span>
-                              </div>
-                            </div>
-
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))
-                  )}
-                </div>
-              ) : (
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-600 dark:text-slate-400">
-                      <thead className="text-[9px] uppercase font-black tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800">
-                        <tr>
-                          <th className="px-6 py-4">Patient Node</th>
-                          <th className="px-6 py-4">Source Bed</th>
-                          <th className="px-6 py-4">Target Bed</th>
-                          <th className="px-6 py-4">Reason & Clinical Notes</th>
-                          <th className="px-6 py-4 text-right">Timestamp</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {transferHistory.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic">
-                              No bed transfer operations logged during this session window.
-                            </td>
-                          </tr>
-                        ) : (
-                          transferHistory.map((transfer) => (
-                            <tr 
-                              key={transfer.id}
-                              className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors"
-                            >
-                              <td className="px-6 py-4 font-black text-slate-950 dark:text-slate-200">
-                                {transfer.patientName}
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className="px-2 py-1 bg-slate-50 dark:bg-slate-950 rounded text-[10px] font-bold text-slate-500 font-mono">
-                                  {transfer.fromBed}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className="px-2 py-1 bg-teal-50 dark:bg-teal-950/40 rounded text-[10px] font-black text-teal-600 dark:text-teal-400 font-mono">
-                                  {transfer.toBed}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 max-w-[240px] truncate" title={transfer.reason}>
-                                {transfer.reason}
-                              </td>
-                              <td className="px-6 py-4 text-right font-mono text-[10px] font-bold text-slate-400">
-                                {transfer.timestamp}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const ThresholdInput: React.FC<{
-    label: string;
-    value: number;
-    onChange: (val: number) => void;
-    min?: number;
-    max?: number;
-    step?: number;
-    unit: string;
-  }> = ({ label, value, onChange, min, max, step = 1, unit }) => (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
-        <span className="text-xs font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">{value}{unit}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-      />
-    </div>
-  );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
@@ -4525,7 +2718,23 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               </div>
             ) : activeTab === 'registry' ? (
               <div className="max-w-7xl mx-auto px-4 py-8">
-                <ClinicalPatientRegistry />
+                <ClinicalPatientRegistryStandalone
+                  user={user}
+                  onUpdateUser={onUpdateUser}
+                  registeredPatients={registeredPatients}
+                  setRegisteredPatients={setRegisteredPatients}
+                  selectedPatientId={selectedPatientId}
+                  setSelectedPatientId={setSelectedPatientId}
+                  registryNotification={registryNotification}
+                  setRegistryNotification={setRegistryNotification}
+                  transferHistory={transferHistory}
+                  setTransferHistory={setTransferHistory}
+                  isAdmin={isAdmin}
+                  setIsAdmin={setIsAdmin}
+                  couplePatientToMonitor={couplePatientToMonitor}
+                  triggerRegistryNotification={triggerRegistryNotification}
+                  arduino={arduino}
+                />
               </div>
             ) : activeTab === 'simulator' ? (
               <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
@@ -5350,58 +3559,6 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 </div>
               )}
 
-              {timeRange === 'Day' && (
-                <div className="mb-6 flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-50 dark:bg-slate-800/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  {/* Search Input */}
-                  <div className="relative w-full lg:max-w-xs">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search patient name or bed..."
-                      value={patientSearchQuery}
-                      onChange={(e) => setPatientSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-semibold"
-                    />
-                  </div>
-
-                  {/* Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    {(['all', 'critical', 'warning', 'stable', 'device'] as const).map((filter) => {
-                      const isActive = patientFilterStatus === filter;
-                      const counts = {
-                        all: registeredPatients.length,
-                        critical: registeredPatients.filter(p => p.vitalsPreset === 'critical').length,
-                        warning: registeredPatients.filter(p => p.vitalsPreset === 'warning').length,
-                        stable: registeredPatients.filter(p => p.vitalsPreset !== 'critical' && p.vitalsPreset !== 'warning').length,
-                        device: Object.values(connectedDevicesMap).filter(d => d.connected).length
-                      };
-                      
-                      const labels = {
-                        all: 'All Patients',
-                        critical: 'Critical Alarms',
-                        warning: 'Warning Bounds',
-                        stable: 'Stable Vitals',
-                        device: 'Live Connected Devices'
-                      };
-
-                      return (
-                        <button
-                          key={filter}
-                          onClick={() => setPatientFilterStatus(filter)}
-                          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                            isActive
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/15'
-                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                          }`}
-                        >
-                          {labels[filter]} ({counts[filter]})
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {timeRange === 'Day' ? (
                 /* Multi Patient Live Monitor (Day Mode) */
                 <div className="overflow-x-auto -mx-4 sm:-mx-8 px-4 sm:px-8">
@@ -5410,7 +3567,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-150 dark:border-slate-800 pb-3">
                         <th className="pb-4 pr-4 font-black">Patient Profile</th>
                         <th className="pb-4 pr-4 font-black text-center">Location Node</th>
-                        <th className="pb-4 pr-4 font-black">Machine/Device Connection</th>
+                        <th className="pb-4 pr-4 font-black">Clinical Diagnostic Conditions</th>
                         <th className="pb-4 pr-4 font-black">HR (bpm)</th>
                         <th className="pb-4 pr-4 font-black">Temp (°C)</th>
                         <th className="pb-4 pr-4 font-black">SpO2 (%)</th>
@@ -5420,231 +3577,178 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/50">
-                      {(() => {
-                        const filtered = registeredPatients.filter(p => {
-                          const matchesSearch = p.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) || 
-                                                p.bedNumber.toLowerCase().includes(patientSearchQuery.toLowerCase());
-                          if (!matchesSearch) return false;
-                          if (patientFilterStatus === 'all') return true;
-                          if (patientFilterStatus === 'critical') return p.vitalsPreset === 'critical';
-                          if (patientFilterStatus === 'warning') return p.vitalsPreset === 'warning';
-                          if (patientFilterStatus === 'stable') return p.vitalsPreset !== 'critical' && p.vitalsPreset !== 'warning';
-                          if (patientFilterStatus === 'device') return !!connectedDevicesMap[p.id]?.connected || p.id === selectedPatientId;
-                          return true;
-                        });
+                      {registeredPatients.map((p) => {
+                        // Dynamically obtain or simulate live vitals matching the patient's individual vitalsPreset
+                        const pVitals = (() => {
+                          if (p.id === selectedPatientId && vitals) {
+                            return vitals;
+                          }
+                          const preset = p.vitalsPreset || 'healthy';
+                          // Deterministic offset based on ID to keep fluctuations consistent yet dynamic
+                          const offset = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10;
+                          const timeSeconds = Math.floor(Date.now() / 2000) + offset;
+                          const cycle = Math.sin(timeSeconds / 3);
 
-                        if (filtered.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold text-xs italic">
-                                No registered patients found matching the active search or filters.
-                              </td>
-                            </tr>
-                          );
-                        }
+                          if (preset === 'critical') {
+                            return {
+                              heartRate: Math.round(135 + cycle * 7),
+                              temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
+                              spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
+                              systolicBP: Math.round(191 + cycle * 9),
+                              diastolicBP: Math.round(111 + cycle * 4),
+                              respiratoryRate: Math.round(28 + cycle * 2)
+                            };
+                          } else if (preset === 'warning') {
+                            return {
+                              heartRate: Math.round(102 + cycle * 4),
+                              temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
+                              spo2: Math.round(91 + cycle * 2),
+                              systolicBP: Math.round(136 + cycle * 5),
+                              diastolicBP: Math.round(86 + cycle * 3),
+                              respiratoryRate: Math.round(21 + cycle * 1)
+                            };
+                          } else {
+                            return {
+                              heartRate: Math.round(68 + cycle * 3),
+                              temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
+                              spo2: Math.round(96 + cycle * 1),
+                              systolicBP: Math.round(118 + cycle * 3),
+                              diastolicBP: Math.round(78 + cycle * 2),
+                              respiratoryRate: Math.round(14 + cycle * 1)
+                            };
+                          }
+                        })();
 
-                        return filtered.map((p) => {
-                          const isCoupled = p.id === selectedPatientId;
-                          const isDeviceConnected = !!connectedDevicesMap[p.id]?.connected || isCoupled;
+                        const hr = pVitals.heartRate;
+                        const temp = pVitals.temperature;
+                        const spo2 = pVitals.spo2;
+                        const sbp = pVitals.systolicBP;
+                        const dbp = pVitals.diastolicBP;
+                        const rr = pVitals.respiratoryRate;
 
-                          // Dynamically obtain or simulate live vitals matching the patient's individual vitalsPreset
-                          const pVitals = (() => {
-                            if (isCoupled && vitals) {
-                              return vitals;
-                            }
-                            if (!isDeviceConnected) {
-                              // Standby - display stable standard clinical readings
-                              return {
-                                heartRate: 72,
-                                temperature: 36.6,
-                                spo2: 98,
-                                systolicBP: 120,
-                                diastolicBP: 80,
-                                respiratoryRate: 14
-                              };
-                            }
-                            const preset = p.vitalsPreset || 'healthy';
-                            // Deterministic offset based on ID to keep fluctuations consistent yet dynamic
-                            const offset = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10;
-                            const timeSeconds = Math.floor(Date.now() / 2000) + offset;
-                            const cycle = Math.sin(timeSeconds / 3);
+                        const isCritical = p.vitalsPreset === 'critical';
+                        const isWarning = p.vitalsPreset === 'warning';
+                        const isCoupled = p.id === selectedPatientId;
 
-                            if (preset === 'critical') {
-                              return {
-                                heartRate: Math.round(135 + cycle * 7),
-                                temperature: parseFloat((39.4 + cycle * 0.3).toFixed(1)),
-                                spo2: Math.max(70, Math.min(92, Math.round(84 + cycle * 3))),
-                                systolicBP: Math.round(191 + cycle * 9),
-                                diastolicBP: Math.round(111 + cycle * 4),
-                                respiratoryRate: Math.round(28 + cycle * 2)
-                              };
-                            } else if (preset === 'warning') {
-                              return {
-                                heartRate: Math.round(102 + cycle * 4),
-                                temperature: parseFloat((37.9 + cycle * 0.2).toFixed(1)),
-                                spo2: Math.round(91 + cycle * 2),
-                                systolicBP: Math.round(136 + cycle * 5),
-                                diastolicBP: Math.round(86 + cycle * 3),
-                                respiratoryRate: Math.round(21 + cycle * 1)
-                              };
-                            } else {
-                              return {
-                                heartRate: Math.round(68 + cycle * 3),
-                                temperature: parseFloat((36.6 + cycle * 0.1).toFixed(1)),
-                                spo2: Math.round(96 + cycle * 1),
-                                systolicBP: Math.round(118 + cycle * 3),
-                                diastolicBP: Math.round(78 + cycle * 2),
-                                respiratoryRate: Math.round(14 + cycle * 1)
-                              };
-                            }
-                          })();
-
-                          const hr = pVitals.heartRate;
-                          const temp = pVitals.temperature;
-                          const spo2 = pVitals.spo2;
-                          const sbp = pVitals.systolicBP;
-                          const dbp = pVitals.diastolicBP;
-                          const rr = pVitals.respiratoryRate;
-
-                          const isCritical = isDeviceConnected && p.vitalsPreset === 'critical';
-                          const isWarning = isDeviceConnected && p.vitalsPreset === 'warning';
-
-                          return (
-                            <tr 
-                              key={p.id} 
-                              className={`group transition-all duration-150 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${
-                                isCoupled 
-                                  ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l border-l-blue-600' 
-                                  : ''
-                              }`}
-                            >
-                              <td className="py-4 pr-4">
-                                <div className="flex items-center gap-3">
-                                  <span className={`w-2.5 h-2.5 rounded-full ring-4 shrink-0 shadow-sm ${
-                                    !isDeviceConnected
-                                      ? 'bg-slate-400 ring-slate-400/10'
-                                      : isCritical 
-                                        ? 'bg-rose-500 ring-rose-500/20' 
-                                        : isWarning 
-                                          ? 'bg-amber-500 ring-amber-500/20' 
-                                          : 'bg-emerald-500 ring-emerald-500/20'
-                                  } ${isCritical ? 'animate-pulse' : ''}`} />
-                                  <div>
-                                    <div className="font-extrabold text-slate-900 dark:text-white text-sm tracking-tight flex items-center gap-1.5">
-                                      {p.name}
-                                      {isCoupled && (
-                                        <span className="text-[8px] bg-blue-600 text-white uppercase px-1.5 py-0.5 rounded-full font-black tracking-widest shrink-0 animate-pulse">
-                                          coupled
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
-                                      {p.age}y • {p.gender} • Type {p.bloodType} • {p.weight || '70kg'}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-4 pr-4 text-center">
-                                <span className="font-mono text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
-                                  {p.bedNumber}
-                                </span>
-                              </td>
-                              <td className="py-4 pr-4">
-                                <div className="max-w-[280px] space-y-1.5">
-                                  <div className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">
-                                    {p.conditions || "General Observation"}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {isDeviceConnected ? (
-                                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[8px] font-black rounded-md border border-emerald-100 dark:border-emerald-900/20 shadow-sm">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        {connectedDevicesMap[p.id]?.type || 'Bluetooth'} LINKED • {connectedDevicesMap[p.id]?.nodeId || 'ARD-BLE-12'}
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[8px] font-extrabold rounded-md border border-slate-200 dark:border-slate-700/60">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                                        STANDBY (SIMULATED)
-                                      </div>
+                        return (
+                          <tr 
+                            key={p.id} 
+                            className={`group transition-all duration-150 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${
+                              isCoupled 
+                                ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l border-l-blue-600' 
+                                : ''
+                            }`}
+                          >
+                            <td className="py-4 pr-4">
+                              <div className="flex items-center gap-3">
+                                <span className={`w-2.5 h-2.5 rounded-full ring-4 shrink-0 shadow-sm ${
+                                  isCritical 
+                                    ? 'bg-rose-500 ring-rose-500/20' 
+                                    : isWarning 
+                                      ? 'bg-amber-500 ring-amber-500/20' 
+                                      : 'bg-emerald-500 ring-emerald-500/20'
+                                } ${isCritical ? 'animate-pulse' : ''}`} />
+                                <div>
+                                  <div className="font-extrabold text-slate-900 dark:text-white text-sm tracking-tight flex items-center gap-1.5">
+                                    {p.name}
+                                    {isCoupled && (
+                                      <span className="text-[8px] bg-blue-600 text-white uppercase px-1.5 py-0.5 rounded-full font-black tracking-widest shrink-0">
+                                        coupled
+                                      </span>
                                     )}
-                                    
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleDeviceConnection(p.id);
-                                      }}
-                                      className={`px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded border cursor-pointer active:scale-95 transition-all ${
-                                        isDeviceConnected
-                                          ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
-                                          : 'bg-blue-600 text-white border-transparent hover:bg-blue-500 shadow-sm shadow-blue-500/10'
-                                      }`}
-                                    >
-                                      {isDeviceConnected ? 'Unlink' : 'Link Machine'}
-                                    </button>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
+                                    {p.age}y • {p.gender} • Type {p.bloodType} • {p.weight || '70kg'}
                                   </div>
                                 </div>
-                              </td>
-                              <td className="py-4 pr-4">
-                                <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                              </div>
+                            </td>
+                            <td className="py-4 pr-4 text-center">
+                              <span className="font-mono text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+                                {p.bedNumber}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4/10">
+                              <div className="max-w-[280px]">
+                                <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">
+                                  {p.conditions || "No recorded chronic pathologies"}
+                                </div>
+                                <div className={`text-[10px] font-black uppercase mt-1 tracking-wider ${
                                   isCritical 
-                                    ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                    ? 'text-rose-600 dark:text-rose-400' 
                                     : isWarning 
-                                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
-                                      : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                                      ? 'text-amber-600 dark:text-amber-400' 
+                                      : 'text-emerald-600 dark:text-emerald-400'
                                 }`}>
-                                  {hr}
-                                </span>
-                              </td>
-                              <td className="py-4 pr-4">
-                                <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
-                                  isCritical 
-                                    ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  {isCritical 
+                                    ? '⚠️ CRITICAL: Hypoxia Distress' 
                                     : isWarning 
-                                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
-                                      : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
-                                }`}>
-                                  {temp.toFixed(1)}°
+                                      ? '⚠️ BORDERLINE: Mild Pyrexia' 
+                                      : '✓ STABLE: Nominal Metabolism'}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                isCritical 
+                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : isWarning 
+                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                              }`}>
+                                {hr}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                isCritical 
+                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : isWarning 
+                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                              }`}>
+                                {temp.toFixed(1)}°
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
+                                isCritical 
+                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
+                                  : isWarning 
+                                    ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
+                                    : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
+                              }`}>
+                                {spo2}%
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 font-black text-xs text-slate-800 dark:text-slate-200">
+                              <span className="bg-slate-50 dark:bg-slate-800/40 px-2 py-1 rounded border border-slate-100 dark:border-slate-800">
+                                {sbp}/{dbp}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 font-black text-sm text-slate-800 dark:text-slate-200">
+                              {rr}
+                            </td>
+                            <td className="py-4 text-right">
+                              {isCoupled ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow-md cursor-default shadow-blue-500/20">
+                                  <Monitor size={10} className="stroke-[3]" />
+                                  Active Node
                                 </span>
-                              </td>
-                              <td className="py-4 pr-4">
-                                <span className={`inline-flex items-center font-black text-sm px-2 py-0.5 rounded-lg border ${
-                                  isCritical 
-                                    ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse' 
-                                    : isWarning 
-                                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' 
-                                      : 'text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border-transparent'
-                                }`}>
-                                  {spo2}%
-                                </span>
-                              </td>
-                              <td className="py-4 pr-4 font-black text-xs text-slate-800 dark:text-slate-200">
-                                <span className="bg-slate-50 dark:bg-slate-800/40 px-2 py-1 rounded border border-slate-100 dark:border-slate-800">
-                                  {sbp}/{dbp}
-                                </span>
-                              </td>
-                              <td className="py-4 pr-4 font-black text-sm text-slate-800 dark:text-slate-200">
-                                {rr}
-                              </td>
-                              <td className="py-4 text-right">
-                                {isCoupled ? (
-                                  <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow-md cursor-default shadow-blue-500/20">
-                                    <Monitor size={10} className="stroke-[3]" />
-                                    Active Node
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => setSelectedPatientId(p.id)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-[9px] font-black uppercase tracking-wider rounded-xl border border-slate-200/50 dark:border-slate-700/50 transition-all cursor-pointer shadow-sm"
-                                  >
-                                    <Stethoscope size={10} />
-                                    Observe patient
-                                    <ChevronRight size={10} />
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()}
+                              ) : (
+                                <button
+                                  onClick={() => setSelectedPatientId(p.id)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-[9px] font-black uppercase tracking-wider rounded-xl border border-slate-200/50 dark:border-slate-700/50 transition-all cursor-pointer shadow-sm"
+                                >
+                                  <Stethoscope size={10} />
+                                  Observe patient
+                                  <ChevronRight size={10} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

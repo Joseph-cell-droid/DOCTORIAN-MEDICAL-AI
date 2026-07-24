@@ -234,10 +234,10 @@ export const NeuralTrainingHub: React.FC = () => {
   ];
 
   const BASE_MODELS = [
-    { id: 'google/gemma-3-4b-tfjs', label: 'Doctorian Opus (Local Edge)', desc: 'Run model 100% locally in-browser forever. No APIs, uses neural weights trained dynamically with WebGL acceleration.' },
-    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Doctorian 1.5 (Cloud Core)', desc: 'High logical reasoning and clinical guideline synthesis.' },
-    { id: 'google/gemma-2-9b-it', label: 'Doctorian 2.5 (Clinical Brain)', desc: 'Optimized translation and patient conversational tone.' },
-    { id: 'deepseek-ai/DeepSeek-R1', label: 'Doctorian 3.5 (Max Brain)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
+    { id: 'google/gemma-3-4b-tfjs', label: 'DOCTORIAN 1.5 ORACLE (Fastest Edge Core)', desc: 'Run model 100% locally in-browser forever. No APIs, uses neural weights trained dynamically with WebGL acceleration.' },
+    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'DOCTORIAN 2.0 ORACLE (Speed Cloud Core)', desc: 'High logical reasoning and clinical guideline synthesis.' },
+    { id: 'google/gemma-2-9b-it', label: 'DOCTORIAN 3.0 NEXUS (Clinical Core)', desc: 'Optimized translation and patient conversational tone.' },
+    { id: 'deepseek-ai/DeepSeek-R1', label: 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Max Core)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
   ];
 
   const handleLanguageGenerate = async () => {

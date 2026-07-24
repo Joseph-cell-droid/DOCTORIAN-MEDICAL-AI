@@ -1,4 +1,6 @@
 
+import { generateProfessionalTitle } from './utils/titleGenerator';
+
 export interface User {
   id: string;
   email: string;
@@ -3118,6 +3120,24 @@ export const api = {
       localList.push(newMsg);
       setStorageItem(`medical_offline_chat_messages_${sessionId}`, localList);
 
+      // Auto update offline session title if first user message
+      if (role === 'user' && text && text.trim()) {
+        const localSessions = getStorageItem<any[]>("medical_offline_chat_sessions", []);
+        const sIndex = localSessions.findIndex((s: any) => s.id === sessionId);
+        if (sIndex !== -1) {
+          const current = localSessions[sIndex];
+          const isGeneric = !current.title || 
+            current.title.includes("New Neural Link") || 
+            current.title.includes("Initial Consultation") || 
+            current.title.includes("New Session") ||
+            current.title.includes("New Consult Diagnostic");
+          if (isGeneric || localList.filter((m: any) => m.role === 'user').length <= 1) {
+            localSessions[sIndex].title = generateProfessionalTitle(text);
+            setStorageItem("medical_offline_chat_sessions", localSessions);
+          }
+        }
+      }
+
       if (isOffline()) {
         return { id: newMsg.id, success: true };
       }
@@ -3130,9 +3150,34 @@ export const api = {
           credentials: "include",
         });
         const data = await res.json();
-        return data as { id: string, success: boolean };
+        return data as { id: string, success: boolean, updatedTitle?: string };
       } catch (err) {
         return { id: newMsg.id, success: true };
+      }
+    },
+    async updateSessionTitle(sessionId: string, title: string) {
+      const localSessions = getStorageItem<any[]>("medical_offline_chat_sessions", []);
+      const sIndex = localSessions.findIndex((s: any) => s.id === sessionId);
+      if (sIndex !== -1) {
+        localSessions[sIndex].title = title;
+        setStorageItem("medical_offline_chat_sessions", localSessions);
+      }
+
+      if (isOffline()) {
+        return { success: true, title };
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/chat/sessions/${sessionId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        return data as { success: boolean, title: string };
+      } catch (err) {
+        return { success: true, title };
       }
     },
     async deleteSession(sessionId: string) {

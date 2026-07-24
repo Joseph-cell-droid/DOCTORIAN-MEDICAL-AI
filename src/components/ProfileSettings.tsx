@@ -1213,7 +1213,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">In-Browser Local Brain</h5>
-                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">Doctorian Opus (Local Edge)</p>
+                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">DOCTORIAN 1.5 ORACLE (Fastest Edge)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Loads weights directly in-browser. 100% private execution on your GPU using WebGL/WebGPU.
                         </p>
@@ -1243,7 +1243,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Cloud Brain Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Doctorian 1.5 (Cloud Brain)</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">DOCTORIAN 2.0 ORACLE (Speed Cloud Brain)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           High performance failover cloud synapse. Instant clinical reasoning & web search grounding.
                         </p>
@@ -1273,7 +1273,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Laptop Server Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Doctorian 2.5 Hub Link</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">DOCTORIAN 3.0 NEXUS Hub Link</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Run customized offline Doctorian models on your laptop port 11434 / 1234.
                         </p>
@@ -1302,10 +1302,10 @@ Verified by Joseph Akora - Development Lead.
                         )}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Doctorian 2.0 Cloud</h5>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Doctorian 2.0 Core</p>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">DOCTORIAN 2.5 NEXUS</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">DOCTORIAN 2.5 NEXUS Core</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Fast, serverless execution of Doctorian 2.0 via secure API keys.
+                          Fast, serverless execution of DOCTORIAN 2.5 via secure API keys.
                         </p>
                       </div>
                     </button>
@@ -1332,10 +1332,10 @@ Verified by Joseph Akora - Development Lead.
                         )}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Doctorian 3.0 Cloud</h5>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Doctorian 3.0 Core</p>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">DOCTORIAN 4.0 / 5.0 EXPERTS</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">DOCTORIAN 4.0 NOVA & 5.0 OPUS EXPERTS</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Official cloud deployment of Doctorian 3.0 with absolute high-performance medical analysis.
+                          Official cloud deployment of DOCTORIAN 4.0 NOVA & 5.0 OPUS with high-performance medical analysis.
                         </p>
                       </div>
                     </button>

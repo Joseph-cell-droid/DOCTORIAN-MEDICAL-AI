@@ -202,7 +202,7 @@ export const useArduino = () => {
              Detect if patient is WORSENING or STABLE. 
              Return JSON: {"insight": "1-sentence clinician summary", "alert": true/false}`,
             "You are a specialized medical telemetry analyst (Doctorian AI).",
-            "gemini-3.5-flash"
+            "gemini-3.6-flash"
           ).then(res => {
             try {
               const data = JSON.parse(res.text.replace(/```json|```/g, '').trim());

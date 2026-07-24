@@ -306,22 +306,50 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-6 bg-slate-50 dark:bg-slate-950 p-4 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-inner">
-               <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Response Readiness</p>
-                  <p className={`text-lg font-black uppercase ${sosCountdown ? 'text-rose-600 animate-pulse' : 'text-emerald-500'}`}>
-                    {sosCountdown !== null ? `Signal: ${sosCountdown}s` : 'Standby / Optimal'}
+            <div className="flex flex-wrap items-center gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-inner">
+               {/* Direct Live Call Trigger */}
+               <a
+                 href={`tel:${doctorPhone || user?.doctorPhone || '+256787674140'}`}
+                 onClick={() => {
+                   api.alerts.makeCall("Emergency SOS direct live call dispatch from patient interface", doctorPhone || user?.doctorPhone);
+                   addNotification("LIVE CALL INITIATED: Dialing doctor emergency line.", "success");
+                 }}
+                 className="px-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+               >
+                 <PhoneCall size={18} />
+                 <span>Live Call</span>
+               </a>
+
+               {/* Direct Emergency SMS Trigger */}
+               <a
+                 href={`sms:${doctorPhone || user?.doctorPhone || '+256787674140'}?body=EMERGENCY%20SOS%3A%20Patient%20${encodeURIComponent(user?.displayName || 'User')}%20requires%20immediate%20medical%20response.%20Location%20%26%20vitals%20logged.`}
+                 onClick={() => {
+                   api.alerts.sendSms(`EMERGENCY SOS: Patient ${user?.displayName || 'User'} requires immediate medical response.`, doctorPhone || user?.doctorPhone);
+                   addNotification("EMERGENCY SMS SENT: Outbound alert dispatched.", "success");
+                 }}
+                 className="px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+               >
+                 <Phone size={18} />
+                 <span>Send Emergency SMS</span>
+               </a>
+
+               <div className="text-right pl-2 border-l border-slate-200 dark:border-slate-800">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Readiness</p>
+                  <p className={`text-base font-black uppercase ${sosCountdown ? 'text-rose-600 animate-pulse' : 'text-emerald-500'}`}>
+                    {sosCountdown !== null ? `Signal: ${sosCountdown}s` : 'Standby'}
                   </p>
                </div>
+
                <button 
                   onClick={sosCountdown !== null ? cancelSOS : triggerSOS}
-                  className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-xl ${
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-xl ${
                     sosCountdown !== null 
                     ? 'bg-slate-900 text-white' 
                     : 'bg-rose-600 text-white shadow-rose-500/40 hover:bg-rose-700'
                   }`}
+                  title="Broadcast Automatic SOS Relay"
                 >
-                  {sosCountdown !== null ? <RefreshCw className="animate-spin" size={28} /> : <AlertCircle size={32} />}
+                  {sosCountdown !== null ? <RefreshCw className="animate-spin" size={24} /> : <AlertCircle size={28} />}
                 </button>
             </div>
           </div>
@@ -637,13 +665,41 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                               </div>
                             </div>
 
-                            <button
-                              onClick={() => handleDeleteContact(contact.id)}
-                              className="p-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-xl transition-all cursor-pointer opacity-80 group-hover:opacity-100"
-                              title="Remove Contact"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {/* Direct Live Call Button */}
+                              <a
+                                href={`tel:${contact.phone}`}
+                                onClick={(e) => {
+                                  api.alerts.makeCall("Emergency SOS live call request from patient", contact.phone);
+                                }}
+                                className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1 text-[10px] font-black uppercase tracking-wider"
+                                title={`Live Call ${contact.name}`}
+                              >
+                                <PhoneCall size={14} />
+                                <span className="hidden sm:inline">Call</span>
+                              </a>
+
+                              {/* Direct Live SMS Button */}
+                              <a
+                                href={`sms:${contact.phone}?body=EMERGENCY%20SOS%3A%20Patient%20${encodeURIComponent(user?.displayName || 'User')}%20requires%20urgent%20medical%20response.%20Vitals%20logged.`}
+                                onClick={(e) => {
+                                  api.alerts.sendSms(`EMERGENCY SOS: Patient ${user?.displayName || 'User'} requires urgent medical response.`, contact.phone);
+                                }}
+                                className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1 text-[10px] font-black uppercase tracking-wider"
+                                title={`Send Emergency SMS to ${contact.name}`}
+                              >
+                                <Phone size={14} />
+                                <span className="hidden sm:inline">SMS</span>
+                              </a>
+
+                              <button
+                                onClick={() => handleDeleteContact(contact.id)}
+                                className="p-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-xl transition-all cursor-pointer opacity-80 group-hover:opacity-100"
+                                title="Remove Contact"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>

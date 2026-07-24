@@ -683,7 +683,7 @@ Ensure the output is highly clinical, professional, well-structured, clean, and 
       const response = await apiModule.api.ai.aiChat(
         `Analyze the following continuous telemetry bundle:\n${telemetryPayload}`,
         systemPrompt,
-        "gemini-3.5-flash"
+        "gemini-3.6-flash"
       );
       setAiReport(response.text);
       addLog("✓ Continuous sensor trend analysis successfully compiled by Doctorian AI.", "success");

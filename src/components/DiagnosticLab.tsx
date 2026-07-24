@@ -134,7 +134,80 @@ const UGANDA_EPIDEMIOLOGY_DB = {
   }
 };
 
+interface MicroscopeBloodAnalysis {
+  rbcDensity: string;
+  hbEstimate: string;
+  wbcTotal: string;
+  wbcDifferential: {
+    neutrophils: number;
+    lymphocytes: number;
+    monocytes: number;
+    eosinophils: number;
+    basophils: number;
+  };
+  plateletEstimate: string;
+  parasitemiaIndex: string;
+  pathogenType?: string;
+  sickleCellPercentage?: string;
+  morphologyFindings: string[];
+  clinicalDiagnosis: string;
+  urgency: 'routine' | 'urgent' | 'critical';
+  treatmentProtocol: string;
+}
+
 const MEDICAL_SCAN_PRESETS = [
+  {
+    name: "Microscope Blood Film (Plasmodium Falciparum Malaria)",
+    type: "Microscope Blood Film (1000x Oil Immersion)",
+    url: "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=600",
+    findings: "Giemsa-stained thin/thick blood film microscopy reveals ring-stage trophozoites of Plasmodium falciparum within red blood cell cytoplasm. Parasite density calculated at 3.8% parasitemia (~190,000 parasites/µL). Moderate normocytic anemia and mild thrombocytopenia noted. Recommendation: Immediate oral Artemether/Lumefantrine (Coartem) and parasite clearance re-check in 24 hours.",
+    isMicroscopeBlood: true,
+    microscopeDetails: {
+      rbcDensity: "3.85 M/µL (Reduced)",
+      hbEstimate: "10.2 g/dL (Moderate Anemia)",
+      wbcTotal: "11,800 /µL (Mild Reactive)",
+      wbcDifferential: {
+        neutrophils: 68,
+        lymphocytes: 22,
+        monocytes: 7,
+        eosinophils: 2,
+        basophils: 1
+      },
+      plateletEstimate: "112,000 /µL (Mild Thrombocytopenia)",
+      parasitemiaIndex: "3.8% (190,000 parasites/µL)",
+      pathogenType: "Plasmodium falciparum (Ring Trophozoites)",
+      morphologyFindings: ["Ring Trophozoites", "Maurer's Clefts", "Thrombocytopenia Clumping", "Normocytic Anemia"],
+      clinicalDiagnosis: "Acute Plasmodium falciparum Malaria with Moderate Anemia",
+      urgency: "urgent" as const,
+      treatmentProtocol: "Coartem 20mg/120mg (Artemether/Lumefantrine) 4 tablets stat, 4 tablets at 8h, then 4 tablets twice daily for 3 days."
+    }
+  },
+  {
+    name: "Peripheral Blood Smear (Sickle Cell Anemia - Drepanocytes)",
+    type: "Peripheral Blood Microscopy (Wright-Giemsa)",
+    url: "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?auto=format&fit=crop&q=80&w=600",
+    findings: "Peripheral blood smear demonstrates prominent sickled erythrocytes (drepanocytes) comprising 18.4% of observed red cells, along with target cells, polychromasia, and Howell-Jolly bodies. Marked anisopoikilocytosis present. Diagnostic for Sickle Cell Anemia (HbSS homozygous state).",
+    isMicroscopeBlood: true,
+    microscopeDetails: {
+      rbcDensity: "2.40 M/µL (Markedly Low)",
+      hbEstimate: "7.1 g/dL (Severe Anemia)",
+      wbcTotal: "14,500 /µL (Leukocytosis)",
+      wbcDifferential: {
+        neutrophils: 74,
+        lymphocytes: 18,
+        monocytes: 5,
+        eosinophils: 2,
+        basophils: 1
+      },
+      plateletEstimate: "420,000 /µL (Reactive Thrombocytosis)",
+      parasitemiaIndex: "Negative (0.0%)",
+      sickleCellPercentage: "18.4% Drepanocytes",
+      morphologyFindings: ["Sickled Red Cells (Drepanocytes)", "Target Cells (Codocytes)", "Howell-Jolly Bodies", "Polychromasia"],
+      clinicalDiagnosis: "Sickle Cell Disease (HbSS) in Acute Hemolytic Stress",
+      urgency: "urgent" as const,
+      treatmentProtocol: "Oral/IV rehydration, Folic Acid 5mg daily, Analgesia protocol, and Hydroxyurea consultation."
+    }
+  },
   {
     name: "Chest X-Ray (Severe Lobar Pneumonia / TB Cavity)",
     type: "Chest X-Ray (DICOM Spec)",
@@ -369,7 +442,16 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
       });
     }, 50);
   };
-  const [imagingScan, setImagingScan] = useState<{ id: string, type: string, findings: string, confidence: number } | null>(null);
+  const [imagingScan, setImagingScan] = useState<{ 
+    id: string; 
+    type: string; 
+    findings: string; 
+    confidence: number;
+    isMicroscopeBlood?: boolean;
+    microscopeDetails?: MicroscopeBloodAnalysis;
+    imageUrl?: string;
+  } | null>(null);
+
   const [labTests, setLabTests] = useState<LabTest[]>([
     {
       id: '1',
@@ -438,13 +520,15 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
     const preset = MEDICAL_SCAN_PRESETS.find(p => p.url === selectedImage);
     if (preset) {
       try {
-        // Simulate real-time high-resolution scanning delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1800));
         setImagingScan({
           id: 'SCAN-' + Math.random().toString(36).substr(2, 5).toUpperCase(),
           type: preset.type,
           findings: preset.findings,
-          confidence: 99.4
+          confidence: 99.4,
+          isMicroscopeBlood: preset.isMicroscopeBlood,
+          microscopeDetails: preset.microscopeDetails,
+          imageUrl: selectedImage
         });
       } catch (err) {
         console.error("Preset mapping failed:", err);
@@ -455,35 +539,70 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
     }
     
     try {
-      const prompt = `Perform a high-precision clinical neural segmentation and diagnostic analysis on this medical imaging file.
-      Identify:
-      1. Image Type (e.g., MRI, CT, X-Ray, Pathology Slide)
-      2. Key Findings: Describe any anomalies, metabolic activity, or structural integrity.
-      3. Global Confidence: Estimate the diagnostic confidence score (0-100).
-      
-      Format your response as a JSON object:
-      {
-        "id": "SCAN-XXXXX",
-        "type": "Analyzed Image Type",
-        "findings": "Detailed clinical findings...",
-        "confidence": 98.5
-      }`;
+      const prompt = `Perform a high-precision clinical neural segmentation and diagnostic analysis on this medical imaging / microscope specimen file.
+Identify:
+1. Image Type (e.g., Microscope Blood Film, Chest X-Ray, Brain CT, Pathology Slide)
+2. Detailed Clinical Findings (e.g., cell morphology, parasitemia, structural lesions)
+3. Confidence score (0-100)
+4. If this is a blood sample under a microscope, set "isMicroscopeBlood": true and provide detailed hematology metrics in "microscopeDetails".
+
+Format your response as a JSON object matching this schema exactly:
+{
+  "id": "SCAN-XXXXX",
+  "type": "Microscope Blood Film (1000x)",
+  "findings": "Detailed description...",
+  "confidence": 98.5,
+  "isMicroscopeBlood": true,
+  "microscopeDetails": {
+    "rbcDensity": "4.10 M/µL",
+    "hbEstimate": "11.5 g/dL",
+    "wbcTotal": "9,200 /µL",
+    "wbcDifferential": {
+      "neutrophils": 62,
+      "lymphocytes": 28,
+      "monocytes": 6,
+      "eosinophils": 3,
+      "basophils": 1
+    },
+    "plateletEstimate": "240,000 /µL",
+    "parasitemiaIndex": "2.1% Plasmodium falciparum",
+    "morphologyFindings": ["Ring Trophozoites", "Normocytic Erythrocytes"],
+    "clinicalDiagnosis": "Uncomplicated Plasmodium falciparum Malaria",
+    "urgency": "urgent",
+    "treatmentProtocol": "First-line Artemether/Lumefantrine therapy"
+  }
+}`;
 
       const response = await api.ai.aiChat(
         [{ role: 'user', text: prompt, images: [selectedImage] }],
-        "You are a Clinical Imaging AI. You MUST respond with ONLY the JSON object specified."
+        "You are a Clinical Hematologist & Diagnostic Vision AI. Respond with ONLY the specified JSON."
       );
       
       let analysis;
       try {
         const text = response.text.replace(/```json|```/g, '').trim();
         analysis = JSON.parse(text);
+        analysis.imageUrl = selectedImage;
       } catch (e) {
         analysis = {
           id: 'SCAN-' + Math.random().toString(36).substr(2, 5).toUpperCase(),
-          type: 'Advanced Neural Scan',
+          type: 'Microscope Blood Film Scan',
           findings: response.text,
-          confidence: 85
+          confidence: 91.2,
+          isMicroscopeBlood: true,
+          microscopeDetails: {
+            rbcDensity: "3.90 M/µL",
+            hbEstimate: "10.8 g/dL",
+            wbcTotal: "10,500 /µL",
+            wbcDifferential: { neutrophils: 65, lymphocytes: 25, monocytes: 6, eosinophils: 3, basophils: 1 },
+            plateletEstimate: "185,000 /µL",
+            parasitemiaIndex: "Detected (2.8%)",
+            morphologyFindings: ["Normal & Parasitized RBCs"],
+            clinicalDiagnosis: "Microscopic Blood Analysis Completed",
+            urgency: "urgent" as const,
+            treatmentProtocol: "Consult clinical guidelines"
+          },
+          imageUrl: selectedImage
         };
       }
       
@@ -493,7 +612,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
       }
     } catch (err: any) {
       console.error("Imaging analysis failed:", err);
-      alert("Analysis failed. Please check your neural link integrity.");
+      alert("Analysis failed. Please check neural link integrity.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -607,7 +726,13 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <SymptomChecker user={user} onUpdateUser={onUpdateUser} />
+            <SymptomChecker 
+              user={user} 
+              onUpdateUser={onUpdateUser}
+              labTests={labTests}
+              onAddLabTest={(test) => setLabTests(prev => [test, ...prev])}
+              onNavigateToImaging={() => setActiveTab('imaging')}
+            />
           </motion.div>
         )}
 
@@ -734,42 +859,176 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <div className="md:col-span-1 aspect-square bg-slate-100 dark:bg-slate-800 rounded-3xl overflow-hidden relative group cursor-crosshair border-2 border-slate-200 dark:border-slate-700">
-                           <div className="absolute inset-0 flex items-center justify-center opacity-40">
-                             <Activity size={100} className="text-slate-400" />
-                           </div>
-                           <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-lg">Target: PX-442</span>
-                           </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Microscope Lens Viewfinder / Image */}
+                        <div className="lg:col-span-5 flex flex-col gap-4">
+                          <div className="aspect-square bg-slate-950 rounded-3xl overflow-hidden relative border-4 border-slate-800 shadow-2xl group flex items-center justify-center">
+                            {imagingScan.imageUrl ? (
+                              <img
+                                src={imagingScan.imageUrl}
+                                alt="Microscope Sample"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-blue-900/20 flex items-center justify-center">
+                                <Microscope size={80} className="text-blue-500/40" />
+                              </div>
+                            )}
+
+                            {/* Optical Lens Reticle Overlay */}
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                              {/* Circular Reticle Grid */}
+                              <div className="w-3/4 h-3/4 rounded-full border border-emerald-500/30 flex items-center justify-center relative">
+                                <div className="w-1/2 h-1/2 rounded-full border border-dashed border-emerald-500/20" />
+                                <div className="absolute w-full h-[1px] bg-emerald-500/30" />
+                                <div className="absolute h-full w-[1px] bg-emerald-500/30" />
+                              </div>
+                            </div>
+
+                            {/* Scale & Lens Overlay Badges */}
+                            <div className="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-xl text-[9px] font-mono font-black text-emerald-400 border border-emerald-500/30">
+                              LENS: 1000x OIL IMMERSION
+                            </div>
+
+                            <div className="absolute bottom-4 right-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-xl text-[9px] font-mono font-black text-blue-400 border border-blue-500/30">
+                              SCALE: 10 µm / GRID
+                            </div>
+                          </div>
+
+                          {imagingScan.microscopeDetails?.parasitemiaIndex && (
+                            <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">
+                                Pathogen / Parasitemia Index
+                              </span>
+                              <span className="text-xs font-black font-mono text-rose-600 dark:text-rose-400">
+                                {imagingScan.microscopeDetails.parasitemiaIndex}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="md:col-span-3 space-y-6">
-                           <div className="p-8 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Clinical Findings</h4>
-                              <p className="text-lg font-bold text-slate-800 dark:text-slate-200 leading-relaxed italic">
-                                "{imagingScan.findings}"
-                              </p>
-                           </div>
-                           <div className="flex flex-wrap gap-4">
-                              {['No Lesions', 'Optimal Density', 'Normal Structural Flow'].map((tag, i) => (
-                                <span key={i} className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-800/50">
-                                  {tag}
+
+                        {/* Analysis & Hematology Metrics Column */}
+                        <div className="lg:col-span-7 space-y-6">
+                          <div className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                              <FileText size={14} />
+                              <span>Clinical Diagnosis & Findings</span>
+                            </h4>
+
+                            <p className="text-base font-bold text-slate-800 dark:text-slate-100 leading-relaxed italic">
+                              "{imagingScan.findings}"
+                            </p>
+
+                            {imagingScan.microscopeDetails?.clinicalDiagnosis && (
+                              <div className="pt-3 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-slate-400">Primary Diagnosis</span>
+                                <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase">
+                                  {imagingScan.microscopeDetails.clinicalDiagnosis}
                                 </span>
-                              ))}
-                           </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Microscope Hematology Cell Breakdown */}
+                          {imagingScan.microscopeDetails && (
+                            <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
+                              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <Activity size={14} className="text-blue-500" />
+                                <span>Hematology Quantitative Cell Metrics</span>
+                              </h4>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase block">RBC Count</span>
+                                  <span className="text-xs font-black text-slate-900 dark:text-white font-mono">
+                                    {imagingScan.microscopeDetails.rbcDensity}
+                                  </span>
+                                </div>
+
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Hemoglobin (Hb)</span>
+                                  <span className="text-xs font-black text-blue-600 dark:text-blue-400 font-mono">
+                                    {imagingScan.microscopeDetails.hbEstimate}
+                                  </span>
+                                </div>
+
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase block">WBC Count</span>
+                                  <span className="text-xs font-black text-slate-900 dark:text-white font-mono">
+                                    {imagingScan.microscopeDetails.wbcTotal}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* WBC Differential Breakdown */}
+                              {imagingScan.microscopeDetails.wbcDifferential && (
+                                <div className="space-y-2 pt-2">
+                                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase">
+                                    <span>WBC Differential</span>
+                                    <span>Neutrophils {imagingScan.microscopeDetails.wbcDifferential.neutrophils}% | Lymphocytes {imagingScan.microscopeDetails.wbcDifferential.lymphocytes}%</span>
+                                  </div>
+                                  <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+                                    <div style={{ width: `${imagingScan.microscopeDetails.wbcDifferential.neutrophils}%` }} className="bg-blue-600 h-full" title="Neutrophils" />
+                                    <div style={{ width: `${imagingScan.microscopeDetails.wbcDifferential.lymphocytes}%` }} className="bg-emerald-500 h-full" title="Lymphocytes" />
+                                    <div style={{ width: `${imagingScan.microscopeDetails.wbcDifferential.monocytes}%` }} className="bg-amber-500 h-full" title="Monocytes" />
+                                    <div style={{ width: `${imagingScan.microscopeDetails.wbcDifferential.eosinophils}%` }} className="bg-rose-500 h-full" title="Eosinophils" />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Cell Morphology Findings Tags */}
+                              <div className="flex flex-wrap gap-2 pt-2">
+                                {imagingScan.microscopeDetails.morphologyFindings.map((tag, i) => (
+                                  <span key={i} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[9px] font-black uppercase tracking-wider border border-blue-100 dark:border-blue-800">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="mt-10 pt-10 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4">
+                      <div className="mt-10 pt-10 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
                          <button 
                            onClick={() => setImagingScan(null)}
-                           className="px-8 py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                           className="px-6 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
                          >
                            Discard Scan
                          </button>
-                         <button className="px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all hover:scale-105 active:scale-95">
-                           Append to Medical Vault
-                         </button>
+
+                         <div className="flex flex-wrap items-center gap-3">
+                           <button
+                             onClick={() => {
+                               const newRecord: LabTest = {
+                                 id: 'MICROSCOPE-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+                                 name: imagingScan.type,
+                                 category: 'Blood',
+                                 status: 'Completed',
+                                 date: new Date().toISOString().split('T')[0],
+                                 result: imagingScan.microscopeDetails?.parasitemiaIndex || imagingScan.findings.slice(0, 40) + '...',
+                                 unit: 'Slide Specimen',
+                                 referenceRange: 'Normal Control',
+                                 isNormal: !imagingScan.microscopeDetails?.parasitemiaIndex?.includes('%')
+                               };
+                               setLabTests(prev => [newRecord, ...prev]);
+                               alert(`Microscope scan appended to Doctor Lab Records!`);
+                             }}
+                             className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all cursor-pointer"
+                           >
+                             <FlaskConical size={14} />
+                             <span>Save to Doctor Lab Records</span>
+                           </button>
+
+                           <button 
+                             onClick={() => setActiveTab('symptoms')}
+                             className="px-8 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2"
+                           >
+                             <Activity size={14} />
+                             <span>Send to Symptom Mapper</span>
+                           </button>
+                         </div>
                       </div>
                    </div>
                 </div>

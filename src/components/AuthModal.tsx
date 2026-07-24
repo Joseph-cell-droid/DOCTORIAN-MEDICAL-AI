@@ -6,7 +6,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { signInWithSocial, googleProvider, githubProvider, facebookProvider, instagramProvider } from '../firebase';
 
 import { Logo } from './Logo';
-const josephPortrait = "/src/assets/images/joseph_portrait_1783676903159.jpg";
+const josephPortrait = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400";
 
 interface AuthModalProps {
   isOpen: boolean;

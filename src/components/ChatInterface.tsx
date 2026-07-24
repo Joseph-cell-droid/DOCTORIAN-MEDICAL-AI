@@ -9,10 +9,11 @@ import {
   Copy, Check, ThumbsUp, ThumbsDown, MessageSquarePlus, Smile,
   Activity, Brain, Heart, Download, Paperclip, FileText, Phone,
   ChevronDown, Shield, Cpu, Clock, Plus, MessageSquare, ArrowRight, Settings,
-  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut, Keyboard, Globe
+  BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut, Keyboard, Globe, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
+import { generateProfessionalTitle } from '../utils/titleGenerator';
 
 const SUGGESTIONS = [
   "What are the benefits of cold exposure?",
@@ -326,10 +327,10 @@ You MUST structure your medical analysis, diagnosis, prescription, and symptom c
   - Explain complex pathological/biological mechanisms using extremely simple, reassuring language and easy-to-understand analogies.
 
 • **💊 PRESCRIPTION & TREATMENT RECOMMENDATIONS**:
-  - Detail standard medication classes, recommended drug groups, safe therapeutic plans (with safety disclaimers), precise WHO and Ministry of health of Uganda Oral Rehydration Salt configurations, and simple home-care/lifestyle tips.
+  - Detail standard medication classes, recommended drug groups, safe therapeutic plans (with safety disclaimers), precise WHO and Ministry of Health Uganda Oral Rehydration Salt configurations, and simple home-care/lifestyle tips.
   - **MANDATORY WHO & MINISTRY OF HEALTH UGANDA CLINICAL PRESCRIBING PROTOCOLS**:
     Align all treatment suggestions strictly with the WHO and Uganda Clinical Guidelines (UCG):
-    * **Malaria**: First-line is Artemether-Lumefantrine (AL/Coartem) twice daily for 3 days:
+    * **Malaria**: First-line for uncomplicated malaria is Artemether-Lumefantrine (AL/Coartem) twice daily for 3 days:
       - 5-14 kg (or 5-35 months): 1 tablet twice daily.
       - 15-24 kg (or 3-8 years): 2 tablets twice daily.
       - 25-34 kg (or 9-14 years): 3 tablets twice daily.
@@ -338,10 +339,15 @@ You MUST structure your medical analysis, diagnosis, prescription, and symptom c
     * **Pneumonia (Non-severe in children < 5 yrs)**: First-line oral Amoxicillin dispersible tablets twice daily for 5 days:
       - 2-11 months (4-9 kg): 250mg twice daily.
       - 12-59 months (10-19 kg): 500mg twice daily.
+    * **Asthma & Acute Bronchospasm**: Reliever is inhaled Salbutamol (Albuterol 100mcg/puff, 2-4 puffs via spacer); Controller is Inhaled Budesonide 200-400mcg BD; Severe: Oral Prednisolone 40-50mg daily for 5 days.
     * **Diarrheal Diseases & Cholera**: Rehydration using WHO Low Osmolarity Oral Rehydration Salts (ORS) (Composition per 1L: 2.6g NaCl, 13.5g anhydrous Glucose, 1.5g KCl, 2.9g Trisodium Citrate dehydrate) coupled with Zinc Sulphate for 10-14 days (10mg/day for infants < 6 months; 20mg/day for children 6 months to 5 years).
+    * **Peptic Ulcer Disease & GERD**: Omeprazole 20-40mg once daily before breakfast for 4-8 weeks. H. pylori 14-day triple therapy: Omeprazole 20mg BD + Amoxicillin 1g BD + Clarithromycin 500mg BD.
     * **Urinary Tract Infections (UTI)**: Uncomplicated cases treated with Nitrofurantoin 100mg twice daily for 5-7 days or Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg twice daily for 5-7 days.
-    * **Tuberculosis (TB)**: Standard 6-month regimen (2 months intensive phase with Rifampicin (R), Isoniazid (H), Pyrazinamide (Z), Ethambutol (E) [2RHZE], followed by 4 months continuation phase with Rifampicin (R) and Isoniazid (H) [4RH]).
+    * **Typhoid Fever**: Ciprofloxacin 500mg BD for 7-10 days OR Azithromycin 500mg daily for 7 days OR Ceftriaxone 2g IV daily.
+    * **Tuberculosis (TB)**: Standard 6-month regimen (2 months intensive phase with Rifampicin (R), Isoniazid (H), Pyrazinamide (Z), Ethambutol (E) [2RHZE], followed by 4 months continuation phase with Rifampicin (R) and Isoniazid (H) [4RH]) plus Pyridoxine 25-50mg daily.
     * **Hypertension**: First-line calcium channel blockers (Amlodipine 5-10mg daily) or ACE inhibitors (Lisinopril 5-20mg daily) or Thiazide-like diuretics (Bendroflumethiazide 2.5mg daily).
+    * **Acute Chest Pain / ACS**: Emergency Aspirin 300mg chewable + Sublingual Nitroglycerin 0.4mg + Atorvastatin 80mg loading dose.
+    * **Migraine / Severe Cephalalgia**: Paracetamol 1g + Ibuprofen 400mg OR Sumatriptan 50-100mg + Metoclopramide 10mg.
   - Specify standard drug categories, safe dosages, safety warnings, and clear clinical counseling.
   - Include clear, simple home-care advice or lifestyle modifications.
 
@@ -1756,6 +1762,21 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     }
   };
 
+  const renameSession = async (id: string, currentTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newTitle = window.prompt("Rename History Session Title:", currentTitle);
+    if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
+      const clean = newTitle.trim();
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, title: clean } : s));
+      try {
+        await api.ai.updateSessionTitle(id, clean);
+        setTerminalLogs(prev => [...prev.slice(-3), `SYS: Session renamed to "${clean}"`]);
+      } catch (err) {
+        console.error("Failed to rename session:", err);
+      }
+    }
+  };
+
   const deleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -2777,7 +2798,26 @@ ${f.prescription}
     setMessages(prev => [...prev, userMessage]);
     
     if (currentSessionId) {
-      api.ai.saveMessage(currentSessionId, 'user', textToSend).catch(console.error);
+      api.ai.saveMessage(currentSessionId, 'user', textToSend).then((res: any) => {
+        if (res?.updatedTitle) {
+          setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: res.updatedTitle } : s));
+        }
+      }).catch(console.error);
+
+      // Immediately set title in UI state if this is the first message or current title is default
+      const currentSess = sessions.find(s => s.id === currentSessionId);
+      if (currentSess) {
+        const isDefault = !currentSess.title || 
+          currentSess.title.includes("New Neural Link") || 
+          currentSess.title.includes("Initial Consultation") || 
+          currentSess.title.includes("New Session") ||
+          currentSess.title.includes("New Consult Diagnostic");
+        if (isDefault || messages.length === 0) {
+          const autoTitle = generateProfessionalTitle(textToSend);
+          setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: autoTitle } : s));
+          api.ai.updateSessionTitle(currentSessionId, autoTitle).catch(console.error);
+        }
+      }
     }
 
     setTerminalLogs(prev => [...prev.slice(-3), `USER: ${textToSend.slice(0, 20)}...`]);
@@ -2788,11 +2828,12 @@ ${f.prescription}
 
     const botMessageId = (Date.now() + 1).toString();
     const promptLower = textToSend.toLowerCase();
-    let probableEngine = "Doctorian 1.5";
-    if (images.length > 0) probableEngine = "Doctorian Opus (Vision)";
-    else if (promptLower.includes('analyze') || promptLower.includes('data')) probableEngine = "Doctorian 2.0 (Analytics)";
-    else if (promptLower.includes('Ollama') || promptLower.includes('reason') || promptLower.includes('think')) probableEngine = "Doctorian 3.5 (Max)";
-    else if (!isMedicalQuery(promptLower)) probableEngine = "Doctorian 1.5";
+    let probableEngine = "DOCTORIAN 2.5 NEXUS";
+    if (images.length > 0) probableEngine = "DOCTORIAN 5.0 OPUS (Vision Core)";
+    else if (promptLower.includes('fast') || promptLower.includes('instant')) probableEngine = "DOCTORIAN 1.5 ORACLE (Fastest Model)";
+    else if (promptLower.includes('analyze') || promptLower.includes('data')) probableEngine = "DOCTORIAN 4.0 NOVA EXPERTS (Analytics)";
+    else if (promptLower.includes('reason') || promptLower.includes('think')) probableEngine = "DOCTORIAN 5.0 OPUS EXPERTS (Quantum)";
+    else if (!isMedicalQuery(promptLower)) probableEngine = "DOCTORIAN 1.5 ORACLE";
     setTerminalLogs(prev => [...prev.slice(-3), `AI: Using ${probableEngine} Engine...`]);
 
     const botMessagePlaceholder: Message = {
@@ -2915,7 +2956,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             text: m.text
           })),
           systemInstructionGemma,
-          'gemini-2.5-flash', // Use fast, high-quality, live model to emulate Gemma 3 TFJS outputs
+          'gemini-3.6-flash', // Use fast, high-quality, live model to emulate Gemma 3 TFJS outputs
           activePersona === 'support' ? 0.3 : temperature,
           (meta) => {
             if (meta.credits !== undefined) {
@@ -2995,19 +3036,19 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       }
 
       if (clinicalEngine === 'medlm-medium') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 3.0 EXPERT BRAIN ACTIVE]:\n- You are operating under Doctorian 3.0 specialized clinical reasoning architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 4.0 NOVA EXPERT BRAIN ACTIVE]:\n- You are operating under Doctorian 4.0 NOVA specialized clinical reasoning architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
       } else if (clinicalEngine === 'medlm-large') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 3.5 MAX BRAIN ACTIVE]:\n- You are operating under Doctorian 3.5 deep-reasoning advanced clinical diagnostic architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 5.0 OPUS QUANTUM BRAIN ACTIVE]:\n- You are operating under Doctorian 5.0 OPUS deep-reasoning advanced clinical diagnostic architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
       } else if (clinicalEngine === 'huggingface') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 2.0 CLOUD BRAIN ACTIVE]:\n- You are operating live on the high-performance Doctorian 2.0 clinical core.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 2.5 NEXUS CLINICAL BRAIN ACTIVE]:\n- You are operating live on the high-performance Doctorian 2.5 NEXUS clinical core.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
       } else if (clinicalEngine === 'gemma-cloud') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 1.5 CLOUD CORE ACTIVE]:\n- You are operating on the fast Doctorian 1.5 cloud synapse.\n- Provide highly detailed, authoritative medical feedback.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 2.0 ORACLE CLOUD CORE ACTIVE]:\n- You are operating on the fast Doctorian 2.0 ORACLE cloud synapse.\n- Provide highly detailed, authoritative medical feedback.`;
       } else if (clinicalEngine === 'llama-clinical') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 2.5 PRO CORE ACTIVE]:\n- You are operating on the robust Doctorian 2.5 clinical guide engine.\n- Provide highly detailed, authoritative medical feedback.`;
+        engineSystemInstruction += `\n\n[DOCTORIAN 3.0 NEXUS PRO CORE ACTIVE]:\n- You are operating on the robust Doctorian 3.0 NEXUS clinical guide engine.\n- Provide highly detailed, authoritative medical feedback.`;
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
-        ? 'gemini-2.5-flash' 
+        ? 'gemini-3.6-flash' 
         : (clinicalEngine === 'medlm-large' 
           ? 'gemini-3.1-pro-preview' 
           : (clinicalEngine === 'huggingface' 
@@ -3272,13 +3313,22 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           </span>
                         </div>
                       </div>
-                      <button 
-                        onClick={(e) => deleteSession(session.id, e)}
-                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${currentSessionId === session.id ? 'hover:bg-white/20 text-white' : 'hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500'}`}
-                        title="Purge Session"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button 
+                          onClick={(e) => renameSession(session.id, session.title, e)}
+                          className={`p-1.5 rounded-lg transition-all ${currentSessionId === session.id ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500'}`}
+                          title="Rename Session Title"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button 
+                          onClick={(e) => deleteSession(session.id, e)}
+                          className={`p-1.5 rounded-lg transition-all ${currentSessionId === session.id ? 'hover:bg-white/20 text-white' : 'hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500'}`}
+                          title="Purge Session"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -3683,17 +3733,17 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
-                          title: 'Doctorian Opus (Local Edge)', 
-                          desc: 'Doctorian Offline Engine', 
+                          title: 'DOCTORIAN 1.5 ORACLE (Fastest Model)', 
+                          desc: 'Ultra-Fast Local Edge Engine', 
                           license: 'Always Free Local (Active)', 
                           payment: 'No External API Keys Required', 
-                          features: ['Runs fully browser-side offline', 'Accelerated with neural pipeline', 'Trainable locally with zero costs'],
+                          features: ['Instant zero-latency responses', 'Hardware accelerated in-browser', 'Runs 100% offline with zero cost'],
                           color: 'from-amber-600 to-orange-600'
                         },
                         { 
                           id: 'gemma-cloud' as const, 
-                          title: 'Doctorian 1.5 (Cloud Core)', 
-                          desc: 'Full Cloud Clinical Intelligence', 
+                          title: 'DOCTORIAN 2.0 ORACLE (Speed Cloud)', 
+                          desc: 'Rapid Serverless Intelligence', 
                           license: 'Always Free Cloud (Active)', 
                           payment: 'No External Keys Required', 
                           features: ['High speed server-side logic', 'Advanced medical reasoning', 'Full multimodal translation mapping'],
@@ -3701,35 +3751,35 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         },
                         { 
                           id: 'huggingface' as const, 
-                          title: 'Doctorian 2.0 (Clinical Core)', 
-                          desc: 'Cloud Brain Neural Synapse', 
-                          license: 'Cloud Connection (Active)', 
-                          payment: 'Access Token Configured', 
-                          features: ['Realistic clinical processing', 'Stable serverless API connections', 'Zero host computing consumption'],
+                          title: 'DOCTORIAN 2.5 NEXUS (Clinical Core)', 
+                          desc: 'Multi-lingual Neural Synapse', 
+                          license: 'Standard Access (Active)', 
+                          payment: 'Zero Host Compute Consumption', 
+                          features: ['Realistic clinical processing', 'Stable serverless API connection', 'Multi-lingual diagnostic output'],
                           color: 'from-cyan-600 to-blue-600'
                         },
                         { 
                           id: 'llama-clinical' as const, 
-                          title: 'Doctorian 2.5 (Pro Core)', 
-                          desc: 'High-Performance Clinical Core', 
-                          license: 'Fully Licensed (Active)', 
+                          title: 'DOCTORIAN 3.0 NEXUS (Pro Core)', 
+                          desc: 'Licensed Clinical Guidelines', 
+                          license: 'Licensed Access (Active)', 
                           payment: 'Auto-Recharge Active', 
-                          features: ['Highly compliant baseline guidelines', 'Fast diagnostic outputs', 'Offline clinical logic active'],
+                          features: ['Highly compliant baseline guidelines', 'Fast diagnostic protocols', 'Offline clinical logic active'],
                           color: 'from-slate-500 to-slate-600'
                         },
                         { 
                           id: 'medlm-medium' as const, 
-                          title: 'Doctorian 3.0 (Expert Brain)', 
-                          desc: 'Specialized High-Performance Diagnostics', 
+                          title: 'DOCTORIAN 4.0 NOVA EXPERTS (Expert Brain)', 
+                          desc: 'Specialized Diagnostic Co-Pilot', 
                           license: 'Clinical Co-Pilot Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
                           features: ['Deep clinical fine-tune path', 'OCR lab report analysis', 'PDF referral notes printing'],
-                          color: 'from-blue-600 to-indigo-600'
+                          color: 'from-indigo-600 to-blue-700'
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'Doctorian 3.5 (Max Brain)', 
-                          desc: 'Deep-Reasoning Advanced Diagnostic Core', 
+                          title: 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Core)', 
+                          desc: 'Deep-Reasoning Quantum Engine', 
                           license: 'Deep Reasoning Core Licensed (Active)', 
                           payment: 'Auto-Recharge Active', 
                           features: ['Dynamic Chain-of-Thought diagnostics', 'Real-time search grounding', 'Multi-physician case paneling'],
@@ -5867,14 +5917,14 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">Select the clinical intelligence layout for diagnostic formulation</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {[
-                        { id: 'gemma3-tfjs' as const, label: 'Doctorian Opus (Local)', desc: 'Local Edge Core', tier: 'Standard (Free)' },
-                        { id: 'gemma-cloud' as const, label: 'Doctorian 1.5 (Cloud)', desc: 'Cloud Core', tier: 'Standard (Free)' },
-                        { id: 'huggingface' as const, label: 'Doctorian 2.0 (Clinical)', desc: 'Clinical Core', tier: 'Standard (Free)' },
-                        { id: 'llama-clinical' as const, label: 'Doctorian 2.5 (Pro)', desc: 'Pro Core', tier: 'Standard (Free)' },
-                        { id: 'medlm-medium' as const, label: 'Doctorian 3.0 (Expert)', desc: 'Expert Brain', tier: 'Pro Required' },
-                        { id: 'medlm-large' as const, label: 'Doctorian 3.5 (Max)', desc: 'Deep Reasoning', tier: 'Matrix Required' }
+                        { id: 'gemma3-tfjs' as const, label: 'DOCTORIAN 1.5 ORACLE', desc: 'Fastest Local Edge Core', tier: 'Always Free' },
+                        { id: 'gemma-cloud' as const, label: 'DOCTORIAN 2.0 ORACLE', desc: 'Speed Cloud Core', tier: 'Always Free' },
+                        { id: 'huggingface' as const, label: 'DOCTORIAN 2.5 NEXUS', desc: 'Clinical Synapse Core', tier: 'Standard' },
+                        { id: 'llama-clinical' as const, label: 'DOCTORIAN 3.0 NEXUS', desc: 'Pro Guideline Core', tier: 'Pro' },
+                        { id: 'medlm-medium' as const, label: 'DOCTORIAN 4.0 NOVA EXPERTS', desc: 'Expert Co-Pilot Brain', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'DOCTORIAN 5.0 OPUS EXPERTS', desc: 'Quantum Max Core', tier: 'Matrix Required' }
                       ].map(engineOption => {
                         const { hasAccess, tierName } = checkModelAccess(engineOption.id);
                         const isSelected = clinicalEngine === engineOption.id;
@@ -6179,11 +6229,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian Opus (Local)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian 1.5 (Cloud)' : (clinicalEngine === 'huggingface' ? 'Doctorian 2.0 (Clinical)' : (clinicalEngine === 'medlm-medium' ? 'Doctorian 3.0 (Expert)' : (clinicalEngine === 'medlm-large' ? 'Doctorian 3.5 (Max)' : 'Doctorian 2.5 (Pro)'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'DOCTORIAN 1.5 ORACLE (Fastest Model)' : (clinicalEngine === 'gemma-cloud' ? 'DOCTORIAN 2.0 ORACLE (Speed Cloud)' : (clinicalEngine === 'huggingface' ? 'DOCTORIAN 2.5 NEXUS (Clinical Core)' : (clinicalEngine === 'llama-clinical' ? 'DOCTORIAN 3.0 NEXUS (Pro Core)' : (clinicalEngine === 'medlm-medium' ? 'DOCTORIAN 4.0 NOVA EXPERTS (Expert Brain)' : 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Core)'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian Opus (Local)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian 1.5 (Cloud)' : (clinicalEngine === 'huggingface' ? 'Doctorian 2.0 (Clinical)' : (clinicalEngine === 'medlm-medium' ? 'Doctorian 3.0 (Expert)' : (clinicalEngine === 'medlm-large' ? 'Doctorian 3.5 (Max)' : 'Doctorian 2.5 (Pro)'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'DOCTORIAN 1.5 ORACLE (Fastest Model)' : (clinicalEngine === 'gemma-cloud' ? 'DOCTORIAN 2.0 ORACLE (Speed Cloud)' : (clinicalEngine === 'huggingface' ? 'DOCTORIAN 2.5 NEXUS (Clinical Core)' : (clinicalEngine === 'llama-clinical' ? 'DOCTORIAN 3.0 NEXUS (Pro Core)' : (clinicalEngine === 'medlm-medium' ? 'DOCTORIAN 4.0 NOVA EXPERTS (Expert Brain)' : 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Core)'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}

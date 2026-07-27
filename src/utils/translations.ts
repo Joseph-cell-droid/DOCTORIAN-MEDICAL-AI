@@ -1648,7 +1648,7 @@ export const translate = (text: string, selectedLanguage: string): string => {
     'Longevity & DNA Lab': 'Long Life Lab',
     'Anatomy Illustrator': 'Body Pictures',
     'Neural Core Trainer': 'Train Doctor',
-    'Biosimulator Lab': 'Health Simulator',
+    'Clinical Hub': 'Clinical Hub (Research & References)',
     'Diagnostic Lab Analyser': 'Check Illness',
     'Real-time Bio-Monitor': 'Heart & Pulse',
     'Clinical History Trace': 'Health History',

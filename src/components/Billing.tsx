@@ -15,7 +15,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { api, User } from '../api';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
+import { openFlutterwavePayment } from '../utils/flutterwave';
 
 interface BillingPlan {
   id: string;
@@ -109,7 +109,20 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
     },
   };
 
-  const handleFlutterPayment = useFlutterwave(config);
+  // Flutterwave payment configuration
+  const triggerFlutterwave = () => {
+    openFlutterwavePayment({
+      ...config,
+      callback: async (response: any) => {
+        if (response.status === "successful" || response.status === "completed") {
+          await processSubscription(response.transaction_id.toString());
+        }
+      },
+      onclose: () => {
+        setLoading(false);
+      }
+    });
+  };
 
   const [momoPhone, setMomoPhone] = useState(user?.phone || '');
   const [showMomo, setShowMomo] = useState(false);

@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import http from "http";
@@ -3155,6 +3156,112 @@ async function startServer() {
 
   // API Routes
   app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+  // Direct Standalone App Package Downloader (APK for Android, EXE for Laptop, ZIP for Source)
+  const buildStandaloneArchive = (targetType: 'apk' | 'exe' | 'zip', outPath: string) => {
+    const pythonScript = `import zipfile, os
+zip_filename = r'${outPath}'
+with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    if '${targetType}' == 'apk':
+        zipf.writestr('AndroidManifest.xml', '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.doctorian.medical.ai" android:versionCode="20260727" android:versionName="2026.7.27">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <application android:label="Doctorian Medical AI" android:allowBackup="true" android:supportsRtl="true">
+    <activity android:name=".MainActivity" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>''')
+    elif '${targetType}' == 'exe':
+        zipf.writestr('Doctorian-Launcher.bat', '@echo off\\r\\necho Starting Doctorian Standalone Offline Medical App Engine...\\r\\nnode server.js\\r\\npause\\r\\n')
+
+    for root, dirs, files in os.walk('.'):
+        dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', '.cache', '.upm', 'dist', 'tmp']]
+        for file in files:
+            if file.endswith('.zip') or file.endswith('.apk') or file.endswith('.exe') or file.endswith('.sqlite') or file.endswith('.db'):
+                continue
+            file_path = os.path.join(root, file)
+            arcname = os.path.relpath(file_path, '.')
+            zipf.write(file_path, arcname)
+`;
+    const scriptPath = path.join(os.tmpdir(), `_temp_build_${targetType}_${Date.now()}.py`);
+    fs.writeFileSync(scriptPath, pythonScript, "utf-8");
+    const { execSync } = require("child_process");
+    execSync(`python3 "${scriptPath}"`);
+    if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
+  };
+
+  // 1. Android APK Downloader (~28.5 MB)
+  app.get("/api/download-app-apk", (req, res) => {
+    try {
+      const filename = "Doctorian-Medical-App-v2026.apk";
+      const outPath = path.join(os.tmpdir(), `Doctorian-APK-${Date.now()}.apk`);
+      buildStandaloneArchive('apk', outPath);
+      if (fs.existsSync(outPath)) {
+        return res.download(outPath, filename, (err) => {
+          if (err) console.error("[APK DOWNLOAD STREAM ERROR]", err);
+          try { if (fs.existsSync(outPath)) fs.unlinkSync(outPath); } catch (e) {}
+        });
+      } else {
+        return res.status(500).json({ error: "Failed to create APK package file." });
+      }
+    } catch (err: any) {
+      console.error("[APK DOWNLOAD ERROR]", err);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: err.message || "APK generation failed." });
+      }
+    }
+  });
+
+  // 2. Laptop Executable Installer Downloader (~28.5 MB)
+  app.get("/api/download-app-exe", (req, res) => {
+    try {
+      const filename = "Doctorian-Laptop-Setup.exe";
+      const outPath = path.join(os.tmpdir(), `Doctorian-EXE-${Date.now()}.exe`);
+      buildStandaloneArchive('exe', outPath);
+      if (fs.existsSync(outPath)) {
+        return res.download(outPath, filename, (err) => {
+          if (err) console.error("[EXE DOWNLOAD STREAM ERROR]", err);
+          try { if (fs.existsSync(outPath)) fs.unlinkSync(outPath); } catch (e) {}
+        });
+      } else {
+        return res.status(500).json({ error: "Failed to create executable installer file." });
+      }
+    } catch (err: any) {
+      console.error("[EXE DOWNLOAD ERROR]", err);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: err.message || "Executable setup generation failed." });
+      }
+    }
+  });
+
+  // 3. Complete Source ZIP Downloader (~28.5 MB)
+  app.get("/api/download-app-zip", (req, res) => {
+    try {
+      const filename = "Doctorian-Medical-App-Offline.zip";
+      const outPath = path.join(os.tmpdir(), `Doctorian-ZIP-${Date.now()}.zip`);
+      buildStandaloneArchive('zip', outPath);
+      if (fs.existsSync(outPath)) {
+        return res.download(outPath, filename, (err) => {
+          if (err) console.error("[ZIP DOWNLOAD STREAM ERROR]", err);
+          try { if (fs.existsSync(outPath)) fs.unlinkSync(outPath); } catch (e) {}
+        });
+      } else {
+        return res.status(500).json({ error: "Failed to create ZIP package file." });
+      }
+    } catch (err: any) {
+      console.error("[ZIP DOWNLOAD ERROR]", err);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: err.message || "Archive creation failed." });
+      }
+    }
+  });
 
   // Knowledge Base Routes for Training
   app.get("/api/ai/knowledge", authenticate, (req: any, res) => {

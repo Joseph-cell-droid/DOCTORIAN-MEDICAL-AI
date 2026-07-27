@@ -20,7 +20,8 @@ import {
   Droplets,
   Apple,
   Moon,
-  Smile
+  Smile,
+  Compass
 } from 'lucide-react';
 import { HealthTip } from './components/HealthTipModal';
 
@@ -28,7 +29,7 @@ export const SEARCHABLE_ITEMS = [
   { label: 'Patient Monitoring System', view: 'monitor', icon: <Activity size={18} />, category: 'Tools', description: 'Real-time heart rate and vitals monitoring.' },
   { label: 'Clinical Health Records', view: 'records', icon: <FileText size={18} />, category: 'Data', description: 'View and manage your medical history and records.' },
   { label: 'Clinical Roadmap', view: 'home', icon: <LayoutGrid size={18} />, category: 'Intelligence', description: 'Track your specialized health milestones and journey.' },
-  { label: 'Bio-Simulation', view: 'home', icon: <Zap size={18} />, category: 'Intelligence', description: 'Real-time biological modeling and DNA synthesis.' },
+  { label: 'Clinical Hub — Research & Discoveries', view: 'biomatic', icon: <Compass size={18} />, category: 'Research', description: 'Explore Discover tab with multi-source medical literature, PubMed trials, clinical guidelines, WHO data, and AI synthesis for doctors and researchers.' },
   { label: 'Diagnostic Mapper', view: 'diagnostic_lab', icon: <Stethoscope size={18} />, category: 'AI Features', description: 'Analyze your symptoms with advanced AI intelligence.' },
   { label: 'Bio-Pharmacy Tracker', view: 'meds', icon: <Pill size={18} />, category: 'Management', description: 'Dosage tracking and interaction checks.' },
   { label: 'CognisHub', view: 'neuro', icon: <Brain size={18} />, category: 'Intelligence', description: 'Cognitive health and brain performance tracking.' },

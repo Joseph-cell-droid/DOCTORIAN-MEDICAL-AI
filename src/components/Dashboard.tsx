@@ -15,7 +15,6 @@ import {
   Tooltip, BarChart, Bar, Cell 
 } from 'recharts';
 import { SafeResponsiveContainer } from './SafeResponsiveContainer';
-import BioSimulation from './BioSimulation';
 import { BioSecurity } from './BioSecurity';
 import { api } from '../api';
 import { WeatherWidget } from './WeatherWidget';
@@ -1713,10 +1712,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
           </div>
-        </div>
-
-        <div className="mt-10">
-          <BioSimulation />
         </div>
 
         {/* Clinical Intelligence Overview */}

@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { api, User } from '../api';
 
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
+import { openFlutterwavePayment } from '../utils/flutterwave';
 
 interface UpgradeModalProps {
   user: User | null;
@@ -136,14 +136,13 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
      config.amount = selectedTier ? Math.ceil(parseInt(selectedTier.price.replace(',', '')) / 3800) : 0;
   }
 
-  const handleFlutterPayment = useFlutterwave(config);
-
   const handleUpgrade = () => {
     if (!selectedTier || !user) return;
     setLoading(selectedTier.id);
 
-    handleFlutterPayment({
-      callback: async (response) => {
+    openFlutterwavePayment({
+      ...config,
+      callback: async (response: any) => {
         if (response.status === "successful" || response.status === "completed") {
           try {
             const planId = selectedTier.id === 'pro' ? 'catalyst' : (selectedTier.id === 'business' ? 'quantum' : selectedTier.id);
@@ -166,10 +165,9 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
             console.error("Subscription update failed:", err);
           }
         }
-        closePaymentModal();
         setLoading(null);
       },
-      onClose: () => {
+      onclose: () => {
         setLoading(null);
       },
     });

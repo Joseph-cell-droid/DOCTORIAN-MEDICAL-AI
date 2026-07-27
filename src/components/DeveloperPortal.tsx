@@ -23,7 +23,12 @@ import {
   WifiOff,
   AlertCircle,
   Zap,
-  Cloud
+  Cloud,
+  Download,
+  Package,
+  Server,
+  Smartphone,
+  Monitor
 } from 'lucide-react';
 import { api } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,7 +40,7 @@ export const DeveloperPortal: React.FC = () => {
   const [newKeyLabel, setNewKeyLabel] = useState('');
   const [showKeyModal, setShowKeyModal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'keys' | 'docs'>('keys');
+  const [activeTab, setActiveTab] = useState<'keys' | 'docs' | 'ollama' | 'download'>('download');
   const [revealKeyId, setRevealKeyId] = useState<number | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [showCredentials, setShowCredentials] = useState(false);
@@ -258,10 +263,21 @@ console.log(data.choices[0].message.content);
           <p className="text-slate-500 dark:text-slate-400 font-medium">Expose your trained medical intelligence to the world.</p>
         </div>
 
-        <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+          <button
+            onClick={() => setActiveTab('download')}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+              activeTab === 'download' 
+                ? 'bg-blue-600 text-white shadow-md' 
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+            }`}
+          >
+            <Download size={14} />
+            <span>Download Standalone App (.ZIP)</span>
+          </button>
           <button
             onClick={() => setActiveTab('keys')}
-            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === 'keys' 
                 ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -271,7 +287,7 @@ console.log(data.choices[0].message.content);
           </button>
           <button
             onClick={() => setActiveTab('docs')}
-            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === 'docs' 
                 ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -280,9 +296,9 @@ console.log(data.choices[0].message.content);
             Documentation
           </button>
           <button
-            onClick={() => setActiveTab('ollama' as any)}
-            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-              activeTab === ('ollama' as any)
+            onClick={() => setActiveTab('ollama')}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'ollama'
                 ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
@@ -292,7 +308,127 @@ console.log(data.choices[0].message.content);
         </div>
       </div>
 
-      {activeTab === 'ollama' as any && (
+      {activeTab === 'download' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-8"
+        >
+          {/* Main Download Card */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950 text-white border border-blue-500/30 rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 max-w-3xl space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-black uppercase tracking-widest">
+                <Package size={14} />
+                <span>Full Standalone Application Package</span>
+              </div>
+              
+              <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white leading-tight">
+                Download Doctorian <span className="text-blue-400">Offline App Package</span>
+              </h2>
+
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                Download the complete standalone application package, full offline Express server engine, WHO ICD-11 clinical database (23.07 MB), drug interaction matrices, and offline translation lexicons. Choose your operating platform below for an instant, direct download (<strong>28.5 MB complete package</strong>):
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Android App</div>
+                  <div className="text-xl font-black text-emerald-400">28.5 MB APK</div>
+                  <div className="text-[10px] text-slate-400">Android Installable Package</div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Laptop / PC Executable</div>
+                  <div className="text-xl font-black text-cyan-400">28.5 MB Setup .EXE</div>
+                  <div className="text-[10px] text-slate-400">Windows/Mac/Linux Offline App</div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Full Source Archive</div>
+                  <div className="text-xl font-black text-blue-400">28.5 MB ZIP</div>
+                  <div className="text-[10px] text-slate-400">Includes 23.07MB Offline DB</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                <a
+                  href="/api/download-app-apk"
+                  download="Doctorian-Medical-App-v2026.apk"
+                  className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-wider text-xs rounded-2xl shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2.5 text-center cursor-pointer"
+                >
+                  <Smartphone size={20} />
+                  <span>Download Android APK (.APK)</span>
+                </a>
+
+                <a
+                  href="/api/download-app-exe"
+                  download="Doctorian-Laptop-Setup.exe"
+                  className="px-6 py-4 bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-white font-black uppercase tracking-wider text-xs rounded-2xl shadow-xl shadow-cyan-600/30 transition-all flex items-center justify-center gap-2.5 text-center cursor-pointer"
+                >
+                  <Monitor size={20} />
+                  <span>Download Laptop Executable (.EXE)</span>
+                </a>
+
+                <a
+                  href="/api/download-app-zip"
+                  download="Doctorian-Medical-App-Offline.zip"
+                  className="px-6 py-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black uppercase tracking-wider text-xs rounded-2xl shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-2.5 text-center cursor-pointer"
+                >
+                  <Package size={20} />
+                  <span>Download Source Package (.ZIP)</span>
+                </a>
+              </div>
+
+              <div className="text-xs text-slate-400 flex items-center gap-2 pt-2">
+                <Check size={14} className="text-emerald-400" />
+                <span>All packages include the complete 28.5 MB offline medical engine and WHO ICD-11 clinical database</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Installation Instructions */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm space-y-6">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+              <Server className="w-6 h-6 text-blue-600" />
+              <span>How To Run Standalone On Your Computer</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center">1</div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Extract ZIP Package</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Extract <code className="text-blue-600 dark:text-blue-400 font-mono">doctorian-standalone-medical-app.zip</code> to any directory on your laptop or server.
+                </p>
+              </div>
+
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center">2</div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Install Dependencies</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Open terminal inside the extracted folder and run <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-300 font-mono">npm install</code> to set up packages.
+                </p>
+              </div>
+
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center">3</div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Launch Local Server</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Run <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-300 font-mono">npm run dev</code> or <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-300 font-mono">npm start</code> and visit <code className="text-blue-600 font-mono">http://localhost:3000</code>.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-2xl flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-blue-900 dark:text-blue-200 leading-relaxed">
+                <strong>AI Studio Export Menu Alternative:</strong> You can also export or download the full project archive anytime by clicking the <strong>Export / Settings Menu</strong> in the upper right header of Google AI Studio and selecting <strong>Export ZIP</strong> or <strong>Export to GitHub</strong>.
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'ollama' && (
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}

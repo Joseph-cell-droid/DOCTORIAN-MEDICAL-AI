@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, ErrorInfo, Suspense, lazy, useMemo, useRef } from 'react';
-import { 
+import { Compass, 
   BrainCircuit,
   Activity,
   TrendingUp,
@@ -116,6 +116,7 @@ import { Footer } from "./components/Footer";
 import { BiomaticSandbox } from "./components/BiomaticSandbox";
 import { ClinicalProtocols } from "./components/Tasks";
 import { NeuralTrainingHub } from "./components/NeuralTrainingHub";
+import { AmbientBubbleBackground } from "./components/AmbientBubbleBackground";
 
 import { Soundscape } from "./utils/soundscape";
 
@@ -265,7 +266,7 @@ const viewNamesMap: Record<string, string> = {
   dev_portal: 'Developer Portal',
   billing: 'Resource Billings',
   health_trace: 'Clinical History Trace',
-  biomatic: 'Biosimulator Lab',
+  biomatic: 'Clinical Hub',
   genomic_longevity: 'Longevity & DNA Lab',
   systems_hub: 'Systems Launchpad',
   doctors_dashboard: 'Doctors\' Portal',
@@ -2005,7 +2006,7 @@ export default function App() {
       items: [
         { id: 'home', label: 'Home Dashboard', icon: <Home size={15} /> },
         { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={15} /> },
-        { id: 'biomatic', label: 'Biosimulator Lab', icon: <Cpu size={15} /> },
+        { id: 'biomatic', label: 'Clinical Hub', icon: <Cpu size={15} /> },
       ]
     },
     {
@@ -2082,7 +2083,7 @@ export default function App() {
 
     const tabs = {
       biomatic: [
-        { id: 'biomatic', label: 'Biosimulator Lab', icon: <Cpu size={14} /> },
+        { id: 'biomatic', label: 'Clinical Hub', icon: <Cpu size={14} /> },
         { id: 'genomic_longevity', label: 'Longevity & DNA Lab', icon: <Dna size={14} /> },
         { id: 'illustrator', label: 'Anatomy Illustrator', icon: <Palette size={14} /> }
       ],
@@ -2103,7 +2104,7 @@ export default function App() {
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/50 dark:border-slate-800/40 pb-4 shrink-0 px-2 sm:px-0">
         <div>
           <h2 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">
-            {translate(activeGroup === 'biomatic' ? 'Biosimulator & Labs' : activeGroup === 'monitor' ? 'Bio-Monitoring Systems' : 'Clinical & Doctors Core', currentLanguage)}
+            {translate(activeGroup === 'biomatic' ? 'Clinical Hub & Research' : activeGroup === 'monitor' ? 'Bio-Monitoring Systems' : 'Clinical & Doctors Core', currentLanguage)}
           </h2>
           <p className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
             {translate(viewNamesMap[currentView] || '', currentLanguage)}
@@ -2158,6 +2159,7 @@ export default function App() {
         </div>
       )}
       <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
+        <AmbientBubbleBackground isDarkMode={isDarkMode} />
         <div ref={navigationContainerRef} className="fixed inset-0 z-[140] pointer-events-none" />
       <a 
         href="#main-content" 
@@ -2469,17 +2471,35 @@ export default function App() {
             stiffness: 140, 
             damping: 22 
           }}
-          className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible"
+          className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible pt-[env(safe-area-inset-top,0px)]"
         >
-          <div className="max-w-7xl mx-auto w-full px-2.5 sm:px-4 md:px-6 lg:px-8">
-            <div className="flex items-center py-2.5 sm:py-4 gap-1 sm:gap-2.5 md:gap-3 lg:gap-4 w-full">
-              <div className="flex items-center gap-1.5 lg:gap-6 shrink-0">
+          <div className="max-w-7xl mx-auto w-full px-2 sm:px-3 md:px-6 lg:px-8">
+            <div className="flex items-center py-2 sm:py-3.5 gap-1.5 sm:gap-2.5 md:gap-3 lg:gap-4 w-full">
+              {/* Upper Bar Professional Feature: Clinical Triage & Emergency SOS Center */}
+              <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-3 shrink-0">
                 <motion.button 
-                  className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0 p-1"
-                  onClick={() => setCurrentView('home')}
-                  aria-label="Go to Home"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setCurrentView('emergency')}
+                  className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-red-500/10 via-rose-500/10 to-amber-500/10 dark:from-red-950/40 dark:via-rose-950/30 dark:to-amber-950/30 border border-red-200/90 dark:border-red-800/60 hover:border-red-400/80 text-red-700 dark:text-red-300 transition-all cursor-pointer shadow-sm hover:shadow-md shrink-0 group/triage"
+                  title="Open Clinical Emergency Triage & Dispatch Center"
+                  aria-label="Open Emergency Triage"
                 >
-                  <Logo size="sm" className="shrink-0" />
+                  <div className="relative flex items-center justify-center">
+                    <Activity size={16} className="text-red-600 dark:text-red-400 animate-pulse shrink-0 group-hover/triage:scale-110 transition-transform" />
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-start leading-none text-left">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                      Clinical Triage
+                    </span>
+                    <span className="text-[8px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest mt-0.5">
+                      Emergency SOS
+                    </span>
+                  </div>
                 </motion.button>
               </div>
 
@@ -3152,7 +3172,7 @@ export default function App() {
                                     { id: 'genomic_longevity', title: "Genomics", category: "DNA Core", icon: <Dna size={14} />, color: "text-rose-500 hover:text-rose-600" },
                                     { id: 'illustrator', title: "Illustrator", category: "Visuals", icon: <Palette size={14} />, color: "text-amber-500 hover:text-amber-600" },
                                     { id: 'neuro', title: "CognisHub", category: "Brain AI", icon: <Brain size={14} />, color: "text-violet-500 hover:text-violet-600" },
-                                    { id: 'biomatic', title: "Sandbox", category: "Sim-Lab", icon: <Cpu size={14} />, color: "text-cyan-500 hover:text-cyan-600" },
+                                    { id: 'biomatic', title: "Clinical Hub", category: "Research", icon: <Cpu size={14} />, color: "text-cyan-500 hover:text-cyan-600" },
                                     { id: 'diagnostic_lab', title: "Labs Node", category: "Clinical", icon: <Stethoscope size={14} />, color: "text-emerald-500 hover:text-emerald-600" },
                                     { id: 'monitor', title: "Bio-Monitor", category: "Real-time", icon: <Monitor size={14} />, color: "text-indigo-500 hover:text-indigo-600" },
                                     { id: 'health_trace', title: "Trace Node", category: "Logbooks", icon: <TrendingUp size={14} />, color: "text-blue-500 hover:text-blue-600" },
@@ -3361,28 +3381,28 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                     <button 
                       onClick={() => {
                         setAuthModalView('login');
                         setIsAuthModalOpen(true);
                       }}
-                      className="flex items-center justify-center gap-1.5 w-11 h-11 sm:w-auto sm:h-10 px-0 sm:px-4 text-slate-600 dark:text-slate-300 rounded-2xl sm:rounded-xl text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group border border-slate-100 dark:border-slate-800 whitespace-nowrap shrink-0"
+                      className="flex items-center justify-center gap-1 h-9 sm:h-10 px-2 sm:px-4 text-slate-700 dark:text-slate-200 rounded-xl text-[10px] sm:text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group border border-slate-200 dark:border-slate-800 whitespace-nowrap shrink-0"
                       title="Sign In"
                     >
-                      <LogIn size={16} className="group-hover:translate-x-1 transition-transform shrink-0" />
-                      <span className="hidden sm:inline">SIGN IN</span>
+                      <LogIn size={14} className="group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      <span className="inline">SIGN IN</span>
                     </button>
                     <button 
                       onClick={() => {
                         setAuthModalView('signup');
                         setIsAuthModalOpen(true);
                       }}
-                      className="flex items-center justify-center gap-1.5 w-11 h-11 sm:w-auto sm:h-10 px-0 sm:px-4 bg-blue-600 text-white rounded-2xl sm:rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-blue-900/20 group whitespace-nowrap shrink-0"
+                      className="hidden sm:flex items-center justify-center gap-1.5 h-10 px-4 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-md shadow-blue-200 dark:shadow-blue-900/20 group whitespace-nowrap shrink-0"
                       title="Sign Up"
                     >
-                      <UserPlus size={16} className="group-hover:scale-110 transition-transform shrink-0" />
-                      <span className="hidden sm:inline">SIGN UP</span>
+                      <UserPlus size={15} className="group-hover:scale-110 transition-transform shrink-0" />
+                      <span>SIGN UP</span>
                     </button>
                   </div>
                 )
@@ -4657,7 +4677,7 @@ export default function App() {
                   {[
                     { id: 'home', label: 'Home Dashboard', icon: <Home size={15} />, color: 'from-blue-500 to-indigo-600' },
                     { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={15} />, color: 'from-violet-500 to-purple-600' },
-                    { id: 'biomatic', label: 'Biosimulator Lab', icon: <Cpu size={15} />, color: 'from-amber-500 to-orange-600' },
+                    { id: 'biomatic', label: 'Clinical Hub', icon: <Cpu size={15} />, color: 'from-amber-500 to-orange-600' },
                     { id: 'diagnostic_lab', label: 'Diagnostic Lab Analyser', icon: <Stethoscope size={15} />, color: 'from-emerald-600 to-teal-500' },
                     { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={15} />, color: 'from-cyan-500 to-blue-500' },
                     { id: 'doctors_dashboard', label: 'Doctors\' Portal', icon: <FileText size={15} />, color: 'from-indigo-500 to-indigo-700' },

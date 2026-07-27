@@ -1707,8 +1707,8 @@ export default function App() {
       const shouldBypassLocal = !prioritizeLocalAI || localFailCount >= 3;
 
       if (!shouldBypassLocal) {
-        // 1. Try local Gemma4 first (prioritizing PC Local LM Studio on User's PC / local Ollama)
-        const localUrlStr = user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt';
+        // 1. Try local Gemma 3:1b first (prioritizing PC Local LM Studio on User's PC / local Ollama)
+        const localUrlStr = user?.ollamaUrl || 'http://localhost:11434';
         const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
         
         const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
@@ -1716,7 +1716,7 @@ export default function App() {
           ? (cleanLocalUrl.includes('/v1') ? `${cleanLocalUrl}/chat/completions` : `${cleanLocalUrl}/v1/chat/completions`)
           : (cleanLocalUrl.includes('/api/chat') ? cleanLocalUrl : `${cleanLocalUrl}/api/chat`);
 
-        const modelToUse = "gemma4";
+        const modelToUse = "gemma3:1b";
 
         console.log(`[Insight Fallback Route] Querying local PC LLM for model '${modelToUse}' at ${finalUrl}...`);
         try {

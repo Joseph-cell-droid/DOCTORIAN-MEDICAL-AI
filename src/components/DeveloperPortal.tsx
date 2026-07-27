@@ -62,7 +62,7 @@ export const DeveloperPortal: React.FC = () => {
     fetchCredentials();
     loadProfile();
     
-    const savedUrl = localStorage.getItem('doctorian_cached_ollama_url') || 'https://fuzzy-bugs-run.loca.lt';
+    const savedUrl = localStorage.getItem('doctorian_cached_ollama_url') || 'http://localhost:11434';
     setPingLog([
       `[${new Date().toLocaleTimeString()}] Diagnostic environment loaded.`,
       `[${new Date().toLocaleTimeString()}] Target Local AI Endpoint: ${savedUrl}`,
@@ -110,7 +110,7 @@ export const DeveloperPortal: React.FC = () => {
   const handleTestConnection = async () => {
     setIsTesting(true);
     setPingSuccess(null);
-    const targetUrl = userProfile?.ollamaUrl || localStorage.getItem('doctorian_cached_ollama_url') || 'https://fuzzy-bugs-run.loca.lt';
+    const targetUrl = userProfile?.ollamaUrl || localStorage.getItem('doctorian_cached_ollama_url') || 'http://localhost:11434';
     const cleanUrl = targetUrl.trim().replace(/\/$/, "");
     
     setPingLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] Auditing connection to ${cleanUrl}...`]);
@@ -125,12 +125,12 @@ export const DeveloperPortal: React.FC = () => {
       const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
 
       const bodyPayload = isLMStudio ? {
-        model: "gemma4",
+        model: "gemma3:1b",
         messages: [{ role: "user", content: "ping" }],
         stream: false,
         max_tokens: 1
       } : {
-        model: "gemma4",
+        model: "gemma3:1b",
         messages: [{ role: "user", content: "ping" }],
         stream: false,
         options: { num_predict: 1 }

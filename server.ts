@@ -157,36 +157,36 @@ const revokedSessions = new Set<string>(); // set of user IDs whose sessions hav
 console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
-// Toggle between "huggingface", "openrouter", "Ollama", or "LM_STUDIO"
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "huggingface";
+// Toggle between "ollama", "huggingface", "openrouter", or "LM_STUDIO"
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "ollama";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
-// Default Models (Google Gemma and Mistral Instruct configured as primary standard models)
-const GEMINI_PRIMARY = "google/gemma-3-4b"; 
-const GEMINI_VISION = "google/gemma-3-4b";
+// Default Models (Gemma 3:1b local Ollama model configured as primary standard model)
+const GEMINI_PRIMARY = "gemma3:1b"; 
+const GEMINI_VISION = "gemma3:1b";
 
-// Option One Engines (OpenRouter / Llama / Mistral)
-const LLAMA_PRIMARY = "mistralai/mistral-7b-instruct";
-const LLAMA_VISION = "google/gemma-3-4b";
+// Option One Engines
+const LLAMA_PRIMARY = "gemma3:1b";
+const LLAMA_VISION = "gemma3:1b";
 
-const PRIMARY_ENGINE = "google/gemma-3-4b";
-const MEDICAL_REASONING_ENGINE = "google/gemma-3-4b";
-const DATA_ANALYTICS_ENGINE = "mistralai/mistral-7b-instruct";
-const VISION_ENGINE = "google/gemma-3-4b";
-const DEEPSEEK_ENGINE = "mistralai/mistral-7b-instruct";
-const MISTRAL_ENGINE = "mistralai/mistral-7b-instruct";
-const DEFAULT_GEMINI_ENGINE = "google/gemma-3-4b";
-const DEFAULT_LLAMA_ENGINE = "mistralai/mistral-7b-instruct";
-const DEFAULT_GEMMA_ENGINE = "google/gemma-3-4b";
-const BACKUP_ENGINE = "mistralai/mistral-7b-instruct";
+const PRIMARY_ENGINE = "gemma3:1b";
+const MEDICAL_REASONING_ENGINE = "gemma3:1b";
+const DATA_ANALYTICS_ENGINE = "gemma3:1b";
+const VISION_ENGINE = "gemma3:1b";
+const DEEPSEEK_ENGINE = "gemma3:1b";
+const MISTRAL_ENGINE = "gemma3:1b";
+const DEFAULT_GEMINI_ENGINE = "gemma3:1b";
+const DEFAULT_LLAMA_ENGINE = "gemma3:1b";
+const DEFAULT_GEMMA_ENGINE = "gemma3:1b";
+const BACKUP_ENGINE = "gemma3:1b";
 
 const OLLAMA_URL = IS_LM_STUDIO
   ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
   : (process.env.OLLAMA_URL || process.env.LOCAL_AI_URL || "http://localhost:11434");
 
 const OLLAMA_MODEL = IS_LM_STUDIO
-  ? (process.env.LM_STUDIO_MODEL || "google/gemma-3-4b")
-  : (process.env.OLLAMA_MODEL || "mistral");
+  ? (process.env.LM_STUDIO_MODEL || "gemma3:1b")
+  : (process.env.OLLAMA_MODEL || "gemma3:1b");
 
 // Only use local AI if explicitly enabled AND URL is provided. 
 // Avoid trying localhost in production unless OLLAMA_URL is explicitly set to it by the user.
@@ -216,14 +216,8 @@ const shouldTryHuggingFace = (customToken?: string) => {
 // Helper to determine if we should even try the local Ollama/LM Studio pulse
 const shouldTryOllama = (customUrl?: string) => {
   if (SILENT_OLLAMA) return false;
-  const url = (customUrl || "").trim().toLowerCase();
+  const url = (customUrl || OLLAMA_URL || "http://localhost:11434").trim().toLowerCase();
   if (!url) return false;
-  if (IS_LM_STUDIO || ACTIVE_AI_PROVIDER.toLowerCase() === "ollama") {
-    return true;
-  }
-  if (url.includes("localhost") || url.includes("127.0.0.1")) {
-    return IS_LOCAL_ENV === true;
-  }
   return true;
 };
 
@@ -669,15 +663,15 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["keys", "ollama", "huggingface", "together"];
+  let pathways = ["ollama", "keys", "huggingface", "together"];
   if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "keys", "ollama", "together"];
+    pathways = ["huggingface", "ollama", "keys", "together"];
   } else if (IS_LM_STUDIO) {
-    pathways = ["keys", "ollama"];
+    pathways = ["ollama", "keys"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["keys", "ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["keys", "ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   }
 
   for (const pathway of pathways) {
@@ -888,7 +882,7 @@ async function* callAIStream(options: {
         const response = await axios.post(finalUrl, payload, { 
           headers: localHeaders,
           responseType: 'stream', 
-          timeout: 2500 
+          timeout: 60000 
         });
 
         const stream = response.data;
@@ -1326,15 +1320,15 @@ async function callAIWorkflow(options: {
   }
 
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["keys", "ollama", "huggingface", "together"];
+  let pathways = ["ollama", "keys", "huggingface", "together"];
   if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "keys", "ollama", "together"];
+    pathways = ["huggingface", "ollama", "keys", "together"];
   } else if (IS_LM_STUDIO) {
-    pathways = ["keys", "ollama"];
+    pathways = ["ollama", "keys"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["keys", "ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["keys", "ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -1483,8 +1477,8 @@ async function callAIWorkflow(options: {
 
         const response = await axios.post(finalUrl, payload, { 
           headers: localHeaders,
-          timeout: 2500 
-        }); // Fast timeout for responsive local detection and cloud falling-back
+          timeout: 45000 
+        }); // Generous timeout for local model inference
 
         // Handle standard Ollama chat format
         if (response.data?.message?.content) {
@@ -2898,6 +2892,11 @@ async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
 
+  // High-priority handler for AI Studio internal control plane and health checks
+  app.all("/__aistudio_internal_control_plane/*", (req, res) => {
+    res.status(200).json({ status: "ok", ready: true });
+  });
+
   app.use(express.json());
   app.use(cookieParser());
   app.use(cors({
@@ -2907,6 +2906,9 @@ async function startServer() {
 
   // 1. HARDEN HTTP SECURITY HEADERS (Doctorian Defiance Shield)
   app.use((req, res, next) => {
+    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health') {
+      return next();
+    }
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-XSS-Protection", "1; mode=block");
@@ -2919,8 +2921,11 @@ async function startServer() {
 
   // 2. DEFENSIVE FIREWALL & INTRUSION DETECTION SYSTEM (WAF)
   const detectIntrusion = (req: any, res: any, next: any) => {
-    // Skip WAF for AI chat prompts to avoid false positives on programming inquiries
-    const pathsToSkip = ['/api/ai/chat', '/api/ai/voice', '/api/local/chat', '/api/chat/sessions'];
+    // Skip WAF for internal control plane, health checks, and AI chat prompts
+    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health') {
+      return next();
+    }
+    const pathsToSkip = ['/api/ai/chat', '/api/ai/voice', '/api/local/chat', '/api/chat/sessions', '/api/chat'];
     if (pathsToSkip.some(p => req.path.startsWith(p))) {
       return next();
     }
@@ -2986,6 +2991,9 @@ async function startServer() {
   
   const createRateLimiter = (options: { windowMs: number; max: number; message: string }) => {
     return (req: any, res: any, next: any) => {
+      if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health') {
+        return next();
+      }
       const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
       const key = `${req.path}:${ip}`;
       const now = Date.now();
@@ -3152,6 +3160,86 @@ async function startServer() {
 
   app.post("/api/local/index", async (req, res) => {
     res.status(501).json({ error: "Local indexing decommissioned." });
+  });
+
+  // Doctorian Medical AI Chat Endpoint (Ollama Integration with Gemma 3:1b)
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const rawMessage = req.body.message || req.body.prompt || 
+        (Array.isArray(req.body.messages) ? (req.body.messages[req.body.messages.length - 1]?.text || req.body.messages[req.body.messages.length - 1]?.content) : "");
+      
+      if (!rawMessage || typeof rawMessage !== 'string' || rawMessage.trim() === "") {
+        return res.status(400).json({ error: "Message or prompt parameter is required." });
+      }
+
+      const userMessage = rawMessage.trim();
+      const customSystemInstruction = req.body.systemInstruction || 
+        "You are Doctorian Medical AI, a specialized medical AI assistant. Provide professional medical guidance, explain your clinical reasoning clearly when appropriate, acknowledge uncertainty instead of guessing, and encourage users to consult qualified healthcare professionals for diagnosis and treatment.";
+
+      const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
+      const ollamaModel = process.env.OLLAMA_MODEL || "gemma3:1b";
+
+      const fullPrompt = `${customSystemInstruction}\n\nUser Query: ${userMessage}\n\nDoctorian Medical AI:`;
+
+      console.log(`[DOCTORIAN AI] Routing chat query to Ollama at ${ollamaUrl}/api/generate using model ${ollamaModel}...`);
+
+      try {
+        const ollamaRes = await fetch(`${ollamaUrl}/api/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: ollamaModel,
+            prompt: fullPrompt,
+            stream: false
+          })
+        });
+
+        if (ollamaRes.ok) {
+          const data = await ollamaRes.json();
+          const aiResponseText = data.response || data.text || "";
+          return res.json({
+            response: aiResponseText,
+            text: aiResponseText,
+            message: aiResponseText,
+            model: ollamaModel,
+            provider: "ollama"
+          });
+        } else {
+          console.warn(`[OLLAMA HTTP ERROR] Status ${ollamaRes.status} from ${ollamaUrl}.`);
+        }
+      } catch (ollamaErr: any) {
+        console.warn(`[OLLAMA CONNECT ERROR] ${ollamaUrl} unreachable (${ollamaErr?.message}). Engaging Doctorian Medical AI fallback...`);
+      }
+
+      // Fallback: Use Doctorian Clinical AI Inference Engine if local Ollama is offline
+      try {
+        const fallbackResult = await callAI({
+          messages: [{ role: "user", text: userMessage }],
+          systemInstruction: customSystemInstruction,
+          modelName: "gemma-3-4b"
+        });
+
+        if (fallbackResult && fallbackResult.text) {
+          return res.json({
+            response: fallbackResult.text,
+            text: fallbackResult.text,
+            message: fallbackResult.text,
+            model: "doctorian-clinical-fallback",
+            provider: "doctorian-fallback"
+          });
+        }
+      } catch (fbErr: any) {
+        console.error("[DOCTORIAN FALLBACK ERROR]", fbErr);
+      }
+
+      return res.status(503).json({
+        error: "Doctorian AI service unavailable.",
+        details: `Could not reach local Ollama server at ${ollamaUrl} with model ${ollamaModel}. Ensure Ollama is running (ollama run ${ollamaModel}).`
+      });
+    } catch (err: any) {
+      console.error("[API CHAT FATAL ERROR]", err);
+      return res.status(500).json({ error: err.message || "Internal server error in Doctorian AI engine." });
+    }
   });
 
   // API Routes

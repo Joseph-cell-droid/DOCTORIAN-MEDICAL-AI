@@ -603,15 +603,15 @@ export async function autoDiscoverLocalNode(configuredUrl?: string, configuredMo
     const checkPath = isLMStudio
       ? (cleanConfigured.includes("/v1") ? `${cleanConfigured}/models` : `${cleanConfigured}/v1/models`)
       : `${cleanConfigured}/api/tags`;
-    urlsToTry.push({ url: cleanConfigured, checkPath, isOpenAI: isLMStudio, defaultModel: configuredModel || "gemma4" });
+    urlsToTry.push({ url: cleanConfigured, checkPath, isOpenAI: isLMStudio, defaultModel: configuredModel || "gemma3:1b" });
   }
 
   // Common local endpoints
   const commonNodes = [
-    { url: "http://localhost:11434", checkPath: "http://localhost:11434/api/tags", isOpenAI: false, defaultModel: "gemma4" },
-    { url: "http://127.0.0.1:11434", checkPath: "http://127.0.0.1:11434/api/tags", isOpenAI: false, defaultModel: "gemma4" },
-    { url: "http://localhost:1234", checkPath: "http://localhost:1234/v1/models", isOpenAI: true, defaultModel: "gemma4" },
-    { url: "http://127.0.0.1:1234", checkPath: "http://127.0.0.1:1234/v1/models", isOpenAI: true, defaultModel: "gemma4" }
+    { url: "http://localhost:11434", checkPath: "http://localhost:11434/api/tags", isOpenAI: false, defaultModel: "gemma3:1b" },
+    { url: "http://127.0.0.1:11434", checkPath: "http://127.0.0.1:11434/api/tags", isOpenAI: false, defaultModel: "gemma3:1b" },
+    { url: "http://localhost:1234", checkPath: "http://localhost:1234/v1/models", isOpenAI: true, defaultModel: "gemma3:1b" },
+    { url: "http://127.0.0.1:1234", checkPath: "http://127.0.0.1:1234/v1/models", isOpenAI: true, defaultModel: "gemma3:1b" }
   ];
 
   for (const node of commonNodes) {
@@ -2205,12 +2205,13 @@ export const api = {
 
       if (!parsedUser) {
         parsedUser = {
-          ollamaUrl: 'https://fuzzy-bugs-run.loca.lt',
-          ollamaModel: 'gemma4',
+          ollamaUrl: 'http://localhost:11434',
+          ollamaModel: 'gemma3:1b',
           enableExternalAI: true
         };
-      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '') {
-        parsedUser.ollamaUrl = 'https://fuzzy-bugs-run.loca.lt';
+      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '' || parsedUser.ollamaUrl.includes('fuzzy-bugs')) {
+        parsedUser.ollamaUrl = 'http://localhost:11434';
+        parsedUser.ollamaModel = 'gemma3:1b';
       }
 
       if (parsedUser && parsedUser.ollamaUrl) {
@@ -2455,12 +2456,13 @@ export const api = {
 
       if (!parsedUser) {
         parsedUser = {
-          ollamaUrl: 'https://fuzzy-bugs-run.loca.lt',
-          ollamaModel: 'gemma4',
+          ollamaUrl: 'http://localhost:11434',
+          ollamaModel: 'gemma3:1b',
           enableExternalAI: true
         };
-      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '') {
-        parsedUser.ollamaUrl = 'https://fuzzy-bugs-run.loca.lt';
+      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '' || parsedUser.ollamaUrl.includes('fuzzy-bugs')) {
+        parsedUser.ollamaUrl = 'http://localhost:11434';
+        parsedUser.ollamaModel = 'gemma3:1b';
       }
 
       if (parsedUser && parsedUser.ollamaUrl) {

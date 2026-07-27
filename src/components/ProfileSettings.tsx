@@ -64,8 +64,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     return localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
   });
   const [enableDeepHealthInsights, setEnableDeepHealthInsights] = useState(user?.enableDeepHealthInsights || false);
-  const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
-  const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'doctorian-2.5');
+  const [ollamaUrl, setOllamaUrl] = useState(user?.ollamaUrl || 'http://localhost:11434');
+  const [ollamaModel, setOllamaModel] = useState(user?.ollamaModel || 'gemma3:1b');
   const [localApiKey, setLocalApiKey] = useState(() => {
     return localStorage.getItem('doctorian_local_api_key') || '';
   });
@@ -270,8 +270,8 @@ Verified by Joseph Akora - Development Lead.
       setPhone(user.phone || '');
       setEnableExternalAI(user.enableExternalAI || false);
       setEnableDeepHealthInsights(user.enableDeepHealthInsights || false);
-      setOllamaUrl(user.ollamaUrl || 'https://fuzzy-bugs-run.loca.lt');
-      setOllamaModel(user.ollamaModel || 'doctorian-2.5');
+      setOllamaUrl(user.ollamaUrl || 'http://localhost:11434');
+      setOllamaModel(user.ollamaModel || 'gemma3:1b');
       setHuggingfaceToken(user.huggingfaceToken || '');
       setHuggingfaceModel(user.huggingfaceModel || 'doctorian-2.0');
     }
@@ -1908,7 +1908,7 @@ Verified by Joseph Akora - Development Lead.
                                 value={ollamaModel}
                                 onChange={e => setOllamaModel(e.target.value)}
                                 className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-violet-600 transition-all outline-none"
-                                placeholder="gemma4 or custom model identifier"
+                                placeholder="gemma3:1b or custom model identifier"
                               />
                             </div>
 

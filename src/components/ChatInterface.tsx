@@ -2956,7 +2956,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             text: m.text
           })),
           systemInstructionGemma,
-          'gemini-3.6-flash', // Use fast, high-quality, live model to emulate Gemma 3 TFJS outputs
+          'gemma3:1b', // Fast Gemma 3 local model via Ollama
           activePersona === 'support' ? 0.3 : temperature,
           (meta) => {
             if (meta.credits !== undefined) {
@@ -3048,14 +3048,14 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
-        ? 'gemini-3.6-flash' 
+        ? 'gemma3:1b' 
         : (clinicalEngine === 'medlm-large' 
-          ? 'gemini-3.1-pro-preview' 
+          ? 'gemma3:1b' 
           : (clinicalEngine === 'huggingface' 
             ? 'huggingface' 
             : (clinicalEngine === 'gemma-cloud'
-              ? 'google/gemma-3-4b-it'
-              : 'meta-llama/llama-3.1-8b-instruct')));
+              ? 'gemma3:1b'
+              : 'gemma3:1b')));
 
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map(m => ({

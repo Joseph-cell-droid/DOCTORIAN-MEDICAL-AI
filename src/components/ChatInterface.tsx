@@ -616,12 +616,96 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [voiceCallIsTranscribing, setVoiceCallIsTranscribing] = useState<boolean>(false);
   const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(false);
   const [showVoiceKeyboard, setShowVoiceKeyboard] = useState<boolean>(false);
+  const [isCallMinimized, setIsCallMinimized] = useState<boolean>(false);
   
   const ringtoneCleanupRef = useRef<(() => void) | null>(null);
   const callRecognitionRef = useRef<any>(null);
   const isSpeechSpeakingRef = useRef<boolean>(false);
   const isCallMutedRef = useRef<boolean>(false);
   const isCallActiveRef = useRef<boolean>(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const playBase64Audio = (base64Data: string, fallbackText: string) => {
+    try {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      setVoiceIsSpeaking(true);
+      
+      const audioUrl = `data:audio/wav;base64,${base64Data}`;
+      const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+
+      audio.onended = () => {
+        setVoiceIsSpeaking(false);
+        currentAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        console.warn("[Voice Player] Audio element error, using Web Speech fallback.");
+        currentAudioRef.current = null;
+        speakVoiceCallText(fallbackText);
+      };
+
+      audio.play().catch(e => {
+        console.warn("[Voice Player] Autoplay rejected, falling back to Web Speech:", e);
+        speakVoiceCallText(fallbackText);
+      });
+    } catch (e) {
+      speakVoiceCallText(fallbackText);
+    }
+  };
+
+  const playCallPickupSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.22);
+      setTimeout(() => { try { ctx.close(); } catch (e) {} }, 300);
+    } catch (e) {}
+  };
+
+  const playCallEndSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const now = ctx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(480, now + i * 0.12);
+        gain.gain.setValueAtTime(0.12, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.09);
+      }
+      setTimeout(() => { try { ctx.close(); } catch (e) {} }, 600);
+    } catch (e) {}
+  };
 
   // Play dual-tone synthesized telephone ringtone using Web Audio API
   const playRingtone = () => {
@@ -755,17 +839,17 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       ringtoneCleanupRef.current();
       ringtoneCleanupRef.current = null;
     }
+    playCallPickupSound();
     setCallState('connected');
+    setIsCallMinimized(false);
     setVoiceCallLogs(prev => [
       ...prev,
-      'SYS: Stream status: ACTIVE',
-      'SYS: Connection completed successfully',
+      'SYS: Call connected successfully',
+      'SYS: Audio stream status: ACTIVE (Full-Duplex)',
       'SYS: Standby - waiting for user voice signal...'
     ]);
     
-    // Play interactive piano chime instead of speaking an unprompted verbal greeting
     playPianoIntercom();
-    
     setVoiceCallTranscript([{ role: 'assistant', text: "📞 Connection active. I am listening, please speak..." }]);
   };
 
@@ -793,24 +877,30 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     if (callState !== 'idle') return;
     setVoiceCallTranscript([{ role: 'assistant', text: "Connecting to secure telehealth node..." }]);
     setCallState('calling');
+    setIsCallMinimized(false);
+    const stopRing = playRingtone();
+    ringtoneCleanupRef.current = stopRing;
     setVoiceCallLogs([
-      'SYS: Initializing stream parameters...',
-      `SYS: Handshaking with Qwen/Gemini cloud brain [${voiceBrainModel}]`,
+      'SYS: Initializing audio stream parameters...',
+      `SYS: Handshaking with Gemini cloud voice brain`,
       'SYS: Ready'
     ]);
 
     setTimeout(() => {
+      if (ringtoneCleanupRef.current) {
+        ringtoneCleanupRef.current();
+        ringtoneCleanupRef.current = null;
+      }
+      playCallPickupSound();
       setCallState('connected');
       setVoiceCallLogs(prev => [
         ...prev, 
-        'SYS: Stream status: ACTIVE',
+        'SYS: Audio stream status: ACTIVE (Full-Duplex)',
         'SYS: Standby - waiting for user voice signal...'
       ]);
       
-      // Play interactive piano chime instead of speaking an unprompted verbal greeting
       playPianoIntercom();
-      
-      setVoiceCallTranscript([{ role: 'assistant', text: "📞 Secure link active. I am listening, please speak..." }]);
+      setVoiceCallTranscript([{ role: 'assistant', text: "📞 Secure voice call active. I am listening, please speak..." }]);
     }, 1500);
   };
 
@@ -820,10 +910,16 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       ringtoneCleanupRef.current();
       ringtoneCleanupRef.current = null;
     }
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    playCallEndSound();
     setCallState('disconnecting');
     window.speechSynthesis?.cancel();
     setVoiceIsSpeaking(false);
-    setVoiceCallLogs(prev => [...prev, 'SYS: Stream terminating...']);
+    setIsCallMinimized(false);
+    setVoiceCallLogs(prev => [...prev, 'SYS: Call stream terminating...']);
     setTimeout(() => {
       setCallState('idle');
       setVoiceCallDuration(0);
@@ -865,8 +961,8 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     
     if (preferredVoice) utterance.voice = preferredVoice;
     
-    // Set speech rate to 0.82 to deliver extremely clear, slow, respectful, and compassionate advice suited for villagers
-    utterance.rate = 0.82;
+    // High-performance snappy speech rate for rapid clinical voice responses
+    utterance.rate = 1.05;
     utterance.pitch = voiceSelection === 'Joseph' ? 0.88 : voiceSelection === 'Misty' ? 1.05 : 1.0;
     
     // Set appropriate language tag
@@ -897,6 +993,15 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     const query = alternativeQuery || voiceCallQuery;
     if (!query.trim()) return;
 
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setVoiceIsSpeaking(false);
+
     setVoiceCallTranscript(prev => [...prev, { role: 'user', text: query }]);
     setVoiceCallQuery('');
     setVoiceCallIsTranscribing(true);
@@ -906,9 +1011,18 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       const res = await api.ai.voiceChat(query, voiceSelection, targetLanguage);
       setVoiceCallIsTranscribing(false);
       if (res && res.text) {
-        // Play the premium piano intercom chime right before speaking the response
-        playPianoIntercom();
-        speakVoiceCallText(res.text);
+        setVoiceCallTranscript(prev => {
+          if (prev[prev.length - 1]?.text === res.text) return prev;
+          return [...prev, { role: 'assistant', text: res.text }];
+        });
+
+        if (res.audioBase64) {
+          playPianoIntercom();
+          playBase64Audio(res.audioBase64, res.text);
+        } else {
+          playPianoIntercom();
+          speakVoiceCallText(res.text);
+        }
       } else {
         speakVoiceCallText("I have received your speech, but my synthesized logic was lost. Please retry or verify stable network.");
       }
@@ -3280,12 +3394,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                {sessions.map(session => (
+                {sessions.map((session, sIdx) => (
                   <motion.div 
                     layout
                     initial={{ x: -20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
-                    key={session.id}
+                    key={`session-${session.id}-${sIdx}`}
                     onClick={() => loadSession(session.id)}
                     className={`group p-4 rounded-2xl cursor-pointer transition-all border relative overflow-hidden ${
                       currentSessionId === session.id 
@@ -3684,7 +3798,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll chatbot-zoom-container"
             style={{ '--chatbot-zoom': zoomLevel / 100 } as React.CSSProperties}
           >
-          <div className={`mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-60 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
+          <div className={`mx-auto px-3 sm:px-6 pt-3 sm:pt-4 pb-10 sm:pb-12 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (
                 <motion.div 
@@ -3908,7 +4022,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                 <div className="space-y-12">
                   {messages.map((msg, i) => (
                     <motion.div 
-                      key={msg.id || `msg-${i}`}
+                      key={`chat-msg-${msg.id || i}-${i}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`flex gap-3 sm:gap-6 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} group`}
@@ -4224,9 +4338,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
         </div>
 
         {/* Input Area */}
-        <div className="px-4 sm:px-6 py-4 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800/50">
+        <div className="px-3 sm:px-6 pt-3 pb-3 sm:pt-4 sm:pb-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200/60 dark:border-slate-800/60">
           <div className={`mx-auto transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
-            <div className="relative flex flex-col bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] sm:rounded-full p-2 transition-all shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800">
+            <div className="relative flex flex-col bg-slate-100/80 dark:bg-slate-900/80 rounded-full sm:rounded-full px-2 py-1 transition-all shadow-sm border border-slate-200/90 dark:border-slate-800/90 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
               {/* Attached Files Preview */}
               <AnimatePresence>
                 {attachedFiles.length > 0 && (
@@ -4234,7 +4348,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex flex-wrap gap-2 px-6 py-4 border-b border-slate-200 dark:border-slate-800"
+                    className="flex flex-wrap gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-800"
                   >
                     {attachedFiles.map((file) => (
                       <motion.div 
@@ -4243,10 +4357,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.8, opacity: 0 }}
                         key={file.name}
-                        className="group relative flex items-center gap-2 pr-2 h-10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-bold border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden"
+                        className="group relative flex items-center gap-2 pr-2 h-8 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-bold border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden"
                       >
                         {file.isImage ? (
-                          <div className="h-full w-10 shrink-0 bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                          <div className="h-full w-8 shrink-0 bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
                             <img 
                               src={file.content} 
                               alt={file.name} 
@@ -4255,14 +4369,14 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                             />
                           </div>
                         ) : (
-                          <div className="h-full w-10 shrink-0 bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center">
-                            <FileText size={16} className="text-blue-500" />
+                          <div className="h-full w-8 shrink-0 bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center">
+                            <FileText size={14} className="text-blue-500" />
                           </div>
                         )}
                         <span className="max-w-[100px] truncate font-medium">{file.name}</span>
                         <button 
                           onClick={() => removeFile(file.name)}
-                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-rose-500 transition-colors"
+                          className="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-rose-500 transition-colors"
                         >
                           <X size={12} />
                         </button>
@@ -4279,7 +4393,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     initial={{ opacity: 0, height: 0, y: -10 }}
                     animate={{ opacity: 1, height: 'auto', y: 0 }}
                     exit={{ opacity: 0, height: 0, y: -10 }}
-                    className="mx-6 mt-3 px-4 py-2.5 bg-rose-500/10 dark:bg-rose-950/20 rounded-2xl border border-rose-500/20 flex items-center justify-between gap-4 overflow-hidden"
+                    className="mx-4 mt-1 px-3 py-1.5 bg-rose-500/10 dark:bg-rose-950/20 rounded-xl border border-rose-500/20 flex items-center justify-between gap-3 overflow-hidden"
                   >
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-2 w-2 shrink-0">
@@ -4287,26 +4401,19 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600 dark:bg-rose-500"></span>
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                        Recording voice note... Speak query clearly
+                        Listening... Speak clearly
                       </span>
                     </div>
                     
                     {/* Live Audio Waves Bars */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <VoiceOscillograph isRecording={isRecording} />
-                      <div className="flex items-end gap-0.5 h-3">
-                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2.5 [animation-duration:0.6s]"></div>
-                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1.5 [animation-duration:0.4s]"></div>
-                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-3 [animation-duration:0.8s]"></div>
-                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-2 [animation-duration:0.5s]"></div>
-                        <div className="w-[2px] bg-rose-500 rounded-full animate-bounce h-1 [animation-duration:0.75s]"></div>
-                      </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="flex items-end gap-1 sm:gap-2 pl-3 sm:pl-6 text-sm">
+              <div className="flex items-center gap-1 sm:gap-2 pl-3 sm:pl-4 text-sm">
                 <textarea 
                   ref={inputRef}
                   value={input}
@@ -4318,17 +4425,17 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     }
                   }}
                   placeholder={t('Enter your medical query here...')}
-                  className="flex-1 bg-transparent border-none outline-none py-4 text-[16px] font-medium text-slate-900 dark:text-white placeholder-slate-400 resize-none min-h-[56px] max-h-48"
+                  className="flex-1 bg-transparent border-none outline-none py-1.5 text-xs sm:text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 resize-none min-h-[34px] max-h-32 leading-relaxed"
                   rows={1}
                 />
                 
-                <div className="flex items-center gap-1 sm:gap-2 mb-2 pr-2">
+                <div className="flex items-center gap-1 my-0.5 pr-1 shrink-0">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 sm:p-3 text-slate-400 hover:text-blue-600 transition-all rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
+                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-all rounded-full hover:bg-slate-200/80 dark:hover:bg-slate-800/80"
                     title="Attach context"
                   >
-                    <Paperclip size={18} className="sm:w-5 sm:h-5" />
+                    <Paperclip size={16} />
                   </button>
                   <input 
                     type="file" 
@@ -4338,10 +4445,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     className="hidden" 
                   />
                   
-                  <div className="relative flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 rounded-full w-7 h-7 sm:w-8 sm:h-8 hover:border-blue-500/30 dark:hover:border-blue-500/40 transition-all shrink-0 cursor-pointer" title={`Language: ${targetLanguage}`}>
+                  <div className="relative flex items-center justify-center bg-slate-200/60 dark:bg-slate-800/80 border border-slate-300/60 dark:border-slate-700/60 rounded-full w-7 h-7 hover:border-blue-500/30 transition-all shrink-0 cursor-pointer" title={`Language: ${targetLanguage}`}>
                     <div className="flex items-center gap-0.5 pointer-events-none">
-                      <Globe size={11} className="text-slate-400 dark:text-slate-500" />
-                      <ChevronDown size={8} className="text-slate-400 dark:text-slate-500" />
+                      <Globe size={11} className="text-slate-500 dark:text-slate-400" />
+                      <ChevronDown size={8} className="text-slate-500 dark:text-slate-400" />
                     </div>
                     <select
                       value={targetLanguage}
@@ -4387,22 +4494,16 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         startRecording();
                       }
                     }}
-                    className={`flex p-2.5 sm:p-3 rounded-full transition-all relative shrink-0 ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-                    title={isRecording ? "Stop voice query recording" : "Record voice query in chosen language"}
+                    className={`flex p-1.5 rounded-full transition-all relative shrink-0 ${isRecording ? 'bg-rose-500 text-white shadow-md' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-200/80 dark:hover:bg-slate-800/80'}`}
+                    title={isRecording ? "Stop voice query recording" : "Record voice query"}
                   >
-                    <Mic size={18} className={`sm:w-5 sm:h-5 ${isRecording ? 'animate-pulse' : ''}`} />
-                    {isRecording && (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
-                      </span>
-                    )}
+                    <Mic size={16} className={`${isRecording ? 'animate-pulse' : ''}`} />
                   </button>
 
                   <button 
                     onClick={() => handleSend()}
                     disabled={!input.trim() && attachedFiles.length === 0 || isLoading}
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-20 shadow-lg shadow-blue-500/20 shrink-0"
+                    className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 hover:bg-blue-500 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 shadow-md shadow-blue-500/20 shrink-0 cursor-pointer"
                   >
                     {isLoading ? <RefreshCw className="animate-spin" size={18} /> : <ArrowRight size={20} />}
                   </button>
@@ -4585,8 +4686,8 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
-                    {healthLogs.map((log: any) => (
-                      <div key={log.id} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/20 transition-all text-left">
+                    {healthLogs.map((log: any, lIdx: number) => (
+                      <div key={`healthlog-${log.id || lIdx}-${lIdx}`} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/20 transition-all text-left">
                         {/* Entry Timestamp Ribbon */}
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/40 pb-4 mb-4">
                           <div className="flex items-center gap-2.5 text-left">
@@ -5038,12 +5139,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       Select Patient Record Target (RAG)
                     </label>
                     <div className="space-y-2">
-                      {registeredPatients.map((patient: any) => {
+                      {registeredPatients.map((patient: any, idx: number) => {
                         const isSelected = patient.id === ragSelectedPatientId;
                         return (
                           <button
                             type="button"
-                            key={patient.id}
+                            key={`rag-pat-${patient.id || idx}-${idx}`}
                             onClick={() => setRagSelectedPatientId(patient.id)}
                             className={`w-full p-3.5 rounded-2xl border text-left transition-all ${
                               isSelected
@@ -6273,17 +6374,34 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                {/* Modal Header */}
                <div className="p-6 flex items-center justify-between shrink-0 bg-transparent z-10">
                  <div className="text-left flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-                   <span className="text-xs font-black tracking-wider text-slate-500 uppercase">AI Consultation</span>
+                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                   <span className="text-xs font-black tracking-wider text-slate-400 uppercase">AI Voice Specialist</span>
                  </div>
-                 {callState === 'idle' && (
-                   <button 
-                     onClick={() => setShowVoiceCallModal(false)} 
-                     className="p-2 hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-colors cursor-pointer"
-                   >
-                     <X size={18} />
-                   </button>
-                 )}
+                 <div className="flex items-center gap-2">
+                   {callState === 'connected' && (
+                     <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
+                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                       <span className="text-[10px] font-mono font-bold text-emerald-400">● LIVE {formatDuration(voiceCallDuration)}</span>
+                     </div>
+                   )}
+                   {(callState === 'connected' || callState === 'calling' || callState === 'incoming') && (
+                     <button 
+                       onClick={() => setIsCallMinimized(true)} 
+                       className="p-2 hover:bg-slate-800/60 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                       title="Minimize Call"
+                     >
+                       <Minimize2 size={18} />
+                     </button>
+                   )}
+                   {callState === 'idle' && (
+                     <button 
+                       onClick={() => setShowVoiceCallModal(false)} 
+                       className="p-2 hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-colors cursor-pointer"
+                     >
+                       <X size={18} />
+                     </button>
+                   )}
+                 </div>
                </div>
 
                {/* Modal Content */}
@@ -6688,6 +6806,44 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
            </div>
          )}
        </AnimatePresence>
+
+        {/* Floating Minimized Call Widget */}
+        <AnimatePresence>
+          {isCallMinimized && (callState === 'calling' || callState === 'connected' || callState === 'incoming') && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              onClick={() => setIsCallMinimized(false)}
+              className="fixed bottom-6 right-6 z-[250] bg-slate-950/95 border border-emerald-500/40 text-white p-3.5 rounded-3xl shadow-2xl backdrop-blur-2xl flex items-center gap-3.5 cursor-pointer hover:border-emerald-400/80 transition-all group"
+            >
+              <div className="relative flex items-center justify-center shrink-0">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${voiceIsSpeaking ? 'bg-gradient-to-tr from-cyan-500 to-indigo-600 animate-pulse' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                  <Phone size={18} className={voiceIsSpeaking ? 'animate-bounce text-white' : 'text-emerald-400'} />
+                </div>
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950 animate-ping" />
+              </div>
+              <div className="flex-1 min-w-[130px]">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">● Live Call</span>
+                  <span className="text-[10px] font-mono text-slate-400 font-bold">{formatDuration(voiceCallDuration)}</span>
+                </div>
+                <p className="text-xs font-extrabold truncate text-slate-100">{voiceSelection} (Doctorian)</p>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  terminateVoiceCallSession();
+                }}
+                className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full transition-all cursor-pointer shrink-0 hover:scale-105 active:scale-95"
+                title="End Call"
+              >
+                <Phone size={14} className="rotate-[135deg]" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }

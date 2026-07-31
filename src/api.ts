@@ -1145,7 +1145,7 @@ export const api = {
         setStorageItem("medical_user", data.user);
         return data.user as User;
       } catch (err: any) {
-        if (err.message === "Email address already registered offline" || !isOffline()) {
+        if (err.message === "Email address already registered offline" || err.message?.includes("already registered")) {
           throw err;
         }
         console.warn("[Offline Auth] Signup network failure, falling back to local database secure registry...");
@@ -1790,8 +1790,15 @@ export const api = {
       try {
         const res = await fetch(`${API_BASE}/doctors/active`);
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Failed to fetch active doctors");
+          const text = await res.text().catch(() => '');
+          let errMsg = "Failed to fetch active doctors";
+          try {
+            const errObj = JSON.parse(text);
+            errMsg = errObj.error || errMsg;
+          } catch {
+            if (text) errMsg = text;
+          }
+          throw new Error(errMsg);
         }
         const data = await res.json();
         return data.doctors as Doctor[];
@@ -2080,18 +2087,38 @@ export const api = {
         method: "GET",
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch emergency logs");
-      return data.logs as any[];
+      if (!res.ok) {
+        if (res.status === 429 || res.status === 401 || res.status === 403) {
+          return [];
+        }
+        const text = await res.text().catch(() => '');
+        throw new Error(text || "Failed to fetch emergency logs");
+      }
+      try {
+        const data = await res.json();
+        return (data && data.logs) ? (data.logs as any[]) : [];
+      } catch {
+        return [];
+      }
     },
     async getAmbulanceDispatches() {
       const res = await fetchWithRetry(`${API_BASE}/ambulance/dispatches`, {
         method: "GET",
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch ambulance dispatches");
-      return data.dispatches as any[];
+      if (!res.ok) {
+        if (res.status === 429 || res.status === 401 || res.status === 403) {
+          return [];
+        }
+        const text = await res.text().catch(() => '');
+        throw new Error(text || "Failed to fetch ambulance dispatches");
+      }
+      try {
+        const data = await res.json();
+        return (data && data.dispatches) ? (data.dispatches as any[]) : [];
+      } catch {
+        return [];
+      }
     },
     async createAmbulanceDispatch(dispatchData: {
       patientId: string;
@@ -2395,7 +2422,7 @@ export const api = {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "AI Voice call failed");
-        return data as { text: string };
+        return data as { text: string; audioBase64?: string };
       } catch (err) {
         return { text: `[Voice Synapse fallback mode active]: ${text}` };
       }

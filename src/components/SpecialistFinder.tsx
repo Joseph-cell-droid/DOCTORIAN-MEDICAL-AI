@@ -915,9 +915,9 @@ export const SpecialistFinder: React.FC = () => {
           </div>
         ) : (
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSpecialists.length > 0 ? filteredSpecialists.map((doctor) => (
+            {filteredSpecialists.length > 0 ? filteredSpecialists.map((doctor, dIdx) => (
               <motion.div
-                key={doctor.id}
+                key={`doctor-${doctor.id}-${dIdx}`}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group relative flex flex-col justify-between"

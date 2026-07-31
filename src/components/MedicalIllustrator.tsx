@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, ImageIcon, Download, Share2, ArrowLeft, RefreshCw, 
-  Bot, Search, Info, AlertCircle, Shield, Layers, Palette, Eye, Database, Battery, Loader2
+  Bot, Search, Info, AlertCircle, Shield, Layers, Palette, Eye, Database, Battery, Loader2, Play, Pause, Activity
 } from 'lucide-react';
 import { api, User } from '../api';
 
@@ -22,6 +22,11 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
   });
   const [error, setError] = useState<string | null>(null);
   const [thinkingMessage, setThinkingMessage] = useState('Mapping anatomical vectors...');
+  
+  // Illustration Animation Playing State
+  const [isPlayingAnimation, setIsPlayingAnimation] = useState(true);
+  const [animationMode, setAnimationMode] = useState<'scan' | 'pulse' | 'layer'>('scan');
+  const [animationSpeed, setAnimationSpeed] = useState<number>(1);
   
   // Interactive Chat State Fields
   const [mode, setMode] = useState<'interactive' | 'classic'>('interactive');
@@ -473,12 +478,57 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
                    className="space-y-6"
                  >
                    <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 group/img">
-                     <img 
-                       src={generatedImage} 
-                       alt="Medical Illustration" 
-                       className="w-full h-auto min-h-[400px] object-cover transition-transform duration-700 group-hover/img:scale-105"
-                       referrerPolicy="no-referrer"
-                     />
+                     <div className="relative overflow-hidden">
+                       <img 
+                         src={generatedImage} 
+                         alt="Medical Illustration" 
+                         className="w-full h-auto min-h-[400px] object-cover transition-transform duration-700"
+                         referrerPolicy="no-referrer"
+                       />
+                       {isPlayingAnimation && animationMode === 'scan' && (
+                         <motion.div
+                           animate={{ top: ['-10%', '110%'] }}
+                           transition={{ duration: 2.5 / animationSpeed, repeat: Infinity, ease: 'linear' }}
+                           className="absolute left-0 right-0 h-16 bg-gradient-to-b from-cyan-500/0 via-cyan-400/40 to-cyan-500/0 border-b-2 border-cyan-400 pointer-events-none shadow-[0_0_20px_rgba(34,211,238,0.8)]"
+                         />
+                       )}
+                       {isPlayingAnimation && animationMode === 'layer' && (
+                         <div className="absolute inset-0 bg-blue-500/10 mix-blend-overlay pointer-events-none animate-pulse" />
+                       )}
+                       <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-slate-950/80 backdrop-blur-md p-2 rounded-2xl border border-white/20 text-white shadow-xl">
+                         <button
+                           type="button"
+                           onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
+                           className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider ${
+                             isPlayingAnimation ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                           }`}
+                         >
+                           {isPlayingAnimation ? <Pause size={14} /> : <Play size={14} />}
+                           <span>{isPlayingAnimation ? 'Animating' : 'Play Anim'}</span>
+                         </button>
+                         <div className="flex items-center gap-1 border-l border-white/20 pl-2">
+                           {(['scan', 'pulse', 'layer'] as const).map(m => (
+                             <button
+                               key={m}
+                               type="button"
+                               onClick={() => setAnimationMode(m)}
+                               className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase transition-all cursor-pointer ${
+                                 animationMode === m ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
+                               }`}
+                             >
+                               {m}
+                             </button>
+                           ))}
+                         </div>
+                         <button
+                           type="button"
+                           onClick={() => setAnimationSpeed(s => s === 1 ? 2 : s === 2 ? 3 : 1)}
+                           className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[9px] font-mono font-black text-cyan-300 border-l border-white/20 ml-1 cursor-pointer"
+                         >
+                           {animationSpeed}x
+                         </button>
+                       </div>
+                     </div>
                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-500" />
                      <div className="absolute bottom-10 left-10 right-10 flex justify-between items-center opacity-0 group-hover/img:opacity-100 translate-y-4 group-hover/img:translate-y-0 transition-all duration-500">
                         <div className="space-y-1">

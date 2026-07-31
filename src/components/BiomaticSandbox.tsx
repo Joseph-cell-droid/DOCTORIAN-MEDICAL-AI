@@ -305,9 +305,229 @@ const GLOBAL_EPIDEMIC_PATHOGENS: EpidemicPathogen[] = [
   }
 ];
 
+// ======================================================================
+// CLINICAL PHARMACOLOGY & DRUG DOSING MATRIX
+// ======================================================================
+
+export interface PharmaDrugRecord {
+  id: string;
+  name: string;
+  drugClass: string;
+  primaryIndication: string;
+  standardAdultDose: string;
+  renalDoseAdjustment: string;
+  hepaticAdjustment: string;
+  pediatricDosing: string;
+  tdmTarget: string;
+  criticalContraindications: string;
+}
+
+const PHARMA_RESEARCH_DATABASE: PharmaDrugRecord[] = [
+  {
+    id: 'pharma-01',
+    name: 'Vancomycin Hydrochloride',
+    drugClass: 'Glycopeptide Antibiotic',
+    primaryIndication: 'Severe MRSA Sepsis, Infective Endocarditis & Clostridioides difficile',
+    standardAdultDose: '15–20 mg/kg IV q8–12h (Target peak: 30-40 mcg/mL)',
+    renalDoseAdjustment: 'eGFR 30–50: q24h; eGFR 15–30: q48h; eGFR < 15: Dose by redosing trough levels (< 15 mcg/mL)',
+    hepaticAdjustment: 'No primary dose adjustment required; monitor for nephrotoxicity synergism',
+    pediatricDosing: '15 mg/kg IV q6h (Max 2g/day in pediatric severe infections)',
+    tdmTarget: 'Trough Target: 15–20 mcg/mL for severe infections (Endocarditis, MRSA Bacteremia)',
+    criticalContraindications: 'Hypersensitivity to glycopeptides. Caution with concurrent aminoglycosides or loop diuretics (Ototoxicity/Nephrotoxicity).'
+  },
+  {
+    id: 'pharma-02',
+    name: 'Empagliflozin',
+    drugClass: 'SGLT2 Inhibitor',
+    primaryIndication: 'Type 2 Diabetes, Heart Failure (HFrEF/HFpEF), Chronic Kidney Disease (CKD)',
+    standardAdultDose: '10 mg orally once daily in morning; can escalate to 25 mg daily for glycaemic control',
+    renalDoseAdjustment: 'eGFR 20–45 mL/min/1.73m²: 10 mg daily (Cardiorenal protection preserved); eGFR < 20: Do not initiate',
+    hepaticAdjustment: 'No adjustment in mild/moderate hepatic impairment (Child-Pugh A/B); not studied in Severe (Child-Pugh C)',
+    pediatricDosing: '10 mg once daily in pediatric T2D patients aged >= 10 years',
+    tdmTarget: 'Monitoring: Urinary tract infection signs, eGFR dip (initial 3-5 mL drop is hemodynamic and expected)',
+    criticalContraindications: 'Euglycemic Diabetic Ketoacidosis (eDKA) risk; stop 3 days prior to major elective surgery; active dialysis.'
+  },
+  {
+    id: 'pharma-03',
+    name: 'Artesunate (IV)',
+    drugClass: 'Artemisinin Derivative Antimalarial',
+    primaryIndication: 'WHO Gold-Standard First-Line Treatment for Severe Falciparum Malaria',
+    standardAdultDose: '2.4 mg/kg IV at 0 hours, 12 hours, 24 hours, then 2.4 mg/kg IV once daily',
+    renalDoseAdjustment: 'No dose reduction required in renal impairment or acute kidney injury (AKI)',
+    hepaticAdjustment: 'No dose reduction required; rapidly metabolized by blood esterases to active dihydroartemisinin (DHA)',
+    pediatricDosing: 'Children < 20 kg: 3.0 mg/kg IV at 0h, 12h, 24h, then daily. Children >= 20 kg: 2.4 mg/kg IV.',
+    tdmTarget: 'Parasite Clearance Time: Repeat thick smear at 24h & 48h; target > 99% reduction in parasitemia',
+    criticalContraindications: 'Hypersensitivity to artemisinins. Monitor for delayed post-artemisinin hemolytic anemia (PAHA) at 7-21 days.'
+  },
+  {
+    id: 'pharma-04',
+    name: 'Tacrolimus (FK506)',
+    drugClass: 'Calcineurin Inhibitor Immunosuppressant',
+    primaryIndication: 'Solid Organ Transplant Rejection Prophylaxis (Kidney, Liver, Heart)',
+    standardAdultDose: '0.05–0.15 mg/kg/day orally divided q12h (Adjusted strictly by whole blood trough concentrations)',
+    renalDoseAdjustment: 'Nephrotoxic; use lower initial dose in pre-existing renal dysfunction and titrate strictly by trough levels',
+    hepaticAdjustment: 'Child-Pugh B/C: Reduce initial dose by 50–75% due to reduced hepatic CYP3A4 clearance',
+    pediatricDosing: '0.15–0.20 mg/kg/day divided q12h (Higher metabolic clearance per kg in children)',
+    tdmTarget: 'Whole Blood Trough Target: 5–12 ng/mL (Early post-transplant: 8–12 ng/mL; Maintenance: 5–8 ng/mL)',
+    criticalContraindications: 'Concurrent strong CYP3A4 inhibitors (Ketoconazole, Clarithromycin) require 50-80% dose reduction. Avoid live vaccines.'
+  },
+  {
+    id: 'pharma-05',
+    name: 'Apixaban (Eliquis)',
+    drugClass: 'Direct Factor Xa Inhibitor (DOAC)',
+    primaryIndication: 'Non-valvular Atrial Fibrillation, DVT/PE Treatment & Secondary Prophylaxis',
+    standardAdultDose: '5 mg orally twice daily (AFib) or 10 mg BID x 7 days then 5 mg BID (Acute DVT/PE)',
+    renalDoseAdjustment: 'Reduce to 2.5 mg BID if patient meets >= 2 criteria: Age >= 80, Weight <= 60 kg, Serum Creatinine >= 1.5 mg/dL',
+    hepaticAdjustment: 'Not recommended in severe hepatic impairment (Child-Pugh C) or coagulopathy',
+    pediatricDosing: 'Dosed by weight band in pediatric venous thromboembolism trials (Investigational/Specialist protocol)',
+    tdmTarget: 'Anti-Factor Xa assay calibrated for apixaban (Target peak 100-300 ng/mL during full anticoagulation)',
+    criticalContraindications: 'Active major pathological bleeding, mechanical heart valves, antiphospholipid syndrome (triple positive).'
+  }
+];
+
+// ======================================================================
+// DIFFERENTIAL DIAGNOSTIC & SYMPTOM MATRIX
+// ======================================================================
+
+export interface DifferentialDiagnosticEntry {
+  id: string;
+  presentation: string;
+  symptomCluster: string[];
+  topDiagnoses: {
+    disease: string;
+    likelihoodRatio: string;
+    keyDistinguishingFeature: string;
+    goldStandardTest: string;
+    emergencyRedFlags: string;
+  }[];
+}
+
+const DIFFERENTIAL_DIAGNOSTIC_DATABASE: DifferentialDiagnosticEntry[] = [
+  {
+    id: 'diff-01',
+    presentation: 'Acute Chest Pain & Dyspnea in Emergency Setting',
+    symptomCluster: ['Substernal Chest Pain', 'Shortness of Breath', 'Tachycardia', 'Diaphoresis'],
+    topDiagnoses: [
+      {
+        disease: 'Acute ST-Elevation Myocardial Infarction (STEMI)',
+        likelihoodRatio: '+LR: 14.5 (with > 1mm ST elevation in 2 contiguous leads)',
+        keyDistinguishingFeature: 'Crushing retrosternal radiation to left jaw or arm, uncorrected by nitroglycerin',
+        goldStandardTest: '12-Lead ECG within 10 min + High-Sensitivity Cardiac Troponin T/I + Emergency Coronary Angiography',
+        emergencyRedFlags: 'Cardiogenic shock, sustained ventricular tachycardia, acute mitral regurgitation murmur'
+      },
+      {
+        disease: 'Acute Pulmonary Embolism (PE)',
+        likelihoodRatio: '+LR: 6.2 (high Wells score + unilateral leg swelling + tachycardia)',
+        keyDistinguishingFeature: 'Pleuritic chest pain, sudden dyspnea, tachypnea, oxygen desaturation',
+        goldStandardTest: 'CT Pulmonary Angiogram (CTPA) or V/Q Scan + D-dimer (ELISA)',
+        emergencyRedFlags: 'Right ventricular strain on echo, S1Q3T3 pattern, syncope, systemic hypotension'
+      },
+      {
+        disease: 'Acute Aortic Dissection (Stanford Type A)',
+        likelihoodRatio: '+LR: 10.8 (tearing pain radiating to back + pulse deficit)',
+        keyDistinguishingFeature: 'Sudden onset tearing pain radiating between shoulder blades with blood pressure asymmetry',
+        goldStandardTest: 'CT Angiography of Chest and Abdomen with Contrast + Transesophageal Echocardiogram (TEE)',
+        emergencyRedFlags: 'Pulse deficit > 20 mmHg between arms, neurological deficits, acute aortic regurgitation'
+      }
+    ]
+  },
+  {
+    id: 'diff-02',
+    presentation: 'High Fever, Altered Mental Status & Severe Headache',
+    symptomCluster: ['Fever > 38.5°C', 'Altered Sensorium', 'Nuchal Rigidity', 'Photophobia'],
+    topDiagnoses: [
+      {
+        disease: 'Acute Bacterial Meningitis (Neisseria / Streptococcus pneumoniae)',
+        likelihoodRatio: '+LR: 3.5 (Jolt accentuation / Kernig / Brudzinski sign positive)',
+        keyDistinguishingFeature: 'Purpuric rash (Meningococcemia), rapid deterioration within hours, severe meningismus',
+        goldStandardTest: 'Lumbar Puncture (CSF WBC > 1000/mcL, Low Glucose < 40%, Protein > 100 mg/dL) + Multiplex PCR',
+        emergencyRedFlags: 'Papilledema, focal neurological signs, GCS < 8, septic shock'
+      },
+      {
+        disease: 'Cerebral Malaria (Plasmodium falciparum)',
+        likelihoodRatio: '+LR: 18.2 (Endemic travel / residence + severe unprovoked coma)',
+        keyDistinguishingFeature: 'Coma score <= 11 in patient with high parasitemia, severe anemia, and lactic acidosis',
+        goldStandardTest: 'Giemsa-Stained Thick and Thin Blood Film + HRP2 Rapid Diagnostic Test (RDT)',
+        emergencyRedFlags: 'Repeated status epilepticus, severe hypoglycemia (< 2.2 mmol/L), Blackwater fever hemoglobinuria'
+      },
+      {
+        disease: 'Herpes Simplex Encephalitis (HSV-1)',
+        likelihoodRatio: '+LR: 8.4 (Temporal lobe seizures + behavioral disturbances)',
+        keyDistinguishingFeature: 'Bizarre personality changes, anosmia, temporal lobe focal neurological deficits',
+        goldStandardTest: 'CSF HSV-1 DNA Real-Time PCR + Brain MRI showing T2 hyperintensity in temporal lobes',
+        emergencyRedFlags: 'Unilateral uncal herniation, status epilepticus, brainstem compression'
+      }
+    ]
+  }
+];
+
+// ======================================================================
+// CLINICAL PRACTICE GUIDELINES & DECISION PATHWAYS
+// ======================================================================
+
+export interface ClinicalGuidelineRecord {
+  id: string;
+  title: string;
+  issuingSociety: string;
+  publicationYear: string;
+  category: 'Cardiology' | 'Infectious Disease & Tropical' | 'Nephrology' | 'Neurology' | 'Critical Care';
+  coreDirectives: string[];
+  evidenceLevel: string;
+  contraindicationsWarnings: string;
+}
+
+const CLINICAL_GUIDELINES_DATABASE: ClinicalGuidelineRecord[] = [
+  {
+    id: 'guide-01',
+    title: 'AHA/ACC/HFSA 4-Pillar Guideline for Heart Failure with Reduced Ejection Fraction (HFrEF)',
+    issuingSociety: 'American Heart Association / ACC',
+    publicationYear: '2026 Updated Edition',
+    category: 'Cardiology',
+    coreDirectives: [
+      'Pillar 1: ARNI (Sacubitril/Valsartan) preferred over ACEi/ARB to reduce cardiovascular mortality and HF hospitalizations.',
+      'Pillar 2: Evidence-based Beta-Blocker (Carvedilol, Bisoprolol, or Metoprolol Succinate) titrated to target doses.',
+      'Pillar 3: Mineralocorticoid Receptor Antagonist (Spironolactone or Eplerenone) for all eGFR > 30 mL/min patients.',
+      'Pillar 4: SGLT2 Inhibitor (Empagliflozin 10mg or Dapagliflozin 10mg) regardless of presence of T2D.'
+    ],
+    evidenceLevel: 'Class I, Level of Evidence A',
+    contraindicationsWarnings: 'Avoid ARNI within 36 hours of ACE inhibitor due to angioedema risk. Monitor K+ with MRA + ARNI.'
+  },
+  {
+    id: 'guide-02',
+    title: 'WHO Guidelines for the Management of Severe Malaria & Tropical Parasitic Encephalopathy',
+    issuingSociety: 'World Health Organization (WHO)',
+    publicationYear: '2026 Global Directive',
+    category: 'Infectious Disease & Tropical',
+    coreDirectives: [
+      'Immediate IV Artesunate 2.4 mg/kg given at 0, 12, and 24 hours, then once daily for at least 24 hours until oral intake is tolerated.',
+      'Transition to full 3-day oral Artemether-Lumefantrine (Coartem) once patient can swallow oral medication.',
+      'Strict Hypoglycemia Control: Monitor blood glucose q4h; administer IV Dextrose 10% (5 mL/kg) for glucose < 3.0 mmol/L.',
+      'Blood Transfusion Protocol: Transfuse fresh packed red cells for Hb < 5.0 g/dL or parasitemia > 10% with respiratory distress.'
+    ],
+    evidenceLevel: 'Grade A+ Strong Recommendation',
+    contraindicationsWarnings: 'Do NOT use IV Quinine unless Artesunate is unavailable. Do NOT give bolus IV fluid challenges due to pulmonary edema risk.'
+  },
+  {
+    id: 'guide-03',
+    title: 'IDSA / Surviving Sepsis Campaign Hour-1 Bundle for Septic Shock Management',
+    issuingSociety: 'Infectious Diseases Society of America / SCCM',
+    publicationYear: '2026 Revision',
+    category: 'Critical Care',
+    coreDirectives: [
+      'Measure Serum Lactate immediately; re-measure within 2-4 hours if initial lactate is > 2.0 mmol/L.',
+      'Obtain 2 sets of Blood Cultures prior to administering broad-spectrum antimicrobials.',
+      'Administer Broad-Spectrum IV Antibiotics (e.g. Vancomycin + Cefepime/Meropenem) within 60 minutes of sepsis recognition.',
+      'Rapidly infuse 30 mL/kg balanced crystalloid (Plasmalyte/LR) for hypotension or lactate >= 4.0 mmol/L.',
+      'Apply Norepinephrine vasopressor to maintain Mean Arterial Pressure (MAP) >= 65 mmHg.'
+    ],
+    evidenceLevel: 'Class I Evidence',
+    contraindicationsWarnings: 'Avoid 0.9% Normal Saline boluses > 2L to prevent hyperchloremic metabolic acidosis; prefer balanced crystalloids.'
+  }
+];
+
 export const BiomaticSandbox: React.FC = () => {
-  // Main Sub-Tab State: 'discover' (default), 'omics', 'epidemic'
-  const [activeTab, setActiveTab] = useState<'discover' | 'omics' | 'epidemic'>('discover');
+  // Main Sub-Tab State: 'discover' (default), 'pharma', 'differential', 'guidelines', 'omics', 'epidemic'
+  const [activeTab, setActiveTab] = useState<'discover' | 'pharma' | 'differential' | 'guidelines' | 'omics' | 'epidemic'>('discover');
 
   // ======================================================================
   // DISCOVER TAB STATES
@@ -328,9 +548,28 @@ export const BiomaticSandbox: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
-
-  // Citation Copy State
   const [copiedCitation, setCopiedCitation] = useState(false);
+
+  // Pharmacology States
+  const [pharmaSearch, setPharmaSearch] = useState('');
+  const [selectedPharma, setSelectedPharma] = useState<PharmaDrugRecord>(PHARMA_RESEARCH_DATABASE[0]);
+
+  // Differential States
+  const [selectedDifferential, setSelectedDifferential] = useState<DifferentialDiagnosticEntry>(DIFFERENTIAL_DIAGNOSTIC_DATABASE[0]);
+
+  // Guidelines States
+  const [selectedGuideline, setSelectedGuideline] = useState<ClinicalGuidelineRecord>(CLINICAL_GUIDELINES_DATABASE[0]);
+
+  // Filtered Pharma Drugs
+  const filteredPharma = useMemo(() => {
+    const q = pharmaSearch.toLowerCase().trim();
+    if (!q) return PHARMA_RESEARCH_DATABASE;
+    return PHARMA_RESEARCH_DATABASE.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.drugClass.toLowerCase().includes(q) ||
+      p.primaryIndication.toLowerCase().includes(q)
+    );
+  }, [pharmaSearch]);
 
   // Filtered Articles
   const filteredArticles = useMemo(() => {
@@ -466,7 +705,7 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
   return (
     <div id="clinical-hub-container" className="space-y-6 text-slate-100 pb-12">
       {/* PAGE HEADER BANNER */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950/40 to-slate-950 border border-slate-800 p-6 md:p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900/90 via-blue-950/40 to-slate-950/90 border border-slate-800/80 p-6 md:p-8 shadow-2xl backdrop-blur-xl">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 -mb-12 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -477,7 +716,7 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                 <Compass size={12} className="animate-spin-slow" /> Clinical Hub & Research
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <Globe size={12} /> Global PubMed & Trial Intelligence
+                <Globe size={12} /> Google Medical & PubMed Intelligence
               </span>
             </div>
 
@@ -485,11 +724,11 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
               Clinical Hub
             </h1>
             <p className="text-sm text-slate-300 max-w-3xl leading-relaxed font-medium">
-              Explore medical research discoveries, PubMed references, Phase III clinical trials, multi-omics target pathways, and real-time WHO global epidemic surveillance networks.
+              Explore medical research discoveries, Google Search & PubMed references, Phase III clinical trials, multi-omics target pathways, and real-time WHO global epidemic surveillance networks.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl shrink-0 backdrop-blur-md">
+          <div className="flex items-center gap-3 bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-2xl shrink-0 backdrop-blur-md">
             <div className="text-center px-3">
               <p className="text-[10px] font-bold text-slate-400 uppercase">Research Articles</p>
               <p className="text-xl font-black text-cyan-400 mt-0.5">{DISCOVERY_RESEARCH_DATABASE.length}+ Studies</p>
@@ -505,35 +744,68 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
         <div className="mt-8 pt-6 border-t border-slate-800/80 flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('discover')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
               activeTab === 'discover'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 ring-2 ring-blue-400/30'
-                : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
             }`}
           >
-            <Compass size={15} className="text-blue-300" /> Discover & Evidence Library
+            <Compass size={15} className="text-blue-300" /> Literature Engine
+          </button>
+
+          <button
+            onClick={() => setActiveTab('pharma')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+              activeTab === 'pharma'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 ring-2 ring-purple-400/30'
+                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+            }`}
+          >
+            <Pill size={15} className="text-purple-300" /> Drug Dosing & TDM
+          </button>
+
+          <button
+            onClick={() => setActiveTab('differential')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+              activeTab === 'differential'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 ring-2 ring-emerald-400/30'
+                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+            }`}
+          >
+            <Activity size={15} className="text-emerald-300" /> Differential Diagnostics
+          </button>
+
+          <button
+            onClick={() => setActiveTab('guidelines')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+              activeTab === 'guidelines'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-2 ring-indigo-400/30'
+                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+            }`}
+          >
+            <FileText size={15} className="text-indigo-300" /> Clinical Guidelines
           </button>
 
           <button
             onClick={() => setActiveTab('omics')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
               activeTab === 'omics'
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30 ring-2 ring-cyan-400/30'
-                : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
             }`}
           >
-            <Dna size={15} className="text-cyan-300" /> Multi-Omics Target Intelligence
+            <Dna size={15} className="text-cyan-300" /> Multi-Omics Targets
           </button>
 
           <button
             onClick={() => setActiveTab('epidemic')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
               activeTab === 'epidemic'
                 ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30 ring-2 ring-amber-400/30'
-                : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
             }`}
           >
-            <ShieldAlert size={15} className="text-amber-300" /> WHO Global Epidemic Observatory
+            <ShieldAlert size={15} className="text-amber-300" /> WHO Epidemic Observatory
           </button>
         </div>
       </div>
@@ -546,17 +818,260 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
       )}
 
       {/* ====================================================================== */}
+      {/* TAB 2: PHARMACOLOGY & DRUG DOSING MATRIX */}
+      {/* ====================================================================== */}
+      {activeTab === 'pharma' && (
+        <div className="space-y-6">
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 shadow-2xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+              <div>
+                <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <Pill className="text-purple-400" size={20} /> Clinical Pharmacology & Renal Dosing Matrix
+                </h2>
+                <p className="text-xs text-slate-300 mt-1">
+                  Evidence-based drug dosing, therapeutic drug monitoring (TDM) trough targets, eGFR renal clearance adjustments, and pediatric weight-based formulas.
+                </p>
+              </div>
+
+              <div className="relative w-full md:w-72">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search drug name or class..."
+                  value={pharmaSearch}
+                  onChange={(e) => setPharmaSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* Drug Selector */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {filteredPharma.map((drug) => {
+                const isSelected = selectedPharma.id === drug.id;
+                return (
+                  <button
+                    key={drug.id}
+                    onClick={() => setSelectedPharma(drug)}
+                    className={`p-4 rounded-2xl border text-left transition-all space-y-2 backdrop-blur-md ${
+                      isSelected
+                        ? 'bg-purple-950/50 border-purple-500 ring-2 ring-purple-500/30 shadow-xl'
+                        : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono font-bold text-purple-400 uppercase">{drug.drugClass}</span>
+                    <h3 className="text-xs font-black text-white line-clamp-1">{drug.name}</h3>
+                    <p className="text-[10px] text-slate-400 line-clamp-2">{drug.primaryIndication}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Drug Details Card */}
+            {selectedPharma && (
+              <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-6 space-y-6 backdrop-blur-md">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+                  <div>
+                    <span className="text-xs font-mono text-purple-400 font-extrabold uppercase">{selectedPharma.drugClass}</span>
+                    <h3 className="text-2xl font-black text-white mt-0.5">{selectedPharma.name}</h3>
+                    <p className="text-xs text-slate-300 mt-1">{selectedPharma.primaryIndication}</p>
+                  </div>
+
+                  <span className="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    TDM: {selectedPharma.tdmTarget}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                    <p className="text-[10px] font-black uppercase text-slate-400">Standard Adult Dosing</p>
+                    <p className="text-xs font-bold text-white leading-relaxed">{selectedPharma.standardAdultDose}</p>
+                  </div>
+
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                    <p className="text-[10px] font-black uppercase text-cyan-400">Renal Clearance / eGFR Adjustment</p>
+                    <p className="text-xs font-bold text-cyan-200 leading-relaxed">{selectedPharma.renalDoseAdjustment}</p>
+                  </div>
+
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                    <p className="text-[10px] font-black uppercase text-amber-400">Hepatic Impairment Dosing</p>
+                    <p className="text-xs font-bold text-amber-200 leading-relaxed">{selectedPharma.hepaticAdjustment}</p>
+                  </div>
+
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                    <p className="text-[10px] font-black uppercase text-emerald-400">Pediatric Weight-Based Dose</p>
+                    <p className="text-xs font-bold text-emerald-200 leading-relaxed">{selectedPharma.pediatricDosing}</p>
+                  </div>
+
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-1.5 md:col-span-2">
+                    <p className="text-[10px] font-black uppercase text-rose-400">Black Box Warnings & Contraindications</p>
+                    <p className="text-xs font-bold text-rose-200 leading-relaxed">{selectedPharma.criticalContraindications}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* TAB 3: DIFFERENTIAL DIAGNOSTICS MATRIX */}
+      {/* ====================================================================== */}
+      {activeTab === 'differential' && (
+        <div className="space-y-6">
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 shadow-2xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+              <div>
+                <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <Activity className="text-emerald-400" size={20} /> Differential Diagnostics & Symptom Cluster Mapper
+                </h2>
+                <p className="text-xs text-slate-300 mt-1">
+                  Evidence-based clinical decision matrices, diagnostic likelihood ratios (+LR/-LR), gold-standard diagnostic workup tests, and critical red flags.
+                </p>
+              </div>
+            </div>
+
+            {/* Differential Selector */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {DIFFERENTIAL_DIAGNOSTIC_DATABASE.map((item) => {
+                const isSelected = selectedDifferential.id === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setSelectedDifferential(item)}
+                    className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 backdrop-blur-md ${
+                      isSelected
+                        ? 'bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/30 shadow-xl'
+                        : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
+                    }`}
+                  >
+                    <h3 className="text-sm font-black text-white">{item.presentation}</h3>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.symptomCluster.map(s => (
+                        <span key={s} className="px-2 py-0.5 bg-slate-900 border border-slate-800 text-[10px] font-mono text-emerald-300 rounded-md">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Differential Detail */}
+            {selectedDifferential && (
+              <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-6 space-y-6 backdrop-blur-md">
+                <div className="border-b border-slate-800/80 pb-4">
+                  <span className="text-xs font-mono text-emerald-400 font-extrabold uppercase">Emergency Differential Decision Matrix</span>
+                  <h3 className="text-2xl font-black text-white mt-0.5">{selectedDifferential.presentation}</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {selectedDifferential.topDiagnoses.map((diag, idx) => (
+                    <div key={idx} className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800/80 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
+                        <h4 className="text-sm font-black text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold flex items-center justify-center border border-emerald-500/40">{idx + 1}</span>
+                          {diag.disease}
+                        </h4>
+                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          {diag.likelihoodRatio}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Key Distinguishing Clinical Feature</p>
+                          <p className="text-slate-200 leading-relaxed">{diag.keyDistinguishingFeature}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-cyan-400 uppercase">Gold Standard Diagnostic Test</p>
+                          <p className="text-cyan-200 font-medium leading-relaxed">{diag.goldStandardTest}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-rose-400 uppercase">Emergency Red Flags</p>
+                          <p className="text-rose-200 font-medium leading-relaxed">{diag.emergencyRedFlags}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* TAB 4: CLINICAL PRACTICE GUIDELINES */}
+      {/* ====================================================================== */}
+      {activeTab === 'guidelines' && (
+        <div className="space-y-6">
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 shadow-2xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+              <div>
+                <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <FileText className="text-indigo-400" size={20} /> International Clinical Practice Guidelines
+                </h2>
+                <p className="text-xs text-slate-300 mt-1">
+                  Official clinical guidelines from AHA/ACC, WHO, IDSA, and international specialty societies with evidence grading and therapeutic step protocols.
+                </p>
+              </div>
+            </div>
+
+            {/* Guidelines List */}
+            <div className="space-y-4">
+              {CLINICAL_GUIDELINES_DATABASE.map((guide) => (
+                <div key={guide.id} className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-6 space-y-4 backdrop-blur-md">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase">{guide.issuingSociety} ({guide.publicationYear})</span>
+                      <h3 className="text-base font-black text-white mt-0.5">{guide.title}</h3>
+                    </div>
+
+                    <span className="px-3 py-1 rounded-xl text-xs font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {guide.evidenceLevel}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Core Clinical Directives & Step Protocols</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {guide.coreDirectives.map((directive, dIdx) => (
+                        <div key={dIdx} className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 flex items-start gap-2 text-xs text-slate-200">
+                          <CheckCircle2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{directive}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-rose-950/20 p-3.5 rounded-xl border border-rose-900/30 text-xs text-rose-300 flex items-start gap-2">
+                    <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+                    <span><strong>Warnings & Contraindications:</strong> {guide.contraindicationsWarnings}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
       {/* TAB 2: MULTI-OMICS TARGET INTELLIGENCE */}
       {/* ====================================================================== */}
       {activeTab === 'omics' && (
         <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 shadow-2xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
               <div>
                 <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
                   <Dna className="text-cyan-400" size={20} /> Multi-Omics Pathways & Precision Targets
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-300 mt-1">
                   Integrates genomic, transcriptomic, proteomic, and metabolomic expression profiling for precision targeted drug development.
                 </p>
               </div>
@@ -574,15 +1089,15 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                   <button
                     key={item.geneSymbol}
                     onClick={() => setSelectedOmic(item)}
-                    className={`p-4 rounded-2xl border text-left transition-all space-y-2 ${
+                    className={`p-4 rounded-2xl border text-left transition-all space-y-2 backdrop-blur-md ${
                       isSelected
-                        ? 'bg-cyan-950/40 border-cyan-500 ring-2 ring-cyan-500/30 shadow-xl'
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        ? 'bg-cyan-950/50 border-cyan-500 ring-2 ring-cyan-500/30 shadow-xl'
+                        : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-black text-cyan-400">{item.geneSymbol}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900/80 text-slate-400 border border-slate-800">
                         {item.omicType}
                       </span>
                     </div>
@@ -600,7 +1115,7 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Target Detail Display */}
             {selectedOmic && (
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-6">
+              <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-6 space-y-6 backdrop-blur-md">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
                   <div>
                     <span className="text-xs font-mono text-cyan-400 font-extrabold uppercase">{selectedOmic.chromosomeLocation}</span>
@@ -623,14 +1138,14 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Biological & Cellular Pathway Role</h4>
-                      <p className="text-xs text-slate-200 mt-1 leading-relaxed bg-slate-900 p-3.5 rounded-xl border border-slate-800">
+                      <p className="text-xs text-slate-200 mt-1 leading-relaxed bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
                         {selectedOmic.biologicalRole}
                       </p>
                     </div>
 
                     <div>
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Associated Clinical Pathology</h4>
-                      <p className="text-xs text-rose-300 font-bold mt-1 bg-rose-950/20 p-3.5 rounded-xl border border-rose-900/40">
+                      <p className="text-xs text-rose-300 font-bold mt-1 bg-rose-950/30 p-3.5 rounded-xl border border-rose-900/40">
                         {selectedOmic.associatedPathology}
                       </p>
                     </div>
@@ -639,14 +1154,14 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Expression Fold-Change & Biomarker Delta</h4>
-                      <p className="text-xs text-emerald-400 font-mono font-bold mt-1 bg-slate-900 p-3.5 rounded-xl border border-slate-800">
+                      <p className="text-xs text-emerald-400 font-mono font-bold mt-1 bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
                         {selectedOmic.expressionFoldChange}
                       </p>
                     </div>
 
                     <div>
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Targeted Pharmacotherapy & Modulators</h4>
-                      <p className="text-xs text-cyan-300 font-bold mt-1 bg-cyan-950/20 p-3.5 rounded-xl border border-cyan-900/40">
+                      <p className="text-xs text-cyan-300 font-bold mt-1 bg-cyan-950/30 p-3.5 rounded-xl border border-cyan-900/40">
                         {selectedOmic.targetedPharmacotherapy}
                       </p>
                     </div>
@@ -670,13 +1185,13 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
       {/* ====================================================================== */}
       {activeTab === 'epidemic' && (
         <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 shadow-2xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
               <div>
                 <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
                   <ShieldAlert className="text-amber-400" size={20} /> WHO Global Health & AMR Surveillance Observatory
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-300 mt-1">
                   Real-time epidemiological monitoring of WHO priority pathogens, antimicrobial resistance (AMR), and outbreak containment protocols.
                 </p>
               </div>
@@ -694,10 +1209,10 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                   <div
                     key={pathogen.id}
                     onClick={() => setSelectedPathogen(pathogen)}
-                    className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 ${
+                    className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 backdrop-blur-md ${
                       isSelected
-                        ? 'bg-amber-950/30 border-amber-500 ring-2 ring-amber-500/30 shadow-xl'
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        ? 'bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30 shadow-xl'
+                        : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -714,7 +1229,7 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
                     <h3 className="text-base font-black text-white">{pathogen.name}</h3>
 
-                    <p className="text-xs text-slate-300 font-mono bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                    <p className="text-xs text-slate-300 font-mono bg-slate-900/80 p-2.5 rounded-xl border border-slate-800/80">
                       Resistance: {pathogen.resistanceMechanism}
                     </p>
 
@@ -729,8 +1244,8 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Inspected Pathogen Containment Protocol */}
             {selectedPathogen && (
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-6 space-y-6 backdrop-blur-md">
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
                   <div>
                     <span className="text-xs font-mono text-amber-400 font-extrabold uppercase">Outbreak Containment Directive</span>
                     <h3 className="text-2xl font-black text-white mt-0.5">{selectedPathogen.name}</h3>
@@ -742,17 +1257,17 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800/80 space-y-1.5">
                     <p className="text-[10px] font-black uppercase text-slate-400">Target First-Line Therapy</p>
                     <p className="text-xs font-bold text-cyan-300">{selectedPathogen.firstLineTherapy}</p>
                   </div>
 
-                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800/80 space-y-1.5">
                     <p className="text-[10px] font-black uppercase text-slate-400">Rapid PCR Diagnostic Protocol</p>
                     <p className="text-xs font-bold text-purple-300">{selectedPathogen.rapidDiagnosticCode}</p>
                   </div>
 
-                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800/80 space-y-1.5">
                     <p className="text-[10px] font-black uppercase text-slate-400">Hospital Isolation Directives</p>
                     <p className="text-xs font-bold text-emerald-300">{selectedPathogen.isolationProtocol}</p>
                   </div>

@@ -327,20 +327,17 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
     if (pendingDispatch.length === 0) return;
 
     const timer = setTimeout(() => {
+      let hasChange = false;
       setCleaningSchedules(prev => {
-        let hasChange = false;
-        const updated = prev.map(c => {
+        return prev.map(c => {
           if (c.status === 'SMS Dispatched') {
             hasChange = true;
             return { ...c, status: 'Completed' as const };
           }
           return c;
         });
-        if (hasChange) {
-          triggerRegistryNotification("Hygiene Node Confirmation: Bed disinfected, sterilized, and returned to clinical intake rotation.", "success");
-        }
-        return updated;
       });
+      triggerRegistryNotification("Hygiene Node Confirmation: Bed disinfected, sterilized, and returned to clinical intake rotation.", "success");
     }, 15000);
 
     return () => clearTimeout(timer);

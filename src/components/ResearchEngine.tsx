@@ -426,74 +426,40 @@ Structure your response into clear markdown with:
 
   return (
     <div 
-      className={`space-y-8 rounded-3xl p-4 sm:p-6 md:p-8 transition-colors duration-300 ${
-        highContrastMode 
-          ? 'bg-black text-yellow-300 border-4 border-yellow-400' 
-          : 'bg-slate-950 text-slate-100 border border-slate-800'
-      }`}
+      className="space-y-8 rounded-3xl p-4 sm:p-6 md:p-8 bg-slate-950/90 text-slate-100 border border-slate-800/80 shadow-2xl backdrop-blur-xl transition-all"
     >
-      {/* HEADER & VISION ACCESSIBILITY CONTROLS */}
-      <div className={`p-6 rounded-3xl border ${
-        highContrastMode 
-          ? 'bg-black border-4 border-yellow-400 text-yellow-300' 
-          : 'bg-gradient-to-br from-slate-900 via-blue-950/60 to-slate-900 border-slate-800 text-white shadow-2xl'
-      }`}>
+      {/* HEADER & GOOGLE SEARCH INTEGRATION BANNER */}
+      <div className="p-6 md:p-8 rounded-3xl border bg-gradient-to-br from-slate-900/90 via-blue-950/40 to-slate-900/90 border-slate-800 text-white shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                highContrastMode 
-                  ? 'bg-yellow-400 text-black border-2 border-yellow-300' 
-                  : 'bg-blue-600/30 text-blue-300 border border-blue-400/40'
-              }`}>
-                <Search size={14} /> Medical Intelligence Research Engine
+              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 bg-blue-600/30 text-blue-300 border border-blue-400/40">
+                <Search size={14} /> Medical Intelligence & Google Search Engine
               </span>
-              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                highContrastMode 
-                  ? 'bg-cyan-400 text-black border-2 border-cyan-300' 
-                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-              }`}>
-                <Award size={14} /> Formally Indexed & Cited
+              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <Award size={14} /> Formally Indexed PubMed & Scholar
               </span>
             </div>
 
             <h1 className={`${fontClasses.title} uppercase tracking-tight`}>
-              Doctorian <span className={highContrastMode ? 'text-yellow-400 underline' : 'text-blue-400'}>Healthcare Research Engine</span>
+              Doctorian <span className="text-blue-400">Healthcare Research Engine</span>
             </h1>
 
-            <p className={`${fontClasses.body} opacity-90 max-w-4xl`}>
-              Search indexed clinical literature, PubMed/MEDLINE records, WHO guidelines, and randomized trials with formal APA/AMA/Vancouver references and vision-accessibility support.
+            <p className={`${fontClasses.body} opacity-90 max-w-4xl text-slate-300`}>
+              Integrated with Google Medical Search, Google Scholar, PubMed/MEDLINE, WHO observatory, and Phase III clinical trial databases with formal APA/AMA/Vancouver reference generators.
             </p>
           </div>
 
-          {/* VISION ACCESSIBILITY CONTROLS BAR */}
-          <div className={`p-4 rounded-2xl border shrink-0 space-y-3 ${
-            highContrastMode 
-              ? 'bg-black border-2 border-yellow-400 text-yellow-300' 
-              : 'bg-slate-900/90 border-slate-800 text-slate-200'
-          }`}>
+          {/* GOOGLE SEARCH & ACCESSIBILITY CONTROLS */}
+          <div className="p-4 rounded-2xl border shrink-0 space-y-3 bg-slate-900/80 border-slate-800 text-slate-200 backdrop-blur-md">
             <div className="text-xs font-black uppercase tracking-wider flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
               <span className="flex items-center gap-1.5">
-                <Eye size={16} className={highContrastMode ? 'text-yellow-400' : 'text-cyan-400'} />
-                <span>Researcher Vision Controls</span>
+                <Eye size={16} className="text-cyan-400" />
+                <span>Text Scale & Display Controls</span>
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* High Contrast Mode Switch */}
-              <button
-                onClick={() => setHighContrastMode(!highContrastMode)}
-                className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 border ${
-                  highContrastMode
-                    ? 'bg-yellow-400 text-black border-yellow-300 shadow-lg shadow-yellow-400/50'
-                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-                }`}
-                title="Toggle High Contrast Mode for Researchers with Low Vision"
-              >
-                <Sliders size={14} />
-                <span>{highContrastMode ? 'High Contrast ON' : 'High Contrast Mode'}</span>
-              </button>
-
+            <div className="flex flex-wrap items-center gap-2">
               {/* Font Scale Buttons */}
               <div className="flex items-center gap-1 border border-slate-800 rounded-xl p-1 bg-slate-950">
                 <button
@@ -520,11 +486,11 @@ Structure your response into clear markdown with:
                   onClick={() => setFontSizeScale('xlarge')}
                   className={`px-2.5 py-1 rounded-lg text-xs font-black ${
                     fontSizeScale === 'xlarge' 
-                      ? 'bg-yellow-400 text-black font-black' 
+                      ? 'bg-blue-500 text-white font-black' 
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  A++ (XL Vision)
+                  A++ (XL)
                 </button>
               </div>
             </div>
@@ -532,33 +498,59 @@ Structure your response into clear markdown with:
         </div>
       </div>
 
-      {/* GOOGLE-STYLE PROMINENT SEARCH ENGINE BAR */}
-      <div className={`p-6 rounded-3xl border shadow-2xl space-y-4 ${
-        highContrastMode 
-          ? 'bg-black border-4 border-yellow-400 text-yellow-300' 
-          : 'bg-slate-900 border-slate-800 text-white'
-      }`}>
+      {/* GOOGLE MEDICAL SEARCH ENGINE BAR */}
+      <div className="p-6 rounded-3xl border shadow-2xl space-y-4 bg-slate-900/60 border-slate-800/80 backdrop-blur-xl text-white">
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div className="flex items-center gap-2 font-black text-sm uppercase tracking-wider text-slate-200">
+            <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-white text-blue-600 font-extrabold text-xs">
+              G
+            </div>
+            <span>Google Medical & PubMed Live Engine</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const query = searchQuery || 'Cardiovascular trial GLP-1 SGLT2';
+                window.open(`https://www.google.com/search?q=${encodeURIComponent(query + ' medical research clinical trial')}`, '_blank');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-blue-600/20 text-blue-300 border border-blue-500/30 text-xs font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <ExternalLink size={13} /> Google Search
+            </button>
+            <button
+              onClick={() => {
+                const query = searchQuery || 'Cardiovascular trial GLP-1 SGLT2';
+                window.open(`https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`, '_blank');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs font-black uppercase tracking-wider hover:bg-purple-600 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <BookOpen size={13} /> Google Scholar
+            </button>
+            <button
+              onClick={() => {
+                const query = searchQuery || 'Cardiovascular trial GLP-1 SGLT2';
+                window.open(`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(query)}`, '_blank');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs font-black uppercase tracking-wider hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <Search size={13} /> PubMed NCBI
+            </button>
+          </div>
+        </div>
+
         <div className="relative w-full">
-          <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${
-            highContrastMode ? 'text-yellow-400' : 'text-blue-400'
-          }`} size={22} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={22} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search medical literature by keyword, disease, drug, PMID, author, or trial name (e.g. SGLT2, CRISPR, Alzheimer, WHO)..."
-            className={`w-full rounded-2xl pl-12 pr-28 py-4 font-bold focus:outline-none transition-all ${
-              highContrastMode 
-                ? 'bg-black text-yellow-300 border-4 border-yellow-400 placeholder-yellow-600 text-lg focus:border-cyan-400' 
-                : 'bg-slate-950 text-white border border-slate-800 placeholder-slate-500 text-base focus:border-blue-500 shadow-inner'
-            }`}
+            placeholder="Search Google & PubMed medical literature by keyword, disease, drug, PMID, author, or trial name (e.g. SGLT2, CRISPR, Alzheimer, WHO)..."
+            className="w-full rounded-2xl pl-12 pr-28 py-4 font-bold focus:outline-none transition-all bg-slate-950/80 text-white border border-slate-800 placeholder-slate-500 text-base focus:border-blue-500 shadow-inner"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black px-3 py-1.5 rounded-xl uppercase ${
-                highContrastMode ? 'bg-yellow-400 text-black' : 'bg-slate-800 text-slate-300 hover:text-white'
-              }`}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black px-3 py-1.5 rounded-xl uppercase bg-slate-800 text-slate-300 hover:text-white"
             >
               Clear
             </button>
@@ -580,11 +572,7 @@ Structure your response into clear markdown with:
             <button
               key={chip}
               onClick={() => setSearchQuery(chip)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                highContrastMode
-                  ? 'bg-black text-yellow-300 border-yellow-400 hover:bg-yellow-400 hover:text-black'
-                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white'
-              }`}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white"
             >
               {chip}
             </button>

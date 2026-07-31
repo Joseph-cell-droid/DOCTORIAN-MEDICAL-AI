@@ -8,7 +8,25 @@ const config: any = firebaseConfig;
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, config.firestoreDatabaseId || undefined);
+
+let firestoreInstance: any = null;
+try {
+  if (config.firestoreDatabaseId) {
+    try {
+      firestoreInstance = getFirestore(app, config.firestoreDatabaseId);
+    } catch (e) {
+      console.warn("[FIREBASE] Could not initialize named Firestore database, falling back to default instance:", e);
+      firestoreInstance = getFirestore(app);
+    }
+  } else {
+    firestoreInstance = getFirestore(app);
+  }
+} catch (err) {
+  console.warn("[FIREBASE] Firestore client initialization bypassed or offline:", err);
+  firestoreInstance = null;
+}
+
+export const db = firestoreInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -71,12 +89,14 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 const syncUserProfile = async (user: User) => {
-  // Create user profile if it doesn't exist
-  const userRef = doc(db, 'users', user.uid);
-  
+  if (!db) {
+    console.warn("Firestore instance unavailable. Bypassing cloud profile sync.");
+    return;
+  }
   // We wrap the Firestore sync in a global try-catch to ensure login works 
   // even if the Firebase Project Database API has expired or is disabled.
   try {
+    const userRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userRef);
     if (!userDoc.exists()) {
       console.log("Creating new user profile for:", user.uid);

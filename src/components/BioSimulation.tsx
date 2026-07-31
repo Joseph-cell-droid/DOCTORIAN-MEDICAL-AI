@@ -694,11 +694,11 @@ Provide a structured, rigorous, evidence-based analysis containing:
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredTopics.map((topic) => {
+              {filteredTopics.map((topic, tIdx) => {
                 const isBookmarked = bookmarkedTopicIds.includes(topic.id);
                 return (
                   <div 
-                    key={topic.id}
+                    key={`filtered-topic-${topic.id}-${tIdx}`}
                     className="bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-5 shadow-xl transition-all flex flex-col justify-between group"
                   >
                     <div className="space-y-3">
@@ -821,11 +821,11 @@ Provide a structured, rigorous, evidence-based analysis containing:
           </div>
 
           <div className="space-y-4">
-            {filteredPapers.map((paper) => {
+            {filteredPapers.map((paper, pIdx) => {
               const isSaved = bookmarkedPaperIds.includes(paper.id);
               return (
                 <div 
-                  key={paper.id}
+                  key={`filtered-paper-${paper.id}-${pIdx}`}
                   className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 shadow-lg space-y-4 transition-all"
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
@@ -1036,8 +1036,8 @@ Provide a structured, rigorous, evidence-based analysis containing:
                       Saved Live Topics ({bookmarkedTopicIds.length})
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {LIVE_HEALTH_TOPICS.filter(t => bookmarkedTopicIds.includes(t.id)).map(topic => (
-                        <div key={topic.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+                      {LIVE_HEALTH_TOPICS.filter(t => bookmarkedTopicIds.includes(t.id)).map((topic, btIdx) => (
+                        <div key={`bm-topic-${topic.id}-${btIdx}`} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-black uppercase text-blue-400">{topic.category}</span>
                             <button onClick={() => toggleTopicBookmark(topic.id)} className="text-amber-400 hover:text-slate-500">
@@ -1059,8 +1059,8 @@ Provide a structured, rigorous, evidence-based analysis containing:
                       Saved Peer-Reviewed Literature ({bookmarkedPaperIds.length})
                     </h3>
                     <div className="space-y-3">
-                      {RESEARCH_DATABASE.filter(p => bookmarkedPaperIds.includes(p.id)).map(paper => (
-                        <div key={paper.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      {RESEARCH_DATABASE.filter(p => bookmarkedPaperIds.includes(p.id)).map((paper, bpIdx) => (
+                        <div key={`bm-paper-${paper.id}-${bpIdx}`} className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                           <div>
                             <span className="text-[10px] font-black uppercase text-emerald-400">{paper.journal} ({paper.year})</span>
                             <h4 className="text-sm font-black text-white">{paper.title}</h4>

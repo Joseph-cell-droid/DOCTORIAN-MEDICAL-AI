@@ -220,3 +220,5 @@ export const BMICalculator: React.FC<BMICalculatorProps> = ({ isOpen, onClose })
     </AnimatePresence>
   );
 };
+
+export default BMICalculator;

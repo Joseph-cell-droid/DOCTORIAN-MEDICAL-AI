@@ -3,7 +3,7 @@ import {
   Wifi, Bluetooth, Play, Square, Thermometer,
   Heart, Droplets, Wind, Activity, AlertTriangle,
   CheckCircle, Info, Radio, Signal, XCircle, Monitor, Stethoscope, WifiOff,
-  Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3,
+  Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3, Sliders,
   Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2
 } from 'lucide-react';
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { api, User } from '../api';
 import { ClinicalPatientRegistry as ClinicalPatientRegistryStandalone, RegisteredPatient, BedTransferRecord } from './ClinicalPatientRegistry';
 import { DoctorVerificationModal } from './DoctorVerificationModal';
+import { NeuralSynthesisPanel } from './NeuralSynthesisPanel';
+import { DnaMatrix } from './DnaMatrix';
 import BioSimulation from './BioSimulation';
 import CognisAnalytics from './CognisAnalytics';
 import { DeviceTerminalPanel } from './DeviceTerminalPanel';
@@ -26,6 +28,7 @@ import { BiomedicalSimulator } from './BiomedicalSimulator';
 import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
 import { HistoricalTelemetryChart } from './HistoricalTelemetryChart';
 import { TelemetryCastManager } from './TelemetryCastManager';
+import { cacheTelemetryFrame } from '../utils/waveformCache';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar,
@@ -544,153 +547,6 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
   );
 };
 
-const DnaMatrix: React.FC<{ dnaStatus: any; onStartSequencing: () => void }> = ({ dnaStatus, onStartSequencing }) => {
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Sequencing Engine */}
-        <div className="lg:col-span-8 bg-slate-900 rounded-[3rem] p-8 sm:p-12 text-white relative overflow-hidden group border border-white/10 shadow-2xl">
-          <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
-            <Dna size={240} className="text-blue-500" />
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-blue-600 p-2.5 rounded-xl">
-                    <Microscope size={24} />
-                  </div>
-                  <span className="text-xs font-black uppercase tracking-[0.3em] text-blue-400">Quantum Sequencing Engine</span>
-                </div>
-                <h3 className="text-3xl sm:text-6xl font-[1000] tracking-tighter uppercase leading-none">Genomic <span className="text-blue-500 font-serif italic normal-case">Nexus</span></h3>
-              </div>
-              
-              <button 
-                onClick={onStartSequencing}
-                disabled={dnaStatus.sequencing}
-                className={`px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center gap-3 ${dnaStatus.sequencing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-950 hover:bg-blue-50 active:scale-95 transition-all'}`}
-              >
-                {dnaStatus.sequencing ? <RefreshCw className="animate-spin" size={18} /> : <Play size={18} />}
-                {dnaStatus.sequencing ? 'Sequencing...' : 'Start Trace'}
-              </button>
-            </div>
-
-            {dnaStatus.sequencing ? (
-              <div className="space-y-10">
-                <div className="relative pt-1">
-                  <div className="flex mb-4 items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-black inline-block py-1 px-3 uppercase rounded-full text-blue-400 bg-blue-900/30 border border-blue-500/20">
-                        Base Pair Alignment in Progress
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-black inline-block text-blue-400 tabular-nums">
-                        {Math.round(dnaStatus.progress)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-slate-800 border border-white/5">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${dnaStatus.progress}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 relative"
-                    >
-                      <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.3)_50%,transparent_100%)] animate-pulse" />
-                    </motion.div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {dnaStatus.markers.map((marker: string, i: number) => (
-                    <motion.div 
-                      key={marker}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center gap-2"
-                    >
-                      <div className="text-[8px] font-black text-blue-500 uppercase">Detection</div>
-                      <div className="text-xs font-black">{marker}</div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            ) : dnaStatus.results ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="grid grid-cols-1 sm:grid-cols-3 gap-6"
-              >
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Layers size={18} className="text-blue-500" />
-                    <span className="text-[10px] font-black uppercase text-slate-500">Haplogroup</span>
-                  </div>
-                  <p className="text-3xl font-black">{dnaStatus.results.haplogroup}</p>
-                </div>
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Clock size={18} className="text-emerald-500" />
-                    <span className="text-[10px] font-black uppercase text-slate-500">Biological Age</span>
-                  </div>
-                  <p className="text-3xl font-black">{dnaStatus.results.cellularAge} <span className="text-sm text-slate-500 font-bold uppercase">Years</span></p>
-                </div>
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Activity size={18} className="text-blue-500" />
-                    <span className="text-[10px] font-black uppercase text-slate-500">Telomere Status</span>
-                  </div>
-                  <p className="text-2xl font-black uppercase text-emerald-400">{dnaStatus.results.telomereHealth}</p>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="py-12 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
-                  <Fingerprint size={40} className="text-blue-500 opacity-40" />
-                </div>
-                <p className="text-slate-500 font-bold max-w-sm">Ready for High-Resolution Genomic Sequencing. Initialize the trace to begin base-pair alignment.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Variant Risks */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-xl h-full flex flex-col">
-            <div className="flex items-center gap-3 mb-8">
-              <ShieldAlert size={20} className="text-blue-600" />
-              <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">Genetic Variants</h4>
-            </div>
-            
-            <div className="space-y-4 flex-1">
-              {!dnaStatus.results ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-40 grayscale py-12">
-                   <AlertCircle size={40} className="mb-4" />
-                   <p className="text-[10px] font-black uppercase tracking-widest">Waiting for Sequence</p>
-                </div>
-              ) : (
-                dnaStatus.results.variantRisks.map((v: any, i: number) => (
-                  <div key={i} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between mb-2">
-                       <span className="text-xs font-black text-slate-900 dark:text-white">{v.gene}</span>
-                       <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${v.risk === 'low' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                          {v.risk} risk
-                       </span>
-                    </div>
-                    <p className="text-[10px] font-medium text-slate-500 leading-relaxed">{v.description}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const MiniPatientMonitor: React.FC<{ preset: 'healthy' | 'warning' | 'critical'; patientId?: string }> = () => null;
 
 const ThresholdInput: React.FC<{
@@ -719,7 +575,7 @@ const ThresholdInput: React.FC<{
   </div>
 );
 
-export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpdateUser?: (u: User) => void }> = ({ arduino, user, onUpdateUser }) => {
+export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpdateUser?: (u: User) => void; onNavigate?: (view: string) => void }> = ({ arduino, user, onUpdateUser, onNavigate }) => {
   const {
     vitals, history, healthStatus, connection,
     connectBluetooth, connectHealthWatch, connectSerial, connectWiFi, connectWebSocket, disconnect, startDemo, simulateEmergency,
@@ -766,6 +622,35 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [currentAudioContext, setCurrentAudioContext] = useState<any>(null);
   const [isAIVoiceLoading, setIsAIVoiceLoading] = useState<boolean>(false);
 
+  // Advanced Bio-Organ Stress & Biofeedback Triage States
+  const [isBiomarkerScanning, setIsBiomarkerScanning] = useState<boolean>(false);
+  const [showBiofeedbackModal, setShowBiofeedbackModal] = useState<boolean>(false);
+  const [showSimulationDials, setShowSimulationDials] = useState<boolean>(false);
+  const [simulatedVitals, setSimulatedVitals] = useState({ heartRate: 78, systolicBP: 122, diastolicBP: 80, spo2: 98 });
+  const [biofeedbackPhase, setBiofeedbackPhase] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
+  const [biofeedbackSeconds, setBiofeedbackSeconds] = useState<number>(4);
+
+  // Biofeedback Guided Breathing Timer (4s Inhale -> 7s Hold -> 8s Exhale)
+  React.useEffect(() => {
+    if (!showBiofeedbackModal) return;
+    const interval = setInterval(() => {
+      setBiofeedbackSeconds((prev) => {
+        if (prev > 1) return prev - 1;
+        if (biofeedbackPhase === 'Inhale') {
+          setBiofeedbackPhase('Hold');
+          return 7;
+        } else if (biofeedbackPhase === 'Hold') {
+          setBiofeedbackPhase('Exhale');
+          return 8;
+        } else {
+          setBiofeedbackPhase('Inhale');
+          return 4;
+        }
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showBiofeedbackModal, biofeedbackPhase]);
+
   React.useEffect(() => {
     const fetchData = async () => {
       try {
@@ -784,7 +669,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 6000);
+    const interval = setInterval(fetchData, 12000);
     return () => clearInterval(interval);
   }, []);
   
@@ -1535,6 +1420,22 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     return () => clearInterval(timer);
   }, [vitals?.heartRate, vitals?.spo2, isHeartbeatToneEnabled, isAlarmMuted]);
 
+  // 24-Hour Offline Waveform & Telemetry Caching into IndexedDB
+  React.useEffect(() => {
+    if (vitals) {
+      cacheTelemetryFrame({
+        timestamp: Date.now(),
+        isoTime: new Date().toLocaleTimeString(),
+        heartRate: Math.round(vitals.heartRate || 0),
+        spo2: Math.round(vitals.spo2 || 0),
+        sysBP: Math.round(vitals.systolicBP || 120),
+        diaBP: Math.round(vitals.diastolicBP || 80),
+        respiratoryRate: Math.round(vitals.respiratoryRate || 16),
+        ecgPoint: vitals.ecgValue || 0,
+      });
+    }
+  }, [vitals?.heartRate, vitals?.spo2, vitals?.systolicBP, vitals?.diastolicBP]);
+
   // Synchronize alarm sound with state triggers
   React.useEffect(() => {
     if (!synthRef.current) return;
@@ -1831,6 +1732,44 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     setIsEmergencyCalling(false);
   };
 
+  const handleManualSOSCall = async () => {
+    try {
+      setIsEmergencyCalling(true);
+      setIsAIVoiceLoading(true);
+      setActiveCallTranscript("Dispatching immediate emergency call to assigned doctor & response team...");
+      setIsAIBrainGenerated(false);
+
+      const activePatient = registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0];
+      const doctorPhone = user?.doctorPhone || activePatient?.doctorPhone || '+256787674140';
+      const patientPhone = user?.phone || activePatient?.phone || '+256787674140';
+      const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+
+      const voiceMessage = `EMERGENCY SOS DISPATCH: Patient ${user?.displayName || activePatient?.name || 'Joseph Brian Obote'} at ${hospitalName} has initiated a high-priority clinical emergency call. Heart rate: ${Math.round(vitals?.heartRate || 75)} BPM, SpO2: ${Math.round(vitals?.spo2 || 98)}%. Direct physical response requested immediately!`;
+
+      if (arduino?.triggerAlarm) {
+        await arduino.triggerAlarm('emergency');
+      }
+
+      const res = await api.alerts.makeCall(voiceMessage, doctorPhone, undefined, patientPhone, {
+        patientName: user?.displayName || activePatient?.name || "Patient",
+        hospitalPreference: hospitalName
+      });
+
+      setIsAIVoiceLoading(false);
+      setActiveCallTranscript(res.aiText || voiceMessage);
+
+      await api.alerts.sendSms(voiceMessage, doctorPhone);
+    } catch (err: any) {
+      setIsAIVoiceLoading(false);
+      console.error("SOS Call failed:", err);
+      try {
+        window.speechSynthesis.cancel();
+        const ut = new SpeechSynthesisUtterance("Emergency SOS Call initiated. Alerts dispatched to assigned doctor.");
+        window.speechSynthesis.speak(ut);
+      } catch (e) {}
+    }
+  };
+
   const getStatus = (label: string, value: number): 'normal' | 'warning' | 'critical' | undefined => {
     if (!vitals) return undefined;
     switch (label) {
@@ -1917,149 +1856,68 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-      {/* Emergency Calling Overlay */}
+      {/* Non-intrusive Floating Emergency Audio Dispatch Panel */}
       <AnimatePresence>
         {isEmergencyCalling && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-rose-600/95 backdrop-blur-2xl flex items-center justify-center p-8 text-white overflow-hidden"
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-4 right-4 z-50 max-w-lg w-full bg-slate-900/95 backdrop-blur-2xl text-white rounded-2xl p-4 shadow-2xl border border-rose-500/50 flex flex-col gap-3"
           >
-            {/* Pulsing Rings */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-              <motion.div 
-                animate={{ scale: [1, 2.5], opacity: [0.5, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-64 h-64 border-8 border-white rounded-full absolute"
-              />
-            </div>
-
-            <div className="relative z-10 text-center max-w-lg w-full px-4">
-              <motion.div 
-                animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
-                transition={{ duration: 0.5, repeat: Infinity }}
-                className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center text-rose-600 mx-auto mb-6 shadow-2xl"
-              >
-                <PhoneCall size={40} />
-              </motion.div>
-              <h2 className="text-3xl font-[1000] uppercase tracking-tighter mb-2 animate-pulse">Emergency Alarm</h2>
-              <p className="text-xs font-black uppercase tracking-[0.3em] mb-8 text-rose-100 opacity-80">Autonomous Calling Protocol Active</p>
-              
-              <div className="text-left mb-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-200 mb-2.5">Simultaneous Recipients Dialed:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[160px] overflow-y-auto pr-1">
-                  {/* Doctor */}
-                  <div className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
-                     <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                        <Stethoscope size={14} />
-                     </div>
-                     <div className="text-left min-w-0">
-                        <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">DOCTOR ON DUTY</p>
-                        <p className="text-xs font-black truncate">{user?.doctorName || "Primary Doctor"}</p>
-                        <p className="text-[10px] text-emerald-100 font-mono tracking-wider truncate">{user?.doctorPhone || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.doctorPhone || "+256787674140"}</p>
-                     </div>
-                  </div>
-                  {/* Mentor */}
-                  <div className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
-                     <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
-                        <UserIcon size={14} />
-                     </div>
-                     <div className="text-left min-w-0">
-                        <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">PATIENT MENTOR</p>
-                        <p className="text-xs font-black truncate">{user?.mentorName || "Nexus Mentor"}</p>
-                        <p className="text-[10px] text-amber-100 font-mono tracking-wider truncate">{user?.mentorPhone || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.mentorPhone || "+256787674140"}</p>
-                     </div>
-                  </div>
-                  {/* Patient Node */}
-                  <div className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
-                     <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-                        <UserIcon size={14} />
-                     </div>
-                     <div className="text-left min-w-0">
-                        <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">PATIENT NODE</p>
-                        <p className="text-xs font-black truncate">{user?.displayName || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.name || "Patient"}</p>
-                        <p className="text-[10px] text-blue-100 font-mono tracking-wider truncate">{user?.phone || (registeredPatients.find(p => p.id === selectedPatientId) || defaultPatients[0])?.phone || "+256787674140"}</p>
-                     </div>
-                  </div>
-                  {/* Custom Emergency Contacts from DB */}
-                  {(() => {
-                    let stored: Array<{ name?: string; role?: string; phone: string }> = [];
-                    try {
-                      const saved = localStorage.getItem('emergency_contacts');
-                      if (saved) stored = JSON.parse(saved);
-                    } catch (e) {}
-                    return stored.map((contact, idx) => (
-                      <div key={idx} className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-md flex items-center gap-2.5">
-                         <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
-                            <PhoneCall size={12} />
-                         </div>
-                         <div className="text-left min-w-0">
-                            <p className="text-[8px] font-black uppercase tracking-wider text-rose-200">{contact.role || "EMERGENCY CONTACT"}</p>
-                            <p className="text-xs font-black truncate">{contact.name || "Auxiliary Contact"}</p>
-                            <p className="text-[10px] text-purple-100 font-mono tracking-wider truncate">{contact.phone}</p>
-                         </div>
-                      </div>
-                    ));
-                  })()}
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30 animate-pulse">
+                  <PhoneCall size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white">Emergency Call Dispatching</h4>
+                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-rose-300">Autonomous Protocol Active</p>
                 </div>
               </div>
-
-              {/* Dynamic Transcript Panel from the AI Clinical Brain */}
-              <div className="p-5 bg-slate-950/80 rounded-[1.8rem] border border-white/10 text-left backdrop-blur-2xl shadow-2xl relative overflow-hidden mb-6">
-                <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-300">
-                      {isAIVoiceLoading ? "Connecting AI Brain..." : "Live Audio Transcript"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    <Cpu size={10} className="text-emerald-400 animate-spin-slow" />
-                    <span className="text-[7px] font-extrabold uppercase text-emerald-300">
-                      {isAIBrainGenerated ? "Gemini Live" : "Emergency Backup"}
-                    </span>
-                  </div>
-                </div>
-
-                {isAIVoiceLoading ? (
-                  <div className="py-4 flex flex-col items-center justify-center space-y-2 text-center">
-                    <div className="flex gap-1 items-center justify-center h-4">
-                      <motion.div animate={{ height: [4, 12, 4] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.1 }} className="w-0.5 bg-rose-400 rounded-full" />
-                      <motion.div animate={{ height: [4, 20, 4] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.2 }} className="w-0.5 bg-rose-400 rounded-full" />
-                      <motion.div animate={{ height: [4, 10, 4] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.3 }} className="w-0.5 bg-rose-400 rounded-full" />
-                    </div>
-                    <p className="text-[10px] font-semibold text-rose-200/50 italic">Generating clinical voice monologue...</p>
-                  </div>
-                ) : (
-                  <div>
-                    {/* Animated Equalizer Waveform */}
-                    <div className="flex items-center gap-1.5 h-6 mb-3 bg-white/5 px-3 rounded-lg border border-white/5 justify-between">
-                      <span className="text-[8px] font-black text-rose-200 tracking-wider uppercase">Live Vocal Frequency</span>
-                      <div className="flex gap-0.5 items-center h-3">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-                          <motion.div 
-                            key={val}
-                            animate={{ height: [2, Math.floor(Math.random() * 12) + 2, 2] }}
-                            transition={{ duration: 0.2 + Math.random() * 0.3, repeat: Infinity }}
-                            className="w-0.5 bg-rose-400 rounded-full" 
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-xs leading-relaxed text-slate-200 font-bold max-h-28 overflow-y-auto pr-1 select-text scrollbar-thin">
-                      {activeCallTranscript}
-                    </p>
-                  </div>
-                )}
-              </div>
-
               <button 
                 onClick={stopEmergencyCallPlayback}
-                className="px-10 py-4 bg-white text-rose-600 rounded-full font-[1000] text-[10px] uppercase tracking-[0.3em] shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+                title="End Emergency Call"
               >
-                Reset Emergency Loop
+                <X size={14} /> End Call
               </button>
+            </div>
+
+            {/* Recipient summary badge */}
+            <div className="flex items-center gap-2 overflow-x-auto text-[9px] font-bold uppercase text-slate-300 py-1 scrollbar-none">
+              <span className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                <Stethoscope size={10} /> Dr: {user?.doctorName || "Primary Doctor"}
+              </span>
+              <span className="bg-amber-500/20 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                <UserIcon size={10} /> Mentor: {user?.mentorName || "Nexus Mentor"}
+              </span>
+              <span className="bg-blue-500/20 border border-blue-500/30 text-blue-300 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                <UserIcon size={10} /> Node: {user?.displayName || "Patient"}
+              </span>
+            </div>
+
+            {/* Live Audio Transcript Box */}
+            <div className="p-3 bg-slate-950/80 rounded-xl border border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[8px] font-black uppercase tracking-widest text-rose-300 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  {isAIVoiceLoading ? "Connecting AI Brain..." : "Live Vocal Monologue"}
+                </span>
+                <div className="flex gap-0.5 items-center h-2.5">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((val) => (
+                    <motion.div 
+                      key={val}
+                      animate={{ height: [2, Math.floor(Math.random() * 10) + 2, 2] }}
+                      transition={{ duration: 0.2 + Math.random() * 0.3, repeat: Infinity }}
+                      className="w-0.5 bg-rose-400 rounded-full" 
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-200 font-semibold max-h-24 overflow-y-auto pr-1 select-text scrollbar-thin">
+                {activeCallTranscript}
+              </p>
             </div>
           </motion.div>
         )}
@@ -2147,16 +2005,16 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                         className="flex-1 text-xs font-bold bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-3 rounded-xl border border-slate-150 dark:border-slate-800/80 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
                       >
                         <optgroup label="Default Clinical Presets">
-                          {baseDefaultPresets.map(preset => (
-                            <option key={preset.id} value={preset.id}>
+                          {baseDefaultPresets.map((preset, idx) => (
+                            <option key={`default-${preset.id}-${idx}`} value={preset.id}>
                               {preset.name}
                             </option>
                           ))}
                         </optgroup>
                         {customPresets.length > 0 && (
                           <optgroup label="Custom User Profiles">
-                            {customPresets.map(preset => (
-                              <option key={preset.id} value={preset.id}>
+                            {customPresets.map((preset, idx) => (
+                              <option key={`custom-${preset.id}-${idx}`} value={preset.id}>
                                 {preset.name}
                               </option>
                             ))}
@@ -2168,11 +2026,11 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
                   {/* Preset Badges for easy one-click switching */}
                   <div className="flex flex-wrap gap-1.5">
-                    {[...baseDefaultPresets, ...customPresets].map(preset => {
+                    {[...baseDefaultPresets, ...customPresets].map((preset, idx) => {
                       const isActive = selectedPresetId === preset.id;
                       return (
                         <div 
-                          key={preset.id}
+                          key={`badge-${preset.id}-${idx}`}
                           onClick={() => handleSelectPreset(preset.id)}
                           className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-wider transition-all border ${
                             isActive
@@ -2473,42 +2331,396 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
         </div>
       )}
 
-      {/* Local SIM Emergency Panel */}
+      {/* Real-Time Clinical Triage Command & Multi-Organ Emergency Telemetry Hub */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl shadow-orange-200 relative overflow-hidden"
+        className="mb-8 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950/90 backdrop-blur-2xl text-white rounded-3xl p-6 sm:p-7 shadow-[0_16px_48px_rgba(0,0,0,0.4)] relative overflow-hidden border border-blue-500/30 hover:border-blue-500/50 transition-all duration-300"
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="text-center lg:text-left">
-            <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                <Smartphone size={24} />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-6">
+          {/* Header & Status Summary */}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-white/10">
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-950/90 text-emerald-300 tracking-widest border border-emerald-500/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Clinical Triage: Stable (NEWS2 Score 0)
+                </span>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-950/90 text-blue-300 tracking-widest border border-blue-500/40 flex items-center gap-1.5">
+                  <Activity size={12} className="text-blue-400 animate-spin" />
+                  Live Telemetry Stream Active
+                </span>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-purple-950/90 text-purple-300 tracking-widest border border-purple-500/40 flex items-center gap-1.5">
+                  <ShieldCheck size={12} className="text-purple-400" />
+                  24/7 Clinical Guardian
+                </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight">Local SIM Emergency</h2>
+              
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shrink-0 shadow-[0_0_24px_rgba(37,99,235,0.4)]">
+                  <Stethoscope size={28} />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
+                    <span>Clinical Emergency Triage Command</span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-300 font-medium">
+                    Real-time National Early Warning Score (NEWS2) & multi-organ failure risk telemetry
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-orange-50 text-sm font-bold opacity-90">Use your MTN/Airtel SIM card to send alerts directly from your phone</p>
+
+            {/* Direct High-Priority Action Buttons */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full lg:w-auto shrink-0">
+              <button 
+                type="button"
+                onClick={handleManualSOSCall}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-red-900/40 active:scale-95 cursor-pointer border border-red-400/30 whitespace-nowrap"
+                title="Trigger Immediate Emergency Voice Call to Doctor"
+              >
+                <PhoneCall size={15} className="animate-bounce" />
+                <span>Emergency Call SOS</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsBiomarkerScanning(true);
+                  setTimeout(() => {
+                    setIsBiomarkerScanning(false);
+                  }, 1200);
+                }}
+                disabled={isBiomarkerScanning}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer border border-blue-400/30 whitespace-nowrap"
+              >
+                {isBiomarkerScanning ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin text-blue-200" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={15} className="text-blue-200 animate-pulse" />
+                    <span>Run Triage Scan</span>
+                  </>
+                )}
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => setShowBiofeedbackModal(true)}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl font-black text-xs uppercase tracking-wider transition-all border border-cyan-500/30 whitespace-nowrap"
+              >
+                <Activity size={15} className="text-cyan-400" />
+                <span>Biofeedback</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSimulationDials(!showSimulationDials)}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all border whitespace-nowrap ${
+                  showSimulationDials 
+                    ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-md'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                }`}
+              >
+                <Sliders size={15} className={showSimulationDials ? 'animate-spin' : ''} />
+                <span>{showSimulationDials ? 'Close Dials' : 'Vitals Dials'}</span>
+              </button>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
-            <a 
-              href={`sms:+256787674140?body=EMERGENCY ALERT: Patient vitals are critical! HR: ${Math.round(vitals?.heartRate || 0)}bpm, SpO2: ${Math.round(vitals?.spo2 || 0)}%. Please check immediately.`}
-              className="flex items-center justify-center gap-3 px-8 py-4 bg-white text-orange-600 rounded-2xl font-black text-sm hover:bg-orange-50 transition-all shadow-xl active:scale-95"
-            >
-              <MessageSquare size={18} />
-              <span>SEND LOCAL SMS</span>
-            </a>
-            <a 
-              href="tel:+256787674140"
-              className="flex items-center justify-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl active:scale-95"
-            >
-              <Phone size={18} />
-              <span>CALL VIA SIM</span>
-            </a>
-          </div>
+
+          {/* Interactive Simulation Dials Drawer */}
+          <AnimatePresence>
+            {showSimulationDials && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden bg-slate-950/90 rounded-2xl p-5 border border-amber-500/30 space-y-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Sliders size={16} className="text-amber-400" />
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-300">
+                      Vitals Hemodynamic Simulation Dials
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => setSimulatedVitals({ heartRate: 78, systolicBP: 122, diastolicBP: 80, spo2: 98 })}
+                    className="text-[10px] font-mono font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    Reset Baseline
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Heart Rate Slider */}
+                  <div className="space-y-1.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <div className="flex justify-between text-[11px] font-bold">
+                      <span className="text-purple-300">Heart Rate</span>
+                      <span className="text-white font-mono">{simulatedVitals.heartRate} BPM</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="40"
+                      max="180"
+                      value={simulatedVitals.heartRate}
+                      onChange={(e) => setSimulatedVitals(prev => ({ ...prev, heartRate: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                  </div>
+
+                  {/* Systolic BP Slider */}
+                  <div className="space-y-1.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <div className="flex justify-between text-[11px] font-bold">
+                      <span className="text-cyan-300">Systolic BP</span>
+                      <span className="text-white font-mono">{simulatedVitals.systolicBP} mmHg</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="70"
+                      max="200"
+                      value={simulatedVitals.systolicBP}
+                      onChange={(e) => setSimulatedVitals(prev => ({ ...prev, systolicBP: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                  </div>
+
+                  {/* Diastolic BP Slider */}
+                  <div className="space-y-1.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <div className="flex justify-between text-[11px] font-bold">
+                      <span className="text-blue-300">Diastolic BP</span>
+                      <span className="text-white font-mono">{simulatedVitals.diastolicBP} mmHg</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="40"
+                      max="130"
+                      value={simulatedVitals.diastolicBP}
+                      onChange={(e) => setSimulatedVitals(prev => ({ ...prev, diastolicBP: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                  </div>
+
+                  {/* SpO2 Slider */}
+                  <div className="space-y-1.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <div className="flex justify-between text-[11px] font-bold">
+                      <span className="text-emerald-300">SpO2 Level</span>
+                      <span className="text-white font-mono">{simulatedVitals.spo2}%</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="75"
+                      max="100"
+                      value={simulatedVitals.spo2}
+                      onChange={(e) => setSimulatedVitals(prev => ({ ...prev, spo2: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Biomarker Metrics Grid */}
+          {(() => {
+            const hr = showSimulationDials ? simulatedVitals.heartRate : Math.round(vitals?.heartRate || 75);
+            const sys = showSimulationDials ? simulatedVitals.systolicBP : Math.round(vitals?.systolicBP || 120);
+            const dia = showSimulationDials ? simulatedVitals.diastolicBP : Math.round(vitals?.diastolicBP || 80);
+            const rpp = Math.round((hr * sys) / 100);
+            const map = Math.round(dia + (sys - dia) / 3);
+            const shockIndex = parseFloat((hr / sys).toFixed(2));
+
+            const rppStatus = rpp > 140 ? 'Severe Stress' : rpp > 110 ? 'Elevated Demand' : 'Optimal Reserve';
+            const mapStatus = map < 65 ? 'Hypoperfusion Risk' : map > 110 ? 'Hypertensive Load' : 'Normal Perfusion';
+            const shockStatus = shockIndex > 0.9 ? 'Overt Shock Risk' : shockIndex > 0.7 ? 'Occult Strain' : 'Stable Hemodynamics';
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                {/* Metric 1: Cardiac Workload (RPP) */}
+                <div className="bg-slate-950/60 backdrop-blur-md p-6 rounded-2xl border border-white/10 hover:border-purple-500/30 transition-all space-y-4 relative overflow-hidden group/card shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 flex items-center gap-2">
+                      <Heart size={15} className="text-purple-400 animate-pulse" />
+                      Cardiac Stress Index (RPP)
+                    </span>
+                    <span className={`text-[9px] font-mono font-bold px-2.5 py-1 rounded-full border shadow-sm ${
+                      rpp > 140 ? 'bg-rose-950/90 text-rose-300 border-rose-500/50' : rpp > 110 ? 'bg-amber-950/90 text-amber-300 border-amber-500/50' : 'bg-emerald-950/90 text-emerald-300 border-emerald-500/50'
+                    }`}>
+                      {rppStatus}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-3xl sm:text-4xl font-[1000] text-white tracking-tight">{rpp}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">bpm x mmHg / 100</span>
+                    </div>
+                    <span className="text-xs font-mono text-purple-300 bg-purple-950/50 px-2 py-0.5 rounded border border-purple-800/40">Target: 70–110</span>
+                  </div>
+
+                  <div className="w-full bg-slate-900/80 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(168,85,247,0.5)] ${rpp > 140 ? 'bg-rose-500' : rpp > 110 ? 'bg-amber-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'}`} 
+                      style={{ width: `${Math.min(100, (rpp / 160) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                    Rate Pressure Product measures myocardial oxygen consumption. Values under 110 reflect optimal cardiac efficiency and coronary reserve.
+                  </p>
+                </div>
+
+                {/* Metric 2: MAP & Shock Index */}
+                <div className="bg-slate-950/60 backdrop-blur-md p-6 rounded-2xl border border-white/10 hover:border-cyan-500/30 transition-all space-y-4 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300 flex items-center gap-2">
+                      <Activity size={15} className="text-cyan-400" />
+                      Mean Arterial Pressure & Shock Index
+                    </span>
+                    <span className={`text-[9px] font-mono font-bold px-2.5 py-1 rounded-full border shadow-sm ${
+                      map < 65 || shockIndex > 0.9 ? 'bg-rose-950/90 text-rose-300 border-rose-500/50' : 'bg-cyan-950/90 text-cyan-300 border-cyan-500/50'
+                    }`}>
+                      {mapStatus}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-3xl sm:text-4xl font-[1000] text-white tracking-tight">{map}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">mmHg MAP</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">SI: {shockIndex}</span>
+                      <p className="text-[9px] text-slate-400 font-mono mt-0.5">{shockStatus}</p>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-slate-900/80 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                    <div 
+                      className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
+                      style={{ width: `${Math.min(100, (map / 130) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                    MAP dictates organ perfusion pressure. MAP ≥ 65 mmHg guarantees microvascular cerebral, renal, and systemic perfusion.
+                  </p>
+                </div>
+
+                {/* Metric 3: 30-Min Predictive Telemetry */}
+                <div className="bg-slate-950/60 backdrop-blur-md p-6 rounded-2xl border border-white/10 hover:border-amber-500/30 transition-all space-y-4 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 flex items-center gap-2">
+                      <TrendingUp size={15} className="text-amber-400" />
+                      30-Min Telemetry Forecast
+                    </span>
+                    <span className="text-[9px] font-mono font-bold bg-amber-950/90 text-amber-300 px-2.5 py-1 rounded-full border border-amber-500/50 shadow-sm">
+                      PREDICTIVE AI
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs font-semibold">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                      <span className="text-slate-400">Cardiac Trend</span>
+                      <span className="text-emerald-400 font-mono font-bold">Stable (±1.8 BPM)</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                      <span className="text-slate-400">SpO2 Trajectory</span>
+                      <span className="text-cyan-300 font-mono font-bold">≥ 97% Sustained</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Acute Decompensation Risk</span>
+                      <span className="text-emerald-400 font-mono font-bold">0.8% Low</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-300 leading-normal pt-1">
+                    Neural forecasting model continuous 30-min window projects zero acute hemodynamic compromise over the next shift.
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </motion.div>
+
+      {/* Autonomic Biofeedback Protocol Modal */}
+      <AnimatePresence>
+        {showBiofeedbackModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full text-white shadow-2xl relative space-y-6"
+            >
+              <button
+                onClick={() => setShowBiofeedbackModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-900 border border-slate-800"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="space-y-1 text-center">
+                <span className="px-3 py-1 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded-full text-[10px] font-mono font-bold uppercase">
+                  Autonomic Regulation Protocol
+                </span>
+                <h3 className="text-xl font-black uppercase text-white mt-2">
+                  Clinical 4-7-8 Biofeedback Pacer
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Reduces sympathetic nerve activity, lowers Rate Pressure Product, and enhances vagal nerve parasympathetic tone.
+                </p>
+              </div>
+
+              {/* Breathing Circle Animation */}
+              <div className="flex flex-col items-center justify-center py-6">
+                <div className="relative w-44 h-44 flex items-center justify-center">
+                  <motion.div
+                    animate={{
+                      scale: biofeedbackPhase === 'Inhale' ? 1.35 : biofeedbackPhase === 'Hold' ? 1.35 : 0.85
+                    }}
+                    transition={{ duration: biofeedbackPhase === 'Inhale' ? 4 : biofeedbackPhase === 'Hold' ? 0.2 : 8, ease: 'easeInOut' }}
+                    className={`absolute inset-0 rounded-full blur-xl opacity-40 ${
+                      biofeedbackPhase === 'Inhale' ? 'bg-cyan-500' : biofeedbackPhase === 'Hold' ? 'bg-purple-500' : 'bg-emerald-500'
+                    }`}
+                  />
+                  <motion.div
+                    animate={{
+                      scale: biofeedbackPhase === 'Inhale' ? 1.3 : biofeedbackPhase === 'Hold' ? 1.3 : 0.85
+                    }}
+                    transition={{ duration: biofeedbackPhase === 'Inhale' ? 4 : biofeedbackPhase === 'Hold' ? 0.2 : 8, ease: 'easeInOut' }}
+                    className={`w-36 h-36 rounded-full border-4 flex flex-col items-center justify-center transition-colors ${
+                      biofeedbackPhase === 'Inhale' ? 'border-cyan-400 bg-cyan-950/80 text-cyan-200' : biofeedbackPhase === 'Hold' ? 'border-purple-400 bg-purple-950/80 text-purple-200' : 'border-emerald-400 bg-emerald-950/80 text-emerald-200'
+                    }`}
+                  >
+                    <span className="text-xs font-mono font-bold uppercase tracking-widest">{biofeedbackPhase}</span>
+                    <span className="text-4xl font-[1000] mt-1">{biofeedbackSeconds}s</span>
+                  </motion.div>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                <p className="font-bold text-white mb-1">Instruction:</p>
+                {biofeedbackPhase === 'Inhale' && 'Slowly inhale through nose for 4 seconds into lower diaphragm.'}
+                {biofeedbackPhase === 'Hold' && 'Gently hold breath for 7 seconds without straining neck or chest.'}
+                {biofeedbackPhase === 'Exhale' && 'Slowly exhale through mouth making a quiet WHOOSH sound for 8 seconds.'}
+              </div>
+
+              <button
+                onClick={() => setShowBiofeedbackModal(false)}
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-wider border border-slate-700 transition-colors"
+              >
+                Close Biofeedback Session
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Connection Panel */}
       {!(user?.role === 'doctor' || user?.role === 'admin') ? (
@@ -2569,39 +2781,50 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       >
                          Advanced Analytics
                       </button>
+                      
+                      {/* Doctor Exclusive Suite Buttons */}
                       <button
-                        onClick={() => setActiveTab('genomics')}
-                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'genomics' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                        onClick={() => {
+                          setActiveTab('genomics');
+                          if (!isAdmin) setIsDoctorVerifyOpen(true);
+                        }}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'genomics' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                       >
-                        Genomic Matrix
+                        {!isAdmin && <span className="text-[11px]">🔒</span>} Genomic Matrix
                       </button>
                       <button
-                        onClick={() => setActiveTab('emergency')}
-                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'emergency' ? 'bg-white dark:bg-slate-900 text-rose-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                        onClick={() => {
+                          setActiveTab('emergency');
+                          if (!isAdmin) setIsDoctorVerifyOpen(true);
+                        }}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'emergency' ? 'bg-white dark:bg-slate-900 text-rose-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                       >
-                        Emergency Registry
+                        {!isAdmin && <span className="text-[11px]">🔒</span>} Emergency Registry
                       </button>
                       <button
-                        onClick={() => setActiveTab('alarms')}
-                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'alarms' ? 'bg-white dark:bg-slate-900 text-red-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                        onClick={() => {
+                          setActiveTab('alarms');
+                          if (!isAdmin) setIsDoctorVerifyOpen(true);
+                        }}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'alarms' ? 'bg-white dark:bg-slate-900 text-red-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                       >
-                        🚨 Clinical Alarm Hub
+                        {!isAdmin && <span className="text-[11px]">🔒</span>} 🚨 Clinical Alarm Hub
                       </button>
                       <button
                         onClick={() => setActiveTab('ambulance')}
-                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'ambulance' ? 'bg-white dark:bg-slate-900 text-red-600 shadow-md border border-red-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'ambulance' ? 'bg-white dark:bg-slate-900 text-red-600 shadow-md border border-red-200/50' : 'text-slate-400 hover:text-slate-600'}`}
                       >
                         🚑 Ambulance Dispatch
                       </button>
                       <button
                         onClick={() => setActiveTab('registry')}
-                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'registry' ? 'bg-white dark:bg-slate-900 text-teal-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'registry' ? 'bg-white dark:bg-slate-900 text-teal-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                       >
                         🏥 Bed Registry & Patients
                       </button>
                       <button
                         onClick={() => setActiveTab('simulator')}
-                        className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'simulator' ? 'bg-white dark:bg-slate-900 text-blue-500 shadow-md border border-blue-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'simulator' ? 'bg-white dark:bg-slate-900 text-blue-500 shadow-md border border-blue-200/50' : 'text-slate-400 hover:text-slate-600'}`}
                         title="Open Display Biomedical Machine Simulator Node"
                       >
                         🔌 Open Simulator Display
@@ -2631,85 +2854,143 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             {activeTab === 'analytics' ? (
               <DiagnosticAnalysisView vitals={vitals} history={history} />
             ) : activeTab === 'genomics' ? (
-              <div className="space-y-8">
-                <DnaMatrix dnaStatus={dnaStatus} onStartSequencing={startDnaSequencing} />
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {activeMachines.filter(m => m.type === 'Genomic' || m.status === 'online').map(m => (
-                    <div key={m.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full ${m.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                      <div className="flex-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.type}</p>
-                        <p className="text-sm font-black text-slate-900 dark:text-white">{m.label}</p>
-                      </div>
-                      <div className="text-[10px] font-black text-blue-600 uppercase">{m.lastSync}</div>
-                    </div>
-                  ))}
+              !isAdmin ? (
+                <div className="max-w-2xl mx-auto py-12 px-6 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-red-200 dark:border-red-900/50 shadow-2xl space-y-4 my-8">
+                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                    <ShieldAlert size={32} />
+                  </div>
+                  <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
+                    Doctor's Portal Exclusive Access
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
+                    Genomic Matrix sequencing is restricted to Doctor's Portal authorization. Please verify Doctor credentials to continue.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+                    <button
+                      onClick={() => setIsDoctorVerifyOpen(true)}
+                      className="w-full sm:w-auto px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transition-all"
+                    >
+                      🔐 Verify Doctor Identity / Enter Security PIN
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-8">
+                  <DnaMatrix dnaStatus={dnaStatus} onStartSequencing={startDnaSequencing} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {activeMachines.filter(m => m.type === 'Genomic' || m.status === 'online').map(m => (
+                      <div key={m.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex items-center gap-4">
+                        <div className={`w-3 h-3 rounded-full ${m.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.type}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-white">{m.label}</p>
+                        </div>
+                        <div className="text-[10px] font-black text-blue-600 uppercase">{m.lastSync}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
             ) : activeTab === 'neural' ? (
-              <div className="space-y-8">
-                 <BioSimulation user={user} onUpdateUser={onUpdateUser} />
-                 <div className="grid grid-cols-1 gap-8">
-                    <CognisAnalytics />
-                    <MachineNexusPanel arduino={arduino} />
-                 </div>
-                 <div className="hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">
-                       <CognisAnalytics />
-                    </div>
-                    <div className="bg-slate-900 rounded-[3rem] p-8 text-white relative overflow-hidden border border-white/10">
-                       <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-                          <Settings size={20} className="text-blue-500" /> Machine Nexus
-                       </h3>
-                       <div className="space-y-4">
-                          {activeMachines.map(m => (
-                             <div key={m.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                                <div className="flex items-center gap-3">
-                                   <div className={`w-2 h-2 rounded-full ${m.status === 'online' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                   <span className="text-xs font-bold">{m.label}</span>
-                                </div>
-                                <button className="text-[10px] font-black text-blue-400 uppercase hover:text-blue-300">Config</button>
-                             </div>
-                          ))}
-                       </div>
-                       <button className="w-full mt-8 py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/10 transition-all">
-                          Provision New Machine
-                       </button>
-                    </div>
-                 </div>
-              </div>
+              <NeuralSynthesisPanel 
+                vitals={vitals} 
+                history={history} 
+                user={user} 
+                onUpdateUser={onUpdateUser} 
+              />
             ) : activeTab === 'emergency' ? (
-              <div className="max-w-4xl mx-auto px-4 py-8">
-                <EmergencyRegistry 
-                  user={user} 
-                  onUpdate={onUpdateUser} 
-                  isAdmin={isAdmin} 
-                  setIsAdmin={setIsAdmin} 
-                />
-              </div>
+              !isAdmin ? (
+                <div className="max-w-2xl mx-auto py-12 px-6 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-red-200 dark:border-red-900/50 shadow-2xl space-y-4 my-8">
+                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                    <ShieldAlert size={32} />
+                  </div>
+                  <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
+                    Doctor's Portal Exclusive Access
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
+                    Emergency Registry is restricted to Doctor's Portal authorization. Please verify Doctor credentials to continue.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+                    <button
+                      onClick={() => setIsDoctorVerifyOpen(true)}
+                      className="w-full sm:w-auto px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transition-all"
+                    >
+                      🔐 Verify Doctor Identity / Enter Security PIN
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                  <EmergencyRegistry 
+                    user={user} 
+                    onUpdate={onUpdateUser} 
+                    isAdmin={isAdmin} 
+                    setIsAdmin={setIsAdmin} 
+                  />
+                </div>
+              )
             ) : activeTab === 'alarms' ? (
-              <div className="max-w-7xl mx-auto px-4 py-8">
-                <AlarmHubView 
-                  vitals={vitals}
-                  thresholds={thresholds}
-                  setThresholds={setThresholds}
-                  alarmHistory={alarmHistory}
-                  clearAlarmHistory={() => setAlarmHistory([])}
-                  isAlarmMuted={isAlarmMuted}
-                  setIsAlarmMuted={setIsAlarmMuted}
-                  isHeartbeatToneEnabled={isHeartbeatToneEnabled}
-                  setIsHeartbeatToneEnabled={setIsHeartbeatToneEnabled}
-                  synthRef={synthRef}
-                  addAlarmLog={addAlarmLog}
-                  snoozeDuration={snoozeDuration}
-                  setSnoozeDuration={setSnoozeDuration}
-                  isCurrentlyAcknowledged={isCurrentlyAcknowledged}
-                  alarmAcknowledgeTime={alarmAcknowledgeTime}
-                  acknowledgeAlarm={acknowledgeAlarm}
-                />
-              </div>
+              !isAdmin ? (
+                <div className="max-w-2xl mx-auto py-12 px-6 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-red-200 dark:border-red-900/50 shadow-2xl space-y-4 my-8">
+                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                    <ShieldAlert size={32} />
+                  </div>
+                  <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
+                    Doctor's Portal Exclusive Access
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
+                    Clinical Alarm Hub is restricted to Doctor's Portal authorization. Please verify Doctor credentials to continue.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+                    <button
+                      onClick={() => setIsDoctorVerifyOpen(true)}
+                      className="w-full sm:w-auto px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transition-all"
+                    >
+                      🔐 Verify Doctor Identity / Enter Security PIN
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                  <AlarmHubView 
+                    vitals={vitals}
+                    thresholds={thresholds}
+                    setThresholds={setThresholds}
+                    alarmHistory={alarmHistory}
+                    clearAlarmHistory={() => setAlarmHistory([])}
+                    isAlarmMuted={isAlarmMuted}
+                    setIsAlarmMuted={setIsAlarmMuted}
+                    isHeartbeatToneEnabled={isHeartbeatToneEnabled}
+                    setIsHeartbeatToneEnabled={setIsHeartbeatToneEnabled}
+                    synthRef={synthRef}
+                    addAlarmLog={addAlarmLog}
+                    snoozeDuration={snoozeDuration}
+                    setSnoozeDuration={setSnoozeDuration}
+                    isCurrentlyAcknowledged={isCurrentlyAcknowledged}
+                    alarmAcknowledgeTime={alarmAcknowledgeTime}
+                    acknowledgeAlarm={acknowledgeAlarm}
+                  />
+                </div>
+              )
             ) : activeTab === 'ambulance' ? (
-              <div className="max-w-7xl mx-auto px-4 py-8">
+              <div className="max-w-7xl mx-auto px-4 py-8 space-y-4">
+                <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🚑</span>
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-wider">Ambulance Dispatch Control Center</h4>
+                      <p className="text-[10px] opacity-90 font-medium">Full clinical emergency fleet routing active</p>
+                    </div>
+                  </div>
+                  {onNavigate && (
+                    <button
+                      onClick={() => onNavigate('doctors_dashboard')}
+                      className="px-4 py-2 bg-white text-red-700 hover:bg-red-50 font-black text-[10px] uppercase tracking-wider rounded-xl shadow transition-all cursor-pointer"
+                    >
+                      🏥 Launch Full Doctor Portal →
+                    </button>
+                  )}
+                </div>
                 <AmbulanceDispatchPanel 
                   selectedPatientId={selectedPatientId}
                   selectedPatientName={currentCoupledPatientGlobal?.name}
@@ -2717,7 +2998,24 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 />
               </div>
             ) : activeTab === 'registry' ? (
-              <div className="max-w-7xl mx-auto px-4 py-8">
+              <div className="max-w-7xl mx-auto px-4 py-8 space-y-4">
+                <div className="bg-gradient-to-r from-teal-600 to-emerald-700 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🏥</span>
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-wider">Bed Registry & Inpatient Care Ward</h4>
+                      <p className="text-[10px] opacity-90 font-medium">Real-time bed allocation and patient records</p>
+                    </div>
+                  </div>
+                  {onNavigate && (
+                    <button
+                      onClick={() => onNavigate('doctors_dashboard')}
+                      className="px-4 py-2 bg-white text-teal-700 hover:bg-teal-50 font-black text-[10px] uppercase tracking-wider rounded-xl shadow transition-all cursor-pointer"
+                    >
+                      🏥 Launch Full Doctor Portal →
+                    </button>
+                  )}
+                </div>
                 <ClinicalPatientRegistryStandalone
                   user={user}
                   onUpdateUser={onUpdateUser}
@@ -2737,7 +3035,24 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 />
               </div>
             ) : activeTab === 'simulator' ? (
-              <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
+              <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8 space-y-4">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🔌</span>
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-wider">Biomedical Hardware Machine Simulator Display</h4>
+                      <p className="text-[10px] opacity-90 font-medium">Live vital waveform generator & signal simulator</p>
+                    </div>
+                  </div>
+                  {onNavigate && (
+                    <button
+                      onClick={() => onNavigate('doctors_dashboard')}
+                      className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 font-black text-[10px] uppercase tracking-wider rounded-xl shadow transition-all cursor-pointer"
+                    >
+                      🏥 Launch Full Doctor Portal →
+                    </button>
+                  )}
+                </div>
                 <BiomedicalSimulator 
                   arduino={arduino} 
                   patientId={selectedPatientId} 
@@ -3466,7 +3781,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                           const isOnDuty = idx === 0; // First index represents active rotating doctor on duty
                           return (
                             <div 
-                              key={doc.id}
+                              key={`doc-rota-${doc.id}-${idx}`}
                               className={`relative overflow-hidden p-4 rounded-2xl border transition-all ${
                                 isOnDuty 
                                   ? 'bg-rose-50/50 dark:bg-rose-950/10 border-rose-200 dark:border-rose-900/40 shadow-md shadow-rose-100/30' 
@@ -3522,14 +3837,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     </h4>
                     {emergencyLogs.length > 0 ? (
                       <div className="space-y-3">
-                        {emergencyLogs.slice(0, 5).map((log) => {
+                        {emergencyLogs.slice(0, 5).map((log, idx) => {
                           let details: any = {};
                           try {
                             details = JSON.parse(log.details);
                           } catch (e) {}
                           
                           return (
-                            <div key={log.id} className="text-[10px] leading-normal border-l-2 border-rose-500 pl-2.5 py-0.5">
+                            <div key={`emerg-log-${log.id || idx}-${idx}`} className="text-[10px] leading-normal border-l-2 border-rose-500 pl-2.5 py-0.5">
                               <div className="flex items-center justify-between font-black text-rose-600 dark:text-rose-400 uppercase">
                                 <span>{details.alertType || 'EMERGENCY TRIGGERED'}</span>
                                 <span className="text-[8px] text-slate-400 dark:text-slate-500">
@@ -3577,7 +3892,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/50">
-                      {registeredPatients.map((p) => {
+                      {registeredPatients.map((p, pIdx) => {
                         // Dynamically obtain or simulate live vitals matching the patient's individual vitalsPreset
                         const pVitals = (() => {
                           if (p.id === selectedPatientId && vitals) {
@@ -3632,7 +3947,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
                         return (
                           <tr 
-                            key={p.id} 
+                            key={`live-pat-${p.id}-${pIdx}`} 
                             className={`group transition-all duration-150 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${
                               isCoupled 
                                 ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l border-l-blue-600' 

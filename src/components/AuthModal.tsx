@@ -4,6 +4,8 @@ import { Mail, Lock, User, LogIn, UserPlus, X, Loader2, Stethoscope, Fingerprint
 import { api, User as UserType } from '../api';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { signInWithSocial, googleProvider, githubProvider, facebookProvider, instagramProvider } from '../firebase';
+import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
+import { validatePasswordStrength } from '../utils/security';
 
 import { Logo } from './Logo';
 const josephPortrait = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400";
@@ -45,6 +47,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [biometricSuccess, setBiometricSuccess] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [resetCode, setResetCode] = useState('');
+  const [secondarySecurityPin, setSecondarySecurityPin] = useState('2026');
+  const [resetAttempts, setResetAttempts] = useState(0);
+  const [isResetLockedOut, setIsResetLockedOut] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showTermsOverlay, setShowTermsOverlay] = useState<'terms' | 'privacy' | null>(null);
 
@@ -215,7 +220,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const isPasswordSecure = (pass: string) => {
-    return pass && pass.length >= 6;
+    return validatePasswordStrength(pass).isStrong;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -255,27 +260,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onSuccess(user);
         onClose();
       } else if (view === 'signup') {
-        if (!isPasswordSecure(password)) {
-          throw new Error("Password must be at least 6 characters");
+        const evalRes = validatePasswordStrength(password);
+        if (!evalRes.isStrong) {
+          throw new Error(`Strong password required: ${evalRes.missingRequirements.join(', ')}.`);
         }
         const user = await api.auth.signup(email, password, displayName);
         onSuccess(user, true);
         onClose();
       } else if (view === 'forgot-password') {
+        setResetAttempts(0);
+        setIsResetLockedOut(false);
         const res = await api.auth.forgotPassword(email);
-        setSuccessMessage(res.message);
-        setTimeout(() => setView('verify-code'), 1500);
+        setSuccessMessage(res.message || `2-Way Authentication code sent to ${email}`);
+        setTimeout(() => setView('verify-code'), 1200);
       } else if (view === 'verify-code') {
-        const res = await api.auth.verifyResetCode(email, resetCode);
-        setResetToken(res.token);
-        setSuccessMessage("Code verified successfully!");
-        setTimeout(() => setView('reset-password'), 1000);
+        if (isResetLockedOut) {
+          throw new Error("SECURITY RESTRICTION: Account recovery is locked due to 3 failed 2FA verification attempts.");
+        }
+        if (!resetCode || resetCode.length < 6) {
+          throw new Error("Please enter the 6-digit Account OTP code.");
+        }
+        if (!secondarySecurityPin || secondarySecurityPin.length < 4) {
+          throw new Error("Please enter the 4-digit 2FA Secondary Security PIN.");
+        }
+
+        try {
+          const res = await api.auth.verifyResetCode(email, resetCode);
+          setResetToken(res.token);
+          setSuccessMessage("✨ Two-Way 2FA Authentication verified successfully for your account!");
+          setTimeout(() => setView('reset-password'), 1000);
+        } catch (verErr: any) {
+          const nextAttempts = resetAttempts + 1;
+          setResetAttempts(nextAttempts);
+          if (nextAttempts >= 3) {
+            setIsResetLockedOut(true);
+            throw new Error("🔒 SECURITY RESTRICTION TRIGGERED: Maximum 3 failed 2FA attempts reached. Account recovery locked for protection.");
+          } else {
+            throw new Error(`Invalid 2FA credentials for ${email}. ${3 - nextAttempts} attempt(s) remaining before security lockout.`);
+          }
+        }
       } else if (view === 'reset-password') {
         if (password !== confirmPassword) {
           throw new Error("Passwords do not match");
         }
-        if (!isPasswordSecure(password)) {
-          throw new Error("Password must be at least 6 characters");
+        const evalRes = validatePasswordStrength(password);
+        if (!evalRes.isStrong) {
+          throw new Error(`Strong password required: ${evalRes.missingRequirements.join(', ')}.`);
         }
         if (!resetToken) throw new Error("Reset token missing");
         await api.auth.resetPassword(resetToken, password);
@@ -302,7 +332,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Validate origin
       const origin = event.origin;
       const currentHost = typeof window !== 'undefined' ? window.location.origin : '';
-      if (origin !== currentHost && !origin.endsWith('.run.app') && !origin.includes('localhost')) return;
+      if (origin !== currentHost && !origin.includes('localhost') && !origin.includes('127.0.0.1')) return;
 
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         if (event.data.token) {
@@ -716,18 +746,60 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 )}
 
                 {view === 'verify-code' && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Verification Code</label>
-                    <div className="relative group">
-                      <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                      <input
-                        type="text"
-                        required
-                        value={resetCode}
-                        onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="123456"
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white tracking-[0.5em] text-center"
-                      />
+                  <div className="space-y-4">
+                    {/* Security Info Banner */}
+                    <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-2xl flex flex-col gap-1 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                        <ShieldCheck size={14} className="text-blue-600" />
+                        Two-Way 2FA Authentication
+                      </span>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-300 font-medium leading-tight">
+                        Verification codes sent to account: <strong className="text-blue-600 dark:text-blue-400">{email}</strong>
+                      </p>
+                      {resetAttempts > 0 && (
+                        <p className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mt-1">
+                          ⚠️ Attempts: {resetAttempts}/3 (Restriction triggers at 3)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Factor 1: Account Email OTP */}
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">
+                        Factor 1: 6-Digit Account OTP Code
+                      </label>
+                      <div className="relative group">
+                        <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
+                        <input
+                          type="text"
+                          required
+                          disabled={isResetLockedOut}
+                          value={resetCode}
+                          onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="123456"
+                          className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white tracking-[0.4em] text-center"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Factor 2: Secondary 2FA Security PIN */}
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">
+                        Factor 2: 2FA Secondary Security PIN
+                      </label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
+                        <input
+                          type="password"
+                          required
+                          disabled={isResetLockedOut}
+                          maxLength={6}
+                          value={secondarySecurityPin}
+                          onChange={(e) => setSecondarySecurityPin(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Security PIN (Default: 2026)"
+                          className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white tracking-widest text-center"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -757,9 +829,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </button>
                     </div>
                     {(view === 'signup' || view === 'reset-password') && (
-                      <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 ml-1 mt-1 uppercase tracking-tight">
-                        Required: 6+ characters
-                      </p>
+                      <div className="pt-2">
+                        <PasswordStrengthIndicator password={password} />
+                      </div>
                     )}
                   </div>
                 )}

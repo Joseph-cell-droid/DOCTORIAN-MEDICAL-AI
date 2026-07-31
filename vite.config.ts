@@ -14,7 +14,33 @@ export default defineConfig(({mode}) => {
     plugins: [
       react(), 
       tailwindcss(),
-      // VitePWA disabled for troubleshooting artifact upload
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.svg'],
+        workbox: {
+          maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        },
+        manifest: {
+          name: 'Doctorian Medical AI',
+          short_name: 'Doctorian',
+          description: 'Comprehensive autonomous AI bio-organ stress & hemodynamic medical intelligence platform.',
+          theme_color: '#090d16',
+          background_color: '#090d16',
+          display: 'standalone',
+          icons: [
+            {
+              src: 'logo-192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'logo-512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        }
+      })
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
@@ -30,13 +56,13 @@ export default defineConfig(({mode}) => {
       outDir: 'dist',
       emptyOutDir: true,
       sourcemap: false,
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 2500,
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
               if (id.includes('@tensorflow') || id.includes('tfjs')) {
-                return 'vendor-tensorflow';
+                return 'vendor-tfjs';
               }
               if (id.includes('jspdf') || id.includes('html2canvas')) {
                 return 'vendor-pdf';
@@ -45,27 +71,10 @@ export default defineConfig(({mode}) => {
                 return 'vendor-charts';
               }
               if (id.includes('@google') || id.includes('generative-ai')) {
-                return 'vendor-ai';
+                return 'vendor-genai';
               }
-              return 'vendor-core';
-            } else if (id.includes('src/components/')) {
-              if (id.includes('PatientMonitor')) {
-                return 'comp-patient-monitor';
-              }
-              if (id.includes('AdminDashboard')) {
-                return 'comp-admin-dashboard';
-              }
-              if (id.includes('DoctorsDashboard')) {
-                return 'comp-doctors-dashboard';
-              }
-              if (id.includes('ChatInterface')) {
-                return 'comp-chat-interface';
-              }
-              if (id.includes('SpecialistFinder')) {
-                return 'comp-specialist-finder';
-              }
-              if (id.includes('HealthProgressTracker')) {
-                return 'comp-health-progress';
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
               }
             }
           },

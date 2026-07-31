@@ -1271,8 +1271,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div className="space-y-4">
-              {appointments.slice(0, 2).map((appt) => (
-                <div key={appt.id} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 relative overflow-hidden group">
+              {appointments.slice(0, 2).map((appt, aIdx) => (
+                <div key={`appt-${appt.id}-${aIdx}`} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 relative overflow-hidden group">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded italic">
                       {appt.type} link
@@ -1333,8 +1333,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div className="space-y-4 flex-1">
-              {pendingTasks.slice(0, 3).map((task) => (
-                <div key={task.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-between group relative overflow-hidden">
+              {pendingTasks.slice(0, 3).map((task, tIdx) => (
+                <div key={`task-${task.id}-${tIdx}`} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-between group relative overflow-hidden">
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                     task.priority === 'high' ? 'bg-rose-500' : 
                     task.priority === 'medium' ? 'bg-amber-500' : 
@@ -1969,9 +1969,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Floating Notifications */}
       <div className="fixed top-10 right-10 z-[300] pointer-events-none space-y-4">
         <AnimatePresence>
-          {notifications.map(note => (
+          {notifications.map((note, nIdx) => (
             <motion.div
-              key={note.id}
+              key={`note-${note.id}-${nIdx}`}
               initial={{ x: 100, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 100, opacity: 0 }}
@@ -2136,8 +2136,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
              </div>
 
              <div className="space-y-4">
-               {systemLogs.map((log) => (
-                 <div key={log.id} className="p-5 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-3xl flex items-center justify-between group hover:border-blue-200 transition-colors">
+               {systemLogs.map((log, lIdx) => (
+                 <div key={`syslog-${log.id || lIdx}-${lIdx}`} className="p-5 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-3xl flex items-center justify-between group hover:border-blue-200 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         log.level === 'critical' ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600' :

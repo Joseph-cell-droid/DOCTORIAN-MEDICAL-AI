@@ -5,7 +5,8 @@ import {
   CheckCircle2, XCircle, Info, User, Hash,
   ClipboardList, Beaker, Stethoscope, ChevronUp,
   Sparkles, Shield, Heart, Activity, Eye, EyeOff, Share2,
-  Scale, Loader2, Wind, Zap, Brain, Droplets, Thermometer, RefreshCw, X, MessageSquare
+  Scale, Loader2, Wind, Zap, Brain, Droplets, Thermometer, RefreshCw, X, MessageSquare,
+  Mic, FileJson, Code
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -13,6 +14,8 @@ import { NeuralHealthSummary } from './NeuralHealthSummary';
 import { exportMedicalReportPDF } from '../utils/pdfGenerator';
 import { DoctorVerificationModal } from './DoctorVerificationModal';
 import { validateMoHClinicalDosage } from '../utils/clinicalValidation';
+import { downloadFHIRJson } from '../utils/fhirExporter';
+import { searchICD11CPT } from '../utils/clinicalDatasets';
 
 // ─── Types ────────────────────────────────────────────────
 interface Medication {
@@ -411,7 +414,61 @@ export const HealthRecords: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'compose' | 'saved' | 'templates'>('compose');
   const [expandedMeds, setExpandedMeds] = useState<Set<string>>(new Set([prescription.medications[0]?.id]));
   const [step, setStep] = useState(1);
+  const [isDictating, setIsDictating] = useState(false);
+  const [showIcdSuggestions, setShowIcdSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Hands-Free Speech Dictation via Web Speech API
+  const startVoiceDictation = (onTranscript: (text: string) => void) => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast('Speech Recognition not available in this browser context.', 'warning');
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsDictating(true);
+        showToast('Hands-Free Voice Charting active: Speak clearly into microphone...', 'info');
+      };
+      recognition.onend = () => setIsDictating(false);
+      recognition.onerror = () => {
+        setIsDictating(false);
+        showToast('Voice dictation paused or blocked.', 'warning');
+      };
+
+      recognition.onresult = (event: any) => {
+        const text = event.results?.[0]?.[0]?.transcript;
+        if (text) {
+          onTranscript(text);
+          showToast(`Voice dictated: "${text}"`, 'success');
+        }
+      };
+
+      recognition.start();
+    } catch (err) {
+      setIsDictating(false);
+    }
+  };
+
+  // FHIR R4 JSON Exporter
+  const handleFHIRExport = () => {
+    try {
+      downloadFHIRJson({
+        patient: prescription.patient,
+        diagnosis: prescription.diagnosis,
+        medications: prescription.medications.filter(m => m.name),
+        doctorName: prescription.doctorName || 'Doctorian Medical Officer'
+      });
+      showToast('Standard FHIR R4 JSON Bundle generated & exported for EHR transfer.', 'success');
+    } catch (err: any) {
+      showToast('FHIR Export error: ' + err.message, 'error');
+    }
+  };
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -623,6 +680,14 @@ export const HealthRecords: React.FC = () => {
             <p className="text-slate-400 dark:text-slate-500 text-sm mt-0.5">Comprehensive medical history and prescription tracking</p>
           </div>
           <div className="hidden lg:flex items-center gap-3">
+            <button 
+              onClick={handleFHIRExport}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95"
+              title="Export standard FHIR R4 JSON bundle for inter-hospital EHR transfer"
+            >
+              <FileJson size={16} />
+              FHIR R4 Export
+            </button>
             <button 
               onClick={() => setShowNeuralSummary(true)}
               className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
@@ -850,14 +915,78 @@ export const HealthRecords: React.FC = () => {
                 exit={{ opacity: 0, x: 20 }}
                 className="bg-white dark:bg-slate-900 p-5 sm:p-8 rounded-3xl sm:rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-800"
               >
-                <SectionHeader icon={<Stethoscope className="text-indigo-600 dark:text-indigo-400" aria-hidden="true" />} title="Clinical Assessment" subtitle="Diagnosis and medical notes" />
+                <SectionHeader icon={<Stethoscope className="text-indigo-600 dark:text-indigo-400" aria-hidden="true" />} title="Clinical Assessment" subtitle="Diagnosis, ICD-11 & CPT Coding, and hands-free voice notes" />
                 <div className="space-y-6">
-                  <InputField label="Primary Diagnosis *" value={prescription.diagnosis} onChange={v => updatePrescription('diagnosis', v)} placeholder="e.g., Acute bronchitis" errorMessage={errors['diagnosis']} />
+                  {/* Primary Diagnosis & Speech Dictation */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-widest">Primary Diagnosis *</label>
+                      <button
+                        type="button"
+                        onClick={() => startVoiceDictation(txt => updatePrescription('diagnosis', txt))}
+                        className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                          isDictating ? 'bg-rose-600 text-white animate-pulse' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 hover:bg-blue-200'
+                        }`}
+                      >
+                        <Mic size={14} /> {isDictating ? 'Listening...' : 'Dictate Diagnosis'}
+                      </button>
+                    </div>
+                    <InputField label="" value={prescription.diagnosis} onChange={v => updatePrescription('diagnosis', v)} placeholder="e.g., Essential Hypertension, Type 2 Diabetes" errorMessage={errors['diagnosis']} />
+
+                    {/* ICD-11 & CPT Coding Auto-Suggest Chips */}
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                          <Code size={12} className="text-cyan-500" /> Offline ICD-11 & CPT Coding Helper
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowIcdSuggestions(!showIcdSuggestions)}
+                          className="text-[10px] font-bold text-blue-500 hover:underline"
+                        >
+                          {showIcdSuggestions ? 'Hide Codes' : 'Show Code Dictionary'}
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {searchICD11CPT(prescription.diagnosis || '').slice(0, 5).map((icd) => (
+                          <button
+                            type="button"
+                            key={icd.code}
+                            onClick={() => {
+                              updatePrescription('diagnosis', `${icd.title} (ICD-11: ${icd.code} / CPT: ${icd.cptCode})`);
+                              showToast(`Applied ICD-11 ${icd.code} / CPT ${icd.cptCode}`, 'success');
+                            }}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-cyan-500 hover:text-white transition-all text-left flex items-center gap-2 border border-slate-200 dark:border-slate-700"
+                          >
+                            <span className="font-mono text-[10px] bg-cyan-600/20 text-cyan-400 px-1.5 py-0.5 rounded font-black">{icd.code}</span>
+                            <span>{icd.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Clinical Notes & Dictation */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Additional Notes</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-widest">Additional Clinical Notes & Consultation Records</label>
+                      <button
+                        type="button"
+                        onClick={() => startVoiceDictation(txt => {
+                          const existing = prescription.notes ? prescription.notes + '\n' : '';
+                          updatePrescription('notes', existing + txt);
+                        })}
+                        className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                          isDictating ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                        }`}
+                      >
+                        <Mic size={14} /> Voice Dictate Notes
+                      </button>
+                    </div>
                     <textarea
                       value={prescription.notes} onChange={e => updatePrescription('notes', e.target.value)}
-                      placeholder="Clinical observations, lifestyle advice..."
+                      placeholder="Clinical observations, lifestyle advice, laboratory follow-up notes..."
                       rows={4}
                       className="w-full bg-white/70 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm text-gray-800 dark:text-slate-200 placeholder:text-gray-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 dark:focus:border-blue-700 focus:bg-white dark:focus:bg-slate-800 transition-all outline-none"
                     />
@@ -1194,9 +1323,9 @@ export const HealthRecords: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4" role="list">
-              {filteredPrescriptions.map((rx) => (
+              {filteredPrescriptions.map((rx, rIdx) => (
                 <motion.article
-                  key={rx.id}
+                  key={`rx-${rx.id}-${rIdx}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   role="listitem"

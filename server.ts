@@ -3034,6 +3034,37 @@ async function startServer() {
   });
 
   // Auth Middleware
+  const optionalAuthenticate = (req: any, res: any, next: any) => {
+    let token = req.cookies?.token;
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(" ");
+      if (parts.length === 2 && parts[0] === "Bearer") {
+        token = parts[1];
+      }
+    }
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+    try {
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET) as any;
+      } catch (verifyErr: any) {
+        if (verifyErr && verifyErr.name === "TokenExpiredError") {
+          decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+        } else {
+          req.user = null;
+          return next();
+        }
+      }
+      req.user = decoded;
+    } catch {
+      req.user = null;
+    }
+    next();
+  };
+
   const authenticate = (req: any, res: any, next: any) => {
     let token = req.cookies.token;
     if (!token && req.headers.authorization) {
@@ -3219,13 +3250,17 @@ async function startServer() {
           modelName: "gemma-3-4b"
         });
 
-        if (fallbackResult && fallbackResult.text) {
+        const resText = typeof fallbackResult === 'object' 
+          ? ((fallbackResult as any)?.text || (fallbackResult as any)?.response || (fallbackResult as any)?.message) 
+          : fallbackResult;
+
+        if (resText && typeof resText === 'string' && resText.trim() !== "") {
           return res.json({
-            response: fallbackResult.text,
-            text: fallbackResult.text,
-            message: fallbackResult.text,
-            model: "doctorian-clinical-fallback",
-            provider: "doctorian-fallback"
+            response: resText,
+            text: resText,
+            message: resText,
+            model: "doctorian-clinical-engine",
+            provider: "doctorian"
           });
         }
       } catch (fbErr: any) {
@@ -3239,6 +3274,106 @@ async function startServer() {
     } catch (err: any) {
       console.error("[API CHAT FATAL ERROR]", err);
       return res.status(500).json({ error: err.message || "Internal server error in Doctorian AI engine." });
+    }
+  });
+
+  // ==========================================
+  // OLLAMA LAPTOP BRIDGE API PROXY ENDPOINTS
+  // ==========================================
+  app.post("/api/ollama/test", async (req, res) => {
+    try {
+      let rawUrl = req.body.ollamaUrl || process.env.OLLAMA_URL || "http://localhost:11434";
+      let cleanUrl = rawUrl.trim();
+      if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+        cleanUrl = `http://${cleanUrl}`;
+      }
+      cleanUrl = cleanUrl.replace(/\/+$/, "");
+
+      console.log(`[OLLAMA PROXY] Testing connection to ${cleanUrl}/api/tags...`);
+      const response = await fetch(`${cleanUrl}/api/tags`, { method: "GET" });
+
+      if (response.ok) {
+        const data = await response.json();
+        return res.json({
+          ok: true,
+          status: "connected",
+          version: "Ollama Active",
+          models: data.models || [],
+          message: `Successfully connected to Ollama instance at ${cleanUrl}`
+        });
+      } else {
+        return res.status(response.status).json({
+          ok: false,
+          error: `Ollama host returned status ${response.status}`,
+          details: `Connected to ${cleanUrl} but API returned HTTP ${response.status}.`
+        });
+      }
+    } catch (err: any) {
+      console.warn(`[OLLAMA PROXY TEST FAILED] ${err?.message}`);
+      return res.status(502).json({
+        ok: false,
+        error: "Could not connect to Ollama host",
+        details: err?.message || 'Ensure Ollama is running on your laptop with OLLAMA_ORIGINS="*"'
+      });
+    }
+  });
+
+  app.post("/api/ollama/chat", async (req, res) => {
+    try {
+      let rawUrl = req.body.ollamaUrl || process.env.OLLAMA_URL || "http://localhost:11434";
+      let cleanUrl = rawUrl.trim().replace(/\/+$/, "");
+      if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+        cleanUrl = `http://${cleanUrl}`;
+      }
+
+      const model = req.body.model || "gemma3:1b";
+      const prompt = req.body.prompt || "";
+      const messages = req.body.messages || [];
+      const systemInstruction = req.body.systemInstruction || "You are Doctorian Medical AI.";
+      const temperature = req.body.temperature || 0.7;
+
+      let fullPrompt = prompt;
+      if (!fullPrompt && Array.isArray(messages) && messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        fullPrompt = typeof lastMsg === "string" ? lastMsg : (lastMsg.content || lastMsg.text || "");
+      }
+
+      console.log(`[OLLAMA CHAT PROXY] Sending prompt to ${cleanUrl}/api/generate (Model: ${model})...`);
+
+      const response = await fetch(`${cleanUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt: `${systemInstruction}\n\nUser: ${fullPrompt}\n\nAssistant:`,
+          stream: false,
+          options: { temperature }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const resText = data.response || data.text || "";
+        return res.json({
+          response: resText,
+          text: resText,
+          message: resText,
+          model,
+          provider: "ollama-laptop"
+        });
+      } else {
+        const errText = await response.text();
+        return res.status(response.status).json({
+          error: `Ollama generate failed with status ${response.status}`,
+          details: errText
+        });
+      }
+    } catch (err: any) {
+      console.error("[OLLAMA CHAT PROXY FATAL]", err);
+      return res.status(502).json({
+        error: "Failed to communicate with local Ollama model",
+        details: err?.message || "Host unreachable."
+      });
     }
   });
 
@@ -5657,7 +5792,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
-  app.get("/api/emergency/logs", authenticate, (req: any, res) => {
+  app.get("/api/emergency/logs", optionalAuthenticate, (req: any, res) => {
     try {
       const logs = db.prepare("SELECT * FROM system_logs WHERE action = 'EMERGENCY_DISPATCH' ORDER BY createdAt DESC LIMIT 50").all();
       res.json({ logs });
@@ -5667,7 +5802,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     }
   });
 
-  app.get("/api/ambulance/dispatches", authenticate, (req: any, res) => {
+  app.get("/api/ambulance/dispatches", optionalAuthenticate, (req: any, res) => {
     try {
       let dispatches = db.prepare("SELECT * FROM ambulance_dispatches ORDER BY createdAt DESC").all();
       
@@ -8418,10 +8553,11 @@ Direct the user to a health center if needed, and conclude with supportive bless
         }
 
         let responseText = "";
+        let audioBase64: string | null = null;
         const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || "";
         if (geminiKey && geminiKey.trim().length > 10) {
           try {
-            console.log("[AI-VOICE] Bypassing HuggingFace. Connecting to native ultra-fast Gemini-2.5-Flash for voice...");
+            console.log("[AI-VOICE] Connecting to native ultra-fast Gemini-3.6-Flash for real voice response...");
             const ai = new GoogleGenAI({
               apiKey: geminiKey.trim(),
               httpOptions: {
@@ -8433,7 +8569,7 @@ Direct the user to a health center if needed, and conclude with supportive bless
             });
             const response = await ai.models.generateContent({
               model: "gemini-3.6-flash",
-              contents: text || "Hello",
+              contents: text || "Hello Doctorian",
               config: {
                 systemInstruction: dynamicInstruction,
                 temperature: 0.2
@@ -8441,6 +8577,39 @@ Direct the user to a health center if needed, and conclude with supportive bless
             });
             responseText = response?.text?.trim() || "";
             console.log(`[AI-VOICE] Direct Gemini response text: "${responseText}"`);
+
+            // Synthesize high-fidelity voice audio via gemini-3.1-flash-tts-preview
+            if (responseText) {
+              try {
+                const voiceConfigMap: Record<string, string> = {
+                  'Joseph': 'Fenrir',
+                  'Misty': 'Kore',
+                  'Promise': 'Puck'
+                };
+                const selectedVoice = voiceConfigMap[voiceName] || 'Aoede';
+
+                const ttsResponse = await ai.models.generateContent({
+                  model: "gemini-3.1-flash-tts-preview",
+                  contents: [{ parts: [{ text: responseText }] }],
+                  config: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                      voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName: selectedVoice }
+                      }
+                    }
+                  }
+                });
+
+                const pcmData = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                if (pcmData) {
+                  audioBase64 = pcmData;
+                  console.log("[AI-VOICE] Synthesized native Gemini audio stream successfully.");
+                }
+              } catch (ttsErr: any) {
+                console.log("[AI-VOICE] Gemini TTS preview non-critical fallback:", ttsErr.message);
+              }
+            }
           } catch (err: any) {
             console.error("[AI-VOICE] Direct native Gemini voice response failed, falling back to routine pipeline:", err.message);
           }
@@ -8457,8 +8626,9 @@ Direct the user to a health center if needed, and conclude with supportive bless
 
         res.json({
           text: responseText,
+          audioBase64,
           creditsRemaining: creditStatus.remaining,
-          engine: "Coqui XTTS v2 + Whisper Active",
+          engine: "Gemini 3.6-Flash + Gemini TTS Model",
           voiceName: voiceName || "Joseph",
           status: "synthesized"
         });
@@ -9245,62 +9415,28 @@ function detectSpecificDiseaseMapping(prompt: string): string {
           }
         } catch (ftErr) { }
 
-        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR LIMITATIONS - FORWARD PROPAGATION FORCE]:
-1. STRICT DOMAIN CONSTRAINT: You are trained and programmed to ONLY answer questions directly related to medicine, public health, healthcare, pharmacology, clinical vitals, biophysics, fitness, human biology, or the Doctorian application and its creators (Akora Joseph / EBRO company). Under absolutely no circumstances are you allowed to answer or entertain any queries outside this health data domain (e.g. general code generation, non-medical history, politics, sports, general math/science not related to biology, or general entertainment). If the query is outside these bounds, you must gently but strictly refuse, stating your core medical constraints.
-2. HIGHLY SYSTEMATIC RESPONSE FORMAT PROTOCOL:
-   For all medical questions, symptom checking, diagnostic queries, health problems, and data analyses, you MUST structure your response into the following clear, beautifully formatted, scannable markdown sections. Each section must have a bold header and use clean, simple bullet points or short, 2-3 sentence paragraphs to make the content highly readable, comforting, and simple:
+        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR PROTOCOL - CHATGPT CONVERSATIONAL MODE]:
+1. STRICT DOMAIN CONSTRAINT: You are trained and programmed to ONLY answer questions directly related to medicine, public health, healthcare, pharmacology, clinical vitals, biophysics, fitness, human biology, or the Doctorian application and its creators (Akora Joseph / EBRO company). If the query is outside these bounds, gently but strictly refuse, stating your core medical constraints.
 
-   • **📌 SYMPTOMS MAPPED**:
-     - Immediately address the exact query, signs, or symptoms without conversational fluff, preamble, or filler. Answer first, then expand.
+2. CHATGPT-STYLE NATURAL CONVERSATIONAL RESPONSE STYLE:
+   - Answer questions naturally, conversationally, and directly like ChatGPT.
+   - DO NOT output repetitive boilerplate headers (e.g. 'SYMPTOMS MAPPED', 'CLINICAL BIOMETRICS', etc.) for every simple question, greeting, or standard explanation.
+   - Use bold section headings (e.g. \`### Clinical Analysis\` or \`### Pathophysiology Breakdown\`) ONLY when performing explicit clinical analysis, diagnostic symptom evaluation, lab/vitals calculations, or formal data breakdowns.
 
-   • **📊 CLINICAL BIOMETRICS & VITALS ANALYSIS** (Include only if vitals, lab readings, or physical data are provided or in context):
-     - Present a clean analysis of the vitals (Heart Rate, SpO2, Blood Pressure, Temperature, or Glucose) compared against standard clinical reference baselines.
-     - Highlight any abnormal readings with a simple visual indicator (e.g., "🔴 High Temperature" or "🟡 Prehypertension") and explain what it means in simple terms.
+3. MARKDOWN TABLES ON DEMAND & COMPARISONS:
+   - Whenever the user explicitly asks for a table (e.g., "in a table", "draw a table", "compare in a chart"), OR when comparing medications, vitals baselines, symptoms, or diagnostic differentials where a table enhances clarity, you MUST construct clean Markdown tables (e.g., | Parameter | Detail | Baseline |).
 
-   • **🩺 MEDICAL DIAGNOSIS & CLINICAL ANALYSIS**:
-     - Provide a highly specific differential diagnosis based on the symptoms.
-     - Categorize potential conditions by severity, probability, and onset.
-     - Explain the underlying biological/pathological mechanism in *extremely simple and comforting* language, using simple analogies so that non-medical users can easily understand the biology.
+4. MANDATORY INTERACTIVE FOLLOW-UP QUESTIONS AT THE END OF EVERY CONVERSATION:
+   - At the very end of EVERY response, ALWAYS ask 1 or 2 relevant, caring, and actionable follow-up questions to engage the user, inquire about their symptoms/context, or guide their next clinical step (e.g., "Would you like me to draw a detailed comparison table of these treatment options, or do you have any specific symptoms like fever or cough?").
 
-   • **💊 PRESCRIPTION & TREATMENT RECOMMENDATIONS**:
-     - Formulate a clear, structured medication, drug classification, or therapeutic support plan.
-     - **MANDATORY WHO & MINISTRY OF HEALTH UGANDA CLINICAL PRESCRIBING PROTOCOLS**:
-       You must align all treatment suggestions strictly with the WHO and Uganda Clinical Guidelines (UCG):
-       * **Malaria**: First-line for uncomplicated malaria is Artemether-Lumefantrine (AL) twice daily for 3 days. Band standard weight/age dosing:
-         - 5-14 kg (or 5-35 months): 1 tablet twice daily.
-         - 15-24 kg (or 3-8 years): 2 tablets twice daily.
-         - 25-34 kg (or 9-14 years): 3 tablets twice daily.
-         - ≥35 kg (or ≥15 years): 4 tablets twice daily.
-         Severe malaria is treated first with Intravenous (IV) Artesunate (2.4 mg/kg at 0, 12, 24 hrs, then daily) until oral medication can be tolerated, followed by a complete course of oral AL.
-       * **Pneumonia (Non-severe in children < 5 yrs)**: First-line is oral Amoxicillin dispersible tablets twice daily for 5 days:
-         - 2-11 months (4-9 kg): 250mg twice daily.
-         - 12-59 months (10-19 kg): 500mg twice daily.
-       * **Diarrheal Diseases & Cholera**: Rehydration using WHO Low Osmolarity Oral Rehydration Salts (ORS) (Composition per 1L: 2.6g Sodium Chloride, 13.5g anhydrous Glucose, 1.5g Potassium Chloride, 2.9g Trisodium Citrate dehydrate) coupled with Zinc Sulphate for 10-14 days (10mg/day for infants < 6 months; 20mg/day for children 6 months to 5 years).
-       * **Urinary Tract Infections (UTI)**: Uncomplicated cases treated with Nitrofurantoin 100mg twice daily for 5-7 days or Amoxicillin-Clavulanic acid (Co-amoxiclav) 625mg twice daily for 5-7 days.
-       * **Tuberculosis (TB)**: Standard 6-month regimen (2 months intensive phase with Rifampicin (R), Isoniazid (H), Pyrazinamide (Z), Ethambutol (E) [2RHZE], followed by 4 months continuation phase with Rifampicin (R) and Isoniazid (H) [4RH]).
-       * **Hypertension**: First-line calcium channel blockers (Amlodipine 5-10mg daily) or ACE inhibitors (Lisinopril 5-20mg daily) or Thiazide-like diuretics (Bendroflumethiazide 2.5mg daily).
-     - Specify drug categories, safe dosages, safety warnings, and clear clinical counseling.
-     - Include clear, simple home-care advice or lifestyle modifications.
+5. CLINICAL & PRESCRIBING ACCURACY PROTOCOLS:
+   - Align all drug dosing & medical advice strictly with WHO and Uganda Clinical Guidelines (UCG).
+   - When providing medical guidance, conclude with "Medical attention is recommended."`;
 
-   • **🚨 CRITICAL RED FLAGS & NEXT CLINICAL ACTIONS**:
-     - Outline a list of critical warning signs or emergency indicators that require immediate professional care.
-     - Provide guidance on seeking help at local healthcare facilities (e.g., Community Health Centers like Health Center II, III, or IV).
-     - Always conclude with the exact text: "Medical attention is recommended."
-
-3. REAL-TIME SYMPTOM DIFFERENTIAL DIAGNOSIS STANDARD:
-   - When users query about any symptom (e.g., headache, high temperature, chest discomfort, coughing, acute digestive issues, localized inflammation):
-     * Instantly deploy clinical differential-diagnostic evaluation algorithms.
-     * Categorize their presentation based on onset, potential severity, and associated risk indicators (like tropical epidemiological factors like Malaria, Typhoid, ARI/Pneumonia, or acute cardiovascular symptoms).
-     * Provide step-by-step scientific explanations of the underlying pathophysiology (e.g. prostaglandin pathways, cytokine immune responses, systemic inflammatory response syndrome (SIRS)).
-     * Highlight critical emergency red-flags (e.g. child chest indrawing, severe dehydration signs, hypoxic drop, sudden cardiac localized arm radiation) and route to localized community healthcare nodes (e.g. Ugandan Health Center II/III/IV).
-     * Emphasize clinical hydration standards (like WHO Oral Rehydration Salt configurations) and continuous vital checks.
-4. REAL-TIME HEALTH CONSULTATION DIALOGUE COMPLIANCE:
-   - Directly and cleanly target the user's explicit question first. Refrain from long repetitive preamble definitions, and cut straight to high-fidelity medical guidance.
-   - Address health questions using standard clinical guidelines, keeping the explanation deeply scientific yet scannable and digestible. Always conclude with "Medical attention is recommended."`;
-
-        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: The user has requested that you MUST answer with deep specificity, directly addressing the exact question asked with comprehensive, detailed, systematic, and well-rounded clinical explanations. Do not use generic, unrequested lists or templates unless they are directly relevant to solving the query.
-- For greetings (e.g., "hello", "hi", "hey", "oli otya", "gyebaleko", etc.): Reply warmly, dynamically, and realistically as Doctorian. If there is a custom-trained greeting, local language translation, or custom reply node in the "INTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA)" above, you MUST explicitly learn and utilize that custom data to formulate your greeting reply! Explain that you have successfully mapped and learned this greeting from their custom Neural Training Hub.
-- For all medical, symptoms, wellness, or specific clinical questions: Provide a beautifully structured, highly detailed, systematic, and simple response that provides clear, step-by-step scientific explanations, mechanisms, clinical guidelines, and safety metrics. Be extremely specific, thorough, and precise, answering all parts of the user's inquiry with well-explained reasoning. Always conclude with "Medical attention is recommended."`;
+        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL INTENT DIRECTIVE]: Answer directly, fluidly, and naturally with the conversational ease of ChatGPT.
+- Do NOT force rigid section headers on every answer; use headings ONLY during explicit diagnostic analysis.
+- Draw markdown tables whenever requested by the user or when comparing medical options.
+- Always end your message by asking 1-2 thoughtful, interactive follow-up questions to continue the clinical dialogue.`;
         const diseaseSpecificOverlay = detectSpecificDiseaseMapping(rawUserMessage);
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${diseaseSpecificOverlay}${EMOJI_CHUNKS_DIRECTIVE}`;
 

@@ -44,6 +44,8 @@ import { api, User, HealthRecord, Doctor, syncOfflineActions } from '../api';
 import { CyberSecurityPanel } from './CyberSecurityPanel';
 import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
+import { EmergencyRegistry } from './EmergencyRegistry';
+import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
 
 export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const currentUser = (() => {
@@ -58,7 +60,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     return null;
   })();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback' | 'sectors'>(() => {
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback' | 'sectors' | 'emergency'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('admin_active_tab');
       if (saved) return saved as any;
@@ -1068,6 +1070,17 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
           >
             <Database size={16} aria-hidden="true" />
             Sectors & Requests
+          </button>
+          <button 
+            onClick={() => setActiveTab('emergency')}
+            role="tab"
+            aria-selected={activeTab === 'emergency'}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
+              activeTab === 'emergency' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <ShieldAlert size={16} aria-hidden="true" />
+            🚨 Emergency Registry & Dispatches
           </button>
         </div>
       </div>
@@ -3100,6 +3113,33 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
               </div>
 
+            </div>
+          </motion.div>
+        ) : activeTab === 'emergency' ? (
+          <motion.div
+            key="emergency-tab"
+            id="emergency-panel"
+            role="tabpanel"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
+          >
+            <div className="bg-slate-900 text-white p-6 rounded-[2rem] border border-rose-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldAlert className="text-rose-500 animate-pulse" size={24} />
+                  <h3 className="text-xl font-[1000] uppercase tracking-tight">Admin Emergency Dispatch & Central Monitoring Command</h3>
+                </div>
+                <p className="text-xs text-slate-400 font-semibold">
+                  Centralized system monitoring for active patient emergency calls, Twilio satellite dispatches, and emergency contact nodes.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <AmbulanceDispatchPanel />
+              <EmergencyRegistry user={currentUser} onUpdate={() => {}} isAdmin={true} />
             </div>
           </motion.div>
         ) : null}

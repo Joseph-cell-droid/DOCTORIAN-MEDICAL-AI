@@ -13,6 +13,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, User as UserType, detectActiveLocalNode } from '../api';
 import { UpgradeModal } from './UpgradeModal';
+import { TwoFactorModal } from './TwoFactorModal';
+import { OfflinePackageManagerModal } from './OfflinePackageManagerModal';
 import { translate } from '../utils/translations';
 import { useRef } from 'react';
 
@@ -94,6 +96,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [showPackageModal, setShowPackageModal] = useState(false);
 
   // Voice Stack & Safety states
   const [selectedVoiceStack, setSelectedVoiceStack] = useState<string>(() => {
@@ -1127,6 +1131,61 @@ Verified by Joseph Akora - Development Lead.
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Two-Way 2FA Enforcer Card */}
+                  <div className="group p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-indigo-500/5">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 relative z-10">
+                      <div className="flex items-start gap-6">
+                        <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.5rem] shadow-xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-500">
+                          <ShieldCheck size={32} />
+                        </div>
+                        <div className="max-w-md">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Two-Way 2FA Verification</h4>
+                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-wider">
+                              Anti-Hack Shield
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                            Configure TOTP Authenticator App QR codes, SMS 2-Way verification codes, and 8-digit Emergency Backup Keys to prevent unauthorized account access.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => setShow2FAModal(true)}
+                        className="bg-indigo-600 text-white px-8 py-5 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3 group min-w-[220px]"
+                      >
+                        <Key size={18} />
+                        <span>Manage 2FA Enforcer</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* App Package Downloader & Install Card */}
+                  <div className="group p-8 bg-gradient-to-br from-blue-50/70 to-indigo-50/70 dark:from-slate-800/50 dark:to-indigo-950/30 rounded-[2.5rem] border border-blue-100 dark:border-slate-800 relative overflow-hidden transition-all hover:shadow-xl">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 relative z-10">
+                      <div className="flex items-start gap-6">
+                        <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.5rem] shadow-xl text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-500">
+                          <Download size={32} />
+                        </div>
+                        <div className="max-w-md">
+                          <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">App & Package Downloader</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                            Download Doctorian standalone app packages for iOS, Android, Laptop, Desktop, or Smartwatch with instant offline capabilities.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => setShowPackageModal(true)}
+                        className="bg-blue-600 text-white px-8 py-5 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 group min-w-[220px]"
+                      >
+                        <Download size={18} />
+                        <span>Download & Install App</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2603,6 +2662,30 @@ Verified by Joseph Akora - Development Lead.
             user={user} 
             onClose={() => setShowUpgrade(false)} 
             onUpdate={onUpdate}
+          />
+        )}
+        {show2FAModal && (
+          <TwoFactorModal
+            isOpen={show2FAModal}
+            onClose={() => setShow2FAModal(false)}
+            mode="setup"
+            userEmail={user?.email || 'user@doctorian.ai'}
+            userPhone={user?.phone || '+1 (555) 019-2831'}
+            onSetupComplete={(enabled) => {
+              addToast?.(enabled ? '✨ Two-Way 2FA Verification Activated!' : '2FA Verification Disabled', enabled ? 'success' : 'info');
+            }}
+          />
+        )}
+        {showPackageModal && (
+          <OfflinePackageManagerModal
+            isOpen={showPackageModal}
+            onClose={() => setShowPackageModal(false)}
+            deferredPrompt={null}
+            onDirectInstall={() => {
+              setShowPackageModal(false);
+              addToast?.('✨ Starting Native App Installation...', 'info');
+            }}
+            isStandalone={false}
           />
         )}
       </AnimatePresence>

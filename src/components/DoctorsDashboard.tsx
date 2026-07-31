@@ -6,12 +6,18 @@ import {
   Volume2, VolumeX, PlusCircle, Trash, Clock, ShieldAlert, History, Filter, 
   AlertTriangle, BadgePlus, Share2, ClipboardList, Pill, Upload, Camera, 
   Monitor, Bluetooth, Wifi, Cpu, Key, HelpCircle, Fingerprint, Shield,
-  ArrowRight, Check, Calendar, CheckSquare, Plus, AlertCircle, RefreshCw, Layers
+  ArrowRight, Check, Calendar, CheckSquare, Plus, AlertCircle, RefreshCw, Layers, Dna
 } from 'lucide-react';
 import { api, Doctor as APIDoctor } from '../api';
 import { useArduinoContext } from '../ArduinoContext';
 import { CyberSecurityPanel } from './CyberSecurityPanel';
 import { QRCodeSVG } from 'qrcode.react';
+import { DnaMatrix } from './DnaMatrix';
+import { EmergencyRegistry } from './EmergencyRegistry';
+import { AlarmHubView } from './AlarmHubView';
+import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
+import { ClinicalPatientRegistry } from './ClinicalPatientRegistry';
+import { BiomedicalSimulator } from './BiomedicalSimulator';
 import {
   initOfflineDatabase,
   isNetworkOnline,
@@ -40,7 +46,28 @@ import { validateMoHClinicalDosage, validateDrugForDisease, validateDrugDrugInte
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
-  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms'>('clinical_network');
+  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms' | 'emergency_logs' | 'genomics' | 'emergency' | 'alarms' | 'ambulance' | 'registry' | 'simulator'>('clinical_network');
+  
+  // Emergency Logs State (2x Duplicated Patient Data Logs for Doctor Portal Monitoring)
+  const [emergencyLogs, setEmergencyLogs] = useState<{
+    primaryLogs: any[];
+    backupLogs: any[];
+  }>(() => {
+    const p = JSON.parse(localStorage.getItem('doctorian_offline_emergency_queue') || '[]');
+    const b = JSON.parse(localStorage.getItem('doctorian_doctor_portal_emergency_logs') || '[]');
+    return { primaryLogs: p, backupLogs: b };
+  });
+
+  useEffect(() => {
+    const reloadLogs = () => {
+      const p = JSON.parse(localStorage.getItem('doctorian_offline_emergency_queue') || '[]');
+      const b = JSON.parse(localStorage.getItem('doctorian_doctor_portal_emergency_logs') || '[]');
+      setEmergencyLogs({ primaryLogs: p, backupLogs: b });
+    };
+    reloadLogs();
+    window.addEventListener('doctorian_emergency_logs_updated', reloadLogs);
+    return () => window.removeEventListener('doctorian_emergency_logs_updated', reloadLogs);
+  }, []);
   
   // Sound Configuration
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -1017,6 +1044,13 @@ Provide a professional, direct, academic, and clinical response assisting the ph
         <div className="flex bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-inner gap-1 overflow-x-auto no-scrollbar whitespace-nowrap self-stretch lg:self-auto shrink-0">
           {[
             { id: 'clinical_network', label: 'Network Matrix', icon: <Radio size={12} /> },
+            { id: 'emergency_logs', label: 'Emergency Monitoring (2x Logs)', icon: <AlertTriangle size={12} />, badge: emergencyLogs.primaryLogs.length + emergencyLogs.backupLogs.length },
+            { id: 'genomics', label: '🧬 Genomic Matrix', icon: <Dna size={12} /> },
+            { id: 'emergency', label: '📋 Emergency Registry', icon: <ClipboardList size={12} /> },
+            { id: 'alarms', label: '🚨 Clinical Alarm Hub', icon: <ShieldAlert size={12} /> },
+            { id: 'ambulance', label: '🚑 Ambulance Dispatch', icon: <Activity size={12} /> },
+            { id: 'registry', label: '🏥 Bed Registry & Patients', icon: <Layers size={12} /> },
+            { id: 'simulator', label: '🔌 Open Simulator Display', icon: <Cpu size={12} /> },
             { id: 'referrals', label: 'SOAP Handover', icon: <FileText size={12} /> },
             { id: 'prescriptions', label: 'Prescription', icon: <Pill size={12} /> },
             { id: 'clinician_alarms', label: 'Clinician Pager Alerts', icon: <ShieldAlert size={12} />, badge: doctorAlarms.filter(a => a.doctorId === activeDoctorId).length },
@@ -1046,6 +1080,206 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
       {/* SUB TAB CONTROLS RENDERING */}
       <AnimatePresence mode="wait">
+
+        {/* VIEW: EMERGENCY MONITORING & 2X DUPLICATE LOGS */}
+        {activeSubTab === 'emergency_logs' && (
+          <motion.div
+            key="emergency_logs"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            {/* Header Banner */}
+            <div className="bg-slate-950 text-white p-6 md:p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full -mr-40 -mt-40 blur-3xl pointer-events-none" />
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-rose-400 font-black text-xs uppercase tracking-widest">
+                    <AlertTriangle className="animate-pulse" size={16} />
+                    Doctor's Portal Emergency Audit Registry
+                  </div>
+                  <h2 className="text-3xl font-[1000] uppercase tracking-tight">Patient Emergency Telemetry Logs</h2>
+                  <p className="text-slate-400 text-xs font-bold max-w-xl leading-relaxed">
+                    Continuously records both primary cellular/SMS dispatch logs and secondary duplicate doctor portal audit logs for complete clinical oversight and emergency tracking.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const now = new Date().toLocaleString();
+                      const testEmergency = {
+                        id: 'sos-sim-' + Date.now(),
+                        timestamp: now,
+                        patientName: 'Test Patient (Ward 4)',
+                        patientId: 'PAT-SIM-882',
+                        phone: '+256787674140',
+                        vitals: { hr: 134, spo2: 87, temp: 38.9, bp: '145/95' },
+                        location: 'GPS (0.3341, 32.5600) - Mulago Complex',
+                        message: '[AUTOMATIC BACKGROUND EMERGENCY ALERT] Critical tachycardia (134 BPM) and hypoxia (87% SpO2) detected.',
+                        doctorAssigned: 'Dr. Gloria Jayakullo (+256787674140)',
+                        status: 'AUTO_DISPATCHED_BACKGROUND_CELLULAR'
+                      };
+
+                      const p = JSON.parse(localStorage.getItem('doctorian_offline_emergency_queue') || '[]');
+                      p.unshift(testEmergency);
+                      localStorage.setItem('doctorian_offline_emergency_queue', JSON.stringify(p));
+
+                      const b = JSON.parse(localStorage.getItem('doctorian_doctor_portal_emergency_logs') || '[]');
+                      b.unshift({ ...testEmergency, logType: 'DOCTOR_PORTAL_BACKUP_DUPLICATE_AUDIT', loggedAt: now });
+                      localStorage.setItem('doctorian_doctor_portal_emergency_logs', JSON.stringify(b));
+
+                      window.dispatchEvent(new Event('doctorian_emergency_logs_updated'));
+                      if (addToast) addToast("✨ Emergency event triggered & saved TWICE into Doctor Portal logs!", "success");
+                    }}
+                    className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all shadow-lg shadow-rose-950/40 flex items-center gap-2"
+                  >
+                    <Zap size={14} />
+                    Simulate Emergency & Log (2x)
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (confirm("Clinical Handover Confirmation: Clear historical emergency logs ledger?")) {
+                        localStorage.removeItem('doctorian_offline_emergency_queue');
+                        localStorage.removeItem('doctorian_doctor_portal_emergency_logs');
+                        window.dispatchEvent(new Event('doctorian_emergency_logs_updated'));
+                        if (addToast) addToast("Emergency audit logs purged.", "info");
+                      }
+                    }}
+                    className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border border-slate-800"
+                  >
+                    Purge Logs
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Counters Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800">
+                <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Total Logged Records</span>
+                  <span className="text-xl font-black text-white mt-0.5 block">{emergencyLogs.primaryLogs.length + emergencyLogs.backupLogs.length} Entries</span>
+                </div>
+                <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[9px] font-black uppercase text-emerald-400 tracking-wider block">1st Log: Cellular SMS & Calls</span>
+                  <span className="text-xl font-black text-emerald-300 mt-0.5 block">{emergencyLogs.primaryLogs.length} Dispatched</span>
+                </div>
+                <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[9px] font-black uppercase text-amber-400 tracking-wider block">2nd Log: Doctor Portal Audit</span>
+                  <span className="text-xl font-black text-amber-300 mt-0.5 block">{emergencyLogs.backupLogs.length} Backed Up</span>
+                </div>
+                <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[9px] font-black uppercase text-cyan-400 tracking-wider block">Attending Physician</span>
+                  <span className="text-xs font-black text-cyan-200 mt-1 block truncate">Dr. Gloria Jayakullo</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Logs Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Primary Cellular Dispatch Queue (Log 1) */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    Log 1: Cellular & Sat-Link Dispatch Queue ({emergencyLogs.primaryLogs.length})
+                  </span>
+                </div>
+
+                {emergencyLogs.primaryLogs.length === 0 ? (
+                  <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-2">
+                    <CheckCircle2 size={28} className="mx-auto text-emerald-500" />
+                    <p className="text-xs font-black uppercase text-slate-600 dark:text-slate-400">No Cellular Emergency Dispatches Pending</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {emergencyLogs.primaryLogs.map((log, idx) => (
+                      <div key={log.id || idx} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                            Cellular SMS / Call Active
+                          </span>
+                          <span className="text-[9px] font-mono font-bold text-slate-400">{log.timestamp}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase">{log.patientName || 'Authorized Client'}</h4>
+                            <span className="text-[10px] font-mono text-slate-400">Recipient: {log.phone || '+256787674140'}</span>
+                          </div>
+                          {log.vitals && (
+                            <div className="flex gap-2 text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl">
+                              <span className="text-rose-500">HR: {log.vitals.hr || 82}</span>
+                              <span className="text-blue-500">SpO2: {log.vitals.spo2 || 98}%</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 font-medium">
+                          {log.message || log.type || 'Emergency Dispatch Event'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Doctor Portal Duplicate Audit Logs (Log 2) */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                    <ShieldCheck size={16} />
+                    Log 2: Doctor Portal ICU Audit Backup Ledger ({emergencyLogs.backupLogs.length})
+                  </span>
+                </div>
+
+                {emergencyLogs.backupLogs.length === 0 ? (
+                  <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-2">
+                    <CheckCircle2 size={28} className="mx-auto text-amber-500" />
+                    <p className="text-xs font-black uppercase text-slate-600 dark:text-slate-400">Doctor Portal Backup Log Synchronized</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {emergencyLogs.backupLogs.map((log, idx) => (
+                      <div key={log.id || idx} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-900/40 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            2x Duplicate Audit Backup
+                          </span>
+                          <span className="text-[9px] font-mono font-bold text-slate-400">{log.loggedAt || log.timestamp}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase">{log.patientName || 'Authorized Patient'}</h4>
+                            <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">Assigned: {log.doctorAssigned || 'Dr. Gloria Jayakullo'}</span>
+                          </div>
+                          <span className="text-[9px] font-mono font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800">
+                            ICU Ward Audit
+                          </span>
+                        </div>
+
+                        {log.vitals && (
+                          <div className="grid grid-cols-4 gap-2 text-center text-[10px] font-mono font-bold bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl">
+                            <div><span className="text-slate-400 block text-[8px]">HR</span><span className="text-rose-500">{log.vitals.hr} BPM</span></div>
+                            <div><span className="text-slate-400 block text-[8px]">SpO2</span><span className="text-blue-500">{log.vitals.spo2}%</span></div>
+                            <div><span className="text-slate-400 block text-[8px]">BP</span><span className="text-purple-500">{log.vitals.bp || '120/80'}</span></div>
+                            <div><span className="text-slate-400 block text-[8px]">TEMP</span><span className="text-amber-500">{log.vitals.temp}°C</span></div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 font-medium leading-relaxed">
+                          {log.message || log.type || 'Emergency Event Audit Payload'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
         
         {/* VIEW: CLINICIAN ALARMS & PAGER ALERTS */}
         {activeSubTab === 'clinician_alarms' && (
@@ -1839,8 +2073,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                           onChange={e => setRxFormPatientId(e.target.value)}
                           className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
                         >
-                          {offlinePatients.map(p => (
-                            <option key={p.id} value={p.id}>{p.id} - {p.name} (Age {p.age}, {p.conditions})</option>
+                          {offlinePatients.map((p, idx) => (
+                            <option key={`rxpat-opt-${p.id}-${idx}`} value={p.id}>{p.id} - {p.name} (Age {p.age}, {p.conditions})</option>
                           ))}
                         </select>
                       </div>
@@ -1852,8 +2086,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                           onChange={e => setRxFormDoctorId(e.target.value)}
                           className="w-full bg-slate-50/50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
                         >
-                          {offlineDoctors.map(d => (
-                            <option key={d.id} value={d.id}>{d.name} ({d.specialty})</option>
+                          {offlineDoctors.map((d, idx) => (
+                            <option key={`rxdoc-opt-${d.id}-${idx}`} value={d.id}>{d.name} ({d.specialty})</option>
                           ))}
                         </select>
                       </div>
@@ -2206,7 +2440,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                   </div>
 
                   <div className="space-y-4">
-                    {offlinePatients.map(pat => {
+                    {offlinePatients.map((pat, idx) => {
                       const complianceColor = pat.complianceRate >= 80 
                         ? 'text-emerald-500' 
                         : pat.complianceRate >= 65 
@@ -2224,7 +2458,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       const takenCount = patLogs.filter(l => l.status === 'taken').length;
 
                       return (
-                        <div key={pat.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                        <div key={`rx-pat-${pat.id}-${idx}`} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className="font-extrabold uppercase text-xs text-slate-900 dark:text-white">{pat.name}</h4>
@@ -2560,6 +2794,148 @@ Provide a professional, direct, academic, and clinical response assisting the ph
           </motion.div>
         )}
 
+        {/* VIEW: GENOMIC MATRIX */}
+        {activeSubTab === 'genomics' && (
+          <motion.div
+            key="genomics"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            <div className="bg-emerald-950/20 border border-emerald-500/20 p-4 rounded-2xl flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <span>🔒 Doctor's Portal Access Granted: Genomic Nexus Sequencing</span>
+              <span className="text-[10px] uppercase font-black px-2.5 py-1 bg-emerald-500/10 rounded-lg">Doctor Exclusive</span>
+            </div>
+            <DnaMatrix dnaStatus={arduino?.dnaStatus || {}} onStartSequencing={arduino?.startDnaSequencing || (() => {})} />
+          </motion.div>
+        )}
+
+        {/* VIEW: EMERGENCY REGISTRY */}
+        {activeSubTab === 'emergency' && (
+          <motion.div
+            key="emergency"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            <div className="bg-rose-950/20 border border-rose-500/20 p-4 rounded-2xl flex items-center justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
+              <span>🔒 Doctor's Portal Access Granted: Emergency Clinical Registry</span>
+              <span className="text-[10px] uppercase font-black px-2.5 py-1 bg-rose-500/10 rounded-lg">Doctor Exclusive</span>
+            </div>
+            <EmergencyRegistry user={null} onUpdate={() => {}} isAdmin={true} setIsAdmin={() => {}} />
+          </motion.div>
+        )}
+
+        {/* VIEW: CLINICAL ALARM HUB */}
+        {activeSubTab === 'alarms' && (
+          <motion.div
+            key="alarms"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            <div className="bg-red-950/20 border border-red-500/20 p-4 rounded-2xl flex items-center justify-between text-xs font-bold text-red-600 dark:text-red-400">
+              <span>🔒 Doctor's Portal Access Granted: Critical Alarm Sentinel</span>
+              <span className="text-[10px] uppercase font-black px-2.5 py-1 bg-red-500/10 rounded-lg">Doctor Exclusive</span>
+            </div>
+            <AlarmHubView 
+              vitals={arduino?.vitals} 
+              thresholds={{
+                heartRate: { min: 50, max: 120, warningMin: 60, warningMax: 100 },
+                temperature: { max: 38.5, warningMax: 37.5 },
+                spo2: { min: 90, warningMin: 95 },
+                systolicBP: { max: 180, warningMax: 140 },
+                diastolicBP: { max: 110, warningMax: 90 },
+                respiratoryRate: { min: 12, max: 25, warningMax: 20 }
+              }} 
+              setThresholds={() => {}} 
+              alarmHistory={[]} 
+              clearAlarmHistory={() => {}} 
+              isAlarmMuted={false} 
+              setIsAlarmMuted={() => {}} 
+              isHeartbeatToneEnabled={false} 
+              setIsHeartbeatToneEnabled={() => {}} 
+              synthRef={{ current: null }} 
+              addAlarmLog={() => {}} 
+              snoozeDuration={0} 
+              setSnoozeDuration={() => {}} 
+              isCurrentlyAcknowledged={false}
+              alarmAcknowledgeTime={null}
+              acknowledgeAlarm={() => {}}
+            />
+          </motion.div>
+        )}
+
+        {/* VIEW: AMBULANCE DISPATCH */}
+        {activeSubTab === 'ambulance' && (
+          <motion.div
+            key="ambulance"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            <div className="bg-red-950/20 border border-red-500/20 p-4 rounded-2xl flex items-center justify-between text-xs font-bold text-red-600 dark:text-red-400">
+              <span>🔒 Doctor's Portal Access Granted: Emergency Ambulance Fleet Dispatch</span>
+              <span className="text-[10px] uppercase font-black px-2.5 py-1 bg-red-500/10 rounded-lg">Doctor Exclusive</span>
+            </div>
+            <AmbulanceDispatchPanel addToast={addToast} />
+          </motion.div>
+        )}
+
+        {/* VIEW: BED REGISTRY & PATIENTS */}
+        {activeSubTab === 'registry' && (
+          <motion.div
+            key="registry"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            <div className="bg-teal-950/20 border border-teal-500/20 p-4 rounded-2xl flex items-center justify-between text-xs font-bold text-teal-600 dark:text-teal-400">
+              <span>🔒 Doctor's Portal Access Granted: Bed Registry & Inpatient Care Ward</span>
+              <span className="text-[10px] uppercase font-black px-2.5 py-1 bg-teal-500/10 rounded-lg">Doctor Exclusive</span>
+            </div>
+            <ClinicalPatientRegistry 
+              user={null} 
+              onUpdateUser={() => {}} 
+              registeredPatients={[]} 
+              setRegisteredPatients={() => {}} 
+              selectedPatientId="p-1" 
+              setSelectedPatientId={() => {}} 
+              registryNotification={null} 
+              setRegistryNotification={() => {}} 
+              transferHistory={[]} 
+              setTransferHistory={() => {}} 
+              isAdmin={true} 
+              setIsAdmin={() => {}} 
+              couplePatientToMonitor={() => {}} 
+              triggerRegistryNotification={(msg, type) => addToast?.(msg, type || 'info')} 
+              arduino={arduino} 
+            />
+          </motion.div>
+        )}
+
+        {/* VIEW: BIOMEDICAL SIMULATOR */}
+        {activeSubTab === 'simulator' && (
+          <motion.div
+            key="simulator"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            <div className="bg-blue-950/20 border border-blue-500/20 p-4 rounded-2xl flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
+              <span>🔒 Doctor's Portal Access Granted: Biomedical Machine Hardware Simulator</span>
+              <span className="text-[10px] uppercase font-black px-2.5 py-1 bg-blue-500/10 rounded-lg">Doctor Exclusive</span>
+            </div>
+            <BiomedicalSimulator arduino={arduino} />
+          </motion.div>
+        )}
+
         {/* VIEW 5: AI DIAGNOSTIC DECISION HUB & CO-PILOT */}
         {activeSubTab === 'decision_support' && (
           <motion.div
@@ -2580,12 +2956,12 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 </div>
 
                 <div className="space-y-2 max-h-[350px] overflow-y-auto no-scrollbar pr-1">
-                  {[...referrals, ...sampleCasePatients].map((pat) => {
+                  {[...referrals, ...sampleCasePatients].map((pat, idx) => {
                     const isSelected = selectedPatientId === pat.id;
                     const isStat = pat.priority === 'STAT' || pat.priority === 'STAT Emergency';
                     return (
                       <button
-                        key={pat.id}
+                        key={`admitted-${pat.id}-${idx}`}
                         type="button"
                         onClick={() => {
                           setSelectedPatientId(pat.id);

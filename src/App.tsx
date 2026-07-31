@@ -68,6 +68,9 @@ import { Compass,
   ChevronRight,
   ChevronLeft,
   Globe,
+  Video,
+  Lock as LockIcon,
+  Share2,
   Volume2,
   VolumeX,
   Music,
@@ -80,44 +83,82 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
+import { BiomaticSandbox } from './components/BiomaticSandbox';
+function safeLazy<P extends object = any>(
+  importFn: () => Promise<any>,
+  exportName?: string
+): React.ComponentType<P> {
+  const getComponent = (module: any) => {
+    if (!module) return () => null;
+    if (exportName && module[exportName]) return module[exportName];
+    if (module.default) {
+      if (exportName && typeof module.default === 'object' && module.default[exportName]) {
+        return module.default[exportName];
+      }
+      return module.default;
+    }
+    return typeof module === 'function' ? module : () => null;
+  };
 
-import { MedicalIllustrator } from "./components/MedicalIllustrator";
-import { GenomicLongevityCore } from "./components/GenomicLongevityCore";
-import { ImageGenerator } from "./components/ImageGenerator";
-import { ChatInterface } from "./components/ChatInterface";
-import { MedicalAI } from "./components/MedicalAI";
-import { CognisHub } from "./components/CognisHub";
-import BioSimulation from "./components/BioSimulation";
-import { PatientMonitor } from "./components/PatientMonitor";
-import { Features } from "./components/Features";
-import { About } from "./components/About";
-import { HealthRecords } from "./components/HealthRecords";
-import { ProfileSettings } from "./components/ProfileSettings";
-import { PatientProfileViewer } from "./components/PatientProfileViewer";
-import { AdminDashboard } from "./components/AdminDashboard";
-import { AccessRestriction } from "./components/AccessRestriction";
-import { SpecialistFinder } from "./components/SpecialistFinder";
-import { VitalityMatrix } from "./components/VitalityMatrix";
-import { SymptomChecker } from "./components/SymptomChecker";
-import { DiagnosticLab } from "./components/DiagnosticLab";
-import { EmergencyRegistry } from "./components/EmergencyRegistry";
-import { Billing } from "./components/Billing";
-import { MedicationTracker } from "./components/MedicationTracker";
-import { WorkoutTracker } from "./components/WorkoutTracker";
-import { BioSecurity } from "./components/BioSecurity";
-import { DeveloperPortal } from "./components/DeveloperPortal";
-import { DoctorsDashboard } from "./components/DoctorsDashboard";
-import { BMICalculator } from "./components/BMICalculator";
+  return lazy(async () => {
+    try {
+      const module = await importFn();
+      const Component = getComponent(module);
+      return { default: Component };
+    } catch (error) {
+      console.warn("Retrying dynamic module import...", error);
+      try {
+        const retryModule = await importFn();
+        const Component = getComponent(retryModule);
+        return { default: Component };
+      } catch (retryError) {
+        console.error("Lazy module import failed after retry:", retryError);
+        throw retryError;
+      }
+    }
+  }) as unknown as React.ComponentType<P>;
+}
+
+const MedicalIllustrator = safeLazy(() => import("./components/MedicalIllustrator"), "MedicalIllustrator");
+const GenomicLongevityCore = safeLazy(() => import("./components/GenomicLongevityCore"), "GenomicLongevityCore");
+const ImageGenerator = safeLazy(() => import("./components/ImageGenerator"), "ImageGenerator");
+const ChatInterface = safeLazy(() => import("./components/ChatInterface"), "ChatInterface");
+const MedicalAI = safeLazy(() => import("./components/MedicalAI"), "MedicalAI");
+const CognisHub = safeLazy(() => import("./components/CognisHub"), "CognisHub");
+const BioSimulation = safeLazy(() => import("./components/BioSimulation"));
+const PatientMonitor = safeLazy(() => import("./components/PatientMonitor"), "PatientMonitor");
+const Features = safeLazy(() => import("./components/Features"), "Features");
+const About = safeLazy(() => import("./components/About"), "About");
+const HealthRecords = safeLazy(() => import("./components/HealthRecords"), "HealthRecords");
+const ProfileSettings = safeLazy(() => import("./components/ProfileSettings"), "ProfileSettings");
+const PatientProfileViewer = safeLazy(() => import("./components/PatientProfileViewer"), "PatientProfileViewer");
+const AdminDashboard = safeLazy(() => import("./components/AdminDashboard"), "AdminDashboard");
+const AccessRestriction = safeLazy(() => import("./components/AccessRestriction"), "AccessRestriction");
+const SpecialistFinder = safeLazy(() => import("./components/SpecialistFinder"), "SpecialistFinder");
+const VitalityMatrix = safeLazy(() => import("./components/VitalityMatrix"), "VitalityMatrix");
+const SymptomChecker = safeLazy(() => import("./components/SymptomChecker"), "SymptomChecker");
+const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
+const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
+const Billing = safeLazy(() => import("./components/Billing"), "Billing");
+const MedicationTracker = safeLazy(() => import("./components/MedicationTracker"), "MedicationTracker");
+const WorkoutTracker = safeLazy(() => import("./components/WorkoutTracker"), "WorkoutTracker");
+const BioSecurity = safeLazy(() => import("./components/BioSecurity"), "BioSecurity");
+const DeveloperPortal = safeLazy(() => import("./components/DeveloperPortal"), "DeveloperPortal");
+const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
+const BMICalculator = safeLazy(() => import("./components/BMICalculator"), "BMICalculator");
+const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
+const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
+
 const josephPortrait = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400";
-import { LearnMore } from "./components/LearnMore";
 import { AuthModal } from "./components/AuthModal";
 import { AdminInfoModal } from "./components/AdminInfoModal";
 import { Footer } from "./components/Footer";
-import { BiomaticSandbox } from "./components/BiomaticSandbox";
 import { ClinicalProtocols } from "./components/Tasks";
-import { NeuralTrainingHub } from "./components/NeuralTrainingHub";
 import { AmbientBubbleBackground } from "./components/AmbientBubbleBackground";
 
+import { ClinicalReportExporter } from "./components/ClinicalReportExporter";
+import { TelehealthScribeHub } from "./components/TelehealthScribeHub";
+import { AuditTrailModal } from "./components/AuditTrailModal";
 import { Soundscape } from "./utils/soundscape";
 
 import { HealthTip } from "./components/HealthTipModal";
@@ -127,6 +168,7 @@ import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubV
 import { TerminalSecureGate } from "./components/TerminalSecureGate";
 import { translate } from './utils/translations';
 import { MarianConsole } from "./components/MarianConsole";
+import { DownloadAppModal } from "./components/DownloadAppModal";
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
 import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
 
@@ -297,6 +339,11 @@ export default function App() {
   const [downloadingLang, setDownloadingLang] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isMarianConsoleOpen, setIsMarianConsoleOpen] = useState(false);
+  const [isEhrExportOpen, setIsEhrExportOpen] = useState(false);
+  const [isTelehealthOpen, setIsTelehealthOpen] = useState(false);
+  const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
+  const [isDownloadAppOpen, setIsDownloadAppOpen] = useState(false);
+  const [hasInstalledApp, setHasInstalledApp] = useState(false);
 
   const [isAudioMenuOpen, setIsAudioMenuOpen] = useState(false);
   const [vitalsAudioEnabled, setVitalsAudioEnabled] = useState(false);
@@ -1631,6 +1678,8 @@ export default function App() {
   };
 
   const installApp = async () => {
+    const isIframeEnv = window.self !== window.top;
+
     if (deferredPrompt) {
       try {
         deferredPrompt.prompt();
@@ -1639,13 +1688,22 @@ export default function App() {
         setDeferredPrompt(null);
         if (outcome === 'accepted') {
           setShowInstallButton(false);
-          setToast({ message: '✨ Doctorian installed successfully (~25.4 MB package capacity cached)!', type: 'success' });
+          setIsStandalone(true);
+          setToast({ message: '✨ Doctorian installed successfully on your device!', type: 'success' });
           return;
         }
       } catch (err) {
         console.warn("Direct install prompt trigger error:", err);
       }
     }
+
+    if (isIframeEnv) {
+      window.open(window.location.href, '_blank');
+      setShowInstallButton(false);
+      setToast({ message: '🚀 Opened in full browser tab! Tap "Install App" or browser menu to add to Home Screen.', type: 'info' });
+      return;
+    }
+
     setShowPackageInstallModal(true);
   };
 
@@ -2111,11 +2169,11 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-1.5 p-1 bg-slate-100/70 dark:bg-slate-900/45 backdrop-blur-2xl rounded-2xl border border-slate-200/30 dark:border-slate-800/40 overflow-x-auto no-scrollbar max-w-full">
-          {tabs[activeGroup].map((tab) => {
+          {tabs[activeGroup].map((tab, tbIdx) => {
             const isTabActive = currentView === tab.id;
             return (
               <button
-                key={tab.id}
+                key={`subtab-${tab.id}-${tbIdx}`}
                 onClick={() => {
                   if (tab.id === 'doctors_dashboard' && !isDoctorAuthenticated) {
                     setCurrentView('doctors_dashboard');
@@ -2201,8 +2259,8 @@ export default function App() {
             </div>
 
             <nav className="flex-1 w-full px-3 flex flex-col gap-5 overflow-y-auto no-scrollbar smooth-scroll pr-1 pb-6" aria-label="Main navigation">
-              {sidebarSections.map((section) => (
-                <div key={section.title} className="flex flex-col gap-1.5 shrink-0">
+              {sidebarSections.map((section, sIdx) => (
+                <div key={`sidebar-sec-${section.title}-${sIdx}`} className="flex flex-col gap-1.5 shrink-0">
                   <div className={`px-3 pb-0.5 ${isSidebarCollapsed ? 'text-center' : ''}`}>
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase select-none">
                       {isSidebarCollapsed ? "•" : translate(section.title, currentLanguage)}
@@ -2210,11 +2268,11 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    {section.items.map((link) => {
+                    {section.items.map((link, lIdx) => {
                       const isActive = isSubViewActive(link.id, currentView);
                       return (
                         <button 
-                          key={link.id}
+                          key={`sidebar-item-${link.id}-${lIdx}`}
                           onClick={() => {
                             if ((link as any).action) {
                               (link as any).action();
@@ -2410,49 +2468,13 @@ export default function App() {
       )}
 
       {/* Mobile/Tablet Header & Bottom Nav */}
-      <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-md overflow-hidden z-10">
 
 
         <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative ${
           currentView === 'ai_nexus' ? 'overflow-hidden' : 'overflow-y-auto'
         }`}>
         <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
-          {/* PWA Install Banner (Mobile Only) */}
-          <AnimatePresence>
-            {showInstallButton && !isStandalone && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="lg:hidden bg-gradient-to-r from-blue-600 to-indigo-700 py-3 px-4 sm:px-6 flex items-center justify-between shadow-lg relative z-[70]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Download size={14} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-white/70 uppercase tracking-widest leading-none mb-1">Fast Access</p>
-                    <p className="text-xs font-black text-white leading-none">Install Doctorian</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button 
-                    onClick={() => setShowInstallButton(false)}
-                    className="px-3 py-2 rounded-xl text-[10px] font-black text-white/60 uppercase tracking-widest hover:bg-white/10"
-                  >
-                    Later
-                  </button>
-                  <button 
-                    onClick={installApp}
-                    className="bg-white text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-black/10 active:scale-95 transition-transform"
-                  >
-                    Install
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
         <motion.header 
           initial={false}
           animate={{
@@ -2475,38 +2497,24 @@ export default function App() {
         >
           <div className="max-w-7xl mx-auto w-full px-2 sm:px-3 md:px-6 lg:px-8">
             <div className="flex items-center py-2 sm:py-3.5 gap-1.5 sm:gap-2.5 md:gap-3 lg:gap-4 w-full">
-              {/* Upper Bar Professional Feature: Clinical Triage & Emergency SOS Center */}
-              <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-3 shrink-0">
+              {/* Upper Bar Brand Identity & App Name */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <motion.button 
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setCurrentView('emergency')}
-                  className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-red-500/10 via-rose-500/10 to-amber-500/10 dark:from-red-950/40 dark:via-rose-950/30 dark:to-amber-950/30 border border-red-200/90 dark:border-red-800/60 hover:border-red-400/80 text-red-700 dark:text-red-300 transition-all cursor-pointer shadow-sm hover:shadow-md shrink-0 group/triage"
-                  title="Open Clinical Emergency Triage & Dispatch Center"
-                  aria-label="Open Emergency Triage"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setCurrentView('home')}
+                  className="flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-teal-500/10 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-teal-950/30 border border-blue-200/80 dark:border-blue-800/60 hover:border-blue-400/80 transition-all cursor-pointer shadow-sm hover:shadow-md shrink-0 group/brand"
+                  title="Doctorian AI Medical Platform"
+                  aria-label="Doctorian AI Home"
                 >
-                  <div className="relative flex items-center justify-center">
-                    <Activity size={16} className="text-red-600 dark:text-red-400 animate-pulse shrink-0 group-hover/triage:scale-110 transition-transform" />
-                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-start leading-none text-left">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                      Clinical Triage
-                    </span>
-                    <span className="text-[8px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest mt-0.5">
-                      Emergency SOS
-                    </span>
-                  </div>
+                  <Logo size="sm" showText={true} />
                 </motion.button>
               </div>
 
-              <div className="flex flex-1 justify-center px-0.5 sm:px-1.5 md:px-2 items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 overflow-visible min-w-0">
+              <div className="flex flex-1 justify-end sm:justify-center px-0.5 sm:px-1.5 md:px-2 items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 overflow-visible min-w-0">
                 <motion.button 
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex items-center justify-center p-1.5 md:p-2 lg:p-2.5 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-9 h-9 md:w-10 md:h-10 lg:w-auto lg:max-w-md lg:flex-1 lg:h-11 lg:gap-3 lg:px-4 shadow-sm"
+                  className="flex items-center justify-center p-1.5 md:p-2 lg:p-2.5 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-9 h-9 md:w-10 md:h-10 lg:w-auto lg:max-w-md lg:flex-1 lg:h-11 lg:gap-3 lg:px-4 shadow-sm shrink-0 lg:shrink"
                   aria-label="Open search"
                 >
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
@@ -2540,6 +2548,42 @@ export default function App() {
                     {isOffline ? translate('Cache Core', currentLanguage) : translate('Active System', currentLanguage)}
                   </span>
                 </button>
+
+                {/* Telehealth Quick Launcher */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsTelehealthOpen(true)}
+                  className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] uppercase tracking-wider shadow-md shadow-blue-500/20 cursor-pointer shrink-0"
+                  title="Telehealth Video Studio & AI Scribe"
+                >
+                  <Video size={14} />
+                  <span>Telehealth Studio</span>
+                </motion.button>
+
+                {/* EHR Export Launcher */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsEhrExportOpen(true)}
+                  className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider shadow-md shadow-emerald-500/20 cursor-pointer shrink-0"
+                  title="EHR Compliance & FHIR Exporter"
+                >
+                  <FileText size={14} />
+                  <span>EHR Exporter</span>
+                </motion.button>
+
+                {/* HIPAA Audit Log Launcher */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsAuditTrailOpen(true)}
+                  className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-[9px] uppercase tracking-wider shadow-md shadow-purple-500/20 cursor-pointer shrink-0"
+                  title="HIPAA Security & Audit Log"
+                >
+                  <LockIcon size={14} />
+                  <span>Audit Trail</span>
+                </motion.button>
 
                 {/* Language Quick Dropdown */}
                 <div className="hidden sm:block relative shrink-0">
@@ -3644,7 +3688,7 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} />
+                <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} onNavigate={(v) => setCurrentView(v)} />
               </motion.div>
             ) : (
               <AccessRestriction />
@@ -3855,15 +3899,19 @@ export default function App() {
             <AccessRestriction />
           )
         ) : currentView === 'emergency' ? (
-          <motion.div
-            key="emergency"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            className="w-full"
-          >
-            <EmergencyRegistry user={user} onUpdate={setUser} />
-          </motion.div>
+          (user?.role === 'doctor' || user?.role === 'admin' || (user as any)?.isDoctor || (user as any)?.isAdmin) ? (
+            <motion.div
+              key="emergency"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="w-full"
+            >
+              <EmergencyRegistry user={user} onUpdate={setUser} isAdmin={true} />
+            </motion.div>
+          ) : (
+            <AccessRestriction />
+          )
         ) : currentView === 'biosecurity' ? (
           <motion.div
             key="biosecurity"
@@ -3933,9 +3981,9 @@ export default function App() {
                   { id: 'help', label: 'Help Center', icon: <Info size={14} /> },
                   { id: 'privacy', label: 'Privacy Vault', icon: <Shield size={14} /> },
                   { id: 'terms', label: 'Terms & Legal', icon: <FileText size={14} /> }
-                ].map((tab) => (
+                ].map((tab, hbIdx) => (
                   <button
-                    key={tab.id}
+                    key={`hubtab-${tab.id}-${hbIdx}`}
                     onClick={() => setCurrentView(tab.id as any)}
                     className="flex items-center gap-2 px-4 py-2 border border-slate-150 dark:border-slate-800 hover:border-blue-500 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-350 hover:text-blue-500 dark:hover:text-blue-400 rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                   >
@@ -4079,7 +4127,7 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {SEARCHABLE_ITEMS.slice(0, 4).map((item, i) => (
                     <button
-                      key={i}
+                      key={`rec-${item.label}-${i}`}
                       onClick={() => {
                         setCurrentView(item.view as any);
                         setIsSearchOpen(false);
@@ -4098,7 +4146,7 @@ export default function App() {
               <div className="space-y-4">
                 {searchResults.map((result, i) => (
                   <button
-                    key={i}
+                    key={`search-${result.label}-${i}`}
                     onClick={() => {
                       setCurrentView(result.view as any);
                       setIsSearchOpen(false);
@@ -4463,18 +4511,18 @@ export default function App() {
             
             {/* Content Categories */}
             <div className="flex-1 p-6 space-y-8 overflow-y-auto custom-scrollbar">
-              {sidebarSections.map((section) => (
-                <div key={section.title} className="space-y-4">
+              {sidebarSections.map((section, sIdx) => (
+                <div key={`mob-sec-${section.title}-${sIdx}`} className="space-y-4">
                   <div className="flex items-center gap-2 px-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${section.accent.bar} animate-ping`} />
                     <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{translate(section.title, currentLanguage)}</h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3.5">
-                    {section.items.map((item) => {
+                    {section.items.map((item, iIdx) => {
                       const isActive = currentView === item.id;
                       return (
                         <button
-                          key={item.id}
+                          key={`mob-item-${item.id}-${iIdx}`}
                           onClick={() => {
                             if ('action' in item && typeof item.action === 'function') {
                               (item as any).action();
@@ -4586,7 +4634,7 @@ export default function App() {
         initial={{ opacity: 0, scale: 0.8, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.8, y: 20 }}
-        className="fixed bottom-24 right-5 sm:bottom-8 sm:right-8 z-[150] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
+        className="fixed bottom-16 right-4 sm:bottom-6 sm:right-6 z-[150] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
       >
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -4594,10 +4642,10 @@ export default function App() {
           onMouseEnter={() => setIsBackHovered(true)}
           onMouseLeave={() => setIsBackHovered(false)}
           onClick={handleGoBack}
-          className="relative flex items-center justify-center gap-1.5 sm:gap-2 h-11 w-11 sm:w-auto sm:h-12 rounded-full border shadow-[0_15px_30px_rgba(37,99,235,0.25)] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-500/30 font-black text-[10px] uppercase tracking-wider p-0 sm:pl-4 sm:pr-3 cursor-pointer pointer-events-auto select-none transition-all duration-200"
+          className="relative flex items-center justify-center gap-1 sm:gap-1.5 h-8 px-2.5 sm:h-8 sm:px-3 rounded-full border shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-400/30 font-bold text-[9px] uppercase tracking-wider cursor-pointer pointer-events-auto select-none transition-all duration-200"
           title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'} (Drag to move)`}
         >
-          <ArrowLeft size={14} className="stroke-[3] shrink-0" />
+          <ArrowLeft size={12} className="stroke-[2.5] shrink-0" />
           
           <AnimatePresence mode="wait">
             {!isBackHovered ? (
@@ -4606,7 +4654,7 @@ export default function App() {
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-[9px] font-black uppercase tracking-widest leading-none hidden sm:inline-block"
+                className="text-[8px] font-black uppercase tracking-widest leading-none"
               >
                 Back
               </motion.span>
@@ -4616,14 +4664,14 @@ export default function App() {
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-[9px] text-white/90 font-bold tracking-wider leading-none truncate max-w-[140px] hidden sm:inline-block"
+                className="text-[8px] text-white/90 font-bold tracking-wider leading-none truncate max-w-[100px]"
               >
                 To {viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'Previous'}
               </motion.span>
             )}
           </AnimatePresence>
 
-          <span className="absolute -top-1 -right-1 sm:static sm:top-auto sm:right-auto w-5 h-5 rounded-full bg-blue-500 sm:bg-white/25 text-white text-[8px] font-black flex items-center justify-center shrink-0 sm:ml-1 shadow-sm border border-blue-400/50 sm:border-none">
+          <span className="w-3.5 h-3.5 rounded-full bg-white/25 text-white text-[7px] font-black flex items-center justify-center shrink-0 ml-0.5 shadow-xs border border-white/20">
             {navigationHistory.length - 1}
           </span>
         </motion.button>
@@ -4683,11 +4731,11 @@ export default function App() {
                     { id: 'doctors_dashboard', label: 'Doctors\' Portal', icon: <FileText size={15} />, color: 'from-indigo-500 to-indigo-700' },
                     { id: 'about', label: 'System & App Info', icon: <Info size={15} />, color: 'from-slate-500 to-slate-700' },
                     ...(isAdmin ? [{ id: 'admin', label: 'Admin Command Center', icon: <Shield size={15} />, action: handleAdminAccess, color: 'from-red-500 to-rose-600' }] : [])
-                  ].map((item) => {
+                  ].map((item, idx) => {
                     const isActive = isSubViewActive(item.id, currentView);
                     return (
                       <motion.button
-                        key={item.id}
+                        key={`float-${item.id}-${idx}`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => {
@@ -4752,6 +4800,50 @@ export default function App() {
               </>
             )}
 
+            {/* Floating PWA Install Bar Prompt */}
+            <AnimatePresence>
+              {showInstallButton && !isStandalone && (
+                <motion.div 
+                  initial={{ y: 90, opacity: 0, scale: 0.95 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: 90, opacity: 0, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 220, damping: 22 }}
+                  className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[140] w-[94%] max-w-xl bg-slate-900/95 dark:bg-slate-950/95 text-white backdrop-blur-xl border border-blue-500/40 rounded-2xl p-3.5 sm:p-4 shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex items-center justify-between gap-3 sm:gap-4 pointer-events-auto"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shrink-0 shadow-md">
+                      <Download size={18} className="text-white animate-bounce" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">Offline App</span>
+                        <span className="text-[10px] font-semibold text-slate-300 truncate">Standalone Medical AI</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold text-white truncate">Install Doctorian on your device</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => {
+                        setShowInstallButton(false);
+                        sessionStorage.setItem("doctorian_install_dismissed", "true");
+                      }}
+                      className="px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wider"
+                    >
+                      Later
+                    </button>
+                    <button 
+                      onClick={installApp}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-500/30 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Download size={14} />
+                      <span>Install Now</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <AnimatePresence>
               {showPackageInstallModal && (
                 <motion.div 
@@ -4781,49 +4873,84 @@ export default function App() {
                       <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 space-y-2">
                         <div className="flex items-center gap-2 font-bold text-blue-900 dark:text-blue-300">
                           <Shield size={14} className="text-blue-600 dark:text-blue-400" />
-                          <span>Full Autonomous Standalone PWA Bundle</span>
+                          <span>Independent Standalone App Package</span>
                         </div>
                         <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
-                          Installs Doctorian with all offline diagnostic matrices, voice synthesizers, cardiac biometric monitors, and clinical lab engines cached locally into device storage (~25.4 MB capacity).
+                          Doctorian runs completely standalone on your device without relying on external web links. All diagnostic matrices, local AI engines, voice models, and clinical datasets operate offline.
                         </p>
                       </div>
 
                       <div className="space-y-2 pt-2">
                         <p className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-wider">
-                          📱 How to Install on Any Device:
+                          📱 Installation & Transfer Options:
                         </p>
                         <ul className="space-y-2 text-[11px]">
                           <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                             <span className="font-bold text-blue-600">1.</span>
-                            <span><strong>Chrome / Edge (Laptops & Smartphones):</strong> Click the <strong>Install Icon</strong> in your address bar or browser menu (⋮) → select <strong>"Install Doctorian AI"</strong>.</span>
+                            <span><strong>Direct One-Touch App Install:</strong> Tap <strong>"Install Native App"</strong> below to add Doctorian to your home screen or desktop app menu.</span>
                           </li>
                           <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                             <span className="font-bold text-blue-600">2.</span>
-                            <span><strong>Safari (iPhones, iPads & Macs):</strong> Tap the <strong>Share Button</strong> (square with arrow) → scroll down and tap <strong>"Add to Home Screen"</strong>.</span>
+                            <span><strong>USB & Local Transfer:</strong> Transfer the app package file via USB cable, Bluetooth, or local storage between computers and smartphones for instant offline use.</span>
                           </li>
                           <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                             <span className="font-bold text-blue-600">3.</span>
-                            <span><strong>Smartwatches & Wearables:</strong> Sync via Companion PWA directly from paired Smartphone application launcher.</span>
+                            <span><strong>Safari / iOS Installation:</strong> Tap <strong>Share</strong> (square arrow) → <strong>"Add to Home Screen"</strong>.</span>
                           </li>
                         </ul>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-center gap-2.5">
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (deferredPrompt) {
-                            deferredPrompt.prompt();
+                            try {
+                              deferredPrompt.prompt();
+                              const { outcome } = await deferredPrompt.userChoice;
+                              if (outcome === 'accepted') {
+                                setIsStandalone(true);
+                                addToast("✨ Doctorian installed natively as standalone application!", "success");
+                              }
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          } else {
+                            addToast("⚡ App caching complete! Doctorian is registered for standalone offline launch.", "success");
                           }
                           setShowPackageInstallModal(false);
                         }}
-                        className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 active:scale-95 transition-all text-center"
+                        className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 active:scale-95 transition-all text-center flex items-center justify-center gap-2"
                       >
-                        {deferredPrompt ? 'Direct One-Click Install' : 'Acknowledge & Install'}
+                        <Download size={15} />
+                        <span>{deferredPrompt ? 'Install Native App' : 'Confirm Native Install'}</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (navigator.share) {
+                            try {
+                              await navigator.share({
+                                title: 'Doctorian Medical AI',
+                                text: 'Doctorian Standalone Medical AI Application Package',
+                                url: window.location.href,
+                              });
+                              addToast("📲 App transfer initiated via Bluetooth / Local Share", "success");
+                            } catch (err) {
+                              console.log(err);
+                            }
+                          } else {
+                            navigator.clipboard.writeText(window.location.href);
+                            addToast("📋 App transfer link copied! Ready for USB or local transfer.", "success");
+                          }
+                        }}
+                        className="w-full sm:w-auto py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Share2 size={15} />
+                        <span>Share / USB</span>
                       </button>
                       <button
                         onClick={() => setShowPackageInstallModal(false)}
-                        className="py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="w-full sm:w-auto py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 font-bold text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                       >
                         Close
                       </button>
@@ -4840,6 +4967,90 @@ export default function App() {
                   onDownloadLanguage={handleDownloadLanguage}
                   currentLanguage={currentLanguage}
                 />
+              )}
+
+              <ClinicalReportExporter
+                isOpen={isEhrExportOpen}
+                onClose={() => setIsEhrExportOpen(false)}
+              />
+
+              <TelehealthScribeHub
+                isOpen={isTelehealthOpen}
+                onClose={() => setIsTelehealthOpen(false)}
+              />
+
+              <AuditTrailModal
+                isOpen={isAuditTrailOpen}
+                onClose={() => setIsAuditTrailOpen(false)}
+              />
+
+              <DownloadAppModal
+                isOpen={isDownloadAppOpen}
+                onClose={() => setIsDownloadAppOpen(false)}
+                onInstalled={() => {
+                  setHasInstalledApp(true);
+                  setIsDownloadAppOpen(false);
+                }}
+              />
+            </AnimatePresence>
+
+            {/* Floating Action Download & Interactive Installation Widget */}
+            <AnimatePresence>
+              {!hasInstalledApp && !isStandalone && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0, y: 30 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.8, opacity: 0, y: 30, transition: { duration: 0.3 } }}
+                  className="fixed bottom-6 right-6 z-[130] flex items-center gap-2 p-2 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-2xl rounded-2xl border border-emerald-500/40 shadow-[0_12px_40px_rgba(16,185,129,0.35)] text-white"
+                >
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                    <div className="relative">
+                      <Download size={18} className="text-emerald-400 animate-bounce" />
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                    </div>
+                    <div className="hidden sm:flex flex-col text-left">
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none">
+                        Doctorian Suite
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-300 tracking-tight mt-0.5">
+                        PWA • Windows • Android • Cloud Sync
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Direct 1-Click Interactive Install Button (Disappears on Click) */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={async () => {
+                      const promptEvent = (window as any).deferredPWAInstallPrompt;
+                      if (promptEvent) {
+                        try {
+                          promptEvent.prompt();
+                          await promptEvent.userChoice;
+                        } catch (err) {
+                          console.log('Install prompt executed');
+                        }
+                        (window as any).deferredPWAInstallPrompt = null;
+                      }
+                      setHasInstalledApp(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-500/30 cursor-pointer"
+                    title="Install Doctorian Directly to Desktop / Home Screen (1-Click)"
+                  >
+                    <Sparkles size={14} className="animate-spin" />
+                    <span>Install App Now</span>
+                  </motion.button>
+
+                  {/* Open Multi-Platform Download Studio */}
+                  <button
+                    onClick={() => setIsDownloadAppOpen(true)}
+                    className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white transition-colors cursor-pointer text-xs font-bold"
+                    title="Open Full Multi-Platform Studio (Windows Electron, Android APK, Cloud Backend)"
+                  >
+                    <Laptop size={15} />
+                  </button>
+                </motion.div>
               )}
             </AnimatePresence>
       </div>

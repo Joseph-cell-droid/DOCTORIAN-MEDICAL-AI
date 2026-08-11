@@ -144,7 +144,7 @@ export const SymptomChecker: React.FC<SymptomCheckerProps> = ({
   const doctorRecommendedTests = useMemo(() => {
     const list: Array<{ name: string; category: string; rationale: string; urgency: 'Routine' | 'Urgent' | 'Critical'; sample: string }> = [];
     
-    const sympTexts = activeSymptoms.map(s => s.name.toLowerCase() + " " + s.description.toLowerCase()).join(" ");
+    const sympTexts = activeSymptoms.map((s, mapIdx_146) => s.name.toLowerCase() + " " + s.description.toLowerCase()).join(" ");
 
     // Check fever/malaria indicators
     if (sympTexts.includes('fever') || sympTexts.includes('chill') || sympTexts.includes('headache') || sympTexts.includes('sweat') || sympTexts.includes('dizziness') || activeSymptoms.length === 0) {
@@ -253,13 +253,13 @@ export const SymptomChecker: React.FC<SymptomCheckerProps> = ({
     setLabMapperSynthesisResult(null);
 
     const symptomList = activeSymptoms.length > 0 
-      ? activeSymptoms.map(s => `${s.name} (${s.severity})`).join(', ')
+      ? activeSymptoms.map((s, mapIdx_255) => `${s.name} (${s.severity})`).join(', ')
       : "General Diagnostic Triage Screen";
 
     const correlatedTests = labTests.filter(t => selectedLabTestIds.length === 0 || selectedLabTestIds.includes(t.id));
     const labTestList = correlatedTests.length > 0
-      ? correlatedTests.map(t => `- ${t.name} (${t.category}): ${t.result || 'Completed'} [Normal: ${t.isNormal ? 'YES' : 'ANOMALOUS'}]`).join('\n')
-      : doctorRecommendedTests.map(t => `- Recommended: ${t.name} (${t.rationale})`).join('\n');
+      ? correlatedTests.map((t, mapIdx_260) => `- ${t.name} (${t.category}): ${t.result || 'Completed'} [Normal: ${t.isNormal ? 'YES' : 'ANOMALOUS'}]`).join('\n')
+      : doctorRecommendedTests.map((t, mapIdx_261) => `- Recommended: ${t.name} (${t.rationale})`).join('\n');
 
     try {
       const prompt = `Act as an Expert Clinical Pathologist and Diagnostic Strategist.
@@ -371,7 +371,7 @@ Provide a comprehensive 3-part Clinical Diagnostic Matrix Synthesis:
   };
 
   const updateSymptom = (id: string, updates: Partial<Symptom>) => {
-    setActiveSymptoms(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    setActiveSymptoms(prev => prev.map((s, mapIdx_373) => s.id === id ? { ...s, ...updates } : s));
   };
 
   const runAnalysis = async () => {
@@ -399,7 +399,7 @@ Provide a comprehensive 3-part Clinical Diagnostic Matrix Synthesis:
     setDossierTransmitted(false);
 
     try {
-      const symptomsSummary = activeSymptoms.map(s => 
+      const symptomsSummary = activeSymptoms.map((s, mapIdx_401) => 
         `- Region: ${regions.find(r => r.id === s.region)?.name}, Symptom: ${s.name}, Severity: ${s.severity}, Notes: ${s.description}`
       ).join('\n');
 
@@ -571,7 +571,7 @@ Return ONLY the raw JSON.`;
     
     try {
       const prompt = `Act as an elite Clinical Pharmacologist. A patient has been pre-diagnosed with: ${disease}.
-Symptom details described by patient: ${activeSymptoms.map(s => `${s.name} (${s.severity} severity) - ${s.description}`).join('; ')}.
+Symptom details described by patient: ${activeSymptoms.map((s, mapIdx_573) => `${s.name} (${s.severity} severity) - ${s.description}`).join('; ')}.
 
 Provide a precise medical prescription matching WHO pharmacological guidelines.
 Provide your response in JSON format with exactly this schema:
@@ -762,13 +762,13 @@ Return ONLY the raw JSON response.`;
                 <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                 
                 {/* Interactive Nodes */}
-                {regions.map((reg) => {
+                {regions.map((reg, mapIdx_764) => {
                   const isActive = selectedRegion === reg.id;
                   const hasSymptoms = activeSymptoms.some(s => s.region === reg.id);
                   
                   return (
                     <motion.button
-                      key={reg.id}
+                      key={`symptomchecker-l771-${mapIdx_764}`}
                       onClick={() => setSelectedRegion(reg.id)}
                       whileHover={{ scale: 1.15 }}
                       whileTap={{ scale: 0.95 }}
@@ -819,9 +819,9 @@ Return ONLY the raw JSON response.`;
                   <div className="space-y-4">
                     <p className="text-[9px] font-black uppercase text-slate-400 mb-2">Common Anomalies</p>
                     <div className="flex flex-wrap gap-2">
-                      {currentRegion?.commonSymptoms.map(s => (
+                      {currentRegion?.commonSymptoms.map((s, sIdx) => (
                         <button 
-                          key={s}
+                          key={`sym-${s}-${sIdx}`}
                           onClick={() => handleAddSymptom(selectedRegion!, s)}
                           className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 hover:bg-blue-600 hover:text-white transition-all rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700"
                         >
@@ -870,12 +870,12 @@ Return ONLY the raw JSON response.`;
             ) : (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {activeSymptoms.map((sym) => (
+                  {activeSymptoms.map((sym, mapIdx_872) => (
                     <motion.div
                       layout
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      key={sym.id}
+                      key={`symptomchecker-l878-${mapIdx_872}`}
                       className="group bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-700/50 hover:border-blue-500/30 transition-all flex flex-col"
                     >
                       <div className="flex justify-between items-start mb-6">
@@ -898,9 +898,9 @@ Return ONLY the raw JSON response.`;
 
                       <div className="space-y-4">
                         <div className="flex gap-2">
-                          {(['mild', 'moderate', 'acute'] as const).map(sev => (
+                          {(['mild', 'moderate', 'acute'] as const).map((sev, sevIdx) => (
                             <button
-                              key={sev}
+                              key={`sev-${sym.id}-${sev}-${sevIdx}`}
                               onClick={() => updateSymptom(sym.id, { severity: sev })}
                               className={`flex-1 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
                                 sym.severity === sev 
@@ -1004,7 +1004,7 @@ Return ONLY the raw JSON response.`;
                         <p className="text-[10px] font-black uppercase opacity-60 mb-2 tracking-widest">Neural Protocols Synced</p>
                         <div className="flex flex-wrap gap-2">
                           {(analysisResult.protocolsUsed || []).map((p, idx) => (
-                            <span key={idx} className="bg-white/10 px-2 py-0.5 rounded text-[8px] font-black tracking-tight uppercase border border-white/10 backdrop-blur-md">
+                            <span key={`symptomchecker-l1007-idx-${idx}`} className="bg-white/10 px-2 py-0.5 rounded text-[8px] font-black tracking-tight uppercase border border-white/10 backdrop-blur-md">
                               {p}
                             </span>
                           ))}
@@ -1062,7 +1062,7 @@ Return ONLY the raw JSON response.`;
 
                           return (
                             <div 
-                              key={idx} 
+                              key={`symptomchecker-l1065-idx-${idx}`} 
                               className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover:shadow-md transition-all space-y-4"
                             >
                               <div className="flex items-center justify-between">
@@ -1151,11 +1151,11 @@ Return ONLY the raw JSON response.`;
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">1. Choose Attending Clinical Physician</label>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {doctorsList.map((doc) => {
+                            {doctorsList.map((doc, mapIdx_1153) => {
                               const isSelected = selectedDoctor?.id === doc.id || (!selectedDoctor && doc.id === 'cli-1');
                               return (
                                 <button
-                                  key={doc.id}
+                                  key={`symptomchecker-l1158-${mapIdx_1153}`}
                                   onClick={() => setSelectedDoctor(doc)}
                                   className={`p-4 rounded-2xl border text-left flex items-center gap-4 transition-all ${
                                     isSelected
@@ -1266,7 +1266,7 @@ Return ONLY the raw JSON response.`;
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        key={i}
+                        key={`symptomchecker-l1269-i-${i}`}
                         className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm flex items-start gap-6 group hover:shadow-xl hover:-translate-y-1 transition-all"
                       >
                         <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -1381,7 +1381,7 @@ Return ONLY the raw JSON response.`;
                           Symptom-Driven Laboratory Investigation Protocol
                         </p>
                         <p className="text-blue-700 dark:text-blue-300">
-                          Based on the active symptoms ({activeSymptoms.length > 0 ? activeSymptoms.map(s => s.name).join(', ') : 'General Triage Screen'}), WHO and Uganda Ministry of Health guidelines mandate the following diagnostic lab tests:
+                          Based on the active symptoms ({activeSymptoms.length > 0 ? activeSymptoms.map((s, mapIdx_1383) => s.name).join(', ') : 'General Triage Screen'}), WHO and Uganda Ministry of Health guidelines mandate the following diagnostic lab tests:
                         </p>
                       </div>
                     </div>
@@ -1389,7 +1389,7 @@ Return ONLY the raw JSON response.`;
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {doctorRecommendedTests.map((test, idx) => (
                         <div
-                          key={idx}
+                          key={`symptomchecker-l1392-idx-${idx}`}
                           className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3 flex flex-col justify-between"
                         >
                           <div>
@@ -1482,11 +1482,11 @@ Return ONLY the raw JSON response.`;
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {labTests.map((t) => {
+                        {labTests.map((t, mapIdx_1484) => {
                           const isSelected = selectedLabTestIds.includes(t.id);
                           return (
                             <div
-                              key={t.id}
+                              key={`symptomchecker-l1489-${mapIdx_1484}`}
                               onClick={() => {
                                 setSelectedLabTestIds(prev =>
                                   isSelected ? prev.filter(id => id !== t.id) : [...prev, t.id]

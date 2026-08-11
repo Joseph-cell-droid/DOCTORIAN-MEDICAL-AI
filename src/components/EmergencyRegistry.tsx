@@ -298,8 +298,8 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                     MTN Relay Active: 0787674140
                   </span>
                   <div className="flex gap-1">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {[1, 2, 3].map((i, mapIdx_300) => (
+                      <div key={`emergencyregistry-l302-i-${i}-${mapIdx_300}`} className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     ))}
                   </div>
                 </div>
@@ -374,8 +374,8 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                       className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 dark:text-white focus:border-rose-500 focus:ring-0 transition-all outline-none"
                     >
                       <option value="">Select Typing</option>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => (
-                        <option key={g} value={g}>{g}</option>
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((g, mapIdx_376) => (
+                        <option key={`emergencyregistry-l378-${mapIdx_376}`} value={g}>{g}</option>
                       ))}
                     </select>
                   </div>
@@ -641,9 +641,9 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-3 overflow-y-auto max-h-[350px] pr-2">
-                        {contactsList.map(contact => (
+                        {contactsList.map((contact, mapIdx_643) => (
                           <div 
-                            key={contact.id} 
+                            key={`emergencyregistry-l646-${mapIdx_643}`} 
                             className="bg-white dark:bg-slate-950/60 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex justify-between items-center group hover:border-rose-500/35 transition-all shadow-sm"
                           >
                             <div className="space-y-1">

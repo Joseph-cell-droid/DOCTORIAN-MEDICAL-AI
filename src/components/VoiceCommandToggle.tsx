@@ -395,7 +395,7 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
                 ][i];
                 return (
                   <motion.div
-                    key={i}
+                    key={`voicecommandtoggle-l398-i-${i}`}
                     className="w-[3px] rounded-full bg-rose-500/90 dark:bg-rose-400"
                     animate={{
                       height: heights
@@ -473,9 +473,9 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
             </div>
 
             <div className="space-y-2">
-              {commandLogs.map((log) => (
+              {commandLogs.map((log, mapIdx_475) => (
                 <div
-                  key={log.id}
+                  key={`voicecommandtoggle-l478-${mapIdx_475}`}
                   className="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl flex flex-col gap-1 transition-all hover:scale-[1.01]"
                 >
                   <div className="flex items-center justify-between">
@@ -543,7 +543,7 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
                 const heightVal = [10, 4, 12, 6, 8, 11, 4, 9, 3, 7, 10, 5][i];
                 return (
                   <div
-                    key={i}
+                    key={`voicecommandtoggle-l546-i-${i}`}
                     style={{
                       height: isListening ? `${heightVal * 1.2}px` : '3px',
                       transition: `height 0.15s ease-in-out ${i * 0.05}s`
@@ -659,7 +659,7 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {VOICE_COMMANDS_HELP.map((cmd, i) => (
                 <div
-                  key={i}
+                  key={`voicecommandtoggle-l662-i-${i}`}
                   className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-850 text-[10px] flex flex-col gap-0.5"
                 >
                   <div className="flex items-start gap-1 justify-between">

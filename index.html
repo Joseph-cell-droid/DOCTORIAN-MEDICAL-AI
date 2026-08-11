@@ -36,6 +36,13 @@
     
     <title>Doctorian Medical AI</title>
     <script>
+      // Capture PWA install prompt globally
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPWAInstallPrompt = e;
+        console.log('[Doctorian PWA] beforeinstallprompt event captured globally.');
+      });
+
       // Register the active PWA Service Worker for full offline capabilities
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

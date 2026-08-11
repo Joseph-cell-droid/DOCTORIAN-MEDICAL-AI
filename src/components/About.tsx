@@ -31,10 +31,10 @@ export const About: React.FC = () => {
 
   const techStack = [
     { icon: <Globe size={24} />, name: "Multi-Lingual Core", desc: "Fluent in 56+ Ugandan languages & technical English" },
-    { icon: <Brain size={24} />, name: "DOCTORIAN 1.5 ORACLE", desc: "Fastest clinical reasoning edge core" },
-    { icon: <Layers size={24} />, name: "DOCTORIAN 2.0 ORACLE", desc: "Speed cloud diagnostic intelligence" },
-    { icon: <Shield size={24} />, name: "DOCTORIAN 4.0 NOVA EXPERTS", desc: "Deep neural expert reasoning engine" },
-    { icon: <Database size={24} />, name: "DOCTORIAN 5.0 OPUS EXPERTS", desc: "Quantum diagnostic multi-modal core" },
+    { icon: <Brain size={24} />, name: "Doctorian General AI", desc: "Fastest clinical reasoning edge core" },
+    { icon: <Layers size={24} />, name: "Doctorian Clinical AI", desc: "Speed cloud diagnostic intelligence" },
+    { icon: <Shield size={24} />, name: "Doctorian Uganda AI", desc: "Deep neural expert reasoning engine" },
+    { icon: <Database size={24} />, name: "Doctorian Research AI", desc: "Quantum diagnostic multi-modal core" },
   ];
 
   const milestones = [
@@ -94,9 +94,9 @@ export const About: React.FC = () => {
         </motion.p>
 
         <div className="flex flex-wrap justify-center gap-4">
-          {['DOCTORIAN 1.5 ORACLE', 'DOCTORIAN 2.0 ORACLE', 'DOCTORIAN 2.5 NEXUS', 'DOCTORIAN 3.0 NEXUS', 'DOCTORIAN 4.0 NOVA EXPERTS', 'DOCTORIAN 5.0 OPUS EXPERTS'].map((node, i) => (
+          {['Doctorian General AI', 'Doctorian Clinical AI', 'Doctorian Triage AI', 'Doctorian Patient Education AI', 'Doctorian Uganda AI', 'Doctorian Research AI'].map((node, i) => (
              <motion.div
-               key={node}
+               key={`about-node-${node}-${i}`}
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.2 + (i * 0.1) }}
@@ -131,7 +131,7 @@ export const About: React.FC = () => {
           }
         ].map((card, i) => (
           <motion.div
-            key={i}
+            key={`about-l134-i-${i}`}
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -162,7 +162,7 @@ export const About: React.FC = () => {
           { label: "Uptime Sync", val: "99.98%" }
         ].map((stat, i) => (
           <motion.div 
-            key={i}
+            key={`about-l165-i-${i}`}
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -224,7 +224,7 @@ export const About: React.FC = () => {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {techStack.map((tech, i) => (
               <motion.div
-                key={i}
+                key={`about-l227-i-${i}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -251,7 +251,7 @@ export const About: React.FC = () => {
         <div className="space-y-12 relative before:absolute before:left-8 before:top-2 before:bottom-2 before:w-px before:bg-slate-100 dark:before:bg-slate-800">
           {milestones.map((milestone, i) => (
             <motion.div
-              key={i}
+              key={`about-l254-i-${i}`}
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -329,7 +329,7 @@ export const About: React.FC = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           {faqs.map((faq, i) => (
             <motion.div
-              key={i}
+              key={`about-l332-i-${i}`}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -380,8 +380,8 @@ export const About: React.FC = () => {
                 available 24/7, anywhere in the world.
               </p>
               <div className="pt-8 flex flex-wrap gap-4">
-                {['Systems Architecture', 'Cognis Networks', 'Clinical UX', 'Bio-Informatics'].map(tag => (
-                   <span key={tag} className="px-4 py-2 bg-white/5 rounded-full text-xs font-bold tracking-widest text-blue-400 border border-white/10 uppercase">
+                {['Systems Architecture', 'Cognis Networks', 'Clinical UX', 'Bio-Informatics'].map((tag, tIdx) => (
+                   <span key={`about-tag-${tag}-${tIdx}`} className="px-4 py-2 bg-white/5 rounded-full text-xs font-bold tracking-widest text-blue-400 border border-white/10 uppercase">
                       {tag}
                    </span>
                 ))}

@@ -696,9 +696,9 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-2">Sweep Speed</span>
               <div className="grid grid-cols-3 gap-1.5">
-                {[12.5, 25, 50].map((speed) => (
+                {[12.5, 25, 50].map((speed, mapIdx_698) => (
                   <button
-                    key={speed}
+                    key={`liveecgmonitor-l701-${mapIdx_698}`}
                     onClick={() => setSweepSpeed(speed)}
                     className={`py-1.5 rounded-lg text-[10px] font-mono font-bold transition-all border ${
                       sweepSpeed === speed
@@ -715,9 +715,9 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-2">Calibration Gain</span>
               <div className="grid grid-cols-3 gap-1.5">
-                {[0.5, 1.0, 2.0].map((g) => (
+                {[0.5, 1.0, 2.0].map((g, mapIdx_717) => (
                   <button
-                    key={g}
+                    key={`liveecgmonitor-l720-${mapIdx_717}`}
                     onClick={() => setGain(g)}
                     className={`py-1.5 rounded-lg text-[10px] font-mono font-bold transition-all border ${
                       gain === g
@@ -828,7 +828,7 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
 
             <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 font-mono text-center sm:text-right">
               <Shield size={12} className="text-emerald-500/80 shrink-0" />
-              <span>HIPAA Secure Accuracy Baseline</span>
+              <span>Privacy & Security Baseline</span>
             </div>
           </div>
         </div>
@@ -882,7 +882,7 @@ export const LiveECGMonitor: React.FC<LiveECGMonitorProps> = ({ vitals, addAlarm
           ) : (
             hrSamples.map((sample, idx) => (
               <div 
-                key={sample.id} 
+                key={`liveecgmonitor-l885-${idx}`} 
                 className={`p-3 rounded-xl border bg-slate-900/40 relative overflow-hidden transition-all hover:bg-slate-900/60 ${
                   sample.status === 'critical' ? 'border-rose-900/50 bg-rose-950/20' :
                   sample.status === 'warning' ? 'border-amber-900/50 bg-amber-950/10' :

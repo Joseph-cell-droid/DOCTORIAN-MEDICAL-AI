@@ -120,7 +120,7 @@ export const SpecialistFinder: React.FC = () => {
         const urlParams = new URLSearchParams(text.split('?')[1]);
         const scanUserData = urlParams.get('scanUserData');
         if (scanUserData) {
-          dataToParse = decodeURIComponent(atob(scanUserData).split('').map((c) => {
+          dataToParse = decodeURIComponent(atob(scanUserData).split('').map((c, mapIdx_122) => {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
           }).join(''));
         }
@@ -496,9 +496,9 @@ export const SpecialistFinder: React.FC = () => {
                     <div className="space-y-2 md:col-span-2 pb-2">
                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-mono">Simulated Vitals Preset</label>
                       <div className="grid grid-cols-3 gap-2">
-                        {(['healthy', 'warning', 'critical'] as const).map(p => (
+                        {(['healthy', 'warning', 'critical'] as const).map((p, mapIdx_498) => (
                           <button
-                            key={p}
+                            key={`specialistfinder-l501-p-${p}-${mapIdx_498}`}
                             type="button"
                             onClick={() => setImportingPatient({...importingPatient, vitalsPreset: p})}
                             className="py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-600"
@@ -682,7 +682,7 @@ export const SpecialistFinder: React.FC = () => {
                       <div className="space-y-3">
                         {demoPatients.map((patient, index) => (
                           <div 
-                            key={index}
+                            key={`specialistfinder-l685-index-${index}`}
                             className="bg-white dark:bg-slate-900 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-between shadow-sm hover:shadow transition-all group"
                           >
                             <div>
@@ -837,7 +837,7 @@ export const SpecialistFinder: React.FC = () => {
             { label: 'Routing nodes', value: 'Kampala Node', desc: 'Active communication relays', icon: <MapPin className="text-emerald-500" /> },
             { label: 'Secure protocol', value: 'AES-256', desc: 'End-to-end telemetry vault', icon: <ShieldCheck className="text-violet-500" /> }
           ].map((stat, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
+            <div key={`specialistfinder-l840-i-${i}`} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider font-mono">{stat.label}</span>
                 <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">{stat.icon}</div>
@@ -862,9 +862,9 @@ export const SpecialistFinder: React.FC = () => {
           </div>
           
           <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar py-2">
-            {categories.map(cat => (
+            {categories.map((cat, mapIdx_864) => (
               <button
-                key={cat}
+                key={`specialistfinder-l867-${mapIdx_864}`}
                 onClick={() => setActiveCategory(cat)}
                 className={`px-6 py-3.5 rounded-2xl text-[9px] whitespace-nowrap font-[1000] uppercase tracking-widest transition-all ${
                   activeCategory === cat 

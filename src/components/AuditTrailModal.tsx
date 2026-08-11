@@ -116,9 +116,9 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({ isOpen, onClos
         {/* Filter Bar */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {(['all', 'auth', 'access', 'ai', 'prescription'] as const).map(cat => (
+            {(['all', 'auth', 'access', 'ai', 'prescription'] as const).map((cat, catIdx) => (
               <button
-                key={cat}
+                key={`audit-cat-${cat}-${catIdx}`}
                 onClick={() => setFilterCategory(cat)}
                 className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
                   filterCategory === cat
@@ -145,9 +145,9 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({ isOpen, onClos
 
         {/* Logs Table */}
         <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
-          {filteredLogs.map(log => (
+          {filteredLogs.map((log, mapIdx_147) => (
             <div
-              key={log.id}
+              key={`audittrailmodal-l150-${mapIdx_147}`}
               className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-purple-500/40"
             >
               <div className="space-y-1 flex-1">

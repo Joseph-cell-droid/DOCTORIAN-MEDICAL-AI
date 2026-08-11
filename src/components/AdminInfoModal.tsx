@@ -109,8 +109,8 @@ export const AdminInfoModal: React.FC<AdminInfoModalProps> = ({ isOpen, onClose 
                   </div>
                 ) : notifications.length > 0 ? (
                   <div className="space-y-4">
-                    {notifications.map((n) => (
-                      <article key={n.id} className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-blue-100 dark:border-blue-800/50">
+                    {notifications.map((n, mapIdx_111) => (
+                      <article key={`admininfomodal-l113-${mapIdx_111}`} className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-blue-100 dark:border-blue-800/50">
                         <div className="flex items-center justify-between mb-2">
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
                             n.type === 'alert' ? 'bg-rose-100 text-rose-600' : 
@@ -140,7 +140,7 @@ export const AdminInfoModal: React.FC<AdminInfoModalProps> = ({ isOpen, onClose 
                 <h4 id="platform-resources-title" className="text-xs font-black text-slate-400 uppercase tracking-widest">Platform Resources</h4>
                 <div className="space-y-4">
                   {STATIC_INFO.map((section, i) => (
-                    <div key={i} className="flex gap-4 p-4 rounded-2xl border border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <div key={`admininfomodal-l143-i-${i}`} className="flex gap-4 p-4 rounded-2xl border border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <div className="shrink-0 mt-1" aria-hidden="true">
                         {section.icon}
                       </div>

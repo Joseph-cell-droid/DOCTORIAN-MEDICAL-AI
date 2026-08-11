@@ -1,12 +1,14 @@
 {
+  "id": "/",
+  "scope": "/",
   "name": "Doctorian Medical AI",
   "short_name": "Doctorian AI",
   "description": "Autonomous Neural Healthcare & Diagnostic Interface. Live telemetry analysis, AI diagnostics, offline core, and emergency dispatch.",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
-  "background_color": "#ffffff",
-  "theme_color": "#1e3a8a",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
   "orientation": "any",
   "categories": ["medical", "health", "lifestyle", "utilities"],
   "icons": [

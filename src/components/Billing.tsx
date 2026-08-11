@@ -231,9 +231,9 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        {PLANS.map((plan) => (
+        {PLANS.map((plan, mapIdx_233) => (
           <motion.div
-            key={plan.id}
+            key={`billing-l236-${mapIdx_233}`}
             whileHover={{ y: -8 }}
             className={`relative p-8 rounded-[2.5rem] border ${
               selectedPlan === plan.id 
@@ -259,7 +259,7 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
 
             <ul className="space-y-4 mb-10">
               {plan.features.map((feature, i) => (
-                <li key={i} className="flex gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
+                <li key={`billing-l262-i-${i}`} className="flex gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
                   <CheckCircle2 size={18} className="text-blue-500 shrink-0" />
                   {feature}
                 </li>
@@ -414,7 +414,7 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
                     className="mt-4 grid grid-cols-2 gap-2"
                   >
                     {paymentMethods.map((method, idx) => (
-                      <div key={idx} className="p-2 rounded-lg bg-white/5 border border-white/5 text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                      <div key={`billing-l417-idx-${idx}`} className="p-2 rounded-lg bg-white/5 border border-white/5 text-[9px] font-bold text-slate-400 uppercase tracking-tight">
                         {method.name}
                       </div>
                     ))}

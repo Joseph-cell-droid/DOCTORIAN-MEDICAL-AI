@@ -466,7 +466,7 @@ export default function BioSimulation({ user, onUpdateUser }: BioSimulationProps
       : filteredPapers;
 
     if (format === 'bibtex') {
-      const bibtexText = papersToExport.map(p => `@article{pmid${p.pmid},
+      const bibtexText = papersToExport.map((p, mapIdx_468) => `@article{pmid${p.pmid},
   author = {${p.authors}},
   title = {${p.title}},
   journal = {${p.journal}},
@@ -639,8 +639,8 @@ Provide a structured, rigorous, evidence-based analysis containing:
               onChange={(e) => setSelectedModality(e.target.value)}
               className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs text-white font-bold focus:outline-none focus:border-blue-500"
             >
-              {modalities.map(m => (
-                <option key={m} value={m}>{m}</option>
+              {modalities.map((m, mapIdx_641) => (
+                <option key={`biosimulation-l643-${mapIdx_641}`} value={m}>{m}</option>
               ))}
             </select>
           </div>
@@ -651,9 +651,9 @@ Provide a structured, rigorous, evidence-based analysis containing:
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider shrink-0 mr-1 flex items-center gap-1">
             <Layers size={12} /> Category:
           </span>
-          {categories.map((cat) => (
+          {categories.map((cat, mapIdx_653) => (
             <button
-              key={cat}
+              key={`biosimulation-l656-${mapIdx_653}`}
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
                 selectedCategory === cat 
@@ -875,7 +875,7 @@ Provide a structured, rigorous, evidence-based analysis containing:
                       <p className="text-[10px] font-black uppercase text-emerald-400">Key Trial Endpoints</p>
                       <ul className="list-disc list-inside text-slate-300 text-[11px] space-y-1">
                         {paper.keyFindings.map((kf, idx) => (
-                          <li key={idx}>{kf}</li>
+                          <li key={`biosimulation-l878-idx-${idx}`}>{kf}</li>
                         ))}
                       </ul>
                     </div>

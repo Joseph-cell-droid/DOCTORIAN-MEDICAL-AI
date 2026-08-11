@@ -187,7 +187,7 @@ export function MarianConsole({
                   </div>
                 ) : (
                   logs.map((log, index) => (
-                    <div key={index} className="flex items-start gap-2 border-l border-slate-900 pl-2">
+                    <div key={`marianconsole-l190-index-${index}`} className="flex items-start gap-2 border-l border-slate-900 pl-2">
                       <span className="text-slate-600 shrink-0 select-none text-[9px] mt-0.5">[{log.timestamp}]</span>
                       <span className={`shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded leading-none ${
                         log.type === 'success' ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-950' :
@@ -242,9 +242,9 @@ export function MarianConsole({
                 <div className="pt-3 border-t border-slate-855 mt-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Hardware Acceleration</span>
                   <div className="grid grid-cols-3 gap-1.5">
-                    {(['WebGPU', 'WebAssembly', 'WebGL'] as const).map((prov) => (
+                    {(['WebGPU', 'WebAssembly', 'WebGL'] as const).map((prov, mapIdx_244) => (
                       <button
-                        key={prov}
+                        key={`marianconsole-l247-${mapIdx_244}`}
                         onClick={() => {
                           setBackend(prov);
                           addMarianLog('info', `HARDWARE: Target computation backend changed to ${prov}. Re-binding shader matrices...`);
@@ -279,8 +279,8 @@ export function MarianConsole({
                     onChange={(e) => setPlaygroundTarget(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-200 focus:outline-none focus:border-blue-500 uppercase"
                   >
-                    {Object.keys(MarianMTRegistry).map(lang => (
-                      <option key={lang} value={lang}>{lang}</option>
+                    {Object.keys(MarianMTRegistry).map((lang, mapIdx_281) => (
+                      <option key={`marianconsole-l283-${mapIdx_281}`} value={lang}>{lang}</option>
                     ))}
                   </select>
                 </div>

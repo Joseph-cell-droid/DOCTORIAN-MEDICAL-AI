@@ -66,7 +66,7 @@ export const HealthTipModal: React.FC<HealthTipModalProps> = ({ isOpen, onClose,
                     <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Key Benefits</p>
                     <div className="grid grid-cols-1 gap-2">
                       {tip.benefits.map((benefit, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                        <div key={`healthtipmodal-l69-i-${i}`} className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                           {benefit}
                         </div>

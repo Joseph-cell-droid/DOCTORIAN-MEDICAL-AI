@@ -215,7 +215,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
         const extractedMeds = JSON.parse(text);
         
         if (Array.isArray(extractedMeds)) {
-          const formattedMeds = extractedMeds.map(m => ({
+          const formattedMeds = extractedMeds.map((m, mapIdx_217) => ({
             name: m.name,
             dosage: m.dosage || '500mg',
             frequency: m.frequency || 'Daily',
@@ -688,7 +688,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
 
   const toggleReminders = async (id: string, currentStatus: boolean) => {
     try {
-      const updated = offlineMedicines.map(m => m.id === id ? { ...m, remindersEnabled: !currentStatus } : m);
+      const updated = offlineMedicines.map((m, mapIdx_690) => m.id === id ? { ...m, remindersEnabled: !currentStatus } : m);
       localStorage.setItem('rx_offline_medicines', JSON.stringify(updated));
       refreshAllLocalData();
     } catch (err) {
@@ -707,8 +707,8 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
           <div className="h-4 w-48 bg-slate-50 dark:bg-slate-950 rounded-full mx-auto" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl mt-12">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-48 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
+          {[1, 2, 3].map((i, mapIdx_709) => (
+            <div key={`medicationtracker-l711-i-${i}-${mapIdx_709}`} className="h-48 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
           ))}
         </div>
       </div>
@@ -775,8 +775,8 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
             }}
             className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-xs font-black uppercase text-slate-800 dark:text-white focus:outline-none"
           >
-            {offlinePatients.map(p => (
-              <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+            {offlinePatients.map((p, mapIdx_777) => (
+              <option key={`medicationtracker-l779-${mapIdx_777}`} value={p.id}>{p.name} ({p.id})</option>
             ))}
           </select>
         </div>
@@ -839,7 +839,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
         const takenLogsCount = activePatientLogs.filter(l => l.status === 'taken').length;
         const adherencePct = totalLogsCount > 0 ? Math.round((takenLogsCount / totalLogsCount) * 100) : 100;
 
-        const transformedMeds = activeMeds.map(m => {
+        const transformedMeds = activeMeds.map((m, mapIdx_841) => {
           const logToday = activeLogsForToday.find(l => l.medicineId === m.id);
           return {
             id: m.id,
@@ -854,7 +854,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
 
         const transformedHistory = offlineLogs
           .filter(l => l.patientId === activePatientId)
-          .map(l => ({
+          .map((l, mapIdx_856) => ({
             id: l.id,
             medicationId: l.medicineId,
             takenAt: l.logDate + 'T' + (l.reminderTime || '08:00') + ':00.000Z',
@@ -885,11 +885,11 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {activeLogsForToday.map(log => {
+                        {activeLogsForToday.map((log, mapIdx_887) => {
                           const isTaken = log.status === 'taken';
                           const isMissed = log.status === 'missed';
                           return (
-                            <div key={log.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isTaken ? 'bg-emerald-500/5 border-emerald-500/10' : isMissed ? 'bg-rose-500/5 border-rose-500/10' : 'bg-slate-50/50 border-slate-150 dark:bg-slate-800/40 dark:border-slate-700'}`}>
+                            <div key={`medicationtracker-l892-${mapIdx_887}`} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isTaken ? 'bg-emerald-500/5 border-emerald-500/10' : isMissed ? 'bg-rose-500/5 border-rose-500/10' : 'bg-slate-50/50 border-slate-150 dark:bg-slate-800/40 dark:border-slate-700'}`}>
                               <div className="flex items-center gap-4">
                                 <div className={`p-3 rounded-xl ${isTaken ? 'bg-emerald-500 text-white shadow-lg' : isMissed ? 'bg-rose-500 text-white' : 'bg-blue-600 text-white animate-pulse'}`}>
                                   <Clock size={18} />
@@ -930,12 +930,12 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                   <div className="space-y-4">
                     <h3 className="text-xs font-black uppercase text-slate-400 tracking-[0.25em] pl-1">Clinical Active Molecules ({activeMeds.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {activeMeds.map((med) => {
+                      {activeMeds.map((med, mapIdx_932) => {
                         const logToday = activeLogsForToday.find(l => l.medicineId === med.id);
                         const isTaken = logToday ? logToday.status === 'taken' : false;
                         return (
                           <div 
-                            key={med.id}
+                            key={`medicationtracker-l938-${mapIdx_932}`}
                             className="group relative bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all h-full flex flex-col justify-between"
                           >
                             <div>
@@ -1176,7 +1176,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                     <div className="grid grid-cols-1 gap-2">
                        {commonMeds.map((m, idx) => (
                          <button
-                          key={idx}
+                          key={`medicationtracker-l1179-idx-${idx}`}
                           onClick={() => {
                             setNewMed({...newMed, name: m.name, dosage: m.dosage, frequency: m.frequency, category: m.category as any});
                             setRegisterMode('manual');
@@ -1338,7 +1338,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                        <div className="space-y-2">
                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Registered Bio-Molecules</p>
                          {extractionResults.map((r, i) => (
-                           <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                           <div key={`medicationtracker-l1341-i-${i}`} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                              <div>
                                <p className="text-sm font-black uppercase text-slate-900 dark:text-white">{r.name}</p>
                                <p className="text-[10px] text-slate-400 font-bold uppercase">{r.dosage} • {r.frequency}</p>
@@ -1438,12 +1438,12 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                         { id: 'photo', label: 'Photo Confirm', icon: Camera, desc: 'Pill snap verification' },
                         { id: 'video', label: 'Video Confirm', icon: Video, desc: 'Ingestion video stream' },
                         { id: 'scan', label: 'Barcode Pack', icon: QrCode, desc: 'Pack QR verification' },
-                      ].map(method => {
+                      ].map((method, mapIdx_1440) => {
                         const Icon = method.icon;
                         const isSelected = verifyMethod === method.id;
                         return (
                           <button
-                            key={method.id}
+                            key={`medicationtracker-l1446-${mapIdx_1440}`}
                             type="button"
                             onClick={() => setVerifyMethod(method.id as any)}
                             className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
@@ -1595,11 +1595,11 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                           { id: 'wrong_drug', label: '❌ Wrong Drug', desc: 'E.g., Sildenafil' },
                           { id: 'wrong_dosage', label: '⚠️ Strength Mismatch', desc: '1000mg vs 500mg' },
                           { id: 'expired', label: '📅 Expired Batch', desc: 'Potency degraded' },
-                        ].map((item) => {
+                        ].map((item, mapIdx_1597) => {
                           const isSelected = simulatedDrugMatch === item.id;
                           return (
                             <button
-                              key={item.id}
+                              key={`medicationtracker-l1602-${mapIdx_1597}`}
                               type="button"
                               onClick={() => setSimulatedDrugMatch(item.id as any)}
                               className={`p-2.5 rounded-xl border text-left transition-all ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-850'}`}
@@ -1729,7 +1729,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }
                       const isSelected = selectedAiAnswer === opt;
                       return (
                         <button
-                          key={i}
+                          key={`medicationtracker-l1732-i-${i}`}
                           type="button"
                           onClick={() => setSelectedAiAnswer(opt)}
                           className={`w-full text-left p-4 rounded-2xl border transition-all text-xs font-bold uppercase leading-normal flex items-start gap-3 ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-850 border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}

@@ -116,7 +116,7 @@ export function FloatingAI({ user, currentView, onNavigate }: FloatingAIProps) {
                        <div className="grid grid-cols-2 gap-4">
                           {quickTools.map((tool, i) => (
                              <button
-                               key={i}
+                               key={`floatingai-l119-i-${i}`}
                                onClick={() => {
                                  if (onNavigate) onNavigate(tool.view);
                                  setIsOpen(false);

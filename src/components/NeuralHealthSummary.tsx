@@ -171,8 +171,8 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
                 <div className="flex items-end justify-between">
                   <span className="text-[10px] font-black text-emerald-500 uppercase">Verified Report</span>
                   <div className="flex -space-x-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700" />
+                    {[1, 2, 3].map((i, mapIdx_173) => (
+                      <div key={`neuralhealthsummary-l175-i-${i}-${mapIdx_173}`} className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700" />
                     ))}
                   </div>
                 </div>

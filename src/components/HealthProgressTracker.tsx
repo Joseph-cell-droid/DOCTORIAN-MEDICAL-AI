@@ -424,7 +424,7 @@ export const HealthProgressTracker: React.FC<HealthProgressTrackerProps> = ({ us
   };
 
   const handleResetDaily = () => {
-    const resetGoals = goals.map(g => ({ ...g, current: 0 }));
+    const resetGoals = goals.map((g, mapIdx_426) => ({ ...g, current: 0 }));
     setGoals(resetGoals);
     localStorage.setItem('doctorian_daily_goals', JSON.stringify(resetGoals));
     
@@ -971,7 +971,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
       );
       if (res && res.text) {
         let finalAdvices = res.text.split('\n')
-          .map(line => line.replace(/^[*\-\d.\s]+/, '').trim())
+          .map((line, mapIdx_973) => line.replace(/^[*\-\d.\s]+/, '').trim())
           .filter(line => line.length > 3)
           .slice(0, 3);
           
@@ -1300,7 +1300,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                 { id: 'Garmin', label: 'Garmin Fenix', emoji: '⚡', sub: 'Connect IQ' },
                 { id: 'Bluetooth', label: 'Medical BLE', emoji: '📡', sub: 'Raw GATT' },
                 { id: 'None', label: 'Disable Cast', emoji: '❌', sub: 'Clear Relay' },
-              ].map(d => {
+              ].map((d, mapIdx_1302) => {
                 const isActive = activeWatch === d.id;
                 let activeStyle = "";
                 if (isActive) {
@@ -1339,7 +1339,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                   { id: 'elevated', label: 'Elevated', color: 'border-amber-500/20 active:bg-amber-500 text-amber-500' },
                   { id: 'hyper', label: 'Hyper / AFib', color: 'border-rose-500/20 active:bg-rose-500 text-rose-500' },
                   { id: 'depressed', label: 'Depressed', color: 'border-sky-500/20 active:bg-sky-500 text-sky-500' },
-                ].map(p => {
+                ].map((p, mapIdx_1341) => {
                   const isPresetActive = physPreset === p.id;
                   let style = isPresetActive
                     ? "bg-slate-900 text-white border-slate-900 shadow-sm"
@@ -1373,7 +1373,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
               </span>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[8px] text-emerald-400 h-[85px] overflow-y-auto mt-2 space-y-1 scrollbar-none">
                 {projectionLogs.map((log, i) => (
-                  <div key={i} className="truncate">
+                  <div key={`healthprogresstracker-l1376-i-${i}`} className="truncate">
                     <span className="text-slate-600 mr-1">&gt;</span>
                     {log}
                   </div>
@@ -1468,7 +1468,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
 
                     <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 font-medium text-lg leading-relaxed mb-10">
                        {traceResult.split('\n').map((para, i) => (
-                         <p key={i} className="mb-4">{para}</p>
+                         <p key={`healthprogresstracker-l1471-i-${i}`} className="mb-4">{para}</p>
                        ))}
                     </div>
 
@@ -1604,7 +1604,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                   setSleepLogs(nextLogs);
 
                   // Update standard biometric sleep goal
-                  const updatedGoals = goals.map(g => {
+                  const updatedGoals = goals.map((g, mapIdx_1606) => {
                     if (g.id === 'sleep') {
                       const nextVal = g.current + sleepInputDuration;
                       if (nextVal >= g.target && g.current < g.target) {
@@ -1669,16 +1669,16 @@ Provide a clean array or scannable markdown blocks containing these structured a
                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-sans">
                       Aesthetic Sleep Quality & Feel
                     </span>
-                    <div className="grid grid-cols-5 gap-2.5">
+                    <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
                       {[
                         { val: 5, emoji: '🤩', label: 'Excellent', color: 'border-amber-500/20 hover:border-amber-500 text-amber-500 bg-amber-500/5' },
                         { val: 4, emoji: '😊', label: 'Good', color: 'border-indigo-500/20 hover:border-indigo-500 text-indigo-500 bg-indigo-500/5' },
                         { val: 3, emoji: '😐', label: 'Fair', color: 'border-blue-500/20 hover:border-blue-500 text-blue-500 bg-blue-500/5' },
                         { val: 2, emoji: '🥱', label: 'Poor', color: 'border-orange-500/20 hover:border-orange-500 text-orange-500 bg-orange-500/5' },
                         { val: 1, emoji: '😫', label: 'Terrible', color: 'border-rose-500/20 hover:border-rose-500 text-rose-500 bg-rose-500/5' }
-                      ].map((item) => (
+                      ].map((item, itemIdx) => (
                         <button
-                          key={item.val}
+                          key={`hpt-val-${item.val}-${itemIdx}`}
                           type="button"
                           onClick={() => setSleepInputQuality(item.val)}
                           className={`py-3.5 px-1.5 rounded-2xl border transition-all active:scale-95 flex flex-col items-center justify-center text-center cursor-pointer ${
@@ -1782,7 +1782,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                               // Decrease daily goals if they delete the log for today
                               const todayString = new Date().toISOString().split('T')[0];
                               if (log.date === todayString) {
-                                const nextGoals = goals.map(g => {
+                                const nextGoals = goals.map((g, mapIdx_1784) => {
                                   if (g.id === 'sleep') {
                                     return { ...g, current: Math.max(0, parseFloat((g.current - log.duration).toFixed(1))) };
                                   }
@@ -1837,7 +1837,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
 
              {/* Connection & Member Cards Row */}
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-               {connectedMembers.map(member => {
+               {connectedMembers.map((member, mapIdx_1839) => {
                  const isSelected = member.id === selectedMemberId;
                  const statusGlow = member.status === 'excellent' ? 'bg-emerald-500 shadow-emerald-500/50' :
                                     member.status === 'normal' ? 'bg-indigo-500 shadow-indigo-500/50' :
@@ -1971,7 +1971,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                          />
                        </div>
 
-                       <div className="grid grid-cols-2 gap-4">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                          <div>
                            <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Relation / Role</label>
                            <select
@@ -2116,9 +2116,9 @@ Provide a clean array or scannable markdown blocks containing these structured a
                <div className="flex items-center gap-2">
                   {chartMode === 'vitals' ? (
                      <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
-                        {['7D', '30D', '90D', '120D+'].map(t => (
+                        {['7D', '30D', '90D', '120D+'].map((t, tIdx) => (
                           <button 
-                            key={t} 
+                            key={`hpt-tr-${t}-${tIdx}`} 
                             type="button" 
                             onClick={() => setSelectedTimeRange(t as any)}
                             className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer ${selectedTimeRange === t ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-sm font-extrabold shadow-indigo-500/5' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
@@ -2493,9 +2493,9 @@ Provide a clean array or scannable markdown blocks containing these structured a
                { id: 'clinical', label: 'Medical Records', icon: <FileText size={18} /> },
                { id: 'meds', label: 'Medication Flux', icon: <Pill size={18} /> },
                { id: 'protocols', label: 'Neural Protocols', icon: <ClipboardList size={18} /> }
-             ].map(seg => (
+             ].map((seg, segIdx) => (
                <button
-                  key={seg.id}
+                  key={`hpt-seg-${seg.id}-${segIdx}`}
                   onClick={() => setActiveSegment(seg.id as any)}
                   className={`flex flex-col items-center gap-3 p-6 rounded-[2rem] border transition-all ${activeSegment === seg.id ? 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-500/20' : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800'}`}
                >
@@ -2536,7 +2536,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                 {activeSegment === 'clinical' && (
                   <div className="space-y-4">
                     {records.slice(0, 3).map((rec, i) => (
-                      <div key={i} className="flex items-center gap-6 p-6 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-800">
+                      <div key={`healthprogresstracker-l2539-i-${i}`} className="flex items-center gap-6 p-6 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-800">
                          <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
                             <FileText size={24} />
                          </div>
@@ -2553,7 +2553,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                 {activeSegment === 'meds' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {meds.slice(0, 4).map((med, i) => (
-                      <div key={i} className="p-8 bg-emerald-50/20 dark:bg-emerald-900/10 rounded-[2rem] border border-emerald-100 dark:border-emerald-800">
+                      <div key={`healthprogresstracker-l2556-i-${i}`} className="p-8 bg-emerald-50/20 dark:bg-emerald-900/10 rounded-[2rem] border border-emerald-100 dark:border-emerald-800">
                          <div className="flex items-center justify-between mb-4">
                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl text-emerald-600 border border-emerald-100 dark:border-emerald-800">
                                <Pill size={20} />
@@ -2570,7 +2570,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                 {activeSegment === 'protocols' && (
                    <div className="space-y-4">
                       {tasks.slice(0, 2).map((t, i) => (
-                        <div key={i} className="p-8 bg-blue-50/20 dark:bg-blue-900/10 rounded-[2rem] border border-blue-100 dark:border-blue-800 flex items-center gap-6">
+                        <div key={`healthprogresstracker-l2573-i-${i}`} className="p-8 bg-blue-50/20 dark:bg-blue-900/10 rounded-[2rem] border border-blue-100 dark:border-blue-800 flex items-center gap-6">
                            <div className="w-4 h-4 rounded-full bg-blue-600"></div>
                            <div className="flex-1">
                               <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{t.title}</p>
@@ -2663,10 +2663,10 @@ Provide a clean array or scannable markdown blocks containing these structured a
              </div>
 
              <div className="space-y-6">
-                {goals.map((g) => {
+                {goals.map((g, mapIdx_2665) => {
                    const progressPercent = Math.min(100, Math.round((g.current / g.target) * 100));
                    return (
-                      <div key={g.id} className="space-y-2.5">
+                      <div key={`healthprogresstracker-l2669-${mapIdx_2665}`} className="space-y-2.5">
                          <div className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
                                <div className="p-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 border-slate-100/60 dark:border-slate-800/80 shrink-0">
@@ -2714,7 +2714,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                   { label: 'Adherence Rate', value: '98%', status: 'excellent', icon: <ShieldCheck className="text-purple-500" /> },
                   { label: 'Inflammation Bias', value: 'High Trace', status: 'warning', icon: <AlertCircle className="text-amber-500" /> }
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 transition-transform hover:scale-[1.02]">
+                  <div key={`healthprogresstracker-l2717-i-${i}`} className="flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 transition-transform hover:scale-[1.02]">
                      <div className="flex items-center gap-4">
                         <div className="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm">
                            {item.icon}
@@ -3017,7 +3017,7 @@ const NeuroScanModal: React.FC<NeuroScanModalProps> = ({ isOpen, onClose, vitals
               const heightBeta = Math.min(130, Math.max(10, d.beta * 2));
               const heightTheta = Math.min(130, Math.max(10, d.theta * 2));
               return (
-                <div key={i} className="flex-1 flex flex-col justify-end items-center h-full gap-[3px] opacity-80">
+                <div key={`healthprogresstracker-l3020-i-${i}`} className="flex-1 flex flex-col justify-end items-center h-full gap-[3px] opacity-80">
                   <div style={{ height: `${heightBeta}px` }} className="w-full bg-gradient-to-t from-indigo-600/10 to-indigo-500 rounded-full transition-all duration-150" />
                   <div style={{ height: `${heightAlpha}px` }} className="w-full bg-gradient-to-t from-blue-600/10 to-blue-500 rounded-full transition-all duration-150" />
                   <div style={{ height: `${heightTheta}px` }} className="w-full bg-gradient-to-t from-purple-600/10 to-purple-500 rounded-full transition-all duration-150" />
@@ -3039,9 +3039,9 @@ const NeuroScanModal: React.FC<NeuroScanModalProps> = ({ isOpen, onClose, vitals
                     { id: 'relax', label: 'Alpha (Relax)', color: 'border-blue-500/30' },
                     { id: 'sleep', label: 'Delta (Sleep)', color: 'border-cyan-500/30' },
                     { id: 'creative', label: 'Theta (Creative)', color: 'border-purple-500/30' }
-                  ].map(state => (
+                  ].map((state, mapIdx_3041) => (
                     <button
-                      key={state.id}
+                      key={`healthprogresstracker-l3044-${mapIdx_3041}`}
                       type="button"
                       onClick={() => setTargetState(state.id as any)}
                       className={`py-3 px-4 rounded-xl border text-[11px] font-black uppercase tracking-wider text-center transition-all cursor-pointer ${targetState === state.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-white'}`}

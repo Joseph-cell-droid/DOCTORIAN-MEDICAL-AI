@@ -584,9 +584,9 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
 
           {/* Mode Selector Tabs */}
           <div className="flex items-center gap-1.5 p-1.5 bg-slate-950 border border-slate-800 rounded-2xl overflow-x-auto no-scrollbar">
-            {(['Walking', 'Running', 'Cycling', 'Squats', 'Jumping Jacks'] as const).map((mode) => (
+            {(['Walking', 'Running', 'Cycling', 'Squats', 'Jumping Jacks'] as const).map((mode, mapIdx_586) => (
               <button
-                key={mode}
+                key={`workouttracker-l589-${mapIdx_586}`}
                 onClick={() => setSensorMode(mode)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                   sensorMode === mode
@@ -889,9 +889,9 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Intensity</label>
                   <div className="flex gap-2 p-1 bg-slate-900 border border-slate-700 rounded-xl">
-                    {['Low', 'Moderate', 'High'].map((lvl) => (
+                    {['Low', 'Moderate', 'High'].map((lvl, mapIdx_891) => (
                       <button
-                        key={lvl}
+                        key={`workouttracker-l894-${mapIdx_891}`}
                         type="button"
                         onClick={() => setIntensity(lvl as any)}
                         className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${
@@ -956,9 +956,9 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
               <p className="text-slate-500 text-sm">Start a motion sensor session above to track steps or log a workout manually.</p>
             </div>
           ) : (
-            workouts.map((workout) => (
+            workouts.map((workout, mapIdx_958) => (
               <motion.div 
-                key={workout.id}
+                key={`workouttracker-l961-${mapIdx_958}`}
                 layout
                 className="p-6 hover:bg-white/5 transition-colors group flex items-center justify-between"
               >

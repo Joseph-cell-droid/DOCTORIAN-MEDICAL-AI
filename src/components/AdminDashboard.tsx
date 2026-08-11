@@ -429,7 +429,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
   const handleDownloadAllBilling = () => {
     const csvContent = "Transaction ID,Date,User Name,Email,Plan,Amount,Currency,Status\n" + 
-      adminBilling.map(p => 
+      adminBilling.map((p, mapIdx_431) => 
         `${p.externalId},${new Date(p.createdAt).toLocaleDateString()},${p.userName || 'Unknown'},${p.userEmail},${p.tier},${p.amount},${p.currency},${p.status}`
       ).join("\n");
 
@@ -784,7 +784,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const handleToggleDoctor = async (id: string, currentActive: boolean) => {
     try {
       await api.admin.updateDoctor(id, { active: !currentActive });
-      setDoctors(doctors.map(d => d.id === id ? { ...d, active: !currentActive } : d));
+      setDoctors(doctors.map((d, mapIdx_786) => d.id === id ? { ...d, active: !currentActive } : d));
     } catch (err: any) {
       setError(err.message || "Failed to update doctor status");
     }
@@ -832,7 +832,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await api.admin.updateUserRole(userId, newRole);
-      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      setUsers(users.map((u, mapIdx_834) => u.id === userId ? { ...u, role: newRole } : u));
       setSuccessMessage(`Role updated to ${newRole}`);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -843,7 +843,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const handleStatusChange = async (userId: string, newStatus: string) => {
     try {
       await api.admin.updateUserStatus(userId, newStatus);
-      setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus as any } : u));
+      setUsers(users.map((u, mapIdx_845) => u.id === userId ? { ...u, status: newStatus as any } : u));
       setSuccessMessage(`Account status updated to ${newStatus}`);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -854,7 +854,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   const handleRevokeSession = async (userId: string) => {
     try {
       await api.admin.revokeUserSession(userId);
-      setUsers(users.map(u => u.id === userId ? { ...u, isOnline: false } : u));
+      setUsers(users.map((u, mapIdx_856) => u.id === userId ? { ...u, isOnline: false } : u));
       setSuccessMessage("Session revoked successfully");
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -1320,10 +1320,10 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                     {filteredUsers.length > 0 ? (
-                      filteredUsers.map((u) => (
+                      filteredUsers.map((u, mapIdx_1322) => (
                         <motion.tr 
                           layout
-                          key={u.id}
+                          key={`admindashboard-l1326-${mapIdx_1322}`}
                           className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
                         >
                           <td className="px-6 py-5">
@@ -1614,8 +1614,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         </td>
                       </tr>
                     ) : adminBilling.length > 0 ? (
-                      adminBilling.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
+                      adminBilling.map((p, mapIdx_1616) => (
+                        <tr key={`admindashboard-l1618-${mapIdx_1616}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
                           <td className="px-6 py-5">
                             <div className="flex flex-col">
                               <span className="text-xs font-black text-slate-900 dark:text-white font-mono uppercase truncate max-w-[150px]">{p.externalId}</span>
@@ -1880,10 +1880,10 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
                 <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                   {notifications.length > 0 ? (
-                    notifications.map((n) => (
+                    notifications.map((n, mapIdx_1882) => (
                       <motion.div 
                         layout
-                        key={n.id}
+                        key={`admindashboard-l1886-${mapIdx_1882}`}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-start justify-between gap-4 group"
@@ -2048,8 +2048,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       </thead>
                       <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                         {doctors.length > 0 ? (
-                          doctors.map((d) => (
-                            <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
+                          doctors.map((d, mapIdx_2050) => (
+                            <tr key={`admindashboard-l2052-${mapIdx_2050}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
                               <td className="px-6 py-5">
                                 <div className="flex items-center gap-4">
                                   <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center overflow-hidden">
@@ -2231,9 +2231,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Security Posture Mode Enforcement</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(['STANDARD', 'MFA_RESTRICTED', 'LOCKDOWN'] as const).map((lvl) => (
+                      {(['STANDARD', 'MFA_RESTRICTED', 'LOCKDOWN'] as const).map((lvl, mapIdx_2233) => (
                         <button
-                          key={lvl}
+                          key={`admindashboard-l2236-${mapIdx_2233}`}
                           onClick={() => handleSecurityLevelChange(lvl)}
                           className={`py-2 px-3 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all border ${
                             securityLevel === lvl
@@ -2362,7 +2362,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       { label: "System Triggers / Logs", count: dbHealth?.tableCounts.system_logs, color: "text-amber-500" },
                       { label: "Patient Feedback Logs", count: dbHealth?.tableCounts.feedback, color: "text-rose-500" },
                     ].map((row, i) => (
-                      <div key={i} className="flex justify-between items-center border-b border-slate-50 dark:border-slate-850 pb-2">
+                      <div key={`admindashboard-l2365-i-${i}`} className="flex justify-between items-center border-b border-slate-50 dark:border-slate-850 pb-2">
                         <span className="text-slate-550 dark:text-slate-400 font-semibold">{row.label}:</span>
                         <span className={`font-black ${row.color} text-sm`}>
                           {row.count !== undefined ? row.count : "..."}
@@ -2518,8 +2518,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                           </td>
                         </tr>
                       ) : (
-                        syncQueue.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-850/20 transition-all font-mono">
+                        syncQueue.map((item, mapIdx_2520) => (
+                          <tr key={`admindashboard-l2522-${mapIdx_2520}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-850/20 transition-all font-mono">
                             <td className="px-5 py-4">
                               <span className="text-[10px] font-black text-slate-900 dark:text-white">{item.id}</span>
                             </td>
@@ -2602,11 +2602,11 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     desc: 'Deactivate audio sirens and MTN outbound calls entirely. All vitals data are charted silently in the clinical log to avoid alert fatigue.',
                     color: 'text-slate-500'
                   }
-                ].map((option) => {
+                ].map((option, mapIdx_2604) => {
                   const isActive = alarmTriggerMode === option.id;
                   return (
                     <button
-                      key={option.id}
+                      key={`admindashboard-l2609-${mapIdx_2604}`}
                       onClick={() => handleAlarmTriggerModeChange(option.id as any)}
                       className={`text-left p-6 rounded-3xl border transition-all duration-300 flex flex-col justify-between h-full ${
                         isActive
@@ -2785,8 +2785,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     <p className="font-bold">No active live logs. Buffer cleared.</p>
                   </div>
                 ) : (
-                  logs.map(log => (
-                    <div key={log.id} className="flex items-start gap-3 text-[11px] leading-relaxed">
+                  logs.map((log, mapIdx_2787) => (
+                    <div key={`admindashboard-l2789-${mapIdx_2787}`} className="flex items-start gap-3 text-[11px] leading-relaxed">
                       <span className="text-slate-500 shrink-0 select-none">[{log.time}]</span>
                       <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest scale-90 -mt-0.5 shrink-0 select-none ${
                         log.type === 'success' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
@@ -2847,9 +2847,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 </div>
               ) : feedback.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {feedback.map((item) => (
+                  {feedback.map((item, mapIdx_2849) => (
                     <div 
-                      key={item.id} 
+                      key={`admindashboard-l2852-${mapIdx_2849}`} 
                       className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover:shadow-md transition-all relative group"
                     >
                       <div>
@@ -2995,8 +2995,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     </div>
                   ) : hospitals.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {hospitals.map((hosp) => (
-                        <div key={hosp.id} className="p-5 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-150/50 dark:border-slate-800 flex flex-col justify-between hover:border-blue-500/30 transition-all">
+                      {hospitals.map((hosp, mapIdx_2997) => (
+                        <div key={`admindashboard-l2999-${mapIdx_2997}`} className="p-5 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-150/50 dark:border-slate-800 flex flex-col justify-between hover:border-blue-500/30 transition-all">
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2">
                               <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest font-mono">ID: {hosp.id}</span>
@@ -3044,8 +3044,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     </div>
                   ) : dataRequests.length > 0 ? (
                     <div className="space-y-4">
-                      {dataRequests.map((req) => (
-                        <div key={req.id} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-150/50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-all">
+                      {dataRequests.map((req, mapIdx_3046) => (
+                        <div key={`admindashboard-l3048-${mapIdx_3046}`} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-150/50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-all">
                           <div className="space-y-2 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="px-2.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-[9px] font-black uppercase tracking-wider font-mono">
@@ -3255,9 +3255,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   { id: 'tasks', label: 'Assigned Tasks', count: userTasks.filter(t => !t.completed).length },
                   { id: 'contacts', label: 'Emergency Contacts', count: userContacts.length },
                   { id: 'billing', label: 'Billing & Tiers', count: userPayments.length },
-                ].map((tab) => (
+                ].map((tab, mapIdx_3257) => (
                   <button
-                    key={tab.id}
+                    key={`admindashboard-l3260-${mapIdx_3257}`}
                     role="tab"
                     aria-selected={profileActiveTab === tab.id}
                     onClick={() => setProfileActiveTab(tab.id as any)}
@@ -3297,9 +3297,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         className="space-y-4"
                       >
                         {userRecords.length > 0 ? (
-                          userRecords.map((record) => (
+                          userRecords.map((record, mapIdx_3299) => (
                             <div 
-                              key={record.id}
+                              key={`admindashboard-l3302-${mapIdx_3299}`}
                               className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
                             >
                               <div className="flex gap-4">
@@ -3357,9 +3357,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         className="space-y-4"
                       >
                         {userMedications.length > 0 ? (
-                          userMedications.map((med) => (
+                          userMedications.map((med, mapIdx_3359) => (
                             <div 
-                              key={med.id}
+                              key={`admindashboard-l3362-${mapIdx_3359}`}
                               className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
                             >
                               <div className="flex gap-4">
@@ -3414,9 +3414,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         className="space-y-4"
                       >
                         {userWorkouts.length > 0 ? (
-                          userWorkouts.map((workout) => (
+                          userWorkouts.map((workout, mapIdx_3416) => (
                             <div 
-                              key={workout.id}
+                              key={`admindashboard-l3419-${mapIdx_3416}`}
                               className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
                             >
                               <div className="flex gap-4">
@@ -3472,9 +3472,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         className="space-y-4"
                       >
                         {userTasks.length > 0 ? (
-                          userTasks.map((task) => (
+                          userTasks.map((task, mapIdx_3474) => (
                             <div 
-                              key={task.id}
+                              key={`admindashboard-l3477-${mapIdx_3474}`}
                               className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
                             >
                               <div className="flex gap-4">
@@ -3526,9 +3526,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         className="space-y-4"
                       >
                         {userContacts.length > 0 ? (
-                          userContacts.map((contact) => (
+                          userContacts.map((contact, mapIdx_3528) => (
                             <div 
-                              key={contact.id}
+                              key={`admindashboard-l3531-${mapIdx_3528}`}
                               className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-start justify-between gap-4"
                             >
                               <div>
@@ -3591,9 +3591,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         <div className="space-y-3">
                           <p className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Payment Transactions History</p>
                           {userPayments.length > 0 ? (
-                            userPayments.map((payment) => (
+                            userPayments.map((payment, mapIdx_3593) => (
                               <div 
-                                key={payment.id}
+                                key={`admindashboard-l3596-${mapIdx_3593}`}
                                 className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800/50 flex items-center justify-between"
                               >
                                 <div>

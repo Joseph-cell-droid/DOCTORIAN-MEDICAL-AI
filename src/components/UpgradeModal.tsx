@@ -214,7 +214,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
                    { icon: <Shield size={16} />, text: 'Verification System' },
                    { icon: <Globe size={16} />, text: '0787 674140' }
                  ].map((item, i) => (
-                   <div key={i} className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-slate-300">
+                   <div key={`upgrademodal-l217-i-${i}`} className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-slate-300">
                      <span className="text-blue-500">{item.icon}</span>
                      {item.text}
                    </div>
@@ -276,16 +276,16 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
                         onChange={(e) => setCurrency(e.target.value)}
                         className="bg-transparent border-none text-[10px] font-black uppercase outline-none focus:ring-0 cursor-pointer"
                        >
-                         {currencies.map(c => <option key={c.code} value={c.code} className="bg-white dark:bg-slate-900">{c.code}</option>)}
+                         {currencies.map((c, cIdx) => <option key={`curr-${c.code}-${cIdx}`} value={c.code} className="bg-white dark:bg-slate-900">{c.code}</option>)}
                        </select>
                     </div>
                   </div>
                 </header>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-                  {tiers.map((tier) => (
+                  {tiers.map((tier, mapIdx_285) => (
                     <div 
-                      key={tier.id}
+                      key={`upgrademodal-l288-${mapIdx_285}`}
                       className={`relative p-6 sm:p-8 rounded-[2.5rem] border transition-all flex flex-col h-full ${
                         tier.highlight 
                           ? 'bg-slate-50 dark:bg-slate-900 border-blue-200 dark:border-blue-900 shadow-xl shadow-blue-100 dark:shadow-none ring-4 ring-blue-50 dark:ring-blue-900/10' 
@@ -312,7 +312,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
 
                       <ul className="space-y-3 mb-8 flex-1">
                         {tier.features.map((feature, i) => (
-                          <li key={i} className="flex items-start gap-2 text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                          <li key={`upgrademodal-l315-i-${i}`} className="flex items-start gap-2 text-[10px] font-bold text-slate-600 dark:text-slate-400">
                             <Check size={14} className="text-blue-500 shrink-0 mt-0.5" />
                             <span>{feature}</span>
                           </li>
@@ -346,9 +346,9 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {creditBundles.map((bundle) => (
+                    {creditBundles.map((bundle, mapIdx_348) => (
                       <button
-                        key={bundle.id}
+                        key={`upgrademodal-l351-${mapIdx_348}`}
                         onClick={() => setSelectedTier({...bundle, id: bundle.id})}
                         className="p-6 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-[2rem] hover:border-blue-600 transition-all text-left group"
                       >
@@ -433,7 +433,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ user, onClose, onUpd
             <footer className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-slate-100 dark:border-slate-800">
                <div className="flex items-center gap-4">
                  <div className="flex -space-x-2">
-                   {[1,2,3].map(i => <div key={i} className={`w-8 h-8 rounded-full border-2 border-white dark:border-slate-950 bg-slate-${200 + i * 100}`} />)}
+                   {[1,2,3].map((i, mapIdx_435) => <div key={`upgrademodal-l436-i-${i}`} className={`w-8 h-8 rounded-full border-2 border-white dark:border-slate-950 bg-slate-${200 + i * 100}`} />)}
                  </div>
                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Secured by Akora Joseph's Direct Verification</p>
                </div>

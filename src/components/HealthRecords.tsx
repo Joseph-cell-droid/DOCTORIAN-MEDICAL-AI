@@ -137,7 +137,7 @@ const defaultPatient: PatientInfo = {
 };
 
 const checkInteractions = (meds: Medication[]): { severity: 'high' | 'medium' | 'low'; message: string }[] => {
-  const names = meds.map(m => m.name.toLowerCase());
+  const names = meds.map((m, mapIdx_139) => m.name.toLowerCase());
   const warnings: { severity: 'high' | 'medium' | 'low'; message: string }[] = [];
   
   // Drug-Drug Interactions
@@ -166,7 +166,7 @@ const checkInteractions = (meds: Medication[]): { severity: 'high' | 'medium' | 
 const checkContraindications = (meds: Medication[], patient: PatientInfo): { severity: 'high'; message: string }[] => {
   const warnings: { severity: 'high'; message: string }[] = [];
   const allergies = patient.allergies.toLowerCase();
-  const medNames = meds.map(m => m.name.toLowerCase());
+  const medNames = meds.map((m, mapIdx_168) => m.name.toLowerCase());
 
   if (allergies.includes('penicillin') && medNames.some(n => n.includes('amoxicillin') || n.includes('penicillin'))) {
     warnings.push({ severity: 'high', message: 'ALLERGY ALERT: Patient is allergic to Penicillin. Amoxicillin/Penicillin is contraindicated.' });
@@ -249,7 +249,7 @@ const SelectField: React.FC<{
           value={value} onChange={e => onChange(e.target.value)}
           className="w-full appearance-none bg-white/70 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 dark:focus:border-blue-700 focus:bg-white dark:focus:bg-slate-800 transition-all pr-8"
         >
-          {options.map(o => <option key={o} value={o} className="dark:bg-slate-900">{o}</option>)}
+          {options.map((o, oIdx) => <option key={`opt-${o}-${oIdx}`} value={o} className="dark:bg-slate-900">{o}</option>)}
         </select>
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 dark:text-slate-600 pointer-events-none" aria-hidden="true" />
       </div>
@@ -259,9 +259,9 @@ const SelectField: React.FC<{
 
 const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => (
   <div className="fixed top-4 right-4 z-[100] space-y-2 pointer-events-none">
-    {toasts.map(t => (
+    {toasts.map((t, mapIdx_261) => (
       <div
-        key={t.id}
+        key={`healthrecords-l264-${mapIdx_261}`}
         className={`animate-toastIn pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border backdrop-blur-md text-sm font-medium ${
           t.type === 'success' ? 'bg-emerald-50/95 dark:bg-emerald-900/90 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200' :
           t.type === 'error' ? 'bg-red-50/95 dark:bg-red-900/90 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' :
@@ -393,7 +393,7 @@ export const HealthRecords: React.FC = () => {
         
         const prescriptions = records
           .filter(r => r.type === 'prescription')
-          .map(r => JSON.parse(r.value) as Prescription);
+          .map((r, mapIdx_395) => JSON.parse(r.value) as Prescription);
         setSavedPrescriptions(prescriptions);
       } catch (error: any) {
         if (!isMounted) return;
@@ -502,7 +502,7 @@ export const HealthRecords: React.FC = () => {
   const updateMedication = useCallback((id: string, field: keyof Medication, value: string | number) => {
     setPrescription(prev => ({
       ...prev,
-      medications: prev.medications.map(m => m.id === id ? { ...m, [field]: value } : m),
+      medications: prev.medications.map((m, mapIdx_504) => m.id === id ? { ...m, [field]: value } : m),
     }));
     if (typeof value === 'string') {
       validateField(field === 'name' ? 'medName' : field, value, id);
@@ -593,7 +593,7 @@ export const HealthRecords: React.FC = () => {
 
   const loadPrescription = (rx: Prescription) => {
     setPrescription(rx);
-    setExpandedMeds(new Set(rx.medications.map(m => m.id)));
+    setExpandedMeds(new Set(rx.medications.map((m, mapIdx_595) => m.id)));
     setStep(3);
     setActiveTab('compose');
     showToast('Prescription loaded for editing', 'info');
@@ -614,7 +614,7 @@ export const HealthRecords: React.FC = () => {
     (prescription.medications.every(m => !m.name || m.duration) ? 20 : 0)
   );
 
-  const ALL_CATEGORIES = ['All Types', ...Array.from(new Set(COMMON_MEDICATIONS.map(m => m.category)))];
+  const ALL_CATEGORIES = ['All Types', ...Array.from(new Set(COMMON_MEDICATIONS.map((m, mapIdx_616) => m.category)))];
 
   const filteredPrescriptions = savedPrescriptions.filter(rx => {
     const matchesName = rx.patient.name.toLowerCase().includes(filterPatientName.toLowerCase());
@@ -715,7 +715,7 @@ export const HealthRecords: React.FC = () => {
           { label: 'Weight', value: '68 kg', icon: <Activity className="text-emerald-500" />, color: 'bg-emerald-50 dark:bg-emerald-900/20' },
           { label: 'Last Checkup', value: 'Mar 15, 2026', icon: <Calendar className="text-indigo-500" />, color: 'bg-indigo-50 dark:bg-indigo-900/20' },
         ].map((stat, i) => (
-          <article key={i} className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center sm:items-center gap-3 sm:gap-4 text-center sm:text-left">
+          <article key={`healthrecords-l718-i-${i}`} className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center sm:items-center gap-3 sm:gap-4 text-center sm:text-left">
             <div className={`${stat.color} p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shrink-0`} aria-hidden="true">
               {stat.icon}
             </div>
@@ -747,7 +747,7 @@ export const HealthRecords: React.FC = () => {
             { label: 'Medications', done: totalMeds > 0 },
             { label: 'Complete', done: completeness === 100 },
           ].map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={`healthrecords-l750-i-${i}`} className="flex items-center gap-2">
               <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-colors ${s.done ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`} aria-hidden="true" />
               <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-colors ${s.done ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                 {s.label}
@@ -760,9 +760,9 @@ export const HealthRecords: React.FC = () => {
 
       {/* ── Tab Navigation ────────────────────────────── */}
       <nav className="flex overflow-x-auto no-scrollbar gap-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-1.5 sm:p-2 shadow-inner border border-slate-100 dark:border-slate-800 mb-8 sm:mb-10" role="tablist" aria-label="Prescription options">
-        {(['compose', 'saved', 'templates'] as const).map(tab => (
+        {(['compose', 'saved', 'templates'] as const).map((tab, mapIdx_762) => (
           <button
-            key={tab} 
+            key={`healthrecords-l765-${mapIdx_762}`} 
             onClick={() => {
               const isAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
               if (!isAuthed) {
@@ -820,8 +820,8 @@ export const HealthRecords: React.FC = () => {
         >
           {/* Step Indicator */}
           <nav className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2" aria-label="Prescription steps">
-            {[1, 2, 3].map((s) => (
-              <React.Fragment key={s}>
+            {[1, 2, 3].map((s, mapIdx_822) => (
+              <React.Fragment key={`healthrecords-l824-${mapIdx_822}`}>
                 <button
                   onClick={() => setStep(s)}
                   aria-current={step === s ? 'step' : undefined}
@@ -872,15 +872,15 @@ export const HealthRecords: React.FC = () => {
                     <Shield size={14} /> Known Allergies
                   </label>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {ALLERGEN_LIST.map(allergy => {
+                    {ALLERGEN_LIST.map((allergy, aIdx) => {
                       const isActive = prescription.patient.allergies.toLowerCase().includes(allergy.toLowerCase());
                       return (
                         <button
-                          key={allergy}
+                          key={`hr-allergy-${allergy}-${aIdx}`}
                           onClick={() => {
                             const current = prescription.patient.allergies;
                             if (isActive) {
-                              updatePatient('allergies', current.split(',').map(s => s.trim()).filter(a => a.toLowerCase() !== allergy.toLowerCase()).join(', '));
+                              updatePatient('allergies', current.split(',').map((s, mapIdx_882) => s.trim()).filter(a => a.toLowerCase() !== allergy.toLowerCase()).join(', '));
                             } else {
                               updatePatient('allergies', current ? `${current}, ${allergy}` : allergy);
                             }
@@ -949,10 +949,10 @@ export const HealthRecords: React.FC = () => {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {searchICD11CPT(prescription.diagnosis || '').slice(0, 5).map((icd) => (
+                        {searchICD11CPT(prescription.diagnosis || '').slice(0, 5).map((icd, icdIdx) => (
                           <button
                             type="button"
-                            key={icd.code}
+                            key={`icd-${icd.code}-${icdIdx}`}
                             onClick={() => {
                               updatePrescription('diagnosis', `${icd.title} (ICD-11: ${icd.code} / CPT: ${icd.cptCode})`);
                               showToast(`Applied ICD-11 ${icd.code} / CPT ${icd.cptCode}`, 'success');
@@ -1045,7 +1045,7 @@ export const HealthRecords: React.FC = () => {
                             <div className="max-h-64 overflow-y-auto p-2 space-y-1 custom-scrollbar" role="listbox">
                               {COMMON_MEDICATIONS.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())).map((med, i) => (
                                 <button
-                                  key={i} onClick={() => selectCommonMed(med)}
+                                  key={`healthrecords-l1048-i-${i}`} onClick={() => selectCommonMed(med)}
                                   role="option"
                                   className="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group"
                                 >
@@ -1071,7 +1071,7 @@ export const HealthRecords: React.FC = () => {
                     const catColor = CATEGORY_COLORS[category] || { bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-100 dark:border-slate-700' };
 
                     return (
-                      <article key={med.id} className={`rounded-3xl border-2 transition-all ${isExpanded ? 'border-blue-100 dark:border-blue-900 bg-blue-50/10 dark:bg-blue-900/5' : 'border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
+                      <article key={`healthrecords-l1074-${index}`} className={`rounded-3xl border-2 transition-all ${isExpanded ? 'border-blue-100 dark:border-blue-900 bg-blue-50/10 dark:bg-blue-900/5' : 'border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
                         <button
                           id={`med-toggle-${med.id}`}
                           onClick={() => setExpandedMeds(prev => {
@@ -1140,7 +1140,7 @@ export const HealthRecords: React.FC = () => {
                 {allWarnings.length > 0 && (
                   <div className="mt-8 space-y-3">
                     {allWarnings.map((w, i) => (
-                      <div key={i} className={`p-4 rounded-2xl border-2 flex gap-4 items-center ${w.severity === 'high' ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400' : w.severity === 'medium' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-400'}`}>
+                      <div key={`healthrecords-l1143-i-${i}`} className={`p-4 rounded-2xl border-2 flex gap-4 items-center ${w.severity === 'high' ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400' : w.severity === 'medium' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-400'}`}>
                         <AlertTriangle size={20} className={w.severity === 'high' ? 'text-rose-500' : 'text-amber-500'} />
                         <p className="text-sm font-bold">{w.message}</p>
                       </div>
@@ -1216,7 +1216,7 @@ export const HealthRecords: React.FC = () => {
                     { label: 'Recent Audit', value: '27 Apr 2026', desc: 'Zero drift detected in vitals.' },
                     { label: 'Travel Rating', value: 'Class A+', desc: 'Unrestricted medical clearance.' }
                   ].map((item, i) => (
-                    <div key={i} className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-colors">
+                    <div key={`healthrecords-l1219-i-${i}`} className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-colors">
                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">{item.label}</p>
                        <p className="text-xl font-black text-white tracking-tight mb-2">{item.value}</p>
                        <p className="text-xs font-bold text-slate-500 leading-tight">{item.desc}</p>
@@ -1296,8 +1296,8 @@ export const HealthRecords: React.FC = () => {
 
           {isLoading ? (
             <div className="space-y-4" role="status" aria-label="Loading records">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-6 animate-pulse">
+              {[1, 2, 3].map((i, mapIdx_1298) => (
+                <div key={`healthrecords-l1300-i-${i}-${mapIdx_1298}`} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-6 animate-pulse">
                   <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl shrink-0" />
                   <div className="flex-1 space-y-3">
                     <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded-full w-48" />
@@ -1381,9 +1381,9 @@ export const HealthRecords: React.FC = () => {
             { name: 'UTI Protocol', icon: <Droplets />, color: 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400', meds: ['Amoxicillin 500mg'], diagnosis: 'Urinary Tract Infection' },
           ].map((t, i) => (
             <button
-              key={i}
+              key={`healthrecords-l1384-i-${i}`}
               onClick={() => {
-                const templateMeds = t.meds.map(name => {
+                const templateMeds = t.meds.map((name, mapIdx_1385) => {
                   const common = COMMON_MEDICATIONS.find(cm => cm.name === name);
                   return { 
                     ...emptyMedication(), 
@@ -1394,7 +1394,7 @@ export const HealthRecords: React.FC = () => {
                   };
                 });
                 setPrescription(prev => ({ ...prev, medications: templateMeds, diagnosis: t.diagnosis }));
-                setExpandedMeds(new Set(templateMeds.map(m => m.id)));
+                setExpandedMeds(new Set(templateMeds.map((m, mapIdx_1396) => m.id)));
                 setStep(3);
                 setActiveTab('compose');
                 showToast(`${t.name} template applied`);
@@ -1408,7 +1408,7 @@ export const HealthRecords: React.FC = () => {
               <p className="text-slate-400 dark:text-slate-500 text-sm font-medium mb-6">{t.diagnosis}</p>
               <div className="flex flex-wrap gap-2" aria-label="Medications in template">
                 {t.meds.map((m, j) => (
-                  <span key={j} className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest">{m}</span>
+                  <span key={`tmpl-med-${j}-${m}`} className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest">{m}</span>
                 ))}
               </div>
             </button>
@@ -1443,7 +1443,7 @@ export const HealthRecords: React.FC = () => {
                 <p className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px] mt-2">Digital Prescription Record</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-12 mb-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-12 mb-8 sm:mb-12">
                 <div>
                   <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Patient Details</h4>
                   <p className="text-lg font-black text-slate-900 dark:text-white">{prescription.patient.name || 'N/A'}</p>
@@ -1464,7 +1464,7 @@ export const HealthRecords: React.FC = () => {
               <div className="space-y-6 mb-12">
                 <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Medications</h4>
                 {prescription.medications.filter(m => m.name).map((m, i) => (
-                  <div key={i} className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4 last:border-0">
+                  <div key={`healthrecords-l1467-i-${i}`} className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4 last:border-0">
                     <div>
                       <p className="font-black text-slate-900 dark:text-white">{m.name}</p>
                       <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{m.dosage} • {m.frequency}</p>

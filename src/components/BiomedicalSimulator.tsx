@@ -407,11 +407,11 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
                   { id: 'sepsis', label: 'Infectious Pyrexia', desc: 'High temp/fever', color: 'hover:border-amber-500/30' },
                   { id: 'hypoxia', label: 'Hypoxia Event', desc: 'Critical SpO2 dip', color: 'hover:border-purple-500/30' },
                   { id: 'shocks', label: 'Cardiac Shock', desc: 'Low SBP/circulatory', color: 'hover:border-rose-500/30' }
-                ].map((p) => {
+                ].map((p, mapIdx_409) => {
                   const active = activePreset === p.id;
                   return (
                     <button
-                      key={p.id}
+                      key={`biomedicalsimulator-l414-${mapIdx_409}`}
                       onClick={() => applyPreset(p.id)}
                       className={`text-left p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all active:scale-[0.98] ${
                         active

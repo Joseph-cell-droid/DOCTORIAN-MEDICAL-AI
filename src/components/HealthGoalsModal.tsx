@@ -93,7 +93,7 @@ export const HealthGoalsModal: React.FC<HealthGoalsModalProps> = ({
   };
 
   const updateGoalCurrent = (id: string, value: number) => {
-    setLocalGoals(prev => prev.map(g => {
+    setLocalGoals(prev => prev.map((g, mapIdx_95) => {
       if (g.id === id) {
         // Prevent negative values
         const nextVal = Math.max(0, g.current + value);
@@ -107,7 +107,7 @@ export const HealthGoalsModal: React.FC<HealthGoalsModalProps> = ({
   };
 
   const setGoalCurrentDirect = (id: string, value: number) => {
-    setLocalGoals(prev => prev.map(g => {
+    setLocalGoals(prev => prev.map((g, mapIdx_109) => {
       if (g.id === id) {
         const nextVal = Math.max(0, value);
         if (nextVal >= g.target && g.current < g.target) {
@@ -120,7 +120,7 @@ export const HealthGoalsModal: React.FC<HealthGoalsModalProps> = ({
   };
 
   const updateGoalTarget = (id: string, target: number) => {
-    setLocalGoals(prev => prev.map(g => {
+    setLocalGoals(prev => prev.map((g, mapIdx_122) => {
       if (g.id === id) {
         const nextTarget = Math.max(1, target);
         if (g.current >= nextTarget && g.current < g.target) {
@@ -408,13 +408,13 @@ export const HealthGoalsModal: React.FC<HealthGoalsModalProps> = ({
 
             {/* Goals List Content */}
             <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-1">
-              {localGoals.map((goal) => {
+              {localGoals.map((goal, mapIdx_410) => {
                 const isCompleted = goal.current >= goal.target;
                 const percentage = Math.min(100, Math.round((goal.current / goal.target) * 100));
 
                 return (
                   <div 
-                    key={goal.id}
+                    key={`healthgoalsmodal-l417-${mapIdx_410}`}
                     className={`p-6 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/60 shadow-sm flex flex-col gap-5`}
                   >
                     {/* Goal Header */}

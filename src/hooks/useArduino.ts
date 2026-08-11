@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { vibrateCriticalAlert, vibrateWarning } from '../utils/haptics';
 
 export interface Vitals {
   heartRate: number;
@@ -224,6 +225,13 @@ export const useArduino = () => {
     });
     const status = calculateHealthStatus(newVitals);
     setHealthStatus(status);
+
+    // Mobile haptic pulses for critical health alert or warning threshold
+    if (status.overall === 'critical') {
+      vibrateCriticalAlert();
+    } else if (status.overall === 'warning') {
+      vibrateWarning();
+    }
     
     // Feed parameters directly to background sonification agent
     import('../utils/vitalsSonifier').then(({ VitalsSonifier }) => {

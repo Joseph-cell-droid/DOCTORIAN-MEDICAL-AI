@@ -193,7 +193,7 @@ export const AppTutorial: React.FC<AppTutorialProps> = ({ isOpen, onClose, onNav
               </h4>
               <ul className="space-y-2">
                 {currentStepData.tips.map((tip, index) => (
-                  <li key={index} className="flex items-start gap-2.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  <li key={`apptutorial-l196-index-${index}`} className="flex items-start gap-2.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     <Check size={12} className="text-emerald-500 shrink-0 mt-0.5" />
                     <span>{tip}</span>
                   </li>
@@ -208,7 +208,7 @@ export const AppTutorial: React.FC<AppTutorialProps> = ({ isOpen, onClose, onNav
             <div className="flex gap-1.5">
               {steps.map((s, idx) => (
                 <div 
-                  key={s.id} 
+                  key={`apptutorial-l211-${idx}`} 
                   className={`h-1.5 rounded-full transition-all duration-300 ${
                     idx === currentStep ? 'w-5 bg-blue-600' : 'w-1.5 bg-slate-200 dark:bg-slate-800'
                   }`} 

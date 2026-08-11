@@ -125,7 +125,7 @@ export function CyberSecurityPanel({ dashboardType }: CyberSecurityPanelProps) {
                 color: "text-amber-400 bg-amber-500/5 border-amber-500/10"
               }
             ].map((stat, idx) => (
-              <div key={idx} className="p-3 bg-slate-900/40 border border-slate-850 rounded-xl space-y-1">
+              <div key={`cybersecuritypanel-l128-idx-${idx}`} className="p-3 bg-slate-900/40 border border-slate-850 rounded-xl space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider">{stat.title}</span>
                   <span className={`text-[8px] font-black font-mono uppercase px-2 py-0.5 rounded-md border ${stat.color}`}>
@@ -174,7 +174,7 @@ export function CyberSecurityPanel({ dashboardType }: CyberSecurityPanelProps) {
 
             <div className="h-28 overflow-y-auto space-y-1 font-mono text-[8.5px] text-slate-400 scrollbar-thin pr-1 text-left">
               {auditLog.map((log, idx) => (
-                <p key={idx} className={log.includes('[SUCCESS]') ? 'text-emerald-400 font-semibold' : log.includes('[KEYGEN]') ? 'text-blue-400' : ''}>
+                <p key={`cybersecuritypanel-l177-idx-${idx}`} className={log.includes('[SUCCESS]') ? 'text-emerald-400 font-semibold' : log.includes('[KEYGEN]') ? 'text-blue-400' : ''}>
                   {log}
                 </p>
               ))}

@@ -342,9 +342,9 @@ export const MedicationAdherenceChart: React.FC<MedicationAdherenceChartProps> =
         >
           All Medications
         </button>
-        {medications.map(med => (
+        {medications.map((med, mIdx) => (
           <button
-            key={med.id}
+            key={`mac-med-${med.id || mIdx}-${mIdx}`}
             onClick={() => setSelectedMedId(med.id)}
             className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all whitespace-nowrap ${
               selectedMedId === med.id 

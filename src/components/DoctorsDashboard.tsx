@@ -327,7 +327,7 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
       return;
     }
 
-    const initial = newClinician.name.split(' ').map(n => n[0]).join('');
+    const initial = newClinician.name.split(' ').map((n, mapIdx_329) => n[0]).join('');
     const createdNode = {
       id: 'cli-' + Date.now(),
       name: newClinician.name.startsWith('Dr.') ? newClinician.name : `Dr. ${newClinician.name}`,
@@ -730,7 +730,7 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
         const extractedMeds = JSON.parse(text);
         
         if (Array.isArray(extractedMeds)) {
-          const formattedMeds = extractedMeds.map(m => ({
+          const formattedMeds = extractedMeds.map((m, mapIdx_732) => ({
             name: m.name || 'Unknown Drug',
             dosage: m.dosage || '500mg',
             frequency: m.frequency || 'Daily',
@@ -1005,7 +1005,7 @@ AI Diagnostics Result details:
 ${diagnosticResult.rawMarkdown}
 
 Conversation History so far:
-${newHistory.map(h => `${h.role === 'user' ? 'Doctor' : 'Clinical AI'}: ${h.text}`).join('\n')}
+${newHistory.map((h, mapIdx_1007) => `${h.role === 'user' ? 'Doctor' : 'Clinical AI'}: ${h.text}`).join('\n')}
 
 Latest Message:
 "${userText}"
@@ -1056,9 +1056,9 @@ Provide a professional, direct, academic, and clinical response assisting the ph
             { id: 'clinician_alarms', label: 'Clinician Pager Alerts', icon: <ShieldAlert size={12} />, badge: doctorAlarms.filter(a => a.doctorId === activeDoctorId).length },
             { id: 'decision_support', label: 'AI Diagnostic Co-Pilot', icon: <Brain size={12} /> },
             { id: 'connection', label: 'Hardware Link', icon: <Monitor size={12} /> }
-          ].map(tab => (
+          ].map((tab, mapIdx_1058) => (
             <button
-              key={tab.id}
+              key={`doctorsdashboard-l1061-${mapIdx_1058}`}
               onClick={() => setActiveSubTab(tab.id as any)}
               className={`px-4 py-2.5 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 relative ${
                 activeSubTab === tab.id 
@@ -1323,8 +1323,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                     onChange={(e) => handleSetActiveDoctorId(e.target.value)}
                     className="bg-slate-900 border border-white/15 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider text-slate-200 hover:text-white transition-all cursor-pointer outline-none shrink-0"
                   >
-                    {offlineDoctors.map(doc => (
-                      <option key={doc.id} value={doc.id}>
+                    {offlineDoctors.map((doc, mapIdx_1325) => (
+                      <option key={`doctorsdashboard-l1327-${mapIdx_1325}`} value={doc.id}>
                         {doc.name} ({doc.id})
                       </option>
                     ))}
@@ -1377,12 +1377,12 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {alarmsForDoctor.map((alarm) => {
+                      {alarmsForDoctor.map((alarm, mapIdx_1379) => {
                         const isSwallowed = alarm.swallowed;
                         
                         return (
                           <motion.div
-                            key={alarm.id}
+                            key={`doctorsdashboard-l1385-${mapIdx_1379}`}
                             initial={{ scale: 0.98, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             className={`p-5 rounded-[2rem] border transition-all relative overflow-hidden flex flex-col justify-between ${
@@ -1507,10 +1507,10 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
             {/* Clinician Node list cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {clinicians.map((cl) => {
+              {clinicians.map((cl, mapIdx_1509) => {
                 const pst = pagingStates[cl.id] || { status: 'idle', progress: 0 };
                 return (
-                  <div key={cl.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.25rem] p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row gap-5 relative overflow-hidden">
+                  <div key={`doctorsdashboard-l1513-${mapIdx_1509}`} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2.25rem] p-6 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row gap-5 relative overflow-hidden">
                     {pst.status === 'acknowledged' && (
                       <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full pointer-events-none border-l border-b border-emerald-500/10" />
                     )}
@@ -1697,8 +1697,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 </div>
 
                 <div className="max-h-60 overflow-y-auto font-mono text-[10px] leading-relaxed space-y-2 no-scrollbar">
-                  {logs.map((log) => (
-                    <div key={log.id} className="flex items-start gap-3 border-b border-slate-900/40 pb-1.5 text-slate-400">
+                  {logs.map((log, mapIdx_1699) => (
+                    <div key={`doctorsdashboard-l1701-${mapIdx_1699}`} className="flex items-start gap-3 border-b border-slate-900/40 pb-1.5 text-slate-400">
                       <span className="text-slate-600 shrink-0 font-bold">[{log.timestamp}]</span>
                       <span className={log.type === 'success' ? 'text-emerald-400' : log.type === 'warning' ? 'text-rose-400' : 'text-slate-350'}>
                         {log.type === 'success' && '✨'}
@@ -1764,8 +1764,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {referrals.map((ref) => (
-                    <div key={ref.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2rem] p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all gap-5">
+                  {referrals.map((ref, mapIdx_1766) => (
+                    <div key={`doctorsdashboard-l1768-${mapIdx_1766}`} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2rem] p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all gap-5">
                       <div>
                         {/* Header metadata */}
                         <div className="flex items-center justify-between border-b border-slate-55 border-slate-100 dark:border-slate-800 pb-3 mb-4">
@@ -2135,7 +2135,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
                       <div className="space-y-3">
                         {rxFormMedicines.map((med, idx) => (
-                          <div key={idx} className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl relative space-y-4">
+                          <div key={`doctorsdashboard-l2138-idx-${idx}`} className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl relative space-y-4">
                             
                             {/* Delete button for rows */}
                             {rxFormMedicines.length > 1 && (
@@ -2210,7 +2210,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                                   placeholder="08:00, 20:00"
                                   value={med.reminderTimes.join(', ')}
                                   onChange={e => {
-                                    const times = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                                    const times = e.target.value.split(',').map((t, mapIdx_2212) => t.trim()).filter(Boolean);
                                     handleUpdateMedicineRow(idx, 'reminderTimes', times);
                                   }}
                                   className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200"
@@ -2235,7 +2235,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
                         // 1. Check dosage limits
                         const dosageAnomalies = rxFormMedicines
-                          .map(m => {
+                          .map((m, mapIdx_2237) => {
                             if (!m.name.trim()) return null;
                             return validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
                           })
@@ -2243,7 +2243,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
                         // 2. Check drug-disease mismatches
                         const diseaseAnomalies = rxFormMedicines
-                          .map(m => {
+                          .map((m, mapIdx_2245) => {
                             if (!m.name.trim()) return null;
                             return validateDrugForDisease(m.name, patientConditions, rxFormDiagnosis);
                           })
@@ -2362,13 +2362,13 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                     {offlinePrescriptions.length === 0 ? (
                       <p className="text-slate-400 text-xs text-center py-6">No prescription records authorized yet.</p>
                     ) : (
-                      offlinePrescriptions.map(rx => {
+                      offlinePrescriptions.map((rx, mapIdx_2364) => {
                         const pat = offlinePatients.find(p => p.id === rx.patientId);
                         const doc = offlineDoctors.find(d => d.id === rx.doctorId);
                         const rxMeds = getMedicinesForPrescription(rx.id);
                         
                         return (
-                          <div key={rx.id} className="bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 p-5 flex flex-col md:flex-row justify-between gap-6 hover:border-slate-200 dark:hover:border-slate-800 transition-all">
+                          <div key={`doctorsdashboard-l2371-${mapIdx_2364}`} className="bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 p-5 flex flex-col md:flex-row justify-between gap-6 hover:border-slate-200 dark:hover:border-slate-800 transition-all">
                             <div className="space-y-3">
                               <div className="flex items-center gap-3">
                                 <span className="bg-blue-50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full font-mono text-xs font-extrabold">
@@ -2398,8 +2398,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                               <div className="space-y-1">
                                 <p className="text-[10px] font-black uppercase text-slate-400">Prescribed Compounds:</p>
                                 <div className="flex flex-wrap gap-2">
-                                  {rxMeds.map(m => (
-                                    <span key={m.id} className="text-[10px] font-extrabold uppercase bg-slate-200/60 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg border border-slate-300/40 dark:border-slate-800">
+                                  {rxMeds.map((m, mapIdx_2400) => (
+                                    <span key={`doctorsdashboard-l2402-${mapIdx_2400}`} className="text-[10px] font-extrabold uppercase bg-slate-200/60 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg border border-slate-300/40 dark:border-slate-800">
                                       💊 {m.name} ({m.dosage}) - {m.frequency} [{m.duration}]
                                     </span>
                                   ))}
@@ -2528,7 +2528,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
                       return (
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                          {anomalies.map(log => {
+                          {anomalies.map((log, mapIdx_2530) => {
                             const pat = offlinePatients.find(p => p.id === log.patientId);
                             const isOverdose = log.anomalyReason?.toLowerCase().includes('overdose') || log.anomalyReason?.toLowerCase().includes('toxic');
                             const isMismatch = log.anomalyReason?.toLowerCase().includes('mismatch') || log.anomalyReason?.toLowerCase().includes('wrong drug') || log.anomalyReason?.toLowerCase().includes('disease');
@@ -2597,11 +2597,11 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
                       return (
                         <div className="space-y-2">
-                          {logsToSupervise.map(log => {
+                          {logsToSupervise.map((log, mapIdx_2599) => {
                             const pat = offlinePatients.find(p => p.id === log.patientId);
                             const isAlreadyVerified = log.caregiverVerified;
                             return (
-                              <div key={log.id} className="p-3.5 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2.5">
+                              <div key={`doctorsdashboard-l2604-${mapIdx_2599}`} className="p-3.5 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="text-[10px] font-black uppercase text-slate-900 dark:text-white leading-none">{pat ? pat.name : 'Patient'}</p>
@@ -2681,8 +2681,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       { name: 'reminders_table', count: getReminders().length, desc: 'Smart scheduled alarms' },
                       { name: 'notifications_table', count: getNotifications().length, desc: 'User alerts & reminder push logs' },
                       { name: 'synchronization_records_table', count: offlineSyncRecords.length, desc: 'Cloud replication ledger' }
-                    ].map(tbl => (
-                      <div key={tbl.name} className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
+                    ].map((tbl, mapIdx_2683) => (
+                      <div key={`doctorsdashboard-l2685-${mapIdx_2683}`} className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
                         <div>
                           <p className="font-mono text-[10px] font-black text-slate-800 dark:text-blue-400 leading-none">
                             {tbl.name}
@@ -2744,8 +2744,8 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 { type: 'bluetooth', name: 'HM-10 Arduino BLE Module', icon: <Bluetooth size={22} className="text-blue-500" />, desc: 'Connect to standard physical transceiver modules over Bluetooth.' },
                 { type: 'serial', name: 'Serial Port USB Cable', icon: <Cpu size={22} className="text-amber-500" />, desc: 'Bind target machinery straight to USB baud routers.' },
                 { type: 'cloud', name: 'Biometric Cloud WebSocket', icon: <Wifi size={22} className="text-emerald-500" />, desc: 'Stream real-time vitals remotely through cloud routing endpoints.' }
-              ].map(chan => (
-                <div key={chan.type} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2rem] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-6">
+              ].map((chan, mapIdx_2746) => (
+                <div key={`doctorsdashboard-l2748-${mapIdx_2746}`} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-[2rem] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-6">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">{chan.icon}</div>
@@ -3053,7 +3053,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       { title: "Specialist Routing Guidance", desc: "Suggests the most qualified medical nodes to take over acute or critical patients." },
                       { title: "AI Handover Attestation", desc: "Provides verified stamped PDF-printable handover transcripts with verification stamps." },
                     ].map((feat, idx) => (
-                      <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-850 rounded-2xl text-left">
+                      <div key={`doctorsdashboard-l3056-idx-${idx}`} className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-850 rounded-2xl text-left">
                         <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider block mb-1">{feat.title}</span>
                         <p className="text-[9px] text-slate-400 font-bold uppercase leading-relaxed">{feat.desc}</p>
                       </div>
@@ -3076,7 +3076,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                   <div className="w-full max-w-md space-y-2 text-left bg-slate-900/60 p-5 rounded-2xl border border-white/5 font-mono text-[9px] text-slate-400 uppercase">
                     <span className="text-[8px] font-black text-slate-500 tracking-wider block mb-2">// CALIBRATING SIGNAL HANDSHAKES...</span>
                     {diagnosticSteps.map((step, idx) => (
-                      <div key={idx} className="flex items-center gap-2.5">
+                      <div key={`doctorsdashboard-l3079-idx-${idx}`} className="flex items-center gap-2.5">
                         <span className="text-emerald-500">■</span>
                         <span>{step}</span>
                         {idx === diagnosticSteps.length - 1 && (
@@ -3178,7 +3178,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       </h4>
                       <div className="space-y-3">
                         {diagnosticResult.differentialDiagnosis.map((item, idx) => (
-                          <div key={idx} className="p-3.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-100/50 dark:border-slate-850 rounded-xl">
+                          <div key={`doctorsdashboard-l3181-idx-${idx}`} className="p-3.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-100/50 dark:border-slate-850 rounded-xl">
                             <div className="flex items-center gap-2">
                               <span className="w-5 h-5 bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 rounded-full flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
                               <p className="text-[11px] font-black text-slate-850 dark:text-white uppercase leading-normal">{item}</p>
@@ -3195,7 +3195,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       </h4>
                       <div className="space-y-3">
                         {diagnosticResult.redFlags.map((item, idx) => (
-                          <div key={idx} className="p-3.5 bg-rose-500/5 border border-rose-100/40 dark:border-rose-950/40 rounded-xl flex items-start gap-2.5">
+                          <div key={`doctorsdashboard-l3198-idx-${idx}`} className="p-3.5 bg-rose-500/5 border border-rose-100/40 dark:border-rose-950/40 rounded-xl flex items-start gap-2.5">
                             <span className="w-2 rounded-full h-2 bg-rose-500 mt-1.5 shrink-0 animate-ping" />
                             <p className="text-[10px] font-bold text-rose-955 dark:text-rose-300 uppercase leading-normal">{item}</p>
                           </div>
@@ -3215,7 +3215,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       </h4>
                       <div className="space-y-3">
                         {diagnosticResult.pharmacology.map((item, idx) => (
-                          <div key={idx} className="p-3.5 bg-emerald-55 bg-emerald-500/5 border border-emerald-100/50 dark:border-emerald-950/40 rounded-xl flex items-start gap-2.5">
+                          <div key={`doctorsdashboard-l3218-idx-${idx}`} className="p-3.5 bg-emerald-55 bg-emerald-500/5 border border-emerald-100/50 dark:border-emerald-950/40 rounded-xl flex items-start gap-2.5">
                             <CheckCircle2 size={13} className="text-emerald-500 mt-0.5 shrink-0" />
                             <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase leading-relaxed">{item}</p>
                           </div>
@@ -3230,7 +3230,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       </h4>
                       <div className="space-y-2.5">
                         {diagnosticResult.pathway.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-100/40 dark:border-slate-850 rounded-xl">
+                          <div key={`doctorsdashboard-l3233-idx-${idx}`} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-100/40 dark:border-slate-850 rounded-xl">
                             <input 
                               type="checkbox" 
                               className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600" 
@@ -3276,7 +3276,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                       ) : (
                         <div className="space-y-3">
                           {consultHistory.map((h, i) => (
-                            <div key={i} className={`p-4 rounded-2xl text-xs max-w-xl leading-relaxed ${
+                            <div key={`doctorsdashboard-l3279-i-${i}`} className={`p-4 rounded-2xl text-xs max-w-xl leading-relaxed ${
                               h.role === 'user' 
                                 ? 'bg-blue-600/20 text-white border border-blue-500/30 self-end ml-auto shadow-md font-bold' 
                                 : 'bg-slate-900 text-slate-300 border border-white/5'
@@ -3418,7 +3418,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Department</label>
                   <select 
@@ -3477,7 +3477,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
             <p className="text-[10px] text-slate-400 font-bold uppercase mb-6 leading-relaxed">Directly draft diagnostic presentation inside clinical SOAP registry standards.</p>
             
             <form onSubmit={handleSubmitSoapReferral} className="space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar pr-1">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Patient System ID Code</label>
                   <input 
@@ -3488,7 +3488,6 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                     required
                   />
                 </div>
-
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-slate-400 block tracking-widest">Priority Protocol</label>
                   <select 
@@ -3506,7 +3505,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
               {/* Quick clinical vitals mapping */}
               <div className="bg-slate-50 dark:bg-slate-950 p-4 border rounded-xl space-y-3">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Ward Vitals Handshake</span>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1 text-center">
                     <span className="text-[8px] font-bold text-slate-400 uppercase">Temp (°C)</span>
                     <input type="text" value={soapData.temp} onChange={e => setSoapData(prev => ({ ...prev, temp: e.target.value }))} className="w-full text-center bg-white dark:bg-slate-900 border rounded-lg py-1.5 px-2 text-xs font-bold outline-none" />

@@ -247,7 +247,7 @@ export const VitalityMatrix: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1500);
     const interval = setInterval(() => {
-      setRituals(prev => prev.map(r => {
+      setRituals(prev => prev.map((r, mapIdx_249) => {
         if (r.active && r.time > 0) {
           return { ...r, time: r.time - 1 };
         }
@@ -286,8 +286,8 @@ export const VitalityMatrix: React.FC = () => {
           <div className="h-4 w-48 bg-slate-50 dark:bg-slate-900 rounded-full mx-auto" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-4xl mt-12">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-40 bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
+          {[1, 2, 3].map((i, mapIdx_288) => (
+            <div key={`vitalitymatrix-l290-i-${i}-${mapIdx_288}`} className="h-40 bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
           ))}
         </div>
       </div>
@@ -295,7 +295,7 @@ export const VitalityMatrix: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 bg-white dark:bg-slate-950 min-h-screen font-sans">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full box-border min-w-0 py-6 sm:py-8 bg-white dark:bg-slate-950 font-sans">
       <header className="mb-20 text-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -429,7 +429,7 @@ export const VitalityMatrix: React.FC = () => {
                    { label: 'Buffer', val: '99%' },
                    { label: 'Drift', val: '0.01%' }
                  ].map((stat, i) => (
-                   <div key={i} className="px-6 py-3 bg-white/5 rounded-xl border border-white/5">
+                   <div key={`vitalitymatrix-l432-i-${i}`} className="px-6 py-3 bg-white/5 rounded-xl border border-white/5">
                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
                       <p className="text-sm font-black uppercase">{stat.val}</p>
                    </div>
@@ -580,7 +580,7 @@ export const VitalityMatrix: React.FC = () => {
                   <div className="flex items-center justify-between">
                      <div className="flex gap-1 items-end h-8">
                         {[16, 24, 12, 18, 30, 22, 14, 10, 8, 12].map((h, i) => (
-                           <div key={i} className={`w-2 rounded-full transition-all duration-500 ${i > 6 ? 'bg-emerald-100 dark:bg-emerald-900/40 opacity-50' : 'bg-blue-100 dark:bg-blue-900/40'}`} style={{ height: h, display: i > 6 && viewMode !== 'predictive' ? 'none' : 'block' }} />
+                           <div key={`vitalitymatrix-l583-i-${i}`} className={`w-2 rounded-full transition-all duration-500 ${i > 6 ? 'bg-emerald-100 dark:bg-emerald-900/40 opacity-50' : 'bg-blue-100 dark:bg-blue-900/40'}`} style={{ height: h, display: i > 6 && viewMode !== 'predictive' ? 'none' : 'block' }} />
                         ))}
                      </div>
                      <span className={`text-2xl font-black tracking-tighter ${viewMode === 'predictive' ? 'text-emerald-600' : 'text-blue-600'}`}>
@@ -592,7 +592,7 @@ export const VitalityMatrix: React.FC = () => {
 
             {metrics.map((metric, i) => (
               <motion.div 
-                key={i} 
+                key={`vitalitymatrix-l595-i-${i}`} 
                 whileHover={{ scale: 1.05 }}
                 className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between"
               >
@@ -704,7 +704,7 @@ export const VitalityMatrix: React.FC = () => {
                 { label: viewMode === 'predictive' ? 'Future Peak' : 'Highest Peak', value: viewMode === 'predictive' ? '82ms' : '75ms' },
                 { label: 'ANS State', value: 'Parasympathetic' }
               ].map((stat, i) => (
-                <div key={i} className="text-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div key={`vitalitymatrix-l707-i-${i}`} className="text-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
                   <p className="text-sm font-black text-slate-900 dark:text-white uppercase">{stat.value}</p>
                 </div>
@@ -726,7 +726,7 @@ export const VitalityMatrix: React.FC = () => {
               <div className="space-y-4 mb-10">
                 {rituals.map((task, i) => (
                   <motion.div 
-                    key={i} 
+                    key={`vitalitymatrix-l729-i-${i}`} 
                     layout
                     onClick={() => toggleRitual(i)}
                     className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${task.active ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/5 bg-white/5 opacity-50'}`}
@@ -760,7 +760,7 @@ export const VitalityMatrix: React.FC = () => {
                 { label: 'Hormonal Balance', progress: viewMode === 'predictive' ? 78 : 62 },
                 { label: 'Liver Detoxification', progress: viewMode === 'predictive' ? 55 : 41 },
               ].map((target, i) => (
-                <div key={i} className="cursor-help group">
+                <div key={`vitalitymatrix-l763-i-${i}`} className="cursor-help group">
                   <div className="flex justify-between mb-2">
                     <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-emerald-500 transition-colors">
                       {target.label}
@@ -824,9 +824,9 @@ export const VitalityMatrix: React.FC = () => {
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Timeframe (Days)</label>
                 <div className="flex gap-2">
-                  {[30, 90, 180].map(d => (
+                  {[30, 90, 180].map((d, dIdx) => (
                     <button 
-                      key={d}
+                      key={`vm-tf-${d}-${dIdx}`}
                       onClick={() => {
                         setPredictionParams(p => ({ ...p, timeframe: d }));
                         triggerReforecastSim();
@@ -842,9 +842,9 @@ export const VitalityMatrix: React.FC = () => {
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Intensity</label>
                 <div className="flex gap-2">
-                  {['conservative', 'optimal', 'aggressive'].map(i => (
+                  {['conservative', 'optimal', 'aggressive'].map((i, iIdx) => (
                     <button 
-                      key={i}
+                      key={`vm-int-${i}-${iIdx}`}
                       onClick={() => {
                         setPredictionParams(p => ({ ...p, intensity: i as any }));
                         triggerReforecastSim();
@@ -865,9 +865,9 @@ export const VitalityMatrix: React.FC = () => {
               { id: 'gero', label: 'Gero-Aging (DNA & Telomere Health)', desc: 'Forecasts cellular longevity, epigenetic age markers, and chromosome integrity index.' },
               { id: 'metabo', label: 'Metabolic & Autophagy Core', desc: 'Predictive insulin sensitivity pathways, peak autophagy progress rates, and caloric transport efficiency.' },
               { id: 'sympathetic', label: 'Sympathetic Balancer (CNS)', desc: 'Autonomic system resonance trends, projected heart rate variability milestones, and biological rest ratios.' }
-            ].map(modelOpt => (
+            ].map((modelOpt, mapIdx_867) => (
               <button
-                key={modelOpt.id}
+                key={`vitalitymatrix-l870-${mapIdx_867}`}
                 onClick={() => {
                   setActiveModel(modelOpt.id as any);
                   triggerReforecastSim();
@@ -1252,7 +1252,7 @@ export const VitalityMatrix: React.FC = () => {
                     { name: 'Fast Autophagy', interval: '16/8 Window', intensity: 'Intermittent', icon: <Heart size={18} /> },
                     { name: 'Hyperbaric Oxygen', interval: 'Monthly', intensity: 'Clinical', icon: <Activity size={18} /> },
                   ].map((p, i) => (
-                    <div key={i} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-700/50 group hover:border-emerald-500/50 transition-all cursor-pointer">
+                    <div key={`vitalitymatrix-l1255-i-${i}`} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-700/50 group hover:border-emerald-500/50 transition-all cursor-pointer">
                       <div className="flex items-center gap-6">
                         <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center text-emerald-500 shadow-sm">
                           {p.icon}

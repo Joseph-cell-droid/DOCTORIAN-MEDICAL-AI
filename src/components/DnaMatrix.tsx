@@ -67,9 +67,9 @@ export const DnaMatrix: React.FC<DnaMatrixProps> = ({ dnaStatus, onStartSequenci
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {(dnaStatus.markers || []).map((marker: string) => (
+                  {(dnaStatus.markers || []).map((marker: string, mIdx: number) => (
                     <motion.div 
-                      key={marker}
+                      key={`dna-marker-${marker}-${mIdx}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center gap-2"
@@ -133,8 +133,8 @@ export const DnaMatrix: React.FC<DnaMatrixProps> = ({ dnaStatus, onStartSequenci
                 { gene: 'APOE e3/e4', status: 'Increased Risk Allele', risk: 'Moderate', color: 'text-amber-500' },
                 { gene: 'COMT Val158Met', status: 'Slower Dopamine Clearance', risk: 'Normal', color: 'text-blue-500' },
                 { gene: 'BRCA1/2', status: 'No Pathogenic Mutations', risk: 'Negative', color: 'text-emerald-500' }
-              ].map(v => (
-                <div key={v.gene} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+              ].map((v, mapIdx_135) => (
+                <div key={`dnamatrix-l137-${mapIdx_135}`} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-black text-slate-900 dark:text-white">{v.gene}</p>
                     <p className="text-[10px] font-bold text-slate-400">{v.status}</p>

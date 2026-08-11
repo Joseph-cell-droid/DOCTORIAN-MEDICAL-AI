@@ -238,9 +238,9 @@ export const BioSecurity: React.FC = () => {
              { id: 'quantum', label: 'Quantum Layer', icon: <Zap size={14} /> },
              { id: 'darkweb', label: 'Privacy Auditor', icon: <Globe size={14} /> },
              { id: 'offline_config', label: 'Offline & Encryption Shield', icon: <ShieldCheck size={14} /> }
-           ].map(tab => (
+           ].map((tab, mapIdx_240) => (
              <button
-               key={tab.id}
+               key={`biosecurity-l243-${mapIdx_240}`}
                onClick={() => setActiveLayer(tab.id as any)}
                className={`flex items-center gap-2 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
                  activeLayer === tab.id 
@@ -371,7 +371,7 @@ export const BioSecurity: React.FC = () => {
                 <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6">Neural Identity Logs</h3>
                 <div className="space-y-4">
                   {systemLog.map((log, i) => (
-                    <div key={i} className="flex gap-4 items-center">
+                    <div key={`biosecurity-l374-i-${i}`} className="flex gap-4 items-center">
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500/40" />
                       <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-tighter">
                         {log}
@@ -403,9 +403,9 @@ export const BioSecurity: React.FC = () => {
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching nodes found</p>
                   </div>
                 )}
-                {filteredNodes.filter(n => n.active).map((node) => (
+                {filteredNodes.filter(n => n.active).map((node, mapIdx_405) => (
                   <motion.div 
-                    key={node.id}
+                    key={`biosecurity-l408-${mapIdx_405}`}
                     layout
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -456,7 +456,7 @@ export const BioSecurity: React.FC = () => {
                          <Zap size={32} />
                       </div>
                       <div>
-                         <h3 className="text-3xl font-[1000] uppercase tracking-tighter mb-1">Quantum Encryption Mesh</h3>
+                         <h3 className="text-3xl font-[1000] uppercase tracking-tighter mb-1">AES-256 Multi-Layer Mesh</h3>
                          <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Active Protection: Entanglement-Based Sealing</p>
                       </div>
                    </div>
@@ -467,7 +467,7 @@ export const BioSecurity: React.FC = () => {
                         { label: 'Qubits Active', val: '4,096', icon: <Cpu />, color: 'text-blue-400' },
                         { label: 'PKE Integrity', val: '100%', icon: <ShieldCheck />, color: 'text-purple-400' }
                       ].map((s, i) => (
-                        <div key={i} className="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-md">
+                        <div key={`biosecurity-l470-i-${i}`} className="bg-white/5 border border-white/10 p-8 rounded-[2rem] backdrop-blur-md">
                            <div className={`p-3 w-fit rounded-xl bg-white/5 mb-4 ${s.color}`}>
                               {s.icon}
                            </div>
@@ -563,7 +563,7 @@ export const BioSecurity: React.FC = () => {
                              { label: 'Identity Clusters', val: 'None Detected', icon: <Database /> },
                              { label: 'Shadow Traces', val: '0 Found', icon: <Globe /> }
                            ].map((item, i) => (
-                             <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                             <div key={`biosecurity-l566-i-${i}`} className="p-6 bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center gap-4">
                                 <div className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 border border-slate-100 dark:border-slate-800">
                                    {item.icon}
                                 </div>
@@ -641,9 +641,9 @@ export const BioSecurity: React.FC = () => {
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Offline Cache Size Limit</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {[50, 250, 1000].map(size => (
+                      {[50, 250, 1000].map((size, sIdx) => (
                         <button
-                          key={size}
+                          key={`bs-size-${size}-${sIdx}`}
                           onClick={() => setOfflineCacheSize(size)}
                           className={`py-3 px-4 rounded-xl text-center text-xs font-black uppercase transition-all ${
                             offlineCacheSize === size
@@ -660,9 +660,9 @@ export const BioSecurity: React.FC = () => {
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Outbound Sync Frequency</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {[1, 5, 15].map(freq => (
+                      {[1, 5, 15].map((freq, fIdx) => (
                         <button
-                          key={freq}
+                          key={`bs-freq-${freq}-${fIdx}`}
                           onClick={() => setOfflineSyncInterval(freq)}
                           className={`py-3 px-4 rounded-xl text-center text-xs font-black uppercase transition-all ${
                             offlineSyncInterval === freq
@@ -687,7 +687,7 @@ export const BioSecurity: React.FC = () => {
                       { label: 'IndexedDB Secure Cryptographic Queue Storage', ok: true },
                       { label: 'Offline Keyring Token Binder (WebAuthn / FIDO2)', ok: isHardwareSupported }
                     ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/50 p-2 rounded-xl">
+                      <div key={`biosecurity-l690-i-${i}`} className="flex items-center justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/50 p-2 rounded-xl">
                         <span>{item.label}</span>
                         {item.ok ? (
                           <span className="text-emerald-500 font-black uppercase">Ready</span>
@@ -746,7 +746,7 @@ export const BioSecurity: React.FC = () => {
 
                   <div className="h-28 overflow-y-auto space-y-1 font-mono text-[8.5px] text-slate-400 scrollbar-thin">
                     {hackerSimulationLogs.map((log, idx) => (
-                      <p key={idx} className={
+                      <p key={`biosecurity-l749-idx-${idx}`} className={
                         log.includes('[SUCCESS]') ? 'text-emerald-400' :
                         log.includes('[WARNING]') || log.includes('[BRUTEFORCE]') ? 'text-amber-500' :
                         log.includes('[BLOCKED]') ? 'text-rose-400 font-bold' : 'text-slate-400'

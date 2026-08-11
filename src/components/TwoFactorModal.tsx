@@ -516,7 +516,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
 
                     <div className="grid grid-cols-2 gap-2.5 pt-2 font-mono text-xs font-black">
                       {recoveryCodes.map((c, i) => (
-                        <div key={i} className="p-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-center text-indigo-600 dark:text-indigo-400">
+                        <div key={`twofactormodal-l519-i-${i}`} className="p-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-center text-indigo-600 dark:text-indigo-400">
                           {c}
                         </div>
                       ))}

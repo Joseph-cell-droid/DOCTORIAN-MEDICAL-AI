@@ -78,8 +78,8 @@ export default function CognisAnalytics() {
                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Real-time Neural Mapping: Cortex-7</p>
               </div>
               <div className="flex gap-4">
-                 {['Alpha', 'Beta', 'Gamma'].map(wave => (
-                   <div key={wave} className="px-3 py-1 bg-slate-950 border border-slate-800 rounded-full text-[8px] font-black uppercase tracking-widest text-slate-400">
+                 {['Alpha', 'Beta', 'Gamma'].map((wave, mapIdx_80) => (
+                   <div key={`cognisanalytics-l82-${mapIdx_80}`} className="px-3 py-1 bg-slate-950 border border-slate-800 rounded-full text-[8px] font-black uppercase tracking-widest text-slate-400">
                       {wave} Range
                    </div>
                  ))}
@@ -96,7 +96,7 @@ export default function CognisAnalytics() {
                 { label: 'Prefrontal', x: 15, y: 55 }
               ].map((node, i) => (
                 <motion.div
-                  key={i}
+                  key={`cognisanalytics-l99-i-${i}`}
                   onHoverStart={() => setActiveBrainRegion(node.label)}
                   onHoverEnd={() => setActiveBrainRegion(null)}
                   animate={{
@@ -137,7 +137,7 @@ export default function CognisAnalytics() {
                  { label: 'Sync Rate', val: '40 Hz' },
                  { label: 'Density', val: '98%' }
                ].map((stat, i) => (
-                 <div key={i} className="text-center">
+                 <div key={`cognisanalytics-l140-i-${i}`} className="text-center">
                     <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">{stat.label}</p>
                     <p className="text-xs font-black text-white">{stat.val}</p>
                  </div>
@@ -202,7 +202,7 @@ export default function CognisAnalytics() {
           { label: 'Dna Synthesis', val: 'Active', icon: <Dna size={14} />, color: 'text-blue-500' },
           { label: 'Focus Index', val: '8.4', icon: <Target size={14} />, color: 'text-purple-500' },
         ].map((item, i) => (
-          <div key={i} className="p-6 bg-slate-900/30 rounded-3xl border border-slate-800/50 flex items-center gap-4">
+          <div key={`cognisanalytics-l205-i-${i}`} className="p-6 bg-slate-900/30 rounded-3xl border border-slate-800/50 flex items-center gap-4">
             <div className={`p-3 rounded-xl bg-slate-950 border border-slate-800 ${item.color}`}>
               {item.icon}
             </div>
@@ -224,7 +224,7 @@ export default function CognisAnalytics() {
               { title: 'Metabolic Optimization', desc: 'Adjusting glucose uptake efficiency for cognitive-load.', status: 'Active' },
               { title: 'Dopamine Regulation', desc: 'Monitoring reward-pathway stability during focus.', status: 'Standby' },
             ].map((p, i) => (
-              <div key={i} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between group cursor-default">
+              <div key={`cognisanalytics-l227-i-${i}`} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between group cursor-default">
                 <div>
                   <p className="text-sm font-black uppercase tracking-tight text-slate-200">{p.title}</p>
                   <p className="text-[10px] font-medium text-slate-500">{p.desc}</p>
@@ -280,7 +280,7 @@ export default function CognisAnalytics() {
           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-6">Live Bio-Sequence</h4>
           <div className="space-y-4 font-mono text-[10px]">
             {['ATCCGTAG', 'GCTTAGCA', 'TAGCCTAG', 'CATGCTAG'].map((seq, i) => (
-              <div key={i} className="flex justify-between items-center py-2 border-b border-slate-800/50">
+              <div key={`cognisanalytics-l283-i-${i}`} className="flex justify-between items-center py-2 border-b border-slate-800/50">
                 <span className="text-blue-500 font-black">CHRM_{i+1}</span>
                 <span className="text-slate-300 tracking-widest">{seq}...</span>
                 <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">MATCH</span>

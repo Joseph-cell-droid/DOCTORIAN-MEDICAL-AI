@@ -13,6 +13,8 @@
  * Support for simulated online/offline states and database synchronization queueing.
  */
 
+import { encryptSync, decryptSync } from './secureStorageBackup';
+
 export interface Patient {
   id: string;
   name: string;
@@ -262,13 +264,15 @@ const generateSeedLogs = (): MedicationLog[] => {
   return logs;
 };
 
-// Helper: Safely parse local storage
+// Helper: Safely parse and decrypt local storage
 const getStorage = <T>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') return defaultValue;
-  const data = localStorage.getItem(key);
-  if (!data) return defaultValue;
+  const rawData = localStorage.getItem(key);
+  if (!rawData) return defaultValue;
   try {
-    return JSON.parse(data) as T;
+    const decrypted = decryptSync(rawData);
+    if (!decrypted) return defaultValue;
+    return JSON.parse(decrypted) as T;
   } catch (e) {
     return defaultValue;
   }
@@ -276,7 +280,13 @@ const getStorage = <T>(key: string, defaultValue: T): T => {
 
 const setStorage = <T>(key: string, value: T): void => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(key, JSON.stringify(value));
+    try {
+      const jsonStr = JSON.stringify(value);
+      const encrypted = encryptSync(jsonStr);
+      localStorage.setItem(key, encrypted);
+    } catch (e) {
+      console.warn("Offline database write warning:", e);
+    }
   }
 };
 

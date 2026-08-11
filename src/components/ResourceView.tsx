@@ -90,7 +90,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                   { q: "Can I share my reports with my doctor?", a: "Absolutely. You can export your health summaries and AI insights as a PDF directly from the 'Records' tab." }
                 ].map((faq, i) => (
                   <motion.article 
-                    key={i}
+                    key={`resourceview-l93-i-${i}`}
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -162,7 +162,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                 { label: 'Twitter / X', count: '85k followers', icon: <MessageSquare className="text-sky-500" />, color: 'bg-sky-50' }
               ].map((c, i) => (
                 <div 
-                  key={i} 
+                  key={`resourceview-l165-i-${i}`} 
                   role="listitem"
                   tabIndex={0}
                   className={`${c.color} dark:bg-slate-900 p-6 rounded-3xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all cursor-pointer group outline-none focus-visible:ring-2 focus-visible:ring-sky-500`}
@@ -183,7 +183,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                   { title: 'AI in Modern Diagnostics Webinar', date: 'April 15, 2026', host: 'Dr. Sarah Chen' },
                   { title: 'Developer Hackathon: Health Tech', date: 'May 02, 2026', host: 'Medical Dev Team' }
                 ].map((ev, i) => (
-                  <article key={i} className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-colors">
+                  <article key={`resourceview-l186-i-${i}`} className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 rounded-xl flex flex-col items-center justify-center text-blue-600 dark:text-blue-400" aria-label={`Date: ${ev.date}`}>
                         <span className="text-[10px] font-black leading-none" aria-hidden="true">{ev.date.split(' ')[0]}</span>
@@ -223,7 +223,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                   <section aria-labelledby="privacy-1">
                     <h3 id="privacy-1" className="text-lg font-black text-slate-900 dark:text-white mb-4">1. Bio-Data Sovereignty</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                      Doctorian recognizes your absolute ownership over your biological and neural data. We collect biometric streams, clinical history, and symptom logs exclusively to facilitate neuro-clinical analysis. All data is processed using Quantum-Relay Encryption (QRE) and stored in decentralized medical vaults.
+                      Doctorian recognizes your absolute ownership over your biological and neural data. We collect biometric streams, clinical history, and symptom logs exclusively to facilitate neuro-clinical analysis. All data is processed using AES-256 Symmetric Encryption and stored in decentralized medical vaults.
                     </p>
                   </section>
                   <section aria-labelledby="privacy-2">
@@ -330,7 +330,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                   icon: <Heart size={24} className="text-rose-500" />
                 }
               ].map((protocol, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group">
+                <div key={`resourceview-l333-i-${i}`} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group">
                   <div className="flex items-start justify-between mb-6">
                     <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl group-hover:scale-110 transition-transform">
                       {protocol.icon}
@@ -424,7 +424,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                           { emoji: '🤩', label: 'Excellent' }
                         ].map((item, i) => (
                           <button 
-                            key={i} 
+                            key={`resourceview-l427-i-${i}`} 
                             onClick={() => setRating(item.emoji)}
                             aria-label={item.label}
                             aria-checked={rating === item.emoji}
@@ -445,9 +445,9 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                       <section aria-labelledby="tags-title">
                         <label id="tags-title" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">What do you love most?</label>
                         <div className="flex flex-wrap gap-2" role="group" aria-labelledby="tags-title">
-                          {['AI Accuracy', 'User Interface', 'Speed', 'Privacy', 'Features'].map((tag) => (
+                          {['AI Accuracy', 'User Interface', 'Speed', 'Privacy', 'Features'].map((tag, mapIdx_447) => (
                             <button 
-                              key={tag} 
+                              key={`resourceview-l450-${mapIdx_447}`} 
                               onClick={() => setFeedbackText(prev => prev + (prev ? ', ' : '') + tag)}
                               className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-blue-600 hover:text-white transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                             >

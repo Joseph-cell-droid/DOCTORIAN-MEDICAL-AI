@@ -204,8 +204,8 @@ export const CognisHub: React.FC = () => {
           <div className="h-4 w-64 bg-slate-50 dark:bg-slate-950 rounded-full mx-auto opacity-50" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full mt-12">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-48 bg-white dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
+          {[1, 2, 3, 4].map((i, mapIdx_206) => (
+            <div key={`cognishub-l208-i-${i}-${mapIdx_206}`} className="h-48 bg-white dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
           ))}
         </div>
       </div>
@@ -213,7 +213,7 @@ export const CognisHub: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 bg-slate-50 dark:bg-slate-950 min-h-screen">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-6 sm:py-12 bg-slate-50 dark:bg-slate-950 min-h-screen w-full box-border min-w-0">
       <header className="mb-16 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <div className="flex items-center gap-4 mb-6">
@@ -237,9 +237,9 @@ export const CognisHub: React.FC = () => {
         </motion.div>
         
         <div className="flex p-2 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-x-auto no-scrollbar whitespace-nowrap flex-nowrap shrink-0 max-w-full">
-          {(['overview', 'sessions', 'analysis'] as const).map((tab) => (
+          {(['overview', 'sessions', 'analysis'] as const).map((tab, mapIdx_239) => (
             <button
-              key={tab}
+              key={`cognishub-l242-${mapIdx_239}`}
               onClick={() => setActiveTab(tab)}
               className={`relative z-10 px-8 sm:px-10 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
                 activeTab === tab 
@@ -368,7 +368,7 @@ export const CognisHub: React.FC = () => {
                 <div className="h-48 w-full flex items-end gap-1">
                    {[...Array(24)].map((_, i) => (
                       <motion.div 
-                        key={i}
+                        key={`cognishub-l371-i-${i}`}
                         animate={{ height: [ 20 + Math.random() * 40 + '%', 40 + Math.random() * 60 + '%', 20 + Math.random() * 40 + '%' ] }}
                         transition={{ duration: 2 + Math.random() * 2, repeat: Infinity, ease: "easeInOut" }}
                         className={`flex-1 rounded-full ${i % 4 === 0 ? 'bg-purple-600' : 'bg-blue-500/20'} min-h-[4px]`}
@@ -381,7 +381,7 @@ export const CognisHub: React.FC = () => {
                       { label: 'Beta Stability', value: '0.92', color: 'text-blue-600' },
                       { label: 'Gamma Response', value: 'Low', color: 'text-slate-400' }
                    ].map((item, i) => (
-                      <div key={i} className="text-center">
+                      <div key={`cognishub-l384-i-${i}`} className="text-center">
                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
                          <p className={`text-xl font-black ${item.color}`}>{item.value}</p>
                       </div>
@@ -408,9 +408,9 @@ export const CognisHub: React.FC = () => {
                     <div className="flex-1 flex flex-col items-center justify-center my-8">
                       {!isMeditating && (
                         <div className="flex flex-wrap justify-center gap-3 mb-10">
-                          {[2, 5, 10, 15].map((mins) => (
+                          {[2, 5, 10, 15].map((mins, mapIdx_410) => (
                             <button
-                              key={mins}
+                              key={`cognishub-l413-${mapIdx_410}`}
                               onClick={() => {
                                 setCustomDuration(mins);
                                 setTimer(mins * 60);
@@ -459,7 +459,7 @@ export const CognisHub: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {metrics.map((metric, i) => (
                     <motion.div 
-                      key={i} 
+                      key={`cognishub-l462-i-${i}`} 
                       whileHover={{ y: -8, scale: 1.02 }}
                       className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between cursor-pointer group hover:border-purple-200 dark:hover:border-purple-900/30 transition-all"
                     >
@@ -503,7 +503,7 @@ export const CognisHub: React.FC = () => {
                     { text: "Visual processing efficiency is optimal. Recommended environment: Deep focus lighting.", intensity: "Optimal" }
                   ].map((insight, i) => (
                     <motion.div 
-                      key={i} 
+                      key={`cognishub-l506-i-${i}`} 
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
@@ -558,7 +558,7 @@ export const CognisHub: React.FC = () => {
                    <div className="h-16 flex items-center justify-center gap-1">
                       {[...Array(12)].map((_, i) => (
                         <motion.div
-                          key={i}
+                          key={`cognishub-l561-i-${i}`}
                           animate={{ height: [8, 24, 8] }}
                           transition={{ repeat: Infinity, duration: 1.5 + Math.random(), delay: i * 0.1 }}
                           className={`w-1 rounded-full ${i % 3 === 0 ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`}
@@ -598,15 +598,15 @@ export const CognisHub: React.FC = () => {
               { title: 'Gamma Peak', duration: '30m', difficulty: 'Advanced', tags: ['Problem Solving'], color: 'bg-rose-500' },
               { title: 'Cognitive Reset', duration: '5m', difficulty: 'Easy', tags: ['Stress'], color: 'bg-emerald-500' },
             ].map((session, i) => (
-              <div key={i} className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between group cursor-pointer hover:shadow-xl transition-all">
+              <div key={`cognishub-l601-i-${i}`} className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between group cursor-pointer hover:shadow-xl transition-all">
                 <div>
                   <div className={`w-12 h-12 rounded-2xl ${session.color} mb-6 flex items-center justify-center text-white shadow-lg`}>
                     <Play size={24} />
                   </div>
                   <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">{session.title}</h3>
                   <div className="flex gap-2 mb-4">
-                    {session.tags.map(tag => (
-                      <span key={tag} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black uppercase text-slate-400">{tag}</span>
+                    {session.tags.map((tag, tagIdx) => (
+                      <span key={`cogtag-${tag}-${tagIdx}`} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black uppercase text-slate-400">{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -644,7 +644,7 @@ export const CognisHub: React.FC = () => {
                 { label: 'Reactivity Shift', value: stats.reactivityTrend, icon: <TrendingUp size={16} />, color: 'text-emerald-500' },
                 { label: 'Cognis Recovery', value: stats.recoveryRate, icon: <Activity size={16} />, color: 'text-rose-500' },
               ].map((s, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
+                <div key={`cognishub-l647-i-${i}`} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <div className={`${s.color} opacity-80`}>{s.icon}</div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
@@ -763,7 +763,7 @@ export const CognisHub: React.FC = () => {
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{label}</p>
                                 <div className="space-y-1.5">
                                   {payload.map((entry: any, i) => (
-                                    <div key={i} className="flex items-center gap-3">
+                                    <div key={`cognishub-l766-i-${i}`} className="flex items-center gap-3">
                                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
                                       <span className="text-[11px] font-bold text-slate-300 uppercase tracking-tight">{entry.name}:</span>
                                       <span className="text-sm font-black text-white">{entry.value}{entry.name === 'focus' ? '%' : 'm'}</span>

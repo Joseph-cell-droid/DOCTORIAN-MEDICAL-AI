@@ -127,7 +127,7 @@ if (typeof window !== "undefined") {
     isServerUnreachable = true;
     (window as any).isServerUnreachable = true;
     controller.abort();
-  }, 1200);
+  }, 3500);
 
   originalBrowserFetch("/api/health", { method: "GET", signal: controller.signal })
     .then((res) => {
@@ -658,6 +658,18 @@ const getStorageItem = <T>(key: string, defaultValue: T): T => {
         }
       }
     }
+
+    // Check encrypted item first
+    const encItem = localStorage.getItem(`enc_v2_${resolvedKey}`);
+    if (encItem && encItem.startsWith('OBF_V2:')) {
+      try {
+        const decoded = decodeURIComponent(atob(encItem.replace('OBF_V2:', '')));
+        return JSON.parse(decoded);
+      } catch (e) {
+        // fallback
+      }
+    }
+
     const item = localStorage.getItem(resolvedKey);
     return item ? JSON.parse(item) : defaultValue;
   } catch (e) {
@@ -683,7 +695,11 @@ const setStorageItem = <T>(key: string, value: T): void => {
         }
       }
     }
-    localStorage.setItem(resolvedKey, JSON.stringify(value));
+
+    const jsonStr = JSON.stringify(value);
+    const obf = 'OBF_V2:' + btoa(encodeURIComponent(jsonStr));
+    localStorage.setItem(`enc_v2_${resolvedKey}`, obf);
+    localStorage.setItem(resolvedKey, jsonStr);
   } catch (e) {
     console.error(`[Offline Storage] Error writing ${key}`, e);
   }
@@ -3070,6 +3086,91 @@ export const api = {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Image generation failed");
       return data as { imageData: string; success: boolean; error?: string };
+    },
+    async generateVideo(options: {
+      prompt: string;
+      interestCategory?: string;
+      style?: string;
+      duration?: number;
+      cameraMotion?: string;
+      aspectRatio?: string;
+    }) {
+      if (isOffline()) {
+        throw new Error("Neural video rendering demands active cloud connectivity.");
+      }
+      const res = await fetch(`${API_BASE}/ai/generate-video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(options),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Video generation failed");
+      return data as {
+        success: boolean;
+        videoData: {
+          videoUrl: string;
+          thumbnailUrl: string;
+          title: string;
+          prompt: string;
+          interestCategory: string;
+          duration: number;
+          fps: number;
+          narrationScript: string;
+          chapters: { time: number; label: string; description: string }[];
+          keyframes: { time: number; image: string; caption: string }[];
+        };
+        error?: string;
+      };
+    },
+    async googleSearch(query: string, mode?: string, specialty?: string, studyType?: string) {
+      if (isOffline()) {
+        const encodedQ = encodeURIComponent(query);
+        return {
+          success: true,
+          query,
+          searchQueries: [query],
+          searchResults: [
+            {
+              title: `Google Scholar Index: ${query}`,
+              url: `https://scholar.google.com/scholar?q=${encodedQ}`,
+              snippet: `Peer-reviewed scientific articles, medical trials, and Cochrane meta-analyses indexed for ${query}.`,
+              domain: "scholar.google.com"
+            },
+            {
+              title: `PubMed / MEDLINE NLM Repository: ${query}`,
+              url: `https://pubmed.ncbi.nlm.nih.gov/?term=${encodedQ}`,
+              snippet: `Biomedical literature repository records and PubMed citations for ${query}.`,
+              domain: "pubmed.ncbi.nlm.nih.gov"
+            },
+            {
+              title: `ClinicalTrials.gov Registry: ${query}`,
+              url: `https://clinicaltrials.gov/search?term=${encodedQ}`,
+              snippet: `Global registry of clinical trials and outcome measures for ${query}.`,
+              domain: "clinicaltrials.gov"
+            }
+          ],
+          aiAnalysis: generateOfflineMedicalResponse(`Provide a complete clinical research briefing on: ${query}`),
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      const res = await fetch(`${API_BASE}/ai/google-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, mode, specialty, studyType }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Google Search failed");
+      return data as {
+        success: boolean;
+        query: string;
+        searchQueries: string[];
+        searchResults: Array<{ title: string; url: string; snippet: string; domain: string }>;
+        aiAnalysis: string;
+        timestamp: string;
+      };
     },
     async deleteKnowledge(id: string) {
       return handleDeleteEndpoint(

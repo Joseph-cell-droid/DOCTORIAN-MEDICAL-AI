@@ -234,10 +234,10 @@ export const NeuralTrainingHub: React.FC = () => {
   ];
 
   const BASE_MODELS = [
-    { id: 'google/gemma-3-4b-tfjs', label: 'DOCTORIAN 1.5 ORACLE (Fastest Edge Core)', desc: 'Run model 100% locally in-browser forever. No APIs, uses neural weights trained dynamically with WebGL acceleration.' },
-    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'DOCTORIAN 2.0 ORACLE (Speed Cloud Core)', desc: 'High logical reasoning and clinical guideline synthesis.' },
-    { id: 'google/gemma-2-9b-it', label: 'DOCTORIAN 3.0 NEXUS (Clinical Core)', desc: 'Optimized translation and patient conversational tone.' },
-    { id: 'deepseek-ai/DeepSeek-R1', label: 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Max Core)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
+    { id: 'google/gemma-3-4b-tfjs', label: 'Doctorian General AI (Fastest Edge Core)', desc: 'Run model 100% locally in-browser forever. No APIs, uses neural weights trained dynamically with WebGL acceleration.' },
+    { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Doctorian Clinical AI (Speed Cloud Core)', desc: 'High logical reasoning and clinical guideline synthesis.' },
+    { id: 'google/gemma-2-9b-it', label: 'Doctorian Patient Education AI (Clinical Core)', desc: 'Optimized translation and patient conversational tone.' },
+    { id: 'deepseek-ai/DeepSeek-R1', label: 'Doctorian Research AI (Quantum Max Core)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
   ];
 
   const handleLanguageGenerate = async () => {
@@ -627,7 +627,7 @@ export const NeuralTrainingHub: React.FC = () => {
               ) : (
                 <>
                   <Brain size={18} className="animate-pulse" />
-                  Quantum Bulk Seeder
+                  Clinical Dataset Seeder
                 </>
               )}
             </button>
@@ -751,11 +751,11 @@ export const NeuralTrainingHub: React.FC = () => {
                     desc: "Injects localized public health protocols and epidemiological indicators for East Africa.",
                     content: "In Ugandan communities, common infectious and acute symptoms are managed with strict, localized public health protocols:\n- Malaria: Accountable for over 30% of outpatient visits. Rapid Diagnostic Tests (RDTs) must be prioritized for any fever. First-line therapy remains Artemether-Lumefantrine (Coartem).\n- Typhoid Fever: Flagged by prolonged step-ladder fever, abdominal discomfort, and 'rose spots' on trunk. Highlight safe water, sanitation, and hygiene (WASH) standards.\n- Bilharzia (Schistosomiasis): Prevalent around Lake Victoria and Albert. Contracted via fresh-water contact. Instruct on avoiding snail-infested waters and prioritize Praziquantel screening.\n- Primary health units (Health Center II, III, IV) must be referenced as the immediate routing node for secondary diagnostics."
                   }
-                ].map((preset) => {
+                ].map((preset, mapIdx_753) => {
                   const alreadyInjected = items.some(item => item.title === preset.title);
                   return (
                     <div 
-                      key={preset.id}
+                      key={`neuraltraininghub-l758-${mapIdx_753}`}
                       className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col gap-2 group/preset"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -836,9 +836,9 @@ export const NeuralTrainingHub: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <AnimatePresence mode="popLayout">
-                  {filteredItems.map((item) => (
+                  {filteredItems.map((item, mapIdx_838) => (
                     <motion.div
-                      key={item.id}
+                      key={`neuraltraininghub-l841-${mapIdx_838}`}
                       layout
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -902,8 +902,8 @@ export const NeuralTrainingHub: React.FC = () => {
                     onChange={(e) => setFtBaseModel(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none"
                   >
-                    {BASE_MODELS.map(model => (
-                      <option key={model.id} value={model.id}>{model.label}</option>
+                    {BASE_MODELS.map((model, mapIdx_904) => (
+                      <option key={`neuraltraininghub-l906-${mapIdx_904}`} value={model.id}>{model.label}</option>
                     ))}
                   </select>
                   <p className="text-[9px] text-slate-400 italic">
@@ -925,9 +925,9 @@ export const NeuralTrainingHub: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Training Epochs</label>
                   <div className="grid grid-cols-4 gap-2">
-                    {[3, 5, 10, 20].map((ep) => (
+                    {[3, 5, 10, 20].map((ep, mapIdx_927) => (
                       <button
-                        key={ep}
+                        key={`neuraltraininghub-l930-${mapIdx_927}`}
                         type="button"
                         onClick={() => setFtEpochs(ep)}
                         className={`py-2 text-xs font-black rounded-lg border transition-all ${
@@ -1019,9 +1019,9 @@ export const NeuralTrainingHub: React.FC = () => {
               <div className="space-y-6">
                 {/* List of runs */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {ftJobs.map((job) => (
+                  {ftJobs.map((job, mapIdx_1021) => (
                     <div
-                      key={job.id}
+                      key={`neuraltraininghub-l1024-${mapIdx_1021}`}
                       onClick={() => setSelectedJob(job)}
                       className={`p-5 rounded-[2rem] border transition-all cursor-pointer relative flex flex-col justify-between ${
                         selectedJob?.id === job.id
@@ -1256,7 +1256,7 @@ export const NeuralTrainingHub: React.FC = () => {
                       </h5>
                       <ul className="space-y-2">
                         {smartAnalysis.potentialIssues?.map((issue: string, index: number) => (
-                          <li key={index} className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-relaxed list-disc list-inside">
+                          <li key={`neuraltraininghub-l1259-index-${index}`} className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-relaxed list-disc list-inside">
                             {issue}
                           </li>
                         ))}
@@ -1269,7 +1269,7 @@ export const NeuralTrainingHub: React.FC = () => {
                       </h5>
                       <ul className="space-y-2">
                         {smartAnalysis.testQueries?.map((query: string, index: number) => (
-                          <li key={index} className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-relaxed bg-white dark:bg-slate-900/40 p-2.5 rounded-xl border border-blue-50 dark:border-slate-800 flex items-start gap-2">
+                          <li key={`neuraltraininghub-l1272-index-${index}`} className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-relaxed bg-white dark:bg-slate-900/40 p-2.5 rounded-xl border border-blue-50 dark:border-slate-800 flex items-start gap-2">
                             <span className="p-1 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full text-[8px] font-black">ix</span>
                             <span>{query}</span>
                           </li>
@@ -1349,7 +1349,7 @@ export const NeuralTrainingHub: React.FC = () => {
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Trained Core Competencies</span>
                         <div className="flex flex-wrap gap-2 pt-1">
                           {smartReport.competencies?.map((comp: string, i: number) => (
-                            <span key={i} className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm block">
+                            <span key={`neuraltraininghub-l1352-i-${i}`} className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm block">
                               🔬 {comp}
                             </span>
                           ))}
@@ -1394,9 +1394,9 @@ export const NeuralTrainingHub: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] ml-1">Target Class</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {['clinical', 'language', 'symptom', 'prevention'].map(cat => (
+                    {['clinical', 'language', 'symptom', 'prevention'].map((cat, mapIdx_1396) => (
                       <button
-                        key={cat}
+                        key={`neuraltraininghub-l1399-${mapIdx_1396}`}
                         type="button"
                         onClick={() => setAugmentCategory(cat)}
                         className={`py-2 px-3 rounded-xl border text-[9px] font-black uppercase tracking-widest text-center transition-all ${
@@ -1450,7 +1450,7 @@ export const NeuralTrainingHub: React.FC = () => {
 
                   <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                     {synthesizedNodes.map((node, i) => (
-                      <div key={i} className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2">
+                      <div key={`neuraltraininghub-l1453-i-${i}`} className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2">
                         <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">NODE ix.{i + 1}</span>
                         <h4 className="text-xs font-black text-slate-900 dark:text-white leading-tight">{node.title}</h4>
                         <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3 italic">
@@ -1527,9 +1527,9 @@ export const NeuralTrainingHub: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-2">Training Category</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {TRAINING_CATEGORIES.map(cat => (
+                    {TRAINING_CATEGORIES.map((cat, mapIdx_1529) => (
                       <button
-                        key={cat.id}
+                        key={`neuraltraininghub-l1532-${mapIdx_1529}`}
                         type="button"
                         onClick={() => setNewCategory(cat.id)}
                         className={`p-3 rounded-xl border text-left transition-all ${

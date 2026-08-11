@@ -329,7 +329,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
     const timer = setTimeout(() => {
       let hasChange = false;
       setCleaningSchedules(prev => {
-        return prev.map(c => {
+        return prev.map((c, mapIdx_331) => {
           if (c.status === 'SMS Dispatched') {
             hasChange = true;
             return { ...c, status: 'Completed' as const };
@@ -362,7 +362,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
     { name: 'Emergency Room', capacity: 4, color: '#f43f5e', text: 'text-rose-500', bg: 'bg-rose-500/10' },
   ];
 
-  const chartData = wardSections.map(ws => {
+  const chartData = wardSections.map((ws, mapIdx_364) => {
     const occupied = countOccupied(ws.name);
     return {
       name: ws.name,
@@ -429,7 +429,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
         setTransferHistory(prev => [newTransfer, ...prev]);
       }
 
-      setRegisteredPatients(prev => prev.map(p => p.id === editingPatientId ? {
+      setRegisteredPatients(prev => prev.map((p, mapIdx_431) => p.id === editingPatientId ? {
         ...p,
         name: regName,
         bedNumber: regBed,
@@ -581,7 +581,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
     const oldBedValue = patientObj.bedNumber;
     const newBedValue = targetBedField.trim();
 
-    setRegisteredPatients(prev => prev.map(p => p.id === selectedId ? {
+    setRegisteredPatients(prev => prev.map((p, mapIdx_583) => p.id === selectedId ? {
       ...p,
       bedNumber: newBedValue
     } : p));
@@ -838,10 +838,10 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                     No vacating events scheduled yet. Try initiating a discharge.
                   </div>
                 ) : (
-                  cleaningSchedules.map((schedule) => {
+                  cleaningSchedules.map((schedule, mapIdx_840) => {
                     const isCompleted = schedule.status === 'Completed';
                     return (
-                      <div key={schedule.id} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-[10px] space-y-1.5 flex flex-col justify-between">
+                      <div key={`clinicalpatientregistry-l844-${mapIdx_840}`} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-[10px] space-y-1.5 flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                           <div>
                             <strong className="text-slate-800 dark:text-slate-200 uppercase font-black font-mono">{schedule.bedNumber}</strong>
@@ -974,8 +974,8 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                     onChange={e => setRegBlood(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 focus:border-teal-500 outline-none rounded-xl px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white"
                   >
-                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                      <option key={t} value={t}>{t}</option>
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((t, mapIdx_976) => (
+                      <option key={`clinicalpatientregistry-l978-${mapIdx_976}`} value={t}>{t}</option>
                     ))}
                   </select>
                 </div>
@@ -1130,12 +1130,12 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
             { id: 'healthy', label: 'Stable', color: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-750 dark:bg-emerald-955/20 dark:hover:bg-emerald-955/40 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40', activeColor: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/10' },
             { id: 'warning', label: 'Warning', color: 'bg-amber-50 hover:bg-amber-100 text-amber-750 dark:bg-amber-955/20 dark:hover:bg-amber-955/40 dark:text-amber-450 border-amber-100 dark:border-amber-900/40', activeColor: 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/10' },
             { id: 'critical', label: 'Critical', color: 'bg-rose-50 hover:bg-rose-100 text-rose-750 dark:bg-rose-955/20 dark:hover:bg-rose-955/40 dark:text-rose-450 border-rose-100 dark:border-rose-900/40', activeColor: 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/10' }
-          ].map(chip => {
+          ].map((chip, mapIdx_1132) => {
             const isActive = patientSeverityFilter === chip.id;
             return (
               <button
                 type="button"
-                key={chip.id}
+                key={`clinicalpatientregistry-l1138-${mapIdx_1132}`}
                 onClick={() => {
                   setPatientSeverityFilter(chip.id as any);
                   triggerRegistryNotification(`Severity Filter: Selected ${chip.label}`, 'info');
@@ -1181,11 +1181,11 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
 
             {/* Floor Plan Main Grid Sections Map */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {wardSections.map((section) => {
+              {wardSections.map((section, mapIdx_1183) => {
                 const sectionBeds = FLOOR_PLAN_BEDS.filter(b => getWardSection(b.label) === section.name);
                 
                 return (
-                  <div key={section.name} className="bg-slate-950/50 p-6 rounded-3xl border border-slate-850 space-y-4">
+                  <div key={`clinicalpatientregistry-l1188-${mapIdx_1183}`} className="bg-slate-950/50 p-6 rounded-3xl border border-slate-850 space-y-4">
                     
                     {/* Section Title Banner */}
                     <div className="flex items-center justify-between">
@@ -1199,7 +1199,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
 
                     {/* Quadrant grid cells */}
                     <div className="grid grid-cols-2 gap-4">
-                      {sectionBeds.map(bed => {
+                      {sectionBeds.map((bed, bIdx) => {
                         const patient = findPatientForBed(bed.label, bed.id);
                         const activeCleaning = cleaningSchedules.find(c => c.bedNumber === bed.label && c.status === 'SMS Dispatched');
                         
@@ -1213,7 +1213,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
 
                           return (
                             <div
-                              key={bed.id}
+                              key={`bed-${section.name}-${bed.id}-${bIdx}`}
                               onClick={() => {
                                 couplePatientToMonitor(patient);
                                 triggerRegistryNotification(`Coupled telemetry feeds with ${patient.name} (${bed.id})`, "info");
@@ -1250,7 +1250,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                         } else if (activeCleaning) {
                           return (
                             <div
-                              key={bed.id}
+                              key={`bed-clean-${section.name}-${bed.id}-${bIdx}`}
                               className="p-3.5 bg-indigo-950/25 rounded-2xl border border-indigo-500/30 flex flex-col justify-between h-42 text-center relative group"
                             >
                               <div className="text-[8px] font-mono text-indigo-400 text-left leading-none">{bed.id}</div>
@@ -1264,7 +1264,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setCleaningSchedules(prev => prev.map(c => c.id === activeCleaning.id ? { ...c, status: 'Completed' as const } : c));
+                                  setCleaningSchedules(prev => prev.map((c, mapIdx_1266) => c.id === activeCleaning.id ? { ...c, status: 'Completed' as const } : c));
                                   triggerRegistryNotification(`Sanitization certified for ${bed.id} manually.`, "success");
                                 }}
                                 className="text-[8px] font-black text-indigo-300 hover:text-indigo-150 uppercase tracking-widest border border-indigo-500/20 rounded-lg py-1.5 bg-indigo-950/45 cursor-pointer"
@@ -1276,7 +1276,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                         } else {
                           return (
                             <div
-                              key={bed.id}
+                              key={`bed-vacant-${section.name}-${bed.id}-${bIdx}`}
                               onClick={() => {
                                 setRegBed(bed.label);
                                 setShowRegistrationForm(true);
@@ -1316,11 +1316,11 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
               </p>
             </div>
           ) : (
-            searchedAndFilteredPatients.map(patient => {
+            searchedAndFilteredPatients.map((patient, mapIdx_1318) => {
               const isCurrentlySelected = selectedPatientId === patient.id;
               return (
                 <div 
-                  key={patient.id}
+                  key={`clinicalpatientregistry-l1323-${mapIdx_1318}`}
                   className={`flex flex-col justify-between p-6 sm:p-8 rounded-[2.2rem] bg-white dark:bg-slate-900 border transition-all duration-300 relative overflow-hidden shadow-sm ${
                     isCurrentlySelected 
                       ? 'border-teal-500 dark:border-teal-800 ring-4 ring-teal-500/10 shadow-xl' 
@@ -1452,8 +1452,8 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500"
                 >
                   <option value="" disabled>-- Select Active Patient --</option>
-                  {registeredPatients.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.bedNumber})</option>
+                  {registeredPatients.map((p, mapIdx_1454) => (
+                    <option key={`clinicalpatientregistry-l1456-${mapIdx_1454}`} value={p.id}>{p.name} ({p.bedNumber})</option>
                   ))}
                 </select>
               </div>
@@ -1553,7 +1553,7 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.05 }}
-                      key={transfer.id}
+                      key={`clinicalpatientregistry-l1556-${idx}`}
                       className="relative group timeline-node-container"
                     >
                       <div className="absolute -left-[31px] top-4 z-10 flex items-center justify-center">
@@ -1641,9 +1641,9 @@ export const ClinicalPatientRegistry: React.FC<ClinicalPatientRegistryProps> = (
                           </td>
                         </tr>
                       ) : (
-                        transferHistory.map((transfer) => (
+                        transferHistory.map((transfer, mapIdx_1643) => (
                           <tr 
-                            key={transfer.id}
+                            key={`clinicalpatientregistry-l1646-${mapIdx_1643}`}
                             className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors"
                           >
                             <td className="px-6 py-4 font-black text-slate-955 dark:text-slate-205">

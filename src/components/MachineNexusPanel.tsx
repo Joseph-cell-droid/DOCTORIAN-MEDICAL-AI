@@ -468,12 +468,12 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
             { id: 'ppg', label: 'PPG Oximeter', icon: Activity },
             { id: 'genomics', label: 'Nanopore Sequencer', icon: Dna },
             { id: 'custom', label: 'Provisioner', icon: Plus },
-          ].map(tab => {
+          ].map((tab, mapIdx_470) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
               <button
-                key={tab.id}
+                key={`machinenexuspanel-l476-${mapIdx_470}`}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10.5px] font-black uppercase transition-all select-none cursor-pointer ${
                   active 
@@ -696,7 +696,7 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d={`M 10 150 ` + spVolumeData.map((val) => {
+                        d={`M 10 150 ` + spVolumeData.map((val, mapIdx_698) => {
                           // Map volume (0 to 6 L) to SVG X (10 to 390)
                           const x = 10 + (val.x / 6.0) * 380;
                           // Map flow (0 to 12 L/s) to SVG Y (150 to 10)
@@ -779,9 +779,9 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
                   <div className="space-y-1.5 pt-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Probe Anatomical Site</label>
                     <div className="flex gap-2">
-                      {(['Fingertip', 'Ear Lobe', 'Toe'] as const).map(site => (
+                      {(['Fingertip', 'Ear Lobe', 'Toe'] as const).map((site, mapIdx_781) => (
                         <button
-                          key={site}
+                          key={`machinenexuspanel-l784-${mapIdx_781}`}
                           onClick={() => setProbePlacement(site)}
                           className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-xl border transition-all cursor-pointer ${
                             probePlacement === site 
@@ -897,7 +897,7 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
                   <p className="text-[9px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">Aligned Genomic Variant Matches</p>
                   <ul className="text-[10.5px] font-mono space-y-1.5 text-slate-700 dark:text-slate-300">
                     {foundMutations.map((mut, idx) => (
-                      <li key={idx} className="flex items-start gap-1.5">
+                      <li key={`machinenexuspanel-l900-idx-${idx}`} className="flex items-start gap-1.5">
                         <span className="text-purple-500">🧬</span>
                         <span>{mut}</span>
                       </li>
@@ -919,7 +919,7 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
                     if (state === 'calibrating') color = 'bg-purple-500';
                     return (
                       <div
-                        key={idx}
+                        key={`machinenexuspanel-l922-idx-${idx}`}
                         className={`w-full aspect-square rounded-[2px] transition-colors duration-300 ${color} ${
                           seqActive && state === 'active' ? 'animate-pulse' : ''
                         }`}
@@ -940,7 +940,7 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
                         if (base === 'A') col = 'text-red-400';
                         if (base === 'T') col = 'text-blue-400';
                         if (base === 'G') col = 'text-amber-400';
-                        return <span key={idx} className={col}>{base}</span>;
+                        return <span key={`machinenexuspanel-l943-idx-${idx}`} className={col}>{base}</span>;
                       })}
                     </div>
                   )}
@@ -1072,11 +1072,11 @@ export const MachineNexusPanel: React.FC<MachineNexusPanelProps> = ({ arduino })
                   {machines.length === 0 ? (
                     <div className="py-12 text-center text-slate-600 font-mono text-xs uppercase">No ward machines provisioned. Use the builder.</div>
                   ) : (
-                    machines.map(mach => {
+                    machines.map((mach, mapIdx_1074) => {
                       const isActive = activeCustomMachineId === mach.id;
                       return (
                         <div
-                          key={mach.id}
+                          key={`machinenexuspanel-l1079-${mapIdx_1074}`}
                           className={`p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
                             isActive 
                               ? 'bg-indigo-600/10 border-indigo-500 text-white' 

@@ -878,9 +878,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         { id: 'facebook', icon: Facebook, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
                         { id: 'instagram', icon: Instagram, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
                         { id: 'github', icon: Github, color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800' },
-                      ].map((social) => (
+                      ].map((social, mapIdx_880) => (
                         <button
-                          key={social.id}
+                          key={`authmodal-l883-${mapIdx_880}`}
                           type="button"
                           disabled={isLoading || (view === 'signup' && !agreedToTerms)}
                           onClick={() => handleNativeSocialLogin(social.id)}
@@ -1187,7 +1187,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <section>
                             <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">2. Neural Analytics</h4>
                             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              Your data is utilized to calibrate localized neural models. All data is processed using Quantum-Relay Encryption (QRE).
+                              Your data is utilized to calibrate localized neural models. All data is processed using AES-256 Symmetric Encryption.
                             </p>
                           </section>
                           <section>

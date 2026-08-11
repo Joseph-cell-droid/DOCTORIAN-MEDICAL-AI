@@ -166,8 +166,8 @@ export const HistoricalTelemetryChart: React.FC<HistoricalTelemetryChartProps> =
   const stats = useMemo(() => {
     if (chartData.length === 0) return null;
     
-    const hrs = chartData.map(d => d.heartRate);
-    const spos = chartData.map(d => d.spo2);
+    const hrs = chartData.map((d, mapIdx_168) => d.heartRate);
+    const spos = chartData.map((d, mapIdx_169) => d.spo2);
 
     return {
       hr: {

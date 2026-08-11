@@ -129,8 +129,8 @@ export const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ spec
                 </div>
 
                 <div className="grid grid-cols-7 gap-2 mb-8">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center py-2">{d}</div>
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, mapIdx_131) => (
+                    <div key={`appointmentscheduler-l133-${mapIdx_131}`} className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center py-2">{d}</div>
                   ))}
                   {Array.from({ length: 35 }).map((_, i) => {
                     const day = i - firstDayOfMonth + 1;
@@ -140,7 +140,7 @@ export const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ spec
 
                     return (
                       <button
-                        key={i}
+                        key={`appointmentscheduler-l143-i-${i}`}
                         disabled={!isValid}
                         onClick={() => isValid && handleDateClick(day)}
                         className={`aspect-square rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 ${
@@ -160,9 +160,9 @@ export const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ spec
                 <div className="space-y-4">
                   <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Available Synchronizations</h5>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {timeSlots.map(slot => (
+                    {timeSlots.map((slot, mapIdx_162) => (
                       <button
-                        key={slot}
+                        key={`appointmentscheduler-l165-${mapIdx_162}`}
                         onClick={() => toggleSlot(slot)}
                         className={`py-4 rounded-2xl text-xs font-black transition-all border flex items-center justify-center gap-2 ${
                           selectedSlots.includes(slot)
@@ -256,8 +256,8 @@ export const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ spec
                   <div className="p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-4">
                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Selected Intervals</h5>
                     <div className="grid grid-cols-2 gap-2">
-                       {selectedSlots.map(slot => (
-                         <div key={slot} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                       {selectedSlots.map((slot, mapIdx_258) => (
+                         <div key={`appointmentscheduler-l260-${mapIdx_258}`} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                            <Clock size={12} className="text-blue-500" />
                            <span className="text-[10px] font-black text-slate-900 dark:text-white">{slot}</span>
                          </div>
@@ -331,8 +331,8 @@ export const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ spec
                       <div className="px-2 py-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black">
                         {selectedDate.toLocaleDateString()}
                       </div>
-                      {selectedSlots.map(slot => (
-                        <div key={slot} className="px-2 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-black">
+                      {selectedSlots.map((slot, mapIdx_333) => (
+                        <div key={`appointmentscheduler-l335-${mapIdx_333}`} className="px-2 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-black">
                           {slot}
                         </div>
                       ))}

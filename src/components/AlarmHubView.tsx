@@ -163,7 +163,7 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
   // Helper lists of outbound notifications
   const simulatedPagerLogs = alarmHistory
     .filter(log => log.priority === 'high' || log.priority === 'medium')
-    .map(log => ({
+    .map((log, mapIdx_165) => ({
       id: `sms-${log.id}`,
       time: log.timestamp,
       recipient: log.priority === 'high' ? 'Attending Physician & Care Team' : 'Head Nurse Relay',
@@ -252,9 +252,9 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
                   { label: "2 MIN", val: 120000 },
                   { label: "5 MIN", val: 300000 },
                   { label: "10 MIN", val: 600000 }
-                ].map((opt) => (
+                ].map((opt, oIdx) => (
                   <button
-                    key={opt.val}
+                    key={`snooze-${opt.val}-${oIdx}`}
                     onClick={() => setSnoozeDuration(opt.val)}
                     className={`py-1.5 text-[9px] font-black rounded-lg border transition-all ${
                       snoozeDuration === opt.val
@@ -386,9 +386,9 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
               <div>
                 <span className="text-xs font-bold text-slate-500 block mb-2">Oscillator Waveform</span>
                 <div className="grid grid-cols-4 gap-2">
-                  {(['sine', 'square', 'triangle', 'sawtooth'] as const).map((wt) => (
+                  {(['sine', 'square', 'triangle', 'sawtooth'] as const).map((wt, wIdx) => (
                     <button
-                      key={wt}
+                      key={`wave-${wt}-${wIdx}`}
                       onClick={() => setTestWave(wt)}
                       className={`py-2 px-1 text-[10px] font-black uppercase rounded-lg border transition-all ${
                         testWave === wt 
@@ -526,7 +526,7 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
               warningHigh: thresholds.respiratoryRate.warningMax,
               getRange: () => `Safe: ${thresholds.respiratoryRate.min}-${thresholds.respiratoryRate.max}`,
             },
-          ].map((v) => {
+          ].map((v, mapIdx_528) => {
             const status = getVitalStatus(v.key, Number(v.val));
             const IconComp = v.icon;
 
@@ -716,9 +716,9 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
 
               <div className="flex items-center gap-2">
                 <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                  {(['all', 'high', 'medium', 'info'] as const).map((lvl) => (
+                  {(['all', 'high', 'medium', 'info'] as const).map((lvl, lIdx) => (
                     <button
-                      key={lvl}
+                      key={`lvl-${lvl}-${lIdx}`}
                       onClick={() => setFilter(lvl)}
                       className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
                         filter === lvl 
@@ -750,9 +750,9 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
                     <p className="text-xs text-slate-400 mt-1">Patient physiological indicators are within expected margins.</p>
                   </div>
                 ) : (
-                  filteredHistory.map((log) => (
+                  filteredHistory.map((log, mapIdx_752) => (
                     <motion.div
-                      key={log.id}
+                      key={`alarmhubview-l755-${mapIdx_752}`}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0 }}
@@ -823,8 +823,8 @@ export const AlarmHubView: React.FC<AlarmHubViewProps> = ({
                   <p className="text-[10px] font-black uppercase">No Broadcast Dispatches Pending</p>
                 </div>
               ) : (
-                simulatedPagerLogs.map((sms) => (
-                  <div key={sms.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                simulatedPagerLogs.map((sms, mapIdx_825) => (
+                  <div key={`alarmhubview-l827-${mapIdx_825}`} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
                     <div className="flex justify-between items-center text-[9px] font-bold">
                       <span className="text-indigo-600 uppercase tracking-wider">{sms.carrier}</span>
                       <span className="text-slate-400">{sms.time}</span>

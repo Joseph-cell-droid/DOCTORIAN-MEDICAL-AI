@@ -58,7 +58,7 @@ export const LearnMore: React.FC<LearnMoreProps> = ({ onBack }) => {
   ];
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-24">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-16 w-full box-border min-w-0">
       {/* Hero Section */}
       <div className="text-center mb-32 relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-20 w-[500px] h-[500px] bg-blue-500/5 blur-[120px] rounded-full -z-10" />
@@ -98,7 +98,7 @@ export const LearnMore: React.FC<LearnMoreProps> = ({ onBack }) => {
         
         {coreFeatures.map((feature, i) => (
           <motion.div
-            key={i}
+            key={`learnmore-l101-i-${i}`}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.15 + 0.2 }}
@@ -124,7 +124,7 @@ export const LearnMore: React.FC<LearnMoreProps> = ({ onBack }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {systemSpecs.map((spec, i) => (
             <motion.div
-              key={i}
+              key={`learnmore-l127-i-${i}`}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 + 0.5 }}
@@ -154,8 +154,8 @@ export const LearnMore: React.FC<LearnMoreProps> = ({ onBack }) => {
             Data is synthesized into a secure clinical ledger upon node reconnection.
           </p>
           <div className="flex flex-wrap gap-3">
-             {["Maternal Tracking", "Voucher Registry", "Specialist Referral", "Offline Sync"].map(tag => (
-               <span key={tag} className="px-4 py-2 bg-slate-800 border border-white/5 rounded-full text-xs font-bold text-slate-400 uppercase tracking-widest">{tag}</span>
+             {["Maternal Tracking", "Voucher Registry", "Specialist Referral", "Offline Sync"].map((tag, mapIdx_156) => (
+               <span key={`learnmore-l158-${mapIdx_156}`} className="px-4 py-2 bg-slate-800 border border-white/5 rounded-full text-xs font-bold text-slate-400 uppercase tracking-widest">{tag}</span>
              ))}
           </div>
         </div>

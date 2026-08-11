@@ -847,11 +847,11 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Drug Selector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {filteredPharma.map((drug) => {
+              {filteredPharma.map((drug, dIdx) => {
                 const isSelected = selectedPharma.id === drug.id;
                 return (
                   <button
-                    key={drug.id}
+                    key={`bs-drug-${drug.id}-${dIdx}`}
                     onClick={() => setSelectedPharma(drug)}
                     className={`p-4 rounded-2xl border text-left transition-all space-y-2 backdrop-blur-md ${
                       isSelected
@@ -933,11 +933,11 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Differential Selector */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {DIFFERENTIAL_DIAGNOSTIC_DATABASE.map((item) => {
+              {DIFFERENTIAL_DIAGNOSTIC_DATABASE.map((item, itemIdx) => {
                 const isSelected = selectedDifferential.id === item.id;
                 return (
                   <div
-                    key={item.id}
+                    key={`bs-diff-${item.id}-${itemIdx}`}
                     onClick={() => setSelectedDifferential(item)}
                     className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 backdrop-blur-md ${
                       isSelected
@@ -948,8 +948,8 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
                     <h3 className="text-sm font-black text-white">{item.presentation}</h3>
 
                     <div className="flex flex-wrap gap-1.5">
-                      {item.symptomCluster.map(s => (
-                        <span key={s} className="px-2 py-0.5 bg-slate-900 border border-slate-800 text-[10px] font-mono text-emerald-300 rounded-md">
+                      {item.symptomCluster.map((s, sIdx) => (
+                        <span key={`bs-sym-${s}-${sIdx}`} className="px-2 py-0.5 bg-slate-900 border border-slate-800 text-[10px] font-mono text-emerald-300 rounded-md">
                           {s}
                         </span>
                       ))}
@@ -969,7 +969,7 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
                 <div className="space-y-4">
                   {selectedDifferential.topDiagnoses.map((diag, idx) => (
-                    <div key={idx} className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800/80 space-y-3">
+                    <div key={`biomaticsandbox-l972-idx-${idx}`} className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800/80 space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
                         <h4 className="text-sm font-black text-white flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold flex items-center justify-center border border-emerald-500/40">{idx + 1}</span>
@@ -1024,8 +1024,8 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Guidelines List */}
             <div className="space-y-4">
-              {CLINICAL_GUIDELINES_DATABASE.map((guide) => (
-                <div key={guide.id} className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-6 space-y-4 backdrop-blur-md">
+              {CLINICAL_GUIDELINES_DATABASE.map((guide, mapIdx_1026) => (
+                <div key={`biomaticsandbox-l1028-${mapIdx_1026}`} className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-6 space-y-4 backdrop-blur-md">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
                     <div>
                       <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase">{guide.issuingSociety} ({guide.publicationYear})</span>
@@ -1083,11 +1083,11 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Omic Target Selector Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {MULTI_OMICS_DATABASE.map((item) => {
+              {MULTI_OMICS_DATABASE.map((item, oIdx) => {
                 const isSelected = selectedOmic.geneSymbol === item.geneSymbol;
                 return (
                   <button
-                    key={item.geneSymbol}
+                    key={`bs-omic-${item.geneSymbol}-${oIdx}`}
                     onClick={() => setSelectedOmic(item)}
                     className={`p-4 rounded-2xl border text-left transition-all space-y-2 backdrop-blur-md ${
                       isSelected
@@ -1203,11 +1203,11 @@ Provide a rigorous, doctor-grade evidence synthesis report with:
 
             {/* Pathogen List Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {GLOBAL_EPIDEMIC_PATHOGENS.map((pathogen) => {
+              {GLOBAL_EPIDEMIC_PATHOGENS.map((pathogen, mapIdx_1205) => {
                 const isSelected = selectedPathogen.id === pathogen.id;
                 return (
                   <div
-                    key={pathogen.id}
+                    key={`biomaticsandbox-l1210-${mapIdx_1205}`}
                     onClick={() => setSelectedPathogen(pathogen)}
                     className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 backdrop-blur-md ${
                       isSelected

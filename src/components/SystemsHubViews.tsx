@@ -102,7 +102,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
     },
     {
       q: "Is my medical data secure?",
-      a: "Yes, we use decentralized storage sandboxes and client-side Quantum-Relay Encryption (QRE). Your physiological data never leaves your device unless explicitly exported or synchronized offline with absolute verification.",
+      a: "Yes, we use decentralized storage sandboxes and client-side AES-256 Symmetric Encryption. Your physiological data never leaves your device unless explicitly exported or synchronized offline with absolute verification.",
       category: "security"
     },
     {
@@ -218,9 +218,9 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
           { id: 'guide', label: 'Self Diagnostics', icon: <BookOpen size={15} /> },
           { id: 'support', label: 'Escalation Desk', icon: <PhoneCall size={15} /> },
           { id: 'feedback', label: 'Clinician Feedback', icon: <Smile size={15} /> }
-        ].map(t => (
+        ].map((t, mapIdx_220) => (
           <button
-            key={t.id}
+            key={`systemshubviews-l223-${mapIdx_220}`}
             onClick={() => setActiveTab(t.id as any)}
             className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all shrink-0 ${
               activeTab === t.id 
@@ -280,7 +280,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredFaqs.length > 0 ? (
                 filteredFaqs.map((faq, idx) => (
-                  <div key={idx} className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800/80 shadow-md hover:shadow-lg transition-all space-y-4">
+                  <div key={`systemshubviews-l283-idx-${idx}`} className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800/80 shadow-md hover:shadow-lg transition-all space-y-4">
                     <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850/60 rounded-lg text-[9px] font-bold uppercase text-slate-500 tracking-wider">
                       {faq.category}
                     </span>
@@ -320,7 +320,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
 
               <div className="space-y-3.5 pt-2">
                 {Object.entries(systemChecks).map(([key, item]) => (
-                  <div key={key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div key={`systemshubviews-l323-k-${key}`} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.label}</span>
                     <div>
                       {item.status === 'pending' && <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">READY TO RUN</span>}
@@ -417,7 +417,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                       const isSelected = soundscapePreset === key;
                       return (
                         <button
-                          key={key}
+                          key={`systemshubviews-l420-k-${key}`}
                           type="button"
                           onClick={() => changePreset(key as SoundscapeType)}
                           className={`flex flex-col justify-between p-5 rounded-[2rem] border transition-all duration-300 hover:shadow-md cursor-pointer text-left space-y-4 ${
@@ -490,9 +490,9 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                     </div>
 
                     <div className="flex items-end gap-1 h-5 px-1">
-                      {[1, 2, 3, 4, 5].map((bar) => (
+                      {[1, 2, 3, 4, 5].map((bar, mapIdx_492) => (
                         <div
-                          key={bar}
+                          key={`systemshubviews-l495-${mapIdx_492}`}
                           className={`w-1 bg-blue-500 dark:bg-blue-450 rounded-full transition-all duration-300 ${
                             soundscapeEnabled ? 'animate-pulse' : 'h-1 py-0'
                           }`}
@@ -718,7 +718,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                           { emoji: '🤩', label: 'Excellent' }
                         ].map((item, idx) => (
                           <button 
-                            key={idx} 
+                            key={`systemshubviews-l721-idx-${idx}`} 
                             onClick={() => setFeedbackRating(item.emoji)}
                             aria-label={item.label}
                             aria-checked={feedbackRating === item.emoji}
@@ -738,9 +738,9 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                     <div className="space-y-3 mt-4">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Predefined Performance Tags</label>
                       <div className="flex flex-wrap gap-2">
-                        {['AI Accuracy', 'Acoustic Alarms', 'Twilio Relays', 'User Interface', 'Speed', 'Offline Safety', 'HIPAA Privacy'].map((tag) => (
+                        {['AI Accuracy', 'Acoustic Alarms', 'Twilio Relays', 'User Interface', 'Speed', 'Offline Safety', 'HIPAA Privacy'].map((tag, mapIdx_740) => (
                           <button 
-                            key={tag} 
+                            key={`systemshubviews-l743-${mapIdx_740}`} 
                             onClick={() => setFeedbackText(prev => prev + (prev ? ', ' : '') + tag)}
                             className="px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all outline-none"
                           >
@@ -862,8 +862,8 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
               { id: 'reqBio', val: requireBiometrics, set: setRequireBiometrics, label: "Attending Passphrase Verification", desc: "Interrupts actions and requires a secure user credential hash." },
               { id: 'zkpAuth', val: zeroKnowledgeProof, set: setZeroKnowledgeProof, label: "Zero-Knowledge Telemetry Relay", desc: "Transmits indicators to relays without releasing individual patient identifiers." },
               { id: 'anonData', val: anonymizeData, set: setAnonymizeData, label: "HIPAA Scrub AI Analytics", desc: "Scrubs diagnostic outputs before forwarding metrics into predictive models." }
-            ].map((sw) => (
-              <div key={sw.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-105 dark:border-slate-850 space-y-2">
+            ].map((sw, mapIdx_864) => (
+              <div key={`systemshubviews-l866-${mapIdx_864}`} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-105 dark:border-slate-850 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold leading-tight select-none">{sw.label}</span>
                   <button
@@ -914,7 +914,7 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
             <div className="space-y-3.5 pt-6 max-h-[380px] overflow-y-auto pr-2 no-scrollbar">
               {auditLogs.length > 0 ? (
                 auditLogs.map((log, idx) => (
-                  <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-955 rounded-2xl border border-slate-100 dark:border-slate-850/80 flex justify-between items-start gap-4 hover:border-rose-100 transition-colors">
+                  <div key={`systemshubviews-l917-idx-${idx}`} className="p-4 bg-slate-50 dark:bg-slate-955 rounded-2xl border border-slate-100 dark:border-slate-850/80 flex justify-between items-start gap-4 hover:border-rose-100 transition-colors">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{log.actor}</span>
@@ -963,7 +963,7 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
               <h4 className="text-xs font-black uppercase tracking-wider">Continuous Encryption standards</h4>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
-              All client telemetry is sealed locally using AES-256 cryptographic algorithms with dynamic salts. Quantum-Relay Encryption (QRE) blocks are rotated keys in 15-minute segments to guarantee absolute backward secrecy during live clinical telemetry.
+              All client telemetry is sealed locally using AES-256 cryptographic algorithms with dynamic salts. AES-256 Symmetric Encryption blocks are rotated keys in 15-minute segments to guarantee absolute backward secrecy during live clinical telemetry.
             </p>
           </div>
 
@@ -1222,7 +1222,7 @@ export const TermsAndData: React.FC<SubViewProps> = ({ vitals, onNavigate }) => 
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Restoration Activity Logs</span>
                 <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
                   {importLogs.map((log, idx) => (
-                    <div key={idx} className="flex gap-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500">
+                    <div key={`systemshubviews-l1225-idx-${idx}`} className="flex gap-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500">
                       <span className="shrink-0">•</span>
                       <span>{log}</span>
                     </div>

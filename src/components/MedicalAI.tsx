@@ -100,3 +100,5 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
     </div>
   );
 }
+
+export default MedicalAI;

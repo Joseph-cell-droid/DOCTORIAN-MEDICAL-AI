@@ -99,7 +99,7 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" role="region" aria-label="Feature List">
         {features.map((feature, index) => (
           <motion.article 
-            key={index}
+            key={`features-l102-index-${index}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}

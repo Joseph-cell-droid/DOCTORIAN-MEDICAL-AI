@@ -77,28 +77,64 @@ import { Compass,
   Sliders,
   Headphones,
   UserCheck,
-  CheckCircle
+  CheckCircle,
+  Clock,
+  Sparkles,
+  Laptop
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
 import { Dashboard } from './components/Dashboard';
+import { MedicalAI } from './components/MedicalAI';
+import { ChatInterface } from './components/ChatInterface';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 import { BiomaticSandbox } from './components/BiomaticSandbox';
+import { LocalBackupModal } from './components/LocalBackupModal';
+import { checkAndTriggerPeriodicBackup } from './utils/secureStorageBackup';
+import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
+import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
+import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
+
 function safeLazy<P extends object = any>(
   importFn: () => Promise<any>,
   exportName?: string
 ): React.ComponentType<P> {
   const getComponent = (module: any) => {
     if (!module) return () => null;
-    if (exportName && module[exportName]) return module[exportName];
-    if (module.default) {
+    let Comp: any = null;
+    if (exportName && module[exportName]) {
+      Comp = module[exportName];
+    } else if (module.default) {
       if (exportName && typeof module.default === 'object' && module.default[exportName]) {
-        return module.default[exportName];
+        Comp = module.default[exportName];
+      } else {
+        Comp = module.default;
       }
-      return module.default;
+    } else if (typeof module === 'function') {
+      Comp = module;
     }
-    return typeof module === 'function' ? module : () => null;
+    return (typeof Comp === 'function' || (typeof Comp === 'object' && Comp !== null)) ? Comp : () => null;
   };
+
+  const Fallback = () => (
+    <div className="flex flex-col items-center justify-center p-8 text-center min-h-[300px] w-full">
+      <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3 animate-bounce">
+        <RefreshCw size={22} />
+      </div>
+      <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-1">
+        Refreshing Clinical Module...
+      </h3>
+      <p className="text-xs text-slate-500 max-w-xs mb-4">
+        Connecting to the clinical node. Click below to reload the module.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all cursor-pointer"
+      >
+        Reload Page View
+      </button>
+    </div>
+  );
 
   return lazy(async () => {
     try {
@@ -108,12 +144,13 @@ function safeLazy<P extends object = any>(
     } catch (error) {
       console.warn("Retrying dynamic module import...", error);
       try {
+        await new Promise(r => setTimeout(r, 200));
         const retryModule = await importFn();
         const Component = getComponent(retryModule);
         return { default: Component };
       } catch (retryError) {
         console.error("Lazy module import failed after retry:", retryError);
-        throw retryError;
+        return { default: Fallback };
       }
     }
   }) as unknown as React.ComponentType<P>;
@@ -122,9 +159,8 @@ function safeLazy<P extends object = any>(
 const MedicalIllustrator = safeLazy(() => import("./components/MedicalIllustrator"), "MedicalIllustrator");
 const GenomicLongevityCore = safeLazy(() => import("./components/GenomicLongevityCore"), "GenomicLongevityCore");
 const ImageGenerator = safeLazy(() => import("./components/ImageGenerator"), "ImageGenerator");
-const ChatInterface = safeLazy(() => import("./components/ChatInterface"), "ChatInterface");
-const MedicalAI = safeLazy(() => import("./components/MedicalAI"), "MedicalAI");
 const CognisHub = safeLazy(() => import("./components/CognisHub"), "CognisHub");
+
 const BioSimulation = safeLazy(() => import("./components/BioSimulation"));
 const PatientMonitor = safeLazy(() => import("./components/PatientMonitor"), "PatientMonitor");
 const Features = safeLazy(() => import("./components/Features"), "Features");
@@ -793,6 +829,7 @@ export default function App() {
   const [showInstallButton, setShowInstallButton] = useState(true);
   const [showPackageInstallModal, setShowPackageInstallModal] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isFloatingDismissed, setIsFloatingDismissed] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
   const [isOffline, setIsOffline] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -804,6 +841,8 @@ export default function App() {
     return false;
   });
   const [isRegisteringBiometrics, setIsRegisteringBiometrics] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isThemeSchedulerOpen, setIsThemeSchedulerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
@@ -853,7 +892,7 @@ export default function App() {
   const [isFaceScanning, setIsFaceScanning] = useState(false);
   const [faceScanProgress, setFaceScanProgress] = useState(0);
   const [faceScanStatus, setFaceScanStatus] = useState<'idle' | 'scanning' | 'success' | 'failed'>('idle');
-  const [useLiveCamera, setUseLiveCamera] = useState(false);
+  const [isLiveCameraActive, setIsLiveCameraActive] = useState(false);
 
   const startFaceRecognition = async () => {
     setIsFaceScanning(true);
@@ -863,7 +902,7 @@ export default function App() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 300, height: 300 } });
-      setUseLiveCamera(true);
+      setIsLiveCameraActive(true);
       setTimeout(() => {
         const videoEl = document.getElementById('admin-face-video') as HTMLVideoElement;
         if (videoEl) {
@@ -873,7 +912,7 @@ export default function App() {
       }, 100);
     } catch (err) {
       console.log("Webcam access declined or restricted, using fallback visual scanner:", err);
-      setUseLiveCamera(false);
+      setIsLiveCameraActive(false);
     }
 
     let progress = 0;
@@ -1112,8 +1151,8 @@ export default function App() {
                 setActiveSOS(emergencyAlert);
                 localStorage.setItem('medical_last_sos_id', emergencyAlert.id);
                 
-                // Audio alert
-                if ('vibrate' in navigator) navigator.vibrate([500, 200, 500, 200, 500]);
+                // Haptic SOS alert pulse
+                vibrateSOS();
               }
             }
           }
@@ -1154,6 +1193,7 @@ export default function App() {
             latitude: lat,
             longitude: lon
           });
+          fetchSolarTimes(lat, lon).catch(e => console.warn('Solar sync error:', e));
         } catch (err) {
           console.warn("App-level weather fetch fell back to default parameters:", err);
           setWeatherData({
@@ -1181,6 +1221,22 @@ export default function App() {
       }
     };
     fetchWeather();
+  }, []);
+
+  // Solar & Circadian Theme Scheduler Engine
+  useEffect(() => {
+    const runThemeSchedulerCheck = () => {
+      const config = getThemeSchedulerConfig();
+      if (config.enabled) {
+        const evalRes = evaluateThemeSchedule(new Date(), config);
+        setIsDarkMode(evalRes.isDarkMode);
+        setIsEyeCareMode(evalRes.isEyeCareMode);
+      }
+    };
+
+    runThemeSchedulerCheck();
+    const schedulerTimer = setInterval(runThemeSchedulerCheck, 60 * 1000); // Check every 60 seconds
+    return () => clearInterval(schedulerTimer);
   }, []);
 
   useEffect(() => {
@@ -1335,6 +1391,33 @@ export default function App() {
     };
   }, []);
 
+  // Trigger mobile haptic SOS feedback when an active emergency SOS alert modal opens
+  useEffect(() => {
+    if (activeSOS) {
+      vibrateSOS();
+    }
+  }, [activeSOS]);
+
+  // Periodic Automated Encrypted Health Backup Engine
+  useEffect(() => {
+    const runPeriodicBackupCheck = async () => {
+      try {
+        await checkAndTriggerPeriodicBackup((filename) => {
+          setToast({
+            message: `🛡️ Automated Periodic Encrypted Health Backup downloaded (${filename}). Data secured with AES-256-GCM.`,
+            type: 'success'
+          });
+        });
+      } catch (err) {
+        console.warn('[Auto-Backup] Background periodic check error:', err);
+      }
+    };
+
+    runPeriodicBackupCheck();
+    const backupTimer = setInterval(runPeriodicBackupCheck, 30 * 60 * 1000); // Check every 30 mins
+    return () => clearInterval(backupTimer);
+  }, []);
+
   useEffect(() => {
     const checkStandalone = () => {
       const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
@@ -1425,6 +1508,13 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const scanUserId = params.get('scanUserId');
     const scanUserData = params.get('scanUserData');
+    const installParam = params.get('install');
+
+    if (installParam === 'true') {
+      setIsDownloadAppOpen(true);
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+    }
 
     if (scanUserData) {
       setIsScanLoading(true);
@@ -1641,6 +1731,9 @@ export default function App() {
     const isOverallCritical = arduino.healthStatus?.overall === 'critical';
 
     if (isOverallCritical || isViolatingCustomBounds) {
+      // Trigger immediate tactile haptic feedback for mobile devices
+      vibrateCriticalAlert();
+
       const lastAutoSOSAt = localStorage.getItem('medical_last_auto_sos_at');
       const now = Date.now();
       
@@ -1678,17 +1771,19 @@ export default function App() {
   };
 
   const installApp = async () => {
-    const isIframeEnv = window.self !== window.top;
+    const promptObj = deferredPrompt || (window as any).deferredPWAInstallPrompt;
 
-    if (deferredPrompt) {
+    if (promptObj) {
       try {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
+        promptObj.prompt();
+        const { outcome } = await promptObj.userChoice;
         console.log(`User response to install prompt: ${outcome}`);
         setDeferredPrompt(null);
+        (window as any).deferredPWAInstallPrompt = null;
         if (outcome === 'accepted') {
           setShowInstallButton(false);
           setIsStandalone(true);
+          setHasInstalledApp(true);
           setToast({ message: '✨ Doctorian installed successfully on your device!', type: 'success' });
           return;
         }
@@ -1697,14 +1792,7 @@ export default function App() {
       }
     }
 
-    if (isIframeEnv) {
-      window.open(window.location.href, '_blank');
-      setShowInstallButton(false);
-      setToast({ message: '🚀 Opened in full browser tab! Tap "Install App" or browser menu to add to Home Screen.', type: 'info' });
-      return;
-    }
-
-    setShowPackageInstallModal(true);
+    setIsDownloadAppOpen(true);
   };
 
   const refreshUser = async () => {
@@ -1950,6 +2038,7 @@ export default function App() {
   };
 
   const triggerSOS = async () => {
+    vibrateSOS(); // Immediate haptic SOS feedback
     setAuthModalView('authorize');
     setAuthModalAction('SOS_TRIGGER');
     setOnAuthorizeSuccessCallback(() => {
@@ -1986,38 +2075,27 @@ export default function App() {
   };
 
   const triggerPWAInstall = async () => {
-    if (isInIframe) {
-      addToast("Launching Doctorian in a standalone window...", "success");
-      const url = window.location.href;
-      window.open(url, '_blank');
-      return;
-    }
+    const promptObj = deferredPrompt || (window as any).deferredPWAInstallPrompt;
 
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    if (isIOS && !deferredPrompt) {
-      addToast("To install Doctorian: Tap the 'Share' icon and select 'Add to Home Screen'.", "info");
-      return;
-    }
-
-    if (!deferredPrompt) {
-      addToast("Use your browser's 'Add to Home Screen' menu to install this native experience.", "info");
-      return;
-    }
-
-    try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        addToast("Successfully installed Doctorian!", "success");
-        setShowInstallButton(false);
-        setDeferredPrompt(null);
+    if (promptObj && !isInIframe) {
+      try {
+        promptObj.prompt();
+        const { outcome } = await promptObj.userChoice;
+        if (outcome === 'accepted') {
+          addToast("Successfully installed Doctorian Application!", "success");
+          setShowInstallButton(false);
+          setIsStandalone(true);
+          setHasInstalledApp(true);
+          setDeferredPrompt(null);
+          (window as any).deferredPWAInstallPrompt = null;
+          return;
+        }
+      } catch (err) {
+        console.warn("Direct install prompt trigger error:", err);
       }
-    } catch (err) {
-      console.error("Installation failed:", err);
-      addToast("Installation failed. Please try the browser menu manually.", "error");
-    } finally {
-      setDeferredPrompt(null);
     }
+
+    setIsDownloadAppOpen(true);
   };
 
   const handleDirectInstall = () => {
@@ -2441,18 +2519,6 @@ export default function App() {
             </nav>
 
             <div className="mt-auto w-full p-4 border-t border-slate-50 dark:border-slate-900 flex flex-col gap-3 shrink-0">
-                {showInstallButton && !isStandalone && (
-                  <button 
-                    onClick={installApp}
-                    className={`w-full h-11 flex items-center justify-center rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 transition-all text-xs font-bold uppercase tracking-widest shadow-lg ${
-                      isSidebarCollapsed ? 'px-1' : 'gap-2'
-                    }`}
-                    title="Install App"
-                  >
-                    <Download size={16} />
-                    {!isSidebarCollapsed && <span>Install App</span>}
-                  </button>
-                )}
                 <div className={`flex items-center ${
                   isSidebarCollapsed ? 'justify-center p-2 h-11' : 'justify-between px-3 py-2'
                 } bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100/50 dark:border-slate-800/80`} title="Secure Core System Status: Active">
@@ -2495,10 +2561,10 @@ export default function App() {
           }}
           className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible pt-[env(safe-area-inset-top,0px)]"
         >
-          <div className="max-w-7xl mx-auto w-full px-2 sm:px-3 md:px-6 lg:px-8">
-            <div className="flex items-center py-2 sm:py-3.5 gap-1.5 sm:gap-2.5 md:gap-3 lg:gap-4 w-full">
+          <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 md:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-2 sm:py-3 gap-2.5 sm:gap-3.5 md:gap-4 lg:gap-6 w-full">
               {/* Upper Bar Brand Identity & App Name */}
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <motion.button 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -2511,79 +2577,18 @@ export default function App() {
                 </motion.button>
               </div>
 
-              <div className="flex flex-1 justify-end sm:justify-center px-0.5 sm:px-1.5 md:px-2 items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 overflow-visible min-w-0">
+              {/* Middle Toolbar Controls - Professionally Spaced */}
+              <div className="flex flex-1 justify-end sm:justify-center px-1 sm:px-2 md:px-3 items-center gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 overflow-visible min-w-0">
                 <motion.button 
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex items-center justify-center p-1.5 md:p-2 lg:p-2.5 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-9 h-9 md:w-10 md:h-10 lg:w-auto lg:max-w-md lg:flex-1 lg:h-11 lg:gap-3 lg:px-4 shadow-sm shrink-0 lg:shrink"
+                  className="flex items-center justify-center h-10 md:h-10.5 lg:h-11 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800/90 border border-slate-300/80 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-10 md:w-10 lg:w-auto lg:max-w-md lg:flex-1 lg:gap-3 px-2.5 lg:px-4 shadow-xs shrink-0 lg:shrink"
                   aria-label="Open search"
                 >
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
                   <span className="text-xs font-black text-high-visibility truncate uppercase tracking-widest hidden lg:block">Search System...</span>
                 </motion.button>
                 
-                <button
-                  onClick={() => {
-                    const forced = localStorage.getItem("medical_forced_offline");
-                    const nextVal = forced === "true" ? "false" : "true";
-                    localStorage.setItem("medical_forced_offline", nextVal);
-                    window.dispatchEvent(new Event('storage'));
-                    
-                    const isForced = nextVal === "true";
-                    setToast({
-                      message: isForced 
-                        ? "🛡️ Local Offline Core Engaged. Outbound payloads are secured browser-side." 
-                        : "⚡ Online Core Synced. Verifying secure cloud communication links...",
-                      type: isForced ? "info" : "success"
-                    });
-                  }}
-                  className={`hidden md:flex items-center gap-1.5 px-2 py-1.5 md:px-0 lg:px-3 lg:py-2.5 rounded-xl border transition-all cursor-pointer active:scale-95 shrink-0 h-9 w-9 md:h-10 md:w-10 lg:w-auto lg:h-11 justify-center ${
-                    isOffline
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
-                  }`}
-                  title={isOffline ? translate("Cache Core", currentLanguage) : translate("Active System", currentLanguage)}
-                >
-                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
-                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap shrink-0 hidden lg:inline">
-                    {isOffline ? translate('Cache Core', currentLanguage) : translate('Active System', currentLanguage)}
-                  </span>
-                </button>
 
-                {/* Telehealth Quick Launcher */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsTelehealthOpen(true)}
-                  className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] uppercase tracking-wider shadow-md shadow-blue-500/20 cursor-pointer shrink-0"
-                  title="Telehealth Video Studio & AI Scribe"
-                >
-                  <Video size={14} />
-                  <span>Telehealth Studio</span>
-                </motion.button>
-
-                {/* EHR Export Launcher */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsEhrExportOpen(true)}
-                  className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider shadow-md shadow-emerald-500/20 cursor-pointer shrink-0"
-                  title="EHR Compliance & FHIR Exporter"
-                >
-                  <FileText size={14} />
-                  <span>EHR Exporter</span>
-                </motion.button>
-
-                {/* HIPAA Audit Log Launcher */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsAuditTrailOpen(true)}
-                  className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-[9px] uppercase tracking-wider shadow-md shadow-purple-500/20 cursor-pointer shrink-0"
-                  title="HIPAA Security & Audit Log"
-                >
-                  <LockIcon size={14} />
-                  <span>Audit Trail</span>
-                </motion.button>
 
                 {/* Language Quick Dropdown */}
                 <div className="hidden sm:block relative shrink-0">
@@ -2593,7 +2598,7 @@ export default function App() {
                       setIsWindowsMenuOpen(false);
                       setIsProfileOpen(false);
                     }}
-                    className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer ${
+                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer ${
                       isLanguageMenuOpen 
                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
@@ -2899,12 +2904,12 @@ export default function App() {
 
                                   <div className="font-black text-slate-400 mt-1 mb-0.5">Preset Profile</div>
                                   <div className="grid grid-cols-3 gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-100 dark:border-slate-850 rounded-xl">
-                                    {(['alpha_focus', 'theta_meditation', 'beta_high_cognition'] as const).map(p => {
+                                    {(['alpha_focus', 'theta_meditation', 'beta_high_cognition'] as const).map((p, pIdx) => {
                                       const labelMap = { alpha_focus: 'Alpha', theta_meditation: 'Theta', beta_high_cognition: 'Beta' };
                                       const active = soundscapePreset === p;
                                       return (
                                         <button
-                                          key={p}
+                                          key={`hdr-sound-preset-${p}-${pIdx}`}
                                           type="button"
                                           onClick={() => changePresetGlobal(p)}
                                           className={`py-1 text-[8px] font-black uppercase rounded-lg transition-all border cursor-pointer leading-none truncate ${
@@ -2936,7 +2941,7 @@ export default function App() {
                 <div className="relative overflow-visible shrink-0">
                   <motion.button
                     onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
-                    className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer ${
+                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer ${
                       isWindowsMenuOpen 
                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
@@ -3051,6 +3056,25 @@ export default function App() {
                                   >
                                     {isDarkMode ? <Sun size={14} className="text-amber-500" /> : <Moon size={14} className="text-indigo-400" />}
                                     <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">{isDarkMode ? 'Light' : 'Dark'}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => { setIsThemeSchedulerOpen(true); setIsWindowsMenuOpen(false); }}
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-all cursor-pointer"
+                                    title="Solar Theme Scheduler"
+                                  >
+                                    <Clock size={14} className="text-amber-500" />
+                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Solar Sync</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      vibrateCriticalAlert();
+                                      addToast("📳 Mobile Haptic Pulse Test Triggered (Critical Alert Pattern)", "info");
+                                    }}
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-all cursor-pointer"
+                                    title="Test Mobile Haptic Vibration Pulse"
+                                  >
+                                    <Activity size={14} className="text-rose-500 animate-pulse" />
+                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Haptics</span>
                                   </button>
 
                                   <button
@@ -3185,7 +3209,7 @@ export default function App() {
                                               const active = soundscapePreset === p;
                                               return (
                                                 <button
-                                                  key={p}
+                                                  key={`hdr-preset-${p}`}
                                                   type="button"
                                                   onClick={() => changePresetGlobal(p)}
                                                   className={`py-1 text-[7px] font-black uppercase rounded transition-all border cursor-pointer leading-none truncate ${
@@ -3267,11 +3291,11 @@ export default function App() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-1.5 md:gap-2.5 lg:gap-4 ml-auto shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 md:gap-3.5 ml-auto shrink-0">
               {isAuthReady && (
                 user ? (
-                  <div className="flex items-center gap-1.5 md:gap-2.5 lg:gap-3 relative shrink-0">
-                    <div className="hidden lg:flex items-center gap-1 px-1.5 py-1 md:px-2 md:py-1.5 lg:px-2.5 lg:py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-3 relative shrink-0">
+                    <div className="hidden lg:flex items-center gap-1.5 px-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0 h-10 md:h-10.5 lg:h-11">
                       <Zap size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
                       <span className="text-[10px] lg:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">
                         {displayCredits}
@@ -3279,7 +3303,7 @@ export default function App() {
                     </div>
                     <div className="relative shrink-0">
                       <button 
-                        className="group flex items-center gap-1.5 pl-1 pr-1 md:pr-1.5 lg:pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-9 md:h-10 lg:h-11 min-h-[36px] md:min-h-[40px] items-center"
+                        className="group flex items-center gap-2 pl-1 pr-2 md:pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-10 md:h-10.5 lg:h-11 items-center"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         aria-label="User profile menu"
                         aria-haspopup="true"
@@ -3509,7 +3533,7 @@ export default function App() {
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus' 
               ? 'py-0 px-0 max-w-full h-full min-h-0' 
-              : 'py-6 px-2 sm:px-8 max-w-7xl mx-auto'
+              : 'py-4 sm:py-6 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full box-border'
           }`}>
             {renderSubTabsBar()}
             <Suspense fallback={
@@ -3638,7 +3662,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-[1600px] mx-auto py-8"
+              className="w-full max-w-7xl mx-auto py-4 sm:py-6 box-border min-w-0"
             >
               <GenomicLongevityCore 
                 user={user} 
@@ -3654,7 +3678,7 @@ export default function App() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="w-full max-w-[1600px] mx-auto py-8"
+                className="w-full max-w-7xl mx-auto py-4 sm:py-6 box-border min-w-0"
               >
                 <DoctorsDashboard addToast={(msg, type) => addToast(msg, type || 'info')} />
               </motion.div>
@@ -3676,7 +3700,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-[1600px] mx-auto py-8"
+              className="w-full max-w-7xl mx-auto py-4 sm:py-6 box-border min-w-0"
             >
               <SpecialistFinder />
             </motion.div>
@@ -4197,15 +4221,19 @@ export default function App() {
           <div className="space-y-4">
             <button 
               onClick={() => {
+                 stopVibration();
                  setActiveSOS(null);
               }}
-              className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all"
+              className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all cursor-pointer"
             >
               Acknowledge Alert
             </button>
             <button 
-              onClick={() => setActiveSOS(null)}
-              className="w-full py-4 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-colors"
+              onClick={() => {
+                stopVibration();
+                setActiveSOS(null);
+              }}
+              className="w-full py-4 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-colors cursor-pointer"
             >
               Dismiss Alarm
             </button>
@@ -4332,7 +4360,7 @@ export default function App() {
                       )}
 
                       {/* Video feed or falling-back animation */}
-                      {useLiveCamera ? (
+                      {isLiveCameraActive ? (
                         <video id="admin-face-video" className="w-full h-full object-cover rounded-full transform -scale-x-100" playsInline muted />
                       ) : (
                         <div className="relative w-full h-full flex flex-col items-center justify-center text-center">
@@ -4773,18 +4801,18 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Draggable Launcher Button */}
+          {/* Compact Doctorian Menu Launcher Button */}
           <motion.button
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
-            className={`relative flex items-center justify-center h-11 w-11 sm:h-12 sm:w-12 rounded-full border shadow-[0_15px_30px_rgba(59,130,246,0.25)] bg-gradient-to-r from-blue-600 via-blue-700 to-emerald-500 text-white border-blue-500/30 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
-              isFloatingMenuOpen ? 'ring-4 ring-blue-500/25' : ''
+            className={`relative flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-full border shadow-xl bg-slate-900/90 dark:bg-slate-800/95 backdrop-blur-md text-white border-blue-500/40 cursor-pointer select-none transition-all duration-200 ${
+              isFloatingMenuOpen ? 'ring-2 ring-blue-500/50 bg-blue-600 border-blue-400' : ''
             }`}
-            title="Systems Windows Launcher (Drag to move)"
+            title="Doctorian Menu"
           >
-            <LayoutGrid size={18} className="stroke-[2.5] shrink-0 animate-pulse" />
-            <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-emerald-450 border-2 border-white dark:border-slate-950 shadow-sm" />
+            <LayoutGrid size={14} className="stroke-[2.5] text-blue-400 shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Doctorian Menu</span>
           </motion.button>
         </motion.div>
       </div>
@@ -4800,165 +4828,9 @@ export default function App() {
               </>
             )}
 
-            {/* Floating PWA Install Bar Prompt */}
-            <AnimatePresence>
-              {showInstallButton && !isStandalone && (
-                <motion.div 
-                  initial={{ y: 90, opacity: 0, scale: 0.95 }}
-                  animate={{ y: 0, opacity: 1, scale: 1 }}
-                  exit={{ y: 90, opacity: 0, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 220, damping: 22 }}
-                  className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[140] w-[94%] max-w-xl bg-slate-900/95 dark:bg-slate-950/95 text-white backdrop-blur-xl border border-blue-500/40 rounded-2xl p-3.5 sm:p-4 shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex items-center justify-between gap-3 sm:gap-4 pointer-events-auto"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shrink-0 shadow-md">
-                      <Download size={18} className="text-white animate-bounce" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">Offline App</span>
-                        <span className="text-[10px] font-semibold text-slate-300 truncate">Standalone Medical AI</span>
-                      </div>
-                      <p className="text-xs sm:text-sm font-bold text-white truncate">Install Doctorian on your device</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button 
-                      onClick={() => {
-                        setShowInstallButton(false);
-                        sessionStorage.setItem("doctorian_install_dismissed", "true");
-                      }}
-                      className="px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wider"
-                    >
-                      Later
-                    </button>
-                    <button 
-                      onClick={installApp}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-500/30 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Download size={14} />
-                      <span>Install Now</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Single clean install modal when triggered from upper bar or sidebar */}
 
             <AnimatePresence>
-              {showPackageInstallModal && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
-                >
-                  <motion.div 
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.9, y: 20 }}
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl overflow-hidden relative"
-                  >
-                    <button 
-                      onClick={() => setShowPackageInstallModal(false)}
-                      className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-                    >
-                      <X size={18} />
-                    </button>
-
-                    <div className="flex items-center gap-4 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800">
-                      <Logo size="md" />
-                    </div>
-
-                    <div className="space-y-4 mb-6 text-xs text-slate-600 dark:text-slate-300">
-                      <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 space-y-2">
-                        <div className="flex items-center gap-2 font-bold text-blue-900 dark:text-blue-300">
-                          <Shield size={14} className="text-blue-600 dark:text-blue-400" />
-                          <span>Independent Standalone App Package</span>
-                        </div>
-                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
-                          Doctorian runs completely standalone on your device without relying on external web links. All diagnostic matrices, local AI engines, voice models, and clinical datasets operate offline.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        <p className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-wider">
-                          📱 Installation & Transfer Options:
-                        </p>
-                        <ul className="space-y-2 text-[11px]">
-                          <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <span className="font-bold text-blue-600">1.</span>
-                            <span><strong>Direct One-Touch App Install:</strong> Tap <strong>"Install Native App"</strong> below to add Doctorian to your home screen or desktop app menu.</span>
-                          </li>
-                          <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <span className="font-bold text-blue-600">2.</span>
-                            <span><strong>USB & Local Transfer:</strong> Transfer the app package file via USB cable, Bluetooth, or local storage between computers and smartphones for instant offline use.</span>
-                          </li>
-                          <li className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <span className="font-bold text-blue-600">3.</span>
-                            <span><strong>Safari / iOS Installation:</strong> Tap <strong>Share</strong> (square arrow) → <strong>"Add to Home Screen"</strong>.</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-center gap-2.5">
-                      <button
-                        onClick={async () => {
-                          if (deferredPrompt) {
-                            try {
-                              deferredPrompt.prompt();
-                              const { outcome } = await deferredPrompt.userChoice;
-                              if (outcome === 'accepted') {
-                                setIsStandalone(true);
-                                addToast("✨ Doctorian installed natively as standalone application!", "success");
-                              }
-                            } catch (e) {
-                              console.error(e);
-                            }
-                          } else {
-                            addToast("⚡ App caching complete! Doctorian is registered for standalone offline launch.", "success");
-                          }
-                          setShowPackageInstallModal(false);
-                        }}
-                        className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 active:scale-95 transition-all text-center flex items-center justify-center gap-2"
-                      >
-                        <Download size={15} />
-                        <span>{deferredPrompt ? 'Install Native App' : 'Confirm Native Install'}</span>
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (navigator.share) {
-                            try {
-                              await navigator.share({
-                                title: 'Doctorian Medical AI',
-                                text: 'Doctorian Standalone Medical AI Application Package',
-                                url: window.location.href,
-                              });
-                              addToast("📲 App transfer initiated via Bluetooth / Local Share", "success");
-                            } catch (err) {
-                              console.log(err);
-                            }
-                          } else {
-                            navigator.clipboard.writeText(window.location.href);
-                            addToast("📋 App transfer link copied! Ready for USB or local transfer.", "success");
-                          }
-                        }}
-                        className="w-full sm:w-auto py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <Share2 size={15} />
-                        <span>Share / USB</span>
-                      </button>
-                      <button
-                        onClick={() => setShowPackageInstallModal(false)}
-                        className="w-full sm:w-auto py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 font-bold text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-
               {isMarianConsoleOpen && (
                 <MarianConsole
                   isOpen={isMarianConsoleOpen}
@@ -4984,75 +4856,89 @@ export default function App() {
                 onClose={() => setIsAuditTrailOpen(false)}
               />
 
+              {/* Single Floating PWA Install Button */}
+              {showInstallButton && !isStandalone && !hasInstalledApp && !isFloatingDismissed && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85, y: 30 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.85, y: 30 }}
+                  transition={{ type: "spring", stiffness: 280, damping: 22 }}
+                  className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-[150] flex items-center gap-2 pointer-events-auto"
+                >
+                  <motion.div 
+                    whileHover={{ scale: 1.04, y: -2 }}
+                    whileTap={{ scale: 0.96 }}
+                    className="relative group"
+                  >
+                    {/* Ambient Glow Aura */}
+                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-400 opacity-80 blur-md group-hover:opacity-100 transition duration-500 animate-pulse" />
+                    
+                    <button
+                      onClick={installApp}
+                      className="relative flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl bg-slate-900/95 dark:bg-slate-950/95 text-white border border-blue-400/40 dark:border-blue-500/50 shadow-2xl backdrop-blur-xl cursor-pointer"
+                      title="Install Doctorian App for 100% Offline & Standalone Access"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-white shadow-md shrink-0">
+                        <Download size={18} className="animate-bounce" />
+                      </div>
+                      
+                      <div className="flex flex-col text-left">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black uppercase tracking-wider text-white">Install App</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-300 dark:text-slate-400">Offline & Standalone Ready</span>
+                      </div>
+
+                      <Sparkles size={16} className="text-teal-400 ml-1 group-hover:rotate-12 transition-transform" />
+                    </button>
+                  </motion.div>
+
+                  {/* Small dismiss button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsFloatingDismissed(true);
+                    }}
+                    className="w-7 h-7 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 flex items-center justify-center backdrop-blur-md cursor-pointer transition-colors shadow-md"
+                    title="Dismiss install prompt"
+                  >
+                    <X size={13} />
+                  </button>
+                </motion.div>
+              )}
+
               <DownloadAppModal
                 isOpen={isDownloadAppOpen}
                 onClose={() => setIsDownloadAppOpen(false)}
                 onInstalled={() => {
                   setHasInstalledApp(true);
+                  setIsStandalone(true);
+                  setShowInstallButton(false);
                   setIsDownloadAppOpen(false);
                 }}
               />
-            </AnimatePresence>
-
-            {/* Floating Action Download & Interactive Installation Widget */}
-            <AnimatePresence>
-              {!hasInstalledApp && !isStandalone && (
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0, y: 30 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.8, opacity: 0, y: 30, transition: { duration: 0.3 } }}
-                  className="fixed bottom-6 right-6 z-[130] flex items-center gap-2 p-2 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-2xl rounded-2xl border border-emerald-500/40 shadow-[0_12px_40px_rgba(16,185,129,0.35)] text-white"
-                >
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                    <div className="relative">
-                      <Download size={18} className="text-emerald-400 animate-bounce" />
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
-                    </div>
-                    <div className="hidden sm:flex flex-col text-left">
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none">
-                        Doctorian Suite
-                      </span>
-                      <span className="text-[9px] font-bold text-slate-300 tracking-tight mt-0.5">
-                        PWA • Windows • Android • Cloud Sync
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Direct 1-Click Interactive Install Button (Disappears on Click) */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={async () => {
-                      const promptEvent = (window as any).deferredPWAInstallPrompt;
-                      if (promptEvent) {
-                        try {
-                          promptEvent.prompt();
-                          await promptEvent.userChoice;
-                        } catch (err) {
-                          console.log('Install prompt executed');
-                        }
-                        (window as any).deferredPWAInstallPrompt = null;
-                      }
-                      setHasInstalledApp(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-500/30 cursor-pointer"
-                    title="Install Doctorian Directly to Desktop / Home Screen (1-Click)"
-                  >
-                    <Sparkles size={14} className="animate-spin" />
-                    <span>Install App Now</span>
-                  </motion.button>
-
-                  {/* Open Multi-Platform Download Studio */}
-                  <button
-                    onClick={() => setIsDownloadAppOpen(true)}
-                    className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white transition-colors cursor-pointer text-xs font-bold"
-                    title="Open Full Multi-Platform Studio (Windows Electron, Android APK, Cloud Backend)"
-                  >
-                    <Laptop size={15} />
-                  </button>
-                </motion.div>
+              {isBackupModalOpen && (
+                <LocalBackupModal
+                  isOpen={isBackupModalOpen}
+                  onClose={() => setIsBackupModalOpen(false)}
+                  showToast={addToast}
+                />
+              )}
+              {isThemeSchedulerOpen && (
+                <ThemeSchedulerModal
+                  isOpen={isThemeSchedulerOpen}
+                  onClose={() => setIsThemeSchedulerOpen(false)}
+                  onApplyTheme={(isDark, isEyeCare) => {
+                    setIsDarkMode(isDark);
+                    setIsEyeCareMode(isEyeCare);
+                  }}
+                  addToast={addToast}
+                />
               )}
             </AnimatePresence>
+
+
       </div>
     </div>
   </div>

@@ -453,7 +453,7 @@ export const WearableConnector: React.FC<WearableConnectorProps> = ({ isOpen, on
         const minVal = Math.min(...localSignal);
         const maxVal = Math.max(...localSignal);
         const range = maxVal - minVal || 1;
-        const normalizedSignal = localSignal.map(v => (v - minVal) / range);
+        const normalizedSignal = localSignal.map((v, mapIdx_455) => (v - minVal) / range);
         setPpgSignal([...normalizedSignal]);
 
         framesProcessed++;
@@ -1010,12 +1010,12 @@ Ensure the output is highly clinical, professional, well-structured, clean, and 
                           { id: 'fitbit', label: 'Fitbit App', emoji: '💚', desc: 'Pixel Watch / Charge' },
                           { id: 'garmin', label: 'Garmin Hub', emoji: '⚡', desc: 'Fenix / Instinct' },
                           { id: 'gfit', label: 'Google Fit', emoji: '🔵', desc: 'Android OS' },
-                        ].map(p => {
+                        ].map((p, mapIdx_1012) => {
                           const isActive = hcProvider === p.id;
                           return (
                             <button
                               type="button"
-                              key={p.id}
+                              key={`wearableconnector-l1018-${mapIdx_1012}`}
                               onClick={() => {
                                 setHcProvider(p.id as any);
                                 addHcLog(`Switched active synchronizer source to: ${p.label}`, 'info');
@@ -1086,10 +1086,10 @@ Ensure the output is highly clinical, professional, well-structured, clean, and 
                               { id: 'healthy', label: 'Stable Normal', color: 'text-emerald-500' },
                               { id: 'warning', label: 'Mild Warning', color: 'text-amber-500' },
                               { id: 'critical', label: 'Critical Shock', color: 'text-rose-500' },
-                            ].map(preset => (
+                            ].map((preset, mapIdx_1088) => (
                               <button
                                 type="button"
-                                key={preset.id}
+                                key={`wearableconnector-l1092-${mapIdx_1088}`}
                                 onClick={() => {
                                   setSelectedPreset(preset.id as any);
                                   addHcLog(`Switched simulation payload target to: ${preset.label} biometrics profile`, 'info');
@@ -1303,7 +1303,7 @@ class HealthConnectService(private val context: Context) {
                       <p className="text-slate-500 italic">No storage client signals mapped yet in this session.</p>
                     ) : (
                       hcLogList.map((log, idx) => (
-                        <div key={idx} className="flex items-start gap-1.5">
+                        <div key={`wearableconnector-l1306-idx-${idx}`} className="flex items-start gap-1.5">
                           <span className="text-slate-500 shrink-0 font-bold">{log.timestamp}</span>
                           <span className={`shrink-0 uppercase font-black tracking-wider text-[8px] px-1 rounded ${
                             log.type === 'success' ? 'bg-emerald-500/15 text-emerald-400' :
@@ -1620,7 +1620,7 @@ class HealthConnectService(private val context: Context) {
                         <p className="text-slate-500 italic font-mono">No direct GATT signals logged in this session.</p>
                       ) : (
                         logs.map((log, idx) => (
-                          <div key={idx} className="flex items-start gap-2">
+                          <div key={`wearableconnector-l1623-idx-${idx}`} className="flex items-start gap-2">
                             <span className="text-slate-500 shrink-0 font-bold">{log.timestamp}</span>
                             <span className={`shrink-0 uppercase font-black tracking-wider text-[8px] px-1 rounded ${
                               log.type === 'success' ? 'bg-emerald-500/15 text-emerald-400' :
@@ -1836,7 +1836,7 @@ class HealthConnectService(private val context: Context) {
                         <div className="absolute inset-x-0 bottom-0 h-16 flex items-end px-1 gap-0.5 select-none pointer-events-none">
                           {ppgSignal.map((val, idx) => (
                             <motion.div
-                              key={idx}
+                              key={`wearableconnector-l1839-idx-${idx}`}
                               animate={{ height: `${val * 100}%` }}
                               transition={{ duration: 0.1, ease: "linear" }}
                               className={`flex-1 min-h-[4px] rounded-t-sm ${
@@ -2378,9 +2378,9 @@ class HealthConnectService(private val context: Context) {
                             <span className="text-[10px] font-bold text-indigo-650 dark:text-indigo-400">Quality: {bleSleepQuality}</span>
                           </div>
                           <div className="flex gap-1">
-                            {['Poor', 'Fair', 'Good', 'Excellent'].map((lvl) => (
+                            {['Poor', 'Fair', 'Good', 'Excellent'].map((lvl, mapIdx_2380) => (
                               <button
-                                key={lvl}
+                                key={`wearableconnector-l2383-${mapIdx_2380}`}
                                 onClick={() => {
                                   setBleSleepQuality(lvl);
                                   addLog(`Sleep quality index calibrated to: ${lvl}`, "success");
@@ -2482,7 +2482,7 @@ class HealthConnectService(private val context: Context) {
                       <p className="text-slate-500 italic font-mono">No active signals logged in this session.</p>
                     ) : (
                       logs.map((log, idx) => (
-                        <div key={idx} className="flex items-start gap-2">
+                        <div key={`wearableconnector-l2485-idx-${idx}`} className="flex items-start gap-2">
                           <span className="text-slate-500 shrink-0 font-bold">{log.timestamp}</span>
                           <span className={`shrink-0 uppercase font-black tracking-wider text-[8px] px-1 rounded ${
                             log.type === 'success' ? 'bg-emerald-500/15 text-emerald-400' :

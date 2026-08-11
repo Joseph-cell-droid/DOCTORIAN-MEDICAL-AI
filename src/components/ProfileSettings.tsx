@@ -15,6 +15,7 @@ import { api, User as UserType, detectActiveLocalNode } from '../api';
 import { UpgradeModal } from './UpgradeModal';
 import { TwoFactorModal } from './TwoFactorModal';
 import { OfflinePackageManagerModal } from './OfflinePackageManagerModal';
+import { LocalBackupModal } from './LocalBackupModal';
 import { translate } from '../utils/translations';
 import { useRef } from 'react';
 
@@ -88,6 +89,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [mentorId, setMentorId] = useState(user?.mentorId || '');
   const [doctorId, setDoctorId] = useState(user?.doctorId || '');
 
+  const [showSaveConfirmModal, setShowSaveConfirmModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isRegisteringBiometrics, setIsRegisteringBiometrics] = useState(false);
@@ -124,6 +126,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   // Sector Data Release Requests State
   const [dataRequests, setDataRequests] = useState<any[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
   const [requestDataType, setRequestDataType] = useState<string>('all');
   const [viewingRequestData, setViewingRequestData] = useState<any | null>(null);
 
@@ -382,15 +385,15 @@ Verified by Joseph Akora - Development Lead.
           <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Popular Inference Models</label>
           {isLoadingModels ? (
             <div className="flex flex-wrap gap-2 animate-pulse">
-              {[1, 2, 3, 4].map(n => (
-                <div key={n} className="h-8 w-28 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              {[1, 2, 3, 4].map((n, mapIdx_384) => (
+                <div key={`profilesettings-l386-${mapIdx_384}`} className="h-8 w-28 bg-slate-100 dark:bg-slate-800 rounded-xl" />
               ))}
             </div>
           ) : (
             <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
-              {hfModels.map(m => (
+              {hfModels.map((m, mIdx) => (
                 <button
-                  key={m.id}
+                  key={`hf-${m.id}-${mIdx}`}
                   type="button"
                   onClick={() => {
                     setHuggingfaceModel(m.id);
@@ -435,6 +438,10 @@ Verified by Joseph Akora - Development Lead.
     } finally {
       setIsLoadingCredentials(false);
     }
+  };
+
+  const handleSaveClick = () => {
+    setShowSaveConfirmModal(true);
   };
 
   const handleSave = async () => {
@@ -650,9 +657,9 @@ Verified by Joseph Akora - Development Lead.
               { id: 'security', label: 'Neural Links', icon: <Lock size={18} />, color: 'indigo' },
               { id: 'billing', label: 'Credit Bank', icon: <CreditCard size={18} />, color: 'emerald' },
               { id: 'notifications', label: 'Channels', icon: <Bell size={18} />, color: 'amber' },
-            ].map(item => (
+            ].map((item, mapIdx_652) => (
               <button
-                key={item.id}
+                key={`profilesettings-l655-${mapIdx_652}`}
                 onClick={() => {
                   setActiveTab(item.id as any);
                   setMessage(null);
@@ -881,7 +888,7 @@ Verified by Joseph Akora - Development Lead.
                   </AnimatePresence>
                   
                   <button
-                    onClick={handleSave}
+                    onClick={handleSaveClick}
                     disabled={isSaving}
                     className="w-full sm:w-auto bg-blue-600 text-white px-12 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/30 flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95 group shrink-0"
                   >
@@ -1044,7 +1051,7 @@ Verified by Joseph Akora - Development Lead.
                   </div>
                   
                   <button
-                    onClick={handleSave}
+                    onClick={handleSaveClick}
                     disabled={isSaving}
                     className="w-full sm:w-auto bg-slate-900 dark:bg-rose-600 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 dark:hover:bg-rose-700 transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95 group"
                   >
@@ -1115,7 +1122,7 @@ Verified by Joseph Akora - Development Lead.
                         <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] ml-2 mb-4">Active Neural Ports</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {credentials.map((cred, i) => (
-                            <div key={i} className="flex items-center justify-between p-5 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm group/cred">
+                            <div key={`profilesettings-l1118-i-${i}`} className="flex items-center justify-between p-5 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm group/cred">
                               <div className="flex items-center gap-4">
                                 <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-xl text-emerald-600">
                                   <CheckCircle2 size={18} />
@@ -1163,6 +1170,36 @@ Verified by Joseph Akora - Development Lead.
                     </div>
                   </div>
 
+                  {/* Periodic Encrypted Backup & Vault Card */}
+                  <div className="group p-8 bg-gradient-to-br from-cyan-50/70 to-indigo-50/70 dark:from-slate-800/50 dark:to-cyan-950/30 rounded-[2.5rem] border border-cyan-100 dark:border-slate-800 relative overflow-hidden transition-all hover:shadow-xl">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 relative z-10">
+                      <div className="flex items-start gap-6">
+                        <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.5rem] shadow-xl text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform duration-500">
+                          <Database size={32} />
+                        </div>
+                        <div className="max-w-md">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Periodic Encrypted Local Backup & Vault</h4>
+                            <span className="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-400 rounded-full text-[9px] font-black uppercase tracking-wider">
+                              AES-256-GCM
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                            Configure automated periodic downloads of your health data & AI chat logs to a secure, encrypted local JSON file. Restore records smoothly with passphrase decryption.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setShowBackupModal(true)}
+                        className="bg-cyan-600 text-white px-8 py-5 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-cyan-700 transition-all shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-3 group min-w-[220px]"
+                      >
+                        <ShieldCheck size={18} />
+                        <span>Manage Vault & Backup</span>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* App Package Downloader & Install Card */}
                   <div className="group p-8 bg-gradient-to-br from-blue-50/70 to-indigo-50/70 dark:from-slate-800/50 dark:to-indigo-950/30 rounded-[2.5rem] border border-blue-100 dark:border-slate-800 relative overflow-hidden transition-all hover:shadow-xl">
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 relative z-10">
@@ -1194,7 +1231,7 @@ Verified by Joseph Akora - Development Lead.
                        { label: 'Security Tier', val: 'Level-5 Encrypted', icon: <Shield size={20} />, color: 'indigo' },
                        { label: 'Hardware Lock', val: 'Device Key-Bound', icon: <Fingerprint size={20} />, color: 'purple' },
                      ].map((item, i) => (
-                       <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+                       <div key={`profilesettings-l1197-i-${i}`} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
                           <div className={`text-slate-400 dark:text-slate-500 mb-4 transition-colors group-hover:text-blue-500`}>
                             {item.icon}
                           </div>
@@ -1272,7 +1309,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">In-Browser Local Brain</h5>
-                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">DOCTORIAN 1.5 ORACLE (Fastest Edge)</p>
+                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mt-1">Doctorian General AI (Fastest Edge)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Loads weights directly in-browser. 100% private execution on your GPU using WebGL/WebGPU.
                         </p>
@@ -1302,7 +1339,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Cloud Brain Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">DOCTORIAN 2.0 ORACLE (Speed Cloud Brain)</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Doctorian Clinical AI (Speed Cloud Brain)</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           High performance failover cloud synapse. Instant clinical reasoning & web search grounding.
                         </p>
@@ -1332,7 +1369,7 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Laptop Server Node</h5>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">DOCTORIAN 3.0 NEXUS Hub Link</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Doctorian Patient Education AI Hub Link</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Run customized offline Doctorian models on your laptop port 11434 / 1234.
                         </p>
@@ -1361,8 +1398,8 @@ Verified by Joseph Akora - Development Lead.
                         )}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">DOCTORIAN 2.5 NEXUS</h5>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">DOCTORIAN 2.5 NEXUS Core</p>
+                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Doctorian Triage AI</h5>
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Doctorian Triage AI Core</p>
                         <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
                           Fast, serverless execution of DOCTORIAN 2.5 via secure API keys.
                         </p>
@@ -1452,9 +1489,9 @@ Verified by Joseph Akora - Development Lead.
                       <div>
                         <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quick Select Model Presets</label>
                         <div className="flex flex-wrap gap-2">
-                          {['doctorian-opus', 'doctorian-1.5', 'doctorian-2.5', 'doctorian-3.5'].map(preset => (
+                          {['doctorian-opus', 'doctorian-1.5', 'doctorian-2.5', 'doctorian-3.5'].map((preset, pIdx) => (
                             <button
-                              key={preset}
+                              key={`ps-preset-${preset}-${pIdx}`}
                               type="button"
                               onClick={() => setOllamaModel(preset)}
                               className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${
@@ -1672,9 +1709,9 @@ Verified by Joseph Akora - Development Lead.
                       { id: 'offline', label: 'Offline Native', desc: 'Coqui TTS Server', info: 'Run lightweight deep synthesis model inside local host.', color: 'from-emerald-600 to-teal-600' },
                       { id: 'african', label: 'African Deployment', desc: "Africa's Talking + Twilio", info: 'Localized cellular handshake optimized for East African nodes.', color: 'from-amber-600 to-orange-600' },
                       { id: 'fully_local', label: 'Fully Local AI', desc: 'Ollama + Whisper + Coqui', info: '完全 100% boundary-contained offline physical loop.', color: 'from-rose-600 to-pink-600' }
-                    ].map((stack) => (
+                    ].map((stack, mapIdx_1674) => (
                       <button
-                        key={stack.id}
+                        key={`profilesettings-l1677-${mapIdx_1674}`}
                         type="button"
                         onClick={() => setSelectedVoiceStack(stack.id)}
                         className={`text-left p-6 rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between h-40 ${selectedVoiceStack === stack.id ? 'border-violet-600 bg-white dark:bg-slate-900 shadow-xl' : 'border-slate-150 dark:border-slate-800/60 bg-slate-100/30 dark:bg-slate-900/10 hover:border-slate-300 dark:hover:border-slate-705'}`}
@@ -1735,9 +1772,9 @@ Verified by Joseph Akora - Development Lead.
                         label: 'Encourage Professional Medical Help', 
                         desc: 'Directs the system to conclude advice statements with clear professional directives such as: "Medical attention is recommended." or similar instructions.' 
                       }
-                    ].map((safeguard) => (
+                    ].map((safeguard, mapIdx_1737) => (
                       <div 
-                        key={safeguard.id}
+                        key={`profilesettings-l1740-${mapIdx_1737}`}
                         className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex items-start justify-between gap-6"
                       >
                         <div className="space-y-1">
@@ -2090,9 +2127,9 @@ Verified by Joseph Akora - Development Lead.
                         { id: 'offline', label: 'Offline Native', desc: 'Coqui TTS Server', info: 'Run lightweight deep synthesis model inside local host.', color: 'from-emerald-600 to-teal-600' },
                         { id: 'african', label: 'African Deployment', desc: "Africa's Talking + Twilio", info: 'Localized cellular handshake optimized for East African nodes.', color: 'from-amber-600 to-orange-600' },
                         { id: 'fully_local', label: 'Fully Local AI', desc: 'Ollama + Whisper + Coqui', info: '完全 100% boundary-contained offline physical loop.', color: 'from-rose-600 to-pink-600' }
-                      ].map((stack) => (
+                      ].map((stack, mapIdx_2092) => (
                         <button
-                          key={stack.id}
+                          key={`profilesettings-l2095-${mapIdx_2092}`}
                           type="button"
                           onClick={() => setSelectedVoiceStack(stack.id)}
                           className={`text-left p-6 rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between h-40 ${selectedVoiceStack === stack.id ? 'border-violet-600 bg-white dark:bg-slate-900 shadow-xl' : 'border-slate-150 dark:border-slate-800/60 bg-slate-100/30 dark:bg-slate-900/10 hover:border-slate-300 dark:hover:border-slate-705'}`}
@@ -2153,9 +2190,9 @@ Verified by Joseph Akora - Development Lead.
                           label: 'Encourage Professional Medical Help', 
                           desc: 'Directs the system to conclude advice statements with clear professional directives such as: "Medical attention is recommended." or similar instructions.' 
                         }
-                      ].map((safeguard) => (
+                      ].map((safeguard, mapIdx_2155) => (
                         <div 
-                          key={safeguard.id}
+                          key={`profilesettings-l2158-${mapIdx_2155}`}
                           className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex items-start justify-between gap-6"
                         >
                           <div className="space-y-1">
@@ -2181,7 +2218,7 @@ Verified by Joseph Akora - Development Lead.
                    </div>
                   
                    <button
-                    onClick={handleSave}
+                    onClick={handleSaveClick}
                     disabled={isSaving}
                     className="w-full sm:w-auto bg-violet-600 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-violet-700 transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95 group"
                   >
@@ -2252,8 +2289,8 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
-                        {dataRequests.map((req) => (
-                          <div key={req.id} className="p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {dataRequests.map((req, mapIdx_2254) => (
+                          <div key={`profilesettings-l2256-${mapIdx_2254}`} className="p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                               <div className="flex items-center gap-2.5 mb-1.5">
                                 <span className="text-[10px] font-black bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md uppercase">
@@ -2382,8 +2419,8 @@ Verified by Joseph Akora - Development Lead.
                     { id: 'sms', label: 'Cellular SOS Burst', desc: 'Urgent mobile triage notifications', icon: <Phone size={18} /> },
                     { id: 'push', label: 'Direct Browser Sync', desc: 'Real-time protocol updates', icon: <Zap size={18} /> },
                     { id: 'marketing', label: 'Evolutionary News', desc: 'Updates from Doctorian Intelligence', icon: <Globe size={18} /> }
-                  ].map(item => (
-                    <div key={item.id} className="group p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl">
+                  ].map((item, mapIdx_2384) => (
+                    <div key={`profilesettings-l2386-${mapIdx_2384}`} className="group p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center justify-between transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl">
                       <div className="flex items-center gap-4">
                          <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm text-slate-400 group-hover:text-amber-500 transition-colors">
                             {item.icon}
@@ -2485,7 +2522,7 @@ Verified by Joseph Akora - Development Lead.
                      { label: 'Active Catalysts', val: user?.conditions || 'Lisinopril, Omega-3', icon: <Pill size={24} />, color: 'emerald' },
                      { label: 'Clinical Node', val: 'Alpha-9 Triage', icon: <Activity size={24} />, color: 'blue' }
                    ].map((card, i) => (
-                     <div key={i} className="bg-white dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group">
+                     <div key={`profilesettings-l2488-i-${i}`} className="bg-white dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group">
                         <div className="text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-500">{card.icon}</div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{card.label}</p>
                         <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight">{card.val}</p>
@@ -2592,8 +2629,8 @@ Verified by Joseph Akora - Development Lead.
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {billingHistory.map((payment) => (
-                        <div key={payment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-8 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] hover:border-blue-600/50 hover:shadow-2xl hover:shadow-blue-500/5 transition-all group relative overflow-hidden">
+                      {billingHistory.map((payment, mapIdx_2594) => (
+                        <div key={`profilesettings-l2596-${mapIdx_2594}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-8 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] hover:border-blue-600/50 hover:shadow-2xl hover:shadow-blue-500/5 transition-all group relative overflow-hidden">
                           <div className="absolute top-0 right-0 w-1 h-full bg-blue-600/0 group-hover:bg-blue-600 transition-all" />
                           <div className="flex items-center gap-6 mb-4 sm:mb-0">
                             <div className={`p-4 rounded-3xl ${payment.status === 'completed' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600'} shadow-sm`}>
@@ -2687,6 +2724,53 @@ Verified by Joseph Akora - Development Lead.
             }}
             isStandalone={false}
           />
+        )}
+        {showBackupModal && (
+          <LocalBackupModal
+            isOpen={showBackupModal}
+            onClose={() => setShowBackupModal(false)}
+            showToast={(msg, type) => addToast?.(msg, type === 'warning' ? 'error' : type)}
+          />
+        )}
+        {showSaveConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-6 shadow-inner">
+                <ShieldAlert size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
+                Confirm Health Record Updates
+              </h3>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                You are about to commit updates to your critical health profile, emergency specialist contacts, or AI clinical matrix configuration. Are you sure you want to proceed and synchronize these changes?
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveConfirmModal(false)}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSaveConfirmModal(false);
+                    handleSave();
+                  }}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={16} />
+                  Confirm & Sync
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

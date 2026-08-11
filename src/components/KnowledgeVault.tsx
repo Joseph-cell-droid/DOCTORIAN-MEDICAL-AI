@@ -132,9 +132,9 @@ export const KnowledgeVault: React.FC = () => {
               <Filter size={12} /> Categories
             </h3>
             <div className="flex flex-col gap-2">
-              {categories.map(cat => (
+              {categories.map((cat, catIdx) => (
                 <button
-                  key={cat}
+                  key={`kv-cat-${cat}-${catIdx}`}
                   onClick={() => setCategoryFilter(cat)}
                   className={`w-full text-left px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                     categoryFilter === cat 
@@ -279,8 +279,8 @@ export const KnowledgeVault: React.FC = () => {
                       onChange={(e) => setNewNode({ ...newNode, category: e.target.value })}
                       className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-xs font-bold focus:ring-4 focus:ring-blue-500/10 appearance-none"
                     >
-                      {categories.filter(c => c !== 'all').map(cat => (
-                        <option key={cat} value={cat}>{cat.toUpperCase()}</option>
+                      {categories.filter(c => c !== 'all').map((cat, catIdx) => (
+                        <option key={`kv-opt-${cat}-${catIdx}`} value={cat}>{cat.toUpperCase()}</option>
                       ))}
                     </select>
                   </div>

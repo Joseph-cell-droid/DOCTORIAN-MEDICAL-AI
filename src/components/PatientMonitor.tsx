@@ -4,8 +4,9 @@ import {
   Heart, Droplets, Wind, Activity, AlertTriangle,
   CheckCircle, Info, Radio, Signal, XCircle, Monitor, Stethoscope, WifiOff,
   Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3, Sliders,
-  Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2
+  Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2, LayoutGrid
 } from 'lucide-react';
+import { PatientsDashboardView } from './PatientsDashboardView';
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
 import { motion, AnimatePresence } from 'motion/react';
 import { api, User } from '../api';
@@ -298,7 +299,7 @@ const StatusBadge: React.FC<{ status: HealthStatus }> = ({ status }) => {
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Sync Verification</p>
                  <div className="flex gap-2 justify-start sm:justify-end">
                     {[...Array(5)].map((_, i) => (
-                       <div key={i} className={`h-1.5 w-8 rounded-full transition-all duration-700 ${i < Math.ceil(status.score / 20) ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-800'}`} />
+                       <div key={`patientmonitor-l301-i-${i}`} className={`h-1.5 w-8 rounded-full transition-all duration-700 ${i < Math.ceil(status.score / 20) ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-800'}`} />
                     ))}
                  </div>
               </div>
@@ -313,7 +314,7 @@ const StatusBadge: React.FC<{ status: HealthStatus }> = ({ status }) => {
         {status.alerts.length > 0 && (
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800/50 space-y-3">
             {status.alerts.map((alert, i) => (
-              <div key={i} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-red-500 dark:text-red-400">
+              <div key={`patientmonitor-l316-i-${i}`} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-red-500 dark:text-red-400">
                 <ShieldAlert size={12} className="animate-pulse" />
                 {alert}
               </div>
@@ -474,7 +475,7 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
                      <div className="flex gap-1">
                         {[...Array(16)].map((_, i) => (
                            <motion.div
-                              key={i}
+                              key={`patientmonitor-l477-i-${i}`}
                               animate={{
                                  height: [8, 32, 8],
                                  opacity: [0.2, 1, 0.2]
@@ -613,7 +614,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showNeuralSummary, setShowNeuralSummary] = useState(false);
-  const [activeTab, setActiveTab] = useState<'realtime' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator' | 'ambulance'>('realtime');
+  const [activeTab, setActiveTab] = useState<'realtime' | 'patients_dashboard' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator' | 'ambulance'>('patients_dashboard');
   const [emergencyLogs, setEmergencyLogs] = useState<any[]>([]);
   const [activeDoctors, setActiveDoctors] = useState<any[]>([]);
   const [activeCallTranscript, setActiveCallTranscript] = useState<string>('');
@@ -625,6 +626,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   // Advanced Bio-Organ Stress & Biofeedback Triage States
   const [isBiomarkerScanning, setIsBiomarkerScanning] = useState<boolean>(false);
   const [showBiofeedbackModal, setShowBiofeedbackModal] = useState<boolean>(false);
+  const [showSosConfirmModal, setShowSosConfirmModal] = useState<boolean>(false);
   const [showSimulationDials, setShowSimulationDials] = useState<boolean>(false);
   const [simulatedVitals, setSimulatedVitals] = useState({ heartRate: 78, systolicBP: 122, diastolicBP: 80, spo2: 98 });
   const [biofeedbackPhase, setBiofeedbackPhase] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
@@ -1905,9 +1907,9 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   {isAIVoiceLoading ? "Connecting AI Brain..." : "Live Vocal Monologue"}
                 </span>
                 <div className="flex gap-0.5 items-center h-2.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((val) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((val, mapIdx_1907) => (
                     <motion.div 
-                      key={val}
+                      key={`patientmonitor-l1910-${mapIdx_1907}`}
                       animate={{ height: [2, Math.floor(Math.random() * 10) + 2, 2] }}
                       transition={{ duration: 0.2 + Math.random() * 0.3, repeat: Infinity }}
                       className="w-0.5 bg-rose-400 rounded-full" 
@@ -2345,17 +2347,24 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-white/10">
             <div className="space-y-3 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-950/90 text-emerald-300 tracking-widest border border-emerald-500/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Clinical Triage: Stable (NEWS2 Score 0)
-                </span>
+                {(!connection.connected || connection.type === "demo") ? (
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-950/90 text-amber-300 tracking-widest border border-amber-500/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                    🟡 SIMULATION MODE — NEWS2: Awaiting Live Sensors
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-950/90 text-emerald-300 tracking-widest border border-emerald-500/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    🟢 LIVE DEVICE CONNECTED ({connection.deviceName || connection.type?.toUpperCase()}) — NEWS2 Score 0
+                  </span>
+                )}
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-950/90 text-blue-300 tracking-widest border border-blue-500/40 flex items-center gap-1.5">
                   <Activity size={12} className="text-blue-400 animate-spin" />
                   Live Telemetry Stream Active
                 </span>
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-purple-950/90 text-purple-300 tracking-widest border border-purple-500/40 flex items-center gap-1.5">
                   <ShieldCheck size={12} className="text-purple-400" />
-                  24/7 Clinical Guardian
+                  Continuous Health Monitoring
                 </span>
               </div>
               
@@ -2378,7 +2387,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full lg:w-auto shrink-0">
               <button 
                 type="button"
-                onClick={handleManualSOSCall}
+                onClick={() => setShowSosConfirmModal(true)}
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-red-900/40 active:scale-95 cursor-pointer border border-red-400/30 whitespace-nowrap"
                 title="Trigger Immediate Emergency Voice Call to Doctor"
               >
@@ -2764,6 +2773,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full no-scrollbar">
                     <div className="flex shrink-0">
                       <button
+                        onClick={() => setActiveTab('patients_dashboard')}
+                        className={`px-7 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${activeTab === 'patients_dashboard' ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                      >
+                        <LayoutGrid size={15} />
+                        <span>Patients Dashboard</span>
+                        <span className="px-1.5 py-0.5 text-[9px] bg-white/20 text-white rounded-full font-mono">6 Live</span>
+                      </button>
+                      <button
                         onClick={() => setActiveTab('realtime')}
                         className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'realtime' ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                       >
@@ -2851,7 +2868,16 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   </div>
                 </div>
 
-            {activeTab === 'analytics' ? (
+            {activeTab === 'patients_dashboard' ? (
+              <PatientsDashboardView
+                vitals={vitals}
+                arduino={arduino}
+                onSelectPatient={(id) => {
+                  setSelectedPatientId(id);
+                  setActiveTab('realtime');
+                }}
+              />
+            ) : activeTab === 'analytics' ? (
               <DiagnosticAnalysisView vitals={vitals} history={history} />
             ) : activeTab === 'genomics' ? (
               !isAdmin ? (
@@ -2878,8 +2904,8 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 <div className="space-y-8">
                   <DnaMatrix dnaStatus={dnaStatus} onStartSequencing={startDnaSequencing} />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {activeMachines.filter(m => m.type === 'Genomic' || m.status === 'online').map(m => (
-                      <div key={m.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex items-center gap-4">
+                    {activeMachines.filter(m => m.type === 'Genomic' || m.status === 'online').map((m, mapIdx_2880) => (
+                      <div key={`patientmonitor-l2882-${mapIdx_2880}`} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex items-center gap-4">
                         <div className={`w-3 h-3 rounded-full ${m.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                         <div className="flex-1">
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.type}</p>
@@ -3091,7 +3117,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                               <div className="flex gap-1 items-end h-8">
                                  {[...Array(24)].map((_, i) => (
                                     <motion.div
-                                       key={i}
+                                       key={`patientmonitor-l3094-i-${i}`}
                                        animate={{
                                           height: [4, Math.random() * 24 + 4, 4],
                                           opacity: [0.3, 1, 0.3]
@@ -3408,7 +3434,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 bgColor="bg-blue-50"
                 status={getStatus('heartRate', vitals?.heartRate || 0)}
                 isLive={connection.connected && timeRange === 'Day'}
-                history={displayHistory.map(h => ({ value: h.heartRate, timestamp: h.timestamp }))}
+                history={displayHistory.map((h, mapIdx_3410) => ({ value: h.heartRate, timestamp: h.timestamp }))}
                 maxVal={200}
                 highlight={true}
                 customIndicator={
@@ -3441,7 +3467,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 bgColor="bg-emerald-50"
                 status={getStatus('spo2', vitals?.spo2 || 0)}
                 isLive={connection.connected && timeRange === 'Day'}
-                history={displayHistory.map(h => ({ value: h.spo2, timestamp: h.timestamp }))}
+                history={displayHistory.map((h, mapIdx_3443) => ({ value: h.spo2, timestamp: h.timestamp }))}
                 maxVal={100}
               />
               <VitalCard
@@ -3453,7 +3479,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 bgColor="bg-orange-50"
                 status={getStatus('temperature', vitals?.temperature || 0)}
                 isLive={connection.connected && timeRange === 'Day'}
-                history={displayHistory.map(h => ({ value: h.temperature, timestamp: h.timestamp }))}
+                history={displayHistory.map((h, mapIdx_3455) => ({ value: h.temperature, timestamp: h.timestamp }))}
                 maxVal={42}
               />
               <VitalCard
@@ -3465,7 +3491,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 bgColor="bg-indigo-50"
                 status={getStatus('systolicBP', vitals?.systolicBP || 0)}
                 isLive={connection.connected && timeRange === 'Day'}
-                history={displayHistory.map(h => ({ value: h.systolicBP, timestamp: h.timestamp }))}
+                history={displayHistory.map((h, mapIdx_3467) => ({ value: h.systolicBP, timestamp: h.timestamp }))}
                 maxVal={220}
               />
               <VitalCard
@@ -3477,7 +3503,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 bgColor="bg-blue-50"
                 status={getStatus('respiratoryRate', vitals?.respiratoryRate || 0)}
                 isLive={connection.connected && timeRange === 'Day'}
-                history={displayHistory.map(h => ({ value: h.respiratoryRate, timestamp: h.timestamp }))}
+                history={displayHistory.map((h, mapIdx_3479) => ({ value: h.respiratoryRate, timestamp: h.timestamp }))}
                 maxVal={40}
               />
               {/* Dynamic Health Score Matrix */}
@@ -3554,7 +3580,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 {displayHistory.length > 0 ? (
                   <div className="w-full h-full">
                     <VitalWaveform 
-                      data={displayHistory.map(h => ({ value: h.heartRate, timestamp: h.timestamp }))} 
+                      data={displayHistory.map((h, mapIdx_3556) => ({ value: h.heartRate, timestamp: h.timestamp }))} 
                       color="#2563eb"
                       height={240}
                       maxVal={180}
@@ -3599,7 +3625,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     const dbpCheck = checkVitalDeviation('diastolicBP', h.diastolicBP, h.timestamp, displayHistory);
                     
                     return (
-                      <div key={i} className="flex-1 flex flex-col justify-end gap-1 group relative">
+                      <div key={`patientmonitor-l3602-i-${i}`} className="flex-1 flex flex-col justify-end gap-1 group relative">
                         {/* Systolic Part */}
                         <motion.div
                           initial={{ height: 0 }}
@@ -3671,7 +3697,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   {displayHistory.length > 0 ? (
                     <div className="w-full h-full">
                       <VitalWaveform 
-                        data={displayHistory.map(h => ({ value: h.spo2, timestamp: h.timestamp }))} 
+                        data={displayHistory.map((h, mapIdx_3673) => ({ value: h.spo2, timestamp: h.timestamp }))} 
                         color="#06b6d4"
                         height={160}
                         minVal={80}
@@ -3710,7 +3736,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       const tCheck = checkVitalDeviation('temperature', h.temperature, h.timestamp, displayHistory);
                       
                       return (
-                        <div key={i} className="flex-1 group relative h-full flex flex-col justify-end">
+                        <div key={`patientmonitor-l3713-i-${i}`} className="flex-1 group relative h-full flex flex-col justify-end">
                           <motion.div
                             initial={{ height: 0 }}
                             animate={{ height: `${height}%` }}
@@ -4091,7 +4117,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                         const rrCheck = checkVitalDeviation('respiratoryRate', h.respiratoryRate, h.timestamp, displayHistory);
 
                         return (
-                          <tr key={i} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                          <tr key={`patientmonitor-l4094-i-${i}`} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                             <td className="py-4 pr-4 text-xs font-bold text-slate-400">
                               {new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                             </td>
@@ -4245,7 +4271,44 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   patientPreset={currentCoupledPatientGlobal?.vitalsPreset} 
                 />
               </div>
-            </motion.div>
+            
+      {/* Emergency SOS Dispatch Confirmation Modal */}
+      {showSosConfirmModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-red-500/40 rounded-[2.5rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(225,29,72,0.3)] relative overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl bg-red-950/60 border border-red-500/50 flex items-center justify-center text-red-500 mb-6 shadow-inner animate-pulse">
+              <PhoneCall size={32} />
+            </div>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">
+              Confirm Emergency Assistance Dispatch
+            </h3>
+            <p className="text-xs font-medium text-slate-300 leading-relaxed mb-6">
+              You are about to initiate an immediate high-priority emergency alert. This action will send a voice dispatch & SMS notification to your assigned doctor or hospital emergency contacts. Do you wish to continue?
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowSosConfirmModal(false)}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSosConfirmModal(false);
+                  handleManualSOSCall();
+                }}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-red-600/40 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <PhoneCall size={16} />
+                Confirm & Dispatch SOS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+</motion.div>
           </div>
         )}
       </AnimatePresence>

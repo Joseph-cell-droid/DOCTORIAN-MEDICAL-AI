@@ -580,8 +580,8 @@ Provide a doctor-grade precision longevity strategy incorporating:
 
             {/* PRS Grid Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {PRS_DATABASE.map((prs) => (
-                <div key={prs.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4">
+              {PRS_DATABASE.map((prs, mapIdx_582) => (
+                <div key={`genomiclongevitycore-l584-${mapIdx_582}`} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded bg-slate-900 text-purple-400 border border-purple-500/30">
                       {prs.category}
@@ -772,8 +772,8 @@ Provide a doctor-grade precision longevity strategy incorporating:
             </div>
 
             <div className="space-y-4">
-              {CRISPR_PIPELINE.map((target) => (
-                <div key={target.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-3">
+              {CRISPR_PIPELINE.map((target, mapIdx_774) => (
+                <div key={`genomiclongevitycore-l776-${mapIdx_774}`} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded text-[10px] font-black uppercase">

@@ -289,7 +289,7 @@ Return valid raw JSON only.`;
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {reviews.map((rev, idx) => (
                   <motion.div
-                    key={idx}
+                    key={`specialistpanelmodal-l292-idx-${idx}`}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}

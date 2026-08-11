@@ -65,12 +65,12 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
   const [biometricScanning, setBiometricScanning] = useState(false);
   const [biometricSuccess, setBiometricSuccess] = useState(false);
   const [selectedMfaMethod, setSelectedMfaMethod] = useState<'totp' | 'biometric' | 'face'>('face');
-  const [useManualCode, setUseManualCode] = useState(false);
+  const [isManualCodeActive, setIsManualCodeActive] = useState(false);
 
   // Real-time Face Scanning Security States
   const [faceScanStatus, setFaceScanStatus] = useState<'idle' | 'scanning' | 'success' | 'failed'>('idle');
   const [faceScanProgress, setFaceScanProgress] = useState(0);
-  const [useLiveCamera, setUseLiveCamera] = useState(false);
+  const [isLiveCameraActive, setIsLiveCameraActive] = useState(false);
   const [faceStream, setFaceStream] = useState<MediaStream | null>(null);
 
   // Face scanning parameters & controls
@@ -426,7 +426,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320 } });
       setFaceStream(stream);
-      setUseLiveCamera(true);
+      setIsLiveCameraActive(true);
       setLogs(prev => [...prev, `[FACE SCAN] Webcam video link established. Calibrating camera bounds...`]);
       
       // Bind video tag
@@ -439,7 +439,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
       }, 150);
     } catch (err) {
       console.log("Webcam access declined or restricted, using fallback visual scanner:", err);
-      setUseLiveCamera(false);
+      setIsLiveCameraActive(false);
       setLogs(prev => [...prev, `[WARN] Video input unavailable. Engaging high-fidelity fallback mesh render.`]);
     }
 
@@ -520,7 +520,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     }
     setFaceScanStatus('idle');
     setFaceScanProgress(0);
-    setUseLiveCamera(false);
+    setIsLiveCameraActive(false);
     setLogs(prev => [...prev, `[FACE SCAN] Biometric authentication canceled.`]);
   };
 
@@ -705,7 +705,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
             </button>
             <div className="px-3 py-1.5 bg-slate-900 text-slate-400 rounded-xl border border-slate-800/80 text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              HIPAA CERTIFIED
+              PRIVACY & SECURITY CONTROLS
             </div>
           </div>
         </div>
@@ -731,7 +731,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
             const isActive = stage === s.id;
 
             return (
-              <div key={s.id} className="space-y-1">
+              <div key={`tsg-s-${s.id}-${idx}`} className="space-y-1">
                 <div className={`h-1.5 rounded-full transition-all duration-300 ${
                   isActive 
                     ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.35)]' 
@@ -782,7 +782,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                       : 'VALIDATING CLINICAL REGULATORY STAMP'}
                   </h3>
                   <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                    RECOGNIZING OPERATOR CREDENTIALS • HIPAA SHIELD SECURE
+                    RECOGNIZING OPERATOR CREDENTIALS • PRIVACY GUARD ACTIVE
                   </p>
                 </div>
 
@@ -984,7 +984,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                           )}
 
                           {/* Video Tag feed or Fallback Vector Coordinate Mesh */}
-                          {useLiveCamera ? (
+                          {isLiveCameraActive ? (
                             <video 
                               id="secure-gate-face-video" 
                               className="w-full h-full object-cover rounded-full transform -scale-x-100" 
@@ -1122,9 +1122,9 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                                 { id: 'ultra', label: 'Ultra' },
                                 { id: 'high', label: 'High' },
                                 { id: 'standard', label: 'Std' }
-                              ].map(s => (
+                              ].map((s, mapIdx_1124) => (
                                 <button
-                                  key={s.id}
+                                  key={`terminalsecuregate-l1127-${mapIdx_1124}`}
                                   type="button"
                                   onClick={() => {
                                     setScanSpeed(s.id as any);
@@ -1224,11 +1224,11 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                       </div>
 
                       {/* Manual OTP entry fallback */}
-                      {!useManualCode ? (
+                      {!isManualCodeActive ? (
                         <div className="text-center">
                           <button
                             type="button"
-                            onClick={() => { setUseManualCode(true); playSystemChime('click'); }}
+                            onClick={() => { setIsManualCodeActive(true); playSystemChime('click'); }}
                             className="text-[9px] text-slate-500 hover:text-slate-400 font-extrabold uppercase tracking-wider underline decoration-dotted underline-offset-4"
                           >
                             Need manual OTP code override?
@@ -1298,14 +1298,14 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                         onClick={() => {
                           setStage('credentials');
                           setError('');
-                          setUseManualCode(false);
+                          setIsManualCodeActive(false);
                           playSystemChime('click');
                         }}
                         className="flex-1 py-3.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all"
                       >
                         Back
                       </button>
-                      {useManualCode && (
+                      {isManualCodeActive && (
                         <button
                           type="submit"
                           disabled={isLoading}
@@ -1413,7 +1413,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                 {/* Sub-Diagnostic Dashboard Grid */}
                 <div className="grid grid-cols-2 gap-3">
                   {calibrationLogs.map((item, index) => (
-                    <div key={index} className="bg-slate-900/40 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between gap-2">
+                    <div key={`tsg-cal-${item.label}-${index}`} className="bg-slate-900/40 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between gap-2">
                       <div className="space-y-0.5 min-w-0">
                         <span className="text-[8.5px] text-slate-500 font-extrabold uppercase tracking-widest block truncate">{item.label}</span>
                         <span className="text-[9.5px] text-slate-300 font-mono font-bold">{item.score}</span>
@@ -1531,9 +1531,9 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                       title: "Preserve Workstation Decryption Audit Trail",
                       desc: "I consent to automatic logging of all local record edits, telemetry updates, and node calibration operations."
                     }
-                  ].map((item) => (
+                  ].map((item, itemIdx) => (
                     <label 
-                      key={item.id}
+                      key={`tsg-opt-${item.id}-${itemIdx}`}
                       onClick={item.toggle}
                       className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${item.checked ? 'bg-slate-900/50 border-emerald-500/25 text-white' : 'bg-slate-900/10 border-slate-850 text-slate-500 hover:border-slate-800'}`}
                     >
@@ -1683,7 +1683,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
           <div className="h-24 bg-slate-900 rounded-xl p-3.5 font-mono text-[9px] text-blue-400 overflow-y-auto space-y-1 border border-slate-800 scrollbar-thin">
             {logs.map((log, index) => (
               <p 
-                key={index} 
+                key={`tsg-log-${index}`} 
                 className={
                   log.startsWith('[WARN]') || log.startsWith('[THREAT')
                     ? 'text-rose-400 font-semibold' 

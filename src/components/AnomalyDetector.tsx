@@ -134,7 +134,7 @@ export const AnomalyDetector: React.FC<AnomalyDetectorProps> = ({ vitals, health
                 </h5>
                 <ul className="space-y-2">
                   {analysis.anomalies.map((a, i) => (
-                    <li key={i} className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                    <li key={`anomalydetector-l137-i-${i}`} className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2">
                       <ChevronRight size={14} className="text-blue-500 mt-0.5 shrink-0" />
                       {a}
                     </li>
@@ -148,7 +148,7 @@ export const AnomalyDetector: React.FC<AnomalyDetectorProps> = ({ vitals, health
                 </h5>
                 <ul className="space-y-2">
                   {analysis.risks.map((r, i) => (
-                    <li key={i} className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                    <li key={`anomalydetector-l151-i-${i}`} className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2">
                       <AlertCircle size={14} className="text-rose-500 mt-0.5 shrink-0" />
                       {r}
                     </li>
@@ -163,7 +163,7 @@ export const AnomalyDetector: React.FC<AnomalyDetectorProps> = ({ vitals, health
               </h5>
               <div className="grid grid-cols-1 gap-2">
                 {analysis.recommendations.map((rec, i) => (
-                  <div key={i} className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center gap-3 group hover:border-blue-200 transition-all">
+                  <div key={`anomalydetector-l166-i-${i}`} className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center gap-3 group hover:border-blue-200 transition-all">
                     <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 text-[10px] font-black">
                       {i + 1}
                     </div>

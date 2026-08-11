@@ -208,7 +208,7 @@ export const AmbulanceDispatchPanel: React.FC<AmbulanceDispatchPanelProps> = ({
                   </div>
                 ) : (
                   <AnimatePresence>
-                    {dispatches.map((dispatch) => {
+                    {dispatches.map((dispatch, mapIdx_210) => {
                       const isHigh = dispatch.severity === 'HIGH';
                       const isMedium = dispatch.severity === 'MEDIUM';
                       

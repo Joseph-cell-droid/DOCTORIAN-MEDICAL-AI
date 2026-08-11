@@ -143,11 +143,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           {/* Nav Links columns */}
           <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-8">
             {menuSections.map((section, idx) => (
-              <div key={idx} className="space-y-5">
+              <div key={`footer-l146-idx-${idx}`} className="space-y-5">
                 <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{section.title}</h4>
                 <ul className="space-y-3">
-                  {section.links.map((link: any, linkIdx) => (
-                    <li key={linkIdx}>
+                  {section.links.map((link: any, linkIdx: number) => (
+                    <li key={`footer-link-${idx}-${linkIdx}-${link.label}`}>
                       {link.href ? (
                         <a 
                           href={link.href}
@@ -334,7 +334,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </p>
             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 dark:bg-emerald-400/10 rounded-full shadow-sm shrink-0">
               <ShieldCheck size={12} className="text-emerald-600 dark:text-emerald-400 shadow-sm" />
-              <span className="text-[8px] font-black tracking-widest uppercase text-emerald-600 dark:text-emerald-400">HIPAA & GDPR COMPLIANT NODE</span>
+              <span className="text-[8px] font-black tracking-widest uppercase text-emerald-600 dark:text-emerald-400">PRIVACY & SECURITY CONTROLS ACTIVE</span>
             </div>
           </div>
 

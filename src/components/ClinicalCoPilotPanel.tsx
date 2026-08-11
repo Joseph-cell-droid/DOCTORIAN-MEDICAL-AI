@@ -125,10 +125,10 @@ export const ClinicalCoPilotPanel: React.FC<ClinicalCoPilotPanelProps> = ({
               <span>AI Board Review</span>
             </button>
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
-              {(['assess', 'rules', 'predict', 'drugcheck'] as const).map(tab => (
+              {(['assess', 'rules', 'predict', 'drugcheck'] as const).map((tab, mapIdx_127) => (
                 <button
                   type="button"
-                  key={tab}
+                  key={`clinicalcopilotpanel-l131-${mapIdx_127}`}
                   onClick={() => setActiveTab(tab)}
                   className={`px-3 py-1.5 text-[8.5px] font-black uppercase tracking-wider rounded-lg transition-all select-none cursor-pointer ${
                     activeTab === tab ? 'bg-teal-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
@@ -161,7 +161,7 @@ export const ClinicalCoPilotPanel: React.FC<ClinicalCoPilotPanelProps> = ({
                 ) : (
                   risks.map((risk, index) => (
                     <div 
-                      key={index} 
+                      key={`clinicalcopilotpanel-l164-index-${index}`} 
                       className={`p-4 border rounded-2xl flex gap-3 transition-all ${
                         risk.severity === 'high' ? 'bg-rose-955/20 border-rose-900/30 text-rose-100' :
                         risk.severity === 'warn' ? 'bg-amber-955/20 border-amber-900/35 text-amber-200' :
@@ -236,7 +236,7 @@ export const ClinicalCoPilotPanel: React.FC<ClinicalCoPilotPanelProps> = ({
                   <p className="text-slate-500 italic">Synchronizing live baseline signals...</p>
                 ) : (
                   diagnosticsLogs.map((log, i) => (
-                    <div key={i} className="border-b border-slate-900/35 pb-1 flex items-start gap-1.5">
+                    <div key={`clinicalcopilotpanel-l239-i-${i}`} className="border-b border-slate-900/35 pb-1 flex items-start gap-1.5">
                       <span className="text-emerald-500 shrink-0">»</span>
                       <span className="font-semibold text-slate-350">{log}</span>
                     </div>
@@ -293,7 +293,7 @@ export const ClinicalCoPilotPanel: React.FC<ClinicalCoPilotPanelProps> = ({
                   return (
                     <div className="space-y-2">
                       {interactions.map((inter, i) => (
-                        <div key={i} className={`p-3 rounded-xl border text-[11px] font-medium space-y-1 ${
+                        <div key={`clinicalcopilotpanel-l296-i-${i}`} className={`p-3 rounded-xl border text-[11px] font-medium space-y-1 ${
                           inter.severity === 'CRITICAL' || inter.severity === 'HIGH' ? 'bg-rose-950/60 border-rose-800/80 text-rose-200' : 'bg-amber-950/60 border-amber-800/80 text-amber-200'
                         }`}>
                           <div className="flex items-center justify-between">
@@ -314,7 +314,7 @@ export const ClinicalCoPilotPanel: React.FC<ClinicalCoPilotPanelProps> = ({
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">WHO Essential Medicines Catalogue</span>
                 <div className="max-h-28 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
                   {WHO_ESSENTIAL_MEDICINES.slice(0, 6).map((med, idx) => (
-                    <div key={idx} className="p-2 bg-slate-950/40 border border-slate-800/60 rounded-xl flex items-center justify-between text-xs font-semibold">
+                    <div key={`clinicalcopilotpanel-l317-idx-${idx}`} className="p-2 bg-slate-950/40 border border-slate-800/60 rounded-xl flex items-center justify-between text-xs font-semibold">
                       <div className="flex items-center gap-2">
                         <Pill size={12} className="text-teal-400" />
                         <span className="text-slate-200">{med.innName}</span>

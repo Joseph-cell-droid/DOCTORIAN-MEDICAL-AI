@@ -158,7 +158,7 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
       const prompt = `You are ${doctorName}, an expert physician in a live HD telehealth call with ${patientName}.
 Patient just said: "${patientText}"
 Full conversation history:
-${updatedTranscript.map(t => `${t.speaker}: ${t.text}`).join('\n')}
+${updatedTranscript.map((t, mapIdx_160) => `${t.speaker}: ${t.text}`).join('\n')}
 
 Provide a helpful, empathetic, concise medical response (2-3 sentences max) to reply to the patient directly during the call.
 Also update the SOAP clinical note object if relevant.
@@ -362,7 +362,7 @@ Return JSON in this format:
                   <div className="flex items-center gap-1 h-4">
                     {[...Array(8)].map((_, i) => (
                       <motion.div
-                        key={i}
+                        key={`telehealthscribehub-l365-i-${i}`}
                         className="w-1 bg-emerald-400 rounded-full"
                         animate={{
                           height: [4, 16, 6, 20, 8, 12][i % 6]
@@ -438,7 +438,7 @@ Return JSON in this format:
 
               <div className="space-y-2.5 max-h-48 overflow-y-auto text-xs pr-1">
                 {transcript.map((item, idx) => (
-                  <div key={idx} className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-150 dark:border-slate-850 flex justify-between gap-3 shadow-sm">
+                  <div key={`telehealthscribehub-l441-idx-${idx}`} className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-150 dark:border-slate-850 flex justify-between gap-3 shadow-sm">
                     <div>
                       <span className={`font-black mr-2 text-[10px] uppercase tracking-wider ${
                         item.speaker === 'Doctor' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'

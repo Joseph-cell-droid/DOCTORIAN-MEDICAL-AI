@@ -219,6 +219,45 @@ export const ResearchEngine: React.FC = () => {
   const [liveAiResults, setLiveAiResults] = useState<string | null>(null);
   const [aiClinicalMode, setAiClinicalMode] = useState<'synthesis' | 'drug_matrix' | 'bedside_protocol' | 'genomic_mechanism'>('synthesis');
 
+  // Google Search Engine Backend States
+  const [googleSearchLoading, setGoogleSearchLoading] = useState(false);
+  const [googleSearchData, setGoogleSearchData] = useState<{
+    query: string;
+    searchQueries: string[];
+    searchResults: Array<{ title: string; url: string; snippet: string; domain: string }>;
+    aiAnalysis: string;
+    timestamp: string;
+  } | null>(null);
+  const [googleSearchError, setGoogleSearchError] = useState<string | null>(null);
+
+  const handleExecuteGoogleSearch = async (overrideQuery?: string) => {
+    const queryToSearch = overrideQuery || searchQuery.trim() || liveAiQuery.trim() || selectedArticle?.title || 'Cardiovascular trials GLP-1 SGLT2';
+    if (!queryToSearch) return;
+
+    setGoogleSearchLoading(true);
+    setGoogleSearchError(null);
+
+    try {
+      const res = await api.ai.googleSearch(
+        queryToSearch,
+        aiClinicalMode,
+        selectedSpecialty !== 'All' ? selectedSpecialty : undefined,
+        selectedStudyType !== 'All' ? selectedStudyType : undefined
+      );
+      if (res && res.success) {
+        setGoogleSearchData(res);
+        setLiveAiResults(res.aiAnalysis);
+      } else {
+        setGoogleSearchError("Failed to retrieve Google Search backend output.");
+      }
+    } catch (err: any) {
+      console.error("[GOOGLE-SEARCH-FE-ERROR]", err);
+      setGoogleSearchError(err.message || "Failed to execute Google Search backend.");
+    } finally {
+      setGoogleSearchLoading(false);
+    }
+  };
+
   // Filter Articles
   const filteredArticles = useMemo(() => {
     return EXTENDED_RESEARCH_DATABASE.filter(art => {
@@ -498,39 +537,34 @@ Structure your response into clear markdown with:
         </div>
       </div>
 
-      {/* GOOGLE MEDICAL SEARCH ENGINE BAR */}
+      {/* GOOGLE MEDICAL SEARCH ENGINE BAR & IN-APP ENGINE */}
       <div className="p-6 rounded-3xl border shadow-2xl space-y-4 bg-slate-900/60 border-slate-800/80 backdrop-blur-xl text-white">
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
           <div className="flex items-center gap-2 font-black text-sm uppercase tracking-wider text-slate-200">
-            <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-white text-blue-600 font-extrabold text-xs">
+            <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-white text-blue-600 font-extrabold text-xs shadow-md">
               G
             </div>
-            <span>Google Medical & PubMed Live Engine</span>
+            <span>Google Search Engine Backend (In-App Medical Grounding)</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => {
-                const query = searchQuery || 'Cardiovascular trial GLP-1 SGLT2';
-                window.open(`https://www.google.com/search?q=${encodeURIComponent(query + ' medical research clinical trial')}`, '_blank');
-              }}
-              className="px-3 py-1.5 rounded-xl bg-blue-600/20 text-blue-300 border border-blue-500/30 text-xs font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all flex items-center gap-1.5"
+              onClick={() => handleExecuteGoogleSearch(searchQuery || 'Cardiovascular trial GLP-1 SGLT2')}
+              disabled={googleSearchLoading}
+              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-lg cursor-pointer"
             >
-              <ExternalLink size={13} /> Google Search
+              {googleSearchLoading ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              <span>{googleSearchLoading ? 'Searching...' : 'Google Backend Search'}</span>
             </button>
             <button
-              onClick={() => {
-                const query = searchQuery || 'Cardiovascular trial GLP-1 SGLT2';
-                window.open(`https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`, '_blank');
-              }}
+              onClick={() => handleExecuteGoogleSearch('Google Scholar ' + (searchQuery || 'Clinical Evidence'))}
+              disabled={googleSearchLoading}
               className="px-3 py-1.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs font-black uppercase tracking-wider hover:bg-purple-600 hover:text-white transition-all flex items-center gap-1.5"
             >
               <BookOpen size={13} /> Google Scholar
             </button>
             <button
-              onClick={() => {
-                const query = searchQuery || 'Cardiovascular trial GLP-1 SGLT2';
-                window.open(`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(query)}`, '_blank');
-              }}
+              onClick={() => handleExecuteGoogleSearch('PubMed NCBI ' + (searchQuery || 'Medical Trials'))}
+              disabled={googleSearchLoading}
               className="px-3 py-1.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs font-black uppercase tracking-wider hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-1.5"
             >
               <Search size={13} /> PubMed NCBI
@@ -538,23 +572,39 @@ Structure your response into clear markdown with:
           </div>
         </div>
 
-        <div className="relative w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={22} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search Google & PubMed medical literature by keyword, disease, drug, PMID, author, or trial name (e.g. SGLT2, CRISPR, Alzheimer, WHO)..."
-            className="w-full rounded-2xl pl-12 pr-28 py-4 font-bold focus:outline-none transition-all bg-slate-950/80 text-white border border-slate-800 placeholder-slate-500 text-base focus:border-blue-500 shadow-inner"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black px-3 py-1.5 rounded-xl uppercase bg-slate-800 text-slate-300 hover:text-white"
-            >
-              Clear
-            </button>
-          )}
+        <div className="relative w-full flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={22} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleExecuteGoogleSearch();
+                }
+              }}
+              placeholder="Search Google & PubMed medical literature by keyword, disease, drug, PMID, author, or trial name..."
+              className="w-full rounded-2xl pl-12 pr-24 py-4 font-bold focus:outline-none transition-all bg-slate-950/80 text-white border border-slate-800 placeholder-slate-500 text-sm sm:text-base focus:border-blue-500 shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black px-2.5 py-1 rounded-xl uppercase bg-slate-800 text-slate-300 hover:text-white"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => handleExecuteGoogleSearch()}
+            disabled={googleSearchLoading}
+            className="px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shrink-0 transition-all shadow-xl cursor-pointer"
+          >
+            {googleSearchLoading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+            <span>{googleSearchLoading ? 'Synthesizing...' : 'Search Google'}</span>
+          </button>
         </div>
 
         {/* QUICK SUGGESTION CHIPS */}
@@ -568,16 +618,163 @@ Structure your response into clear markdown with:
             'Myeloma Bispecifics', 
             'Epigenetic Vascular Age',
             'Aldosterone Synthase'
-          ].map(chip => (
+          ].map((chip, mapIdx_620) => (
             <button
-              key={chip}
-              onClick={() => setSearchQuery(chip)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white"
+              key={`researchengine-l623-${mapIdx_620}`}
+              onClick={() => {
+                setSearchQuery(chip);
+                handleExecuteGoogleSearch(chip);
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border bg-slate-950 text-slate-300 border-slate-800 hover:border-blue-500/50 hover:text-white"
             >
               {chip}
             </button>
           ))}
         </div>
+
+        {/* GOOGLE SEARCH BACKEND LIVE RESULTS DISPLAY */}
+        {(googleSearchLoading || googleSearchData || googleSearchError) && (
+          <div className={`mt-6 p-6 md:p-8 rounded-3xl border shadow-2xl space-y-6 transition-all ${
+            highContrastMode
+              ? 'bg-black border-4 border-cyan-400 text-cyan-300'
+              : 'bg-gradient-to-br from-slate-950 via-blue-950/30 to-slate-950 border-blue-500/40 text-slate-100'
+          }`}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-blue-500/30 pb-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/40 flex items-center gap-1">
+                    <Bot size={13} /> Google Search Backend Active
+                  </span>
+                  {googleSearchData?.timestamp && (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase">
+                      Live Grounded Results • {new Date(googleSearchData.timestamp).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
+                  <Sparkles className="text-blue-400" size={20} />
+                  <span>Google Backend Results: <span className="text-blue-400">"{googleSearchData?.query || searchQuery}"</span></span>
+                </h3>
+              </div>
+
+              {googleSearchData && (
+                <button
+                  onClick={() => setGoogleSearchData(null)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 self-start md:self-auto"
+                >
+                  <X size={14} /> Close Output
+                </button>
+              )}
+            </div>
+
+            {googleSearchLoading && (
+              <div className="py-10 text-center space-y-3">
+                <RefreshCw size={32} className="animate-spin text-blue-400 mx-auto" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-white uppercase tracking-wider">Fetching Google Search Backend Data...</h4>
+                  <p className="text-xs text-slate-400">Querying real-time literature, PubMed, Cochrane, WHO, and clinical databases...</p>
+                </div>
+              </div>
+            )}
+
+            {googleSearchError && !googleSearchLoading && (
+              <div className="p-4 rounded-xl bg-rose-950/50 border border-rose-800 text-rose-300 text-xs font-bold flex items-center gap-2">
+                <ShieldAlert size={16} />
+                <span>{googleSearchError}</span>
+              </div>
+            )}
+
+            {!googleSearchLoading && googleSearchData && (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-blue-300 flex items-center gap-1.5">
+                      <BookOpen size={14} /> Retrieved Web Sources ({googleSearchData.searchResults.length} Verified References)
+                    </span>
+                    {googleSearchData.searchQueries?.length > 0 && (
+                      <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
+                        <span className="font-bold uppercase text-slate-500">Google Search Terms:</span>
+                        <span>{googleSearchData.searchQueries.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {googleSearchData.searchResults.map((item, index) => (
+                      <div
+                        key={`researchengine-l705-index-${index}`}
+                        className="p-4 rounded-2xl border bg-slate-950/90 border-slate-800/80 hover:border-blue-500/50 transition-all space-y-2 group"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                            {item.domain}
+                          </span>
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] font-black uppercase text-slate-400 hover:text-blue-400 flex items-center gap-1"
+                          >
+                            <span>Source Link</span> <ExternalLink size={12} />
+                          </a>
+                        </div>
+
+                        <h5 className="text-xs font-extrabold text-white group-hover:text-blue-300 transition-colors line-clamp-2">
+                          {item.title}
+                        </h5>
+
+                        <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed font-sans">
+                          {item.snippet}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-slate-800">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        Doctorian AI Final Analysis
+                      </span>
+                      <span className="text-xs font-black uppercase text-slate-300">
+                        Synthesized Clinical Report
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleSpeech(googleSearchData.aiAnalysis)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase flex items-center gap-1.5 transition-all ${
+                          isReading ? 'bg-rose-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                        }`}
+                      >
+                        <Volume2 size={14} />
+                        <span>{isReading ? 'Reading Audio...' : 'Audio Voice'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(googleSearchData.aiAnalysis);
+                          setCopiedFormat('google_search_report');
+                          setTimeout(() => setCopiedFormat(null), 2000);
+                        }}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                      >
+                        {copiedFormat === 'google_search_report' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                        <span>{copiedFormat === 'google_search_report' ? 'Copied Report!' : 'Copy Report'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed font-mono bg-slate-950 p-5 rounded-2xl border border-purple-500/30 text-slate-200 shadow-inner">
+                    {googleSearchData.aiAnalysis}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* FILTER BAR: JOURNAL & SPECIALTY */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800/80 pt-4">
@@ -688,9 +885,9 @@ Structure your response into clear markdown with:
               { id: 'drug_matrix', label: 'Drug Matrix', icon: <Pill size={13} /> },
               { id: 'bedside_protocol', label: 'Bedside Protocol', icon: <Stethoscope size={13} /> },
               { id: 'genomic_mechanism', label: 'Genomic Target', icon: <Dna size={13} /> },
-            ].map((m) => (
+            ].map((m, mapIdx_887) => (
               <button
-                key={m.id}
+                key={`researchengine-l890-${mapIdx_887}`}
                 onClick={() => setAiClinicalMode(m.id as any)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-black tracking-wider flex items-center gap-1.5 transition-all ${
                   aiClinicalMode === m.id
@@ -748,9 +945,9 @@ Structure your response into clear markdown with:
               "Alzheimer Donanemab ARIA Risk",
               "WHO Priority Pathogen Carbapenem AMR",
               "Bispecific Antibody Myeloma ORR"
-            ].map(preset => (
+            ].map((preset, mapIdx_947) => (
               <button
-                key={preset}
+                key={`researchengine-l950-${mapIdx_947}`}
                 onClick={() => {
                   setLiveAiQuery(preset);
                   handleRunLiveAiResearch(preset);
@@ -833,7 +1030,7 @@ Structure your response into clear markdown with:
 
             return (
               <div
-                key={art.id}
+                key={`researchengine-l1033-${idx}`}
                 onClick={() => setSelectedArticle(art)}
                 className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 ${
                   isSelected
@@ -1014,9 +1211,9 @@ Structure your response into clear markdown with:
 
                   {/* CITATION STYLE TABS */}
                   <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                    {(['APA', 'AMA', 'Vancouver', 'BibTeX', 'RIS'] as const).map(fmt => (
+                    {(['APA', 'AMA', 'Vancouver', 'BibTeX', 'RIS'] as const).map((fmt, mapIdx_1213) => (
                       <button
-                        key={fmt}
+                        key={`researchengine-l1216-${mapIdx_1213}`}
                         onClick={() => setCitationFormat(fmt)}
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all ${
                           citationFormat === fmt

@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Heart, Battery, Droplets, Clock,
   CheckCircle2,
   ListTodo,
-  Sparkles, Lightbulb, Quote, Cpu, Wind, Shield, Download, Fingerprint,
+  Sparkles, Lightbulb, Quote, Cpu, Wind, Shield, Download, Fingerprint, ShieldAlert,
   Terminal, Code2, Flame, Trophy, CalendarDays, Gift, Check
 } from 'lucide-react';
 import { 
@@ -101,6 +101,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     { label: translate('Hydration', currentLanguage), value: '2.4L', trend: '+0.4', icon: <Droplets size={16} />, color: 'cyan' },
   ];
 
+  const [showSosConfirmModal, setShowSosConfirmModal] = useState<boolean>(false);
   const [meds, setMeds] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('medical_offline_medications');
@@ -349,6 +350,63 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [showBioCore, setShowBioCore] = useState(false);
   const [showBioSecurity, setShowBioSecurity] = useState(false);
   const [selectedStat, setSelectedStat] = useState<any>(null);
+
+  // Real-Time Telemetry Engine State for Cognitive & Cellular Cards
+  const [telemetryState, setTelemetryState] = useState({
+    coherence: 0.98,
+    coherenceStatus: 'Phase Locked',
+    oxygen: 42,
+    oxygenStatus: 'Optimized',
+    stress: 'Low',
+    stressIndex: 18,
+    stressStatus: 'Non-Reactive',
+    isLiveStream: true,
+    lastUpdate: 'Just now'
+  });
+
+  const [selectedTelemetryModal, setSelectedTelemetryModal] = useState<'coherence' | 'oxygen' | 'stress' | null>(null);
+
+  // Live Telemetry Oscillation Loop
+  useEffect(() => {
+    if (!telemetryState.isLiveStream) return;
+
+    const interval = setInterval(() => {
+      setTelemetryState(prev => {
+        const timeFactor = Date.now() / 2500;
+        
+        // Coherence oscillates smoothly around 0.98 (between 0.96 and 0.99)
+        const coherenceDelta = (Math.sin(timeFactor) * 0.01) + ((Math.random() - 0.5) * 0.005);
+        const rawCoherence = Math.max(0.95, Math.min(0.99, 0.98 + coherenceDelta));
+        const roundedCoherence = Math.round(rawCoherence * 100) / 100;
+        const coherenceStatus = roundedCoherence >= 0.98 ? 'Phase Locked' : roundedCoherence >= 0.96 ? 'Resonant' : 'Stabilizing';
+
+        // Oxygen Efficiency oscillates smoothly around 42% (between 41% and 45%)
+        const oxygenDelta = Math.sin(timeFactor * 1.3) * 2 + (Math.random() - 0.5) * 1;
+        const rawOxygen = Math.max(40, Math.min(46, Math.round(42 + oxygenDelta)));
+        const oxygenStatus = rawOxygen >= 42 ? 'Optimized' : 'Normal';
+
+        // Stress Polarity index
+        const stressDelta = Math.cos(timeFactor * 0.8) * 3;
+        const rawStressIndex = Math.max(12, Math.min(24, Math.round(18 + stressDelta)));
+        const stressVal = rawStressIndex < 20 ? 'Low' : 'Optimal';
+        const stressStatus = rawStressIndex < 22 ? 'Non-Reactive' : 'Adaptive';
+
+        return {
+          ...prev,
+          coherence: roundedCoherence,
+          coherenceStatus,
+          oxygen: rawOxygen,
+          oxygenStatus,
+          stress: stressVal,
+          stressIndex: rawStressIndex,
+          stressStatus,
+          lastUpdate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        };
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [telemetryState.isLiveStream]);
   const [notifications, setNotifications] = useState<{id: string, text: string, type: 'info' | 'success' | 'warning'}[]>([]);
   const [timeframe, setTimeframe] = useState<'Day' | 'Week' | 'Month'>('Day');
   const [viewMode, setViewMode] = useState<'Real-time' | 'Predictive'>('Real-time');
@@ -397,13 +455,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const getDynamicData = () => {
     const base = [...performanceData];
     if (viewMode === 'Predictive') {
-      return base.map(d => ({ ...d, value: Math.min(100, d.value + (Math.random() * 10 - 5)) }));
+      return base.map((d, mapIdx_456) => ({ ...d, value: Math.min(100, d.value + (Math.random() * 10 - 5)) }));
     }
     if (timeframe === 'Week') {
-      return base.map(d => ({ ...d, value: d.value - 5 }));
+      return base.map((d, mapIdx_459) => ({ ...d, value: d.value - 5 }));
     }
     if (timeframe === 'Month') {
-      return base.map(d => ({ ...d, value: d.value + 2 }));
+      return base.map((d, mapIdx_462) => ({ ...d, value: d.value + 2 }));
     }
     return base;
   };
@@ -446,6 +504,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
+    <>
     <AnimatePresence mode="wait">
       {subView === 'main' ? (
         <motion.div 
@@ -465,8 +524,52 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 className="mb-12"
               >
                 <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] shadow-[0_32px_64px_-15px_rgba(37,99,235,0.3)] relative overflow-hidden group border border-white/10">
-                  {/* Neural Grid Pattern Background */}
-                  <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+                  {/* Continuously Moving Medium Bubbles Pattern Background */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                    {[
+                      { size: 'w-8 h-8', left: '6%', top: '15%', d: 8, delay: 0, x: [0, 25, -15, 10, 0], y: [0, -30, 15, -20, 0], color: 'from-pink-400/50 via-rose-300/30 to-purple-400/20 border-pink-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(244,63,94,0.5)]' },
+                      { size: 'w-12 h-12', left: '18%', top: '65%', d: 11, delay: 1.2, x: [0, -20, 25, -10, 0], y: [0, -45, 20, -30, 0], color: 'from-cyan-400/50 via-teal-300/30 to-blue-400/20 border-cyan-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_18px_rgba(6,182,212,0.5)]' },
+                      { size: 'w-10 h-10', left: '32%', top: '25%', d: 9.5, delay: 0.5, x: [0, 30, -20, 15, 0], y: [0, -25, 35, -15, 0], color: 'from-amber-400/50 via-yellow-300/30 to-orange-400/20 border-amber-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(245,158,11,0.5)]' },
+                      { size: 'w-14 h-14', left: '45%', top: '75%', d: 13, delay: 2.1, x: [0, -35, 15, -25, 0], y: [0, -50, 25, -10, 0], color: 'from-purple-400/50 via-fuchsia-300/30 to-indigo-400/20 border-purple-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_20px_rgba(168,85,247,0.5)]' },
+                      { size: 'w-7 h-7', left: '55%', top: '18%', d: 7.5, delay: 1.8, x: [0, 20, -30, 10, 0], y: [0, -20, 30, -25, 0], color: 'from-emerald-400/50 via-green-300/30 to-teal-400/20 border-emerald-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_14px_rgba(16,185,129,0.5)]' },
+                      { size: 'w-11 h-11', left: '68%', top: '60%', d: 10, delay: 0.8, x: [0, -25, 20, -15, 0], y: [0, -40, 15, -35, 0], color: 'from-sky-400/50 via-blue-300/30 to-indigo-400/20 border-sky-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_18px_rgba(56,189,248,0.5)]' },
+                      { size: 'w-9 h-9', left: '80%', top: '22%', d: 12, delay: 2.5, x: [0, 25, -15, 20, 0], y: [0, -35, 25, -15, 0], color: 'from-fuchsia-400/50 via-pink-300/30 to-rose-400/20 border-fuchsia-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(217,70,239,0.5)]' },
+                      { size: 'w-16 h-16', left: '90%', top: '70%', d: 14, delay: 1.0, x: [0, -30, 10, -20, 0], y: [0, -55, 30, -20, 0], color: 'from-indigo-400/50 via-purple-300/30 to-blue-400/20 border-indigo-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_22px_rgba(99,102,241,0.5)]' },
+                      { size: 'w-6 h-6', left: '12%', top: '40%', d: 6.8, delay: 0.3, x: [0, 15, -25, 15, 0], y: [0, -25, 10, -30, 0], color: 'from-lime-400/50 via-emerald-300/30 to-teal-400/20 border-lime-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_12px_rgba(163,230,53,0.5)]' },
+                      { size: 'w-10 h-10', left: '26%', top: '85%', d: 10.5, delay: 1.7, x: [0, -15, 30, -20, 0], y: [0, -35, 20, -15, 0], color: 'from-violet-400/50 via-purple-300/30 to-pink-400/20 border-violet-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(139,92,246,0.5)]' },
+                      { size: 'w-8 h-8', left: '38%', top: '48%', d: 8.8, delay: 2.2, x: [0, 20, -10, 25, 0], y: [0, -30, 25, -20, 0], color: 'from-orange-400/50 via-amber-300/30 to-yellow-400/20 border-orange-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(251,146,60,0.5)]' },
+                      { size: 'w-13 h-13', left: '60%', top: '82%', d: 12.5, delay: 0.9, x: [0, -20, 25, -15, 0], y: [0, -45, 15, -25, 0], color: 'from-rose-400/50 via-pink-300/30 to-red-400/20 border-rose-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_18px_rgba(244,63,94,0.5)]' },
+                      { size: 'w-7 h-7', left: '74%', top: '42%', d: 7.2, delay: 1.4, x: [0, 25, -20, 10, 0], y: [0, -25, 30, -15, 0], color: 'from-teal-400/50 via-cyan-300/30 to-emerald-400/20 border-teal-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_14px_rgba(20,184,166,0.5)]' },
+                      { size: 'w-12 h-12', left: '84%', top: '88%', d: 11.8, delay: 2.0, x: [0, -15, 20, -30, 0], y: [0, -40, 20, -10, 0], color: 'from-blue-400/50 via-indigo-300/30 to-cyan-400/20 border-blue-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_18px_rgba(96,165,250,0.5)]' },
+                      { size: 'w-9 h-9', left: '48%', top: '10%', d: 9.0, delay: 0.6, x: [0, 15, -25, 20, 0], y: [0, -20, 35, -25, 0], color: 'from-yellow-400/50 via-amber-300/30 to-orange-400/20 border-yellow-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(250,204,21,0.5)]' },
+                      { size: 'w-11 h-11', left: '96%', top: '28%', d: 10.2, delay: 1.3, x: [0, -25, 15, -10, 0], y: [0, -35, 25, -20, 0], color: 'from-pink-400/50 via-fuchsia-300/30 to-purple-400/20 border-pink-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_18px_rgba(244,114,182,0.5)]' },
+                      { size: 'w-8 h-8', left: '3%', top: '75%', d: 8.2, delay: 1.6, x: [0, 20, -15, 25, 0], y: [0, -30, 20, -15, 0], color: 'from-cyan-400/50 via-blue-300/30 to-teal-400/20 border-cyan-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_16px_rgba(34,211,238,0.5)]' },
+                      { size: 'w-10 h-10', left: '52%', top: '50%', d: 11.2, delay: 0.4, x: [0, -20, 15, -25, 0], y: [0, -40, 30, -20, 0], color: 'from-emerald-400/50 via-teal-300/30 to-cyan-400/20 border-emerald-200/60 shadow-[inset_0_2px_6px_rgba(255,255,255,0.6),0_0_18px_rgba(52,211,153,0.5)]' },
+                    ].map((bubble, i) => (
+                      <motion.div
+                        key={`dashboard-l548-i-${i}`}
+                        className={`absolute rounded-full bg-gradient-to-tr ${bubble.color} border backdrop-blur-[2px] ${bubble.size}`}
+                        style={{
+                          left: bubble.left,
+                          top: bubble.top,
+                        }}
+                        animate={{
+                          x: bubble.x,
+                          y: bubble.y,
+                          scale: [1, 1.22, 0.88, 1.15, 1],
+                          opacity: [0.35, 0.65, 0.3, 0.6, 0.35],
+                          filter: ["hue-rotate(0deg)", "hue-rotate(120deg)", "hue-rotate(240deg)", "hue-rotate(360deg)"],
+                        }}
+                        transition={{
+                          duration: bubble.d * 1.5,
+                          repeat: Infinity,
+                          repeatType: "loop",
+                          ease: "easeInOut",
+                          delay: bubble.delay,
+                        }}
+                      />
+                    ))}
+                  </div>
                   <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-[100px] animate-pulse" />
                   
                   <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 sm:gap-14">
@@ -503,13 +606,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                       <div className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-6">
                          <div className="flex -space-x-2">
-                           {[1, 2, 3, 4].map(i => (
-                             <div key={i} className="w-8 h-8 rounded-full border-2 border-blue-600 bg-blue-500 flex items-center justify-center text-[8px] font-black text-white">
+                           {[1, 2, 3, 4].map((i, mapIdx_605) => (
+                             <div key={`dashboard-l607-i-${i}-${mapIdx_605}`} className="w-8 h-8 rounded-full border-2 border-blue-600 bg-blue-500 flex items-center justify-center text-[8px] font-black text-white">
                                AI
                              </div>
                            ))}
                          </div>
-                         <p className="text-blue-100/60 text-[10px] font-bold uppercase tracking-widest">Trusted by 24,000+ Specialists</p>
+                         <p className="text-blue-100/60 text-[10px] font-bold uppercase tracking-widest">Built for Healthcare Professionals & Patients</p>
                       </div>
                     </div>
 
@@ -544,7 +647,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-[1000] tracking-tighter uppercase leading-tight text-slate-900 dark:text-white text-high-visibility">
                     Cognis <span className="text-blue-600 italic font-serif lowercase tracking-normal">Nexus</span> Control
                   </h1>
-                  <p className="text-blue-600 dark:text-blue-400 font-black text-[8px] sm:text-[12px] uppercase tracking-[0.3em] mt-1 sm:mt-2 text-high-visibility text-center xl:text-left">Operational Integrity: 99.9% / Quantum Secure</p>
+                  <p className="text-blue-600 dark:text-blue-400 font-black text-[8px] sm:text-[12px] uppercase tracking-[0.3em] mt-1 sm:mt-2 text-high-visibility text-center xl:text-left">SYSTEM STATUS: OPERATIONAL / AES-256 Encrypted Connection</p>
                 </div>
               </div>
               <button 
@@ -584,7 +687,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onMouseLeave={cancelPress}
                   onTouchStart={startPress}
                   onTouchEnd={cancelPress}
-                  onClick={handleSOS}
+                  onClick={() => setShowSosConfirmModal(true)}
                 >
                   {/* Pulsing Light Aura */}
                   <div className={`absolute inset-0 bg-rose-600 rounded-full blur-xl transition-all duration-300 opacity-60 ${
@@ -715,7 +818,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button 
               id="sim-meds-btn"
               onClick={() => {
-                const updatedMeds = meds.map(m => ({ ...m, takenToday: true }));
+                const updatedMeds = meds.map((m, mapIdx_817) => ({ ...m, takenToday: true }));
                 setMeds(updatedMeds);
                 localStorage.setItem('medical_offline_medications', JSON.stringify(updatedMeds));
                 addNotification("Simulated medication intake for today! 💊", "success");
@@ -845,7 +948,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   const isFuture = idx > todayIdx;
 
                   return (
-                    <div key={idx} className="flex flex-col items-center gap-2">
+                    <div key={`dashboard-l948-idx-${idx}`} className="flex flex-col items-center gap-2">
                       <div className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all border ${
                         completed 
                           ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/15'
@@ -936,12 +1039,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   { days: 3, reward: 100, badge: 'Ignition Beacon' },
                   { days: 5, reward: 200, badge: 'Cellular Synergy' },
                   { days: 7, reward: 500, badge: 'Quantum Mastery' }
-                ].map((milestone) => {
+                ].map((milestone, mapIdx_1038) => {
                   const isClaimed = claimedMilestones.includes(milestone.days.toString());
                   const canClaim = streakDays >= milestone.days && !isClaimed;
                   
                   return (
-                    <div key={milestone.days} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-850 text-xs">
+                    <div key={`dashboard-l1044-${mapIdx_1038}`} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-850 text-xs">
                       <div className="flex flex-col text-left">
                         <span className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{milestone.days} Days ({milestone.badge})</span>
                         <span className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">+{milestone.reward} Credits</span>
@@ -987,7 +1090,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {vitalStats.map((stat, i) => (
           <button 
-            key={i} 
+            key={`dashboard-l1090-i-${i}`} 
             onClick={() => setSelectedStat(stat)}
             className="bg-white dark:bg-slate-900 p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden text-left w-full"
           >
@@ -1007,38 +1110,162 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Advanced Cognitive & Cellular Analytics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">
-        {[
-          { title: 'Cognis Coherence', value: '0.98', label: 'Quantum Sync', sub: 'Phase Locked', color: 'blue', icon: <Cpu />, details: 'Coherence represents the synchrony between left and right hemispheres.' },
-          { title: 'Oxygen Efficiency', value: '42%', label: 'Cellular Flux', sub: 'Optimized', color: 'cyan', icon: <Wind />, details: 'Mitochondrial oxygen utilization rate within targeted muscle tissue.' },
-          { title: 'Stress Polarity', value: 'Low', label: 'Cortisol Phase', sub: 'Non-Reactive', color: 'rose', icon: <Zap />, details: 'Autonomic nervous system balance based on skin conductance.' }
-        ].map((item, i) => (
-          <div 
-            key={i} 
-            onClick={() => {
-              addNotification(`Detailed analysis of ${item.title} available in CognisHub.`, 'info');
-              setSelectedStat({...item, trend: 'Optimal', label: item.title});
-            }}
-            className="bg-slate-900 text-white p-6 sm:p-8 rounded-[2rem] sm:rounded-[3rem] shadow-xl border border-white/5 group hover:border-blue-500/50 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-6 sm:mb-10">
-              <div className={`p-3 sm:p-4 bg-${item.color}-500/20 text-${item.color}-400 rounded-xl sm:rounded-2xl group-hover:scale-110 transition-all`}>
-                {React.cloneElement(item.icon as any, { size: 24 })}
-              </div>
-              <div className="text-right">
-                <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.3em]">{item.label}</p>
-                <p className="text-[10px] sm:text-sm font-black uppercase text-white/40">{item.sub}</p>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        {/* CARD 1: QUANTUM SYNC / COGNIS COHERENCE */}
+        <div 
+          onClick={() => setSelectedTelemetryModal('coherence')}
+          className="bg-[#0B0F19] text-white p-6 sm:p-7 rounded-[2.2rem] border border-slate-800/90 shadow-2xl relative overflow-hidden group hover:border-blue-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-600/20 transition-all" />
+
+          {/* Top Row: Icon + Title Stack */}
+          <div className="flex items-center justify-between mb-8 sm:mb-10 relative z-10">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#13233F] border border-blue-500/20 text-[#38BDF8] flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-105 transition-transform shrink-0">
+              <Cpu size={24} className="text-[#38BDF8]" />
             </div>
-            <h4 className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">{item.title}</h4>
-            <p className="text-2xl sm:text-4xl font-black tracking-tighter">{item.value}</p>
-            <div className="mt-4 sm:mt-6 flex gap-1 h-1">
-              {[...Array(12)].map((_, j) => (
-                <div key={j} className={`flex-1 rounded-full ${j < 8 ? `bg-${item.color}-500/50` : 'bg-white/5'} transition-all`} />
-              ))}
+
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] text-[#38BDF8]">QUANTUM SYNC</p>
+              </div>
+              <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-300">{telemetryState.coherenceStatus}</p>
             </div>
           </div>
-        ))}
+
+          {/* Middle Row: Main Metric Value */}
+          <div className="relative z-10 mb-4 sm:mb-6">
+            <h4 className="text-[10px] sm:text-xs font-black text-[#64748B] uppercase tracking-[0.22em] mb-1">COGNIS COHERENCE</h4>
+            <div className="flex items-baseline justify-between">
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">{telemetryState.coherence.toFixed(2)}</p>
+              <span className="text-[9px] font-mono font-bold text-blue-400/80 bg-blue-950/60 border border-blue-800/40 px-2 py-0.5 rounded-md">100Hz</span>
+            </div>
+          </div>
+
+          {/* Bottom Row: 12-Segment LED Pill Bar */}
+          <div className="relative z-10">
+            <div className="flex gap-1.5 h-2 w-full">
+              {[...Array(12)].map((_, j) => {
+                const activeCount = Math.min(12, Math.max(1, Math.round(telemetryState.coherence * 8)));
+                const isActive = j < activeCount;
+                return (
+                  <div 
+                    key={`coherence-pill-${j}`} 
+                    className={`flex-1 rounded-full transition-all duration-500 ${
+                      isActive 
+                        ? 'bg-[#3B82F6] shadow-[0_0_10px_rgba(59,130,246,0.8)]' 
+                        : 'bg-[#1E293B]'
+                    }`} 
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 2: CELLULAR FLUX / OXYGEN EFFICIENCY */}
+        <div 
+          onClick={() => setSelectedTelemetryModal('oxygen')}
+          className="bg-[#0B0F19] text-white p-6 sm:p-7 rounded-[2.2rem] border border-slate-800/90 shadow-2xl relative overflow-hidden group hover:border-cyan-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-600/20 transition-all" />
+
+          {/* Top Row: Icon + Title Stack */}
+          <div className="flex items-center justify-between mb-8 sm:mb-10 relative z-10">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#0B2C38] border border-cyan-500/20 text-[#22D3EE] flex items-center justify-center shadow-lg shadow-cyan-500/10 group-hover:scale-105 transition-transform shrink-0">
+              <Wind size={24} className="text-[#22D3EE]" />
+            </div>
+
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] text-[#22D3EE]">CELLULAR FLUX</p>
+              </div>
+              <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-300">{telemetryState.oxygenStatus}</p>
+            </div>
+          </div>
+
+          {/* Middle Row: Main Metric Value */}
+          <div className="relative z-10 mb-4 sm:mb-6">
+            <h4 className="text-[10px] sm:text-xs font-black text-[#64748B] uppercase tracking-[0.22em] mb-1">OXYGEN EFFICIENCY</h4>
+            <div className="flex items-baseline justify-between">
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">{telemetryState.oxygen}%</p>
+              <span className="text-[9px] font-mono font-bold text-cyan-400/80 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded-md">SpO2 Mito</span>
+            </div>
+          </div>
+
+          {/* Bottom Row: 12-Segment LED Pill Bar */}
+          <div className="relative z-10">
+            <div className="flex gap-1.5 h-2 w-full">
+              {[...Array(12)].map((_, j) => {
+                const activeCount = Math.min(12, Math.max(1, Math.round((telemetryState.oxygen / 60) * 12)));
+                const isActive = j < activeCount;
+                return (
+                  <div 
+                    key={`oxygen-pill-${j}`} 
+                    className={`flex-1 rounded-full transition-all duration-500 ${
+                      isActive 
+                        ? 'bg-[#06B6D4] shadow-[0_0_10px_rgba(6,182,212,0.8)]' 
+                        : 'bg-[#1E293B]'
+                    }`} 
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 3: CORTISOL PHASE / STRESS POLARITY */}
+        <div 
+          onClick={() => setSelectedTelemetryModal('stress')}
+          className="bg-[#0B0F19] text-white p-6 sm:p-7 rounded-[2.2rem] border border-slate-800/90 shadow-2xl relative overflow-hidden group hover:border-rose-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-600/10 rounded-full blur-3xl pointer-events-none group-hover:bg-rose-600/20 transition-all" />
+
+          {/* Top Row: Icon + Title Stack */}
+          <div className="flex items-center justify-between mb-8 sm:mb-10 relative z-10">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#351421] border border-rose-500/20 text-[#F43F5E] flex items-center justify-center shadow-lg shadow-rose-500/10 group-hover:scale-105 transition-transform shrink-0">
+              <Zap size={24} className="text-[#F43F5E]" />
+            </div>
+
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] text-[#F43F5E]">CORTISOL PHASE</p>
+              </div>
+              <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-300">{telemetryState.stressStatus}</p>
+            </div>
+          </div>
+
+          {/* Middle Row: Main Metric Value */}
+          <div className="relative z-10 mb-4 sm:mb-6">
+            <h4 className="text-[10px] sm:text-xs font-black text-[#64748B] uppercase tracking-[0.22em] mb-1">STRESS POLARITY</h4>
+            <div className="flex items-baseline justify-between">
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">{telemetryState.stress}</p>
+              <span className="text-[9px] font-mono font-bold text-rose-400/80 bg-rose-950/60 border border-rose-800/40 px-2 py-0.5 rounded-md">GSR Balance</span>
+            </div>
+          </div>
+
+          {/* Bottom Row: 12-Segment LED Pill Bar */}
+          <div className="relative z-10">
+            <div className="flex gap-1.5 h-2 w-full">
+              {[...Array(12)].map((_, j) => {
+                const activeCount = 8;
+                const isActive = j < activeCount;
+                return (
+                  <div 
+                    key={`stress-pill-${j}`} 
+                    className={`flex-1 rounded-full transition-all duration-500 ${
+                      isActive 
+                        ? 'bg-[#F43F5E] shadow-[0_0_10px_rgba(244,63,94,0.8)]' 
+                        : 'bg-[#1E293B]'
+                    }`} 
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Powerful Grid Layout */}
@@ -1055,9 +1282,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Biometric Synthesis</h2>
             </div>
             <div className="flex gap-2">
-              {(['Day', 'Week', 'Month'] as const).map(t => (
+              {(['Day', 'Week', 'Month'] as const).map((t, mapIdx_1281) => (
                 <button 
-                  key={t} 
+                  key={`dashboard-l1284-${mapIdx_1281}`} 
                   onClick={() => setTimeframe(t)}
                   className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
                     timeframe === t 
@@ -1157,7 +1384,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="h-20 sm:h-24 -mx-2">
               <VitalWaveform 
-                data={history.map(h => ({ value: h.heartRate, timestamp: Date.now() }))} 
+                data={history.map((h, mapIdx_1383) => ({ value: h.heartRate, timestamp: Date.now() }))} 
                 color="#e11d48" 
                 height={80}
                 maxVal={180}
@@ -1192,7 +1419,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 { label: 'Developer API Console', icon: <Terminal size={14} />, action: () => onNavigate('dev_portal') }
               ].map((item, idx) => (
                 <button 
-                  key={idx}
+                  key={`dashboard-l1419-idx-${idx}`}
                   onClick={item.action} 
                   className="w-full flex items-center justify-between p-5 bg-white/5 hover:bg-white text-slate-300 hover:text-slate-900 rounded-2xl border border-white/5 hover:border-white transition-all font-black text-[10px] uppercase tracking-widest group/btn"
                 >
@@ -1232,7 +1459,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 { label: 'Bio-Entropy', value: 12, color: 'emerald', desc: 'Total system metabolic disorder.' },
                 { label: 'Recovery Phase', value: 88, color: 'indigo', desc: 'Anabolic tissue repair progress.' }
               ].map((activity, i) => (
-                <div key={i} className="group cursor-help relative" onClick={() => addNotification(`${activity.label} detail logged at 99.9% accuracy.`)}>
+                <div key={`dashboard-l1459-i-${i}`} className="group cursor-help relative" onClick={() => addNotification(`${activity.label} detail logged at 99.9% accuracy.`)}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className={`w-1.5 h-1.5 rounded-full bg-${activity.color}-500 animate-pulse`} />
@@ -1350,7 +1577,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <button 
                     onClick={() => {
-                      const updated = tasks.map(t => t.id === task.id ? { ...t, completed: true } : t);
+                      const updated = tasks.map((t, mapIdx_1576) => t.id === task.id ? { ...t, completed: true } : t);
                       localStorage.setItem('doctorian_tasks', JSON.stringify(updated));
                       setTasks(updated);
                       addNotification("Protocol verified and marked as complete.", "success");
@@ -1442,8 +1669,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-1 font-mono">
-                      {['Synthesized', 'AI-Driven', 'Authorized'].map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 text-[7px] font-black text-slate-400 uppercase tracking-widest rounded border border-slate-100 dark:border-slate-800">
+                      {['Synthesized', 'AI-Driven', 'Authorized'].map((tag, tagIdx) => (
+                        <span key={`dash-tag-${tag}-${tagIdx}`} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 text-[7px] font-black text-slate-400 uppercase tracking-widest rounded border border-slate-100 dark:border-slate-800">
                           {tag}
                         </span>
                       ))}
@@ -1504,7 +1731,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               { title: 'Longevity Index Peak', status: 'Upcoming', date: 'Dec 02', icon: <TrendingUp />, color: 'orange', view: 'vitality' },
             ].map((milestone, i) => (
               <button 
-                key={i} 
+                key={`dashboard-l1731-i-${i}`} 
                 onClick={() => onNavigate(milestone.view as any)}
                 className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 hover:border-white/30 transition-all group text-left cursor-pointer"
               >
@@ -1555,7 +1782,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             { title: 'System', subtitle: 'Analytics Ops', icon: <Info />, view: 'about', color: 'slate', styles: 'bg-slate-50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 group-hover:bg-slate-600', detail: 'v5.0.2' },
           ].map((item, i) => (
             <motion.button
-              key={i}
+              key={`dashboard-l1782-i-${i}`}
               whileHover={{ y: -8, scale: 1.02 }}
               onClick={() => {
                 if (item.view === 'biosecurity') {
@@ -1598,7 +1825,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="h-[300px]">
               <SafeResponsiveContainer width="100%" height="100%">
-                <AreaChart data={getDynamicData().map(d => ({ ...d, pred: d.value + (Math.random() * 10 - 5) }))}>
+                <AreaChart data={getDynamicData().map((d, mapIdx_1824) => ({ ...d, pred: d.value + (Math.random() * 10 - 5) }))}>
                   <defs>
                     <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
@@ -1630,7 +1857,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   { label: "Mitochondrial Flux", progress: 62, color: "emerald", tip: "Maintain Zone 2 aerobic activity for 45 minutes." },
                   { label: "Glycemic Baseline", progress: 94, color: "amber", tip: "Post-prandial glucose levels currently stabilized." }
                 ].map((goal, i) => (
-                  <div key={i} className="space-y-3 group cursor-help" onClick={() => addNotification(`Wellness Protocol: ${goal.tip}`, 'info')}>
+                  <div key={`dashboard-l1857-i-${i}`} className="space-y-3 group cursor-help" onClick={() => addNotification(`Wellness Protocol: ${goal.tip}`, 'info')}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-1 h-1 rounded-full bg-${goal.color}-500`} />
@@ -1672,7 +1899,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 { label: "Cortisol Drift", value: "Declining", sub: "Stable Baseline" },
                 { label: "Bio-Rhythm", value: "Phase 4", sub: "Deep Focus" }
               ].map((m, i) => (
-                <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
+                <div key={`dashboard-l1899-i-${i}`} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{m.label}</p>
                   <p className="text-lg font-black text-slate-900 dark:text-white uppercase leading-none mb-1">{m.value}</p>
                   <p className="text-[10px] text-blue-600 font-bold">{m.sub}</p>
@@ -1761,7 +1988,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }
           ].map((stat, i) => (
             <motion.div
-              key={i}
+              key={`dashboard-l1988-i-${i}`}
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
@@ -1861,7 +2088,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     { label: 'Cellular Entropy', value: '0.02', color: 'emerald' },
                     { label: 'Metabolic Sync', value: 'Active', color: 'amber' }
                   ].map((stat, i) => (
-                    <div key={i} className="flex items-center justify-between group">
+                    <div key={`dashboard-l2088-i-${i}`} className="flex items-center justify-between group">
                       <span className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-blue-500 transition-colors">{stat.label}</span>
                       <span className={`text-xl font-black text-${stat.color}-500`}>{stat.value}</span>
                     </div>
@@ -1966,6 +2193,190 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
       </AnimatePresence>
 
+      {/* Real-time Telemetry Inspector Modal */}
+      <AnimatePresence>
+        {selectedTelemetryModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[220] flex items-center justify-center p-4 sm:p-6 bg-slate-950/85 backdrop-blur-2xl"
+            onClick={() => setSelectedTelemetryModal(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.92, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 20 }}
+              className="bg-[#0B0F19] text-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-800 p-6 sm:p-8 relative"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-6 border-b border-slate-800/80 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-lg ${
+                    selectedTelemetryModal === 'coherence' ? 'bg-[#13233F] border-blue-500/30 text-[#38BDF8]' :
+                    selectedTelemetryModal === 'oxygen' ? 'bg-[#0B2C38] border-cyan-500/30 text-[#22D3EE]' :
+                    'bg-[#351421] border-rose-500/30 text-[#F43F5E]'
+                  }`}>
+                    {selectedTelemetryModal === 'coherence' ? <Cpu size={24} /> :
+                     selectedTelemetryModal === 'oxygen' ? <Wind size={24} /> :
+                     <Zap size={24} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest">
+                        {telemetryState.isLiveStream ? '100Hz TELEMETRY ACTIVE' : 'STREAM PAUSED'}
+                      </span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase mt-0.5">
+                      {selectedTelemetryModal === 'coherence' ? 'Quantum Sync Coherence Inspector' :
+                       selectedTelemetryModal === 'oxygen' ? 'Cellular Flux Oxygen Analyzer' :
+                       'Cortisol Phase Stress Polarity'}
+                    </h3>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setSelectedTelemetryModal(null)}
+                  className="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full transition-colors border border-slate-800 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Main Live Telemetry Dashboard Content */}
+              <div className="space-y-6">
+                {/* Primary Metric Banner */}
+                <div className="grid grid-cols-3 gap-4 p-5 rounded-2xl bg-slate-900/80 border border-slate-800/80">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Metric</p>
+                    <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      {selectedTelemetryModal === 'coherence' ? telemetryState.coherence.toFixed(2) :
+                       selectedTelemetryModal === 'oxygen' ? `${telemetryState.oxygen}%` :
+                       telemetryState.stress}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Operational State</p>
+                    <p className={`text-sm sm:text-base font-black uppercase tracking-wider ${
+                      selectedTelemetryModal === 'coherence' ? 'text-[#38BDF8]' :
+                      selectedTelemetryModal === 'oxygen' ? 'text-[#22D3EE]' :
+                      'text-[#F43F5E]'
+                    }`}>
+                      {selectedTelemetryModal === 'coherence' ? telemetryState.coherenceStatus :
+                       selectedTelemetryModal === 'oxygen' ? telemetryState.oxygenStatus :
+                       telemetryState.stressStatus}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Last Sample</p>
+                    <p className="text-xs sm:text-sm font-mono font-bold text-slate-300">
+                      {telemetryState.lastUpdate}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Live Real-time Waveform Canvas Visualizer */}
+                <div className="p-5 rounded-2xl bg-[#080B12] border border-slate-800/90 relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Activity size={14} className={
+                        selectedTelemetryModal === 'coherence' ? 'text-[#38BDF8]' :
+                        selectedTelemetryModal === 'oxygen' ? 'text-[#22D3EE]' :
+                        'text-[#F43F5E]'
+                      } />
+                      Real-Time Signal Waveform (100Hz)
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-500">SNR: 52.4 dB</span>
+                  </div>
+
+                  {/* SVG Waveform Simulation */}
+                  <div className="h-28 w-full flex items-center justify-center relative">
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 400 80">
+                      <defs>
+                        <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor={
+                            selectedTelemetryModal === 'coherence' ? '#38BDF8' :
+                            selectedTelemetryModal === 'oxygen' ? '#22D3EE' :
+                            '#F43F5E'
+                          } stopOpacity="0.2" />
+                          <stop offset="100%" stopColor={
+                            selectedTelemetryModal === 'coherence' ? '#38BDF8' :
+                            selectedTelemetryModal === 'oxygen' ? '#22D3EE' :
+                            '#F43F5E'
+                          } stopOpacity="1" />
+                        </linearGradient>
+                      </defs>
+                      <path 
+                        d={`M 0 40 Q 50 ${30 + Math.sin(Date.now()/500)*15}, 100 40 T 200 ${40 + Math.cos(Date.now()/400)*15} T 300 40 T 400 ${35 + Math.sin(Date.now()/600)*10}`} 
+                        fill="none" 
+                        stroke="url(#waveGrad)" 
+                        strokeWidth="3" 
+                        strokeLinecap="round" 
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Diagnostic Insights & Recommendations */}
+                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                  <p className="font-bold text-white mb-1">Clinical Telemetry Diagnosis:</p>
+                  {selectedTelemetryModal === 'coherence' && (
+                    <p>Inter-hemispheric coherence is synchronized at 0.98 phase lock. Quantum neural alignment ensures optimal cognitive focus and minimum decision latency.</p>
+                  )}
+                  {selectedTelemetryModal === 'oxygen' && (
+                    <p>Mitochondrial cellular oxygen efficiency is sustained at 42% flux rate, indicating highly effective aerobic tissue perfusion and low metabolic fatigue.</p>
+                  )}
+                  {selectedTelemetryModal === 'stress' && (
+                    <p>Galvanic skin resistance and cortisol fluctuation metrics show non-reactive autonomic stability with low stress polarity under active workload.</p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <button 
+                    onClick={() => {
+                      setTelemetryState(prev => ({ ...prev, isLiveStream: !prev.isLiveStream }));
+                      addNotification(
+                        telemetryState.isLiveStream ? "Telemetry live stream paused." : "Telemetry 100Hz stream resumed.", 
+                        "info"
+                      );
+                    }}
+                    className="py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <RefreshCw size={14} className={telemetryState.isLiveStream ? "animate-spin" : ""} />
+                    {telemetryState.isLiveStream ? "Pause Telemetry Stream" : "Resume Telemetry"}
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      addNotification("Sensors recalibrated to standard baseline. Phase sync locked.", "success");
+                      setTelemetryState(prev => ({
+                        ...prev,
+                        coherence: 0.98,
+                        oxygen: 42,
+                        stress: 'Low',
+                        stressIndex: 18,
+                        coherenceStatus: 'Phase Locked',
+                        oxygenStatus: 'Optimized',
+                        stressStatus: 'Non-Reactive'
+                      }));
+                    }}
+                    className="py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
+                  >
+                    <Sparkles size={14} />
+                    Recalibrate Baseline
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Notifications */}
       <div className="fixed top-10 right-10 z-[300] pointer-events-none space-y-4">
         <AnimatePresence>
@@ -2018,7 +2429,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               { time: '08:15 AM', label: 'Metabolic Baseline', desc: 'Glycemic index synchronized with AM protocol.', status: 'Verified', color: 'bg-emerald-500' },
               { time: 'Yesterday', label: 'Anatomical Synthesis', desc: 'Full-body voxel scan completed. Vitals stable.', status: 'Logged', color: 'bg-blue-500' }
             ].map((item, i) => (
-              <div key={i} className="flex gap-6 items-start group">
+              <div key={`dashboard-l2429-i-${i}`} className="flex gap-6 items-start group">
                 <div className="pt-1 w-16 shrink-0">
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{item.time}</span>
                 </div>
@@ -2128,7 +2539,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                  { label: 'Active Monitors', count: 12, color: 'text-blue-600' },
                  { label: 'System Health', count: '99.9%', color: 'text-emerald-600' },
                ].map((stat, i) => (
-                 <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800">
+                 <div key={`dashboard-l2539-i-${i}`} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
                     <p className={`text-2xl font-black ${stat.color} tracking-tighter uppercase`}>{stat.count}</p>
                  </div>
@@ -2174,6 +2585,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </motion.div>
       )}
     </AnimatePresence>
+
+      {/* Emergency SOS Dispatch Confirmation Modal */}
+      {showSosConfirmModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-red-500/40 rounded-[2.5rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(225,29,72,0.3)] relative overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl bg-red-950/60 border border-red-500/50 flex items-center justify-center text-red-500 mb-6 shadow-inner animate-pulse">
+              <ShieldAlert size={32} />
+            </div>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">
+              Confirm Emergency Assistance Dispatch
+            </h3>
+            <p className="text-xs font-medium text-slate-300 leading-relaxed mb-6">
+              You are about to initiate an immediate high-priority emergency alert. This action will notify your assigned physician and hospital contacts. Do you wish to proceed?
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowSosConfirmModal(false)}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSosConfirmModal(false);
+                  handleSOS();
+                }}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-red-600/40 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <ShieldAlert size={16} />
+                Confirm Emergency SOS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

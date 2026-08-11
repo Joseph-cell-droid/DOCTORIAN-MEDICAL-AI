@@ -8,7 +8,7 @@ export const AccessRestriction: React.FC = () => {
       {/* Background Matrix Effect */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none overflow-hidden font-mono text-[8px] leading-none text-emerald-500 break-all">
         {Array.from({ length: 50 }).map((_, i) => (
-          <div key={i} className="whitespace-nowrap animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+          <div key={`accessrestriction-l11-i-${i}`} className="whitespace-nowrap animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
             ACCESS_DENIED_IDENT_FAILED_CLEARANCE_REQUIRED_SYSTEM_ERROR_0x403_RETRY_ABORTED_ENCRYPTED_DATA_VAULT_DOCTORIAN_SECURE_NODE_
           </div>
         ))}
@@ -59,7 +59,7 @@ export const AccessRestriction: React.FC = () => {
             { icon: <Cpu size={16} />, label: "Sys Logged" },
             { icon: <Zap size={16} />, label: "No Pulse" }
           ].map((item, i) => (
-            <div key={i} className="p-4 bg-slate-900/50 border border-slate-800 rounded-2xl flex flex-col items-center gap-2 opacity-50">
+            <div key={`accessrestriction-l62-i-${i}`} className="p-4 bg-slate-900/50 border border-slate-800 rounded-2xl flex flex-col items-center gap-2 opacity-50">
               <div className="text-rose-500">{item.icon}</div>
               <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">{item.label}</span>
             </div>

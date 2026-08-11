@@ -648,7 +648,7 @@ Format your response as a JSON object matching this schema exactly:
     setIsAnalyzing(true);
     setAiSynthesisResult(null);
     try {
-      const testsSummary = labTests.map(t => `- ${t.name}: ${t.result} ${t.unit} (Normal: ${t.isNormal})`).join('\n');
+      const testsSummary = labTests.map((t, mapIdx_650) => `- ${t.name}: ${t.result} ${t.unit} (Normal: ${t.isNormal})`).join('\n');
       const prompt = `Act as a Senior Clinical Strategist. Synthesize the following lab test results and any identified symptoms into a cohesive medical insight.
       
       Lab Results:
@@ -701,9 +701,9 @@ Format your response as a JSON object matching this schema exactly:
               { id: 'predictions', label: 'TFJS Predictor', icon: <Cpu size={16} /> },
               { id: 'epidemiology', label: 'Epidemiology Lab', icon: <Globe size={16} /> },
               { id: 'analysis', label: 'Clinical AI', icon: <Brain size={16} /> }
-            ].map((tab) => (
+            ].map((tab, mapIdx_703) => (
             <button
-              key={tab.id}
+              key={`diagnosticlab-l706-${mapIdx_703}`}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-black uppercase tracking-tight transition-all shrink-0 ${
                 activeTab === tab.id 
@@ -782,7 +782,7 @@ Format your response as a JSON object matching this schema exactly:
                          const isSelected = selectedImage === preset.url;
                          return (
                            <button
-                             key={idx}
+                             key={`diagnosticlab-l785-idx-${idx}`}
                              onClick={() => setSelectedImage(preset.url)}
                              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
                                isSelected
@@ -980,7 +980,7 @@ Format your response as a JSON object matching this schema exactly:
                               {/* Cell Morphology Findings Tags */}
                               <div className="flex flex-wrap gap-2 pt-2">
                                 {imagingScan.microscopeDetails.morphologyFindings.map((tag, i) => (
-                                  <span key={i} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[9px] font-black uppercase tracking-wider border border-blue-100 dark:border-blue-800">
+                                  <span key={`diagnosticlab-l983-i-${i}`} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[9px] font-black uppercase tracking-wider border border-blue-100 dark:border-blue-800">
                                     {tag}
                                   </span>
                                 ))}
@@ -1072,8 +1072,8 @@ Format your response as a JSON object matching this schema exactly:
                 <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800">
                   <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Quick Filters</h3>
                   <div className="space-y-3">
-                    {['Ailment Sync', 'Full Metabolism', 'Hormonal Suite', 'Bio-Markers'].map((filter) => (
-                      <button key={filter} className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group">
+                    {['Ailment Sync', 'Full Metabolism', 'Hormonal Suite', 'Bio-Markers'].map((filter, mapIdx_1074) => (
+                      <button key={`diagnosticlab-l1076-${mapIdx_1074}`} className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group">
                         <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase group-hover:text-blue-600">{filter}</span>
                         <ArrowUpRight size={14} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
                       </button>
@@ -1113,8 +1113,8 @@ Format your response as a JSON object matching this schema exactly:
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                        {labTests.map((test) => (
-                          <tr key={test.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all">
+                        {labTests.map((test, mapIdx_1115) => (
+                          <tr key={`diagnosticlab-l1117-${mapIdx_1115}`} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all">
                             <td className="py-6 px-4">
                               <div className="flex items-center gap-3">
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -1207,7 +1207,7 @@ Format your response as a JSON object matching this schema exactly:
                   <div className="absolute inset-0 opacity-10 pointer-events-none">
                     <div className="grid grid-cols-10 gap-2 p-4">
                       {Array.from({ length: 400 }).map((_, i) => (
-                        <div key={i} className="text-[6px] font-mono text-blue-500 break-all overflow-hidden h-4">
+                        <div key={`diagnosticlab-l1210-i-${i}`} className="text-[6px] font-mono text-blue-500 break-all overflow-hidden h-4">
                           {Math.random() > 0.5 ? 'A' : Math.random() > 0.5 ? 'T' : Math.random() > 0.5 ? 'C' : 'G'}
                         </div>
                       ))}
@@ -1217,7 +1217,7 @@ Format your response as a JSON object matching this schema exactly:
                   <div className="relative z-10 flex-1 flex flex-col">
                     <div className="flex items-center justify-between mb-8">
                       <div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-tight">Quantum Sequencer</h3>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tight">Gene Sequencer</h3>
                         <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1">Direct Genomic Link: Alpha-7</p>
                       </div>
                       {isAnalyzing && (
@@ -1262,7 +1262,7 @@ Format your response as a JSON object matching this schema exactly:
                       { marker: 'COL1A1', name: 'Collagen Integrity', status: 'High', risk: 'Optimal' },
                       { marker: 'FOXP2', name: 'Cognitive Link', status: 'Active', risk: 'Optimal' }
                     ].map((m, i) => (
-                      <div key={i} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                      <div key={`diagnosticlab-l1265-i-${i}`} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-[10px] font-black text-blue-600 uppercase">{m.marker}</span>
                           <span className="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded uppercase">{m.status}</span>
@@ -1386,7 +1386,7 @@ Format your response as a JSON object matching this schema exactly:
                           <p className="text-slate-600 italic">No training execution logs captured. Launch local optimization above to trace backpropagation weights.</p>
                         ) : (
                           trainingOutput.map((log, index) => (
-                            <p key={index} className={log.startsWith('[ERROR]') ? 'text-red-400' : log.startsWith('[SYSTEM]') ? 'text-blue-400 font-bold' : ''}>
+                            <p key={`diagnosticlab-l1389-index-${index}`} className={log.startsWith('[ERROR]') ? 'text-red-400' : log.startsWith('[SYSTEM]') ? 'text-blue-400 font-bold' : ''}>
                               {log}
                             </p>
                           ))
@@ -1726,11 +1726,11 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
                       { id: 'Kampala', label: 'KAMPALA', x: '55%', y: '65%', risk: 'moderate' },
                       { id: 'Kasese', label: 'KASESE', x: '18%', y: '60%', risk: 'critical' },
                       { id: 'Mbarara', label: 'MBARARA', x: '28%', y: '82%', risk: 'safe' }
-                    ].map((node) => {
+                    ].map((node, mapIdx_1728) => {
                       const isSelected = selectedDistrict === node.id;
                       return (
                         <button
-                          key={node.id}
+                          key={`diagnosticlab-l1733-${mapIdx_1728}`}
                           onClick={() => setSelectedDistrict(node.id)}
                           style={{ left: node.x, top: node.y }}
                           className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer transition-all ${
@@ -1772,9 +1772,9 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
                       { id: 'Kasese', name: 'Kasese (Border)' },
                       { id: 'Mbarara', name: 'Mbarara (Western)' },
                       { id: 'Moroto', name: 'Moroto (Karamoja)' }
-                    ].map((d) => (
+                    ].map((d, mapIdx_1774) => (
                       <button
-                        key={d.id}
+                        key={`diagnosticlab-l1777-${mapIdx_1774}`}
                         onClick={() => setSelectedDistrict(d.id)}
                         className={`p-3 rounded-xl border text-[10px] font-black uppercase tracking-tight text-left transition-all cursor-pointer ${
                           selectedDistrict === d.id
@@ -1817,7 +1817,7 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
 
                       <div className="space-y-3">
                         {(UGANDA_EPIDEMIOLOGY_DB as any)[selectedDistrict].pathogens.map((pathogen: any, idx: number) => (
-                          <div key={idx} className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                          <div key={`diagnosticlab-l1820-idx-${idx}`} className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <div>
                               <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white block">{pathogen.name}</span>
                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block mt-0.5">{pathogen.risk}</span>
@@ -1844,7 +1844,7 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
 
                       <div className="space-y-3">
                         {(UGANDA_EPIDEMIOLOGY_DB as any)[selectedDistrict].pharmacyShortages.map((med: any, idx: number) => (
-                          <div key={idx} className="space-y-1">
+                          <div key={`diagnosticlab-l1847-idx-${idx}`} className="space-y-1">
                             <div className="flex justify-between items-center text-[9px] font-bold">
                               <span className="uppercase text-slate-600 dark:text-slate-300">{med.name}</span>
                               <span className={
@@ -1968,7 +1968,7 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
                      { label: 'Metabolism', val: 'Optimal', icon: <Zap /> },
                      { label: 'Cognis Sync', val: 'Active', icon: <RefreshCw /> }
                    ].map((item, i) => (
-                     <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex items-center gap-6 shadow-sm">
+                     <div key={`diagnosticlab-l1971-i-${i}`} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex items-center gap-6 shadow-sm">
                         <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400">
                            {React.cloneElement(item.icon as any, { size: 20 })}
                         </div>
@@ -2021,7 +2021,7 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                    <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Result Value</label>
                     <input 

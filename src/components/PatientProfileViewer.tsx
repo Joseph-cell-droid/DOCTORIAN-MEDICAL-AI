@@ -104,7 +104,7 @@ export const PatientProfileViewer: React.FC<PatientProfileViewerProps> = ({ data
           {/* Header Card Profile Block */}
           <div className="flex flex-col md:flex-row gap-8 items-center md:items-start text-center md:text-left bg-slate-50/50 dark:bg-slate-800/20 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-[2.2rem] bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-3xl font-black uppercase tracking-tighter shadow-xl shadow-blue-500/10">
-              {user.displayName ? user.displayName.split(' ').map(n => n[0]).slice(0, 2).join('') : <User size={48} />}
+              {user.displayName ? user.displayName.split(' ').map((n, mapIdx_106) => n[0]).slice(0, 2).join('') : <User size={48} />}
             </div>
             <div className="flex-1 space-y-3">
               <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">
@@ -194,9 +194,9 @@ export const PatientProfileViewer: React.FC<PatientProfileViewerProps> = ({ data
             
             {contacts && contacts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {contacts.map((contact) => (
+                {contacts.map((contact, mapIdx_196) => (
                   <div 
-                    key={contact.id}
+                    key={`patientprofileviewer-l199-${mapIdx_196}`}
                     className="p-5 bg-white dark:bg-slate-850 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:border-blue-500/20 transition-all"
                   >
                     <div>
@@ -230,9 +230,9 @@ export const PatientProfileViewer: React.FC<PatientProfileViewerProps> = ({ data
 
             {records && records.length > 0 ? (
               <div className="space-y-3">
-                {records.map((record) => (
+                {records.map((record, mapIdx_232) => (
                   <div 
-                    key={record.id}
+                    key={`patientprofileviewer-l235-${mapIdx_232}`}
                     className="p-6 bg-white dark:bg-slate-850 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-slate-200 dark:hover:border-slate-750 transition-all"
                   >
                     <div className="space-y-2 flex-1">

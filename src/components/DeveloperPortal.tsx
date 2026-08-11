@@ -436,7 +436,7 @@ console.log(data.choices[0].message.content);
                          'Llama 3.1 8B/70B Manifest Pulled',
                          'CORS set: OLLAMA_ORIGINS="*" env set'
                        ].map((item, i) => (
-                         <li key={i} className="text-[10px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                         <li key={`developerportal-l439-i-${i}`} className="text-[10px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
                             <div className="w-1 h-1 rounded-full bg-blue-500" /> {item}
                          </li>
                        ))}
@@ -539,10 +539,10 @@ console.log(data.choices[0].message.content);
                     <p className="text-xs text-slate-400">Generate a key to start integrating your trained AI.</p>
                   </div>
                 ) : (
-                  keys.map(key => {
+                  keys.map((key, mapIdx_541) => {
                     const isRevealed = revealKeyId === key.id;
                     return (
-                      <div key={key.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                      <div key={`developerportal-l545-${mapIdx_541}`} className="p-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                         <div className="space-y-1">
                           <h3 className="font-bold text-slate-900 dark:text-white capitalize">{key.label}</h3>
                           <div className="flex items-center gap-3">
@@ -775,12 +775,12 @@ console.log(data.choices[0].message.content);
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {[1, 2, 3].map((node) => {
+                  {[1, 2, 3].map((node, mapIdx_777) => {
                     const isPassed = failCount < node;
                     const isCurrent = failCount === node - 1 && prioritizeLocal && failCount < 3;
                     return (
                       <div 
-                        key={node} 
+                        key={`developerportal-l783-${mapIdx_777}`} 
                         className={`flex-1 h-3 rounded-lg relative overflow-hidden transition-all duration-300 ${
                           isPassed 
                             ? (isCurrent ? 'bg-indigo-100 dark:bg-indigo-950 border border-indigo-400 animate-pulse' : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700')
@@ -831,7 +831,7 @@ console.log(data.choices[0].message.content);
                 </div>
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[9px] text-slate-300 space-y-1.5 max-h-[120px] overflow-y-auto scrollbar-thin">
                   {pingLog.map((logStr, i) => (
-                    <div key={i} className="leading-tight select-all">
+                    <div key={`developerportal-l834-i-${i}`} className="leading-tight select-all">
                       <span className="text-indigo-400">{logStr.substring(0, 11)}</span>
                       <span className="text-slate-300">{logStr.substring(11)}</span>
                     </div>

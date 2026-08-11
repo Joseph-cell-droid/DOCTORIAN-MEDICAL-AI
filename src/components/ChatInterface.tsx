@@ -7,13 +7,14 @@ import {
   Bot, Layers, Zap, Image as ImageIcon, ArrowLeft, Fingerprint, 
   Database, Bold, Italic, Code, Search, PlusCircle, AlertCircle,
   Copy, Check, ThumbsUp, ThumbsDown, MessageSquarePlus, Smile,
-  Activity, Brain, Heart, Download, Paperclip, FileText, Phone,
+  Activity, Brain, Heart, Download, Paperclip, FileText, Phone, Video, VideoOff, Camera, RotateCcw, Eye, ShieldCheck,
   ChevronDown, Shield, Cpu, Clock, Plus, MessageSquare, ArrowRight, Settings,
   BookOpen, Users, Maximize2, Minimize2, Dna, ZoomIn, ZoomOut, Keyboard, Globe, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { generateProfessionalTitle } from '../utils/titleGenerator';
+import { MovingCloudCondensation } from './MovingCloudCondensation';
 
 const SUGGESTIONS = [
   "What are the benefits of cold exposure?",
@@ -37,6 +38,74 @@ interface Message {
   grounding?: any;
   thought?: string;
 }
+
+const AI_PROFESSIONAL_AVATARS: Record<string, {
+  name: string;
+  title: string;
+  specialty: string;
+  hospital: string;
+  image: string;
+  gender: 'male' | 'female';
+  videoUrl: string;
+  voiceDesc: string;
+  videoBadge: string;
+}> = {
+  Joseph: {
+    name: 'Dr. Joseph',
+    title: 'Senior Medical Practitioner & Tele-Clinical Lead',
+    specialty: 'Internal Medicine & Diagnostic Tele-Triage',
+    hospital: 'Mulago National Referral & Doctorian Core',
+    image: '/src/assets/images/dr_joseph_video_1785579134206.jpg',
+    gender: 'male',
+    videoUrl: 'https://cdn.coverr.co/videos/coverr-doctor-explaining-a-diagnosis-4622/1080p.mp4',
+    voiceDesc: 'Deep & Reassuring Male Doctor',
+    videoBadge: '4K Ultra HD • Live Telehealth Feed'
+  },
+  Misty: {
+    name: 'Dr. Misty',
+    title: 'Chief Specialist & Maternal Health Co-Pilot',
+    specialty: 'Obstetrics, Pediatrics & Preventive Care',
+    hospital: 'Aga Khan University Hospital & Doctorian Core',
+    image: '/src/assets/images/dr_misty_video_1785579153152.jpg',
+    gender: 'female',
+    videoUrl: 'https://cdn.coverr.co/videos/coverr-a-female-doctor-looking-at-the-camera-4623/1080p.mp4',
+    voiceDesc: 'Warm & Soft Female Specialist',
+    videoBadge: '1080p HD • Live Telehealth Feed'
+  },
+  Promise: {
+    name: 'Dr. Promise',
+    title: 'Consultant Clinical Guide',
+    specialty: 'Cardiology & Diagnostic Tele-Triage',
+    hospital: 'Korle-Bu Teaching Hospital',
+    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
+    gender: 'male',
+    videoUrl: 'https://cdn.coverr.co/videos/coverr-doctor-explaining-a-diagnosis-4622/1080p.mp4',
+    voiceDesc: 'Clear & Polite Male Clinical Guide',
+    videoBadge: '1080p HD • Encrypted Channel'
+  },
+  Amara: {
+    name: 'Dr. Amara',
+    title: 'Chief Multilingual Specialist',
+    specialty: 'Community Health & Swahili Care',
+    hospital: 'Kenyatta National Referral Hospital',
+    image: 'https://images.unsplash.com/photo-1594824813571-24a69c100d37?auto=format&fit=crop&q=80&w=800',
+    gender: 'female',
+    videoUrl: 'https://cdn.coverr.co/videos/coverr-a-female-doctor-looking-at-the-camera-4623/1080p.mp4',
+    voiceDesc: 'East African Swahili Female Specialist',
+    videoBadge: '1080p HD • Multilingual Synapse'
+  },
+  Kwame: {
+    name: 'Dr. Kwame',
+    title: 'Senior Clinical Neuro-Specialist',
+    specialty: 'Neurology & Emergency Care',
+    hospital: 'Lagos University Teaching Hospital',
+    image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=800',
+    gender: 'male',
+    videoUrl: 'https://cdn.coverr.co/videos/coverr-doctor-explaining-a-diagnosis-4622/1080p.mp4',
+    voiceDesc: 'West African Senior Male Specialist',
+    videoBadge: '4K Ultra HD • Telehealth Node'
+  }
+};
 
 const PERSONAS = {
   general: {
@@ -456,7 +525,7 @@ const isMedicalQuery = (text: string): boolean => {
   return keywords.some(k => text.toLowerCase().includes(k));
 };
 
-export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage, onChangeLanguage, onNavigate, onShowNeuralVisualizer }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string, onChangeLanguage?: (lang: string) => void, onNavigate?: (view: any) => void, onShowNeuralVisualizer?: () => void }) {
+export function ChatInterface({ onMessageSent, isExploreView = false, user, onUpdate, forcedPersona, arduino, onUpgradeRequested, currentLanguage, onChangeLanguage, onNavigate, onShowNeuralVisualizer }: { onMessageSent?: () => void, isExploreView?: boolean, user?: any, onUpdate?: (user: any) => void, forcedPersona?: keyof typeof PERSONAS, arduino?: any, onUpgradeRequested?: () => void, currentLanguage?: string, onChangeLanguage?: (lang: string) => void, onNavigate?: (view: any) => void, onShowNeuralVisualizer?: () => void }): React.ReactElement {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -599,7 +668,11 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   // ==========================================
   const [callState, setCallState] = useState<'idle' | 'incoming' | 'calling' | 'connected' | 'disconnecting'>('idle');
   const [callType, setCallType] = useState<'webrtc' | 'mtn' | 'airtel'>('webrtc');
-  const [voiceSelection, setVoiceSelection] = useState<'Joseph' | 'Misty' | 'Promise'>('Joseph');
+  const [voiceSelection, setVoiceSelection] = useState<'Joseph' | 'Misty' | 'Promise' | 'Amara' | 'Kwame'>('Joseph');
+  const [africanAccentRegion, setAfricanAccentRegion] = useState<'East African' | 'West African' | 'Southern African' | 'North African'>('East African');
+  const [voiceEngineMode, setVoiceEngineMode] = useState<'areal' | 'text_reader'>('areal');
+  const [voiceSpeedRate, setVoiceSpeedRate] = useState<number>(1.35); // ChatGPT fast rate default
+  const [voiceBriefResponse, setVoiceBriefResponse] = useState<boolean>(true); // Fast brief ChatGPT style response
   const [speechModel, setSpeechModel] = useState<'Whisper'>('Whisper');
   const [voiceBrainModel, setVoiceBrainModel] = useState<'Qwen2.5-3B-Instruct' | 'Gemini-3.5-Flash'>('Gemini-3.5-Flash');
   const [voiceCallMuted, setVoiceCallMuted] = useState<boolean>(false);
@@ -609,14 +682,21 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [voiceCallPermission, setVoiceCallPermission] = useState<boolean>(true);
   const [voiceCallPhoneNumber, setVoiceCallPhoneNumber] = useState<string>('');
   const [voiceCallTranscript, setVoiceCallTranscript] = useState<Array<{ role: 'user' | 'assistant', text: string }>>([
-    { role: 'assistant', text: "Welcome to Doctorian Clinical Voice Core. Ready to begin secure call." }
+    { role: 'assistant', text: "Welcome to Doctorian Clinical Voice Core. Ready to begin secure African voice call." }
   ]);
   const [voiceIsSpeaking, setVoiceIsSpeaking] = useState<boolean>(false);
   const [voiceCallQuery, setVoiceCallQuery] = useState<string>('');
   const [voiceCallIsTranscribing, setVoiceCallIsTranscribing] = useState<boolean>(false);
   const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(false);
   const [showVoiceKeyboard, setShowVoiceKeyboard] = useState<boolean>(false);
+  const [showDtmfKeypad, setShowDtmfKeypad] = useState<boolean>(false);
   const [isCallMinimized, setIsCallMinimized] = useState<boolean>(false);
+  const [callMode, setCallMode] = useState<'video' | 'audio'>('video');
+  const [patientCameraActive, setPatientCameraActive] = useState<boolean>(true);
+  const [patientCameraBlur, setPatientCameraBlur] = useState<boolean>(false);
+  const [patientCameraFacing, setPatientCameraFacing] = useState<'user' | 'environment'>('user');
+  const [videoQuality, setVideoQuality] = useState<'1080p HD' | '4K Ultra' | '720p Mobile'>('1080p HD');
+  const [showVitalsOverlay, setShowVitalsOverlay] = useState<boolean>(true);
   
   const ringtoneCleanupRef = useRef<(() => void) | null>(null);
   const callRecognitionRef = useRef<any>(null);
@@ -624,6 +704,40 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const isCallMutedRef = useRef<boolean>(false);
   const isCallActiveRef = useRef<boolean>(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const patientWebcamVideoRef = useRef<HTMLVideoElement | null>(null);
+  const patientWebcamStreamRef = useRef<MediaStream | null>(null);
+  const [webcamHasRealStream, setWebcamHasRealStream] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (patientCameraActive && (callState === 'connected' || callState === 'calling') && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => {
+          patientWebcamStreamRef.current = stream;
+          if (patientWebcamVideoRef.current) {
+            patientWebcamVideoRef.current.srcObject = stream;
+            patientWebcamVideoRef.current.play().catch(() => {});
+          }
+          setWebcamHasRealStream(true);
+        })
+        .catch(err => {
+          console.warn("User webcam access not available or denied:", err);
+          setWebcamHasRealStream(false);
+        });
+    } else {
+      if (patientWebcamStreamRef.current) {
+        patientWebcamStreamRef.current.getTracks().forEach(track => track.stop());
+        patientWebcamStreamRef.current = null;
+      }
+      setWebcamHasRealStream(false);
+    }
+
+    return () => {
+      if (patientWebcamStreamRef.current) {
+        patientWebcamStreamRef.current.getTracks().forEach(track => track.stop());
+        patientWebcamStreamRef.current = null;
+      }
+    };
+  }, [patientCameraActive, callState]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -631,7 +745,51 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     return `${m}:${s}`;
   };
 
-  const playBase64Audio = (base64Data: string, fallbackText: string) => {
+  // Synthesize realistic telephone DTMF dual-tone keypress audio
+  const playDtmfTone = (key: string) => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      const dtmfFreqs: Record<string, [number, number]> = {
+        '1': [697, 1209], '2': [697, 1336], '3': [697, 1477],
+        '4': [770, 1209], '5': [770, 1336], '6': [770, 1477],
+        '7': [852, 1209], '8': [852, 1336], '9': [852, 1477],
+        '*': [941, 1209], '0': [941, 1336], '#': [941, 1477]
+      };
+
+      const pair = dtmfFreqs[key] || [941, 1336];
+      const now = ctx.currentTime;
+      const duration = 0.12;
+
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(pair[0], now);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(pair[1], now);
+
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
+
+      setTimeout(() => { try { ctx.close(); } catch (e) {} }, 250);
+    } catch (e) {}
+  };
+
+  // Ultra-realistic audio stream player (Decodes Gemini 24kHz PCM / Audio Base64 or falls back smoothly)
+  const playBase64Audio = async (base64Data: string, fallbackText: string) => {
     try {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
@@ -641,25 +799,65 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         window.speechSynthesis.cancel();
       }
       setVoiceIsSpeaking(true);
-      
+
+      const binaryString = atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContextClass();
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      // First try standard audio decode
+      try {
+        const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer.slice(0));
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          setVoiceIsSpeaking(false);
+        };
+        source.start(0);
+        return;
+      } catch (decodeErr) {
+        // Handle raw 24kHz PCM 16-bit mono stream from Gemini TTS model
+        const pcm16 = new Int16Array(bytes.buffer);
+        const sampleRate = 24000;
+        const numSamples = pcm16.length;
+        if (numSamples > 0) {
+          const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+          const channelData = buffer.getChannelData(0);
+          for (let i = 0; i < numSamples; i++) {
+            channelData[i] = pcm16[i] / 32768.0;
+          }
+          const source = audioCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioCtx.destination);
+          source.onended = () => {
+            setVoiceIsSpeaking(false);
+          };
+          source.start(0);
+          return;
+        }
+      }
+
       const audioUrl = `data:audio/wav;base64,${base64Data}`;
       const audio = new Audio(audioUrl);
       currentAudioRef.current = audio;
-
       audio.onended = () => {
         setVoiceIsSpeaking(false);
         currentAudioRef.current = null;
       };
       audio.onerror = () => {
-        console.warn("[Voice Player] Audio element error, using Web Speech fallback.");
         currentAudioRef.current = null;
         speakVoiceCallText(fallbackText);
       };
-
-      audio.play().catch(e => {
-        console.warn("[Voice Player] Autoplay rejected, falling back to Web Speech:", e);
-        speakVoiceCallText(fallbackText);
-      });
+      await audio.play();
     } catch (e) {
       speakVoiceCallText(fallbackText);
     }
@@ -714,6 +912,9 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return () => {};
       const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       let isPlaying = true;
 
       const playBeep = (startTime: number, duration: number) => {
@@ -772,6 +973,9 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
       const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
@@ -927,50 +1131,97 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     }, 600);
   };
 
-  // Speaks aloud with SpeechSynthesis mimicking advanced Coqui XTTS-v2 voice profile selection
+  // Speaks aloud with SpeechSynthesis mimicking natural human Areal practitioner voice profiles
   const speakVoiceCallText = (text: string) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     setVoiceIsSpeaking(true);
-    const textClean = text.replace(/🧠|🩺|⚡|🚨/g, '').trim();
+
+    // Clean formatting for natural speech output (remove markdown, stage directions, bullet stars)
+    let textClean = text
+      .replace(/[\*\#\`\_]/g, '') // remove markdown formatting symbols
+      .replace(/\[.*?\]/g, '') // remove bracketed stage directions e.g. [Nodding]
+      .replace(/🧠|🩺|⚡|🚨/g, '')
+      .trim();
+
+    // If Brief Response Mode (ChatGPT Voice style) is active, extract 1-2 punchy sentences
+    if (voiceBriefResponse) {
+      const sentences = textClean.match(/[^.!?]+[.!?]+/g) || [textClean];
+      if (sentences.length > 0) {
+        textClean = sentences.slice(0, 2).join(' ').trim();
+      }
+      const words = textClean.split(/\s+/);
+      if (words.length > 30) {
+        textClean = words.slice(0, 30).join(' ') + '.';
+      }
+    }
+
     const utterance = new SpeechSynthesisUtterance(textClean);
-    
     const voices = window.speechSynthesis.getVoices();
-    let preferredVoice = null;
+    let preferredVoice: SpeechSynthesisVoice | null = null;
 
-    // Prioritize African accent voices or Swahili voices for regional warmth if available
-    const africanVoice = voices.find(v => 
-      v.lang.startsWith('en-ZA') || 
-      v.lang.startsWith('en-NG') || 
-      v.lang.startsWith('en-KE') || 
-      v.lang.startsWith('sw-TZ') || 
-      v.lang.startsWith('sw-KE') ||
-      v.name.toLowerCase().includes('south africa') ||
-      v.name.toLowerCase().includes('nigeria') ||
-      v.name.toLowerCase().includes('kenya') ||
-      v.name.toLowerCase().includes('swahili')
-    );
+    if (voiceEngineMode === 'areal') {
+      // Search for authentic Areal natural/neural conversational speech engines first
+      const arealVoice = voices.find(v => 
+        (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Siri')) &&
+        (v.lang.startsWith('en') || v.lang.startsWith('sw') || v.lang.startsWith('fr'))
+      );
+      if (arealVoice) {
+        preferredVoice = arealVoice;
+      }
+    }
 
-    if (africanVoice) {
-      preferredVoice = africanVoice;
-    } else if (voiceSelection === 'Joseph') {
-      preferredVoice = voices.find(v => v.name.includes('David') || v.name.includes('Male') || v.lang.startsWith('en')) || voices[0];
-    } else {
-      preferredVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Female')) || voices[0];
+    const selectedProf = AI_PROFESSIONAL_AVATARS[voiceSelection];
+    const isMaleDoctor = selectedProf ? selectedProf.gender === 'male' : (voiceSelection === 'Joseph' || voiceSelection === 'Promise' || voiceSelection === 'Kwame');
+
+    if (!preferredVoice) {
+      // Search for authentic African regional voices
+      const africanVoice = voices.find(v => 
+        v.lang.startsWith('en-ZA') || 
+        v.lang.startsWith('en-NG') || 
+        v.lang.startsWith('en-KE') || 
+        v.lang.startsWith('sw-TZ') || 
+        v.lang.startsWith('sw-KE') ||
+        v.lang.startsWith('fr-SN') ||
+        v.name.toLowerCase().includes('south africa') ||
+        v.name.toLowerCase().includes('nigeria') ||
+        v.name.toLowerCase().includes('kenya') ||
+        v.name.toLowerCase().includes('swahili') ||
+        v.name.toLowerCase().includes('africa')
+      );
+
+      if (africanVoice) {
+        preferredVoice = africanVoice;
+      } else if (isMaleDoctor) {
+        preferredVoice = voices.find(v => 
+          (v.name.includes('David') || v.name.includes('Mark') || v.name.includes('George') || v.name.includes('Daniel') || v.name.includes('Guy') || v.name.toLowerCase().includes('male')) &&
+          (v.lang.startsWith('en') || v.lang.startsWith('sw') || v.lang.startsWith('fr'))
+        ) || voices.find(v => v.name.toLowerCase().includes('male')) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      } else {
+        preferredVoice = voices.find(v => 
+          (v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.toLowerCase().includes('female')) &&
+          (v.lang.startsWith('en') || v.lang.startsWith('sw') || v.lang.startsWith('fr'))
+        ) || voices.find(v => v.name.toLowerCase().includes('female')) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      }
     }
     
     if (preferredVoice) utterance.voice = preferredVoice;
     
-    // High-performance snappy speech rate for rapid clinical voice responses
-    utterance.rate = 1.05;
-    utterance.pitch = voiceSelection === 'Joseph' ? 0.88 : voiceSelection === 'Misty' ? 1.05 : 1.0;
+    // Fast ChatGPT-style interpretation rate (1.35x default rate for fast, agile voice responses)
+    utterance.rate = voiceSpeedRate;
+    
+    // Conversational pitch modulation based on doctor gender
+    utterance.pitch = isMaleDoctor ? 0.92 : 1.10;
     
     // Set appropriate language tag
     if (targetLanguage === 'Swahili') {
       utterance.lang = 'sw-TZ';
+    } else if (targetLanguage === 'French (African)') {
+      utterance.lang = 'fr-SN';
     } else if (targetLanguage && targetLanguage !== 'English (US)' && targetLanguage !== 'English (UK)' && targetLanguage !== 'Auto Detect') {
-      // For local Ugandan languages, use Swahili as closest regional TTS fallback or South African English for phonetic phonetic cadence
-      utterance.lang = africanVoice ? africanVoice.lang : 'en-ZA';
+      utterance.lang = preferredVoice ? preferredVoice.lang : 'en-ZA';
+    } else {
+      utterance.lang = preferredVoice ? preferredVoice.lang : 'en-ZA';
     }
     
     utterance.onend = () => {
@@ -981,8 +1232,8 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
     };
 
     setVoiceCallTranscript(prev => {
-      if (prev[prev.length - 1]?.text === text) return prev;
-      return [...prev, { role: 'assistant', text }];
+      if (prev[prev.length - 1]?.text === textClean) return prev;
+      return [...prev, { role: 'assistant', text: textClean }];
     });
 
     window.speechSynthesis.speak(utterance);
@@ -1572,6 +1823,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   const [intakeSpO2, setIntakeSpO2] = useState<number>(96);
 
   const [showNewChatDropdown, setShowNewChatDropdown] = useState<boolean>(false);
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState<boolean>(false);
   const [showExtraToolsDropdown, setShowExtraToolsDropdown] = useState<boolean>(false);
 
   const defaultPatients = [
@@ -1848,7 +2100,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
       if (msgs.length === 0) {
         setMessages([]);
       } else {
-        setMessages(msgs.map(m => ({
+        setMessages(msgs.map((m, mapIdx_2101) => ({
           id: m.id,
           role: m.role as 'user' | 'bot',
           text: m.text,
@@ -1881,7 +2133,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     const newTitle = window.prompt("Rename History Session Title:", currentTitle);
     if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
       const clean = newTitle.trim();
-      setSessions(prev => prev.map(s => s.id === id ? { ...s, title: clean } : s));
+      setSessions(prev => prev.map((s, mapIdx_2134) => s.id === id ? { ...s, title: clean } : s));
       try {
         await api.ai.updateSessionTitle(id, clean);
         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Session renamed to "${clean}"`]);
@@ -1925,7 +2177,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
         // 2. Fetch recent health records
         const records = await api.records.list();
         if (records.length > 0) {
-          const recent = records.slice(0, 3).map(r => `[${r.date}] ${r.type}: ${r.value}`).join('; ');
+          const recent = records.slice(0, 3).map((r, mapIdx_2178) => `[${r.date}] ${r.type}: ${r.value}`).join('; ');
           context += `\nHISTORICAL HEALTH LEDGER: ${recent}\n`;
         }
 
@@ -1935,7 +2187,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
           if (patientsRaw) {
             const patientsList = JSON.parse(patientsRaw);
             if (Array.isArray(patientsList) && patientsList.length > 0) {
-              context += `\nREGISTERED CLINICAL PATIENTS (PAGE DATA):\n` + patientsList.slice(0, 5).map(p => `- Patient ${p.name}, Age ${p.age}, Gender ${p.gender}, Bed: ${p.bedNumber || 'N/A'}, Conditions: ${p.conditions || 'None'}, Allergies: ${p.allergies || 'None'}`).join('\n') + `\n`;
+              context += `\nREGISTERED CLINICAL PATIENTS (PAGE DATA):\n` + patientsList.slice(0, 5).map((p, mapIdx_2188) => `- Patient ${p.name}, Age ${p.age}, Gender ${p.gender}, Bed: ${p.bedNumber || 'N/A'}, Conditions: ${p.conditions || 'None'}, Allergies: ${p.allergies || 'None'}`).join('\n') + `\n`;
             }
           }
         } catch (_) {}
@@ -1946,7 +2198,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
           if (medsRaw) {
             const medsList = JSON.parse(medsRaw);
             if (Array.isArray(medsList) && medsList.length > 0) {
-              context += `\nACTIVE MEDICATION SCHEDULES (PAGE DATA):\n` + medsList.slice(0, 5).map(m => `- Med ${m.name}: ${m.dosage} (${m.frequency}), Patient: ${m.patientName || 'Default'}`).join('\n') + `\n`;
+              context += `\nACTIVE MEDICATION SCHEDULES (PAGE DATA):\n` + medsList.slice(0, 5).map((m, mapIdx_2199) => `- Med ${m.name}: ${m.dosage} (${m.frequency}), Patient: ${m.patientName || 'Default'}`).join('\n') + `\n`;
             }
           }
         } catch (_) {}
@@ -1957,7 +2209,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
           if (tasksRaw) {
             const tasksList = JSON.parse(tasksRaw);
             if (Array.isArray(tasksList) && tasksList.length > 0) {
-              context += `\nACTIVE CLINICAL TASKS (PAGE DATA):\n` + tasksList.slice(0, 5).map(t => `- [${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.title || t.text} (Priority: ${t.priority || 'Normal'})`).join('\n') + `\n`;
+              context += `\nACTIVE CLINICAL TASKS (PAGE DATA):\n` + tasksList.slice(0, 5).map((t, mapIdx_2210) => `- [${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.title || t.text} (Priority: ${t.priority || 'Normal'})`).join('\n') + `\n`;
             }
           }
         } catch (_) {}
@@ -1968,7 +2220,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
           if (apptsRaw) {
             const apptsList = JSON.parse(apptsRaw);
             if (Array.isArray(apptsList) && apptsList.length > 0) {
-              context += `\nUPCOMING CLINICAL APPOINTMENTS (PAGE DATA):\n` + apptsList.slice(0, 5).map(a => `- ${a.patientName || 'Patient'}: ${a.date} at ${a.time} with Dr. ${a.doctorName || 'Staff'} (Reason: ${a.reason || 'Checkup'})`).join('\n') + `\n`;
+              context += `\nUPCOMING CLINICAL APPOINTMENTS (PAGE DATA):\n` + apptsList.slice(0, 5).map((a, mapIdx_2221) => `- ${a.patientName || 'Patient'}: ${a.date} at ${a.time} with Dr. ${a.doctorName || 'Staff'} (Reason: ${a.reason || 'Checkup'})`).join('\n') + `\n`;
             }
           }
         } catch (_) {}
@@ -2375,7 +2627,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   };
 
   const downloadReport = () => {
-    const reportText = messages.map(m => `[${m.timestamp.toISOString()}] ${m.role.toUpperCase()}:\n${m.text}\n`).join('\n---\n\n');
+    const reportText = messages.map((m, mapIdx_2628) => `[${m.timestamp.toISOString()}] ${m.role.toUpperCase()}:\n${m.text}\n`).join('\n---\n\n');
     const blob = new Blob([`DOCTORIAN CLINICAL REPORT\nSession ID: ${sessionInfo.id}\nGenerated: ${new Date().toLocaleString()}\nPersona: ${PERSONAS[activePersona].name}\n\n${reportText}`], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2596,7 +2848,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
 
   const injectCaseIntakeIntoChat = () => {
     const intakeResult = getComputedIntakeSOP();
-    const alertsStr = intakeResult.alerts.map(a => `⚠️ ${a}`).join('\n');
+    const alertsStr = intakeResult.alerts.map((a, mapIdx_2849) => `⚠️ ${a}`).join('\n');
     const text = `📋 **Doctorian Unified Clinical Intake Case Report (EMR Draft)**
 - **Geographic Node**: region of ${intakeDistrict || 'Unspecified'}, Uganda 🇺🇬
 
@@ -2630,7 +2882,7 @@ ${intakeResult.action}
 
   const injectLabIntoChat = () => {
     const lab = getComputedLabInterpretation();
-    const findingsStr = lab.findings.map(f => `• ${f}`).join('\n');
+    const findingsStr = lab.findings.map((f, mapIdx_2883) => `• ${f}`).join('\n');
     const text = `📊 **Doctorian Lab Diagnostic Interpretation Report**
 - **Hemoglobin (Hb)**: ${labHb} g/dL
 - **White Blood Cell (WBC)**: ${labWBC} x10^9/L
@@ -2724,7 +2976,7 @@ ${lab.action}
 
   const injectObstetricIntoChat = () => {
     const obs = getComputedObstetricRisk();
-    const flagsStr = obs.dangerFlags.map(f => `• ${f}`).join('\n');
+    const flagsStr = obs.dangerFlags.map((f, mapIdx_2977) => `• ${f}`).join('\n');
     const text = `🤰 **Doctorian Antenatal & Obstetric Assessment Report**
 - **Gestational Age**: ${gestationalWeeks} Weeks
 - **Blood Pressure Reading**: ${systolicBP}/${diastolicBP} mmHg
@@ -2875,7 +3127,7 @@ ${f.prescription}
 
     const text = defaultGreetings[activePersona] || "Hello! How can I assist you with your clinical queries today?";
     const botMessagePlaceholder: Message = {
-      id: (Date.now() + 1).toString(),
+      id: `bot-greet-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       role: 'bot',
       text: text,
       timestamp: new Date(),
@@ -2899,10 +3151,10 @@ ${f.prescription}
     }
 
     const filesToAttach = [...attachedFiles];
-    const images = filesToAttach.filter(f => f.isImage).map(f => f.content);
+    const images = filesToAttach.filter(f => f.isImage).map((f, mapIdx_3152) => f.content);
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       role: 'user',
       text: textToSend,
       timestamp: new Date(),
@@ -2914,7 +3166,7 @@ ${f.prescription}
     if (currentSessionId) {
       api.ai.saveMessage(currentSessionId, 'user', textToSend).then((res: any) => {
         if (res?.updatedTitle) {
-          setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: res.updatedTitle } : s));
+          setSessions(prev => prev.map((s, mapIdx_3167) => s.id === currentSessionId ? { ...s, title: res.updatedTitle } : s));
         }
       }).catch(console.error);
 
@@ -2928,7 +3180,7 @@ ${f.prescription}
           currentSess.title.includes("New Consult Diagnostic");
         if (isDefault || messages.length === 0) {
           const autoTitle = generateProfessionalTitle(textToSend);
-          setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: autoTitle } : s));
+          setSessions(prev => prev.map((s, mapIdx_3181) => s.id === currentSessionId ? { ...s, title: autoTitle } : s));
           api.ai.updateSessionTitle(currentSessionId, autoTitle).catch(console.error);
         }
       }
@@ -2940,14 +3192,14 @@ ${f.prescription}
     setIsLoading(true);
     onMessageSent?.();
 
-    const botMessageId = (Date.now() + 1).toString();
+    const botMessageId = `bot-reply-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const promptLower = textToSend.toLowerCase();
-    let probableEngine = "DOCTORIAN 2.5 NEXUS";
+    let probableEngine = "Doctorian Triage AI";
     if (images.length > 0) probableEngine = "DOCTORIAN 5.0 OPUS (Vision Core)";
-    else if (promptLower.includes('fast') || promptLower.includes('instant')) probableEngine = "DOCTORIAN 1.5 ORACLE (Fastest Model)";
-    else if (promptLower.includes('analyze') || promptLower.includes('data')) probableEngine = "DOCTORIAN 4.0 NOVA EXPERTS (Analytics)";
-    else if (promptLower.includes('reason') || promptLower.includes('think')) probableEngine = "DOCTORIAN 5.0 OPUS EXPERTS (Quantum)";
-    else if (!isMedicalQuery(promptLower)) probableEngine = "DOCTORIAN 1.5 ORACLE";
+    else if (promptLower.includes('fast') || promptLower.includes('instant')) probableEngine = "Doctorian General AI (Speed Core)";
+    else if (promptLower.includes('analyze') || promptLower.includes('data')) probableEngine = "Doctorian Uganda AI (Analytics)";
+    else if (promptLower.includes('reason') || promptLower.includes('think')) probableEngine = "Doctorian Research AI (Quantum)";
+    else if (!isMedicalQuery(promptLower)) probableEngine = "Doctorian General AI";
     setTerminalLogs(prev => [...prev.slice(-3), `AI: Using ${probableEngine} Engine...`]);
 
     const botMessagePlaceholder: Message = {
@@ -2969,10 +3221,10 @@ ${f.prescription}
       
       const personaInstruction = PERSONAS[activePersona].instruction;
       const nonImageFiles = filesToAttach.filter(f => !f.isImage);
-      const images = filesToAttach.filter(f => f.isImage).map(f => f.content);
+      const images = filesToAttach.filter(f => f.isImage).map((f, mapIdx_3222) => f.content);
 
       const fileContext = nonImageFiles.length > 0 
-        ? `\n\nATTACHED MEDICAL DOCUMENTS:\n${nonImageFiles.map(f => `FILE: ${f.name}\nCONTENT: ${f.content}`).join('\n---\n')}` 
+        ? `\n\nATTACHED MEDICAL DOCUMENTS:\n${nonImageFiles.map((f, mapIdx_3225) => `FILE: ${f.name}\nCONTENT: ${f.content}`).join('\n---\n')}` 
         : '';
       
       let autoMatchedPatientContext = "";
@@ -3005,7 +3257,7 @@ Please fulfill the user's request (e.g. summarize history, draft a medical repor
         if (savedMemories) {
           const memoriesList = JSON.parse(savedMemories);
           if (Array.isArray(memoriesList) && memoriesList.length > 0) {
-            brainMemoriesContext = `\n\n[PERSISTED NEURAL BRAIN MEMORIES (LEARNED FACTS)]:\n` + memoriesList.map(m => `- ${m}`).join('\n') + `\nUse these learned facts to guide your clinical co-pilot reasoning. Be highly specific when answering if any of these facts relate to the question.`;
+            brainMemoriesContext = `\n\n[PERSISTED NEURAL BRAIN MEMORIES (LEARNED FACTS)]:\n` + memoriesList.map((m, mapIdx_3258) => `- ${m}`).join('\n') + `\nUse these learned facts to guide your clinical co-pilot reasoning. Be highly specific when answering if any of these facts relate to the question.`;
           }
         }
       } catch (_) {}
@@ -3051,7 +3303,7 @@ ${healthContext}${autoMatchedPatientContext}${brainMemoriesContext}
 
 MATCHED CLINICAL PROTOCOL & LINGUISTIC TRANSLATION DATA FROM THE NEURAL TRAINING HUB:
 ${matchedNodes.length > 0 
-  ? matchedNodes.map(n => `### Node [${n.title}] (Category: ${n.category}):\n${n.content}`).join('\n\n')
+  ? matchedNodes.map((n, mapIdx_3304) => `### Node [${n.title}] (Category: ${n.category}):\n${n.content}`).join('\n\n')
   : 'No direct local node registry match. Proceeding with standard base weight parameters.'
 }
 
@@ -3065,7 +3317,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
    "*Self-Correction Logs: Response generated fully client-side using localized tfjs matrices, adhering strictly to air-gapped guidelines with absolute zero network telemetry.*"`;
 
         const stream = api.ai.aiChatStream(
-          [...messages, userMessage].map(m => ({
+          [...messages, userMessage].map((m, mapIdx_3318) => ({
             role: m.role,
             text: m.text
           })),
@@ -3080,12 +3332,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               }
             }
             if (meta.grounding) {
-              setMessages(prev => prev.map(m => 
+              setMessages(prev => prev.map((m, mapIdx_3333) => 
                 m.id === botMessageId ? { ...m, grounding: meta.grounding } : m
               ));
             }
             if (meta.thought) {
-              setMessages(prev => prev.map(m => 
+              setMessages(prev => prev.map((m, mapIdx_3338) => 
                 m.id === botMessageId ? { ...m, thought: (m.thought || '') + meta.thought } : m
               ));
             }
@@ -3101,7 +3353,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
         for await (const chunk of stream) {
           if (isThinking) setIsThinking(false);
           fullResponseText += chunk;
-          setMessages(prev => prev.map(m => 
+          setMessages(prev => prev.map((m, mapIdx_3354) => 
             m.id === botMessageId ? { ...m, text: fullResponseText } : m
           ));
         }
@@ -3154,11 +3406,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       } else if (clinicalEngine === 'medlm-large') {
         engineSystemInstruction += `\n\n[DOCTORIAN 5.0 OPUS QUANTUM BRAIN ACTIVE]:\n- You are operating under Doctorian 5.0 OPUS deep-reasoning advanced clinical diagnostic architecture.\n- Maintain absolute clinical precision, organize diagnostic steps clearly, and ground all statements in verified clinical data.`;
       } else if (clinicalEngine === 'huggingface') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 2.5 NEXUS CLINICAL BRAIN ACTIVE]:\n- You are operating live on the high-performance Doctorian 2.5 NEXUS clinical core.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
+        engineSystemInstruction += `\n\n[Doctorian Triage AI CLINICAL BRAIN ACTIVE]:\n- You are operating live on the high-performance Doctorian 2.5 NEXUS clinical core.\n- Formulate your response with deep clinical authority and state-of-the-art precision.`;
       } else if (clinicalEngine === 'gemma-cloud') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 2.0 ORACLE CLOUD CORE ACTIVE]:\n- You are operating on the fast Doctorian 2.0 ORACLE cloud synapse.\n- Provide highly detailed, authoritative medical feedback.`;
+        engineSystemInstruction += `\n\n[Doctorian Clinical AI CLOUD CORE ACTIVE]:\n- You are operating on the fast Doctorian 2.0 ORACLE cloud synapse.\n- Provide highly detailed, authoritative medical feedback.`;
       } else if (clinicalEngine === 'llama-clinical') {
-        engineSystemInstruction += `\n\n[DOCTORIAN 3.0 NEXUS PRO CORE ACTIVE]:\n- You are operating on the robust Doctorian 3.0 NEXUS clinical guide engine.\n- Provide highly detailed, authoritative medical feedback.`;
+        engineSystemInstruction += `\n\n[Doctorian Patient Education AI PRO CORE ACTIVE]:\n- You are operating on the robust Doctorian 3.0 NEXUS clinical guide engine.\n- Provide highly detailed, authoritative medical feedback.`;
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
@@ -3172,7 +3424,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               : 'gemma3:1b')));
 
       const stream = api.ai.aiChatStream(
-        [...messages, userMessage].map(m => ({
+        [...messages, userMessage].map((m, mapIdx_3425) => ({
           role: m.role,
           text: m.text
         })),
@@ -3187,12 +3439,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             }
           }
           if (meta.grounding) {
-            setMessages(prev => prev.map(m => 
+            setMessages(prev => prev.map((m, mapIdx_3440) => 
               m.id === botMessageId ? { ...m, grounding: meta.grounding } : m
             ));
           }
           if (meta.thought) {
-            setMessages(prev => prev.map(m => 
+            setMessages(prev => prev.map((m, mapIdx_3445) => 
               m.id === botMessageId ? { ...m, thought: (m.thought || '') + meta.thought } : m
             ));
           }
@@ -3208,7 +3460,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       for await (const chunk of stream) {
         if (isThinking) setIsThinking(false);
         fullResponseText += chunk;
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map((m, mapIdx_3461) => 
           m.id === botMessageId ? { ...m, text: fullResponseText } : m
         ));
       }
@@ -3263,7 +3515,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       if (error.message?.includes('429')) errorMsg = "High-availability mode triggered. Switching to localized clinical weights...";
 
       setMessages(prev => {
-        return prev.map(m => 
+        return prev.map((m, mapIdx_3516) => 
           m.id === botMessageId ? { ...m, text: (m.text || "") + `\n\n--- \n**System Notice:** ${errorMsg}`, isError: true } : m
         );
       });
@@ -3475,86 +3727,108 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       <div className="flex-1 flex min-h-0 min-w-0 relative overflow-hidden">
         {/* Main Chat Core */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-white dark:bg-slate-950 relative">
-          <header className="h-16 lg:h-15 px-2 xs:px-3 md:px-4 lg:px-6 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl shrink-0 relative">
+          <header className="px-3 sm:px-6 py-2.5 sm:py-3 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl shrink-0 relative gap-2">
             {/* Top border ambient synapse line */}
-            <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 opacity-90" />
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-400 opacity-90" />
+            
+            {/* Left Group: Nav buttons, session history badge, Branding, Doctor Selector */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 min-w-0">
               {onNavigate && (
                 <button
                   onClick={() => onNavigate('home')}
-                  className="lg:hidden p-1.5 xs:p-2 mr-1 text-slate-500 hover:text-blue-600 transition-colors shrink-0 flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-[9px] font-[1000] uppercase tracking-wider px-2 py-1.5"
+                  className="p-1.5 xs:p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 hover:shadow-xs cursor-pointer shrink-0"
                   title="Exit Chat to Dashboard"
                 >
-                  <ArrowLeft size={13} className="stroke-[3]" />
-                  <span className="text-[9px]">Exit</span>
+                  <ArrowLeft size={14} className="stroke-[3]" />
+                  <span className="hidden sm:inline">Exit</span>
                 </button>
               )}
+
               <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-1.5 xs:p-2 -ml-1 text-slate-500 hover:text-blue-600 transition-colors shrink-0"
+                className="p-1.5 xs:p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 hover:shadow-xs cursor-pointer shrink-0"
                 title="Neural Session History"
               >
-                <History size={18} className="sm:w-[20px] sm:h-[20px]" />
+                <History size={15} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                <span className="hidden md:inline">Sessions</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-blue-600 text-white shadow-xs">
+                  {sessions.length}
+                </span>
               </button>
-              <Sparkles size={14} className="text-blue-600 animate-pulse shrink-0 sm:w-[16px] sm:h-[16px]" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hidden xl:inline">Doctorian AI</span>
-              
-              {/* Active System Pulse Status */}
-              <div className="hidden md:flex items-center gap-1.5 lg:gap-3 ml-2 lg:ml-4">
-                {isForcedOffline ? (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-full animate-pulse">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                      Standalone Local AI Air-Gap
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-full">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hidden lg:inline">
-                      Synapse Core Secure
-                    </span>
-                  </div>
-                )}
-                <button 
-                  onClick={() => {
-                    handleToggleUgandaMOH();
-                    triggerFeatureTip('moh_protocols', `MOH Protocols: ${!isUgandaMOHActive ? 'Synced' : 'Offline'}`);
-                  }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-full transition-all text-[8.5px] font-[1000] uppercase tracking-widest cursor-pointer ${
-                    isUgandaMOHActive 
-                      ? 'bg-blue-600 text-white border-blue-500 shadow-sm' 
-                      : 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30 hover:border-blue-500'
-                  }`}
-                  title="MOH Uganda Care Guidance Protocols"
+
+              <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+                <Sparkles size={15} className="text-blue-600 animate-pulse shrink-0" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Doctorian AI</span>
+              </div>
+
+              {/* Doctor / Specialist Selector Dropdown in Upper Bar */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowDoctorDropdown(!showDoctorDropdown)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 transition-all text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-xs"
+                  title="Select AI Specialist Doctor"
                 >
-                  <BookOpen size={13} className={isUgandaMOHActive ? 'animate-pulse text-white' : 'text-blue-600 dark:text-blue-450'} />
-                  <AnimatePresence>
-                    {activeFeatureTip?.id === 'moh_protocols' && (
-                      <motion.span
-                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                      >
-                        {activeFeatureTip.text}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  <div className="relative w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-emerald-500">
+                    <img
+                      src={AI_PROFESSIONAL_AVATARS[voiceSelection]?.image}
+                      alt={voiceSelection}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <span className="text-blue-600 dark:text-blue-400 font-extrabold max-w-[80px] sm:max-w-none truncate">
+                    {AI_PROFESSIONAL_AVATARS[voiceSelection]?.name || voiceSelection}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse hidden xs:inline-block" />
+                  <ChevronDown size={12} className={`text-slate-400 transition-transform ${showDoctorDropdown ? 'rotate-180' : ''}`} />
                 </button>
+
+                <AnimatePresence>
+                  {showDoctorDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowDoctorDropdown(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-2 space-y-1"
+                      >
+                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select AI Specialist</span>
+                          <span className="text-[8px] font-mono text-emerald-500 font-bold uppercase tracking-tight">Active Consultation</span>
+                        </div>
+                        {Object.entries(AI_PROFESSIONAL_AVATARS).map(([key, prof]) => (
+                          <button
+                            key={`doc-select-${key}`}
+                            onClick={() => {
+                              setVoiceSelection(key as any);
+                              setShowDoctorDropdown(false);
+                              setTerminalLogs(l => [...l, `SYS: Switched AI Doctor to ${prof.name}`]);
+                            }}
+                            className={`w-full flex items-center gap-2.5 p-2 rounded-xl transition-all text-left ${
+                              voiceSelection === key
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                            }`}
+                          >
+                            <img src={prof.image} alt={prof.name} className="w-8 h-8 rounded-xl object-cover shrink-0 ring-1 ring-slate-200/50" referrerPolicy="no-referrer" />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-[11px] font-black leading-tight ${voiceSelection === key ? 'text-white' : 'text-slate-900 dark:text-white'}`}>{prof.name}</p>
+                              <p className={`text-[8.5px] font-bold truncate mt-0.5 ${voiceSelection === key ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'}`}>{prof.specialty}</p>
+                            </div>
+                            {voiceSelection === key && <Check size={14} className="text-white shrink-0" />}
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
-              <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-[65vw] md:max-w-[75vw] lg:max-w-none shrink-0 py-1.5 whitespace-nowrap flex-nowrap scroll-smooth">
-              {/* Active Fine-Tuned Weights Indicator Badge */}
-              {activeFineTunedModel && (
-                <div className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-500 text-[9px] font-black uppercase tracking-wider shrink-0">
-                  <Cpu size={11} className="animate-pulse text-blue-400" />
-                  <span>FT: {activeFineTunedModel.customName}</span>
-                </div>
-              )}
-
+            {/* Right Group: Action Controls (+ New Chat, Voice & Video Call, Tools Hub, MOH) */}
+            <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar py-0.5">
               {/* Modernized Add Chat button with instant start template dropdown */}
               <div className="relative shrink-0">
                 <button 
@@ -3562,24 +3836,16 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     setShowNewChatDropdown(!showNewChatDropdown);
                     triggerFeatureTip('new_session', 'New Session');
                   }} 
-                  className={`px-1.5 sm:px-3 py-1 sm:py-1.5 transition-all flex items-center gap-1 sm:gap-1.5 rounded-full border text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 ${showNewChatDropdown ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-blue-50/50 dark:bg-slate-900 border-blue-100 dark:border-slate-800 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'}`}
-                  title="Smarter Pulse Node Spawn"
+                  className={`px-2.5 sm:px-3 py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 shadow-xs ${
+                    showNewChatDropdown 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-blue-600 hover:bg-blue-700 border-blue-600 text-white'
+                  }`}
+                  title="Start New Clinical Session"
                 >
-                  <PlusCircle size={12} className={showNewChatDropdown ? '' : 'animate-pulse'} />
-                  <AnimatePresence>
-                    {activeFeatureTip?.id === 'new_session' && (
-                      <motion.span
-                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                      >
-                        {activeFeatureTip.text}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                  <ChevronDown size={11} className={`hidden sm:inline-block transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
+                  <PlusCircle size={13} />
+                  <span className="hidden xs:inline">New Chat</span>
+                  <ChevronDown size={11} className={`transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
                 <AnimatePresence>
@@ -3696,58 +3962,58 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                 </AnimatePresence>
               </div>
 
-              {/* Voice Consultation Gateway Button */}
+              {/* Voice & Video Consultation Gateway Button */}
               <button 
                 onClick={() => {
                   setShowVoiceCallModal(true);
-                  setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Loaded Doctorian Voice and Calling Portal.']);
-                  triggerFeatureTip('voice_call', 'Voice Call');
+                  setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Loaded Doctorian Voice and Video Call Portal.']);
+                  triggerFeatureTip('voice_call', 'Voice & Video Call');
                 }} 
-                className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1.5 rounded-full border border-emerald-500/20 cursor-pointer text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider shrink-0"
-                title="Doctorian Voice consultation & Calling Portal"
+                className="px-2.5 py-1.5 bg-gradient-to-r from-emerald-500/15 to-blue-500/15 hover:from-emerald-500/25 hover:to-blue-500/25 text-emerald-700 dark:text-emerald-300 transition-all flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 cursor-pointer text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0 shadow-xs"
+                title="Doctorian Voice & HD Video Consultation Suite"
               >
-                <Phone size={12} className="animate-pulse" />
-                <span>{t('Voice Call')}</span>
-                <AnimatePresence>
-                  {activeFeatureTip?.id === 'voice_call' && (
-                    <motion.span
-                      initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      animate={{ width: 'auto', opacity: 1, marginLeft: 6 }}
-                      exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="hidden sm:inline-block font-black uppercase overflow-hidden whitespace-nowrap text-[9px] text-inherit"
-                    >
-                      {activeFeatureTip.text}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                <Phone size={13} className="text-emerald-500 animate-pulse" />
+                <Video size={13} className="text-blue-500 hidden sm:inline" />
+                <span className="hidden sm:inline">Voice & Video</span>
+                <span className="sm:hidden">Call</span>
               </button>
 
               {/* Friendly Unified Clinical Tools Hub Button */}
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => {
-                    setShowToolHub(!showToolHub);
-                    triggerFeatureTip('tools_hub', showToolHub ? 'Clinical Tools Closed' : 'Clinical Tools Open');
-                  }}
-                  className={`px-3 py-1.5 transition-all flex items-center gap-2 rounded-full border text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 ${
-                    showToolHub 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                      : 'bg-blue-50/50 dark:bg-slate-900 border-blue-100 dark:border-slate-800 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'
-                  }`}
-                  title="Clinical Utilities Hub"
-                >
-                  <div className="flex items-center gap-1 shrink-0 bg-slate-100 dark:bg-slate-850 px-1.5 py-0.5 rounded-full border border-blue-500/10">
-                    <BrainCircuit size={10} className={showToolHub ? 'text-blue-600' : 'text-blue-500 animate-pulse'} />
-                    <Stethoscope size={10} className="text-rose-500" />
-                    <Dna size={10} className="text-teal-500" />
-                  </div>
-                  <span>Tools Hub</span>
-                  <ChevronDown size={11} className={`transform transition-transform ${showToolHub ? 'rotate-180' : ''}`} />
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setShowToolHub(!showToolHub);
+                  triggerFeatureTip('tools_hub', showToolHub ? 'Clinical Tools Closed' : 'Clinical Tools Open');
+                }}
+                className={`px-2.5 sm:px-3 py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 shadow-xs ${
+                  showToolHub 
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-500'
+                }`}
+                title="Clinical Utilities Hub"
+              >
+                <BrainCircuit size={13} className="text-purple-500" />
+                <span className="hidden md:inline">Tools Hub</span>
+                <ChevronDown size={11} className={`transform transition-transform ${showToolHub ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* MOH Uganda Guidelines Toggle */}
+              <button 
+                onClick={() => {
+                  handleToggleUgandaMOH();
+                  triggerFeatureTip('moh_protocols', `MOH Protocols: ${!isUgandaMOHActive ? 'Synced' : 'Offline'}`);
+                }}
+                className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all text-[9px] font-black uppercase tracking-wider cursor-pointer shadow-xs ${
+                  isUgandaMOHActive 
+                    ? 'bg-emerald-600 text-white border-emerald-500' 
+                    : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500'
+                }`}
+                title="MOH Uganda Care Guidance Protocols"
+              >
+                <BookOpen size={13} className={isUgandaMOHActive ? 'animate-pulse text-white' : 'text-emerald-600 dark:text-emerald-400'} />
+                <span>MOH Guidelines</span>
+              </button>
             </div>
-        </header>
+          </header>
 
         {/* Navigation Tabs - Chat, My Health Log, Resources */}
         <div className="bg-slate-50/50 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800/50 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
@@ -3756,12 +4022,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               { id: 'chat' as const, label: t('Doctorian Chat'), icon: <MessageSquare size={14} />, desc: t('Core Clinical Assistant') },
               { id: 'health_log' as const, label: t('My Health Log'), icon: <History size={14} />, desc: t('Offline Parameters') },
               { id: 'resources' as const, label: t('Resources'), icon: <FileText size={14} />, desc: t('Clinical Protocols') }
-            ].map(tab => {
+            ].map((tab, mapIdx_4012) => {
               const isActive = activeMainTab === tab.id;
               return (
                 <button
                   type="button"
-                  key={tab.id}
+                  key={`chatinterface-l4018-${mapIdx_4012}`}
                   onClick={() => {
                     setActiveMainTab(tab.id);
                     setTerminalLogs(prev => [...prev.slice(-3), `SYS: Navigated to [${tab.label}]`]);
@@ -3847,65 +4113,65 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
-                          title: 'DOCTORIAN 1.5 ORACLE (Fastest Model)', 
-                          desc: 'Ultra-Fast Local Edge Engine', 
-                          license: 'Always Free Local (Active)', 
-                          payment: 'No External API Keys Required', 
-                          features: ['Instant zero-latency responses', 'Hardware accelerated in-browser', 'Runs 100% offline with zero cost'],
+                          title: 'Doctorian General', 
+                          desc: 'General Health & Everyday Wellness', 
+                          license: 'General Health Mode', 
+                          payment: 'Zero-Latency Logic', 
+                          features: ['General health questions & symptoms', 'Dietary & wellness guidance', 'Instant offline support'],
                           color: 'from-amber-600 to-orange-600'
                         },
                         { 
                           id: 'gemma-cloud' as const, 
-                          title: 'DOCTORIAN 2.0 ORACLE (Speed Cloud)', 
-                          desc: 'Rapid Serverless Intelligence', 
-                          license: 'Always Free Cloud (Active)', 
-                          payment: 'No External Keys Required', 
-                          features: ['High speed server-side logic', 'Advanced medical reasoning', 'Full multimodal translation mapping'],
+                          title: 'Doctorian Clinical', 
+                          desc: 'Differential Clinical Reasoning', 
+                          license: 'Clinical Decision Support', 
+                          payment: 'Cloud Intelligence', 
+                          features: ['Differential diagnostic pathways', 'Multimodal lab report analysis', 'Structured clinical breakdown'],
                           color: 'from-blue-600 to-indigo-600'
                         },
                         { 
                           id: 'huggingface' as const, 
-                          title: 'DOCTORIAN 2.5 NEXUS (Clinical Core)', 
-                          desc: 'Multi-lingual Neural Synapse', 
-                          license: 'Standard Access (Active)', 
-                          payment: 'Zero Host Compute Consumption', 
-                          features: ['Realistic clinical processing', 'Stable serverless API connection', 'Multi-lingual diagnostic output'],
-                          color: 'from-cyan-600 to-blue-600'
+                          title: 'Doctorian Triage', 
+                          desc: 'Emergency Triage & Urgency Scoring', 
+                          license: 'Emergency & Triage Mode', 
+                          payment: 'High-Priority Relay', 
+                          features: ['NEWS2 score assessment guidance', 'Red-flag symptom detection', 'Urgent referral pathway alerts'],
+                          color: 'from-rose-600 to-red-600'
                         },
                         { 
                           id: 'llama-clinical' as const, 
-                          title: 'DOCTORIAN 3.0 NEXUS (Pro Core)', 
-                          desc: 'Licensed Clinical Guidelines', 
-                          license: 'Licensed Access (Active)', 
-                          payment: 'Auto-Recharge Active', 
-                          features: ['Highly compliant baseline guidelines', 'Fast diagnostic protocols', 'Offline clinical logic active'],
-                          color: 'from-slate-500 to-slate-600'
+                          title: 'Doctorian Health Education', 
+                          desc: 'Patient Education & Guidance', 
+                          license: 'Patient Education Mode', 
+                          payment: 'Jargon-Free Explanations', 
+                          features: ['Patient-friendly medical explanations', 'Condition & treatment guidance', 'Clear care instructions'],
+                          color: 'from-emerald-600 to-teal-600'
                         },
                         { 
                           id: 'medlm-medium' as const, 
-                          title: 'DOCTORIAN 4.0 NOVA EXPERTS (Expert Brain)', 
-                          desc: 'Specialized Diagnostic Co-Pilot', 
-                          license: 'Clinical Co-Pilot Licensed (Active)', 
-                          payment: 'Auto-Recharge Active', 
-                          features: ['Deep clinical fine-tune path', 'OCR lab report analysis', 'PDF referral notes printing'],
-                          color: 'from-indigo-600 to-blue-700'
+                          title: 'Doctorian Uganda (MoH Guidelines)', 
+                          desc: 'Uganda Ministry of Health & WHO Standards', 
+                          license: 'Uganda MoH Knowledge Base', 
+                          payment: 'National Clinical Protocols', 
+                          features: ['Uganda MoH 2023/2026 guidelines', 'Endemic diseases (Malaria RDT, Typhoid, TB, Cholera)', 'HSSP II & regional referral centers'],
+                          color: 'from-yellow-600 to-amber-700'
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Core)', 
-                          desc: 'Deep-Reasoning Quantum Engine', 
-                          license: 'Deep Reasoning Core Licensed (Active)', 
-                          payment: 'Auto-Recharge Active', 
-                          features: ['Dynamic Chain-of-Thought diagnostics', 'Real-time search grounding', 'Multi-physician case paneling'],
+                          title: 'Doctorian Research', 
+                          desc: 'Evidence-Based Clinical Literature', 
+                          license: 'Clinical Evidence Mode', 
+                          payment: 'Literature RAG Engine', 
+                          features: ['Evidence-based PubMed / WHO citations', 'Clinical trial protocol summaries', 'Peer-reviewed evidence synthesis'],
                           color: 'from-violet-600 to-purple-600'
                         }
-                      ].map(core => {
+                      ].map((core, mapIdx_4155) => {
                         const { hasAccess, tierName } = checkModelAccess(core.id);
                         const isCurrentActive = clinicalEngine === core.id;
                         
                         return (
                           <div 
-                            key={core.id}
+                            key={`chatinterface-l4162-${mapIdx_4155}`}
                             onClick={() => selectClinicalModel(core.id)}
                             className={`group rounded-3xl p-5 border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden h-full ${
                               isCurrentActive 
@@ -3947,7 +4213,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                               
                               <ul className="space-y-1.5 mb-6 text-left font-sans">
                                 {core.features.map((feat, idx) => (
-                                  <li key={idx} className="flex items-start gap-1.5 text-[9.5px] font-semibold text-slate-500 dark:text-slate-400">
+                                  <li key={`chatinterface-l4164-idx-${idx}`} className="flex items-start gap-1.5 text-[9.5px] font-semibold text-slate-500 dark:text-slate-400">
                                     <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
                                     <span>{feat}</span>
                                   </li>
@@ -4003,7 +4269,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       { icon: <MessageSquare size={18}/>, label: "Specialist relay", text: "Connect me with a cardiologist." }
                   ].map((q, i) => (
                       <button 
-                          key={i}
+                          key={`chatinterface-l4220-i-${i}`}
                           onClick={() => handleSend(q.text)}
                           className="group p-5 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 rounded-3xl text-left hover:border-blue-500/30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
                       >
@@ -4038,7 +4304,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           <div className={`flex flex-wrap gap-2 mb-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.images.map((img, idx) => (
                               <img 
-                                key={idx}
+                                key={`chatinterface-l4255-idx-${idx}`}
                                 src={img} 
                                 alt={`Clinical context ${idx + 1}`}
                                 className="w-24 h-24 sm:w-40 sm:h-40 object-cover rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:scale-105 transition-transform" 
@@ -4050,21 +4316,28 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         
                         <motion.div 
                           initial={false}
-                          className={`text-sm sm:text-base leading-relaxed relative border transition-all ${
+                          className={`text-sm sm:text-base leading-relaxed relative transition-all ${
                           msg.role === 'user' 
-                            ? `${isWidescreen ? 'px-6 py-5 sm:px-8 sm:py-6 rounded-[2.5rem]' : 'px-5 py-4 sm:px-6 sm:py-5 rounded-[2rem]'} bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 dark:from-white dark:via-slate-50 dark:to-slate-100 text-white dark:text-slate-900 border-transparent rounded-tr-none shadow-xl shadow-slate-950/10` 
-                            : `${isWidescreen ? 'px-6 py-5 sm:px-8 sm:py-6 rounded-[2.5rem]' : 'px-5 py-4 sm:px-6 sm:py-5 rounded-[2rem]'} bg-slate-50/70 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 border-slate-100/60 dark:border-slate-800/40 rounded-tl-none shadow-sm w-full`
+                            ? `px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl rounded-tr-xs bg-slate-100/80 dark:bg-slate-800/60 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 shadow-xs` 
+                            : `w-full bg-transparent border-0 p-0 shadow-none text-slate-800 dark:text-slate-100`
                           }`}
                         >
                            {msg.role === 'bot' && (
-                             <div className="flex items-center gap-1.5 mb-3 border-b border-slate-100/30 dark:border-slate-800/20 pb-2.5">
-                               <span className="text-[10px] font-[1000] text-blue-600 dark:text-blue-400 uppercase tracking-widest">Doctorian Intelligence</span>
-                               <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                               <span className="text-[10px] font-black uppercase text-slate-400">{PERSONAS[activePersona].name}</span>
+                             <div className="flex flex-wrap items-center gap-2 mb-3 pb-1">
+                               <div className="p-1 rounded-lg bg-gradient-to-tr from-blue-600 via-indigo-500 to-teal-400 text-white shadow-sm flex items-center justify-center">
+                                 <Sparkles size={14} className="animate-pulse" />
+                               </div>
+                               <span className="text-xs font-black uppercase tracking-widest bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 dark:from-blue-400 dark:via-indigo-400 dark:to-teal-400 bg-clip-text text-transparent">
+                                 Doctorian Intelligence
+                               </span>
+                               <span className="text-slate-300 dark:text-slate-700 font-bold">•</span>
+                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                                 {PERSONAS[activePersona].name}
+                               </span>
                              </div>
                            )}
 
-                            <div className={`prose ${isWidescreen ? 'prose-sm md:prose-base leading-relaxed' : 'prose-sm'} dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-white dark:text-slate-900 font-extrabold text-sm sm:text-base' : ''}`}>
+                            <div className={`prose ${isWidescreen ? 'prose-sm md:prose-base leading-relaxed' : 'prose-sm'} dark:prose-invert max-w-none ${msg.role === 'user' ? 'text-slate-900 dark:text-slate-100 font-semibold text-sm sm:text-base' : ''}`}>
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
@@ -4078,16 +4351,16 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                                     <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mt-3 mb-1.5" {...props} />
                                   ),
                                   p: ({node, ...props}) => (
-                                    <p className={msg.role === 'user' ? "mb-3.5 leading-relaxed text-white dark:text-slate-950 text-sm sm:text-base font-extrabold" : "mb-3.5 leading-relaxed text-slate-700 dark:text-slate-300 text-xs sm:text-sm"} {...props} />
+                                    <p className={msg.role === 'user' ? "mb-1 leading-relaxed text-slate-900 dark:text-slate-100 text-sm sm:text-base font-medium" : "mb-3.5 leading-relaxed text-slate-700 dark:text-slate-300 text-xs sm:text-sm"} {...props} />
                                   ),
                                   ul: ({node, ...props}) => (
-                                    <ul className={msg.role === 'user' ? "list-disc pl-5 mb-3.5 space-y-1 text-sm sm:text-base text-white dark:text-slate-950 font-extrabold" : "list-disc pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300"} {...props} />
+                                    <ul className={msg.role === 'user' ? "list-disc pl-5 mb-1 space-y-1 text-sm sm:text-base text-slate-900 dark:text-slate-100 font-medium" : "list-disc pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300"} {...props} />
                                   ),
                                   ol: ({node, ...props}) => (
-                                    <ol className={msg.role === 'user' ? "list-decimal pl-5 mb-3.5 space-y-1 text-sm sm:text-base text-white dark:text-slate-950 font-extrabold" : "list-decimal pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300"} {...props} />
+                                    <ol className={msg.role === 'user' ? "list-decimal pl-5 mb-1 space-y-1 text-sm sm:text-base text-slate-900 dark:text-slate-100 font-medium" : "list-decimal pl-5 mb-3.5 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300"} {...props} />
                                   ),
                                   li: ({node, ...props}) => (
-                                    <li className={msg.role === 'user' ? "text-white dark:text-slate-950 font-extrabold pl-0.5" : "text-slate-700 dark:text-slate-300 pl-0.5"} {...props} />
+                                    <li className={msg.role === 'user' ? "text-slate-900 dark:text-slate-100 font-medium pl-0.5" : "text-slate-700 dark:text-slate-300 pl-0.5"} {...props} />
                                   ),
                                   table: ({node, ...props}) => (
                                     <div className="overflow-x-auto my-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-950">
@@ -4222,27 +4495,70 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                            )}
                         </motion.div>
 
-                        <div className={`flex items-center gap-4 mt-1 px-4 opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                           <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+                        <div className={`flex flex-wrap items-center justify-between gap-3 mt-3 pt-1 text-slate-400 dark:text-slate-500 ${msg.role === 'user' ? 'justify-end' : 'justify-start w-full'}`}>
+                           <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                              {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                            </span>
-                           <div className="flex items-center gap-2.5">
+
+                           <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/50 backdrop-blur-md px-2.5 py-1 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 shadow-xs">
                              {msg.role === 'bot' && (
                                <>
-                                 <button onClick={() => copyToClipboard(msg.text, msg.id)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Copy to clipboard">
-                                   {copiedId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                                 <button 
+                                   onClick={() => copyToClipboard(msg.text, msg.id)} 
+                                   className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer" 
+                                   title="Copy response text"
+                                 >
+                                   {copiedId === msg.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                                  </button>
-                                 <button onClick={() => speak(msg.text, true, msg.id)} className={`transition-colors ${isReadingAloud === msg.id ? 'text-blue-500' : 'text-slate-400 hover:text-blue-500'}`} title="Read text aloud">
-                                   <Volume2 size={12} />
+                                 <button 
+                                   onClick={() => speak(msg.text, true, msg.id)} 
+                                   className={`p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer ${isReadingAloud === msg.id ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'text-slate-500 dark:text-slate-300 hover:text-blue-500'}`} 
+                                   title="Read text aloud"
+                                 >
+                                   <Volume2 size={14} />
                                  </button>
+                                 <button
+                                   onClick={() => {
+                                     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+                                     if (lastUserMsg) {
+                                       handleSend(lastUserMsg.text);
+                                     } else {
+                                       handleSend(msg.text);
+                                     }
+                                   }}
+                                   className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer"
+                                   title="Regenerate AI response"
+                                 >
+                                   <RefreshCw size={14} />
+                                 </button>
+                                 <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-700/80 mx-0.5" />
+                                 <button 
+                                   onClick={() => {
+                                     setFeedbackMap(prev => ({ ...prev, [msg.id]: prev[msg.id] === 'up' ? null : 'up' }));
+                                   }}
+                                   className={`p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer ${feedbackMap[msg.id] === 'up' ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40' : 'text-slate-500 dark:text-slate-300 hover:text-emerald-500'}`}
+                                   title="Good response"
+                                 >
+                                   <ThumbsUp size={14} />
+                                 </button>
+                                 <button 
+                                   onClick={() => {
+                                     setFeedbackMap(prev => ({ ...prev, [msg.id]: prev[msg.id] === 'down' ? null : 'down' }));
+                                   }}
+                                   className={`p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer ${feedbackMap[msg.id] === 'down' ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/40' : 'text-slate-500 dark:text-slate-300 hover:text-rose-500'}`}
+                                   title="Bad response"
+                                 >
+                                   <ThumbsDown size={14} />
+                                 </button>
+                                 <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-700/80 mx-0.5" />
                                </>
                              )}
                              <button 
                                onClick={() => handleDeleteMessage(msg.id)} 
-                               className="text-slate-400 hover:text-rose-500 transition-colors"
-                               title="Prune this entry"
+                               className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500 dark:text-slate-300 hover:text-rose-500 transition-all cursor-pointer"
+                               title="Delete message"
                              >
-                               <Trash2 size={12} />
+                               <Trash2 size={14} />
                              </button>
                            </div>
                         </div>
@@ -4293,9 +4609,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           <div className="flex flex-col gap-3 mt-2 max-w-md bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-3xl border border-slate-100/50 dark:border-slate-800/50 backdrop-blur-sm">
                              <div className="flex items-center justify-between mb-1">
                                 <div className="flex gap-1">
-                                  {[1, 2, 3, 4, 5].map(i => (
+                                  {[1, 2, 3, 4, 5].map((i, mapIdx_4599) => (
                                     <motion.div 
-                                      key={i}
+                                      key={`chatinterface-l4562-i-${i}-${mapIdx_4599}`}
                                       animate={{ height: [4, 12, 4], opacity: [0.3, 1, 0.3] }}
                                       transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
                                       className="w-1 bg-blue-600/40 rounded-full"
@@ -4350,13 +4666,13 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     exit={{ opacity: 0, height: 0 }}
                     className="flex flex-wrap gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-800"
                   >
-                    {attachedFiles.map((file) => (
+                    {attachedFiles.map((file, idx) => (
                       <motion.div 
                         layout
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.8, opacity: 0 }}
-                        key={file.name}
+                        key={`att-file-${file.name}-${idx}`}
                         className="group relative flex items-center gap-2 pr-2 h-8 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-bold border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden"
                       >
                         {file.isImage ? (
@@ -4478,8 +4794,8 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         'Samia',
                         'Karamojong',
                         'Swahili'
-                      ].map(lang => (
-                        <option key={lang} value={lang} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold uppercase">
+                      ].map((lang, mapIdx_4784) => (
+                        <option key={`chatinterface-l4786-${mapIdx_4784}`} value={lang} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold uppercase">
                           {lang}
                         </option>
                       ))}
@@ -5190,12 +5506,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         { id: 'medical_report', label: 'Draft SOAP Report', desc: 'Generates chart note' },
                         { id: 'speech_note', label: 'Verbal Note Convert', desc: 'Parses speech transcript' },
                         { id: 'health_education', label: 'Health Education', desc: 'Patient guide leaflet' },
-                      ].map((tool) => {
+                      ].map((tool, mapIdx_5496) => {
                         const isSubSelected = tool.id === ragSubTool;
                         return (
                           <button
                             type="button"
-                            key={tool.id}
+                            key={`chatinterface-l5502-${mapIdx_5496}`}
                             onClick={() => setRagSubTool(tool.id as any)}
                             className={`p-3 rounded-2xl border text-left transition-all ${
                               isSubSelected
@@ -5542,7 +5858,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">ACTIVE RED FLAGS ON ADMISSION</p>
                             <ul className="text-[11px] text-slate-700 dark:text-slate-300 font-semibold space-y-0.5">
                               {computed.alerts.map((a, idx) => (
-                                <li key={idx} className="flex items-start gap-1">
+                                <li key={`chatinterface-l5809-idx-${idx}`} className="flex items-start gap-1">
                                   <span className="text-red-500">•</span> {a}
                                 </li>
                               ))}
@@ -5584,10 +5900,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     />
                     <div className="grid grid-cols-3 gap-1.5">
-                      {[6.5, 10.5, 13.5].map(v => (
+                      {[6.5, 10.5, 13.5].map((v, vIdx) => (
                         <button 
                           type="button"
-                          key={v} 
+                          key={`ci-hb-${v}-${vIdx}`} 
                           onClick={() => setLabHb(v)}
                           className={`py-1 text-[9px] font-mono font-bold rounded-lg border transition-all ${labHb === v ? 'bg-blue-600 text-white border-blue-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/15 border-slate-100 dark:border-slate-800 text-slate-500'}`}
                         >
@@ -5613,10 +5929,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
                     <div className="grid grid-cols-3 gap-1.5">
-                      {[3.5, 8.0, 16.5].map(v => (
+                      {[3.5, 8.0, 16.5].map((v, vIdx) => (
                         <button 
                           type="button"
-                          key={v} 
+                          key={`ci-wbc-${v}-${vIdx}`} 
                           onClick={() => setLabWBC(v)}
                           className={`py-1 text-[9px] font-mono font-bold rounded-lg border transition-all ${labWBC === v ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/15 border-slate-100 dark:border-slate-800 text-slate-500'}`}
                         >
@@ -5642,10 +5958,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                     />
                     <div className="grid grid-cols-3 gap-1.5">
-                      {[80, 150, 250].map(v => (
+                      {[80, 150, 250].map((v, vIdx) => (
                         <button 
                           type="button"
-                          key={v} 
+                          key={`ci-plt-${v}-${vIdx}`} 
                           onClick={() => setLabPlatelets(v)}
                           className={`py-1 text-[9px] font-mono font-bold rounded-lg border transition-all ${labPlatelets === v ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/15 border-slate-100 dark:border-slate-800 text-slate-500'}`}
                         >
@@ -5659,7 +5975,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Malaria RDT Result</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(['negative', 'positive_1plus', 'positive_4plus'] as const).map(p => {
+                      {(['negative', 'positive_1plus', 'positive_4plus'] as const).map((p, pIdx) => {
                         const labels = {
                           negative: 'Negative',
                           positive_1plus: 'Pos (1+)',
@@ -5669,7 +5985,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         return (
                           <button
                             type="button"
-                            key={p}
+                            key={`ci-mrdt-${p}-${pIdx}`}
                             onClick={() => setLabMalariaRDT(p)}
                             className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${labMalariaRDT === p ? col + ' border-current' : 'border-slate-100 dark:border-slate-805 text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'}`}
                           >
@@ -5684,7 +6000,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Urine Protein Level</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(['negative', '1plus', '3plus'] as const).map(p => {
+                      {(['negative', '1plus', '3plus'] as const).map((p, pIdx) => {
                         const labels = {
                           negative: 'Nil / Neg',
                           '1plus': 'Mild (1+)',
@@ -5694,7 +6010,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         return (
                           <button
                             type="button"
-                            key={p}
+                            key={`ci-uprot-${p}-${pIdx}`}
                             onClick={() => setLabUrineProtein(p)}
                             className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${labUrineProtein === p ? col + ' border-current font-black' : 'border-slate-100 dark:border-slate-805 text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'}`}
                           >
@@ -5718,7 +6034,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">HEMATOLOGY/BIOCHEMISTRY FINDINGS</p>
                           <ul className="text-[11px] text-slate-750 dark:text-slate-300 font-semibold space-y-1">
                             {lab.findings.map((f, idx) => (
-                              <li key={idx} className="flex items-start gap-1">
+                              <li key={`chatinterface-l5985-idx-${idx}`} className="flex items-start gap-1">
                                 <span className={lab.color}>•</span> {f}
                               </li>
                             ))}
@@ -5759,10 +6075,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600"
                     />
                     <div className="grid grid-cols-4 gap-1">
-                      {[12, 28, 36, 40].map(v => (
+                      {[12, 28, 36, 40].map((v, vIdx) => (
                         <button 
                           type="button"
-                          key={v} 
+                          key={`ci-gest-${v}-${vIdx}`} 
                           onClick={() => setGestationalWeeks(v)}
                           className={`py-1 text-[9px] font-mono font-bold rounded-lg border transition-all ${gestationalWeeks === v ? 'bg-purple-600 text-white border-purple-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/15 border-slate-100 dark:border-slate-800 text-slate-500'}`}
                         >
@@ -5813,7 +6129,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       <span className="text-[8px] font-black uppercase text-slate-405 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">Uganda MoH protocol</span>
                     </div>
                     <div className="space-y-1.5 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4 bg-slate-150/10 dark:bg-slate-900/10">
-                      {Object.entries(obsDangerSigns).map(([flag, checked]) => {
+                      {Object.entries(obsDangerSigns).map(([flag, checked], fIdx) => {
                         const labelsMap: Record<string, string> = {
                           headache: 'Severe Splitting Headache',
                           blurredVision: 'Blurred Vision or Flashing Lights',
@@ -5823,7 +6139,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         };
                         return (
                           <label 
-                            key={flag}
+                            key={`ci-flag-${flag}-${fIdx}`}
                             className="flex items-center gap-3 p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-colors"
                           >
                             <input 
@@ -5856,7 +6172,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">CURRENT PREGNANCY FLAGS</p>
                             <ul className="text-[11px] text-slate-750 dark:text-slate-300 font-semibold space-y-0.5">
                               {obs.dangerFlags.map((f, i) => (
-                                <li key={i} className="flex items-start gap-1">
+                                <li key={`ci-df-${i}`} className="flex items-start gap-1">
                                   <span className={obs.color}>•</span> {f}
                                 </li>
                               ))}
@@ -5902,7 +6218,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dehydration clinical grade</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(['none', 'some', 'severe'] as const).map(p => {
+                      {(['none', 'some', 'severe'] as const).map((p, pIdx) => {
                         const labels = {
                           none: 'None',
                           some: 'Some (Plan B)',
@@ -5912,7 +6228,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         return (
                           <button
                             type="button"
-                            key={p}
+                            key={`ci-dehyd-${p}-${pIdx}`}
                             onClick={() => setDehydrationSeverity(p)}
                             className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${dehydrationSeverity === p ? col + ' border-current' : 'border-slate-100 dark:border-slate-800 text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'}`}
                           >
@@ -5927,12 +6243,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giving Set Admin Rate Calibration</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {([20, 60] as const).map(rate => {
+                      {([20, 60] as const).map((rate, rIdx) => {
                         const labelStr = rate === 20 ? 'Standard (20 d/mL)' : 'Pediatric (60 d/mL)';
                         return (
                           <button
                             type="button"
-                            key={rate}
+                            key={`ci-rate-${rate}-${rIdx}`}
                             onClick={() => setGivingSetDrops(rate)}
                             className={`py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${givingSetDrops === rate ? 'text-sky-600 border-sky-500/30 bg-sky-500/5 dark:bg-sky-955/15' : 'border-slate-100 dark:border-slate-800 text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'}`}
                           >
@@ -6020,20 +6336,20 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {[
-                        { id: 'gemma3-tfjs' as const, label: 'DOCTORIAN 1.5 ORACLE', desc: 'Fastest Local Edge Core', tier: 'Always Free' },
-                        { id: 'gemma-cloud' as const, label: 'DOCTORIAN 2.0 ORACLE', desc: 'Speed Cloud Core', tier: 'Always Free' },
-                        { id: 'huggingface' as const, label: 'DOCTORIAN 2.5 NEXUS', desc: 'Clinical Synapse Core', tier: 'Standard' },
-                        { id: 'llama-clinical' as const, label: 'DOCTORIAN 3.0 NEXUS', desc: 'Pro Guideline Core', tier: 'Pro' },
-                        { id: 'medlm-medium' as const, label: 'DOCTORIAN 4.0 NOVA EXPERTS', desc: 'Expert Co-Pilot Brain', tier: 'Pro Required' },
-                        { id: 'medlm-large' as const, label: 'DOCTORIAN 5.0 OPUS EXPERTS', desc: 'Quantum Max Core', tier: 'Matrix Required' }
-                      ].map(engineOption => {
+                        { id: 'gemma3-tfjs' as const, label: 'Doctorian General AI', desc: 'Fastest Local Edge Core', tier: 'Always Free' },
+                        { id: 'gemma-cloud' as const, label: 'Doctorian Clinical AI', desc: 'Speed Cloud Core', tier: 'Always Free' },
+                        { id: 'huggingface' as const, label: 'Doctorian Triage AI', desc: 'Clinical Synapse Core', tier: 'Standard' },
+                        { id: 'llama-clinical' as const, label: 'Doctorian Patient Education AI', desc: 'Pro Guideline Core', tier: 'Pro' },
+                        { id: 'medlm-medium' as const, label: 'Doctorian Uganda AI', desc: 'Expert Co-Pilot Brain', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'Doctorian Research AI', desc: 'Quantum Max Core', tier: 'Matrix Required' }
+                      ].map((engineOption, engineIdx) => {
                         const { hasAccess, tierName } = checkModelAccess(engineOption.id);
                         const isSelected = clinicalEngine === engineOption.id;
                         
                         return (
                           <button 
                             type="button"
-                            key={engineOption.id}
+                            key={`ci-eng-${engineOption.id}-${engineIdx}`}
                             onClick={() => selectClinicalModel(engineOption.id)}
                             className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
                               isSelected 
@@ -6126,10 +6442,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         { id: 'fast' as const, label: 'Fast (Heuristic)', desc: 'Direct responses' },
                         { id: 'cot' as const, label: 'Standard (CoT)', desc: 'Reason-led findings' },
                         { id: 'differential' as const, label: 'Differential', desc: 'Exhaustive diagnosis' }
-                      ].map(mode => (
+                      ].map((mode, modeIdx) => (
                         <button 
                           type="button"
-                          key={mode.id}
+                          key={`ci-mode-${mode.id}-${modeIdx}`}
                           onClick={() => setReasoningMode(mode.id)}
                           className={`p-3 rounded-xl border text-left transition-all ${reasoningMode === mode.id ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-500/20'}`}
                         >
@@ -6148,10 +6464,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         { id: 'hc2' as const, label: 'Health Center II', desc: 'SOP First-line' },
                         { id: 'hc3_4' as const, label: 'Health Center III/IV', desc: 'District Care' },
                         { id: 'regional' as const, label: 'Regional Referral', desc: 'Tertiary Hospital' }
-                      ].map(tier => (
+                      ].map((tier, tierIdx) => (
                         <button 
                           type="button"
-                          key={tier.id}
+                          key={`ci-tier-${tier.id}-${tierIdx}`}
                           onClick={() => setFacilityLevel(tier.id)}
                           className={`p-3 rounded-xl border text-left transition-all ${facilityLevel === tier.id ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-500/25'}`}
                         >
@@ -6170,12 +6486,12 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         { id: 'ucg2023', label: 'UCG 2023', desc: 'MoH Clinical SOP' },
                         { id: 'imci', label: 'IMCI Booklet', desc: 'Childhood Illness' },
                         { id: 'sam_protocol', label: 'SAM Protocol', desc: 'Acute Malnutrition' }
-                      ].map(lib => {
+                      ].map((lib, libIdx) => {
                         const active = ragSources.includes(lib.id);
                         return (
                           <button 
                             type="button"
-                            key={lib.id}
+                            key={`ci-lib-${lib.id}-${libIdx}`}
                             onClick={() => setRagSources(prev => prev.includes(lib.id) ? prev.filter(x => x !== lib.id) : [...prev, lib.id])}
                             className={`p-3 rounded-xl border text-left transition-all ${active ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/25' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-500/20'}`}
                           >
@@ -6195,10 +6511,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         { id: 'referral_note' as const, label: 'Referral Brief', desc: 'Critical Handoff' },
                         { id: 'moh_form5' as const, label: 'Admission Form 5', desc: 'MoH Standard File' },
                         { id: 'plain' as const, label: 'Plain Notes', desc: 'Direct SOP Text' }
-                      ].map(fmt => (
+                      ].map((fmt, fmtIdx) => (
                         <button 
                           type="button"
-                          key={fmt.id}
+                          key={`ci-fmt-${fmt.id}-${fmtIdx}`}
                           onClick={() => setExportFormat(fmt.id)}
                           className={`p-3 rounded-xl border text-left transition-all ${exportFormat === fmt.id ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-500/25'}`}
                         >
@@ -6217,10 +6533,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         { id: 'verbose' as const, label: 'Full Logs', desc: 'Diagnostic steps' },
                         { id: 'compressed' as const, label: 'Compressed', desc: 'Compact metrics' },
                         { id: 'hidden' as const, label: 'Deactivated', desc: 'Zero noise stream' }
-                      ].map(tel => (
+                      ].map((tel, telIdx) => (
                         <button 
                           type="button"
-                          key={tel.id}
+                          key={`ci-tel-${tel.id}-${telIdx}`}
                           onClick={() => setTelemetrySpeed(tel.id)}
                           className={`p-3 rounded-xl border text-left transition-all ${telemetrySpeed === tel.id ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-500/25'}`}
                         >
@@ -6247,7 +6563,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           setBrainMemories([]);
                           setTerminalLogs(prev => [...prev.slice(-3), 'SYS: AI Core Memory successfully purged.']);
                         }}
-                        className="text-[7.5px] font-black text-red-500 hover:text-red-600 bg-red-100/50 dark:bg-red-950/40 px-2 py-1 rounded-md uppercase tracking-wider transition-colors"
+                        className="text-[7.5px] font-black text-red-500 hover:text-red-600 bg-red-100/50 dark:bg-red-955/40 px-2 py-1 rounded-md uppercase tracking-wider transition-colors"
                       >
                         Purge Memory
                       </button>
@@ -6258,7 +6574,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         <p className="text-[9px] text-slate-400 dark:text-slate-500 italic m-0">No facts synthesized yet. Discuss patients, vitals, or specific protocols to train the brain automatically, or type a manual memory below.</p>
                       ) : (
                         brainMemories.map((fact, idx) => (
-                          <div key={idx} className="p-2 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-purple-100/30 dark:border-purple-950/40 flex items-start justify-between gap-1.5 group">
+                          <div key={`ci-mem-${idx}`} className="p-2 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-purple-100/30 dark:border-purple-950/40 flex items-start justify-between gap-1.5 group">
                             <div className="flex items-start gap-1.5">
                               <span className="text-[9px] mt-0.5 shrink-0">✨</span>
                               <p className="text-[9.5px] text-slate-600 dark:text-slate-300 leading-normal font-sans m-0">
@@ -6330,11 +6646,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'DOCTORIAN 1.5 ORACLE (Fastest Model)' : (clinicalEngine === 'gemma-cloud' ? 'DOCTORIAN 2.0 ORACLE (Speed Cloud)' : (clinicalEngine === 'huggingface' ? 'DOCTORIAN 2.5 NEXUS (Clinical Core)' : (clinicalEngine === 'llama-clinical' ? 'DOCTORIAN 3.0 NEXUS (Pro Core)' : (clinicalEngine === 'medlm-medium' ? 'DOCTORIAN 4.0 NOVA EXPERTS (Expert Brain)' : 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Core)'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian General AI (Speed Core)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian Clinical AI (Cloud Core)' : (clinicalEngine === 'huggingface' ? 'Doctorian Triage AI (Triage Core)' : (clinicalEngine === 'llama-clinical' ? 'Doctorian Patient Education AI' : (clinicalEngine === 'medlm-medium' ? 'Doctorian Uganda (MoH Guidelines)' : 'Doctorian Research AI (Literature RAG)'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'DOCTORIAN 1.5 ORACLE (Fastest Model)' : (clinicalEngine === 'gemma-cloud' ? 'DOCTORIAN 2.0 ORACLE (Speed Cloud)' : (clinicalEngine === 'huggingface' ? 'DOCTORIAN 2.5 NEXUS (Clinical Core)' : (clinicalEngine === 'llama-clinical' ? 'DOCTORIAN 3.0 NEXUS (Pro Core)' : (clinicalEngine === 'medlm-medium' ? 'DOCTORIAN 4.0 NOVA EXPERTS (Expert Brain)' : 'DOCTORIAN 5.0 OPUS EXPERTS (Quantum Core)'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian General AI (Speed Core)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian Clinical AI (Cloud Core)' : (clinicalEngine === 'huggingface' ? 'Doctorian Triage AI (Triage Core)' : (clinicalEngine === 'llama-clinical' ? 'Doctorian Patient Education AI' : (clinicalEngine === 'medlm-medium' ? 'Doctorian Uganda (MoH Guidelines)' : 'Doctorian Research AI (Literature RAG)'))));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}
@@ -6349,460 +6665,996 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       </AnimatePresence>
 
 
-       {/* Doctorian Voice Consultation & Calling Gateway Modal */}
+       {/* Doctorian Full-Screen HD Video & Voice Consultation Suite */}
        <AnimatePresence>
          {showVoiceCallModal && (
-           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-             {/* Backdrop */}
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={() => {
-                 if (callState === 'idle') setShowVoiceCallModal(false);
-               }}
-               className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xl"
-             />
+           <div className="fixed inset-0 z-[200] w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden text-white">
+             {/* Background Moving Cloud Condensation & Ambient Blur Gradients */}
+             <MovingCloudCondensation intensity="deep" showDroplets={true} />
+             
+             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+               <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] animate-pulse" />
+               <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[140px] animate-pulse" style={{ animationDelay: '2s' }} />
+             </div>
 
-             {/* Modal Container */}
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-lg animate-breathing-blue border border-blue-200/80 text-slate-900 rounded-[2.5rem] shadow-3xl flex flex-col overflow-hidden max-h-[85vh] font-sans"
-             >
-               {/* Modal Header */}
-               <div className="p-6 flex items-center justify-between shrink-0 bg-transparent z-10">
-                 <div className="text-left flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                   <span className="text-xs font-black tracking-wider text-slate-400 uppercase">AI Voice Specialist</span>
+             {/* Full-Screen Telehealth Header Toolbar */}
+             <div className="relative z-30 px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl shrink-0">
+               {/* Left: Branding & Status */}
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                   <Stethoscope size={20} className="text-white" />
                  </div>
-                 <div className="flex items-center gap-2">
-                   {callState === 'connected' && (
-                     <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
-                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                       <span className="text-[10px] font-mono font-bold text-emerald-400">● LIVE {formatDuration(voiceCallDuration)}</span>
-                     </div>
-                   )}
-                   {(callState === 'connected' || callState === 'calling' || callState === 'incoming') && (
-                     <button 
-                       onClick={() => setIsCallMinimized(true)} 
-                       className="p-2 hover:bg-slate-800/60 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
-                       title="Minimize Call"
-                     >
-                       <Minimize2 size={18} />
-                     </button>
-                   )}
-                   {callState === 'idle' && (
-                     <button 
-                       onClick={() => setShowVoiceCallModal(false)} 
-                       className="p-2 hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-colors cursor-pointer"
-                     >
-                       <X size={18} />
-                     </button>
-                   )}
+                 <div>
+                   <div className="flex items-center gap-2">
+                     <h2 className="text-sm font-black tracking-wide text-white">AI VOICE SPECIALIST CORE</h2>
+                     <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> AREAL VOICE ENGINE ({voiceSpeedRate}x SPEED)
+                     </span>
+                   </div>
+                   <p className="text-[10px] text-cyan-300 font-medium">ChatGPT Fast & Brief Voice Interpretation Mode Active</p>
                  </div>
                </div>
 
-               {/* Modal Content */}
-               <div className="px-6 pb-8 flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
-                 
-                 {/* IDLE STATE */}
-                 {callState === 'idle' && (
-                   <div className="flex flex-col flex-1 justify-center space-y-8 py-4 animate-in fade-in duration-300">
-                     <div className="text-center space-y-2">
-                       <h3 className="text-2xl font-black tracking-tight text-slate-900">Secure Voice Portal</h3>
-                       <p className="text-xs text-slate-600 font-semibold max-w-sm mx-auto">
-                         Connect with our clinical intelligence core. Powered by real-time translation and modern neural models.
-                       </p>
+               {/* Center: Dual Call Mode Selector (HD Video vs Voice) */}
+               <div className="hidden md:flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
+                 <button
+                   type="button"
+                   onClick={() => setCallMode('video')}
+                   className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                     callMode === 'video'
+                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                       : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                   }`}
+                 >
+                   <Video size={14} />
+                   HD Video Call
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => setCallMode('audio')}
+                   className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                     callMode === 'audio'
+                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                       : 'text-slate-400 hover:text-white hover:bg-slate-850'
+                   }`}
+                 >
+                   <Phone size={14} />
+                   Voice Consultation
+                 </button>
+               </div>
+
+               {/* Right: Actions */}
+               <div className="flex items-center gap-2.5">
+                 {callState === 'connected' && (
+                   <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 rounded-full">
+                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                     <span className="text-xs font-mono font-bold text-emerald-400">● LIVE {formatDuration(voiceCallDuration)}</span>
+                   </div>
+                 )}
+
+                 {callMode === 'video' && (callState === 'connected' || callState === 'calling') && (
+                   <button
+                     type="button"
+                     onClick={() => setShowVitalsOverlay(!showVitalsOverlay)}
+                     className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                       showVitalsOverlay
+                         ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300'
+                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                     }`}
+                     title="Toggle Vitals Telemetry HUD"
+                   >
+                     <Activity size={18} />
+                   </button>
+                 )}
+
+                 {(callState === 'connected' || callState === 'calling' || callState === 'incoming') && (
+                   <button 
+                     onClick={() => setIsCallMinimized(true)} 
+                     className="p-2.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+                     title="Minimize Call"
+                   >
+                     <Minimize2 size={18} />
+                   </button>
+                 )}
+
+                 <button 
+                   onClick={() => {
+                     if (callState !== 'idle') {
+                       terminateVoiceCallSession();
+                     }
+                     setShowVoiceCallModal(false);
+                   }} 
+                   className="p-2.5 bg-slate-900 border border-slate-800 hover:bg-rose-500/20 hover:border-rose-500/40 text-slate-400 hover:text-rose-300 rounded-xl transition-all cursor-pointer"
+                   title="Exit Suite"
+                 >
+                   <X size={18} />
+                 </button>
+               </div>
+             </div>
+
+             {/* Full-Screen Workspace Body */}
+             <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+
+               {/* IDLE STATE: Pre-Call Consultation Gateway & AI Specialist Selection */}
+               {callState === 'idle' && (
+                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col space-y-6 animate-in fade-in duration-300">
+                   
+                   {/* Title Banner */}
+                   <div className="text-center space-y-3">
+                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wider uppercase">
+                       <Sparkles size={14} className="animate-spin" style={{ animationDuration: '4s' }} />
+                       Next-Gen AI Clinical Tele-Consultation
+                     </div>
+                     <h2 className="text-3xl md:text-5xl font-black tracking-tight text-white">
+                       Connect with AI Medical Professionals
+                     </h2>
+                     <p className="text-sm text-slate-400 max-w-2xl mx-auto font-normal">
+                       Experience real-time HD video calls and voice consultations with cloned clinical specialists, natural human video animations, and full African regional cadence support.
+                     </p>
+
+                     {/* Mode Selector for Mobile/Desktop */}
+                     <div className="flex items-center justify-center gap-3 pt-2">
+                       <button
+                         type="button"
+                         onClick={() => setCallMode('video')}
+                         className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-2 border ${
+                           callMode === 'video'
+                             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400/40 shadow-lg shadow-blue-500/25'
+                             : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                         }`}
+                       >
+                         <Video size={16} />
+                         📹 HD Video Consultation
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setCallMode('audio')}
+                         className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-2 border ${
+                           callMode === 'audio'
+                             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400/40 shadow-lg shadow-blue-500/25'
+                             : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                         }`}
+                       >
+                         <Phone size={16} />
+                         🎙️ Voice Consultation
+                       </button>
+                     </div>
+                   </div>
+
+                   {/* AI Professionals Selection Grid */}
+                   <div className="space-y-4">
+                     <div className="flex items-center justify-between">
+                       <span className="text-xs font-black uppercase tracking-widest text-slate-400">Select AI Medical Professional</span>
+                       <span className="text-xs text-blue-400 font-bold font-mono">5 Clinical Specialists Available</span>
                      </div>
 
-                     {/* Clean Configuration Card */}
-                     <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 space-y-5 text-left shadow-sm">
-                       {/* Voice Selection */}
-                       <div className="space-y-2.5">
-                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Clinician Voice</span>
-                         <div className="grid grid-cols-3 gap-2">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                       {Object.entries(AI_PROFESSIONAL_AVATARS).map(([key, prof]) => {
+                         const isSelected = voiceSelection === key;
+                         return (
+                           <div
+                             key={`chatinterface-l6784-k-${key}`}
+                             onClick={() => setVoiceSelection(key as any)}
+                             className={`relative rounded-2xl sm:rounded-3xl p-3 sm:p-4 border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden group ${
+                               isSelected
+                                 ? 'bg-gradient-to-b from-blue-900/40 to-indigo-950/60 border-blue-500 shadow-xl shadow-blue-500/15 ring-2 ring-blue-500/40'
+                                 : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
+                             }`}
+                           >
+                             {/* Avatar Preview */}
+                             <div className="relative aspect-[4/5] max-h-40 sm:max-h-52 w-full rounded-xl sm:rounded-2xl overflow-hidden mb-2 sm:mb-3 bg-slate-950 border border-white/10">
+                               <img
+                                 src={prof.image}
+                                 alt={prof.name}
+                                 referrerPolicy="no-referrer"
+                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                               />
+                               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
+                               
+                               {/* Badge */}
+                               <div className="absolute bottom-2 left-2 right-2">
+                                 <span className="px-2 py-0.5 rounded-full text-[8px] font-mono font-bold bg-slate-900/90 backdrop-blur-md text-cyan-300 border border-cyan-500/30 block text-center truncate">
+                                   {prof.videoBadge}
+                                 </span>
+                               </div>
+
+                               {isSelected && (
+                                 <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg">
+                                   <Check size={14} />
+                                 </div>
+                               )}
+                             </div>
+
+                             {/* Metadata */}
+                             <div className="space-y-1">
+                               <h3 className="text-sm font-black text-white">{prof.name}</h3>
+                               <p className="text-[10px] text-blue-300 font-semibold leading-snug line-clamp-1">{prof.title}</p>
+                               <p className="text-[9px] text-slate-400 font-medium leading-snug line-clamp-2 mt-1">{prof.specialty}</p>
+                             </div>
+
+                             <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between">
+                               <span className="text-[9px] font-mono text-slate-500">{prof.voiceDesc}</span>
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </div>
+
+                   {/* Configuration Row: Cadence & Quality */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6">
+                     {/* Regional African Accent & Cadence */}
+                     <div className="space-y-3">
+                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Regional African Accent & Cadence</span>
+                       <div className="grid grid-cols-2 gap-2.5">
+                         {[
+                           { id: 'East African' as const, label: 'East African', detail: 'Ugandan, Swahili, Kenyan' },
+                           { id: 'West African' as const, label: 'West African', detail: 'Nigerian, Ghanaian, Hausa' },
+                           { id: 'Southern African' as const, label: 'Southern African', detail: 'Zulu, Xhosa, South Africa' },
+                           { id: 'North African' as const, label: 'North & Horn', detail: 'Amharic, Ethiopian, Arabic' }
+                         ].map((reg, mapIdx_6882) => (
+                           <button
+                             key={`chatinterface-l6885-${mapIdx_6882}`}
+                             type="button"
+                             onClick={() => setAfricanAccentRegion(reg.id)}
+                             className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                               africanAccentRegion === reg.id
+                                 ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200 font-bold'
+                                 : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white hover:bg-slate-950'
+                             }`}
+                           >
+                             <p className="text-xs font-bold leading-none">{reg.label}</p>
+                             <p className="text-[9px] text-slate-500 mt-1.5 leading-none font-medium">{reg.detail}</p>
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+
+                     {/* Stream Resolution & Video Feed Controls */}
+                     <div className="space-y-3">
+                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Video Stream & Biometric Quality</span>
+                       <div className="grid grid-cols-3 gap-2.5">
+                         {[
+                           { id: '1080p HD' as const, label: '1080p HD', desc: 'Standard Telehealth' },
+                           { id: '4K Ultra' as const, label: '4K Ultra', desc: 'Clinical High Resolution' },
+                           { id: '720p Mobile' as const, label: '720p Fast', desc: 'Low Latency Data' }
+                         ].map((q, mapIdx_6908) => (
+                           <button
+                             key={`chatinterface-l6911-${mapIdx_6908}`}
+                             type="button"
+                             onClick={() => setVideoQuality(q.id)}
+                             className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                               videoQuality === q.id
+                                 ? 'border-blue-500 bg-blue-500/15 text-blue-300 font-bold'
+                                 : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white hover:bg-slate-950'
+                             }`}
+                           >
+                             <p className="text-xs font-bold leading-none">{q.label}</p>
+                             <p className="text-[9px] text-slate-500 mt-1.5 leading-none">{q.desc}</p>
+                           </button>
+                         ))}
+                       </div>
+
+                       <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
+                         <span>Patient Camera Preview:</span>
+                         <button
+                           type="button"
+                           onClick={() => setPatientCameraActive(!patientCameraActive)}
+                           className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                             patientCameraActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
+                           }`}
+                         >
+                           {patientCameraActive ? '📷 Camera Enabled' : '🚫 Camera Muted'}
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Areal Voice Engine, ChatGPT Speed & Response Briefness Configuration */}
+                   <div className="bg-gradient-to-r from-cyan-950/40 via-slate-900/80 to-indigo-950/40 border border-cyan-500/30 rounded-3xl p-6 space-y-5 shadow-2xl backdrop-blur-md">
+                     <div className="flex items-center justify-between border-b border-cyan-500/20 pb-3">
+                       <div className="flex items-center gap-2">
+                         <Volume2 size={16} className="text-cyan-400 animate-pulse" />
+                         <span className="text-xs font-black uppercase tracking-wider text-cyan-200">Areal Voice Engine & Interpretation Speed Controls</span>
+                       </div>
+                       <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
+                         ⚡ ChatGPT-Style Fast Mode
+                       </span>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                       {/* Voice Engine Mode */}
+                       <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-300 block">Voice Engine</label>
+                         <div className="grid grid-cols-1 gap-2">
+                           <button
+                             type="button"
+                             onClick={() => setVoiceEngineMode('areal')}
+                             className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                               voiceEngineMode === 'areal'
+                                 ? 'border-cyan-400 bg-cyan-500/20 text-white font-extrabold shadow-lg shadow-cyan-500/10'
+                                 : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white'
+                             }`}
+                           >
+                             <div>
+                               <p className="text-xs font-extrabold">🎙️ Areal Natural Voice</p>
+                               <p className="text-[9px] text-cyan-300 mt-0.5">Real conversational human inflection</p>
+                             </div>
+                             {voiceEngineMode === 'areal' && <Check size={14} className="text-cyan-400" />}
+                           </button>
+
+                           <button
+                             type="button"
+                             onClick={() => setVoiceEngineMode('text_reader')}
+                             className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                               voiceEngineMode === 'text_reader'
+                                 ? 'border-cyan-400 bg-cyan-500/20 text-white font-extrabold shadow-lg'
+                                 : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white'
+                             }`}
+                           >
+                             <div>
+                               <p className="text-xs font-extrabold">🤖 Monotone Reader</p>
+                               <p className="text-[9px] text-slate-400 mt-0.5">Classic literal document synthesis</p>
+                             </div>
+                             {voiceEngineMode === 'text_reader' && <Check size={14} className="text-cyan-400" />}
+                           </button>
+                         </div>
+                       </div>
+
+                       {/* Speech Interpretation Speed */}
+                       <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-300 block">Voice Speed Interpretation</label>
+                         <div className="grid grid-cols-2 gap-2">
                            {[
-                             { id: 'Joseph' as const, label: 'Joseph', desc: 'Cloned African Voice' },
-                             { id: 'Misty' as const, label: 'Misty', desc: 'Compassionate Voice' },
-                             { id: 'Promise' as const, label: 'Promise', desc: 'Gentle Clinical Voice' }
-                           ].map(voice => (
+                             { rate: 1.0, label: '1.0x Normal' },
+                             { rate: 1.2, label: '1.2x Fast' },
+                             { rate: 1.35, label: '⚡ 1.35x ChatGPT' },
+                             { rate: 1.5, label: '🚀 1.5x Rapid' }
+                           ].map((sp, mapIdx_7000) => (
                              <button
-                               key={voice.id}
+                               key={`chatinterface-l7003-${mapIdx_7000}`}
                                type="button"
-                               onClick={() => setVoiceSelection(voice.id)}
-                               className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
-                                 voiceSelection === voice.id 
-                                   ? 'border-blue-500 bg-blue-500/15 text-blue-700 shadow-sm font-bold' 
-                                   : 'border-slate-200/80 bg-white/60 text-slate-500 hover:text-slate-800 hover:bg-white hover:border-slate-300'
+                               onClick={() => setVoiceSpeedRate(sp.rate)}
+                               className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                                 voiceSpeedRate === sp.rate
+                                   ? 'border-indigo-400 bg-indigo-500/25 text-white font-extrabold shadow-md'
+                                   : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white'
                                }`}
                              >
-                               <p className="text-xs font-black leading-none">{voice.label}</p>
-                               <p className="text-[9px] text-slate-400 mt-1 leading-none font-bold">{voice.desc}</p>
+                               <p className="text-xs font-extrabold">{sp.label}</p>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
+
+                       {/* ChatGPT Voice Conciseness */}
+                       <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-300 block">Response Style</label>
+                         <div className="grid grid-cols-1 gap-2">
+                           <button
+                             type="button"
+                             onClick={() => setVoiceBriefResponse(true)}
+                             className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                               voiceBriefResponse
+                                 ? 'border-emerald-400 bg-emerald-500/20 text-white font-extrabold shadow-lg shadow-emerald-500/10'
+                                 : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white'
+                             }`}
+                           >
+                             <div>
+                               <p className="text-xs font-extrabold">⚡ ChatGPT Fast & Brief</p>
+                               <p className="text-[9px] text-emerald-300 mt-0.5">1-2 punchy sentences (Lightning speech)</p>
+                             </div>
+                             {voiceBriefResponse && <Check size={14} className="text-emerald-400" />}
+                           </button>
+
+                           <button
+                             type="button"
+                             onClick={() => setVoiceBriefResponse(false)}
+                             className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                               !voiceBriefResponse
+                                 ? 'border-emerald-400 bg-emerald-500/20 text-white font-extrabold shadow-lg'
+                                 : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white'
+                             }`}
+                           >
+                             <div>
+                               <p className="text-xs font-extrabold">📜 Comprehensive Clinical</p>
+                               <p className="text-[9px] text-slate-400 mt-0.5">Full multi-paragraph response</p>
+                             </div>
+                             {!voiceBriefResponse && <Check size={14} className="text-emerald-400" />}
+                           </button>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Main Action Button */}
+                   <div>
+                     <button
+                       type="button"
+                       onClick={startVoiceCallSession}
+                       className="w-full py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-3xl font-black tracking-widest text-sm uppercase transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-3 shadow-2xl shadow-blue-500/25 border border-white/20"
+                     >
+                       {callMode === 'video' ? <Video size={20} /> : <Phone size={20} />}
+                       Initiate {callMode === 'video' ? 'HD Video Call' : 'Voice Consultation'} with {AI_PROFESSIONAL_AVATARS[voiceSelection]?.name || voiceSelection}
+                     </button>
+                   </div>
+                 </div>
+               )}
+
+               {/* INCOMING CALL STATE */}
+               {callState === 'incoming' && (
+                 <div className="flex-1 flex flex-col justify-center items-center p-8 space-y-12 animate-in zoom-in-95 duration-350">
+                   <div className="text-center space-y-3 max-w-md">
+                     <p className="text-xs font-black uppercase tracking-widest text-emerald-400 animate-pulse">Incoming Consultation Call</p>
+                     <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-emerald-400/40 shadow-2xl mx-auto my-4">
+                       <img
+                         src={AI_PROFESSIONAL_AVATARS[voiceSelection]?.image}
+                         alt={voiceSelection}
+                         referrerPolicy="no-referrer"
+                         className="w-full h-full object-cover"
+                       />
+                     </div>
+                     <h3 className="text-3xl font-black text-white">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.name || voiceSelection}</h3>
+                     <p className="text-xs text-blue-300 font-bold">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.title}</p>
+                     <p className="text-xs text-slate-400">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.hospital}</p>
+                   </div>
+
+                   {/* Pulsing Call Wave */}
+                   <div className="relative flex items-center justify-center w-48 h-48">
+                     <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping [animation-duration:2.5s]" />
+                     <div className="absolute inset-6 rounded-full bg-emerald-500/15 animate-ping [animation-duration:1.8s]" />
+                     <div className="relative z-10 w-28 h-28 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center shadow-2xl shadow-emerald-500/20">
+                       <Phone size={44} className="text-emerald-400 animate-bounce" />
+                     </div>
+                   </div>
+
+                   {/* Answer/Decline buttons */}
+                   <div className="flex items-center gap-10">
+                     <button
+                       type="button"
+                       onClick={declineIncomingCall}
+                       className="w-16 h-16 bg-rose-600 hover:bg-rose-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-rose-500/30 active:scale-90 transition-all cursor-pointer"
+                       title="Decline"
+                     >
+                       <X size={28} />
+                     </button>
+                     <button
+                       type="button"
+                       onClick={answerIncomingCall}
+                       className="w-20 h-20 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-full flex items-center justify-center shadow-2xl shadow-emerald-500/40 active:scale-90 transition-all cursor-pointer animate-pulse"
+                       title="Answer Call"
+                     >
+                       {callMode === 'video' ? <Video size={36} /> : <Phone size={36} />}
+                     </button>
+                   </div>
+                 </div>
+               )}
+
+               {/* ACTIVE CALL ROOM STATE (Calling, Connected, Disconnecting) */}
+               {(callState === 'calling' || callState === 'connected' || callState === 'disconnecting') && (
+                 <div className="flex-1 relative flex flex-col justify-between overflow-hidden">
+
+                   {/* ========================================================== */}
+                   {/* MODE A: FULL-SCREEN REALISTIC ANIMATED VIDEO CONSULTATION  */}
+                   {/* ========================================================== */}
+                   {callMode === 'video' ? (
+                     <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden flex items-center justify-center">
+                       {/* Real Human Video Feed Simulation with Subtle Lifelike Animations */}
+                       <motion.div
+                         animate={{
+                           scale: [1, 1.018, 1],
+                           y: [0, -4, 0],
+                           rotate: [0, 0.4, -0.4, 0]
+                         }}
+                         transition={{
+                           duration: 6,
+                           repeat: Infinity,
+                           ease: "easeInOut"
+                         }}
+                         className={`relative w-full h-full flex items-center justify-center transition-all duration-700 ${
+                           patientCameraBlur ? 'filter blur-md' : ''
+                         }`}
+                       >
+                         {/* Clinician Photo/Video Canvas Container */}
+                         <div className="relative w-full h-full flex items-center justify-center bg-slate-950 overflow-hidden">
+                           <video
+                             key={`telehealth-vid-${voiceSelection}`}
+                             autoPlay
+                             loop
+                             muted
+                             playsInline
+                             src={AI_PROFESSIONAL_AVATARS[voiceSelection]?.videoUrl || 'https://cdn.coverr.co/videos/coverr-doctor-explaining-a-diagnosis-4622/1080p.mp4'}
+                             poster={AI_PROFESSIONAL_AVATARS[voiceSelection]?.image}
+                             className="w-full h-full object-cover object-center max-w-[1920px] max-h-[1080px]"
+                             onError={(e) => {
+                               const target = e.currentTarget;
+                               if (!target.dataset.fallbackTried) {
+                                 target.dataset.fallbackTried = "true";
+                                 target.src = AI_PROFESSIONAL_AVATARS[voiceSelection]?.gender === 'male'
+                                   ? 'https://cdn.coverr.co/videos/coverr-doctor-explaining-a-diagnosis-4622/1080p.mp4'
+                                   : 'https://cdn.coverr.co/videos/coverr-a-female-doctor-looking-at-the-camera-4623/1080p.mp4';
+                                 target.load();
+                                 target.play().catch(() => {});
+                               }
+                             }}
+                           />
+
+                           {/* Realistic Video Call Lighting / Grading Overlay */}
+                           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/60" />
+                           <div className="absolute inset-0 bg-blue-900/10 mix-blend-overlay" />
+
+                           {/* Dynamic Lip-Sync & Speaking Resonant Aura when AI is speaking */}
+                           {voiceIsSpeaking && (
+                             <>
+                               <motion.div
+                                 animate={{
+                                   opacity: [0.3, 0.7, 0.3],
+                                   scale: [0.98, 1.03, 0.98]
+                                 }}
+                                 transition={{
+                                   duration: 0.8,
+                                   repeat: Infinity,
+                                   ease: "easeInOut"
+                                 }}
+                                 className="absolute inset-0 border-4 border-cyan-400/40 rounded-none pointer-events-none shadow-[inset_0_0_80px_rgba(34,211,238,0.25)]"
+                               />
+                               {/* Speaking Mouth Articulation Simulation Overlay */}
+                               <motion.div
+                                 animate={{
+                                   scaleY: [1, 1.15, 0.9, 1.2, 1],
+                                   scaleX: [1, 0.96, 1.04, 0.98, 1]
+                                 }}
+                                 transition={{
+                                   duration: 0.35,
+                                   repeat: Infinity,
+                                   ease: "easeInOut"
+                                 }}
+                                 className="absolute bottom-1/3 left-1/2 -translate-x-1/2 w-24 h-12 bg-cyan-400/5 blur-xl rounded-full pointer-events-none"
+                               />
+                             </>
+                           )}
+
+                           {/* Subtle Lifelike Natural Eye Blink Animation Keyframes */}
+                           <motion.div
+                             animate={{
+                               opacity: [0, 0, 0, 0, 0.9, 0, 0, 0]
+                             }}
+                             transition={{
+                               duration: 4.5,
+                               repeat: Infinity,
+                               times: [0, 0.9, 0.92, 0.94, 0.95, 0.96, 0.98, 1]
+                             }}
+                             className="absolute top-1/3 left-1/2 -translate-x-1/2 w-32 h-2 bg-slate-950/30 blur-[1px] rounded-full pointer-events-none"
+                           />
+                         </div>
+                       </motion.div>
+
+                       {/* Top-Left Clinician License HUD */}
+                       <div className="absolute top-6 left-6 z-20 bg-slate-950/80 backdrop-blur-xl border border-slate-800 p-4 rounded-3xl max-w-sm shadow-2xl flex items-center gap-3.5">
+                         <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-cyan-500/40 shrink-0">
+                           <img
+                             src={AI_PROFESSIONAL_AVATARS[voiceSelection]?.image}
+                             alt={voiceSelection}
+                             referrerPolicy="no-referrer"
+                             className="w-full h-full object-cover"
+                           />
+                           {voiceIsSpeaking && (
+                             <span className="absolute bottom-0 right-0 w-3 h-3 bg-cyan-400 rounded-full border-2 border-slate-950 animate-ping" />
+                           )}
+                         </div>
+                         <div>
+                           <div className="flex items-center gap-2">
+                             <h4 className="text-sm font-black text-white">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.name}</h4>
+                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                           </div>
+                           <p className="text-[10px] text-cyan-300 font-bold leading-tight">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.title}</p>
+                           <p className="text-[9px] text-slate-400 font-mono mt-0.5">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.hospital}</p>
+                         </div>
+                       </div>
+
+                       {/* Top-Right Telehealth Stream Status Badge */}
+                       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+                         <div className="bg-slate-950/80 backdrop-blur-xl border border-slate-800 px-3.5 py-2 rounded-2xl flex items-center gap-2 text-[10px] font-mono font-bold text-slate-300">
+                           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                           <span>{videoQuality} • 60FPS</span>
+                           <span className="text-slate-600">|</span>
+                           <span className="text-emerald-400">14ms Latency</span>
+                         </div>
+                       </div>
+
+                       {/* Left Side: Real-Time Patient Vitals HUD (Toggleable) */}
+                       <AnimatePresence>
+                         {showVitalsOverlay && (
+                           <motion.div
+                             initial={{ opacity: 0, x: -30 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             exit={{ opacity: 0, x: -30 }}
+                             className="absolute top-28 left-6 z-20 hidden lg:flex flex-col gap-2.5 bg-slate-950/70 backdrop-blur-xl border border-slate-800 p-4 rounded-3xl text-xs w-48 shadow-2xl"
+                           >
+                             <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[10px] font-mono font-bold text-slate-400 uppercase">
+                               <span>PATIENT VITALS</span>
+                               <span className="text-emerald-400">LIVE</span>
+                             </div>
+
+                             <div className="flex items-center justify-between">
+                               <span className="text-slate-400 text-[11px]">Heart Rate:</span>
+                               <span className="font-mono font-bold text-rose-400 flex items-center gap-1">
+                                 <Heart size={12} className="animate-pulse" /> 74 BPM
+                               </span>
+                             </div>
+
+                             <div className="flex items-center justify-between">
+                               <span className="text-slate-400 text-[11px]">Blood Oxygen:</span>
+                               <span className="font-mono font-bold text-cyan-400">98% SpO2</span>
+                             </div>
+
+                             <div className="flex items-center justify-between">
+                               <span className="text-slate-400 text-[11px]">Temperature:</span>
+                               <span className="font-mono font-bold text-amber-400">36.6 °C</span>
+                             </div>
+
+                             <div className="flex items-center justify-between">
+                               <span className="text-slate-400 text-[11px]">Stress Level:</span>
+                               <span className="font-mono font-bold text-emerald-400">Low (12%)</span>
+                             </div>
+                           </motion.div>
+                         )}
+                       </AnimatePresence>
+
+                       {/* Bottom Right: Patient Self View (PiP Inset Camera Box) */}
+                       <div className="absolute bottom-24 right-6 z-20">
+                         <div className="relative w-40 h-52 md:w-48 md:h-64 rounded-3xl overflow-hidden border-2 border-slate-800 bg-slate-900 shadow-2xl backdrop-blur-2xl group">
+                           {patientCameraActive ? (
+                             <div className={`w-full h-full relative flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 ${patientCameraBlur ? 'blur-md' : ''}`}>
+                               {/* User Webcam Feed */}
+                               {webcamHasRealStream ? (
+                                 <video
+                                   ref={patientWebcamVideoRef}
+                                   autoPlay
+                                   playsInline
+                                   muted
+                                   className="w-full h-full object-cover"
+                                 />
+                               ) : (
+                                 <div className="w-16 h-16 rounded-full bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center text-white font-black text-xl shadow-inner">
+                                   {user?.email ? user.email[0].toUpperCase() : 'YOU'}
+                                 </div>
+                               )}
+                               <div className="absolute bottom-2 left-2 right-2 text-center">
+                                 <span className="px-2 py-0.5 rounded-full text-[8px] font-mono font-bold bg-slate-950/80 text-emerald-400 border border-emerald-500/30">
+                                   {webcamHasRealStream ? 'Live Webcam HD' : 'Patient HD Feed'}
+                                 </span>
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-slate-500 p-4 text-center">
+                               <VideoOff size={24} className="mb-2" />
+                               <span className="text-[10px] font-bold">Camera Muted</span>
+                             </div>
+                           )}
+
+                           {/* Inset Controls Overlay */}
+                           <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button
+                               type="button"
+                               onClick={() => setPatientCameraActive(!patientCameraActive)}
+                               className="p-1.5 bg-slate-950/80 rounded-lg text-white hover:bg-slate-800 transition-all"
+                               title="Toggle Camera"
+                             >
+                               {patientCameraActive ? <Video size={12} /> : <VideoOff size={12} />}
+                             </button>
+                             <button
+                               type="button"
+                               onClick={() => setPatientCameraBlur(!patientCameraBlur)}
+                               className="p-1.5 bg-slate-950/80 rounded-lg text-white hover:bg-slate-800 transition-all"
+                               title="Toggle Background Blur"
+                             >
+                               <Sparkles size={12} />
+                             </button>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   ) : (
+                     /* ========================================================== */
+                     /* MODE B: AUDIO CONSULTATION IMMERSIVE ORB VIEW             */
+                     /* ========================================================== */
+                     <div className="flex-1 flex flex-col items-center justify-center p-8 z-10">
+                       <div className="text-center space-y-2 mb-8">
+                         <div className="w-20 h-20 rounded-3xl overflow-hidden border-2 border-blue-500/40 shadow-2xl mx-auto">
+                           <img
+                             src={AI_PROFESSIONAL_AVATARS[voiceSelection]?.image}
+                             alt={voiceSelection}
+                             referrerPolicy="no-referrer"
+                             className="w-full h-full object-cover"
+                           />
+                         </div>
+                         <h3 className="text-2xl font-black text-white">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.name}</h3>
+                         <p className="text-xs text-blue-300 font-semibold">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.title}</p>
+                       </div>
+
+                       {/* Immersive Central Fluid Orb */}
+                       <div className="relative w-72 h-72 flex items-center justify-center">
+                         <motion.div 
+                           animate={{
+                             scale: voiceIsSpeaking ? [1, 1.25, 1] : [1, 1.05, 1],
+                             opacity: voiceIsSpeaking ? [0.4, 0.8, 0.4] : [0.2, 0.35, 0.2]
+                           }}
+                           transition={{ duration: voiceIsSpeaking ? 1.5 : 3, repeat: Infinity, ease: "easeInOut" }}
+                           className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-500 blur-3xl"
+                         />
+
+                         {voiceIsSpeaking && (
+                           <>
+                             <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ping [animation-duration:3s]" />
+                             <div className="absolute inset-4 rounded-full border border-cyan-500/30 animate-ping [animation-duration:2s]" />
+                           </>
+                         )}
+
+                         <motion.div 
+                           animate={{
+                             borderRadius: voiceIsSpeaking 
+                               ? ["42% 58% 70% 30% / 45% 45% 55% 55%", "70% 30% 52% 48% / 60% 40% 60% 40%", "42% 58% 70% 30% / 45% 45% 55% 55%"] 
+                               : ["50%", "45% 55% 48% 52% / 52% 48% 52% 48%", "50%"],
+                             scale: voiceIsSpeaking ? [1, 1.08, 1] : [0.98, 1.02, 0.98],
+                             rotate: voiceCallIsTranscribing ? 360 : [0, 90, 180, 270, 360]
+                           }}
+                           transition={{
+                             borderRadius: { duration: 6, repeat: Infinity, ease: "easeInOut" },
+                             scale: { duration: voiceIsSpeaking ? 1 : 4, repeat: Infinity, ease: "easeInOut" },
+                             rotate: { duration: 25, repeat: Infinity, ease: "linear" }
+                           }}
+                           className={`w-44 h-44 flex items-center justify-center relative shadow-2xl transition-all duration-700 ${
+                             voiceIsSpeaking 
+                               ? 'bg-gradient-to-tr from-cyan-400 via-blue-500 via-indigo-600 to-pink-500 border border-white/20' 
+                               : voiceCallIsTranscribing
+                               ? 'bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 border border-white/10 animate-pulse'
+                               : voiceCallMuted
+                               ? 'bg-slate-900/90 border border-rose-500/30'
+                               : 'bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950/60 border border-slate-700/60'
+                           }`}
+                         >
+                           <div className="flex items-center justify-center w-full h-full z-20">
+                             {voiceIsSpeaking ? (
+                               <div className="flex items-end gap-1.5 h-8">
+                                 {[...Array(5)].map((_, i) => (
+                                   <div 
+                                     key={`chatinterface-l7364-i-${i}`} 
+                                     className="w-1.5 bg-white rounded-full animate-bounce"
+                                     style={{
+                                       height: `${40 + Math.random() * 60}%`,
+                                       animationDuration: `${0.4 + Math.random() * 0.4}s`,
+                                       animationDelay: `${i * 0.08}s`
+                                     }}
+                                   />
+                                 ))}
+                               </div>
+                             ) : voiceCallIsTranscribing ? (
+                               <Sparkles size={32} className="text-white animate-pulse" />
+                             ) : voiceCallMuted ? (
+                               <MicOff size={32} className="text-rose-400" />
+                             ) : (
+                               <div className="flex items-center gap-2">
+                                 {[...Array(4)].map((_, i) => (
+                                   <div 
+                                     key={`chatinterface-l7382-i-${i}`} 
+                                     className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"
+                                     style={{ animationDelay: `${i * 0.15}s` }}
+                                   />
+                                 ))}
+                               </div>
+                             )}
+                           </div>
+                         </motion.div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Real-time Subtitles / Active Phrase Overlay */}
+                   <div className="relative z-20 px-6 py-3 text-center max-w-2xl mx-auto w-full">
+                     <AnimatePresence mode="wait">
+                       <motion.div 
+                         key={voiceIsSpeaking ? 'speaking' : voiceCallIsTranscribing ? 'transcribing' : voiceCallMuted ? 'muted' : 'listening'}
+                         initial={{ opacity: 0, y: 10 }}
+                         animate={{ opacity: 1, y: 0 }}
+                         exit={{ opacity: 0, y: -10 }}
+                         className="bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 px-6 py-3 rounded-2xl shadow-2xl"
+                       >
+                         {voiceIsSpeaking ? (
+                           <p className="text-sm font-medium text-slate-100 italic leading-relaxed font-sans">
+                             "{voiceCallTranscript[voiceCallTranscript.length - 1]?.text || "Speaking..."}"
+                           </p>
+                         ) : voiceCallIsTranscribing ? (
+                           <span className="text-indigo-400 animate-pulse font-mono uppercase tracking-widest text-xs font-bold">
+                             Processing health query with clinical brain...
+                           </span>
+                         ) : voiceCallMuted ? (
+                           <span className="text-rose-400 font-mono uppercase tracking-widest text-xs font-bold">
+                             Microphone Muted
+                           </span>
+                         ) : (
+                           <span className="text-cyan-400 animate-pulse font-mono uppercase tracking-widest text-xs font-bold">
+                             Listening for your voice...
+                           </span>
+                         )}
+                       </motion.div>
+                     </AnimatePresence>
+                   </div>
+
+                   {/* Dialogue History Drawer */}
+                   {showVoiceTranscript && (
+                     <div className="relative z-30 px-6 max-w-2xl mx-auto w-full">
+                       <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-4 h-36 overflow-y-auto space-y-3 custom-scrollbar shadow-2xl">
+                         {voiceCallTranscript.map((log, i) => (
+                           <div 
+                             key={`chatinterface-l7432-i-${i}`} 
+                             className={`p-3 rounded-xl max-w-[85%] text-xs leading-relaxed ${
+                               log.role === 'user' 
+                                 ? 'bg-blue-600/20 text-blue-200 border border-blue-500/20 ml-auto' 
+                                 : 'bg-slate-900 text-slate-200 border border-slate-800 mr-auto'
+                             }`}
+                           >
+                             <span className="text-[9px] font-black uppercase text-slate-400 block mb-1">
+                               {log.role === 'user' ? 'You' : voiceSelection}
+                             </span>
+                             <p className="m-0 font-medium">{log.text}</p>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Keypad Drawer */}
+                   {showDtmfKeypad && (
+                     <div className="relative z-30 px-6 max-w-xs mx-auto w-full">
+                       <div className="bg-slate-950/95 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-2xl backdrop-blur-xl text-center">
+                         <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                           <span className="text-[10px] font-bold uppercase text-slate-400">DTMF Dialpad</span>
+                           <span className="text-[9px] font-mono text-cyan-400">Tone Active</span>
+                         </div>
+                         <div className="grid grid-cols-3 gap-2">
+                           {['1','2','3','4','5','6','7','8','9','*','0','#'].map((key, mapIdx_7507) => (
+                             <button
+                               key={`chatinterface-l7460-k-${key}-${mapIdx_7507}`}
+                               type="button"
+                               onClick={() => {
+                                 playDtmfTone(key);
+                                 setVoiceCallLogs(prev => [...prev, `[DTMF TONE] Sent frequency tone '${key}'`]);
+                               }}
+                               className="py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-mono font-black text-sm rounded-xl border border-slate-800 transition-all active:scale-95 cursor-pointer"
+                             >
+                               {key}
                              </button>
                            ))}
                          </div>
                        </div>
                      </div>
+                   )}
 
-                     {/* Action Controls */}
-                     <div className="space-y-3">
-                       <button
-                         type="button"
-                         onClick={startVoiceCallSession}
-                         className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-black tracking-wider text-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-blue-500/15"
-                       >
-                         <Phone size={14} />
-                         Initiate Direct Call
-                       </button>
-                     </div>
-                   </div>
-                 )}
-
-                 {/* INCOMING STATE (Call Answering Capability) */}
-                 {callState === 'incoming' && (
-                   <div className="flex flex-col flex-1 justify-center items-center py-10 space-y-12 animate-in zoom-in-95 duration-350">
-                     <div className="text-center space-y-3">
-                       <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 animate-pulse">Incoming Consultation Call</p>
-                       <h3 className="text-2xl font-semibold text-white">{voiceSelection} (Doctorian)</h3>
-                       <p className="text-xs text-slate-400">Secure AI Clinical Gateway</p>
-                     </div>
-
-                     {/* Beautiful Pulsing Call Waves */}
-                     <div className="relative flex items-center justify-center w-40 h-40">
-                       <div className="absolute inset-0 rounded-full bg-emerald-500/5 animate-ping [animation-duration:2.5s]" />
-                       <div className="absolute inset-4 rounded-full bg-emerald-500/10 animate-ping [animation-duration:1.8s]" />
-                       <div className="absolute inset-8 rounded-full bg-emerald-500/15 animate-pulse" />
-                       
-                       <div className="relative z-10 w-24 h-24 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                         <Phone size={36} className="text-emerald-400 animate-bounce" />
+                   {/* Keyboard Drawer */}
+                   {showVoiceKeyboard && (
+                     <div className="relative z-30 px-6 max-w-xl mx-auto w-full">
+                       <div className="bg-slate-950/95 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-2xl">
+                         <div className="flex gap-2">
+                           <input
+                             type="text"
+                             placeholder="Type to talk directly..."
+                             value={voiceCallQuery}
+                             onChange={(e) => setVoiceCallQuery(e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') {
+                                 e.preventDefault();
+                                 sendVoiceCallMessage();
+                               }
+                             }}
+                             className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                           />
+                           <button
+                             type="button"
+                             onClick={() => sendVoiceCallMessage()}
+                             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                           >
+                             Send
+                           </button>
+                         </div>
                        </div>
                      </div>
+                   )}
 
-                     {/* Action buttons (Answer/Decline) */}
-                     <div className="flex items-center gap-8 w-full max-w-xs justify-center pt-4">
+                   {/* Bottom Telehealth Media Controls Dock */}
+                   <div className="relative z-30 px-6 py-4 bg-slate-950/90 border-t border-slate-800/80 backdrop-blur-xl flex items-center justify-between max-w-3xl mx-auto w-full rounded-t-3xl shadow-2xl mt-2">
+                     <div className="flex items-center gap-2 md:gap-3">
+                       {/* Mic Mute */}
                        <button
                          type="button"
-                         onClick={declineIncomingCall}
-                         className="w-14 h-14 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-rose-500/25 active:scale-90 transition-all cursor-pointer"
-                         title="Decline Call"
+                         onClick={() => setVoiceCallMuted(!voiceCallMuted)}
+                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                           voiceCallMuted 
+                             ? 'bg-rose-500/15 border-rose-500/40 text-rose-400' 
+                             : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850'
+                         }`}
+                         title={voiceCallMuted ? "Unmute Mic" : "Mute Mic"}
                        >
-                         <X size={24} />
+                         {voiceCallMuted ? <MicOff size={20} /> : <Mic size={20} />}
+                       </button>
+
+                       {/* Video Toggle */}
+                       <button
+                         type="button"
+                         onClick={() => setCallMode(callMode === 'video' ? 'audio' : 'video')}
+                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                           callMode === 'video' 
+                             ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' 
+                             : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                         }`}
+                         title={callMode === 'video' ? "Switch to Voice Only" : "Switch to HD Video"}
+                       >
+                         {callMode === 'video' ? <Video size={20} /> : <VideoOff size={20} />}
+                       </button>
+
+                       {/* Keyboard Input Drawer Toggle */}
+                       <button
+                         type="button"
+                         onClick={() => setShowVoiceKeyboard(!showVoiceKeyboard)}
+                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                           showVoiceKeyboard ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                         }`}
+                         title="Type to talk"
+                       >
+                         <Keyboard size={20} />
+                       </button>
+
+                       {/* DTMF Dialpad Toggle */}
+                       <button
+                         type="button"
+                         onClick={() => setShowDtmfKeypad(!showDtmfKeypad)}
+                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer font-mono font-bold text-xs ${
+                           showDtmfKeypad ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                         }`}
+                         title="DTMF Keypad"
+                       >
+                         123
+                       </button>
+                     </div>
+
+                     {/* Center: BIG RED END CALL BUTTON */}
+                     <button
+                       type="button"
+                       onClick={terminateVoiceCallSession}
+                       className="w-14 h-14 bg-rose-600 hover:bg-rose-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-rose-600/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                       title="End Call Session"
+                     >
+                       <Phone size={24} className="rotate-[135deg]" />
+                     </button>
+
+                     {/* Right: Speaker & Transcript */}
+                     <div className="flex items-center gap-2 md:gap-3">
+                       <button
+                         type="button"
+                         onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
+                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                           showVoiceTranscript ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                         }`}
+                         title="Toggle Dialogue Transcript"
+                       >
+                         <FileText size={20} />
                        </button>
 
                        <button
                          type="button"
-                         onClick={answerIncomingCall}
-                         className="w-16 h-16 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 active:scale-90 transition-all cursor-pointer animate-pulse"
-                         title="Answer Call"
+                         onClick={() => setVoiceCallerSpeaker(!voiceCallerSpeaker)}
+                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                           !voiceCallerSpeaker ? 'bg-rose-500/15 border-rose-500/40 text-rose-400' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                         }`}
+                         title={voiceCallerSpeaker ? "Mute Speaker" : "Unmute Speaker"}
                        >
-                         <Phone size={28} />
+                         {voiceCallerSpeaker ? <Volume2 size={20} /> : <VolumeX size={20} />}
                        </button>
                      </div>
                    </div>
-                 )}
-
-                 {/* ACTIVE CALL STATE (Calling, Connected, Disconnecting) */}
-                 {(callState === 'calling' || callState === 'connected' || callState === 'disconnecting') && (
-                  <div className="flex flex-col flex-1 justify-between py-2 space-y-6 animate-in zoom-in-95 duration-300 relative">
-                    
-                    {/* Subtly floating ambient background glow fields (Gemini aesthetic) */}
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[2rem]">
-                      <div className="absolute -top-10 -left-10 w-44 h-44 rounded-full bg-indigo-600/10 blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
-                      <div className="absolute -bottom-10 -right-10 w-44 h-44 rounded-full bg-cyan-600/10 blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
-                    </div>
-
-                    {/* Header info */}
-                    {callState !== 'connected' && (
-                      <div className="text-center space-y-1 pt-2 z-10">
-                        <h3 className="text-xl font-bold tracking-tight text-white">{voiceSelection}</h3>
-                        <p className="text-xs text-slate-400 font-medium">Doctorian AI Voice Specialist</p>
-                        <div className="flex items-center justify-center gap-1.5 mt-1.5">
-                          <span className="text-[10px] uppercase font-bold tracking-widest font-mono text-slate-500">
-                            {callState === 'calling' ? (
-                              <span className="text-amber-400 animate-pulse">Establishing secure link...</span>
-                            ) : (
-                              <span className="text-rose-400">Disconnecting...</span>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Immersive Central Orb (Gemini Live inspired) */}
-                    <div className="flex flex-col items-center justify-center py-6 z-10 flex-1 min-h-[220px]">
-                      <div className="relative w-56 h-56 flex items-center justify-center">
-                        
-                        {/* Layer 1: Ambient outer blur aura */}
-                        <motion.div 
-                          animate={{
-                            scale: voiceIsSpeaking ? [1, 1.2, 1] : [1, 1.05, 1],
-                            opacity: voiceIsSpeaking ? [0.4, 0.7, 0.4] : [0.2, 0.35, 0.2]
-                          }}
-                          transition={{
-                            duration: voiceIsSpeaking ? 1.5 : 3,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
-                          className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500 via-indigo-500 via-purple-500 to-pink-500 blur-3xl"
-                        />
-                        
-                        {/* Layer 2: Floating ripple shockwaves when speaking */}
-                        {voiceIsSpeaking && (
-                          <>
-                            <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ping [animation-duration:3s]" />
-                            <div className="absolute inset-4 rounded-full border border-cyan-500/30 animate-ping [animation-duration:2s]" />
-                            <div className="absolute inset-8 rounded-full border border-pink-500/20 animate-ping [animation-duration:2.5s]" />
-                          </>
-                        )}
-
-                        {/* Layer 3: Main morphing fluid body */}
-                        <motion.div 
-                          animate={{
-                            borderRadius: voiceIsSpeaking 
-                              ? ["42% 58% 70% 30% / 45% 45% 55% 55%", "70% 30% 52% 48% / 60% 40% 60% 40%", "42% 58% 70% 30% / 45% 45% 55% 55%"] 
-                              : ["50%", "45% 55% 48% 52% / 52% 48% 52% 48%", "50%"],
-                            scale: voiceIsSpeaking ? [1, 1.08, 1] : voiceCallIsTranscribing ? [0.95, 1.02, 0.95] : [0.98, 1.02, 0.98],
-                            rotate: voiceCallIsTranscribing ? 360 : [0, 90, 180, 270, 360]
-                          }}
-                          transition={{
-                            borderRadius: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-                            scale: { duration: voiceIsSpeaking ? 1 : 4, repeat: Infinity, ease: "easeInOut" },
-                            rotate: { duration: voiceCallIsTranscribing ? 2 : 25, repeat: Infinity, ease: "linear" }
-                          }}
-                          className={`w-36 h-36 flex items-center justify-center relative shadow-2xl transition-all duration-700 ${
-                            voiceIsSpeaking 
-                              ? 'bg-gradient-to-tr from-cyan-400 via-blue-500 via-indigo-600 via-purple-500 to-pink-500 border border-white/20' 
-                              : voiceCallIsTranscribing
-                              ? 'bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 border border-white/10 animate-pulse'
-                              : voiceCallMuted
-                              ? 'bg-slate-900/90 border border-rose-500/30'
-                              : 'bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950/60 border border-slate-700/60'
-                          }`}
-                        >
-                          {/* Inner rotating core when thinking */}
-                          {voiceCallIsTranscribing && (
-                            <div className="absolute inset-1.5 rounded-full border border-t-white border-r-transparent border-b-white border-l-transparent animate-spin [animation-duration:1.2s]" />
-                          )}
-
-                          {/* Equalizer / Status icons in the exact center of the orb */}
-                          <div className="flex items-center justify-center w-full h-full z-20">
-                            {voiceIsSpeaking ? (
-                              // Dynamic micro equalizers matching speaking cadence
-                              <div className="flex items-end gap-1.5 h-7">
-                                {[...Array(5)].map((_, i) => (
-                                  <div 
-                                    key={i} 
-                                    className="w-1 bg-white rounded-full animate-bounce"
-                                    style={{
-                                      height: `${40 + Math.random() * 60}%`,
-                                      animationDuration: `${0.4 + Math.random() * 0.4}s`,
-                                      animationDelay: `${i * 0.08}s`
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            ) : voiceCallIsTranscribing ? (
-                              <Sparkles size={28} className="text-white animate-pulse" />
-                            ) : voiceCallMuted ? (
-                              <MicOff size={28} className="text-rose-400" />
-                            ) : (
-                              // Gentle sound wave rings for listening
-                              <div className="flex items-center gap-1.5">
-                                {[...Array(4)].map((_, i) => (
-                                  <div 
-                                    key={i} 
-                                    className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"
-                                    style={{ animationDelay: `${i * 0.15}s` }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      </div>
-                      
-                      {/* Real-time Subtitle/Active Phrase Text (Very friendly and clean) */}
-                      {(callState === 'connected' || callState === 'calling' || callState === 'disconnecting') && (
-                        <div className="mt-6 px-8 text-center min-h-[3rem] flex items-center justify-center max-w-sm">
-                          <AnimatePresence mode="wait">
-                            <motion.p 
-                              key={voiceIsSpeaking ? 'speaking' : voiceCallIsTranscribing ? 'transcribing' : voiceCallMuted ? 'muted' : 'listening'}
-                              initial={{ opacity: 0, y: 5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -5 }}
-                              className="text-xs font-semibold tracking-wide"
-                            >
-                              {voiceIsSpeaking ? (
-                                <span className="text-slate-100 italic leading-relaxed font-sans text-sm">
-                                  {voiceCallTranscript[voiceCallTranscript.length - 1]?.text || "Speaking..."}
-                                </span>
-                              ) : voiceCallIsTranscribing ? (
-                                <span className="text-indigo-400 animate-pulse uppercase tracking-widest text-[10px]">{t('Processing health query...')}</span>
-                              ) : voiceCallMuted ? (
-                                <span className="text-rose-400 uppercase tracking-widest text-[10px]">{t('Muted')}</span>
-                              ) : (
-                                <span className="text-cyan-400 animate-pulse uppercase tracking-widest text-[10px]">{t('Listening for your voice...')}</span>
-                              )}
-                            </motion.p>
-                          </AnimatePresence>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Sliding Transcript Drawer Toggle (clean, low profile) */}
-                    {(callState === 'connected' || callState === 'calling' || callState === 'disconnecting') && (
-                      <div className="px-6 z-10">
-                        <div className="bg-slate-900/40 border border-slate-900/60 rounded-2xl overflow-hidden transition-all duration-300">
-                          <button
-                            type="button"
-                            onClick={() => setShowVoiceTranscript(!showVoiceTranscript)}
-                            className="w-full px-4 py-3 flex items-center justify-between text-xs text-slate-400 hover:text-white transition-all outline-none"
-                          >
-                            <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">{t('Dialogue History')}</span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[9px] font-semibold">{showVoiceTranscript ? t('Hide') : t('Show')}</span>
-                              <ChevronDown size={12} className={`transform transition-transform duration-300 ${showVoiceTranscript ? 'rotate-180' : ''}`} />
-                            </div>
-                          </button>
-
-                          {showVoiceTranscript && (
-                            <div className="h-28 p-4 overflow-y-auto space-y-3.5 flex flex-col custom-scrollbar border-t border-slate-900/50 text-[11px] animate-in slide-in-from-top-2 duration-200 bg-slate-950/40">
-                              {voiceCallTranscript.map((log, i) => (
-                                <div 
-                                  key={i} 
-                                  className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
-                                    log.role === 'user' 
-                                      ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/10 self-end' 
-                                      : 'bg-slate-900/60 text-slate-200 border border-slate-800/40 self-start'
-                                  }`}
-                                >
-                                  <span className="text-[8px] font-bold uppercase tracking-wider block mb-1 text-slate-400">
-                                    {log.role === 'user' ? 'You' : voiceSelection}
-                                  </span>
-                                  <p className="m-0 font-medium">{log.text}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Keyboard Input Drawer (Toggled by the Keyboard Button) */}
-                    {showVoiceKeyboard && callState !== 'connected' && (
-                      <div className="px-6 z-10 animate-in slide-in-from-bottom-3 duration-300">
-                        <div className="bg-slate-900/60 border border-slate-850 rounded-2xl p-3.5 space-y-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            {[
-                              "Explain malaria prevention",
-                              "Explain child immunization",
-                              "My back is hurting badly",
-                              "What is Musujja treatment?"
-                            ].map((promptText, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => {
-                                  setVoiceCallQuery(promptText);
-                                  sendVoiceCallMessage(promptText);
-                                }}
-                                className="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-900 text-[9px] text-slate-300 hover:text-white rounded-lg transition-all border border-slate-850 cursor-pointer font-medium"
-                              >
-                                "{promptText}"
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Type to talk instead..."
-                              value={voiceCallQuery}
-                              onChange={(e) => setVoiceCallQuery(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  sendVoiceCallMessage();
-                                }
-                              }}
-                              className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-left"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => sendVoiceCallMessage()}
-                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-semibold rounded-xl transition-all cursor-pointer"
-                            >
-                              Send
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Ergonomic & Beautiful Controls Dock (Gemini Call style) */}
-                    <div className="pt-4 px-6 pb-2 flex items-center justify-between gap-4 border-t border-slate-900/40 z-10">
-                      <div className="flex gap-2.5">
-                        {/* Keyboard/Text Input Toggle */}
-                        {callState !== 'connected' && (
-                          <button
-                            type="button"
-                            onClick={() => setShowVoiceKeyboard(!showVoiceKeyboard)}
-                            className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
-                              showVoiceKeyboard 
-                                ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
-                                : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
-                            }`}
-                            title="Toggle typing mode"
-                          >
-                            <Keyboard size={18} />
-                          </button>
-                        )}
-
-                        {/* Mic Mute Button */}
-                        <button
-                          type="button"
-                          onClick={() => setVoiceCallMuted(!voiceCallMuted)}
-                          className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
-                            voiceCallMuted 
-                              ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
-                              : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
-                          }`}
-                          title={voiceCallMuted ? "Unmute Mic" : "Mute Mic"}
-                        >
-                          {voiceCallMuted ? <MicOff size={18} /> : <Mic size={18} />}
-                        </button>
-                      </div>
-
-                      {/* Centered Red End Call Button */}
-                      <button
-                        type="button"
-                        onClick={terminateVoiceCallSession}
-                        className="w-12 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                        title="End Consultation"
-                      >
-                        <Phone size={20} className="rotate-[135deg]" />
-                      </button>
-
-                      {/* Speaker Output Toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setVoiceCallerSpeaker(!voiceCallerSpeaker)}
-                        className={`p-3.5 rounded-full border transition-all duration-300 cursor-pointer ${
-                          !voiceCallerSpeaker 
-                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
-                            : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-850'
-                        }`}
-                        title={voiceCallerSpeaker ? "Mute Speaker" : "Unmute Speaker"}
-                      >
-                        {voiceCallerSpeaker ? <Volume2 size={18} /> : <VolumeX size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-             </motion.div>
+                 </div>
+               )}
+             </div>
            </div>
          )}
        </AnimatePresence>
@@ -6847,3 +7699,6 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       </div>
     );
   }
+
+export default ChatInterface;
+

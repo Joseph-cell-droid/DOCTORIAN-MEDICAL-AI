@@ -204,12 +204,12 @@ export const DeviceTerminalPanel: React.FC<DeviceTerminalPanelProps> = ({ arduin
           { id: 'serial', label: 'USB SERIAL', icon: Cpu, color: 'hover:border-slate-400 dark:hover:border-slate-600' },
           { id: 'wifi', label: 'WIFI LINK', icon: Wifi, color: 'hover:border-emerald-300 dark:hover:border-emerald-800' },
           { id: 'cloud', label: 'NEURAL LINK', icon: Zap, color: 'hover:border-purple-300 dark:hover:border-purple-800' },
-        ].map(tab => {
+        ].map((tab, mapIdx_206) => {
           const isActive = activeChannel === tab.id;
           const Icon = tab.icon;
           return (
             <button
-              key={tab.id}
+              key={`deviceterminalpanel-l212-${mapIdx_206}`}
               onClick={() => {
                 setActiveChannel(tab.id as any);
                 if (isSimulatingNode) {
@@ -368,9 +368,9 @@ export const DeviceTerminalPanel: React.FC<DeviceTerminalPanelProps> = ({ arduin
               <div className="space-y-1">
                 <label className="text-slate-500 uppercase tracking-wider block text-[8px]">Frame Format</label>
                 <div className="flex gap-1.5">
-                  {(['csv', 'json', 'checksum'] as const).map(fmt => (
+                  {(['csv', 'json', 'checksum'] as const).map((fmt, fIdx) => (
                     <button
-                      key={fmt}
+                      key={`dt-fmt-${fmt}-${fIdx}`}
                       onClick={() => {
                         setSimPacketType(fmt);
                         addConnectionLog(`Emulated frame format switched to: ${fmt.toUpperCase()}`, "info");
@@ -390,9 +390,9 @@ export const DeviceTerminalPanel: React.FC<DeviceTerminalPanelProps> = ({ arduin
               <div className="space-y-1">
                 <label className="text-slate-500 uppercase tracking-wider block text-[8px]">Patient Vitals Profile</label>
                 <div className="flex gap-1.5">
-                  {(['stable', 'warning', 'shock'] as const).map(p => (
+                  {(['stable', 'warning', 'shock'] as const).map((p, pIdx) => (
                     <button
-                      key={p}
+                      key={`dt-p-${p}-${pIdx}`}
                       onClick={() => {
                         setSimPreset(p);
                         addConnectionLog(`Simulated patient biometrics changed to: ${p.toUpperCase()} state`, "info");
@@ -502,7 +502,7 @@ export const DeviceTerminalPanel: React.FC<DeviceTerminalPanelProps> = ({ arduin
                   const cleanText = rest.replace(/^\[.*?\] /, '');
 
                   return (
-                    <div key={index} className="flex items-start gap-2 hover:bg-white/2 p-0.5 rounded transition-colors">
+                    <div key={`deviceterminalpanel-l505-index-${index}`} className="flex items-start gap-2 hover:bg-white/2 p-0.5 rounded transition-colors">
                       <span className="text-slate-600 select-none font-bold">{timestamp}</span>
                       <span className={`px-1 rounded text-[8px] font-black uppercase tracking-wider shrink-0 ${badgeColor}`}>
                         {badge}

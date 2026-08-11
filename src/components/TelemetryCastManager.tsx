@@ -76,7 +76,7 @@ export const TelemetryCastManager: React.FC = () => {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   
   // Real Physical Sensors and Standalone Watch Sync
-  const [useLivePhoneSensors, setUseLivePhoneSensors] = useState<boolean>(false);
+  const [isLivePhoneSensorsActive, setIsLivePhoneSensorsActive] = useState<boolean>(false);
   const [phoneSensorStatus, setPhoneSensorStatus] = useState<string>('idle');
   const [syncCodeInput, setSyncCodeInput] = useState<string>('');
   const [isSyncingWatch, setIsSyncingWatch] = useState<boolean>(false);
@@ -213,7 +213,7 @@ export const TelemetryCastManager: React.FC = () => {
           const target = currentSport.avgHR;
           const ramp = Math.min(1, nextTime / 45); // 45 seconds to reach workout state
           const hrBase = 72 + (target - 72) * ramp;
-          const heartRate = useLivePhoneSensors 
+          const heartRate = isLivePhoneSensorsActive 
             ? m.heartRate // Driven dynamically by physical effort
             : Math.round(hrBase + Math.sin(nextTime * 0.15) * 4 + (Math.random() * 3 - 1.5));
           
@@ -221,7 +221,7 @@ export const TelemetryCastManager: React.FC = () => {
           let steps = m.steps;
           let distance = m.distance;
 
-          if (useLivePhoneSensors) {
+          if (isLivePhoneSensorsActive) {
             // Live sensors are active; only apply a minute baseline passive metabolism.
             // Physical walking/shaking will drive the high-velocity increases!
             calories = m.calories + (currentSport.calorieRate / 600);
@@ -263,7 +263,7 @@ export const TelemetryCastManager: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeWorkout, isPaused, selectedSportId, useLivePhoneSensors]);
+  }, [activeWorkout, isPaused, selectedSportId, isLivePhoneSensorsActive]);
 
   // Synchronize workout vitals to Arduino/Wearable Context safely without triggering bad state updates during render
   useEffect(() => {
@@ -330,7 +330,7 @@ export const TelemetryCastManager: React.FC = () => {
 
   // Physical motion tracker hook for phone/tablet hardware accelerometers
   useEffect(() => {
-    if (!activeWorkout || isPaused || !useLivePhoneSensors) return;
+    if (!activeWorkout || isPaused || !isLivePhoneSensorsActive) return;
 
     let lastX = 0;
     let lastY = 0;
@@ -386,11 +386,11 @@ export const TelemetryCastManager: React.FC = () => {
     return () => {
       window.removeEventListener('devicemotion', handleMotion);
     };
-  }, [activeWorkout, isPaused, useLivePhoneSensors]);
+  }, [activeWorkout, isPaused, isLivePhoneSensorsActive]);
 
   const toggleLiveSensors = async () => {
-    if (useLivePhoneSensors) {
-      setUseLivePhoneSensors(false);
+    if (isLivePhoneSensorsActive) {
+      setIsLivePhoneSensorsActive(false);
       setPhoneSensorStatus('idle');
       addLog("Live smartphone accelerometer detached.", 'info');
       return;
@@ -402,7 +402,7 @@ export const TelemetryCastManager: React.FC = () => {
       if (typeof reqPermission === 'function') {
         const permission = await reqPermission();
         if (permission === 'granted') {
-          setUseLivePhoneSensors(true);
+          setIsLivePhoneSensorsActive(true);
           setPhoneSensorStatus('active');
           addLog("Live iPhone accelerometer connected. Swing device to count steps!", 'success');
         } else {
@@ -411,12 +411,12 @@ export const TelemetryCastManager: React.FC = () => {
         }
       } else {
         // Android, Chrome or desktop fallback
-        setUseLivePhoneSensors(true);
+        setIsLivePhoneSensorsActive(true);
         setPhoneSensorStatus('active');
         addLog("Live smartphone accelerometer attached. Shake device to run/walk!", 'success');
       }
     } catch (e: any) {
-      setUseLivePhoneSensors(true);
+      setIsLivePhoneSensorsActive(true);
       setPhoneSensorStatus('active');
       addLog("Sensors linked (using fallback emulation if device is incompatible).", 'info');
     }
@@ -443,7 +443,7 @@ export const TelemetryCastManager: React.FC = () => {
         return;
       }
 
-      const existingIds = new Set(completedSessions.map(s => s.id));
+      const existingIds = new Set(completedSessions.map((s, mapIdx_445) => s.id));
       const freshLogs = incomingLogs.filter((l: any) => !existingIds.has(l.id));
 
       if (freshLogs.length === 0) {
@@ -1795,7 +1795,7 @@ export const TelemetryCastManager: React.FC = () => {
       const cleaned = response.text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
-      const updated = completedSessions.map(s => s.id === session.id ? { ...s, aiAnalysis: parsed } : s);
+      const updated = completedSessions.map((s, mapIdx_1797) => s.id === session.id ? { ...s, aiAnalysis: parsed } : s);
       setCompletedSessions(updated);
       localStorage.setItem('doctorian_sports_sessions', JSON.stringify(updated));
       setSelectedSessionForAnalysis(updated.find(s => s.id === session.id));
@@ -2011,11 +2011,11 @@ export const TelemetryCastManager: React.FC = () => {
                   <Smartphone size={11} className="animate-bounce" /> Live Device Sensors
                 </span>
                 <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-                  useLivePhoneSensors 
+                  isLivePhoneSensorsActive 
                     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
                 }`}>
-                  {useLivePhoneSensors ? 'ACCELEROMETER LIVE' : 'EMULATOR ONLY'}
+                  {isLivePhoneSensorsActive ? 'ACCELEROMETER LIVE' : 'EMULATOR ONLY'}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal mb-3">
@@ -2025,13 +2025,13 @@ export const TelemetryCastManager: React.FC = () => {
                 type="button"
                 onClick={toggleLiveSensors}
                 className={`w-full py-2 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  useLivePhoneSensors 
+                  isLivePhoneSensorsActive 
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/10' 
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg'
                 }`}
               >
                 <Cpu size={12} />
-                <span>{useLivePhoneSensors ? 'Disconnect Real Sensors' : 'Connect Phone Sensors'}</span>
+                <span>{isLivePhoneSensorsActive ? 'Disconnect Real Sensors' : 'Connect Phone Sensors'}</span>
               </button>
             </div>
 
@@ -2092,12 +2092,12 @@ export const TelemetryCastManager: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {SPORTS.map((sport) => {
+            {SPORTS.map((sport, mapIdx_2094) => {
               const isSelected = selectedSportId === sport.id;
               const isActive = activeWorkout?.id === sport.id;
               return (
                 <button
-                  key={sport.id}
+                  key={`telemetrycastmanager-l2100-${mapIdx_2094}`}
                   disabled={!!activeWorkout && !isActive}
                   onClick={() => setSelectedSportId(sport.id)}
                   className={`p-2.5 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2.5 relative overflow-hidden group cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
@@ -2415,7 +2415,7 @@ export const TelemetryCastManager: React.FC = () => {
                     </div>
                   ) : (
                     gpsLog.map((log, idx) => (
-                      <div key={idx} className="whitespace-nowrap overflow-hidden text-ellipsis">
+                      <div key={`telemetrycastmanager-l2418-idx-${idx}`} className="whitespace-nowrap overflow-hidden text-ellipsis">
                         <span className="text-indigo-400">›</span> {log}
                       </div>
                     ))
@@ -2459,7 +2459,7 @@ export const TelemetryCastManager: React.FC = () => {
                   const isSelected = selectedPatientStatus === key;
                   return (
                     <button
-                      key={key}
+                      key={`telemetrycastmanager-l2462-k-${key}`}
                       type="button"
                       onClick={() => {
                         setSelectedPatientStatus(key);
@@ -2514,11 +2514,11 @@ export const TelemetryCastManager: React.FC = () => {
                     { id: 'mtn', label: 'MTN UGANDA', desc: 'Local GSM Uplink' },
                     { id: 'airtel', label: 'AIRTEL UGANDA', desc: 'Backup GSM Path' },
                     { id: 'satellite', label: 'SATELLITE eSIM', desc: 'Offline Autonomy' }
-                  ].map((gateway) => {
+                  ].map((gateway, mapIdx_2516) => {
                     const isSelected = selectedNetwork === gateway.id;
                     return (
                       <button
-                        key={gateway.id}
+                        key={`telemetrycastmanager-l2521-${mapIdx_2516}`}
                         type="button"
                         onClick={() => setSelectedNetwork(gateway.id)}
                         className={`p-2 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
@@ -2555,11 +2555,11 @@ export const TelemetryCastManager: React.FC = () => {
                     { step: 3, icon: "💬", label: "GSM SMS" },
                     { step: 4, icon: "📞", label: "AI Dial" },
                     { step: 5, icon: "🟢", label: "WhatsApp" }
-                  ].map((p) => {
+                  ].map((p, mapIdx_2557) => {
                     const isActive = pipelineStep === p.step;
                     const isCompleted = pipelineStep > p.step;
                     return (
-                      <div key={p.step} className="flex flex-col items-center gap-1">
+                      <div key={`telemetrycastmanager-l2562-${mapIdx_2557}`} className="flex flex-col items-center gap-1">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs transition-all ${
                           isActive ? 'bg-indigo-600 text-white border-2 border-indigo-400 scale-110 shadow-[0_0_12px_rgba(79,70,229,0.6)] animate-pulse' :
                           isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'
@@ -2581,7 +2581,7 @@ export const TelemetryCastManager: React.FC = () => {
                 {pipelineStep > 0 && (
                   <div className="bg-black/80 rounded-xl p-3 border border-slate-800 font-mono text-[8.5px] text-slate-300 max-h-[100px] overflow-y-auto space-y-1 scrollbar-thin">
                     {pipelineLogs.map((log, idx) => (
-                      <div key={idx} className="leading-relaxed">
+                      <div key={`telemetrycastmanager-l2584-idx-${idx}`} className="leading-relaxed">
                         <span className="text-emerald-400">›</span> {log}
                       </div>
                     ))}
@@ -2668,11 +2668,11 @@ export const TelemetryCastManager: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[220px] overflow-y-auto pr-1">
-            {completedSessions.map((session) => {
+            {completedSessions.map((session, mapIdx_2670) => {
               const isSelected = selectedSessionForAnalysis?.id === session.id;
               return (
                 <div 
-                  key={session.id}
+                  key={`telemetrycastmanager-l2675-${mapIdx_2670}`}
                   onClick={() => setSelectedSessionForAnalysis(session)}
                   className={`p-4 rounded-2xl border transition-all cursor-pointer text-left flex justify-between items-center gap-4 hover:shadow-md ${
                     isSelected 
@@ -2814,7 +2814,7 @@ export const TelemetryCastManager: React.FC = () => {
                       <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Cardio Load Spectrum</span>
                       <div className="flex flex-wrap gap-2 mt-1">
                         {selectedSessionForAnalysis.aiAnalysis.cardioZones.map((z: string, i: number) => (
-                          <span key={i} className="px-2 py-0.5 bg-slate-950 rounded text-[9px] text-indigo-300 font-bold">
+                          <span key={`telemetrycastmanager-l2817-i-${i}`} className="px-2 py-0.5 bg-slate-950 rounded text-[9px] text-indigo-300 font-bold">
                             {z}
                           </span>
                         ))}
@@ -2824,7 +2824,7 @@ export const TelemetryCastManager: React.FC = () => {
                       <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Coaching Tips</span>
                       <ul className="space-y-1 mt-1 text-slate-300">
                         {selectedSessionForAnalysis.aiAnalysis.tips.map((t: string, i: number) => (
-                          <li key={i} className="flex items-start gap-1.5">
+                          <li key={`telemetrycastmanager-l2827-i-${i}`} className="flex items-start gap-1.5">
                             <span className="text-indigo-400">✦</span>
                             <span>{t}</span>
                           </li>
@@ -2855,7 +2855,7 @@ export const TelemetryCastManager: React.FC = () => {
         <span className="font-bold text-slate-400 uppercase tracking-widest block mb-2">Live Sports GATT Bus Monitor</span>
         <div className="max-h-[70px] overflow-y-auto space-y-1">
           {logs.map((log, idx) => (
-            <p key={idx} className="text-slate-600 dark:text-slate-450 leading-tight">
+            <p key={`telemetrycastmanager-l2858-idx-${idx}`} className="text-slate-600 dark:text-slate-450 leading-tight">
               {log}
             </p>
           ))}

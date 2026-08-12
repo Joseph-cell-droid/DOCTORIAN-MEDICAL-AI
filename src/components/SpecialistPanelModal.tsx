@@ -95,10 +95,10 @@ Return valid raw JSON only.`;
           'from-rose-500 to-pink-600'
         ];
         const avatars = [
-          'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
-          'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
-          'https://images.unsplash.com/photo-1594824813571-24a69c100d31?auto=format&fit=crop&q=80&w=200',
-          'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200'
+          '/african_doctor_female.png',
+          '/african_doctor_male.png',
+          '/african_doctor_female.png',
+          '/african_doctor_videocall.png'
         ];
 
         const mappedReviews: SpecialistReview[] = parsed.reviews.map((r: any, idx: number) => ({
@@ -119,20 +119,20 @@ Return valid raw JSON only.`;
         setReviews([
           {
             role: 'Cardiologist',
-            doctorName: 'Dr. Evelyn Vance, MD, FACC',
+            doctorName: 'Dr. Grace Akello, MD, FACC',
             specialty: 'Cardiovascular Medicine',
             color: 'from-blue-500 to-indigo-600',
-            avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
+            avatar: '/african_doctor_female.png',
             opinion: 'Hemodynamic metrics indicate stable mean arterial blood pressure with zero acute ischemic alterations on waveform analysis. Baseline heart rate remains well-controlled.',
             confidence: 97,
             recommendations: ['Maintain current Lisinopril dosing', 'Quarterly lipid panel monitoring', 'Daily ambulatory BP telemetry']
           },
           {
             role: 'Pulmonologist',
-            doctorName: 'Dr. Marcus Sterling, MD',
+            doctorName: 'Dr. Joseph Okello, MD',
             specialty: 'Respiratory & Critical Care',
             color: 'from-emerald-500 to-teal-600',
-            avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
+            avatar: '/african_doctor_male.png',
             opinion: 'Oxygen saturation of 98% on ambient air demonstrates optimal gas exchange. Mild asthma is well-controlled without bronchodilator overuse.',
             confidence: 95,
             recommendations: ['Pre-exercise Albuterol PRN', 'Peak flow baseline assessment']
@@ -142,17 +142,17 @@ Return valid raw JSON only.`;
             doctorName: 'Dr. Amara Osei, PharmD',
             specialty: 'Clinical Pharmacology & Toxicology',
             color: 'from-purple-500 to-violet-600',
-            avatar: 'https://images.unsplash.com/photo-1594824813571-24a69c100d31?auto=format&fit=crop&q=80&w=200',
+            avatar: '/african_doctor_female.png',
             opinion: 'No severe cytochrome P450 drug-drug interaction flagged between Lisinopril and Albuterol. Serum potassium and renal function panels remain within green thresholds.',
             confidence: 98,
             recommendations: ['Monitor serum electrolyte panel semi-annually', 'Ensure consistent morning administration']
           },
           {
             role: 'Preventive Longevity Specialist',
-            doctorName: 'Dr. Joseph K., MD, PhD',
+            doctorName: 'Dr. David Ochieng, MD, PhD',
             specialty: 'Preventive Genomics & Metabolic Health',
             color: 'from-rose-500 to-pink-600',
-            avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200',
+            avatar: '/african_doctor_videocall.png',
             opinion: 'Metabolic telemetry shows strong HRV resilience. Recommending Mediterranean zone-2 aerobic conditioning to optimize arterial compliance.',
             confidence: 94,
             recommendations: ['150 min/week Zone-2 aerobic training', 'Omega-3 index optimization']

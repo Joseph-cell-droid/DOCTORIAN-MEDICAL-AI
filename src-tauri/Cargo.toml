@@ -1,0 +1,23 @@
+[package]
+name = "doctorian-app"
+version = "2.5.0"
+description = "Doctorian Medical AI - Autonomous Medical Workstation"
+authors = ["Doctorian AI Team <contact@doctorian.ai>"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0.0", features = ["tray-icon"] }
+tauri-plugin-updater = "2.0.0"
+tauri-plugin-shell = "2.0.0"
+tauri-plugin-dialog = "2.0.0"
+tauri-plugin-fs = "2.0.0"
+tauri-plugin-http = "2.0.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

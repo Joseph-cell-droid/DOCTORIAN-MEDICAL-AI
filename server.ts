@@ -131,13 +131,120 @@ function broadcastToArduino(data: any) {
   });
 }
 
-function broadcastBiometrics(data: any, source: WebSocket) {
+const deviceVitalsClients = new Set<WebSocket>();
+
+function broadcastBiometrics(data: any, source?: WebSocket) {
   const payload = JSON.stringify(data);
   biometricClients.forEach(client => {
     if (client !== source && client.readyState === WebSocket.OPEN) {
       client.send(payload);
     }
   });
+}
+
+function broadcastDeviceVitals(data: any, source?: WebSocket) {
+  const payload = JSON.stringify(data);
+  deviceVitalsClients.forEach(client => {
+    if (client !== source && client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  });
+  // Cross-relay to biometrics channel
+  broadcastBiometrics(data, source);
+}
+
+(global as any).broadcastDeviceVitals = broadcastDeviceVitals;
+
+async function evaluateVitalsTriageWithGemini(vitals: {
+  heartRate?: number;
+  spo2?: number;
+  temperature?: number;
+  ecg?: number[] | string;
+}): Promise<{
+  status: 'STABLE' | 'WATCH' | 'URGENT';
+  score: number;
+  explanations: { en: string; lg: string; sw: string };
+  recommendation: string;
+}> {
+  const hr = Number(vitals.heartRate ?? 72);
+  const spo2 = Number(vitals.spo2 ?? 98);
+  const temp = Number(vitals.temperature ?? 36.8);
+
+  let fallbackStatus: 'STABLE' | 'WATCH' | 'URGENT' = 'STABLE';
+  let score = 95;
+  let enMsg = `Vitals normal (HR: ${hr} bpm, SpO2: ${spo2}%, Temp: ${temp}°C). Cardiac rhythm stable.`;
+  let lgMsg = `Obubonero bw'obulamamu bulungi (Mutima: ${hr} bpm, Mukka: ${spo2}%, Ebbugumu: ${temp}°C). Omulwadde mulamu.`;
+  let swMsg = `Ishara za uzima ziko sawa (Moyo: ${hr} bpm, Hewa: ${spo2}%, Joto: ${temp}°C). Mgonjwa yuko salama.`;
+
+  if (spo2 < 90 || hr > 120 || hr < 45 || temp > 38.5 || temp < 35.0) {
+    fallbackStatus = 'URGENT';
+    score = 35;
+    enMsg = `URGENT ALERT: Severe physiological instability detected (HR: ${hr} bpm, SpO2: ${spo2}%, Temp: ${temp}°C). Immediate emergency clinical care required!`;
+    lgMsg = `OBUBONERO BUBOBI: Busingidde ddala ku mutindo (Mutima: ${hr} bpm, Mukka: ${spo2}%, Ebbugumu: ${temp}°C). Yanguwa okulaba omusawo!`;
+    swMsg = `ONYO LA DHARURA: Ishara muhimu ziko hatarini (Moyo: ${hr} bpm, Hewa: ${spo2}%, Joto: ${temp}°C). Mtafute daktari mara moja!`;
+  } else if (spo2 < 95 || hr > 100 || hr < 55 || temp > 37.5 || temp < 36.0) {
+    fallbackStatus = 'WATCH';
+    score = 70;
+    enMsg = `WATCH ALERT: Mild vital deviation detected (HR: ${hr} bpm, SpO2: ${spo2}%, Temp: ${temp}°C). Continuous monitoring active.`;
+    lgMsg = `LONDERA HOSI: Obubonero buvuddeko ku mutindo (Mutima: ${hr} bpm, Mukka: ${spo2}%, Ebbugumu: ${temp}°C). Ssiga nga bw'olondoola.`;
+    swMsg = `FUATILIA KWA KARIBU: Mabadiliko kidogo ya ishara (Moyo: ${hr} bpm, Hewa: ${spo2}%, Joto: ${temp}°C). Endelea kufuatilia.`;
+  }
+
+  try {
+    const keys = getValidApiKeys('system');
+    if (keys.length > 0) {
+      const apiKey = keys[0];
+      const aiClient = getGenAI(apiKey);
+      if (aiClient) {
+        const prompt = `You are a clinical triage AI engine. Evaluate real-time patient watch vitals:
+Heart Rate: ${hr} bpm
+SpO2: ${spo2}%
+Temperature: ${temp} °C
+ECG: ${Array.isArray(vitals.ecg) ? vitals.ecg.slice(0, 8).join(', ') : 'Continuous waveform'}
+
+Output strictly valid JSON (no markdown formatting, no code blocks):
+{
+  "status": "STABLE" or "WATCH" or "URGENT",
+  "score": number between 0 and 100,
+  "explanations": {
+    "en": "Clear short explanation in English (1-2 sentences)",
+    "lg": "Clear short explanation in Luganda (1-2 sentences)",
+    "sw": "Clear short explanation in Swahili (1-2 sentences)"
+  },
+  "recommendation": "Short directive"
+}`;
+
+        const response = await aiClient.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json'
+          }
+        });
+
+        const text = response.text || '';
+        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (parsed.status && parsed.explanations?.en && parsed.explanations?.lg && parsed.explanations?.sw) {
+          return {
+            status: parsed.status,
+            score: typeof parsed.score === 'number' ? parsed.score : score,
+            explanations: parsed.explanations,
+            recommendation: parsed.recommendation || ''
+          };
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[GEMINI-TRIAGE] Gemini triage evaluation fallback to local matrix:', err.message);
+  }
+
+  return {
+    status: fallbackStatus,
+    score,
+    explanations: { en: enMsg, lg: lgMsg, sw: swMsg },
+    recommendation: fallbackStatus === 'URGENT' ? 'Immediate clinical escalation required.' : fallbackStatus === 'WATCH' ? 'Maintain active patient observation.' : 'Routine monitoring.'
+  };
 }
 
 // ESM/CJS compatibility: path resolution is performed relative to process.cwd()
@@ -2273,6 +2380,22 @@ const schemas = [
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     releasedData TEXT,
     FOREIGN KEY(userId) REFERENCES users(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS device_vitals_telemetry (
+    id TEXT PRIMARY KEY,
+    deviceId TEXT NOT NULL,
+    patientId TEXT,
+    patientName TEXT,
+    heartRate REAL,
+    spo2 REAL,
+    temperature REAL,
+    ecg TEXT,
+    status TEXT,
+    triageStatus TEXT,
+    triageExplanations TEXT,
+    encryptedData TEXT,
+    timestamp INTEGER,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )`
 ];
 
@@ -9808,6 +9931,192 @@ function detectSpecificDiseaseMapping(prompt: string): string {
       }
     });
 
+    // ----------------------------------------------------
+    // WEARABLE DEVICE VITALS & GEMINI TRIAGE ENGINE API
+    // ----------------------------------------------------
+    app.post("/api/device/vitals", async (req: any, res: any) => {
+      try {
+        let body = req.body || {};
+        if (body.encryptedPayload) {
+          try {
+            const decryptedStr = decryptText(body.encryptedPayload);
+            body = JSON.parse(decryptedStr);
+          } catch (e) {
+            console.warn("[DEVICE-VITALS] Payload decryption fallback:", e);
+          }
+        }
+
+        const deviceId = body.deviceId || "WATCH-01";
+        const patientId = body.patientId || "p-101";
+        const patientName = body.patientName || "Sarah Namukasa";
+        const heartRate = Number(body.heartRate ?? 72);
+        const spo2 = Number(body.spo2 ?? 98);
+        const temperature = Number(body.temperature ?? 36.8);
+        const ecg = Array.isArray(body.ecg) ? JSON.stringify(body.ecg) : (body.ecg || "[]");
+        const timestamp = body.timestamp || Date.now();
+
+        const triage = await evaluateVitalsTriageWithGemini({ heartRate, spo2, temperature, ecg: body.ecg });
+
+        const recordId = `vit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const encryptedData = encryptText(JSON.stringify({ heartRate, spo2, temperature, ecg }));
+
+        try {
+          db.prepare(`
+            INSERT INTO device_vitals_telemetry 
+            (id, deviceId, patientId, patientName, heartRate, spo2, temperature, ecg, status, triageStatus, triageExplanations, encryptedData, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            recordId,
+            deviceId,
+            patientId,
+            patientName,
+            heartRate,
+            spo2,
+            temperature,
+            ecg,
+            'online',
+            triage.status,
+            JSON.stringify(triage.explanations),
+            encryptedData,
+            timestamp
+          );
+        } catch (dbErr: any) {
+          console.error("[DEVICE-VITALS-DB-ERROR]", dbErr.message);
+        }
+
+        const payload = {
+          type: 'vitals_update',
+          deviceId,
+          patientId,
+          patientName,
+          heartRate,
+          spo2,
+          temperature,
+          ecg: typeof body.ecg === 'string' ? JSON.parse(body.ecg || '[]') : body.ecg || [],
+          triage,
+          timestamp
+        };
+
+        if (typeof (global as any).broadcastDeviceVitals === 'function') {
+          (global as any).broadcastDeviceVitals(payload);
+        }
+
+        res.json({ success: true, recordId, payload });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    app.get("/api/device/vitals", (req: any, res: any) => {
+      try {
+        const rows = db.prepare(`
+          SELECT * FROM device_vitals_telemetry 
+          ORDER BY timestamp DESC LIMIT 100
+        `).all() as any[];
+
+        const devicesMap = new Map();
+        rows.forEach((row: any) => {
+          if (!devicesMap.has(row.deviceId)) {
+            let explanations = { en: '', lg: '', sw: '' };
+            try { explanations = JSON.parse(row.triageExplanations || '{}'); } catch (e) {}
+            let ecgData = [];
+            try { ecgData = JSON.parse(row.ecg || '[]'); } catch (e) {}
+
+            devicesMap.set(row.deviceId, {
+              deviceId: row.deviceId,
+              patientId: row.patientId || 'p-101',
+              patientName: row.patientName || 'Sarah Namukasa',
+              heartRate: row.heartRate,
+              spo2: row.spo2,
+              temperature: row.temperature,
+              ecg: ecgData,
+              status: row.status || 'online',
+              triageStatus: row.triageStatus || 'STABLE',
+              triageExplanations: explanations,
+              timestamp: row.timestamp
+            });
+          }
+        });
+
+        // Demo seed watch devices for live initial display if DB is fresh
+        if (devicesMap.size === 0) {
+          const demoDevices = [
+            {
+              deviceId: 'WATCH-01',
+              patientName: 'Sarah Namukasa',
+              patientId: 'p-101',
+              heartRate: 74,
+              spo2: 98,
+              temperature: 36.6,
+              ecg: [0.1, 0.15, 0.2, 0.85, -0.35, 0.05, 0.1, 0.15],
+              status: 'online',
+              triageStatus: 'STABLE',
+              triageExplanations: {
+                en: 'Vitals normal (HR: 74 bpm, SpO2: 98%, Temp: 36.6°C). Cardiac rhythm stable.',
+                lg: 'Obubonero bw\'obulamamu bulungi (Mutima: 74 bpm, Mukka: 98%, Ebbugumu: 36.6°C). Omulwadde mulamu.',
+                sw: 'Ishara za uzima ziko sawa (Moyo: 74 bpm, Hewa: 98%, Joto: 36.6°C). Mgonjwa yuko salama.'
+              },
+              timestamp: Date.now()
+            },
+            {
+              deviceId: 'WATCH-02',
+              patientName: 'David Ochieng',
+              patientId: 'p-102',
+              heartRate: 108,
+              spo2: 93,
+              temperature: 37.8,
+              ecg: [0.1, 0.25, 0.4, 0.95, -0.2, 0.1],
+              status: 'online',
+              triageStatus: 'WATCH',
+              triageExplanations: {
+                en: 'WATCH ALERT: Moderate elevation in heart rate (108 bpm) and mild hypoxia (93% SpO2). Continuous observation active.',
+                lg: 'LONDERA HOSI: Omutima gukuba mangu (108 bpm) n\'omukka mu musaayi mutono (93%). Ssiga nga bw\'olondoola.',
+                sw: 'FUATILIA KWA KARIBU: Mapigo ya moyo yamepanda kidogo (108 bpm) na hewa kidogo (93%). Endelea kufuatilia.'
+              },
+              timestamp: Date.now() - 20000
+            },
+            {
+              deviceId: 'WATCH-03',
+              patientName: 'Grace Auma',
+              patientId: 'p-103',
+              heartRate: 135,
+              spo2: 88,
+              temperature: 38.9,
+              ecg: [0.2, 0.6, 1.2, -0.8, 0.4, 0.8],
+              status: 'online',
+              triageStatus: 'URGENT',
+              triageExplanations: {
+                en: 'URGENT ALERT: Severe hypoxia (88% SpO2), high fever (38.9°C), and marked tachycardia (135 bpm). Immediate clinical evaluation required!',
+                lg: 'OBUBONERO BUBOBI: Mukka mutono nnyo mu musaayi (88%), ebbugumu ly\'omubiri linene (38.9°C), n\'omutima gukuba mangu nnyo (135 bpm). Yanguwa okulaba omusawo!',
+                sw: 'ONYO LA DHARURA: Ukosefu mkubwa wa hewa (88%), joto la juu (38.9°C), na mapigo ya moyo ya haraka sana (135 bpm). Mtafute daktari mara moja!'
+              },
+              timestamp: Date.now() - 10000
+            }
+          ];
+          demoDevices.forEach(d => devicesMap.set(d.deviceId, d));
+        }
+
+        res.json({ success: true, devices: Array.from(devicesMap.values()) });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    app.post("/api/device/triage", async (req: any, res: any) => {
+      try {
+        const { heartRate, spo2, temperature, ecg } = req.body || {};
+        const triage = await evaluateVitalsTriageWithGemini({
+          heartRate: Number(heartRate ?? 72),
+          spo2: Number(spo2 ?? 98),
+          temperature: Number(temperature ?? 36.8),
+          ecg
+        });
+        res.json({ success: true, triage });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
     // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     console.log("[SERVER] Starting Vite in Middleware Mode...");
@@ -9912,6 +10221,63 @@ function detectSpecificDiseaseMapping(prompt: string): string {
 
     ws.on('error', (err) => {
       console.error("[WS-BIO] Biometric Stream Error:", err);
+    });
+  });
+
+  const deviceVitalsWss = new WebSocketServer({ server, path: '/api/device/vitals' });
+
+  deviceVitalsWss.on('connection', (ws) => {
+    console.log("[WS-VITALS] Watch Vitals Stream Connected.");
+    deviceVitalsClients.add(ws);
+
+    ws.send(JSON.stringify({ type: 'status', message: 'Device Vitals Neural Stream Active', timestamp: Date.now() }));
+
+    ws.on('message', async (data) => {
+      try {
+        let msg = JSON.parse(data.toString());
+        if (msg.encryptedPayload) {
+          try {
+            const dec = decryptText(msg.encryptedPayload);
+            msg = JSON.parse(dec);
+          } catch (e) {}
+        }
+
+        if (msg.type === 'vitals_stream' || msg.heartRate !== undefined) {
+          const deviceId = msg.deviceId || 'WATCH-01';
+          const heartRate = Number(msg.heartRate ?? 72);
+          const spo2 = Number(msg.spo2 ?? 98);
+          const temperature = Number(msg.temperature ?? 36.8);
+          const ecg = msg.ecg || [];
+
+          const triage = await evaluateVitalsTriageWithGemini({ heartRate, spo2, temperature, ecg });
+
+          const broadcastObj = {
+            type: 'vitals_update',
+            deviceId,
+            patientName: msg.patientName || 'Sarah Namukasa',
+            patientId: msg.patientId || 'p-101',
+            heartRate,
+            spo2,
+            temperature,
+            ecg,
+            triage,
+            timestamp: Date.now()
+          };
+
+          broadcastDeviceVitals(broadcastObj, ws);
+        }
+      } catch (err) {
+        console.error("[WS-VITALS] Stream parse error:", err);
+      }
+    });
+
+    ws.on('close', () => {
+      console.log("[WS-VITALS] Watch Vitals Stream Disconnected.");
+      deviceVitalsClients.delete(ws);
+    });
+
+    ws.on('error', (err) => {
+      console.error("[WS-VITALS] Stream Error:", err);
     });
   });
 

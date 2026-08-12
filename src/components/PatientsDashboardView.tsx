@@ -189,9 +189,67 @@ export const PatientsDashboardView: React.FC<PatientsDashboardViewProps> = ({
   const [newBed, setNewBed] = useState('L105A');
   const [newDept, setNewDept] = useState('ICU Ward 2');
 
-  // Live vitals ticking simulation
+  // Live watch vitals fetching & micro-fluctuations
   useEffect(() => {
+    const fetchWatchDevices = async () => {
+      try {
+        const res = await fetch('/api/device/vitals');
+        const data = await res.json();
+        if (data.success && data.telemetry && Array.isArray(data.telemetry) && data.telemetry.length > 0) {
+          const latestWatch = data.telemetry[0];
+          setPatients(prev => {
+            const exists = prev.some(p => p.id === latestWatch.device_id || p.name === latestWatch.patient_name);
+            if (!exists && latestWatch.patient_name) {
+              const watchCard: PatientTelemetryCard = {
+                id: latestWatch.device_id || "WATCH-01",
+                secondaryId: "WATCH-REF",
+                name: latestWatch.patient_name || "Watch Patient",
+                bed: "Watch Node",
+                department: "Wearable Watch Telemetry",
+                battery: 92,
+                timer: "00:00",
+                status: latestWatch.triage_status === 'URGENT' ? 'critical' : latestWatch.triage_status === 'WATCH' ? 'warning' : 'normal',
+                hipi: 15,
+                spi: 10,
+                vitals: {
+                  hr: latestWatch.heart_rate,
+                  nibpSystolic: 120,
+                  nibpDiastolic: 80,
+                  nibpMean: 75,
+                  spo2: latestWatch.spo2,
+                  rr: 16,
+                  bt: latestWatch.temperature,
+                  si: 1.0
+                }
+              };
+              return [watchCard, ...prev];
+            } else {
+              return prev.map(p => {
+                if (p.id === latestWatch.device_id || p.name === latestWatch.patient_name) {
+                  return {
+                    ...p,
+                    status: latestWatch.triage_status === 'URGENT' ? 'critical' : latestWatch.triage_status === 'WATCH' ? 'warning' : 'normal',
+                    vitals: {
+                      ...p.vitals,
+                      hr: latestWatch.heart_rate || p.vitals.hr,
+                      spo2: latestWatch.spo2 || p.vitals.spo2,
+                      bt: latestWatch.temperature || p.vitals.bt
+                    }
+                  };
+                }
+                return p;
+              });
+            }
+          });
+        }
+      } catch (e) {
+        // Silently handle if server offline
+      }
+    };
+
+    fetchWatchDevices();
     const interval = setInterval(() => {
+      fetchWatchDevices();
       setPatients(prev => prev.map(pt => {
         if (pt.status === 'syncing' || !pt.vitals.hr) return pt;
         

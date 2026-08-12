@@ -87,6 +87,8 @@ import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { MedicalAI } from './components/MedicalAI';
 import { ChatInterface } from './components/ChatInterface';
+import PatientMonitor from './components/PatientMonitor';
+import VitalityMatrix from './components/VitalityMatrix';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 import { BiomaticSandbox } from './components/BiomaticSandbox';
 import { LocalBackupModal } from './components/LocalBackupModal';
@@ -162,7 +164,6 @@ const ImageGenerator = safeLazy(() => import("./components/ImageGenerator"), "Im
 const CognisHub = safeLazy(() => import("./components/CognisHub"), "CognisHub");
 
 const BioSimulation = safeLazy(() => import("./components/BioSimulation"));
-const PatientMonitor = safeLazy(() => import("./components/PatientMonitor"), "PatientMonitor");
 const Features = safeLazy(() => import("./components/Features"), "Features");
 const About = safeLazy(() => import("./components/About"), "About");
 const HealthRecords = safeLazy(() => import("./components/HealthRecords"), "HealthRecords");
@@ -171,7 +172,6 @@ const PatientProfileViewer = safeLazy(() => import("./components/PatientProfileV
 const AdminDashboard = safeLazy(() => import("./components/AdminDashboard"), "AdminDashboard");
 const AccessRestriction = safeLazy(() => import("./components/AccessRestriction"), "AccessRestriction");
 const SpecialistFinder = safeLazy(() => import("./components/SpecialistFinder"), "SpecialistFinder");
-const VitalityMatrix = safeLazy(() => import("./components/VitalityMatrix"), "VitalityMatrix");
 const SymptomChecker = safeLazy(() => import("./components/SymptomChecker"), "SymptomChecker");
 const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
 const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
@@ -185,7 +185,7 @@ const BMICalculator = safeLazy(() => import("./components/BMICalculator"), "BMIC
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
 
-const josephPortrait = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400";
+const josephPortrait = "/african_doctor_male.png";
 import { AuthModal } from "./components/AuthModal";
 import { AdminInfoModal } from "./components/AdminInfoModal";
 import { Footer } from "./components/Footer";
@@ -208,17 +208,35 @@ import { DownloadAppModal } from "./components/DownloadAppModal";
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
 import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; showDetails: boolean }> {
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  showDetails: boolean;
+  showConfirmReset: boolean;
+}
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, error: null, showDetails: false };
+    this.state = { hasError: false, error: null, showDetails: false, showConfirmReset: false };
   }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
   componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error("UI Failure:", error, errorInfo); }
+
+  handleHardReset = () => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/";
+    } catch (e) {
+      window.location.reload();
+    }
+  };
+
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen w-screen bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center overflow-auto font-sans">
+        <div className="h-screen w-screen bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center overflow-auto font-sans relative">
           <div className="max-w-xl w-full bg-white dark:bg-slate-900 shadow-2xl rounded-[3rem] border border-slate-200/60 dark:border-slate-800 p-8 md:p-12 relative overflow-hidden flex flex-col items-center">
             
             {/* Ambient Background Glow Decors */}
@@ -264,7 +282,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
             <div className="flex flex-col sm:flex-row gap-4 w-full relative z-10 justify-center">
               <button 
                 onClick={() => {
-                  this.setState({ hasError: false, error: null, showDetails: false });
+                  this.setState({ hasError: false, error: null, showDetails: false, showConfirmReset: false });
                   window.location.hash = "";
                   window.location.reload();
                 }} 
@@ -273,15 +291,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                 Reload Interface
               </button>
               <button 
-                onClick={() => {
-                  try {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.href = "/";
-                  } catch (e) {
-                    window.location.reload();
-                  }
-                }} 
+                onClick={() => this.setState({ showConfirmReset: true })} 
                 className="w-full sm:w-auto px-8 py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:transform active:scale-[0.98] text-slate-700 dark:text-slate-300 rounded-2xl font-bold transition-all duration-200 cursor-pointer text-sm"
               >
                 Full Hard Reset
@@ -292,6 +302,37 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
               Workspace Isolation Layer V1.2
             </span>
           </div>
+
+          {/* Confirmation Dialog Overlay for Full Hard Reset */}
+          {this.state.showConfirmReset && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+              <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-rose-500/30 dark:border-rose-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl text-left relative overflow-hidden">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-4 border border-rose-200 dark:border-rose-900/40">
+                  <ShieldAlert size={24} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">
+                  Confirm Full Hard Reset?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                  Warning: A full hard reset will permanently erase all locally stored biometric records, cached clinical logs, offline patient session data, and personal settings on this browser device.
+                </p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => this.setState({ showConfirmReset: false })}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={this.handleHardReset}
+                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold transition-all shadow-lg shadow-rose-600/20 cursor-pointer"
+                  >
+                    Erase Data & Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -2575,6 +2616,27 @@ export default function App() {
                 >
                   <Logo size="sm" showText={true} />
                 </motion.button>
+
+                {/* Fixed Header Back Navigation Button */}
+                {navigationHistory.length > 1 && (
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleGoBack}
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm font-bold text-[10px] uppercase tracking-wider cursor-pointer shrink-0 transition-all border border-blue-400/30"
+                    title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'}`}
+                  >
+                    <ArrowLeft size={13} className="stroke-[2.5]" />
+                    <span className="hidden sm:inline truncate max-w-[120px]">
+                      {viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'Back'}
+                    </span>
+                    <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[8px] font-black flex items-center justify-center shrink-0">
+                      {navigationHistory.length - 1}
+                    </span>
+                  </motion.button>
+                )}
               </div>
 
               {/* Middle Toolbar Controls - Professionally Spaced */}
@@ -2937,21 +2999,36 @@ export default function App() {
                   </AnimatePresence>
                 </div>
 
-                {/* Unified Systems Launchpad / Windows dropdown button - Always Visible */}
+                {/* Fixed PWA Install Button in Header */}
+                {showInstallButton && !isStandalone && !hasInstalledApp && (
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={installApp}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm font-black text-[10px] uppercase tracking-wider cursor-pointer shrink-0 border border-emerald-400/40"
+                    title="Install Doctorian App for Standalone Access"
+                  >
+                    <Download size={13} className="animate-bounce shrink-0" />
+                    <span className="hidden md:inline">Install App</span>
+                  </motion.button>
+                )}
+
+                {/* Doctorian Systems Menu Launchpad - Always Fixed in Top Header */}
                 <div className="relative overflow-visible shrink-0">
                   <motion.button
                     onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
-                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer ${
+                    className={`rounded-xl transition-all flex items-center justify-center gap-1.5 px-2.5 sm:px-3 border shadow-xs shrink-0 h-10 md:h-10.5 lg:h-11 cursor-pointer ${
                       isWindowsMenuOpen 
                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
                     }`}
-                    aria-label="Systems Launchpad"
-                    title="Systems Launchpad"
+                    aria-label="Doctorian Systems Menu"
+                    title="Doctorian Systems Menu Launchpad"
                   >
-                    <LayoutGrid size={16} className="shrink-0" />
+                    <LayoutGrid size={16} className="shrink-0 text-blue-500" />
+                    <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Doctorian Menu</span>
                     {hasNotification && (
-                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
                     )}
                   </motion.button>
 
@@ -4651,174 +4728,6 @@ export default function App() {
     )}
   </AnimatePresence>
   
-  {/* Floating Clinical Back Navigation Button */}
-  <AnimatePresence>
-    {navigationHistory.length > 1 && (
-      <motion.div
-        drag
-        dragMomentum={false}
-        dragElastic={0.05}
-        dragConstraints={navigationContainerRef}
-        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.8, y: 20 }}
-        className="fixed bottom-16 right-4 sm:bottom-6 sm:right-6 z-[150] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
-      >
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onMouseEnter={() => setIsBackHovered(true)}
-          onMouseLeave={() => setIsBackHovered(false)}
-          onClick={handleGoBack}
-          className="relative flex items-center justify-center gap-1 sm:gap-1.5 h-8 px-2.5 sm:h-8 sm:px-3 rounded-full border shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-400/30 font-bold text-[9px] uppercase tracking-wider cursor-pointer pointer-events-auto select-none transition-all duration-200"
-          title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'} (Drag to move)`}
-        >
-          <ArrowLeft size={12} className="stroke-[2.5] shrink-0" />
-          
-          <AnimatePresence mode="wait">
-            {!isBackHovered ? (
-              <motion.span 
-                key="back-short"
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="text-[8px] font-black uppercase tracking-widest leading-none"
-              >
-                Back
-              </motion.span>
-            ) : (
-              <motion.span 
-                key="back-long"
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="text-[8px] text-white/90 font-bold tracking-wider leading-none truncate max-w-[100px]"
-              >
-                To {viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'Previous'}
-              </motion.span>
-            )}
-          </AnimatePresence>
-
-          <span className="w-3.5 h-3.5 rounded-full bg-white/25 text-white text-[7px] font-black flex items-center justify-center shrink-0 ml-0.5 shadow-xs border border-white/20">
-            {navigationHistory.length - 1}
-          </span>
-        </motion.button>
-      </motion.div>
-    )}
-  </AnimatePresence>
-
-  {/* Floating Windows / Systems Launcher for Mobile & Tablet */}
-  <AnimatePresence>
-    {user && (
-      <div 
-        id="floating-windows-launcher-container"
-        className="lg:hidden fixed bottom-6 left-6 z-[150] pointer-events-auto select-none"
-      >
-        <motion.div
-          drag
-          dragMomentum={false}
-          dragElastic={0.05}
-          dragConstraints={navigationContainerRef}
-          className="relative pointer-events-auto"
-        >
-          {/* Opened Menu Panel */}
-          <AnimatePresence>
-            {isFloatingMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: -12 }}
-                exit={{ opacity: 0, scale: 0.85, y: 15 }}
-                transition={{ type: "spring", damping: 25, stiffness: 280 }}
-                className="absolute bottom-full left-0 mb-3 w-[290px] xs:w-[320px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800/80 shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-4 flex flex-col gap-3 pointer-events-auto"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1 bg-gradient-to-br from-blue-500 to-emerald-500 text-white rounded-lg">
-                      <LayoutGrid size={14} />
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">Systems Launchpad</span>
-                      <span className="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Medical Command Node</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[7px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Sys Ready</span>
-                  </div>
-                </div>
-
-                {/* Grid of Navigation Buttons */}
-                <div className="grid grid-cols-3 gap-2 max-h-[280px] overflow-y-auto no-scrollbar py-0.5">
-                  {[
-                    { id: 'home', label: 'Home Dashboard', icon: <Home size={15} />, color: 'from-blue-500 to-indigo-600' },
-                    { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={15} />, color: 'from-violet-500 to-purple-600' },
-                    { id: 'biomatic', label: 'Clinical Hub', icon: <Cpu size={15} />, color: 'from-amber-500 to-orange-600' },
-                    { id: 'diagnostic_lab', label: 'Diagnostic Lab Analyser', icon: <Stethoscope size={15} />, color: 'from-emerald-600 to-teal-500' },
-                    { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={15} />, color: 'from-cyan-500 to-blue-500' },
-                    { id: 'doctors_dashboard', label: 'Doctors\' Portal', icon: <FileText size={15} />, color: 'from-indigo-500 to-indigo-700' },
-                    { id: 'about', label: 'System & App Info', icon: <Info size={15} />, color: 'from-slate-500 to-slate-700' },
-                    ...(isAdmin ? [{ id: 'admin', label: 'Admin Command Center', icon: <Shield size={15} />, action: handleAdminAccess, color: 'from-red-500 to-rose-600' }] : [])
-                  ].map((item, idx) => {
-                    const isActive = isSubViewActive(item.id, currentView);
-                    return (
-                      <motion.button
-                        key={`float-${item.id}-${idx}`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => {
-                          if (item.action) {
-                            item.action();
-                          } else {
-                            setCurrentView(item.id as any);
-                          }
-                          setIsFloatingMenuOpen(false);
-                        }}
-                        className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border text-center relative cursor-pointer ${
-                          isActive 
-                            ? 'bg-blue-50/80 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/80 dark:text-blue-450' 
-                            : 'bg-slate-50/50 border-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800/40 dark:border-slate-800/40 dark:text-slate-400 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br ${item.color} text-white shadow-sm transition-transform duration-300`}>
-                          {item.icon}
-                        </div>
-                        <span className="text-[8px] font-black uppercase tracking-tight leading-none truncate w-full px-0.5">
-                          {translate(item.label, currentLanguage)}
-                        </span>
-                        {isActive && (
-                          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-
-                <div className="text-[7.5px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500 text-center select-none pt-1 border-t border-slate-100 dark:border-slate-800/40">
-                  👉 Drag icon to move launcher
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Compact Doctorian Menu Launcher Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
-            className={`relative flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-full border shadow-xl bg-slate-900/90 dark:bg-slate-800/95 backdrop-blur-md text-white border-blue-500/40 cursor-pointer select-none transition-all duration-200 ${
-              isFloatingMenuOpen ? 'ring-2 ring-blue-500/50 bg-blue-600 border-blue-400' : ''
-            }`}
-            title="Doctorian Menu"
-          >
-            <LayoutGrid size={14} className="stroke-[2.5] text-blue-400 shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-wider">Doctorian Menu</span>
-          </motion.button>
-        </motion.div>
-      </div>
-    )}
-  </AnimatePresence>
-
             {currentView !== 'ai_nexus' && (
               <>
                 <div className="flex-grow" />
@@ -4855,58 +4764,6 @@ export default function App() {
                 isOpen={isAuditTrailOpen}
                 onClose={() => setIsAuditTrailOpen(false)}
               />
-
-              {/* Single Floating PWA Install Button */}
-              {showInstallButton && !isStandalone && !hasInstalledApp && !isFloatingDismissed && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.85, y: 30 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.85, y: 30 }}
-                  transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                  className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-[150] flex items-center gap-2 pointer-events-auto"
-                >
-                  <motion.div 
-                    whileHover={{ scale: 1.04, y: -2 }}
-                    whileTap={{ scale: 0.96 }}
-                    className="relative group"
-                  >
-                    {/* Ambient Glow Aura */}
-                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-400 opacity-80 blur-md group-hover:opacity-100 transition duration-500 animate-pulse" />
-                    
-                    <button
-                      onClick={installApp}
-                      className="relative flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl bg-slate-900/95 dark:bg-slate-950/95 text-white border border-blue-400/40 dark:border-blue-500/50 shadow-2xl backdrop-blur-xl cursor-pointer"
-                      title="Install Doctorian App for 100% Offline & Standalone Access"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-white shadow-md shrink-0">
-                        <Download size={18} className="animate-bounce" />
-                      </div>
-                      
-                      <div className="flex flex-col text-left">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black uppercase tracking-wider text-white">Install App</span>
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-300 dark:text-slate-400">Offline & Standalone Ready</span>
-                      </div>
-
-                      <Sparkles size={16} className="text-teal-400 ml-1 group-hover:rotate-12 transition-transform" />
-                    </button>
-                  </motion.div>
-
-                  {/* Small dismiss button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsFloatingDismissed(true);
-                    }}
-                    className="w-7 h-7 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 flex items-center justify-center backdrop-blur-md cursor-pointer transition-colors shadow-md"
-                    title="Dismiss install prompt"
-                  >
-                    <X size={13} />
-                  </button>
-                </motion.div>
-              )}
 
               <DownloadAppModal
                 isOpen={isDownloadAppOpen}

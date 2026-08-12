@@ -3760,71 +3760,6 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                 <Sparkles size={15} className="text-blue-600 animate-pulse shrink-0" />
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Doctorian AI</span>
               </div>
-
-              {/* Doctor / Specialist Selector Dropdown in Upper Bar */}
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => setShowDoctorDropdown(!showDoctorDropdown)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 transition-all text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-xs"
-                  title="Select AI Specialist Doctor"
-                >
-                  <div className="relative w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-emerald-500">
-                    <img
-                      src={AI_PROFESSIONAL_AVATARS[voiceSelection]?.image}
-                      alt={voiceSelection}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className="text-blue-600 dark:text-blue-400 font-extrabold max-w-[80px] sm:max-w-none truncate">
-                    {AI_PROFESSIONAL_AVATARS[voiceSelection]?.name || voiceSelection}
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse hidden xs:inline-block" />
-                  <ChevronDown size={12} className={`text-slate-400 transition-transform ${showDoctorDropdown ? 'rotate-180' : ''}`} />
-                </button>
-
-                <AnimatePresence>
-                  {showDoctorDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowDoctorDropdown(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute left-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-2 space-y-1"
-                      >
-                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select AI Specialist</span>
-                          <span className="text-[8px] font-mono text-emerald-500 font-bold uppercase tracking-tight">Active Consultation</span>
-                        </div>
-                        {Object.entries(AI_PROFESSIONAL_AVATARS).map(([key, prof]) => (
-                          <button
-                            key={`doc-select-${key}`}
-                            onClick={() => {
-                              setVoiceSelection(key as any);
-                              setShowDoctorDropdown(false);
-                              setTerminalLogs(l => [...l, `SYS: Switched AI Doctor to ${prof.name}`]);
-                            }}
-                            className={`w-full flex items-center gap-2.5 p-2 rounded-xl transition-all text-left ${
-                              voiceSelection === key
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
-                            }`}
-                          >
-                            <img src={prof.image} alt={prof.name} className="w-8 h-8 rounded-xl object-cover shrink-0 ring-1 ring-slate-200/50" referrerPolicy="no-referrer" />
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-[11px] font-black leading-tight ${voiceSelection === key ? 'text-white' : 'text-slate-900 dark:text-white'}`}>{prof.name}</p>
-                              <p className={`text-[8.5px] font-bold truncate mt-0.5 ${voiceSelection === key ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'}`}>{prof.specialty}</p>
-                            </div>
-                            {voiceSelection === key && <Check size={14} className="text-white shrink-0" />}
-                          </button>
-                        ))}
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
 
             {/* Right Group: Action Controls (+ New Chat, Voice & Video Call, Tools Hub, MOH) */}
@@ -5342,6 +5277,41 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     </div>
                   </button>
                 )}
+              </div>
+
+              {/* AI Specialist Doctor Selection Category */}
+              <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block">
+                    👨‍⚕️ AI Specialist Doctor Category
+                  </span>
+                  <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/30">
+                    Active: {AI_PROFESSIONAL_AVATARS[voiceSelection]?.name}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                  {Object.entries(AI_PROFESSIONAL_AVATARS).map(([key, prof]) => (
+                    <button
+                      key={`tools-doc-${key}`}
+                      onClick={() => {
+                        setVoiceSelection(key as any);
+                        setTerminalLogs(l => [...l, `SYS: Switched AI Doctor to ${prof.name}`]);
+                      }}
+                      className={`flex items-center gap-2.5 p-2 rounded-xl transition-all text-left border cursor-pointer ${
+                        voiceSelection === key
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 hover:border-blue-400'
+                      }`}
+                    >
+                      <img src={prof.image} alt={prof.name} className="w-7 h-7 rounded-lg object-cover shrink-0 ring-1 ring-white/20" referrerPolicy="no-referrer" />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[10px] font-black leading-tight truncate ${voiceSelection === key ? 'text-white' : 'text-slate-900 dark:text-white'}`}>{prof.name}</p>
+                        <p className={`text-[8px] font-semibold truncate ${voiceSelection === key ? 'text-blue-100' : 'text-slate-400'}`}>{prof.specialty}</p>
+                      </div>
+                      {voiceSelection === key && <Check size={13} className="text-white shrink-0" />}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 

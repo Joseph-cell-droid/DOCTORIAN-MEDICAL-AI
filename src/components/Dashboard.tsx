@@ -764,7 +764,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <AnimatePresence initial={false}>
                   {diagnosticLogs.map((log, i) => (
                     <motion.div 
-                      key={log + i}
+                      key={`diag-log-${i}-${typeof log === 'string' ? log : 'item'}`}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       className="flex items-center gap-3"

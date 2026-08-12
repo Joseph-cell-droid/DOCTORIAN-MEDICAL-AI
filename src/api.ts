@@ -1827,7 +1827,7 @@ export const api = {
             whatsappNumber: "+256787674140",
             specialization: "Lead Cardiologist (Clinical Duty)",
             location: "Mulago Hospital Main Ward",
-            imageUrl: "https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=300",
+            imageUrl: "/african_doctor_female.png",
             active: true,
             createdAt: new Date().toISOString()
           },
@@ -1837,7 +1837,7 @@ export const api = {
             whatsappNumber: "+256770000001",
             specialization: "Neuro-Critical Care Specialist",
             location: "Emergency Trauma Unit",
-            imageUrl: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300",
+            imageUrl: "/african_doctor_male.png",
             active: true,
             createdAt: new Date().toISOString()
           },
@@ -1847,7 +1847,7 @@ export const api = {
             whatsappNumber: "+256770000002",
             specialization: "General Physician & Geriatrics",
             location: "Inpatient Clinical Suite C",
-            imageUrl: "https://images.unsplash.com/photo-1579684389782-64d84b5e901a?auto=format&fit=crop&q=80&w=300",
+            imageUrl: "/african_doctor_female.png",
             active: true,
             createdAt: new Date().toISOString()
           }

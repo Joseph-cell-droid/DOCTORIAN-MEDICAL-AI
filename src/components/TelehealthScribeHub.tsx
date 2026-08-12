@@ -313,7 +313,7 @@ Return JSON in this format:
                 <div className="relative w-full h-full bg-slate-900 flex items-center justify-center">
                   {/* Doctor Video Avatar / Stream */}
                   <img
-                    src="https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=800"
+                    src="/african_doctor_videocall.png"
                     alt="Doctor Feed"
                     className="w-full h-full object-cover"
                   />
@@ -330,7 +330,7 @@ Return JSON in this format:
                       />
                     ) : (
                       <img
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300"
+                        src="/app_owner_admin.png"
                         alt="Patient Feed"
                         className="w-full h-full object-cover opacity-80"
                       />

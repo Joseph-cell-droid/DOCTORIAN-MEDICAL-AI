@@ -1164,7 +1164,7 @@ Return ONLY the raw JSON response.`;
                                   }`}
                                 >
                                   <img
-                                    src={doc.imageUrl || "https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=150"}
+                                    src={doc.imageUrl || "/african_doctor_female.png"}
                                     alt={doc.name}
                                     className="w-10 h-10 rounded-full object-cover border-2 border-slate-100"
                                     referrerPolicy="no-referrer"

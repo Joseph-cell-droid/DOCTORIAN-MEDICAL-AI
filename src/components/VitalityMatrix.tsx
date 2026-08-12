@@ -1287,3 +1287,6 @@ export const VitalityMatrix: React.FC = () => {
     </div>
   );
 };
+
+export default VitalityMatrix;
+

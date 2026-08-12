@@ -8,7 +8,7 @@ import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { validatePasswordStrength } from '../utils/security';
 
 import { Logo } from './Logo';
-const josephPortrait = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400";
+const josephPortrait = "/african_doctor_male.png";
 
 interface AuthModalProps {
   isOpen: boolean;

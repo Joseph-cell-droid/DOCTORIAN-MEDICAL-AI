@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 
-export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = ({ isDarkMode = true }) => {
+export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(({ isDarkMode = true }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -185,5 +185,5 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = ({ is
       <div className="absolute inset-0 bg-radial from-transparent via-transparent to-slate-950/5 dark:to-slate-950/40 pointer-events-none" />
     </div>
   );
-};
+});
 

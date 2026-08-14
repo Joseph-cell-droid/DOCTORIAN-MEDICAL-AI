@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import * as tf from '@tensorflow/tfjs';
 import { api } from '../api';
 import { 
   Dna, 
@@ -290,14 +289,17 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
 
   useEffect(() => {
     try {
-      tf.ready().then(() => {
-        setTfBackendName(tf.getBackend());
+      import('@tensorflow/tfjs').then(tf => {
+        tf.ready().then(() => {
+          setTfBackendName(tf.getBackend());
+        });
       });
     } catch (_) {}
   }, []);
 
   const trainPredictionModel = async () => {
     setIsAnalyzing(true);
+    const tf = await import('@tensorflow/tfjs');
     setTrainingOutput([`[SYSTEM] Initializing Local training session...`, `[SYSTEM] Backend pipeline: ${tf.getBackend()}`]);
     
     // Generate synthetic medical logs datasets based on inputs
@@ -393,6 +395,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
     }
     
     setIsPredicting(true);
+    const tf = await import('@tensorflow/tfjs');
     await new Promise(resolve => setTimeout(resolve, 800));
     
     try {
@@ -406,7 +409,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
           bmi / 50
         ]]);
         
-        const prediction = model.predict(inputTensor) as tf.Tensor;
+        const prediction = model.predict(inputTensor) as any;
         const results = prediction.dataSync();
         
         setCardiacRiskVal(Math.round(results[0] * 100));

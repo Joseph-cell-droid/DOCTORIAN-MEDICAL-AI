@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, Download, Smartphone, Laptop, CheckCircle2, Wifi, WifiOff, 
-  Sparkles, Monitor, ExternalLink, ShieldCheck,
-  Cpu, Bot, Shield, Database, Lock
-} from 'lucide-react';
-import { LocalAISetupWizard } from './LocalAISetupWizard';
+import { X, Shield, Zap, WifiOff, Lock, Check } from 'lucide-react';
 
 interface DownloadAppModalProps {
   isOpen: boolean;
@@ -14,441 +9,341 @@ interface DownloadAppModalProps {
 }
 
 export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onClose, onInstalled }) => {
+  const [statusMessage, setStatusMessage] = useState<{ text: string; icon: string } | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isIframe, setIsIframe] = useState(false);
-  const [installStatus, setInstallStatus] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'windows_tauri' | 'android_play' | 'pwa_web' | 'local_ai'>('windows_tauri');
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  
-  // Device Detection State
-  const [deviceInfo, setDeviceInfo] = useState<{
-    os: 'windows' | 'android' | 'ios' | 'mac' | 'linux' | 'unknown';
-    isMobile: boolean;
-    appType: string;
-    detectedHeadline: string;
-    primaryButtonLabel: string;
-    primaryButtonSubtext: string;
-    actionType: 'download_exe' | 'open_google_play' | 'install_pwa';
-  }>({
-    os: 'unknown',
-    isMobile: false,
-    appType: 'Doctorian Medical AI',
-    detectedHeadline: 'Detecting optimal installation package for your device...',
-    primaryButtonLabel: '🪟 Download Doctorian',
-    primaryButtonSubtext: 'Official Doctorian-Setup.exe (Tauri 2 & NSIS Installer)',
-    actionType: 'download_exe'
-  });
+
+  const ANDROID_PLAY_URL = "https://play.google.com/store/apps/details?id=com.doctorian.medicalai";
+  const WINDOWS_DOWNLOAD_URL = "/downloads/Doctorian-Setup.exe";
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    setIsIframe(window.self !== window.top);
-
-    // AI Device & Platform Intelligence Analysis
-    const ua = navigator.userAgent.toLowerCase();
-    const isAndroid = /android/i.test(ua);
-    const isIOS = /iphone|ipad|ipod/i.test(ua);
-    const isWindows = /windows/i.test(ua);
-    const isMac = /macintosh|mac os x/i.test(ua);
-    const isLinux = /linux/i.test(ua) && !isAndroid;
-    const isMobileDevice = isAndroid || isIOS || window.innerWidth < 768;
-
-    let osName: 'windows' | 'android' | 'ios' | 'mac' | 'linux' | 'unknown' = 'unknown';
-    if (isAndroid) osName = 'android';
-    else if (isIOS) osName = 'ios';
-    else if (isWindows) osName = 'windows';
-    else if (isMac) osName = 'mac';
-    else if (isLinux) osName = 'linux';
-
-    if (isAndroid) {
-      setDeviceInfo({
-        os: 'android',
-        isMobile: true,
-        appType: 'Doctorian Mobile Patient Healthcare App',
-        detectedHeadline: 'Detected Android Device • Official Google Play Release Available',
-        primaryButtonLabel: '📱 Get it on Google Play',
-        primaryButtonSubtext: 'Directs to official Google Play Store listing (ai.doctorian.app)',
-        actionType: 'open_google_play'
-      });
-      setActiveTab('android_play');
-    } else if (isWindows) {
-      setDeviceInfo({
-        os: 'windows',
-        isMobile: false,
-        appType: 'Doctorian Doctor Desktop Workstation',
-        detectedHeadline: 'Detected Windows 10/11 64-bit • Official Desktop Installer Available',
-        primaryButtonLabel: '🪟 Download Doctorian',
-        primaryButtonSubtext: 'Doctorian-Setup.exe (18.5 MB • Built with Tauri 2 & NSIS)',
-        actionType: 'download_exe'
-      });
-      setActiveTab('windows_tauri');
-    } else if (isIOS) {
-      setDeviceInfo({
-        os: 'ios',
-        isMobile: true,
-        appType: 'Doctorian Mobile Patient App',
-        detectedHeadline: 'Detected iOS Device • Install Doctorian Web App via Safari',
-        primaryButtonLabel: '📱 Add Doctorian to Home Screen',
-        primaryButtonSubtext: 'Tap Share in Safari then "Add to Home Screen"',
-        actionType: 'install_pwa'
-      });
-      setActiveTab('pwa_web');
-    } else {
-      setDeviceInfo({
-        os: osName,
-        isMobile: isMobileDevice,
-        appType: 'Doctorian Medical AI Workstation',
-        detectedHeadline: 'Detected Desktop System • Download Windows Installer or Run Web App',
-        primaryButtonLabel: '🪟 Download Doctorian',
-        primaryButtonSubtext: 'Doctorian-Setup.exe (Tauri 2 NSIS Package)',
-        actionType: 'download_exe'
-      });
-      setActiveTab('windows_tauri');
-    }
-
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e);
       (window as any).deferredPWAInstallPrompt = e;
-      setInstallStatus('ready');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
-      setIsInstalled(true);
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isOpen]);
+  }, []);
 
-  // Download official Windows Setup (.exe) via GitHub Releases
-  const downloadWindowsInstaller = () => {
-    const primaryGithubUrl = "https://github.com/doctorian-ai/doctorian/releases/download/v2.5.0/Doctorian-Setup.exe";
-    
-    const link = document.createElement('a');
-    link.href = primaryGithubUrl;
-    link.download = 'Doctorian-Setup.exe';
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const showStatus = (text: string, icon: string = '⚡') => {
+    setStatusMessage({ text, icon });
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 4500);
+  };
+
+  // 1. Android Installation
+  const handleAndroidInstall = () => {
+    showStatus("Opening Google Play Store...", "🤖");
+
+    // Also trigger PWA prompt if available on mobile
+    const promptEvent = installPrompt || (window as any).deferredPWAInstallPrompt;
+    if (promptEvent) {
+      try {
+        promptEvent.prompt();
+      } catch (err) {
+        console.log("PWA Prompt not available, opening Play Store URL");
+      }
+    }
 
     setTimeout(() => {
-      setInstallStatus('installer_downloaded');
+      window.open(ANDROID_PLAY_URL, '_blank', 'noopener,noreferrer');
       if (onInstalled) onInstalled();
     }, 600);
   };
 
-  // Direct users to official Google Play Store listing
-  const openGooglePlayStore = () => {
-    const googlePlayUrl = "https://play.google.com/store/apps/details?id=ai.doctorian.app";
-    window.open(googlePlayUrl, '_blank', 'noopener,noreferrer');
-    setInstallStatus('play_store_opened');
-    if (onInstalled) onInstalled();
-  };
+  // 2. Windows Download
+  const handleWindowsDownload = () => {
+    showStatus("Preparing Doctorian for Windows...", "📥");
 
-  const handleInstallPWA = async () => {
-    const promptEvent = installPrompt || (window as any).deferredPWAInstallPrompt;
+    try {
+      const link = document.createElement("a");
+      link.href = WINDOWS_DOWNLOAD_URL;
+      link.download = "Doctorian-Setup.exe";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    if (promptEvent) {
-      try {
-        promptEvent.prompt();
-        const choice = await promptEvent.userChoice;
-        if (choice.outcome === 'accepted') {
-          setIsInstalled(true);
-          setInstallStatus('success');
-          if (onInstalled) onInstalled();
-        } else {
-          setInstallStatus('cancelled');
-        }
-        setInstallPrompt(null);
-        (window as any).deferredPWAInstallPrompt = null;
-      } catch (err) {
-        console.warn("PWA install prompt error:", err);
-      }
-    } else if (isIframe) {
-      window.open(window.location.origin + '?install=true', '_blank');
-      onClose();
-    } else {
-      setInstallStatus('manual');
-    }
-  };
-
-  const handlePrimaryAutoDetectedAction = () => {
-    if (deviceInfo.actionType === 'open_google_play') {
-      openGooglePlayStore();
-    } else if (deviceInfo.actionType === 'install_pwa') {
-      handleInstallPWA();
-    } else {
-      downloadWindowsInstaller();
+      if (onInstalled) onInstalled();
+    } catch (err) {
+      window.location.href = WINDOWS_DOWNLOAD_URL;
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <>
-      <AnimatePresence>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-xl font-sans">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 15 }}
-            transition={{ type: "spring", duration: 0.35 }}
-            className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden relative text-slate-100 flex flex-col max-h-[90vh]"
+    <AnimatePresence>
+      <div 
+        id="download-modal-backdrop"
+        className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-950/80 backdrop-blur-md overflow-y-auto"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-5xl my-auto rounded-[32px] sm:rounded-[40px] bg-gradient-to-br from-white via-[#f8faff] to-[#edf4ff] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 border border-slate-200/90 dark:border-slate-800 shadow-[0_25px_70px_rgba(16,43,117,0.22)] overflow-hidden p-6 sm:p-10 md:p-12 text-center"
+        >
+          {/* Close Button */}
+          <button
+            id="close-download-modal-btn"
+            onClick={onClose}
+            aria-label="Close download modal"
+            className="absolute top-5 right-5 sm:top-7 sm:right-7 p-2.5 rounded-full bg-slate-100/90 dark:bg-slate-800/90 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer z-20 shadow-sm"
           >
-            {/* Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-center justify-between gap-4 bg-slate-950/70 shrink-0">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-                  <Laptop size={22} />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2 flex-wrap">
-                    Install Doctorian Medical AI
-                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-black rounded-full uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles size={10} /> Official Release v2.5.0
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-400 font-medium">
-                    Autonomous Healthcare Intelligence Platform for Windows & Android
-                  </p>
-                </div>
-              </div>
+            <X size={20} />
+          </button>
 
-              <button
-                onClick={onClose}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-              >
-                <X size={18} />
-              </button>
+          {/* Ambient Glow */}
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+
+          {/* SECTION HEADER */}
+          <div className="relative z-10 flex flex-col items-center">
+            {/* Doctorian Logo */}
+            <div className="relative mb-4 group">
+              <img
+                src="/logo.svg"
+                alt="Doctorian Medical AI Logo"
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] sm:rounded-[26px] object-cover shadow-[0_12px_30px_rgba(16,43,117,0.22)] border-2 border-white/80 dark:border-slate-700 transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/logo.png';
+                }}
+              />
             </div>
 
-            {/* Target Platform Auto-Detect Banner */}
-            <div className="px-6 py-2.5 bg-blue-950/40 border-b border-blue-500/30 flex items-center justify-between gap-3 text-xs shrink-0">
-              <div className="flex items-center gap-2 text-blue-300 font-bold">
-                <Bot size={15} className="text-blue-400 shrink-0 animate-pulse" />
-                <span className="text-[11px] sm:text-xs">
-                  {deviceInfo.detectedHeadline}
-                </span>
-              </div>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
-                <ShieldCheck size={10} /> Verified Distribution
+            {/* Brand Title */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-[#102b75] dark:text-white tracking-tight leading-none mb-3">
+              Doctorian
+            </h1>
+
+            {/* Tagline with accent lines */}
+            <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-5">
+              <div className="w-8 sm:w-14 h-0.5 bg-gradient-to-r from-transparent to-blue-500 rounded-full" />
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-[#2563eb] dark:text-blue-400 tracking-tight">
+                Your AI Medical Assistant
               </span>
+              <div className="w-8 sm:w-14 h-0.5 bg-gradient-to-l from-transparent to-blue-500 rounded-full" />
             </div>
 
-            {/* Prominent Smart Auto-Detected Primary Hero Card */}
-            <div className="p-5 mx-6 mt-4 rounded-2xl bg-gradient-to-br from-blue-950/80 via-slate-900 to-indigo-950/70 border border-blue-500/40 relative overflow-hidden space-y-3.5 shadow-xl shrink-0">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
-                  <Cpu size={13} /> Recommended For Your Device ({deviceInfo.os.toUpperCase()})
-                </span>
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60 uppercase">
-                  Doctorian v2.5.0
-                </span>
-              </div>
+            {/* Subtitle Description */}
+            <p className="max-w-2xl text-slate-600 dark:text-slate-300 text-sm sm:text-base md:text-lg leading-relaxed mb-8 sm:mb-10 font-normal">
+              Install Doctorian on your device and experience intelligent, personalized healthcare – anytime, anywhere.
+            </p>
+          </div>
 
-              <div className="space-y-1">
-                <h4 className="text-base font-black text-white">{deviceInfo.appType}</h4>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {deviceInfo.os === 'android' 
-                    ? 'Official Doctorian Mobile App on Google Play. Features local medical knowledge, wearable Bluetooth telemetry, and AI patient diagnostic tools.'
-                    : 'Official Doctorian Windows Desktop Workstation. Features offline Ollama LLM execution, SQLite medical RAG database, and desktop shortcuts.'}
-                </p>
-              </div>
-
-              {/* PROMINENT AUTO-DETECTED INSTALL BUTTON */}
-              <button
-                onClick={handlePrimaryAutoDetectedAction}
-                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-black text-sm uppercase tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-all cursor-pointer active:scale-98 group"
+          {/* TWO PLATFORM CARDS */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto mb-8 sm:mb-10 text-left">
+            
+            {/* ANDROID CARD */}
+            <div className="relative rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 bg-white/95 dark:bg-slate-800/90 border border-[#e5ecf8] dark:border-slate-700/80 shadow-[0_15px_40px_rgba(16,43,117,0.08)] dark:shadow-none hover:shadow-[0_22px_50px_rgba(16,43,117,0.15)] transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col justify-between group">
+              
+              {/* Subtle Android Robot Watermark in Background */}
+              <svg 
+                className="absolute -top-3 -left-4 w-32 h-32 text-emerald-500/[0.07] dark:text-emerald-400/[0.05] pointer-events-none select-none transition-transform duration-500 group-hover:scale-110" 
+                viewBox="0 0 24 24" 
+                fill="currentColor"
               >
-                {deviceInfo.actionType === 'open_google_play' ? (
-                  <>
-                    <Smartphone size={20} className="group-hover:scale-110 transition-transform" />
-                    <span>📱 Get it on Google Play</span>
-                    <ExternalLink size={16} className="text-blue-200" />
-                  </>
-                ) : (
-                  <>
-                    <Download size={20} className="group-hover:translate-y-0.5 transition-transform" />
-                    <span>🪟 Download Doctorian (Doctorian-Setup.exe)</span>
-                  </>
-                )}
-              </button>
+                <path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v6c0 .83.67 1.5 1.5 1.5S5 16.33 5 15.5v-6C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v6c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-6c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/>
+              </svg>
 
-              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-0.5">
-                <span className="flex items-center gap-1 text-slate-300">
-                  <Lock size={12} className="text-emerald-400" />
-                  {deviceInfo.os === 'android' ? 'Host: Google Play Store (HTTPS Verified)' : 'Host: GitHub Releases (HTTPS Verified)'}
-                </span>
-                {deviceInfo.os === 'windows' && (
-                  <button
-                    onClick={() => setIsWizardOpen(true)}
-                    className="text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 underline cursor-pointer"
-                  >
-                    <Cpu size={12} /> Local AI Setup Wizard &rarr;
-                  </button>
-                )}
-              </div>
-
-              {installStatus === 'installer_downloaded' && (
-                <div className="p-3 bg-emerald-950/80 border border-emerald-500/40 rounded-xl text-xs text-emerald-200 flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                  <span>Doctorian-Setup.exe download initiated! Run the setup file to install Doctorian on Windows.</span>
+              <div>
+                {/* Header Group */}
+                <div className="flex items-center gap-4 sm:gap-5 mb-6 relative z-10">
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0">
+                    <svg className="w-8 h-8 sm:w-9 sm:h-9" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v6c0 .83.67 1.5 1.5 1.5S5 16.33 5 15.5v-6C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v6c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-6c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-[#15803d] dark:text-emerald-400 tracking-tight leading-none mb-1">
+                      Android
+                    </h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base font-medium">
+                      Smartphones & Tablets
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              {installStatus === 'play_store_opened' && (
-                <div className="p-3 bg-emerald-950/80 border border-emerald-500/40 rounded-xl text-xs text-emerald-200 flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                  <span>Redirected to Doctorian's official Google Play Store page. Tap "Install" on Google Play!</span>
-                </div>
-              )}
-            </div>
-
-            {/* Platform Selection Tabs */}
-            <div className="px-6 pt-4 flex gap-2 border-b border-slate-800/80 overflow-x-auto bg-slate-900/60 shrink-0">
-              <button
-                onClick={() => setActiveTab('windows_tauri')}
-                className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'windows_tauri' 
-                    ? 'border-blue-500 text-blue-400' 
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Laptop size={13} /> 🪟 Windows Setup (.exe)
-              </button>
-              <button
-                onClick={() => setActiveTab('android_play')}
-                className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'android_play' 
-                    ? 'border-blue-500 text-blue-400' 
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Smartphone size={13} /> 📱 Google Play Store
-              </button>
-              <button
-                onClick={() => setActiveTab('pwa_web')}
-                className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'pwa_web' 
-                    ? 'border-blue-500 text-blue-400' 
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Monitor size={13} /> 💻 Web App (PWA)
-              </button>
-            </div>
-
-            {/* Modal Tab Body */}
-            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto grow">
-              {activeTab === 'windows_tauri' && (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <Laptop size={14} className="text-blue-400" />
-                        Doctorian Windows Desktop Workstation (Tauri 2 NSIS)
-                      </h4>
-                      <span className="text-[10px] font-mono text-teal-400 font-bold bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60">
-                        Size: 18.5 MB
+                {/* Google Play Action Button */}
+                <button
+                  id="install-android-btn"
+                  onClick={handleAndroidInstall}
+                  className="w-full rounded-2xl py-4 px-5 sm:px-6 bg-gradient-to-r from-[#16a34a] to-[#15803d] hover:from-[#22c55e] hover:to-[#16a34a] text-white font-bold shadow-[0_12px_28px_rgba(22,163,74,0.32)] hover:shadow-[0_16px_36px_rgba(22,163,74,0.45)] transition-all duration-200 active:scale-[0.98] flex items-center justify-between gap-3 cursor-pointer group/btn"
+                >
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    {/* Google Play Triangle Logo */}
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+                      <svg className="w-full h-full drop-shadow-sm" viewBox="0 0 512 512" fill="none">
+                        <path d="M52.7 27.2C49.3 30.9 47.3 36.6 47.3 43.8V468.2C47.3 475.4 49.3 481.1 52.7 484.8L54.7 486.6L298.8 242.5V237.5L54.7 25.4L52.7 27.2Z" fill="#2196F3"/>
+                        <path d="M380.2 323.9L298.8 242.5V237.5L380.2 156.1L382.4 157.4L478.8 212.2C486.2 216.4 490.7 224.2 490.7 232.8C490.7 241.4 486.2 249.2 478.8 253.4L382.4 322.6L380.2 323.9Z" fill="#FFC107"/>
+                        <path d="M382.4 322.6L298.8 239L52.7 485.1C59.9 492.8 71.9 493.7 85.1 486.2L382.4 322.6Z" fill="#4CAF50"/>
+                        <path d="M382.4 157.4L85.1 23.8C71.9 16.3 59.9 17.2 52.7 24.9L298.8 271L382.4 157.4Z" fill="#F44336"/>
+                      </svg>
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white/90">
+                        INSTALL ON ANDROID
+                      </span>
+                      <span className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+                        Google Play
                       </span>
                     </div>
+                  </div>
 
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Built with Tauri 2 and Rust. Generates start menu & desktop shortcuts, offline Ollama AI bridge, SQLite clinical RAG database, and clean uninstallation support.
+                  <span className="text-2xl font-light text-white/80 group-hover/btn:translate-x-1 transition-transform">
+                    ›
+                  </span>
+                </button>
+              </div>
+
+              {/* Security Tagline */}
+              <div className="flex items-center justify-center gap-4 sm:gap-6 mt-5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <Shield size={14} className="text-emerald-500" />
+                  Safe & Secure
+                </span>
+                <span className="w-1 h-3 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                  <Check size={15} className="font-bold stroke-[3]" />
+                  Official Release
+                </span>
+              </div>
+
+            </div>
+
+
+            {/* WINDOWS CARD */}
+            <div className="relative rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 bg-white/95 dark:bg-slate-800/90 border border-[#e5ecf8] dark:border-slate-700/80 shadow-[0_15px_40px_rgba(16,43,117,0.08)] dark:shadow-none hover:shadow-[0_22px_50px_rgba(16,43,117,0.15)] transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col justify-between group">
+              
+              {/* Subtle Windows Logo Watermark in Background */}
+              <svg 
+                className="absolute -top-3 -right-4 w-32 h-32 text-blue-500/[0.07] dark:text-blue-400/[0.05] pointer-events-none select-none transition-transform duration-500 group-hover:scale-110" 
+                viewBox="0 0 88 88" 
+                fill="currentColor"
+              >
+                <path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.028 34.453L.028 75.48.001 46.126zm4.326-39.025L87.314 0v41.527l-47.318.376zm47.329 45.474v41.534l-47.318-6.685-.015-34.962z"/>
+              </svg>
+
+              <div>
+                {/* Header Group */}
+                <div className="flex items-center gap-4 sm:gap-5 mb-6 relative z-10">
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                    <svg className="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 88 88" fill="currentColor">
+                      <path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.028 34.453L.028 75.48.001 46.126zm4.326-39.025L87.314 0v41.527l-47.318.376zm47.329 45.474v41.534l-47.318-6.685-.015-34.962z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1d4ed8] dark:text-blue-400 tracking-tight leading-none mb-1">
+                      Windows
+                    </h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base font-medium">
+                      PC & Laptop
                     </p>
-
-                    <button
-                      onClick={downloadWindowsInstaller}
-                      className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Download size={16} />
-                      <span>🪟 Download Doctorian-Setup.exe</span>
-                    </button>
                   </div>
                 </div>
-              )}
 
-              {activeTab === 'android_play' && (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <Smartphone size={14} className="text-emerald-400" />
-                        Doctorian Mobile Patient App on Google Play
-                      </h4>
-                      <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">
-                        Verified App
+                {/* Windows Download Action Button */}
+                <button
+                  id="download-windows-btn"
+                  onClick={handleWindowsDownload}
+                  className="w-full rounded-2xl py-4 px-5 sm:px-6 bg-gradient-to-r from-[#1d4ed8] to-[#1e40af] hover:from-[#2563eb] hover:to-[#1d4ed8] text-white font-bold shadow-[0_12px_28px_rgba(29,78,216,0.32)] hover:shadow-[0_16px_36px_rgba(29,78,216,0.45)] transition-all duration-200 active:scale-[0.98] flex items-center justify-between gap-3 cursor-pointer group/btn"
+                >
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    {/* Down Arrow in Tray Icon */}
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+                      <svg className="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white/90">
+                        DOWNLOAD FOR WINDOWS
+                      </span>
+                      <span className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+                        Download Doctorian
                       </span>
                     </div>
-
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Directs users to Doctorian's official Google Play Store page (`ai.doctorian.app`) for secure, automated installation and background updates on Android devices.
-                    </p>
-
-                    <button
-                      onClick={openGooglePlayStore}
-                      className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Smartphone size={16} />
-                      <span>📱 Get it on Google Play</span>
-                      <ExternalLink size={14} />
-                    </button>
                   </div>
-                </div>
-              )}
 
-              {activeTab === 'pwa_web' && (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                    <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                      <Monitor size={14} className="text-indigo-400" />
-                      Standalone Web Application (PWA)
-                    </h4>
+                  <span className="text-2xl font-light text-white/80 group-hover/btn:translate-x-1 transition-transform">
+                    ›
+                  </span>
+                </button>
+              </div>
 
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Install Doctorian directly into your Chrome, Safari, or Edge web browser as a standalone application without requiring administrative privileges.
-                    </p>
+              {/* Security Tagline */}
+              <div className="flex items-center justify-center gap-4 sm:gap-6 mt-5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                  <Check size={15} className="font-bold stroke-[3]" />
+                  Safe & Secure
+                </span>
+                <span className="w-1 h-3 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="flex items-center gap-1.5">
+                  Offline Installer
+                </span>
+              </div>
 
-                    <button
-                      onClick={handleInstallPWA}
-                      className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Download size={16} />
-                      <span>Install Doctorian Web PWA</span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Footer */}
-            <div className="p-4 bg-slate-950/80 border-t border-slate-800/80 flex items-center justify-between gap-3 text-[11px] text-slate-400 shrink-0">
-              <span className="flex items-center gap-1.5 text-slate-300 font-medium">
-                <Shield size={13} className="text-emerald-400" />
-                <span>Doctorian Medical AI v2.5.0 • End-to-End Encrypted Architecture</span>
-              </span>
-              <button
-                onClick={onClose}
-                className="text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
+          </div>
+
+          {/* BOTTOM FEATURES PILL BAR */}
+          <div className="relative z-10 max-w-4xl mx-auto bg-white/90 dark:bg-slate-800/80 border border-[#e4ebf8] dark:border-slate-700/70 rounded-full sm:rounded-full py-3.5 px-6 sm:px-8 flex flex-wrap items-center justify-around gap-4 sm:gap-6 shadow-[0_8px_25px_rgba(0,40,100,0.06)] text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold">
+            
+            <div className="flex items-center gap-2">
+              <Shield size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>100% Secure</span>
+            </div>
+
+            <div className="hidden sm:block w-px h-4 bg-slate-200 dark:bg-slate-700" />
+
+            <div className="flex items-center gap-2">
+              <Zap size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>Fast Installation</span>
+            </div>
+
+            <div className="hidden sm:block w-px h-4 bg-slate-200 dark:bg-slate-700" />
+
+            <div className="flex items-center gap-2">
+              <WifiOff size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>Works Offline</span>
+            </div>
+
+            <div className="hidden sm:block w-px h-4 bg-slate-200 dark:bg-slate-700" />
+
+            <div className="flex items-center gap-2">
+              <Lock size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>Your Data, Your Control</span>
+            </div>
+
+          </div>
+
+          {/* FLOATING STATUS TOAST */}
+          <AnimatePresence>
+            {statusMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[250] bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 font-semibold text-sm"
               >
-                Close
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      </AnimatePresence>
+                <span className="text-lg">{statusMessage.icon}</span>
+                <span>{statusMessage.text}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <LocalAISetupWizard
-        isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
-      />
-    </>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 };

@@ -16,10 +16,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.svg'],
-        workbox: {
-          maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
-        },
+        disable: true, // Disable PWA service worker build-time workbox generation to prevent OOM
         manifest: {
           name: 'Doctorian Medical AI',
           short_name: 'Doctorian',
@@ -43,8 +40,8 @@ export default defineConfig(({mode}) => {
       })
     ],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
+      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
     },
     resolve: {
       dedupe: ['react', 'react-dom'],
@@ -56,7 +53,10 @@ export default defineConfig(({mode}) => {
       outDir: 'dist',
       emptyOutDir: true,
       sourcemap: false,
-      chunkSizeWarningLimit: 2500,
+      reportCompressedSize: false,
+      minify: 'esbuild',
+      target: 'esnext',
+      chunkSizeWarningLimit: 5000,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -64,17 +64,23 @@ export default defineConfig(({mode}) => {
               if (id.includes('@tensorflow') || id.includes('tfjs')) {
                 return 'vendor-tfjs';
               }
+              if (id.includes('recharts') || id.includes('d3')) {
+                return 'vendor-charts';
+              }
               if (id.includes('jspdf') || id.includes('html2canvas')) {
                 return 'vendor-pdf';
               }
-              if (id.includes('recharts') || id.includes('d3')) {
-                return 'vendor-charts';
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
               }
               if (id.includes('@google') || id.includes('generative-ai')) {
                 return 'vendor-genai';
               }
-              if (id.includes('lucide-react')) {
-                return 'vendor-icons';
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('motion')) {
+                return 'vendor-motion';
               }
             }
           },

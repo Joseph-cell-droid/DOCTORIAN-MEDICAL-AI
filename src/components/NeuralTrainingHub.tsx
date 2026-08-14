@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import * as tf from '@tensorflow/tfjs';
 import { 
   Brain, 
   Plus, 
@@ -397,6 +396,7 @@ export const NeuralTrainingHub: React.FC = () => {
     if (ftBaseModel === 'google/gemma-3-4b-tfjs') {
       try {
         setFtIsStarting(true);
+        const tf = await import('@tensorflow/tfjs');
         setSuccessMsg("Initializing browser-local TensorFlow.js training engine...");
         
         await new Promise(resolve => setTimeout(resolve, 800));

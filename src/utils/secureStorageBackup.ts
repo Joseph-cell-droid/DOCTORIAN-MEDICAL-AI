@@ -47,11 +47,11 @@ export interface BackupConfig {
 }
 
 const DEFAULT_BACKUP_CONFIG: BackupConfig = {
-  autoBackupEnabled: true,
+  autoBackupEnabled: false,
   intervalHours: 24,
   lastBackupTime: null,
   encryptWithPassphrase: true,
-  autoDownload: true,
+  autoDownload: false,
   storageVaultLocked: false
 };
 

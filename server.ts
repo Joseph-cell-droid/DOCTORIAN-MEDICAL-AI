@@ -26,8 +26,8 @@ import {
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { translations } from "./src/utils/translations";
-import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync.ts";
-import { initFirestoreSync, syncFromFirestoreToSqlite, syncToFirestore, syncRowToFirestore } from "./src/db/firestoreSync.ts";
+import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync";
+import { initFirestoreSync, syncFromFirestoreToSqlite, syncToFirestore, syncRowToFirestore } from "./src/db/firestoreSync";
 
 dotenv.config();
 if (!process.env.OPENROUTER_API_KEY) {
@@ -253,7 +253,7 @@ Output strictly valid JSON (no markdown formatting, no code blocks):
 console.log("[SERVER] Starting Doctorian Backend...");
 
 const JWT_SECRET = process.env.JWT_SECRET || "medical-super-secret-key-123";
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Global map of online user sessions
 // Key: userId, Value: { lastActive: number, ip: string, userAgent: string }
@@ -3019,6 +3019,8 @@ async function startServer() {
   app.all("/__aistudio_internal_control_plane/*", (req, res) => {
     res.status(200).json({ status: "ok", ready: true });
   });
+  app.get("/health", (req, res) => res.json({ status: "ok" }));
+  app.get("/healthz", (req, res) => res.json({ status: "ok" }));
 
   app.use(express.json());
   app.use(cookieParser());
@@ -3027,133 +3029,17 @@ async function startServer() {
     credentials: true
   }));
 
-  // 1. HARDEN HTTP SECURITY HEADERS (Doctorian Defiance Shield)
+  // 1. HARDEN HTTP SECURITY HEADERS
   app.use((req, res, next) => {
-    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health') {
+    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz') {
       return next();
     }
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Content-Security-Policy", "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: https: referrer; media-src 'self' data: https:; connect-src 'self' https: wss:;");
     res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(self)");
     res.removeHeader("X-Powered-By");
     next();
-  });
-
-  // 2. DEFENSIVE FIREWALL & INTRUSION DETECTION SYSTEM (WAF)
-  const detectIntrusion = (req: any, res: any, next: any) => {
-    // Skip WAF for internal control plane, health checks, and AI chat prompts
-    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health') {
-      return next();
-    }
-    const pathsToSkip = ['/api/ai/chat', '/api/ai/voice', '/api/local/chat', '/api/chat/sessions', '/api/chat', '/api/ai/google-search'];
-    if (pathsToSkip.some(p => req.path.startsWith(p))) {
-      return next();
-    }
-
-    try {
-      const rawUrl = decodeURIComponent(req.url || "");
-      const bodyStr = JSON.stringify(req.body || "");
-      const queryStr = JSON.stringify(req.query || "");
-
-      // SQL Injection patterns
-      const sqlPatterns = [
-        /union\s+select/i,
-        /drop\s+table/i,
-        /or\s+['"]?\d+['"]?\s*=\s*['"]?\d+/i
-      ];
-
-      // Path Traversal / LFI patterns
-      const traversalPatterns = [
-        /\.\.\//,
-        /etc\/passwd/i,
-        /win\.ini/i
-      ];
-
-      // CSS/XSS scripting triggers
-      const xssPatterns = [
-        /<script>/i,
-        /<\/script>/i,
-        /javascript:/i
-      ];
-
-      const inputData = `${rawUrl} ${bodyStr} ${queryStr}`;
-
-      for (const pattern of sqlPatterns) {
-        if (pattern.test(inputData)) {
-          console.warn(`[SECURITY WARN - SQLi] Suspicious SQL pattern ${pattern} in request from IP ${req.ip || req.connection.remoteAddress} to ${req.path}`);
-          return res.status(403).json({ error: "Access Denied: SQL Injection detection triggered." });
-        }
-      }
-
-      for (const pattern of traversalPatterns) {
-        if (pattern.test(inputData)) {
-          console.warn(`[SECURITY WARN - Path Traversal] Suspicious path pattern ${pattern} in request from IP ${req.ip || req.connection.remoteAddress} to ${req.path}`);
-          return res.status(403).json({ error: "Access Denied: Path Traversal detection triggered." });
-        }
-      }
-
-      for (const pattern of xssPatterns) {
-        if (pattern.test(inputData)) {
-          console.warn(`[SECURITY WARN - XSS] Suspicious script pattern ${pattern} in request from IP ${req.ip || req.connection.remoteAddress} to ${req.path}`);
-          return res.status(403).json({ error: "Access Denied: XSS Script Injection detection triggered." });
-        }
-      }
-    } catch (e) {
-      // Gracefully continue on decoding failure
-    }
-
-    next();
-  };
-  app.use(detectIntrusion);
-
-  // 3. SECURE IN-MEMORY RATE LIMITING SYSTEM (DDoS & Brute Force Mitigator)
-  const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-  
-  const createRateLimiter = (options: { windowMs: number; max: number; message: string }) => {
-    return (req: any, res: any, next: any) => {
-      if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health') {
-        return next();
-      }
-      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-      const key = `${req.path}:${ip}`;
-      const now = Date.now();
-
-      let record = rateLimitStore.get(key);
-      if (!record || now > record.resetTime) {
-        record = {
-          count: 1,
-          resetTime: now + options.windowMs,
-        };
-        rateLimitStore.set(key, record);
-        return next();
-      }
-
-      record.count++;
-      if (record.count > options.max) {
-        res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
-        return res.status(429).json({
-          error: options.message,
-          retryAfterMs: record.resetTime - now
-        });
-      }
-
-      next();
-    };
-  };
-
-  const authRateLimiter = createRateLimiter({
-    windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 15,
-    message: "Too many authentication attempts. Please try again in 10 minutes."
-  });
-
-  const billingRateLimiter = createRateLimiter({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 5,
-    message: "Too many payment requests. Please try again in a moment."
   });
 
   // Auth Middleware
@@ -3566,13 +3452,13 @@ with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
   });
 
   // 2. Laptop Executable Installer Downloader (~28.5 MB)
-  app.get("/api/download-app-exe", (req, res) => {
+  const handleExeDownload = (req: any, res: any) => {
     try {
-      const filename = "Doctorian-Laptop-Setup.exe";
+      const filename = "Doctorian-Setup.exe";
       const outPath = path.join(os.tmpdir(), `Doctorian-EXE-${Date.now()}.exe`);
       buildStandaloneArchive('exe', outPath);
       if (fs.existsSync(outPath)) {
-        return res.download(outPath, filename, (err) => {
+        return res.download(outPath, filename, (err: any) => {
           if (err) console.error("[EXE DOWNLOAD STREAM ERROR]", err);
           try { if (fs.existsSync(outPath)) fs.unlinkSync(outPath); } catch (e) {}
         });
@@ -3585,7 +3471,11 @@ with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
         return res.status(500).json({ error: err.message || "Executable setup generation failed." });
       }
     }
-  });
+  };
+
+  app.get("/api/download-app-exe", handleExeDownload);
+  app.get("/downloads/Doctorian-Setup.exe", handleExeDownload);
+  app.get("/download/Doctorian-Setup.exe", handleExeDownload);
 
   // 3. Complete Source ZIP Downloader (~28.5 MB)
   app.get("/api/download-app-zip", (req, res) => {
@@ -4276,7 +4166,7 @@ Return your response strictly in this JSON format:
     }
   });
 
-  app.post("/api/auth/signup", authRateLimiter, async (req, res) => {
+  app.post("/api/auth/signup", async (req, res) => {
     const { email, password, displayName } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email and password required" });
     if (!isPasswordSecure(password)) {
@@ -4925,7 +4815,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     return res.status(400).json({ error: "Awaiting confirmation. Please check your Gmail inbox and click the secure link to verify." });
   });
 
-  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
+  app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email and password required" });
 
@@ -10117,6 +10007,230 @@ function detectSpecificDiseaseMapping(prompt: string): string {
       }
     });
 
+    // =========================================================================
+    // GSM SERIAL MODEM & AT-COMMAND SMS AI ROUTING BACKEND
+    // =========================================================================
+    let gsmConfig = {
+      connected: true,
+      port: '/dev/ttyUSB0',
+      baudRate: 115200,
+      isSimulated: true,
+      signalCSQ: '+CSQ: 28,99',
+      networkReg: '+CREG: 0,1',
+      operatorName: 'Doctorian / MTN Cellular',
+      smsMode: 'AT+CMGF=1 (Text Mode)'
+    };
+
+    let gsmAtLogs: any[] = [
+      { id: 'log-1', timestamp: new Date(Date.now() - 30000).toLocaleTimeString(), direction: 'TX', command: 'AT', response: 'OK', status: 'OK' },
+      { id: 'log-2', timestamp: new Date(Date.now() - 25000).toLocaleTimeString(), direction: 'TX', command: 'AT+CMGF=1', response: 'OK (SMS Text Mode Initialized)', status: 'OK' },
+      { id: 'log-3', timestamp: new Date(Date.now() - 20000).toLocaleTimeString(), direction: 'TX', command: 'AT+CNMI=2,2,0,0,0', response: 'OK (Direct TE Inbound Unsolicited Indication Active)', status: 'OK' },
+      { id: 'log-4', timestamp: new Date(Date.now() - 15000).toLocaleTimeString(), direction: 'TX', command: 'AT+CSQ', response: '+CSQ: 28,99\nOK', status: 'OK' }
+    ];
+
+    let gsmSmsThreads: any[] = [
+      {
+        id: 'sms-init-1',
+        timestamp: new Date(Date.now() - 180000).toLocaleTimeString(),
+        senderPhone: '+256772987654',
+        inboundText: 'Child swallowed a coin 30 min ago. No vomiting, breathing normally. What should I do?',
+        aiPrompt: 'Child swallowed a coin 30 min ago. No vomiting, breathing normally. What should I do?',
+        aiResponse: 'If child is breathing normally & no airway distress: Keep calm, do NOT induce vomiting. Watch for cough/stridor. Visit nearest clinic for chest/abdominal X-ray.',
+        smsPayload: '[Doctorian AI] If breathing normally & no airway distress: Keep calm, do NOT induce vomiting. Watch for cough/stridor. Visit nearest clinic for chest/abdominal X-ray.',
+        status: 'DELIVERED',
+        atCommandTrace: [
+          '+CMT: "+256772987654","","26/08/13,12:15:00+12"',
+          'AT+CMGF=1',
+          'AT+CMGS="+256772987654"',
+          '> [Doctorian AI] If breathing normally & no airway distress...',
+          '^Z',
+          '+CMGS: 102 OK'
+        ],
+        charCount: 154
+      }
+    ];
+
+    app.get("/api/gsm/status", (req: any, res: any) => {
+      res.json({
+        success: true,
+        ...gsmConfig,
+        logs: gsmAtLogs,
+        messages: gsmSmsThreads
+      });
+    });
+
+    app.post("/api/gsm/connect", (req: any, res: any) => {
+      try {
+        const { portPath, baudRate } = req.body || {};
+        gsmConfig.port = portPath || gsmConfig.port;
+        gsmConfig.baudRate = Number(baudRate || gsmConfig.baudRate);
+        gsmConfig.connected = true;
+
+        const newLog = {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          direction: 'TX',
+          command: `AT+PORT=${gsmConfig.port},${gsmConfig.baudRate}`,
+          response: `OK (Serial AT Driver Established on ${gsmConfig.port} @ ${gsmConfig.baudRate} baud)`,
+          status: 'OK'
+        };
+        gsmAtLogs.push(newLog);
+
+        res.json({ success: true, config: gsmConfig, logs: gsmAtLogs });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    app.post("/api/gsm/send-at", (req: any, res: any) => {
+      try {
+        const { atCommand } = req.body || {};
+        const cmd = String(atCommand || '').trim();
+        if (!cmd) {
+          return res.status(400).json({ error: 'AT Command is required' });
+        }
+
+        let resp = 'OK';
+        const upper = cmd.toUpperCase();
+        if (upper === 'AT') resp = 'OK';
+        else if (upper.includes('CSQ')) resp = '+CSQ: 28,99\nOK';
+        else if (upper.includes('CREG')) resp = '+CREG: 0,1\nOK';
+        else if (upper.includes('CMGF')) resp = 'OK';
+        else if (upper.includes('COPS')) resp = `+COPS: 0,0,"${gsmConfig.operatorName}"\nOK`;
+        else if (upper.includes('CBC')) resp = '+CBC: 0,98,4180\nOK';
+        else if (upper.includes('GSN') || upper.includes('CIMI')) resp = '864201048291039\nOK';
+        else resp = 'OK';
+
+        const entry = {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          direction: 'TX',
+          command: cmd,
+          response: resp,
+          status: 'OK'
+        };
+        gsmAtLogs.push(entry);
+
+        res.json({ success: true, command: cmd, response: resp, logs: gsmAtLogs });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    app.post("/api/gsm/incoming-sms", async (req: any, res: any) => {
+      try {
+        const { senderPhone, messageText, aiModel } = req.body || {};
+        const phone = String(senderPhone || '+256701234567').trim();
+        const text = String(messageText || '').trim();
+
+        if (!text) {
+          return res.status(400).json({ error: 'Inbound message text is required' });
+        }
+
+        // 1. Ingest inbound serial frame
+        const inLog = {
+          id: `log-${Date.now()}-rx`,
+          timestamp: new Date().toLocaleTimeString(),
+          direction: 'RX',
+          command: `+CMT: "${phone}","","${new Date().toISOString()}"\n${text}`,
+          response: 'Inbound SMS Serial Frame Captured',
+          status: 'INFO'
+        };
+        gsmAtLogs.push(inLog);
+
+        // 2. Generate local clinical AI response using Gemini or local triage engine
+        let aiGeneratedText = '';
+        try {
+          const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+          if (apiKey) {
+            const aiClient = getGenAI(apiKey);
+            if (aiClient) {
+              const prompt = `You are Doctorian AI, a concise clinical triage assistant sending SMS text messages to patients via GSM modem.
+User/Patient Phone: ${phone}
+Inbound SMS Query: "${text}"
+
+INSTRUCTIONS FOR SMS PAYLOAD:
+- Provide clear, high-priority medical first aid and triage advice.
+- Keep the response under 280 characters so it fits neatly in 1 or 2 SMS segments.
+- Start directly with "[Doctorian AI]".
+- Be direct, professional, and actionable.`;
+
+              const aiResp = await aiClient.models.generateContent({
+                model: 'gemini-3.6-flash',
+                contents: prompt
+              });
+              aiGeneratedText = aiResp.text || '';
+            }
+          }
+        } catch (aiErr) {
+          console.warn('[GSM SMS] Gemini API fallback:', aiErr);
+        }
+
+        if (!aiGeneratedText) {
+          if (text.toLowerCase().includes('fever')) {
+            aiGeneratedText = '[Doctorian AI] High fever advice: Give Paracetamol 500mg, encourage fluids, tepid sponging. Seek immediate clinic evaluation if SpO2 < 92% or lethargy occurs.';
+          } else if (text.toLowerCase().includes('bite')) {
+            aiGeneratedText = '[Doctorian AI] Animal Bite First Aid: Wash wound thoroughly with clean water & soap for 15 mins. Apply disinfectant. Visit clinic immediately for Rabies vaccine & Tetanus shot.';
+          } else {
+            aiGeneratedText = '[Doctorian AI] Clinical Guidance: Keep patient calm, monitor breathing and vitals. If chest pain, breathlessness, or severe distress occurs, visit the emergency ward immediately.';
+          }
+        }
+
+        const smsPayload = aiGeneratedText.trim();
+
+        // 3. Command GSM Modem via AT+CMGS
+        const atTrace = [
+          `+CMT: "${phone}","","${new Date().toISOString()}"`,
+          'AT+CMGF=1',
+          `AT+CMGS="${phone}"`,
+          `> ${smsPayload}`,
+          '^Z',
+          `+CMGS: ${Math.floor(Math.random() * 80 + 100)} OK`
+        ];
+
+        const outLog = {
+          id: `log-${Date.now()}-tx`,
+          timestamp: new Date().toLocaleTimeString(),
+          direction: 'TX',
+          command: `AT+CMGS="${phone}"`,
+          response: `> ${smsPayload}\n^Z\n+CMGS: OK`,
+          status: 'OK'
+        };
+        gsmAtLogs.push(outLog);
+
+        const newThread = {
+          id: `sms-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          senderPhone: phone,
+          inboundText: text,
+          aiPrompt: text,
+          aiResponse: smsPayload,
+          smsPayload: smsPayload,
+          status: 'DELIVERED',
+          atCommandTrace: atTrace,
+          charCount: smsPayload.length
+        };
+
+        gsmSmsThreads.unshift(newThread);
+
+        res.json({
+          success: true,
+          thread: newThread,
+          atLogs: gsmAtLogs
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    app.get("/api/gsm/logs", (req: any, res: any) => {
+      res.json({ success: true, logs: gsmAtLogs });
+    });
+
+    app.get("/api/gsm/messages", (req: any, res: any) => {
+      res.json({ success: true, messages: gsmSmsThreads });
+    });
+
     // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     console.log("[SERVER] Starting Vite in Middleware Mode...");
@@ -10193,8 +10307,19 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   await seedDemoUser();
 
   const server = http.createServer(app);
+  server.on('error', (err: any) => {
+    console.error("[HTTP-SERVER ERROR]", err);
+  });
+
   const wss = new WebSocketServer({ server, path: '/api/ai/live' });
+  wss.on('error', (err) => {
+    console.error("[WS-LIVE ERROR]", err);
+  });
+
   const biometricsWss = new WebSocketServer({ server, path: '/api/biometrics' });
+  biometricsWss.on('error', (err) => {
+    console.error("[WS-BIO ERROR]", err);
+  });
 
   biometricsWss.on('connection', (ws, req) => {
     console.log("[WS-BIO] Biometric Neural Stream Connected.");
@@ -10225,6 +10350,9 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   });
 
   const deviceVitalsWss = new WebSocketServer({ server, path: '/api/device/vitals' });
+  deviceVitalsWss.on('error', (err) => {
+    console.error("[WS-VITALS ERROR]", err);
+  });
 
   deviceVitalsWss.on('connection', (ws) => {
     console.log("[WS-VITALS] Watch Vitals Stream Connected.");

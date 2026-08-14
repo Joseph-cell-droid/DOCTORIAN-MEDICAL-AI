@@ -1526,21 +1526,16 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   >
                     Previous
                   </button>
-                  {Array.from({ length: Math.min(5, usersPagination.pages) }, (_, idx) => {
-                    // Simple sliding window for page numbers
-                    let pageNum = idx + 1;
-                    if (usersPagination.page > 3) {
-                      pageNum = usersPagination.page - 3 + idx;
-                    }
-                    if (pageNum + (5 - idx - 1) > usersPagination.pages) {
-                      pageNum = Math.max(1, usersPagination.pages - 5 + idx + 1);
-                    }
+                  {(() => {
+                    const totalPages = usersPagination.pages;
+                    if (totalPages <= 1) return null;
+                    const maxButtons = Math.min(5, totalPages);
+                    const startPage = Math.max(1, Math.min(usersPagination.page - 2, totalPages - maxButtons + 1));
+                    const pages = Array.from({ length: maxButtons }, (_, idx) => startPage + idx);
                     
-                    if (pageNum > usersPagination.pages) return null;
-
-                    return (
+                    return pages.map((pageNum) => (
                       <button
-                        key={pageNum}
+                        key={`admin-user-page-${pageNum}`}
                         onClick={() => fetchUsers(pageNum)}
                         className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl transition-all ${
                           usersPagination.page === pageNum
@@ -1550,8 +1545,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       >
                         {pageNum}
                       </button>
-                    );
-                  })}
+                    ));
+                  })()}
                   <button
                     onClick={() => fetchUsers(usersPagination.page + 1)}
                     disabled={usersPagination.page >= usersPagination.pages}

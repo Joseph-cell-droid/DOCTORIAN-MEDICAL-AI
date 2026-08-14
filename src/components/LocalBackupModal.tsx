@@ -268,7 +268,7 @@ export const LocalBackupModal: React.FC<LocalBackupModalProps> = ({
                     { label: 'Disabled', hours: 0 }
                   ].map((opt) => (
                     <button
-                      key={opt.hours}
+                      key={`backup-interval-opt-${opt.hours}`}
                       onClick={() => handleUpdateInterval(opt.hours)}
                       className={`p-3 rounded-2xl border text-xs font-bold transition-all cursor-pointer text-center ${
                         config.intervalHours === opt.hours

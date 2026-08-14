@@ -91,8 +91,9 @@ import PatientMonitor from './components/PatientMonitor';
 import VitalityMatrix from './components/VitalityMatrix';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 import { BiomaticSandbox } from './components/BiomaticSandbox';
+import { EdgeScrollNavigation } from './components/EdgeScrollNavigation';
 import { LocalBackupModal } from './components/LocalBackupModal';
-import { checkAndTriggerPeriodicBackup } from './utils/secureStorageBackup';
+import { WindowsSystemsHubModal } from './components/WindowsSystemsHubModal';
 import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
@@ -162,7 +163,6 @@ const MedicalIllustrator = safeLazy(() => import("./components/MedicalIllustrato
 const GenomicLongevityCore = safeLazy(() => import("./components/GenomicLongevityCore"), "GenomicLongevityCore");
 const ImageGenerator = safeLazy(() => import("./components/ImageGenerator"), "ImageGenerator");
 const CognisHub = safeLazy(() => import("./components/CognisHub"), "CognisHub");
-
 const BioSimulation = safeLazy(() => import("./components/BioSimulation"));
 const Features = safeLazy(() => import("./components/Features"), "Features");
 const About = safeLazy(() => import("./components/About"), "About");
@@ -174,12 +174,13 @@ const AccessRestriction = safeLazy(() => import("./components/AccessRestriction"
 const SpecialistFinder = safeLazy(() => import("./components/SpecialistFinder"), "SpecialistFinder");
 const SymptomChecker = safeLazy(() => import("./components/SymptomChecker"), "SymptomChecker");
 const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
-const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
-const Billing = safeLazy(() => import("./components/Billing"), "Billing");
+import { EmergencyRegistry } from "./components/EmergencyRegistry";
+import { Billing } from "./components/Billing";
 const MedicationTracker = safeLazy(() => import("./components/MedicationTracker"), "MedicationTracker");
 const WorkoutTracker = safeLazy(() => import("./components/WorkoutTracker"), "WorkoutTracker");
-const BioSecurity = safeLazy(() => import("./components/BioSecurity"), "BioSecurity");
+import { BioSecurity } from "./components/BioSecurity";
 const DeveloperPortal = safeLazy(() => import("./components/DeveloperPortal"), "DeveloperPortal");
+const GsmSmsGateway = safeLazy(() => import("./components/GsmSmsGateway"), "GsmSmsGateway");
 const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
 const BMICalculator = safeLazy(() => import("./components/BMICalculator"), "BMICalculator");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
@@ -215,7 +216,7 @@ interface ErrorBoundaryState {
   showConfirmReset: boolean;
 }
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null, showDetails: false, showConfirmReset: false };
@@ -383,6 +384,7 @@ const viewNamesMap: Record<string, string> = {
   health_matrix: 'Biomatic Sandbox',
   autonomous_sync: 'Autonomous Core',
   dev_portal: 'Developer Portal',
+  gsm_sms_gateway: 'GSM AT Modem & SMS Gateway',
   billing: 'Resource Billings',
   health_trace: 'Clinical History Trace',
   biomatic: 'Clinical Hub',
@@ -776,7 +778,7 @@ export default function App() {
     };
   }, [currentLanguage]);
 
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -1438,26 +1440,6 @@ export default function App() {
       vibrateSOS();
     }
   }, [activeSOS]);
-
-  // Periodic Automated Encrypted Health Backup Engine
-  useEffect(() => {
-    const runPeriodicBackupCheck = async () => {
-      try {
-        await checkAndTriggerPeriodicBackup((filename) => {
-          setToast({
-            message: `🛡️ Automated Periodic Encrypted Health Backup downloaded (${filename}). Data secured with AES-256-GCM.`,
-            type: 'success'
-          });
-        });
-      } catch (err) {
-        console.warn('[Auto-Backup] Background periodic check error:', err);
-      }
-    };
-
-    runPeriodicBackupCheck();
-    const backupTimer = setInterval(runPeriodicBackupCheck, 30 * 60 * 1000); // Check every 30 mins
-    return () => clearInterval(backupTimer);
-  }, []);
 
   useEffect(() => {
     const checkStandalone = () => {
@@ -2617,26 +2599,7 @@ export default function App() {
                   <Logo size="sm" showText={true} />
                 </motion.button>
 
-                {/* Fixed Header Back Navigation Button */}
-                {navigationHistory.length > 1 && (
-                  <motion.button
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleGoBack}
-                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm font-bold text-[10px] uppercase tracking-wider cursor-pointer shrink-0 transition-all border border-blue-400/30"
-                    title={`Go back to ${viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'previous page'}`}
-                  >
-                    <ArrowLeft size={13} className="stroke-[2.5]" />
-                    <span className="hidden sm:inline truncate max-w-[120px]">
-                      {viewNamesMap[navigationHistory[navigationHistory.length - 2]] || 'Back'}
-                    </span>
-                    <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[8px] font-black flex items-center justify-center shrink-0">
-                      {navigationHistory.length - 1}
-                    </span>
-                  </motion.button>
-                )}
+                {/* Brand Logo Identity */}
               </div>
 
               {/* Middle Toolbar Controls - Professionally Spaced */}
@@ -3032,339 +2995,34 @@ export default function App() {
                     )}
                   </motion.button>
 
-                  <AnimatePresence>
-                    {isWindowsMenuOpen && (
-                      <>
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="fixed inset-0 z-40 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none"
-                          onClick={() => setIsWindowsMenuOpen(false)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: 15, scale: 0.95, filter: 'blur(8px)' }}
-                          animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                          exit={{ opacity: 0, y: 15, scale: 0.95, filter: 'blur(8px)' }}
-                          transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="fixed inset-x-4 max-w-[440px] left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:-right-4 sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:mt-3 w-auto sm:w-[460px] bg-white dark:bg-slate-900 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-200/60 dark:border-slate-800/80 p-5 z-50 overflow-visible"
-                        >
-                          <div className="flex flex-col space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="p-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg">
-                                  <LayoutGrid size={16} />
-                                </span>
-                                <div className="flex flex-col">
-                                  <span className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-100">Windows Systems Hub</span>
-                                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Clinical Node Panel Launcher</span>
-                                </div>
-                              </div>
-                              <button 
-                                onClick={() => setIsWindowsMenuOpen(false)}
-                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl transition-all cursor-pointer"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-
-                            {/* Unified Scrollable Container for System Actions & Launcher */}
-                            <div className="max-h-[360px] sm:max-h-[480px] overflow-y-auto pr-1.5 smooth-scroll custom-scrollbar space-y-4">
-                              
-                              {/* Operational Controls Grid */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pb-3.5 border-b border-slate-100 dark:border-slate-800/80">
-                                <div className="sm:col-span-2">
-                                  <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Operational Controls</span>
-                                </div>
-                                
-                                <button
-                                  onClick={() => {
-                                    const forced = localStorage.getItem("medical_forced_offline");
-                                    const nextVal = forced === "true" ? "false" : "true";
-                                    localStorage.setItem("medical_forced_offline", nextVal);
-                                    window.dispatchEvent(new Event('storage'));
-                                    const isForced = nextVal === "true";
-                                    setToast({
-                                      message: isForced 
-                                        ? "🛡️ Local Offline Core Engaged. Outbound payloads are secured browser-side." 
-                                        : "⚡ Online Core Synced. Verifying secure cloud communication links...",
-                                      type: isForced ? "info" : "success"
-                                    });
-                                  }}
-                                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-left border border-slate-100 dark:border-slate-800/60 cursor-pointer"
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-850 dark:text-slate-100 truncate leading-none mb-1">Cache Sync</span>
-                                      <span className="text-[8px] font-bold text-slate-400 uppercase truncate leading-none">{isOffline ? 'Off-Grid Core' : 'Live Sync'}</span>
-                                    </div>
-                                  </div>
-                                  <span className="text-[8px] font-extrabold text-blue-500 uppercase tracking-widest shrink-0">Toggle</span>
-                                </button>
-
-                                <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/60 font-sans">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <Mic size={14} className="text-violet-500 shrink-0" />
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-850 dark:text-slate-100 truncate leading-none mb-1">Voice Core</span>
-                                      <span className="text-[8px] font-bold text-slate-400 uppercase truncate leading-none font-sans">Hands-Free</span>
-                                    </div>
-                                  </div>
-                                  <VoiceCommandToggle onNavigate={(v) => { setCurrentView(v); setIsWindowsMenuOpen(false); }} />
-                                </div>
-
-                                <div className="grid grid-cols-4 gap-2 sm:col-span-2">
-                                  <button
-                                    onClick={() => setIsEyeCareMode(!isEyeCareMode)}
-                                    className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
-                                      isEyeCareMode 
-                                        ? 'bg-amber-100/80 border-amber-400 text-amber-955 dark:bg-amber-950/40 dark:border-amber-600 dark:text-amber-200' 
-                                        : 'bg-slate-50 dark:bg-slate-850 border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                                  >
-                                    {isEyeCareMode ? <Eye size={14} className="text-amber-500 animate-pulse" /> : <EyeOff size={14} />}
-                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Legibility</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => setIsDarkMode(!isDarkMode)}
-                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-830 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                                  >
-                                    {isDarkMode ? <Sun size={14} className="text-amber-500" /> : <Moon size={14} className="text-indigo-400" />}
-                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">{isDarkMode ? 'Light' : 'Dark'}</span>
-                                  </button>
-                                  <button
-                                    onClick={() => { setIsThemeSchedulerOpen(true); setIsWindowsMenuOpen(false); }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-all cursor-pointer"
-                                    title="Solar Theme Scheduler"
-                                  >
-                                    <Clock size={14} className="text-amber-500" />
-                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Solar Sync</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      vibrateCriticalAlert();
-                                      addToast("📳 Mobile Haptic Pulse Test Triggered (Critical Alert Pattern)", "info");
-                                    }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-all cursor-pointer"
-                                    title="Test Mobile Haptic Vibration Pulse"
-                                  >
-                                    <Activity size={14} className="text-rose-500 animate-pulse" />
-                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Haptics</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => { handleOpenAdminInfo(); setIsWindowsMenuOpen(false); }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-830 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all relative cursor-pointer"
-                                  >
-                                    <Bell size={14} className={hasNotification ? "text-blue-500 animate-bounce" : ""} />
-                                    {hasNotification && (
-                                      <span className="absolute top-2.5 right-5 w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                    )}
-                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Alerts</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => setIsAudioMenuOpen(!isAudioMenuOpen)}
-                                    className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
-                                      isAudioMenuOpen
-                                        ? 'bg-blue-100/85 border-blue-400 text-blue-955 dark:bg-blue-950/40 dark:border-blue-600 dark:text-blue-200'
-                                        : 'bg-slate-50 dark:bg-slate-850 border-slate-150 dark:border-slate-800/60 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                                  >
-                                    {vitalsAudioEnabled || soundscapeEnabled ? (
-                                      <Headphones size={14} className="text-rose-500 animate-bounce" />
-                                    ) : (
-                                      <VolumeX size={14} className="text-slate-400" />
-                                    )}
-                                    <span className="text-[8px] font-black uppercase tracking-widest mt-1.5">Audio Hub</span>
-                                  </button>
-                                </div>
-
-                                {isAudioMenuOpen && (
-                                  <motion.div 
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60 rounded-[1.5rem] flex flex-col gap-3 text-left sm:col-span-2"
-                                  >
-                                    <div className="pb-1 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                                      <span className="text-[9px] font-black uppercase tracking-tight text-slate-400 dark:text-slate-550">Clinical Sound Engine</span>
-                                      <span className="text-[7px] font-mono bg-blue-500/10 text-blue-600 dark:bg-blue-500/25 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Active</span>
-                                    </div>
-
-                                    {/* Section 1: Heartbeat Pulse Sonification */}
-                                    <div className="flex flex-col gap-2 p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800/60">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex gap-2 min-w-0">
-                                          <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
-                                            <Activity size={12} className={vitalsAudioEnabled ? "animate-pulse" : ""} />
-                                          </div>
-                                          <div className="min-w-0">
-                                            <h4 className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Vitals Pulse (Heart)</h4>
-                                            <p className="text-[8px] text-slate-400 dark:text-slate-550 leading-tight">Audible pulse, pitch-tracking, warnings.</p>
-                                          </div>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={toggleVitalsAudio}
-                                          className={`w-8 h-4 rounded-full p-0.5 transition-all outline-none border cursor-pointer shrink-0 ${
-                                            vitalsAudioEnabled 
-                                              ? 'bg-rose-500 border-rose-400 flex justify-end items-center' 
-                                              : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
-                                          }`}
-                                        >
-                                          <motion.div layout className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
-                                        </button>
-                                      </div>
-
-                                      {vitalsAudioEnabled && (
-                                        <div className="mt-1.5 flex flex-col gap-1 border-t border-slate-100 dark:border-slate-800/40 pt-1.5">
-                                          <div className="flex items-center justify-between text-[7px] uppercase font-black text-slate-400">
-                                            <span>Volume</span>
-                                            <span>{Math.round(vitalsAudioVolume * 100)}%</span>
-                                          </div>
-                                          <input 
-                                            type="range"
-                                            min="0"
-                                            max="1"
-                                            step="0.05"
-                                            value={vitalsAudioVolume}
-                                            onChange={(e) => handleVitalsVolumeChange(parseFloat(e.target.value))}
-                                            className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded appearance-none cursor-pointer accent-rose-500"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Section 2: Cognitive Binaural Soundscapes */}
-                                    <div className="flex flex-col gap-2 p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800/60">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex gap-2 min-w-0">
-                                          <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 shrink-0">
-                                            <Music size={12} className={soundscapeEnabled ? "animate-spin" : ""} style={{ animationDuration: '8s' }} />
-                                          </div>
-                                          <div className="min-w-0">
-                                            <h4 className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Ambient Soundscape</h4>
-                                            <p className="text-[8px] text-slate-400 dark:text-slate-550 leading-tight">Focus binaural carrier waves with noise mask.</p>
-                                          </div>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={toggleSoundscapeGlobal}
-                                          className={`w-8 h-4 rounded-full p-0.5 transition-all outline-none border cursor-pointer shrink-0 ${
-                                            soundscapeEnabled 
-                                              ? 'bg-indigo-500 border-indigo-400 flex justify-end items-center' 
-                                              : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
-                                          }`}
-                                        >
-                                          <motion.div layout className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
-                                        </button>
-                                      </div>
-
-                                      {soundscapeEnabled && (
-                                        <div className="mt-1.5 flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/40 pt-1.5 text-[7px] uppercase">
-                                          <div className="flex items-center justify-between font-black text-slate-400">
-                                            <span>Volume</span>
-                                            <span>{Math.round(soundscapeVolume * 100)}%</span>
-                                          </div>
-                                          <input 
-                                            type="range"
-                                            min="0"
-                                            max="1"
-                                            step="0.05"
-                                            value={soundscapeVolume}
-                                            onChange={(e) => handleSoundscapeVolChangeGlobal(parseFloat(e.target.value))}
-                                            className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded appearance-none cursor-pointer accent-indigo-500"
-                                          />
-
-                                          <div className="font-black text-slate-400 mt-1 mb-0.5">Preset Profile</div>
-                                          <div className="grid grid-cols-3 gap-1 bg-slate-50 dark:bg-slate-950/60 p-1 border border-slate-100 dark:border-slate-850 rounded-lg">
-                                            {(['alpha_focus', 'theta_meditation', 'beta_high_cognition'] as const).map(p => {
-                                              const labelMap = { alpha_focus: 'Alpha', theta_meditation: 'Theta', beta_high_cognition: 'Beta' };
-                                              const active = soundscapePreset === p;
-                                              return (
-                                                <button
-                                                  key={`hdr-preset-${p}`}
-                                                  type="button"
-                                                  onClick={() => changePresetGlobal(p)}
-                                                  className={`py-1 text-[7px] font-black uppercase rounded transition-all border cursor-pointer leading-none truncate ${
-                                                    active 
-                                                      ? 'bg-indigo-500 text-white border-indigo-500 shadow-xs' 
-                                                      : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
-                                                  }`}
-                                                >
-                                                  {labelMap[p]}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </div>
-
-                              {/* Systems Launcher Core */}
-                              <div className="space-y-2">
-                                <span className="text-[8px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest block">Clinical Systems Launcher</span>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {[
-                                    { id: 'home', title: "Dashboard", category: "Analyses", icon: <Home size={14} />, color: "text-blue-500 hover:text-blue-600" },
-                                    { id: 'ai_nexus', title: "Neural Core", category: "Cognition", icon: <Bot size={14} />, color: "text-purple-500 hover:text-purple-600" },
-                                    { id: 'genomic_longevity', title: "Genomics", category: "DNA Core", icon: <Dna size={14} />, color: "text-rose-500 hover:text-rose-600" },
-                                    { id: 'illustrator', title: "Illustrator", category: "Visuals", icon: <Palette size={14} />, color: "text-amber-500 hover:text-amber-600" },
-                                    { id: 'neuro', title: "CognisHub", category: "Brain AI", icon: <Brain size={14} />, color: "text-violet-500 hover:text-violet-600" },
-                                    { id: 'biomatic', title: "Clinical Hub", category: "Research", icon: <Cpu size={14} />, color: "text-cyan-500 hover:text-cyan-600" },
-                                    { id: 'diagnostic_lab', title: "Labs Node", category: "Clinical", icon: <Stethoscope size={14} />, color: "text-emerald-500 hover:text-emerald-600" },
-                                    { id: 'monitor', title: "Bio-Monitor", category: "Real-time", icon: <Monitor size={14} />, color: "text-indigo-500 hover:text-indigo-600" },
-                                    { id: 'health_trace', title: "Trace Node", category: "Logbooks", icon: <TrendingUp size={14} />, color: "text-blue-500 hover:text-blue-600" },
-                                    { id: 'vitality', title: "Vitality Matrix", category: "Bio-Energy", icon: <Zap size={14} />, color: "text-orange-500 hover:text-orange-600" },
-                                    { id: 'meds', title: "Pharmacy", category: "Chemicals", icon: <Pill size={14} />, color: "text-rose-500 hover:text-rose-600" },
-                                    { id: 'specialist', title: "Clinicians", category: "Network", icon: <Stethoscope size={14} />, color: "text-purple-500 hover:text-purple-600" },
-                                    { id: 'about', title: "System Info", category: "Specs", icon: <Info size={14} />, color: "text-slate-500 hover:text-slate-650" },
-                                    { id: 'help', title: "Help Center", category: "Support", icon: <Info size={14} />, color: "text-teal-500 hover:text-teal-600" },
-                                    { id: 'privacy', title: "Privacy Vault", category: "Secure", icon: <Shield size={14} />, color: "text-red-500 hover:text-red-650" },
-                                    { id: 'terms', title: "Terms & Legal", category: "Licence", icon: <FileText size={14} />, color: "text-slate-500 hover:text-slate-600" }
-                                  ].map((item) => {
-                                    const isSelected = currentView === item.id;
-                                    return (
-                                      <button
-                                        key={item.id}
-                                        onClick={() => {
-                                          setCurrentView(item.id as any);
-                                          setIsWindowsMenuOpen(false);
-                                          setToast({
-                                            message: `Loaded ${item.title} node successfully.`,
-                                            type: "success"
-                                          });
-                                        }}
-                                        className={`flex items-center gap-2 p-1.5 rounded-xl border text-left cursor-pointer transition-all ${
-                                          isSelected 
-                                            ? 'border-blue-500 bg-blue-50/75 dark:bg-blue-900/35 text-blue-800 dark:text-blue-300 font-bold' 
-                                            : 'border-slate-50 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-350 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                        }`}
-                                      >
-                                        <div className={`p-1 shrink-0 ${item.color}`}>
-                                          {item.icon}
-                                        </div>
-                                        <div className="flex flex-col min-w-0">
-                                          <span className="text-[9px] font-black uppercase tracking-tight truncate leading-none mb-0.5">{item.title}</span>
-                                          <span className="text-[7px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest leading-none">{item.category}</span>
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                  <WindowsSystemsHubModal 
+                    isOpen={isWindowsMenuOpen}
+                    onClose={() => setIsWindowsMenuOpen(false)}
+                    currentView={currentView}
+                    onNavigate={(v) => setCurrentView(v as any)}
+                    isOffline={isOffline}
+                    isEyeCareMode={isEyeCareMode}
+                    setIsEyeCareMode={setIsEyeCareMode}
+                    isDarkMode={isDarkMode}
+                    setIsDarkMode={setIsDarkMode}
+                    setIsThemeSchedulerOpen={setIsThemeSchedulerOpen}
+                    vibrateCriticalAlert={vibrateCriticalAlert}
+                    addToast={(msg, type) => setToast({ message: msg, type: type || 'info' })}
+                    handleOpenAdminInfo={handleOpenAdminInfo}
+                    hasNotification={hasNotification}
+                    isAudioMenuOpen={isAudioMenuOpen}
+                    setIsAudioMenuOpen={setIsAudioMenuOpen}
+                    vitalsAudioEnabled={vitalsAudioEnabled}
+                    toggleVitalsAudio={toggleVitalsAudio}
+                    vitalsAudioVolume={vitalsAudioVolume}
+                    handleVitalsVolumeChange={handleVitalsVolumeChange}
+                    soundscapeEnabled={soundscapeEnabled}
+                    toggleSoundscapeGlobal={toggleSoundscapeGlobal}
+                    soundscapeVolume={soundscapeVolume}
+                    handleSoundscapeVolChangeGlobal={handleSoundscapeVolChangeGlobal}
+                    soundscapePreset={soundscapePreset}
+                    changePresetGlobal={changePresetGlobal}
+                  />
                 </div>
               </div>
               
@@ -3605,13 +3263,27 @@ export default function App() {
       </div>
 
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-6 sm:pb-8'
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-8 sm:pb-12'
       }`} id="main-content">
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus' 
               ? 'py-0 px-0 max-w-full h-full min-h-0' 
-              : 'py-4 sm:py-6 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full box-border'
+              : 'py-6 sm:py-8 lg:py-10 px-4 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-6 sm:space-y-8'
           }`}>
+            {currentView !== 'ai_nexus' && (
+              <EdgeScrollNavigation 
+                currentView={currentView}
+                onNavigateNext={() => {
+                  const views = ['home', 'vitality', 'symptoms', 'records', 'diagnostic_lab', 'doctors_dashboard', 'specialist', 'monitor', 'research'];
+                  const idx = views.indexOf(currentView);
+                  if (idx >= 0 && idx < views.length - 1) {
+                    setCurrentView(views[idx + 1] as any);
+                  } else {
+                    setCurrentView('home');
+                  }
+                }}
+              />
+            )}
             {renderSubTabsBar()}
             <Suspense fallback={
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
@@ -4032,6 +3704,16 @@ export default function App() {
             className="w-full"
           >
             <DeveloperPortal />
+          </motion.div>
+        ) : currentView === 'gsm_sms_gateway' ? (
+          <motion.div
+            key="gsm_sms_gateway"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full"
+          >
+            <GsmSmsGateway addToast={addToast} />
           </motion.div>
         ) : currentView === 'billing' ? (
           <motion.div

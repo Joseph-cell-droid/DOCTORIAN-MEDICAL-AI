@@ -2,17 +2,19 @@ import pkg from "pg";
 const { Pool } = pkg;
 
 // Initialize PostgreSQL Pool using Object Method parameters from the environment
-export const pgPool = new Pool({
+export const pgPool = process.env.SQL_HOST ? new Pool({
   host: process.env.SQL_HOST,
   user: process.env.SQL_USER,
   password: process.env.SQL_PASSWORD,
   database: process.env.SQL_DB_NAME,
   connectionTimeoutMillis: 10000,
-});
+}) : null as any;
 
-pgPool.on("error", (err) => {
-  console.error("[POSTGRES-POOL] Idle pool error:", err.message);
-});
+if (pgPool) {
+  pgPool.on("error", (err: any) => {
+    console.error("[POSTGRES-POOL] Idle pool error:", err.message);
+  });
+}
 
 // Direct utility to translate standard SQLite query strings into PostgreSQL dialect
 export function translateSqlToPg(sqliteSql: string, tableNameHint?: string): string {
@@ -166,6 +168,10 @@ export async function syncToPostgres(sqliteSql: string, params: any[], tableName
 
 // Startup pull sync: Pulls all PostgreSQL rows down to local SQLite to ensure fresh initialization
 export async function syncFromPostgresToSqlite(sqliteDb: any) {
+  if (bypassPostgresSync || !pgPool) {
+    console.log("[POSTGRES-SYNC] PostgreSQL not configured or bypassed. Using local SQLite store.");
+    return;
+  }
   console.log("[POSTGRES-SYNC] Initiating master cloud fetch sequence...");
 
   // Prevent slow boot delays block state: Do a quick 2000ms probe to check if PostgreSQL is reachable

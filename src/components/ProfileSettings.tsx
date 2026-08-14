@@ -12,6 +12,12 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, User as UserType, detectActiveLocalNode } from '../api';
+import {
+  preloadLocalHFModel,
+  isBrowserModelSupported,
+  getBrowserModelId,
+  type BrowserModelProgress,
+} from '../services/localHuggingFaceModel';
 import { UpgradeModal } from './UpgradeModal';
 import { TwoFactorModal } from './TwoFactorModal';
 import { OfflinePackageManagerModal } from './OfflinePackageManagerModal';
@@ -78,6 +84,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isVerifyingHf, setIsVerifyingHf] = useState(false);
   const [hfVerificationResult, setHfVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
+  // On-device (in-browser) Hugging Face model download state
+  const [browserModelStatus, setBrowserModelStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [browserModelPct, setBrowserModelPct] = useState(0);
+  const [browserModelFile, setBrowserModelFile] = useState('');
   
   // Emergency Contact Info
   const [doctorPhone, setDoctorPhone] = useState(user?.doctorPhone || '');
@@ -322,6 +332,31 @@ Verified by Joseph Akora - Development Lead.
     loadHfModels();
   }, []);
 
+  const handleDownloadBrowserModel = async () => {
+    if (!isBrowserModelSupported()) {
+      setBrowserModelStatus('error');
+      setMessage({ text: "This browser doesn't support on-device AI (needs WebAssembly + Web Workers).", type: "error" });
+      return;
+    }
+    setBrowserModelStatus('loading');
+    setBrowserModelPct(0);
+    setBrowserModelFile('');
+    try {
+      await preloadLocalHFModel((progress: BrowserModelProgress) => {
+        if (typeof progress.progress === 'number') {
+          setBrowserModelPct(Math.min(100, Math.round(progress.progress)));
+        }
+        if (progress.file) setBrowserModelFile(progress.file);
+      });
+      setBrowserModelStatus('ready');
+      setBrowserModelPct(100);
+      setMessage({ text: "On-device Doctorian model installed. The consultation chatbot now works fully offline.", type: "success" });
+    } catch (e: any) {
+      setBrowserModelStatus('error');
+      setMessage({ text: e?.message || "Failed to install the on-device model.", type: "error" });
+    }
+  };
+
   const renderHuggingFaceSection = () => {
     return (
       <div className="space-y-4 mb-8">
@@ -418,6 +453,55 @@ Verified by Joseph Akora - Development Lead.
         <p className="text-[9px] text-slate-400 font-bold px-2 uppercase tracking-tight">
           Connect to Hugging Face serverless API for stable, ultra-low latency cloud execution. Defaults to <span className="text-slate-900 dark:text-white">doctorian-2.0</span> if left empty.
         </p>
+
+        {/* On-device Hugging Face model — offline fallback brain */}
+        <div className="mt-5 p-4 rounded-3xl border-2 border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+              <Cpu size={18} />
+            </div>
+            <div className="flex-1">
+              <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wide">On-Device Model (Offline Fallback)</h5>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold leading-relaxed mt-0.5">
+                Install a real Hugging Face model that runs entirely in your browser. Powers the consultation chatbot with no internet and no API key. Downloads once, then cached.
+              </p>
+              <p className="text-[9px] text-indigo-500 dark:text-indigo-400 font-mono mt-1 truncate">{getBrowserModelId()}</p>
+            </div>
+          </div>
+
+          {browserModelStatus === 'loading' && (
+            <div className="space-y-1.5">
+              <div className="h-2 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600 transition-all duration-300"
+                  style={{ width: `${browserModelPct}%` }}
+                />
+              </div>
+              <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider truncate">
+                Downloading {browserModelFile || 'model weights'}… {browserModelPct}%
+              </p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleDownloadBrowserModel}
+            disabled={browserModelStatus === 'loading'}
+            className={`w-full px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+              browserModelStatus === 'ready'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-300 shadow-md shadow-indigo-500/20'
+            }`}
+          >
+            {browserModelStatus === 'loading' ? (
+              <><Loader2 size={15} className="animate-spin" /> Installing…</>
+            ) : browserModelStatus === 'ready' ? (
+              <><CheckCircle2 size={15} /> Model Installed &amp; Ready</>
+            ) : (
+              <><Download size={15} /> Install On-Device Model</>
+            )}
+          </button>
+        </div>
       </div>
     );
   };

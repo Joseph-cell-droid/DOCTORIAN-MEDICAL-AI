@@ -64,6 +64,9 @@ export default defineConfig(({mode}) => {
               if (id.includes('@tensorflow') || id.includes('tfjs')) {
                 return 'vendor-tfjs';
               }
+              if (id.includes('@huggingface/transformers')) {
+                return 'vendor-transformers';
+              }
               if (id.includes('recharts') || id.includes('d3')) {
                 return 'vendor-charts';
               }
@@ -86,6 +89,12 @@ export default defineConfig(({mode}) => {
           },
         },
       },
+    },
+    optimizeDeps: {
+      exclude: ['@huggingface/transformers'],
+    },
+    worker: {
+      format: 'es',
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',

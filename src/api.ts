@@ -1,5 +1,70 @@
 
 import { generateProfessionalTitle } from './utils/titleGenerator';
+import {
+  streamLocalHFResponse,
+  isBrowserModelSupported,
+  getBrowserModelId,
+} from './services/localHuggingFaceModel';
+
+/**
+ * Shared offline / fallback brain for the consultation chatbot.
+ *
+ * Tries the real in-browser Hugging Face model first (transformers.js running
+ * in a Web Worker). If it can't load or produce output — e.g. unsupported
+ * browser or the weights haven't been cached and there's no network — it
+ * degrades gracefully to the scripted offline knowledge responder.
+ */
+async function* offlineDoctorianStream(
+  messages: { role: string; text: string }[],
+  systemInstruction: string,
+  temperature: number,
+  signal?: AbortSignal,
+  onMetadata?: (meta: any) => void,
+  targetLanguage?: string,
+): AsyncGenerator<string, void, unknown> {
+  if (isBrowserModelSupported()) {
+    try {
+      let firstTokenSeen = false;
+      let notifiedLoad = false;
+      for await (const chunk of streamLocalHFResponse({
+        messages,
+        systemInstruction,
+        temperature,
+        signal,
+        onProgress: () => {
+          if (!notifiedLoad) {
+            notifiedLoad = true;
+            onMetadata?.({ credits: 'Loading in-browser Hugging Face model…' });
+          }
+        },
+      })) {
+        firstTokenSeen = true;
+        yield chunk;
+      }
+      if (firstTokenSeen) {
+        const shortName = getBrowserModelId().split('/').pop() || 'Hugging Face';
+        onMetadata?.({ credits: `Unlimited (In-Browser Hugging Face · ${shortName})` });
+        return;
+      }
+    } catch (err) {
+      console.warn(
+        '[Neural Link] In-browser Hugging Face model unavailable, using scripted offline responder:',
+        err,
+      );
+    }
+  }
+
+  // Ultimate fallback: scripted offline medical knowledge responder.
+  const lastPrompt = messages[messages.length - 1]?.text || 'Hello';
+  const text = generateOfflineMedicalResponse(lastPrompt, targetLanguage);
+  const words = text.split(' ');
+  for (let i = 0; i < words.length; i++) {
+    if (signal?.aborted) return;
+    yield words[i] + ' ';
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  onMetadata?.({ credits: 'Offline Local Back-up Mode' });
+}
 
 export interface User {
   id: string;
@@ -2471,18 +2536,9 @@ export const api = {
       images?: string[],
       targetLanguage?: string
     ) {
-      const lastPrompt = messages[messages.length - 1]?.text || "";
-
       if (isOffline()) {
-        const text = generateOfflineMedicalResponse(lastPrompt, targetLanguage);
-        const words = text.split(" ");
-        // Stagger offline rendering beautifully to replicate AI output
-        for (let i = 0; i < words.length; i++) {
-          if (signal?.aborted) return;
-          yield words[i] + " ";
-          await new Promise(resolve => setTimeout(resolve, 35));
-        }
-        onMetadata?.({ credits: "Unlimited (Offline Local Back-up Mode)" });
+        // Offline: run a real Hugging Face model in the browser (with scripted fallback).
+        yield* offlineDoctorianStream(messages, systemInstruction, temperature, signal, onMetadata, targetLanguage);
         return;
       }
 
@@ -2805,16 +2861,8 @@ export const api = {
           }
         }
         
-        console.warn("[Neural Link] Local LLM fallback missed.");
-        const lastPrompt = messages[messages.length - 1]?.text || "Hello";
-        const text = generateOfflineMedicalResponse(lastPrompt, targetLanguage);
-        const words = text.split(" ");
-        for (let i = 0; i < words.length; i++) {
-          if (signal?.aborted) return;
-          yield words[i] + " ";
-          await new Promise(resolve => setTimeout(resolve, 20));
-        }
-        onMetadata?.({ credits: "Offline Local Back-up Mode" });
+        console.warn("[Neural Link] Local LLM fallback missed. Engaging in-browser Hugging Face model.");
+        yield* offlineDoctorianStream(messages, systemInstruction, temperature, signal, onMetadata, targetLanguage);
       }
     },
     async submitFeedback(feedback: { messageId: string; rating: 'up' | 'down'; suggestion?: string }) {

@@ -30,6 +30,18 @@ import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync"
 import { initFirestoreSync, syncFromFirestoreToSqlite, syncToFirestore, syncRowToFirestore } from "./src/db/firestoreSync";
 
 dotenv.config();
+
+// Keep the dev/prod server alive when a fire-and-forget background sync
+// (e.g. Firestore/Postgres convergence without cloud credentials) rejects.
+// Without this, a single unhandled rejection crashes the entire server and
+// takes the consultation chatbot down with it.
+process.on("unhandledRejection", (reason) => {
+  console.warn("[Doctorian] Unhandled promise rejection (non-fatal):", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.warn("[Doctorian] Uncaught exception (non-fatal):", err?.message || err);
+});
+
 if (!process.env.OPENROUTER_API_KEY) {
   process.env.OPENROUTER_API_KEY = "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";
 }

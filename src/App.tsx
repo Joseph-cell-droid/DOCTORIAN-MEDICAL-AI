@@ -2708,13 +2708,13 @@ export default function App() {
                               { code: 'ko', name: 'Korean', flag: '🇰🇷', native: '한국어' },
                               { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
                               { code: 'tr', name: 'Turkish', flag: '🇹🇷', native: 'Türkçe' }
-                            ].map((lang) => {
+                            ].map((lang, lIdx) => {
                               const isDownloaded = downloadedLanguages.includes(lang.name);
                               const isDownloading = downloadingLang === lang.name;
 
                               return (
                                 <div
-                                  key={lang.code}
+                                  key={`lang-opt-${lang.code}-${lIdx}`}
                                   className={`flex items-center justify-between p-1 rounded-2xl transition-all ${
                                     currentLanguage === lang.name
                                       ? 'bg-blue-500/5 dark:bg-blue-500/12 ring-1 ring-blue-500/10'
@@ -3355,9 +3355,9 @@ export default function App() {
                       { id: 'facebook', provider: facebookProvider, color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600', icon: <Facebook size={24} className="sm:w-7 sm:h-7" /> },
                       { id: 'instagram', provider: instagramProvider, color: 'hover:bg-pink-50 dark:hover:bg-pink-900/20 text-pink-500', icon: <Instagram size={24} className="sm:w-7 sm:h-7" /> },
                       { id: 'github', provider: githubProvider, color: 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white', icon: <Github size={24} className="sm:w-7 sm:h-7" /> },
-                    ].map((shortcut) => (
+                    ].map((shortcut, scIdx) => (
                       <button
-                        key={shortcut.id}
+                        key={`login-shortcut-${shortcut.id}-${scIdx}`}
                         onClick={() => handleSocialLogin(shortcut.provider, shortcut.id)}
                         className={`flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-[1.25rem] sm:rounded-[1.5rem] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 transition-all hover:scale-110 active:scale-95 group ${shortcut.color}`}
                         aria-label={`Login with ${shortcut.id}`}

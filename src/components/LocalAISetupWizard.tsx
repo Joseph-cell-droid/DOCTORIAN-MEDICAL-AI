@@ -253,9 +253,9 @@ export const LocalAISetupWizard: React.FC<LocalAISetupWizardProps> = ({
                 <div className="space-y-2">
                   <p className="text-[11px] font-bold text-slate-300">Installed Local Models:</p>
                   <div className="flex flex-wrap gap-2">
-                    {installedModels.map((m) => (
+                    {installedModels.map((m, mIdx) => (
                       <button
-                        key={m}
+                        key={`local-model-${m}-${mIdx}`}
                         onClick={() => setSelectedModel(m)}
                         className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer ${
                           selectedModel === m 

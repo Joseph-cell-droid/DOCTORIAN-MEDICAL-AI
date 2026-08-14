@@ -1945,12 +1945,12 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                     </div>
                   ) : (
                     <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-                      {pendingRxRequests.map((req: any) => {
+                      {pendingRxRequests.map((req: any, reqIdx: number) => {
                         const isCritical = req.riskLevel === 'critical';
                         const isElevated = req.riskLevel === 'elevated';
                         return (
                           <div 
-                            key={req.id} 
+                            key={`pending-rx-req-${req.id}-${reqIdx}`} 
                             className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100/80 dark:border-slate-800 flex flex-col justify-between gap-4 hover:shadow-md transition-all"
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-50 dark:border-slate-800">
@@ -2548,7 +2548,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                             }
 
                             return (
-                              <div key={log.id} className={`p-4 rounded-2xl border space-y-2 transition-all hover:scale-[1.01] ${cardBg}`}>
+                              <div key={`anomaly-log-${log.id}-${mapIdx_2530}`} className={`p-4 rounded-2xl border space-y-2 transition-all hover:scale-[1.01] ${cardBg}`}>
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-1.5">
                                     <AlertTriangle size={14} className={isOverdose ? "text-rose-600" : isMismatch ? "text-orange-600" : "text-amber-600"} />

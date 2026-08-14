@@ -21,10 +21,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           Timestamp: {label}
         </p>
         <div className="space-y-2">
-          {payload.map((item: any) => {
+          {payload.map((item: any, itemIdx: number) => {
             const isHR = item.name === 'Heart Rate';
             return (
-              <div key={item.name} className="flex items-center gap-2.5">
+              <div key={`hist-tooltip-${item.name}-${itemIdx}`} className="flex items-center gap-2.5">
                 <div 
                   className="w-2.5 h-2.5 rounded-full" 
                   style={{ backgroundColor: item.color }} 

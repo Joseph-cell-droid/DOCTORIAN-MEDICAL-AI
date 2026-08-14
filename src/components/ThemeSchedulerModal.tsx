@@ -242,9 +242,9 @@ export const ThemeSchedulerModal: React.FC<ThemeSchedulerModalProps> = ({
                 { id: 'solar', label: 'Solar Geolocation', icon: <Globe size={14} /> },
                 { id: 'custom', label: 'Custom Hours', icon: <Sliders size={14} /> },
                 { id: 'circadian', label: 'Circadian Only', icon: <Eye size={14} /> }
-              ].map((m) => (
+              ].map((m, mIdx) => (
                 <button
-                  key={m.id}
+                  key={`sched-mode-${m.id}-${mIdx}`}
                   onClick={() => handleModeChange(m.id as any)}
                   className={`p-3 rounded-2xl border text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     config.mode === m.id

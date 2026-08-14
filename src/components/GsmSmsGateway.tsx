@@ -568,9 +568,9 @@ export const GsmSmsGateway: React.FC<GsmSmsGatewayProps> = ({ addToast }) => {
             </div>
 
             <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
-              {smsThreads.map((thread) => (
+              {smsThreads.map((thread, thIdx) => (
                 <div 
-                  key={thread.id}
+                  key={`sms-thread-${thread.id}-${thIdx}`}
                   className="p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl space-y-3"
                 >
                   <div className="flex items-center justify-between text-xs border-b border-slate-200/60 dark:border-slate-800/60 pb-2">
@@ -667,8 +667,8 @@ export const GsmSmsGateway: React.FC<GsmSmsGatewayProps> = ({ addToast }) => {
 
             {/* Terminal Screen Stream */}
             <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl h-[300px] overflow-y-auto font-mono text-[11px] space-y-2 custom-scrollbar">
-              {atLogs.map((log) => (
-                <div key={log.id} className="border-b border-slate-800/60 pb-1.5">
+              {atLogs.map((log, logIdx) => (
+                <div key={`gsm-at-log-${log.id}-${logIdx}`} className="border-b border-slate-800/60 pb-1.5">
                   <div className="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
                     <span>[{log.timestamp}] {log.direction}</span>
                     <span className={log.status === 'OK' ? 'text-emerald-400' : log.status === 'ERROR' ? 'text-rose-400' : 'text-blue-400'}>

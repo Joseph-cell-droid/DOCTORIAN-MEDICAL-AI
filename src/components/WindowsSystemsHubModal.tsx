@@ -604,11 +604,11 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
 
             {/* Category Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-              {categories.map((cat) => {
+              {categories.map((cat, catIdx) => {
                 const isSelected = selectedCategory === cat.value;
                 return (
                   <button
-                    key={cat.value}
+                    key={`hub-cat-${cat.value}-${catIdx}`}
                     onClick={() => setSelectedCategory(cat.value)}
                     className={`flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
                       isSelected 
@@ -639,13 +639,13 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {filteredPages.map((page) => {
+                {filteredPages.map((page, pageIdx) => {
                   const isActive = currentView === page.id;
                   const isSpeaking = speakingId === page.id;
 
                   return (
                     <button
-                      key={page.id}
+                      key={`hub-page-${page.id}-${pageIdx}`}
                       type="button"
                       onMouseEnter={() => {
                         if (autoVoiceHover) speakText(page.audioPrompt, page.id);

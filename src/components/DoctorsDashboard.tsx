@@ -1195,7 +1195,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 ) : (
                   <div className="space-y-3">
                     {emergencyLogs.primaryLogs.map((log, idx) => (
-                      <div key={log.id || idx} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+                      <div key={`emergency-primary-log-${log.id || 'no-id'}-${idx}`} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                             Cellular SMS / Call Active
@@ -1242,7 +1242,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 ) : (
                   <div className="space-y-3">
                     {emergencyLogs.backupLogs.map((log, idx) => (
-                      <div key={log.id || idx} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-900/40 shadow-sm space-y-3">
+                      <div key={`emergency-backup-log-${log.id || 'no-id'}-${idx}`} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-900/40 shadow-sm space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
                             2x Duplicate Audit Backup

@@ -1,5 +1,6 @@
 import pkg from "pg";
 const { Pool } = pkg;
+import { setBypassFirestoreSync } from "./firestoreSync.js";
 
 // Initialize PostgreSQL Pool using Object Method parameters from the environment
 export const pgPool = process.env.SQL_HOST ? new Pool({
@@ -475,6 +476,7 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
   }
 
   setBypassPostgresSync(true);
+  setBypassFirestoreSync(true);
 
   try {
     const tablesToSync = [
@@ -556,7 +558,16 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
               if (key === "eta_minutes") camelKey = "etaMinutes";
               if (key === "distance_km") camelKey = "distanceKm";
 
-              sqliteRow[camelKey] = row[key];
+              let val = row[key];
+              if (val instanceof Date) {
+                val = val.toISOString();
+              } else if (val !== null && typeof val === "object" && !Buffer.isBuffer(val)) {
+                val = JSON.stringify(val);
+              } else if (typeof val === "boolean") {
+                val = val ? 1 : 0;
+              }
+
+              sqliteRow[camelKey] = val;
             }
 
             // Generate general insert-or-replace placeholders
@@ -579,5 +590,6 @@ export async function syncFromPostgresToSqlite(sqliteDb: any) {
     console.log("[POSTGRES-SYNC] Master sync and database convergence completed.");
   } finally {
     setBypassPostgresSync(false);
+    setBypassFirestoreSync(false);
   }
 }

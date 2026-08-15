@@ -191,21 +191,16 @@ async function evaluateVitalsTriageWithGemini(vitals: {
   }
 
   try {
-    const keys = getValidApiKeys('system');
-    if (keys.length > 0) {
-      const apiKey = keys[0];
-      const aiClient = getGenAI(apiKey);
-      if (aiClient) {
-        const prompt = `You are a clinical triage AI engine. Evaluate real-time patient watch vitals:
+    const prompt = `You are a clinical triage AI engine. Evaluate real-time patient watch vitals:
 Heart Rate: ${hr} bpm
 SpO2: ${spo2}%
 Temperature: ${temp} °C
 ECG: ${Array.isArray(vitals.ecg) ? vitals.ecg.slice(0, 8).join(', ') : 'Continuous waveform'}
 
-Output strictly valid JSON (no markdown formatting, no code blocks):
+Output strictly valid JSON (no markdown formatting, no code blocks, no backticks):
 {
   "status": "STABLE" or "WATCH" or "URGENT",
-  "score": number between 0 and 100,
+  "score": 100,
   "explanations": {
     "en": "Clear short explanation in English (1-2 sentences)",
     "lg": "Clear short explanation in Luganda (1-2 sentences)",
@@ -214,29 +209,26 @@ Output strictly valid JSON (no markdown formatting, no code blocks):
   "recommendation": "Short directive"
 }`;
 
-        const response = await aiClient.models.generateContent({
-          model: 'gemini-3.6-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json'
-          }
-        });
+    const text = await callAI({
+      messages: [{ role: 'user', text: prompt }],
+      systemInstruction: 'You are a clinical triage AI engine.',
+      modelName: 'huggingface'
+    });
 
-        const text = response.text || '';
-        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        if (parsed.status && parsed.explanations?.en && parsed.explanations?.lg && parsed.explanations?.sw) {
-          return {
-            status: parsed.status,
-            score: typeof parsed.score === 'number' ? parsed.score : score,
-            explanations: parsed.explanations,
-            recommendation: parsed.recommendation || ''
-          };
-        }
+    if (text) {
+      const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (parsed.status && parsed.explanations?.en && parsed.explanations?.lg && parsed.explanations?.sw) {
+        return {
+          status: parsed.status,
+          score: typeof parsed.score === 'number' ? parsed.score : score,
+          explanations: parsed.explanations,
+          recommendation: parsed.recommendation || ''
+        };
       }
     }
   } catch (err: any) {
-    console.warn('[GEMINI-TRIAGE] Gemini triage evaluation fallback to local matrix:', err.message);
+    console.warn('[AI-TRIAGE] Triage evaluation fallback to local matrix:', err.message);
   }
 
   return {
@@ -253,7 +245,7 @@ Output strictly valid JSON (no markdown formatting, no code blocks):
 console.log("[SERVER] Starting Doctorian Backend...");
 
 const JWT_SECRET = process.env.JWT_SECRET || "medical-super-secret-key-123";
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = 3000;
 
 // Global map of online user sessions
 // Key: userId, Value: { lastActive: number, ip: string, userAgent: string }
@@ -265,7 +257,7 @@ console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
 // Toggle between "ollama", "huggingface", "openrouter", or "LM_STUDIO"
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "ollama";
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "huggingface";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
 // Default Models (Gemma 3:1b local Ollama model configured as primary standard model)
@@ -770,15 +762,15 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["ollama", "keys", "huggingface", "together"];
+  let pathways = ["huggingface", "ollama", "together"];
   if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "ollama", "keys", "together"];
+    pathways = ["huggingface", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
-    pathways = ["ollama", "keys"];
+    pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "keys", "huggingface", "together"];
+    pathways = ["ollama", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["ollama", "keys", "huggingface", "together"];
+    pathways = ["ollama", "huggingface", "together"];
   }
 
   for (const pathway of pathways) {
@@ -1427,15 +1419,15 @@ async function callAIWorkflow(options: {
   }
 
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["ollama", "keys", "huggingface", "together"];
+  let pathways = ["huggingface", "ollama", "together"];
   if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "ollama", "keys", "together"];
+    pathways = ["huggingface", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
-    pathways = ["ollama", "keys"];
+    pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "keys", "huggingface", "together"];
+    pathways = ["ollama", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["ollama", "keys", "huggingface", "together"];
+    pathways = ["ollama", "huggingface", "together"];
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -7260,42 +7252,29 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     const mentorNumber = normalizePhoneNumber(toMentor || dbUser?.mentorPhone || process.env.MENTOR_PHONE_NUMBER || "+256787674140");
     const userNumber = normalizePhoneNumber(toUser || dbUser?.phone || "+256787674140");
 
-    // DYNAMIC AI VOICE SYNTHESIS DIRECTLY FROM THE GEMINI CLINICAL BRAIN
+    // DYNAMIC AI VOICE SYNTHESIS DIRECTLY FROM THE HUGGING FACE CLINICAL BRAIN
     let aiText = message;
     let audioBase64: string | null = null;
     let isAIBrainGenerated = false;
 
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || "";
-    if (geminiKey && geminiKey.trim().length > 10) {
-      try {
-        console.log("[AI-VOICE] Connecting to Gemini API to synthesize real-time voice call script...");
-        const ai = new GoogleGenAI({
-          apiKey: geminiKey.trim(),
-          httpOptions: {
-            baseUrl: process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined,
-            headers: {
-              'User-Agent': 'aistudio-build',
-            }
-          }
-        });
+    try {
+      console.log("[AI-VOICE] Connecting to Hugging Face API to synthesize real-time voice call script...");
+      const context = patientContext || {
+        patientName: "Joseph Brian Obote",
+        bedNumber: "Bed B-01",
+        conditions: "Hypertension and chronic coronary disease risk",
+        hospitalPreference: "Mulago National Referral Hospital",
+        vitals: {
+          heartRate: 135,
+          spo2: 84,
+          temperature: 38.2,
+          systolicBP: 155,
+          diastolicBP: 95,
+          respiratoryRate: 26
+        }
+      };
 
-        // Construct high-fidelity clinical telemetry context for the AI brain
-        const context = patientContext || {
-          patientName: "Joseph Brian Obote",
-          bedNumber: "Bed B-01",
-          conditions: "Hypertension and chronic coronary disease risk",
-          hospitalPreference: "Mulago National Referral Hospital",
-          vitals: {
-            heartRate: 135,
-            spo2: 84,
-            temperature: 38.2,
-            systolicBP: 155,
-            diastolicBP: 95,
-            respiratoryRate: 26
-          }
-        };
-
-        const prompt = `You are the Doctorian AI Clinical Guardian, a highly advanced real-time patient monitoring intelligence system.
+      const prompt = `You are the Doctorian AI Clinical Guardian, a highly advanced real-time patient monitoring intelligence system.
 Generate an urgent, compassionate, and professional live clinical emergency verbal dispatch call text to be spoken over the phone.
 The recipient is ${doctorName} (On-Duty Specialist) or an emergency contact relative being notified of a sudden life-threatening biometrics crisis.
 Do NOT use robotic, rigid, or pre-structured boilerplate. Avoid cliché intros. Instead, synthesize the clinical telemetry dynamically.
@@ -7308,50 +7287,20 @@ Include these facts clearly:
 Speak directly, with clinical weight, compassion, and precise professional authority. Keep the entire monologue extremely concise (3 to 4 sentences, under 90 words total) so it remains impactful when synthesized or read.
 Output ONLY the plain spoken text itself. Do NOT include markdown formatting, headers, quotation marks, or asterisks.`;
 
-        let textResponse;
-        try {
-          textResponse = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
-            contents: prompt,
-          });
-        } catch (err: any) {
-          console.log("[AI-VOICE] gemini-3.6-flash failed:", err.message);
-        }
+      const textResponse = await callAI({
+        messages: [{ role: 'user', text: prompt }],
+        systemInstruction: "You are the Doctorian AI Clinical Guardian.",
+        modelName: "huggingface",
+        temperature: 0.3
+      });
 
-        if (textResponse && textResponse.text) {
-          aiText = textResponse.text.trim().replace(/[*#`"]/g, '');
-          isAIBrainGenerated = true;
-          console.log("[AI-VOICE] Generated authentic brain script successfully:", aiText);
-        }
-
-        // Synthesize the AI monologue into high-quality human speech via gemini-3.1-flash-tts-preview
-        try {
-          console.log("[AI-VOICE] Performing voice synthesis via gemini-3.1-flash-tts-preview...");
-          const ttsResponse = await ai.models.generateContent({
-            model: "gemini-3.1-flash-tts-preview",
-            contents: [{ parts: [{ text: `Say with extreme medical urgency and professional articulation: ${aiText}` }] }],
-            config: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: 'Zephyr' } // Prebuilt empathetic voice config
-                }
-              }
-            }
-          });
-
-          const pcmData = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-          if (pcmData) {
-            audioBase64 = pcmData;
-            console.log("[AI-VOICE] Synthesized raw vocal wave bytes from Gemini brain successfully.");
-          }
-        } catch (ttsErr: any) {
-          console.error("[AI-VOICE] Gemini TTS generation failed, client will fallback to local synthesis:", ttsErr.message);
-        }
-
-      } catch (genErr: any) {
-        console.error("[AI-VOICE] Gemini brain monologue generation failed, falling back to rule-based script:", genErr.message);
+      if (textResponse) {
+        aiText = textResponse.trim().replace(/[*#`"]/g, '');
+        isAIBrainGenerated = true;
+        console.log("[AI-VOICE] Generated authentic Hugging Face script successfully:", aiText);
       }
+    } catch (genErr: any) {
+      console.error("[AI-VOICE] Hugging Face brain monologue generation failed, falling back to rule-based script:", genErr.message);
     }
 
     // Save dispatch to database system_logs and notifications for the Detailed Data Log
@@ -8845,67 +8794,20 @@ Direct the user to seek professional clinical care if needed, and conclude with 
 
         let responseText = "";
         let audioBase64: string | null = null;
-        const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || "";
-        if (geminiKey && geminiKey.trim().length > 10) {
-          try {
-            console.log("[AI-VOICE] Connecting to native ultra-fast Gemini-3.6-Flash for real voice response...");
-            const ai = new GoogleGenAI({
-              apiKey: geminiKey.trim(),
-              httpOptions: {
-                baseUrl: process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined,
-                headers: {
-                  'User-Agent': 'aistudio-build',
-                }
-              }
-            });
-            const response = await ai.models.generateContent({
-              model: "gemini-3.6-flash",
-              contents: text || "Hello Doctorian",
-              config: {
-                systemInstruction: dynamicInstruction,
-                temperature: 0.2
-              }
-            });
-            responseText = response?.text?.trim() || "";
-            console.log(`[AI-VOICE] Direct Gemini response text: "${responseText}"`);
-
-            // Synthesize high-fidelity voice audio via gemini-3.1-flash-tts-preview
-            if (responseText) {
-              try {
-                const voiceConfigMap: Record<string, string> = {
-                  'Joseph': 'Fenrir',
-                  'Misty': 'Kore',
-                  'Promise': 'Puck',
-                  'Amara': 'Aoede',
-                  'Kwame': 'Charon'
-                };
-                const selectedVoice = voiceConfigMap[voiceName] || 'Fenrir';
-
-                const ttsResponse = await ai.models.generateContent({
-                  model: "gemini-3.1-flash-tts-preview",
-                  contents: [{ parts: [{ text: responseText }] }],
-                  config: {
-                    responseModalities: ["AUDIO"],
-                    speechConfig: {
-                      voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: selectedVoice }
-                      }
-                    }
-                  }
-                });
-
-                const pcmData = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                if (pcmData) {
-                  audioBase64 = pcmData;
-                  console.log("[AI-VOICE] Synthesized native Gemini audio stream successfully.");
-                }
-              } catch (ttsErr: any) {
-                console.log("[AI-VOICE] Gemini TTS preview non-critical fallback:", ttsErr.message);
-              }
-            }
-          } catch (err: any) {
-            console.error("[AI-VOICE] Direct native Gemini voice response failed, falling back to routine pipeline:", err.message);
+        try {
+          console.log("[AI-VOICE] Generating telemedicine response using Hugging Face...");
+          const textRes = await callAI({
+            messages: [{ role: 'user', text: text || "Hello Doctorian" }],
+            systemInstruction: dynamicInstruction,
+            modelName: "huggingface",
+            temperature: 0.2
+          });
+          if (textRes) {
+            responseText = textRes.trim();
+            console.log(`[AI-VOICE] Direct Hugging Face response text: "${responseText}"`);
           }
+        } catch (err: any) {
+          console.error("[AI-VOICE] Hugging Face voice response failed:", err.message);
         }
 
         if (!responseText) {

@@ -1,0 +1,6 @@
+{
+  "appId": "com.doctorian.ai",
+  "appName": "Doctorian AI",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

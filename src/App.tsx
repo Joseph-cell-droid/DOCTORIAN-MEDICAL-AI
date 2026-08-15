@@ -80,7 +80,8 @@ import { Compass,
   CheckCircle,
   Clock,
   Sparkles,
-  Laptop
+  Laptop,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -185,6 +186,7 @@ const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"),
 const BMICalculator = safeLazy(() => import("./components/BMICalculator"), "BMICalculator");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
+const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
 
 const josephPortrait = "/african_doctor_male.png";
 import { AuthModal } from "./components/AuthModal";
@@ -910,7 +912,9 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar_collapsed') === 'true';
+      const saved = localStorage.getItem('sidebar_collapsed');
+      if (saved !== null) return saved === 'true';
+      return window.innerWidth < 1024;
     }
     return false;
   });
@@ -2126,17 +2130,15 @@ export default function App() {
   };
 
   const navLinks = [
-    { id: 'home', label: 'Dashboard', icon: <Home size={16} /> },
-    { id: 'ai_nexus', label: 'Doctorian Medical AI', icon: <Bot size={16} /> },
-    { id: 'illustrator', label: 'Medical Illustrator', icon: <Palette size={16} /> },
-    { id: 'diagnostic_lab', label: 'Diagnostic Lab', icon: <Stethoscope size={16} /> },
-    { id: 'meds', label: 'Bio-Pharmacy', icon: <Pill size={16} /> },
-    { id: 'monitor', label: 'Bio-Monitor', icon: <Monitor size={16} /> },
-    { id: 'health_trace', label: 'Health Trace', icon: <TrendingUp size={16} /> },
-    { id: 'neuro', label: 'CognisHub', icon: <Brain size={16} /> },
-    { id: 'vitality', label: 'Vitality Matrix', icon: <Zap size={16} /> },
-    { id: 'about', label: 'Systems Info', icon: <Info size={16} /> },
-    { id: 'specialist', label: 'Link Doctors', icon: <Stethoscope size={16} /> },
+    { id: 'home', label: 'Home', icon: <Home size={16} /> },
+    { id: 'ai_nexus', label: 'AI Medical Assistant', icon: <Bot size={16} /> },
+    { id: 'vitality', label: 'Health', icon: <Activity size={16} /> },
+    { id: 'meds', label: 'Medications', icon: <Pill size={16} /> },
+    { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} /> },
+    { id: 'records', label: 'Medical Records', icon: <FileText size={16} /> },
+    { id: 'doctors_dashboard', label: 'Doctors', icon: <Stethoscope size={16} /> },
+    { id: 'gsm_sms_gateway', label: 'Notifications', icon: <Bell size={16} /> },
+    { id: 'profile', label: 'Profile', icon: <UserIcon size={16} /> },
   ];
 
   const allNavLinks = [
@@ -2146,15 +2148,15 @@ export default function App() {
 
   const isSubViewActive = (linkId: string, current: string) => {
     if (linkId === current) return true;
-    if (linkId === 'biomatic' && (current === 'genomic_longevity' || current === 'illustrator')) return true;
-    if (linkId === 'monitor' && (current === 'health_trace' || current === 'vitality')) return true;
-    if (linkId === 'doctors_dashboard' && (current === 'neuro' || current === 'meds' || current === 'specialist')) return true;
+    if (linkId === 'vitality' && (current === 'monitor' || current === 'health_trace' || current === 'health_matrix')) return true;
+    if (linkId === 'records' && (current === 'diagnostic_lab' || current === 'symptoms')) return true;
+    if (linkId === 'doctors_dashboard' && (current === 'specialist' || current === 'neuro' || current === 'training')) return true;
     return false;
   };
 
   const sidebarSections = [
     {
-      title: "Core Operations",
+      title: "Daily Health Core",
       accent: {
         active: "bg-gradient-to-b from-blue-500 to-blue-600 text-white font-bold border-t border-blue-400 border-b-2 border-blue-700 shadow-md shadow-blue-500/15 overflow-hidden",
         hover: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-805/85 hover:shadow-sm",
@@ -2163,13 +2165,14 @@ export default function App() {
         bar: "bg-blue-500"
       },
       items: [
-        { id: 'home', label: 'Home Dashboard', icon: <Home size={15} /> },
-        { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={15} /> },
-        { id: 'biomatic', label: 'Clinical Hub', icon: <Cpu size={15} /> },
+        { id: 'home', label: 'Home', icon: <Home size={15} /> },
+        { id: 'ai_nexus', label: 'AI Medical Assistant', icon: <Bot size={15} /> },
+        { id: 'vitality', label: 'Health', icon: <Activity size={15} /> },
+        { id: 'meds', label: 'Medications', icon: <Pill size={15} /> },
       ]
     },
     {
-      title: "Diagnostics & Labs",
+      title: "Clinical & Care",
       accent: {
         active: "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-bold border-t border-emerald-400 border-b-2 border-emerald-700 shadow-md shadow-emerald-500/15 overflow-hidden",
         hover: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-805/85 hover:shadow-sm",
@@ -2178,12 +2181,13 @@ export default function App() {
         bar: "bg-emerald-500"
       },
       items: [
-        { id: 'diagnostic_lab', label: 'Diagnostic Lab Analyser', icon: <Stethoscope size={15} /> },
-        { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={15} /> },
+        { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={15} /> },
+        { id: 'records', label: 'Medical Records', icon: <FileText size={15} /> },
+        { id: 'doctors_dashboard', label: 'Doctors', icon: <Stethoscope size={15} /> },
       ]
     },
     {
-      title: "Clinics & Systems",
+      title: "Settings & System",
       accent: {
         active: "bg-gradient-to-b from-purple-500 to-purple-600 text-white font-bold border-t border-purple-400 border-b-2 border-purple-700 shadow-md shadow-purple-500/15 overflow-hidden",
         hover: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-805/85 hover:shadow-sm",
@@ -2192,9 +2196,9 @@ export default function App() {
         bar: "bg-purple-500"
       },
       items: [
-        { id: 'doctors_dashboard', label: 'Doctors\' Portal', icon: <FileText size={15} /> },
-        { id: 'about', label: 'System & App Info', icon: <Info size={15} /> },
-        ...(isAdmin ? [{ id: 'admin', label: 'Admin Command Center', icon: <Shield size={15} />, action: handleAdminAccess }] : [])
+        { id: 'gsm_sms_gateway', label: 'Notifications', icon: <Bell size={15} /> },
+        { id: 'profile', label: 'Profile', icon: <UserIcon size={15} /> },
+        ...(isAdmin ? [{ id: 'admin', label: 'Admin Command', icon: <Shield size={15} />, action: handleAdminAccess }] : [])
       ]
     }
   ];
@@ -2330,7 +2334,7 @@ export default function App() {
       {/* Sidebar - Desktop/Tablet Landscape */}
       {user && (
         <aside 
-          className={`hidden lg:flex flex-col bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 shrink-0 transition-all duration-300 ease-in-out z-[110] relative ${
+          className={`hidden md:flex flex-col bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 shrink-0 transition-all duration-300 ease-in-out z-[110] relative ${
             isSidebarCollapsed ? 'w-[78px]' : 'w-[210px] xl:w-[230px]'
           }`}
           aria-label="Sidebar navigation"
@@ -2560,7 +2564,7 @@ export default function App() {
       <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-md overflow-hidden z-10">
 
 
-        <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative ${
+        <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative pb-16 md:pb-0 ${
           currentView === 'ai_nexus' ? 'overflow-hidden' : 'overflow-y-auto'
         }`}>
         <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
@@ -3271,6 +3275,20 @@ export default function App() {
               : 'py-6 sm:py-8 lg:py-10 px-4 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-6 sm:space-y-8'
           }`}>
             {currentView !== 'ai_nexus' && (
+              <div className="absolute left-4 sm:left-8 lg:left-12 top-0 -translate-y-1/2 z-[110]">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsWindowsMenuOpen(true)}
+                  className="flex items-center gap-2 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-500/40 cursor-pointer border-2 border-white dark:border-slate-900 transition-all font-black text-[11px] uppercase tracking-widest whitespace-nowrap"
+                  title="Open Workstations Pages Menu"
+                >
+                  <Menu size={14} className="shrink-0 text-white animate-pulse" />
+                  <span>Pages Menu</span>
+                </motion.button>
+              </div>
+            )}
+            {currentView !== 'ai_nexus' && (
               <EdgeScrollNavigation 
                 currentView={currentView}
                 onNavigateNext={() => {
@@ -3849,6 +3867,16 @@ export default function App() {
           >
             <TermsAndData user={user} onNavigate={setCurrentView} vitals={arduino.vitals} />
           </motion.div>
+        ) : currentView === 'clinical_roadmap' ? (
+          <motion.div
+            key="clinical_roadmap"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full"
+          >
+            <AppointmentsView user={user} onShowToast={(msg, type) => addToast(msg, type || 'info')} />
+          </motion.div>
         ) : (
           <Dashboard 
             onNavigate={showView} 
@@ -4250,7 +4278,7 @@ export default function App() {
     {/* Mobile Systems Menu Drawer */}
     <AnimatePresence>
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[160] lg:hidden flex flex-col justify-end pointer-events-none">
+        <div className="fixed inset-0 z-[160] md:hidden flex flex-col justify-end pointer-events-none">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -4480,6 +4508,52 @@ export default function App() {
 
       </div>
     </div>
+
+    {/* Mobile Bottom Navigation Bar */}
+    {user && (
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[120] bg-white/95 dark:bg-slate-950/95 border-t border-slate-200/50 dark:border-slate-800/80 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.4)] backdrop-blur-xl flex justify-around items-center h-16 px-2">
+        {[
+          { id: 'home', label: 'Home', icon: <Home size={18} /> },
+          { id: 'ai_nexus', label: 'AI Assistant', icon: <Bot size={18} /> },
+          { id: 'vitality', label: 'Health', icon: <Activity size={18} /> },
+          { id: 'meds', label: 'Meds', icon: <Pill size={18} /> },
+          { id: 'menu', label: 'More', icon: <Menu size={18} />, action: () => setIsMobileMenuOpen(true) }
+        ].map((tab, idx) => {
+          const isActive = tab.id === 'menu' ? isMobileMenuOpen : currentView === tab.id;
+          return (
+            <button
+              key={`mobile-bottom-tab-${tab.id}-${idx}`}
+              onClick={() => {
+                if (tab.action) {
+                  tab.action();
+                } else {
+                  setCurrentView(tab.id as any);
+                }
+              }}
+              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-center transition-all duration-150 active:scale-95 cursor-pointer relative ${
+                isActive 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+            >
+              <div className={`p-1.5 rounded-xl transition-all ${
+                isActive ? 'bg-blue-500/10 scale-110' : ''
+              }`}>
+                {tab.icon}
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-tight mt-1 leading-none">{tab.label}</span>
+              {isActive && tab.id !== 'menu' && (
+                <motion.span 
+                  layoutId="activeMobileIndicator" 
+                  className="absolute bottom-1 w-5 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" 
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    )}
+
   </div>
 </ErrorBoundary>
   );

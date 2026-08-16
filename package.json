@@ -6,14 +6,14 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "NODE_OPTIONS=--max-old-space-size=2048 vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "NODE_OPTIONS=\"--max-old-space-size=1536\" vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist build",
-    "lint": "NODE_OPTIONS=--max-old-space-size=2048 tsc --noEmit"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

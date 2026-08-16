@@ -6,7 +6,7 @@ import {
   Stethoscope, Monitor, TrendingUp, Zap, Pill, Info, Shield, FileText, 
   Search, AlertTriangle, Dumbbell, Code, CreditCard, Sparkles, FolderHeart,
   Sliders, ArrowRight, UserCheck, Radio, Volume2, Volume1, Play, CheckCircle2,
-  Menu
+  Menu, Download
 } from 'lucide-react';
 import { VoiceCommandToggle } from './VoiceCommandToggle';
 
@@ -37,6 +37,10 @@ interface WindowsSystemsHubModalProps {
   handleSoundscapeVolChangeGlobal: (val: number) => void;
   soundscapePreset: string;
   changePresetGlobal: (preset: any) => void;
+  showInstallButton?: boolean;
+  hasInstalledApp?: boolean;
+  isStandalone?: boolean;
+  installApp?: () => void;
 }
 
 export interface HubPageItem {
@@ -366,7 +370,11 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
   soundscapeVolume,
   handleSoundscapeVolChangeGlobal,
   soundscapePreset,
-  changePresetGlobal
+  changePresetGlobal,
+  showInstallButton,
+  hasInstalledApp,
+  isStandalone,
+  installApp
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -501,6 +509,34 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* PWA App Installation Section inside Menu */}
+          {showInstallButton && !isStandalone && !hasInstalledApp && installApp && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shrink-0"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-md shrink-0">
+                  <Download size={15} />
+                </div>
+                <div>
+                  <h4 className="text-[11px] font-black uppercase tracking-wide text-slate-800 dark:text-emerald-400">Install Doctorian Workstation</h4>
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium leading-tight">Access offline medical records, diagnostic models, and critical vitals directly from your device.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  installApp();
+                  onClose();
+                }}
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow-md shadow-emerald-600/20 cursor-pointer transition-all shrink-0 border border-emerald-400/30"
+              >
+                Install App
+              </button>
+            </motion.div>
+          )}
 
           {/* Quick Controls Toolbar */}
           <div className="py-2 border-b border-slate-100 dark:border-slate-800/80 shrink-0">

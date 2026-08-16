@@ -257,7 +257,7 @@ console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
 // Toggle between "ollama", "huggingface", "openrouter", "gemini" or "LM_STUDIO"
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "huggingface";
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
 // Default Models (Gemini 2.5 Flash configured as primary standard model)

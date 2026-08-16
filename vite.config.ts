@@ -58,6 +58,8 @@ export default defineConfig(({mode}) => {
       target: 'esnext',
       chunkSizeWarningLimit: 5000,
       rollupOptions: {
+        cache: false,
+        maxParallelFileOps: 2,
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {

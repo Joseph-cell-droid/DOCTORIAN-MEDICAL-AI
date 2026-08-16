@@ -2966,19 +2966,7 @@ export default function App() {
                   </AnimatePresence>
                 </div>
 
-                {/* Fixed PWA Install Button in Header */}
-                {showInstallButton && !isStandalone && !hasInstalledApp && (
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={installApp}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm font-black text-[10px] uppercase tracking-wider cursor-pointer shrink-0 border border-emerald-400/40"
-                    title="Install Doctorian App for Standalone Access"
-                  >
-                    <Download size={13} className="animate-bounce shrink-0" />
-                    <span className="hidden md:inline">Install App</span>
-                  </motion.button>
-                )}
+
 
                 {/* Doctorian Systems Menu Launchpad - Always Fixed in Top Header */}
                 <div className="relative overflow-visible shrink-0">
@@ -3026,6 +3014,10 @@ export default function App() {
                     handleSoundscapeVolChangeGlobal={handleSoundscapeVolChangeGlobal}
                     soundscapePreset={soundscapePreset}
                     changePresetGlobal={changePresetGlobal}
+                    showInstallButton={showInstallButton}
+                    hasInstalledApp={hasInstalledApp}
+                    isStandalone={isStandalone}
+                    installApp={installApp}
                   />
                 </div>
               </div>

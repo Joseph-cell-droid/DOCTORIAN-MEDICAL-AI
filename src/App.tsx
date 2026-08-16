@@ -929,8 +929,8 @@ export default function App() {
   };
   const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
   const [isBMIModalOpen, setIsBMIModalOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [isDoctorAuthenticated, setIsDoctorAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(true);
+  const [isDoctorAuthenticated, setIsDoctorAuthenticated] = useState(true);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [adminError, setAdminError] = useState('');

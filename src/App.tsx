@@ -2512,7 +2512,7 @@ export default function App() {
                         const isSubActive = currentView === res.id;
                         return (
                           <motion.button 
-                            key={res.id}
+                            key={`sidebar-sub-link-${res.id}-${i}`}
                             initial={{ opacity: 0, x: isSidebarCollapsed ? 0 : -8 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.03 }}
@@ -3275,29 +3275,62 @@ export default function App() {
               : 'py-6 sm:py-8 lg:py-10 px-4 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-6 sm:space-y-8'
           }`}>
             {currentView !== 'ai_nexus' && (
-              <div className="absolute left-4 sm:left-8 lg:left-12 top-0 -translate-y-1/2 z-[110]">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsWindowsMenuOpen(true)}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-500/40 cursor-pointer border-2 border-white dark:border-slate-900 transition-all font-black text-[11px] uppercase tracking-widest whitespace-nowrap"
-                  title="Open Workstations Pages Menu"
-                >
-                  <Menu size={14} className="shrink-0 text-white animate-pulse" />
-                  <span>Pages Menu</span>
-                </motion.button>
-              </div>
-            )}
-            {currentView !== 'ai_nexus' && (
               <EdgeScrollNavigation 
                 currentView={currentView}
                 onNavigateNext={() => {
-                  const views = ['home', 'vitality', 'symptoms', 'records', 'diagnostic_lab', 'doctors_dashboard', 'specialist', 'monitor', 'research'];
+                  const views = [
+                    'home',
+                    'vitality',
+                    'monitor',
+                    'health_trace',
+                    'meds',
+                    'clinical_roadmap',
+                    'records',
+                    'symptoms',
+                    'diagnostic_lab',
+                    'illustrator',
+                    'doctors_dashboard',
+                    'neuro',
+                    'specialist',
+                    'biomatic',
+                    'genomic_longevity',
+                    'gsm_sms_gateway',
+                    'profile',
+                    'admin'
+                  ];
                   const idx = views.indexOf(currentView);
                   if (idx >= 0 && idx < views.length - 1) {
                     setCurrentView(views[idx + 1] as any);
                   } else {
                     setCurrentView('home');
+                  }
+                }}
+                onNavigatePrev={() => {
+                  const views = [
+                    'home',
+                    'vitality',
+                    'monitor',
+                    'health_trace',
+                    'meds',
+                    'clinical_roadmap',
+                    'records',
+                    'symptoms',
+                    'diagnostic_lab',
+                    'illustrator',
+                    'doctors_dashboard',
+                    'neuro',
+                    'specialist',
+                    'biomatic',
+                    'genomic_longevity',
+                    'gsm_sms_gateway',
+                    'profile',
+                    'admin'
+                  ];
+                  const idx = views.indexOf(currentView);
+                  if (idx > 0) {
+                    setCurrentView(views[idx - 1] as any);
+                  } else {
+                    setCurrentView(views[views.length - 1] as any);
                   }
                 }}
               />

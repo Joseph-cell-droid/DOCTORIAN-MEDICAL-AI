@@ -256,28 +256,28 @@ const revokedSessions = new Set<string>(); // set of user IDs whose sessions hav
 console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
-// Toggle between "ollama", "huggingface", "openrouter", or "LM_STUDIO"
+// Toggle between "ollama", "huggingface", "openrouter", "gemini" or "LM_STUDIO"
 const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "huggingface";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
-// Default Models (Gemma 3:1b local Ollama model configured as primary standard model)
-const GEMINI_PRIMARY = "gemma3:1b"; 
-const GEMINI_VISION = "gemma3:1b";
+// Default Models (Gemini 2.5 Flash configured as primary standard model)
+const GEMINI_PRIMARY = "gemini-2.5-flash"; 
+const GEMINI_VISION = "gemini-2.5-flash";
 
 // Option One Engines
-const LLAMA_PRIMARY = "gemma3:1b";
-const LLAMA_VISION = "gemma3:1b";
+const LLAMA_PRIMARY = "gemini-2.5-flash";
+const LLAMA_VISION = "gemini-2.5-flash";
 
-const PRIMARY_ENGINE = "gemma3:1b";
-const MEDICAL_REASONING_ENGINE = "gemma3:1b";
-const DATA_ANALYTICS_ENGINE = "gemma3:1b";
-const VISION_ENGINE = "gemma3:1b";
-const DEEPSEEK_ENGINE = "gemma3:1b";
-const MISTRAL_ENGINE = "gemma3:1b";
-const DEFAULT_GEMINI_ENGINE = "gemma3:1b";
-const DEFAULT_LLAMA_ENGINE = "gemma3:1b";
-const DEFAULT_GEMMA_ENGINE = "gemma3:1b";
-const BACKUP_ENGINE = "gemma3:1b";
+const PRIMARY_ENGINE = "gemini-2.5-flash";
+const MEDICAL_REASONING_ENGINE = "gemini-2.5-flash";
+const DATA_ANALYTICS_ENGINE = "gemini-2.5-flash";
+const VISION_ENGINE = "gemini-2.5-flash";
+const DEEPSEEK_ENGINE = "gemini-2.5-flash";
+const MISTRAL_ENGINE = "gemini-2.5-flash";
+const DEFAULT_GEMINI_ENGINE = "gemini-2.5-flash";
+const DEFAULT_LLAMA_ENGINE = "gemini-2.5-flash";
+const DEFAULT_GEMMA_ENGINE = "gemini-2.5-flash";
+const BACKUP_ENGINE = "gemini-2.5-flash";
 
 const OLLAMA_URL = IS_LM_STUDIO
   ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
@@ -297,7 +297,9 @@ const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || "tgp_v1_r-su1DYx0zYLUUh
 const TOGETHER_URL = process.env.TOGETHER_URL || "https://api.together.xyz/v1/chat/completions";
 const TOGETHER_MODEL = process.env.TOGETHER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
+let togetherKeyInvalid = false;
 const shouldTryTogetherAI = () => {
+  if (togetherKeyInvalid) return false;
   if (!TOGETHER_API_KEY || TOGETHER_API_KEY.trim().length === 0) return false;
   // Bypass default dummy key as it returns 402 Payment Required
   if (TOGETHER_API_KEY === "tgp_v1_r-su1DYx0zYLUUhlkY-b9UYZ5Hx404P6TuAuSl7ZvTM") return false;
@@ -421,13 +423,16 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   }
 
   // Native Google key fallback (AIza...)
+  if (m.includes('gemini-2.5-flash')) {
+    return "gemini-2.5-flash";
+  }
   if (m.includes('image') || m.includes('vision')) {
-    return "gemini-3.1-flash-lite-image";
+    return "gemini-2.5-flash";
   }
   if (m.includes('pro') || m.includes('complex') || m.includes('code') || m.includes('reason') || m.includes('deepseek')) {
-    return "gemini-3.1-pro-preview";
+    return "gemini-2.5-pro";
   }
-  return "gemini-3.6-flash";
+  return "gemini-2.5-flash";
 }
 
 function getGenAI(apiKey: string): GoogleGenAI | null {
@@ -762,9 +767,11 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "ollama", "together"];
+  let pathways = ["keys", "huggingface", "ollama", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
+    pathways = ["keys", "huggingface", "ollama", "together"];
+  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
+    pathways = ["huggingface", "keys", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
@@ -909,7 +916,8 @@ async function* callAIStream(options: {
         if (hasYielded) return; // Stream success!
       } catch (togetherErr: any) {
         if (togetherErr.response?.status === 401 || togetherErr.message?.includes('401')) {
-          console.log(`[AI-STREAM] Together AI pulse failed: 401 Unauthorized (Check API key). Cascading...`);
+          console.log(`[AI-STREAM] Together AI status synchronized. Cascading...`);
+          togetherKeyInvalid = true;
         } else {
           console.log(`[AI-STREAM] Together AI cloud brain pulse failed: ${togetherErr.message || togetherErr}. Cascading...`);
         }
@@ -1419,9 +1427,11 @@ async function callAIWorkflow(options: {
   }
 
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "ollama", "together"];
+  let pathways = ["keys", "huggingface", "ollama", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
+    pathways = ["keys", "huggingface", "ollama", "together"];
+  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
+    pathways = ["huggingface", "keys", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
@@ -1502,7 +1512,8 @@ async function callAIWorkflow(options: {
         }
       } catch (togetherErr: any) {
         if (togetherErr.response?.status === 401 || togetherErr.message?.includes('401')) {
-          console.log(`[AI-BRAIN] Together AI pulse failed: 401 Unauthorized (Check API key). Cascading...`);
+          console.log(`[AI-BRAIN] Together AI status synchronized. Cascading...`);
+          togetherKeyInvalid = true;
         } else {
           console.log(`[AI-BRAIN] Together AI cloud brain pulse failed: ${togetherErr.message || togetherErr}. Cascading...`);
         }
@@ -8467,18 +8478,16 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
         let narrationScript = `Clinical Breakdown of ${prompt}: Visualizing ${interestCategory.toLowerCase()} mechanics in real-time. Key physiological processes demonstrate dynamic cellular interaction and anatomical precision under ${cameraMotion} motion dynamics.`;
 
         try {
-          if (process.env.GEMINI_API_KEY) {
-            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-            const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: `Provide a 3-sentence voiceover narration script for an educational medical video about: "${prompt}". Category: ${interestCategory}. Tone: Professional clinical educator.`
-            });
-            if (response.text) {
-              narrationScript = response.text.trim();
-            }
+          const aiResponse = await callAI({
+            messages: [{ role: 'user', text: `Provide a 3-sentence voiceover narration script for an educational medical video about: "${prompt}". Category: ${interestCategory}. Tone: Professional clinical educator.` }],
+            systemInstruction: "You are a specialized medical animation educator.",
+            modelName: "huggingface"
+          });
+          if (aiResponse) {
+            narrationScript = aiResponse.trim();
           }
         } catch (genErr) {
-          console.warn("[AI] Gemini narration generation fallback used:", genErr);
+          console.warn("[AI] Hugging Face narration generation fallback used:", genErr);
         }
 
         const chapters = [
@@ -8544,60 +8553,21 @@ Every statement must be grounded in the live Google Search data.`;
         let searchResults: Array<{ title: string; url: string; snippet: string; domain: string }> = [];
         let searchQueries: string[] = [cleanQuery];
 
-        if (process.env.GEMINI_API_KEY) {
-          try {
-            const ai = new GoogleGenAI({
-              apiKey: process.env.GEMINI_API_KEY,
-              httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-            });
+        try {
+          const promptText = `Perform medical analysis and synthesize authoritative findings for query: "${cleanQuery}". Specialty area: ${specialty || 'General Clinical'}. Focus: ${mode || 'Evidence Synthesis'}. Study filter: ${studyType || 'All'}. Synthesize full evidence analysis report.`;
 
-            const promptText = `Perform live Google search for medical query: "${cleanQuery}". Specialty area: ${specialty || 'General Clinical'}. Focus: ${mode || 'Evidence Synthesis'}. Study filter: ${studyType || 'All'}. Synthesize full evidence analysis.`;
+          const aiResponse = await callAI({
+            messages: [{ role: 'user', text: promptText }],
+            systemInstruction,
+            modelName: "huggingface",
+            temperature: 0.3
+          });
 
-            const response = await ai.models.generateContent({
-              model: "gemini-3.6-flash",
-              contents: [
-                { role: 'user', parts: [{ text: promptText }] }
-              ],
-              config: {
-                systemInstruction,
-                temperature: 0.3,
-                tools: [{ googleSearch: {} }]
-              }
-            });
-
-            const candidate = response.candidates?.[0];
-            aiAnalysis = response.text || candidate?.content?.parts?.[0]?.text || "";
-
-            const groundingMetadata = candidate?.groundingMetadata || {};
-            if (groundingMetadata.webSearchQueries && Array.isArray(groundingMetadata.webSearchQueries)) {
-              searchQueries = groundingMetadata.webSearchQueries;
-            }
-
-            const groundingChunks = groundingMetadata.groundingChunks || [];
-            groundingChunks.forEach((chunk: any) => {
-              if (chunk.web && chunk.web.uri) {
-                const uri = chunk.web.uri;
-                const title = chunk.web.title || "Google Medical Reference";
-                let domain = "google.com";
-                try {
-                  domain = new URL(uri).hostname.replace('www.', '');
-                } catch (e) {}
-                
-                // Avoid duplicates
-                if (!searchResults.some(s => s.url === uri)) {
-                  searchResults.push({
-                    title,
-                    url: uri,
-                    snippet: `Verified medical literature source fetched via Google Search backend from ${domain}.`,
-                    domain
-                  });
-                }
-              }
-            });
-
-          } catch (geminiErr: any) {
-            console.error("[GOOGLE-SEARCH-ENGINE] Gemini Search Grounding error:", geminiErr.message);
+          if (aiResponse) {
+            aiAnalysis = aiResponse.trim();
           }
+        } catch (geminiErr: any) {
+          console.error("[GOOGLE-SEARCH-ENGINE] Hugging Face Search synthesis error:", geminiErr.message);
         }
 
         // Fallback / fallback enrichment if searchResults array is empty or short

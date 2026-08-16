@@ -437,7 +437,7 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 sm:p-5 flex flex-col max-h-[88vh] overflow-hidden relative z-50"
+          className="w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 sm:p-5 flex flex-col max-h-[88vh] overflow-hidden relative z-50"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 shrink-0">
@@ -639,21 +639,92 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {filteredPages.map((page, pageIdx) => {
                   const isActive = currentView === page.id;
                   const isSpeaking = speakingId === page.id;
 
+                  // Dynamic color scheme according to category
+                  let catColor = "from-blue-500/10 to-indigo-500/5 hover:border-blue-500/30";
+                  let badgeColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/40";
+                  if (page.category === 'Clinical & Care') {
+                    catColor = "from-rose-500/10 to-red-500/5 hover:border-rose-500/30";
+                    badgeColor = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/40";
+                  } else if (page.category === 'AI & Analytics') {
+                    catColor = "from-purple-500/10 to-violet-500/5 hover:border-purple-500/30";
+                    badgeColor = "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/40";
+                  } else if (page.category === 'Records & Labs') {
+                    catColor = "from-emerald-500/10 to-teal-500/5 hover:border-emerald-500/30";
+                    badgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40";
+                  } else if (page.category === 'System & Security') {
+                    catColor = "from-slate-500/10 to-zinc-500/5 hover:border-slate-500/30";
+                    badgeColor = "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800/40";
+                  }
+
                   return (
-                    <div
+                    <motion.div
+                      whileHover={{ y: -2, scale: 1.01 }}
+                      transition={{ duration: 0.15 }}
                       key={`hub-page-wrapper-${page.id}-${pageIdx}`}
-                      className={`flex items-center gap-1.5 p-1 rounded-xl border transition-all duration-150 ${
+                      className={`flex flex-col justify-between p-4 rounded-2xl border bg-gradient-to-br transition-all relative ${
                         isActive 
-                          ? 'bg-blue-500/10 border-blue-500 shadow-xs ring-1 ring-blue-500/30' 
-                          : 'bg-slate-50/80 dark:bg-slate-850/70 border-slate-200/80 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-white dark:hover:bg-slate-800/80'
+                          ? 'bg-blue-600/10 border-blue-600 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/30' 
+                          : `bg-slate-50 dark:bg-slate-850/60 border-slate-200 dark:border-slate-800 ${catColor}`
                       }`}
                     >
-                      {/* Small Button to Open Page */}
+                      {/* Top Row with icon container and tags */}
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-2.5">
+                          {/* Round icon container */}
+                          <div className={`p-2 rounded-xl border flex items-center justify-center bg-white dark:bg-slate-900 ${
+                            isActive 
+                              ? 'text-blue-600 border-blue-400 dark:text-blue-400' 
+                              : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-750'
+                          }`}>
+                            {page.icon}
+                          </div>
+                          <div>
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border leading-none block w-max ${badgeColor}`}>
+                              {page.badge || page.category}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Speaking trigger */}
+                        <button
+                          type="button"
+                          title="Hear page voice prompt"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakText(page.audioPrompt, page.id);
+                          }}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
+                            isSpeaking
+                              ? 'bg-amber-400 text-slate-950 border-amber-300 animate-bounce'
+                              : 'bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          <Volume2 size={12} className="stroke-[2.5]" />
+                        </button>
+                      </div>
+
+                      {/* Title and Description */}
+                      <div className="mb-4 space-y-1">
+                        <h4 className={`text-xs font-black uppercase tracking-tight flex items-center gap-1.5 ${
+                          isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-white'
+                        }`}>
+                          <span>{page.pictogramEmoji}</span>
+                          <span className="truncate">{page.title}</span>
+                          {isActive && (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          )}
+                        </h4>
+                        <p className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium">
+                          {page.description}
+                        </p>
+                      </div>
+
+                      {/* Launch Button */}
                       <button
                         type="button"
                         onMouseEnter={() => {
@@ -664,42 +735,16 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
                           onClose();
                           addToast(`Opened ${page.title}`, "success");
                         }}
-                        className="flex-1 flex items-center gap-2 px-2.5 py-1.5 text-left cursor-pointer transition-colors"
-                      >
-                        <span className="text-sm shrink-0 leading-none" role="img" aria-label={page.title}>
-                          {page.pictogramEmoji}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 justify-between">
-                            <span className={`text-xs font-bold truncate block ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                              {page.title}
-                            </span>
-                            {isActive && (
-                              <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0 leading-none">
-                                ON
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* Small Sibling Button for Voice Assist */}
-                      <button
-                        type="button"
-                        title="Hear page voice prompt"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          speakText(page.audioPrompt, page.id);
-                        }}
-                        className={`p-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
-                          isSpeaking
-                            ? 'bg-amber-400 text-slate-950 border-amber-300 animate-bounce'
-                            : 'bg-white/90 dark:bg-slate-800 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700'
+                        className={`w-full py-2 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
+                          isActive
+                            ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-md shadow-blue-500/20'
+                            : 'bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-blue-500/45 dark:hover:border-blue-400/45'
                         }`}
                       >
-                        <Volume2 size={11} />
+                        <span>Launch Workstation</span>
+                        <ArrowRight size={11} className="stroke-[2.5]" />
                       </button>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

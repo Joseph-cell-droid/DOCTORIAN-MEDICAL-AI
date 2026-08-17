@@ -2351,7 +2351,51 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Failed to get AI response");
         return data as { text: string; imageData?: string; creditsRemaining?: number | string };
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing local PC local LLM failover...");
+        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing Hugging Face / Local PC failover...");
+
+        // 1. Direct Client-side Hugging Face Inference (Works on Vercel, static PWA, and direct web clients)
+        try {
+          const userStr = localStorage.getItem('medical_user');
+          let parsedUser: any = null;
+          if (userStr) {
+            try { parsedUser = JSON.parse(userStr); } catch (e) {}
+          }
+          const hfToken = (parsedUser?.huggingfaceToken || localStorage.getItem('doctorian_hf_token') || "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").trim();
+          const hfModel = (parsedUser?.huggingfaceModel || localStorage.getItem('doctorian_hf_model') || "google/gemma-3-4b-it").trim();
+
+          if (hfToken) {
+            console.log(`[Neural Link] Executing direct Client Hugging Face Synapse for Vercel/Web: ${hfModel}`);
+            const hfRes = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${hfToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                model: hfModel,
+                messages: [
+                  { role: "system", content: systemInstruction },
+                  ...payloadMessages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                temperature: temperature || 0.7,
+                max_tokens: 2048
+              })
+            });
+
+            if (hfRes.ok) {
+              const hfData = await hfRes.json();
+              const text = hfData?.choices?.[0]?.message?.content || hfData?.choices?.[0]?.text;
+              if (text && text.trim()) {
+                return { text: text.trim(), creditsRemaining: "Unlimited (Hugging Face Cloud Synapse)" };
+              }
+            }
+          }
+        } catch (hfErr) {
+          console.warn("[Neural Link] Client Hugging Face direct invocation failed, escalating to local PC node:", hfErr);
+        }
         
         // Failover handle: Local Ollama or LM Studio on User's PC if configured
         const userStr = localStorage.getItem('medical_user');
@@ -2681,7 +2725,71 @@ export const api = {
           }
         }
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend stream failed or offline. Checking local PC local LLM failover...");
+        console.warn("[Neural Link] Backend stream failed or offline. Securing Hugging Face / Local PC stream failover...");
+
+        // 1. Direct Client-side Hugging Face Streaming (for Vercel and web clients)
+        try {
+          const userStr = localStorage.getItem('medical_user');
+          let parsedUser: any = null;
+          if (userStr) {
+            try { parsedUser = JSON.parse(userStr); } catch (e) {}
+          }
+          const hfToken = (parsedUser?.huggingfaceToken || localStorage.getItem('doctorian_hf_token') || "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").trim();
+          const hfModel = (parsedUser?.huggingfaceModel || localStorage.getItem('doctorian_hf_model') || "google/gemma-3-4b-it").trim();
+
+          if (hfToken) {
+            console.log(`[Neural Link] Directing stream to client Hugging Face: ${hfModel}`);
+            const hfRes = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${hfToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                model: hfModel,
+                messages: [
+                  { role: "system", content: systemInstruction },
+                  ...messages.map(m => ({
+                    role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+                    content: m.text
+                  }))
+                ],
+                temperature: temperature || 0.7,
+                max_tokens: 2048,
+                stream: true
+              }),
+              signal
+            });
+
+            if (hfRes.ok && hfRes.body) {
+              const reader = hfRes.body.getReader();
+              const decoder = new TextDecoder();
+              let streamBuf = "";
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                streamBuf += decoder.decode(value, { stream: true });
+                const lines = streamBuf.split("\n");
+                streamBuf = lines.pop() || "";
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed || trimmed === "data: [DONE]") continue;
+                  if (trimmed.startsWith("data: ")) {
+                    try {
+                      const parsed = JSON.parse(trimmed.slice(6));
+                      const chunkText = parsed.choices?.[0]?.delta?.content;
+                      if (chunkText) yield chunkText;
+                    } catch (e) {}
+                  }
+                }
+              }
+              onMetadata?.({ credits: "Unlimited (Hugging Face Cloud Synapse)" });
+              return;
+            }
+          }
+        } catch (hfErr) {
+          console.warn("[Neural Link] Client Hugging Face stream failed, falling back to local PC LLM:", hfErr);
+        }
         
         // Local Ollama or LM Studio stream failover for offline use
         const userStr = localStorage.getItem('medical_user');

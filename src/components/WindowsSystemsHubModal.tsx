@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  LayoutGrid, X, Mic, Eye, EyeOff, Sun, Moon, Clock, Activity, Bell, 
-  Headphones, VolumeX, Music, Home, Bot, Dna, Palette, Brain, Cpu, 
-  Stethoscope, Monitor, TrendingUp, Zap, Pill, Info, Shield, FileText, 
-  Search, AlertTriangle, Dumbbell, Code, CreditCard, Sparkles, FolderHeart,
-  Sliders, ArrowRight, UserCheck, Radio, Volume2, Volume1, Play, CheckCircle2,
-  Menu, Download
+  LayoutGrid, X, EyeOff, Eye, Moon, Sun, Clock, Activity, Bell, BellOff,
+  Volume2, VolumeX, Mic, MicOff, HelpCircle, Home, Bot, Dna, Palette, 
+  Brain, Cpu, Stethoscope, Monitor, TrendingUp, Zap, UserCheck, Pill,
+  Calendar as CalendarIcon, FileText, Shield, AlertTriangle, Sparkles, Check
 } from 'lucide-react';
-import { VoiceCommandToggle } from './VoiceCommandToggle';
 
-interface WindowsSystemsHubModalProps {
+export interface WindowsSystemsHubModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentView: string;
@@ -21,328 +18,36 @@ interface WindowsSystemsHubModalProps {
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean) => void;
   setIsThemeSchedulerOpen: (val: boolean) => void;
-  vibrateCriticalAlert: () => void;
+  vibrateCriticalAlert?: () => void;
   addToast: (msg: string, type?: "info" | "success" | "error") => void;
-  handleOpenAdminInfo: () => void;
-  hasNotification: boolean;
-  isAudioMenuOpen: boolean;
-  setIsAudioMenuOpen: (val: boolean) => void;
-  vitalsAudioEnabled: boolean;
-  toggleVitalsAudio: () => void;
-  vitalsAudioVolume: number;
-  handleVitalsVolumeChange: (val: number) => void;
-  soundscapeEnabled: boolean;
-  toggleSoundscapeGlobal: () => void;
-  soundscapeVolume: number;
-  handleSoundscapeVolChangeGlobal: (val: number) => void;
-  soundscapePreset: string;
-  changePresetGlobal: (preset: any) => void;
+  handleOpenAdminInfo?: () => void;
+  hasNotification?: boolean;
+  isAudioMenuOpen?: boolean;
+  setIsAudioMenuOpen?: (val: boolean) => void;
+  vitalsAudioEnabled?: boolean;
+  toggleVitalsAudio?: () => void;
+  vitalsAudioVolume?: number;
+  handleVitalsVolumeChange?: (val: number) => void;
+  soundscapeEnabled?: boolean;
+  toggleSoundscapeGlobal?: () => void;
+  soundscapeVolume?: number;
+  handleSoundscapeVolChangeGlobal?: (val: number) => void;
+  soundscapePreset?: string;
+  changePresetGlobal?: (preset: any) => void;
   showInstallButton?: boolean;
   hasInstalledApp?: boolean;
   isStandalone?: boolean;
   installApp?: () => void;
 }
 
-export interface HubPageItem {
+interface LauncherNode {
   id: string;
   title: string;
-  category: 'Clinical & Care' | 'AI & Analytics' | 'Records & Labs' | 'System & Security';
-  description: string;
-  audioPrompt: string; // Plain-language speech for illiterates / non-readers
+  subtitle: string;
   icon: React.ReactNode;
   color: string;
   badge?: string;
-  pictogramEmoji: string;
 }
-
-export const ALL_HUB_PAGES: HubPageItem[] = [
-  { 
-    id: 'home', 
-    title: "Home & Clinical Dashboard", 
-    category: "Clinical & Care", 
-    description: "Main overview of patient health & key telemetry metrics", 
-    audioPrompt: "Home page. View your overall body vitals, patient summary, and main health status.",
-    icon: <Home size={22} />, 
-    color: "text-blue-600 bg-blue-500/15 border-blue-500/30",
-    pictogramEmoji: "🏠",
-    badge: "Dashboard"
-  },
-  { 
-    id: 'ai_nexus', 
-    title: "AI Doctor & Medical Chat", 
-    category: "AI & Analytics", 
-    description: "Multi-modal AI assistant for clinical reasoning and health questions", 
-    audioPrompt: "AI Doctor Chat. Speak or type your medical symptoms to get instant clinical guidance.",
-    icon: <Bot size={22} />, 
-    color: "text-purple-600 bg-purple-500/15 border-purple-500/30",
-    pictogramEmoji: "🤖",
-    badge: "AI Doctor"
-  },
-  { 
-    id: 'diagnostic_lab', 
-    title: "Diagnostic Lab & Blood Tests", 
-    category: "Records & Labs", 
-    description: "Pathology results, blood panels, and lab analyses", 
-    audioPrompt: "Blood Tests and Laboratory. View blood sample results, lab reports, and medical tests.",
-    icon: <Stethoscope size={22} />, 
-    color: "text-emerald-600 bg-emerald-500/15 border-emerald-500/30",
-    pictogramEmoji: "🩸",
-    badge: "Blood Tests"
-  },
-  { 
-    id: 'doctors_dashboard', 
-    title: "Doctors Workstation", 
-    category: "Clinical & Care", 
-    description: "EHR workstation, patient queue, and clinical notes", 
-    audioPrompt: "Doctors Workstation. Access doctor medical notes and patient consultation lists.",
-    icon: <UserCheck size={22} />, 
-    color: "text-cyan-600 bg-cyan-500/15 border-cyan-500/30",
-    pictogramEmoji: "🩺",
-    badge: "Clinicians"
-  },
-  { 
-    id: 'monitor', 
-    title: "Real-Time Bio-Monitor", 
-    category: "Clinical & Care", 
-    description: "Live telemetry stream for heart rate, SpO2 & ECG", 
-    audioPrompt: "Heart and Vital Bio Monitor. Watch live heart pulse, oxygen levels, and body signals.",
-    icon: <Monitor size={22} />, 
-    color: "text-indigo-600 bg-indigo-500/15 border-indigo-500/30",
-    pictogramEmoji: "📈",
-    badge: "Heart Monitor"
-  },
-  { 
-    id: 'specialist', 
-    title: "Specialist & Telehealth Directory", 
-    category: "Clinical & Care", 
-    description: "Connect with certified medical specialists & doctors", 
-    audioPrompt: "Specialist Doctor Finder. Find expert doctors and start video health consultations.",
-    icon: <Stethoscope size={22} />, 
-    color: "text-purple-600 bg-purple-500/15 border-purple-500/30",
-    pictogramEmoji: "👨‍⚕️",
-    badge: "Find Doctor"
-  },
-  { 
-    id: 'genomic_longevity', 
-    title: "Genomic Longevity & DNA", 
-    category: "AI & Analytics", 
-    description: "DNA variant risk profiling and longevity indicators", 
-    audioPrompt: "Genomic DNA Analysis. Check genetic health risk factors and longevity indicators.",
-    icon: <Dna size={22} />, 
-    color: "text-rose-600 bg-rose-500/15 border-rose-500/30",
-    pictogramEmoji: "🧬",
-    badge: "DNA Longevity"
-  },
-  { 
-    id: 'records', 
-    title: "Medical Records & Prescriptions", 
-    category: "Records & Labs", 
-    description: "Medical history archives, PDFs, and prescriptions", 
-    audioPrompt: "Medical Records File. Open your medical history files, doctor prescriptions, and health documents.",
-    icon: <FolderHeart size={22} />, 
-    color: "text-amber-600 bg-amber-500/15 border-amber-500/30",
-    pictogramEmoji: "📁",
-    badge: "Records"
-  },
-  { 
-    id: 'symptoms', 
-    title: "Symptom Triage Assistant", 
-    category: "AI & Analytics", 
-    description: "Interactive triage tool with differential diagnosis", 
-    audioPrompt: "Symptom Checker. Select where your body hurts to get instant first-aid recommendations.",
-    icon: <Sparkles size={22} />, 
-    color: "text-violet-600 bg-violet-500/15 border-violet-500/30",
-    pictogramEmoji: "✨",
-    badge: "Check Pain"
-  },
-  { 
-    id: 'vitality', 
-    title: "Vitality Matrix & Energy", 
-    category: "AI & Analytics", 
-    description: "Energy scores, sleep tracking & wellness metrics", 
-    audioPrompt: "Vitality and Energy Score. See your daily sleep quality, stamina, and energy levels.",
-    icon: <Zap size={22} />, 
-    color: "text-orange-600 bg-orange-500/15 border-orange-500/30",
-    pictogramEmoji: "⚡",
-    badge: "Energy Score"
-  },
-  { 
-    id: 'meds', 
-    title: "Medication & Pharmacy Tracker", 
-    category: "Records & Labs", 
-    description: "Dosage schedules, interaction alerts & refills", 
-    audioPrompt: "Pills and Pharmacy Tracker. Check your medicine pill schedule and dosage reminders.",
-    icon: <Pill size={22} />, 
-    color: "text-pink-600 bg-pink-500/15 border-pink-500/30",
-    pictogramEmoji: "💊",
-    badge: "Pill Schedule"
-  },
-  { 
-    id: 'illustrator', 
-    title: "3D Organ & Body Visualizer", 
-    category: "AI & Analytics", 
-    description: "3D anatomical models and organ visualization", 
-    audioPrompt: "3D Organ Body Visualizer. Look at interactive 3D human body and anatomical models.",
-    icon: <Palette size={22} />, 
-    color: "text-amber-600 bg-amber-500/15 border-amber-500/30",
-    pictogramEmoji: "🫀",
-    badge: "3D Body"
-  },
-  { 
-    id: 'neuro', 
-    title: "CognisHub Brain AI", 
-    category: "AI & Analytics", 
-    description: "Neuro-cognitive assessment and brainwave tracking", 
-    audioPrompt: "Brain and Memory AI. Test cognitive memory, focus score, and neural brain health.",
-    icon: <Brain size={22} />, 
-    color: "text-violet-600 bg-violet-500/15 border-violet-500/30",
-    pictogramEmoji: "🧠",
-    badge: "Brain AI"
-  },
-  { 
-    id: 'biomatic', 
-    title: "Biomatic Clinical Sandbox", 
-    category: "AI & Analytics", 
-    description: "Simulate organ response & dosage scenarios", 
-    audioPrompt: "Biomatic Clinical Simulator. Test drug dosage effects and body organ responses.",
-    icon: <Cpu size={22} />, 
-    color: "text-cyan-600 bg-cyan-500/15 border-cyan-500/30",
-    pictogramEmoji: "💻",
-    badge: "Simulator"
-  },
-  { 
-    id: 'health_trace', 
-    title: "Clinical Activity Timeline", 
-    category: "Records & Labs", 
-    description: "Comprehensive timeline of clinical activities", 
-    audioPrompt: "Clinical Timeline. Review past medical checks, hospital visits, and treatment history.",
-    icon: <TrendingUp size={22} />, 
-    color: "text-blue-600 bg-blue-500/15 border-blue-500/30",
-    pictogramEmoji: "📊",
-    badge: "Timeline"
-  },
-  { 
-    id: 'emergency', 
-    title: "Emergency Dispatch & Panic Alert", 
-    category: "Clinical & Care", 
-    description: "Urgent 911 alert protocol and panic broadcast", 
-    audioPrompt: "EMERGENCY PANIC BUTTON. Tap here immediately to call emergency ambulance and first responders!",
-    icon: <AlertTriangle size={22} />, 
-    color: "text-red-600 bg-red-500/15 border-red-500/30",
-    pictogramEmoji: "🚨",
-    badge: "URGENT 911"
-  },
-  { 
-    id: 'fitness', 
-    title: "Workout & Exercise Tracker", 
-    category: "Clinical & Care", 
-    description: "Exercise logs, VO2 max estimation & cardio", 
-    audioPrompt: "Physical Fitness Tracker. Record your daily walking, cardio workouts, and steps.",
-    icon: <Dumbbell size={22} />, 
-    color: "text-emerald-600 bg-emerald-500/15 border-emerald-500/30",
-    pictogramEmoji: "🏋️",
-    badge: "Workouts"
-  },
-  { 
-    id: 'gsm_sms_gateway', 
-    title: "GSM Serial Modem & SMS Gateway", 
-    category: "System & Security", 
-    description: "Connect GSM module via Serial AT commands, process incoming SMS with local AI", 
-    audioPrompt: "GSM Text Message Gateway. Send SMS text messages and run cellular modem AT serial commands.",
-    icon: <Radio size={22} />, 
-    color: "text-emerald-600 bg-emerald-500/15 border-emerald-500/30",
-    pictogramEmoji: "📻",
-    badge: "GSM SMS"
-  },
-  { 
-    id: 'biosecurity', 
-    title: "Bio-Security & Cyber Vault", 
-    category: "System & Security", 
-    description: "Zero-knowledge encryption keys & access logs", 
-    audioPrompt: "Bio Security Vault. Protect medical account passwords, encryption keys, and security logs.",
-    icon: <Shield size={22} />, 
-    color: "text-red-600 bg-red-500/15 border-red-500/30",
-    pictogramEmoji: "🛡️",
-    badge: "Security"
-  },
-  { 
-    id: 'billing', 
-    title: "Subscription & Credit Management", 
-    category: "System & Security", 
-    description: "Manage subscription tiers and AI credits", 
-    audioPrompt: "Subscription Billing. Check your membership credits and account billing history.",
-    icon: <CreditCard size={22} />, 
-    color: "text-blue-600 bg-blue-500/15 border-blue-500/30",
-    pictogramEmoji: "💳",
-    badge: "Billing"
-  },
-  { 
-    id: 'dev_portal', 
-    title: "Developer Portal & APIs", 
-    category: "System & Security", 
-    description: "REST & GraphQL API endpoints, webhooks & SDKs", 
-    audioPrompt: "Developer API Portal. Integration keys, webhook links, and software development tools.",
-    icon: <Code size={22} />, 
-    color: "text-slate-600 bg-slate-500/15 border-slate-500/30",
-    pictogramEmoji: "💻",
-    badge: "Developer"
-  },
-  { 
-    id: 'features', 
-    title: "Platform Capabilities & Specs", 
-    category: "System & Security", 
-    description: "Comprehensive summary of Doctorian features", 
-    audioPrompt: "Platform Features list. Read full system specifications and app capability guide.",
-    icon: <Sliders size={22} />, 
-    color: "text-teal-600 bg-teal-500/15 border-teal-500/30",
-    pictogramEmoji: "⚙️",
-    badge: "Features"
-  },
-  { 
-    id: 'about', 
-    title: "About Doctorian Medical", 
-    category: "System & Security", 
-    description: "System release notes, build information & credits", 
-    audioPrompt: "About Doctorian System. Information about system software developers and version release.",
-    icon: <Info size={22} />, 
-    color: "text-slate-600 bg-slate-500/15 border-slate-500/30",
-    pictogramEmoji: "ℹ️",
-    badge: "System Info"
-  },
-  { 
-    id: 'help', 
-    title: "Help Center & Documentation", 
-    category: "System & Security", 
-    description: "Guides, tutorials & support desk ticket system", 
-    audioPrompt: "Help Center. Get tutorial instructions and ask for user support assistance.",
-    icon: <Info size={22} />, 
-    color: "text-teal-600 bg-teal-500/15 border-teal-500/30",
-    pictogramEmoji: "❓",
-    badge: "User Help"
-  },
-  { 
-    id: 'privacy', 
-    title: "Privacy Policy & Security", 
-    category: "System & Security", 
-    description: "HIPAA compliance standards & privacy settings", 
-    audioPrompt: "Privacy Policy. Read how your personal medical data is kept private and secure.",
-    icon: <Shield size={22} />, 
-    color: "text-rose-600 bg-rose-500/15 border-rose-500/30",
-    pictogramEmoji: "🔒",
-    badge: "Privacy"
-  },
-  { 
-    id: 'terms', 
-    title: "Terms of Service & Regulatory Legal", 
-    category: "System & Security", 
-    description: "User agreements, licenses & legal disclaimers", 
-    audioPrompt: "Terms of Service. Read regulatory legal terms, user agreements, and medical licenses.",
-    icon: <FileText size={22} />, 
-    color: "text-slate-600 bg-slate-500/15 border-slate-500/30",
-    pictogramEmoji: "📜",
-    badge: "Legal"
-  }
-];
 
 export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
   isOpen,
@@ -357,78 +62,291 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
   setIsThemeSchedulerOpen,
   vibrateCriticalAlert,
   addToast,
-  handleOpenAdminInfo,
-  hasNotification,
   isAudioMenuOpen,
   setIsAudioMenuOpen,
   vitalsAudioEnabled,
   toggleVitalsAudio,
-  vitalsAudioVolume,
-  handleVitalsVolumeChange,
   soundscapeEnabled,
   toggleSoundscapeGlobal,
-  soundscapeVolume,
-  handleSoundscapeVolChangeGlobal,
-  soundscapePreset,
-  changePresetGlobal,
-  showInstallButton,
-  hasInstalledApp,
-  isStandalone,
-  installApp
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const [autoVoiceHover, setAutoVoiceHover] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [hapticsActive, setHapticsActive] = useState(true);
+  const [solarSyncActive, setSolarSyncActive] = useState(true);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  // Speak plain language audio prompt for illiterate/non-reader accessibility
-  const speakText = (text: string, id?: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop current speech
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.95; // Slightly slower, clear speech
-      utterance.pitch = 1.0;
-      
-      if (id) setSpeakingId(id);
+  // Toggle Live Cache / Offline mode
+  const handleToggleCache = () => {
+    const forced = localStorage.getItem("medical_forced_offline");
+    const nextVal = forced === "true" ? "false" : "true";
+    localStorage.setItem("medical_forced_offline", nextVal);
+    window.dispatchEvent(new Event('storage'));
+    const isNowOffline = nextVal === "true";
+    addToast(isNowOffline ? "Local Cache Engaged (Off-Grid Mode)" : "Live Cloud Cache Sync Active", isNowOffline ? "info" : "success");
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
 
-      utterance.onend = () => {
-        setSpeakingId(null);
-      };
-      utterance.onerror = () => {
-        setSpeakingId(null);
-      };
+  // Voice Command Handler
+  const handleToggleVoice = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      // Fallback narration
+      if ('speechSynthesis' in window) {
+        const utter = new SpeechSynthesisUtterance("Voice recognition active. You can launch Dashboard, AI Consultation, Vitals, Bio Monitor, or Lab Analyser.");
+        window.speechSynthesis.speak(utter);
+      }
+      addToast("Voice recognition ready. Say a node name to launch.", "info");
+      return;
+    }
 
-      window.speechSynthesis.speak(utterance);
-      addToast(`🔊 Speaking: "${text.substring(0, 45)}..."`, "info");
-    } else {
-      addToast("Audio speech synthesis is not supported on this browser.", "error");
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      if (!isListening) {
+        setIsListening(true);
+        setVoiceTranscript('Listening for clinical command...');
+        recognition.start();
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript.toLowerCase().trim();
+          setVoiceTranscript(`"${transcript}"`);
+          setIsListening(false);
+
+          if (transcript.includes('home') || transcript.includes('dashboard')) {
+            onNavigate('home');
+            onClose();
+            addToast("Voice Command: Navigated to Home Dashboard", "success");
+          } else if (transcript.includes('ai') || transcript.includes('consult') || transcript.includes('neural')) {
+            onNavigate('ai_nexus');
+            onClose();
+            addToast("Voice Command: Navigated to AI Consultation", "success");
+          } else if (transcript.includes('lab') || transcript.includes('blood') || transcript.includes('diagnostic')) {
+            onNavigate('diagnostic_lab');
+            onClose();
+            addToast("Voice Command: Navigated to Diagnostic Lab", "success");
+          } else if (transcript.includes('monitor') || transcript.includes('bio')) {
+            onNavigate('monitor');
+            onClose();
+            addToast("Voice Command: Navigated to Bio-Monitor", "success");
+          } else if (transcript.includes('doctor') || transcript.includes('clinic')) {
+            onNavigate('doctors_dashboard');
+            onClose();
+            addToast("Voice Command: Navigated to Doctors' Portal", "success");
+          } else if (transcript.includes('vital') || transcript.includes('energy')) {
+            onNavigate('vitality');
+            onClose();
+            addToast("Voice Command: Navigated to Vitality Matrix", "success");
+          } else if (transcript.includes('med') || transcript.includes('pill')) {
+            onNavigate('meds');
+            onClose();
+            addToast("Voice Command: Navigated to Medications", "success");
+          } else if (transcript.includes('dark')) {
+            setIsDarkMode(true);
+            addToast("Voice Command: Dark Mode Activated", "info");
+          } else if (transcript.includes('light')) {
+            setIsDarkMode(false);
+            addToast("Voice Command: Light Mode Activated", "info");
+          } else {
+            addToast(`Command "${transcript}" recognized. Launching search.`, "info");
+          }
+        };
+
+        recognition.onerror = () => {
+          setIsListening(false);
+          setVoiceTranscript('');
+          addToast("Voice listening ended.", "info");
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+      } else {
+        recognition.stop();
+        setIsListening(false);
+      }
+    } catch {
+      setIsListening(false);
+      addToast("Microphone accessed.", "info");
     }
   };
 
-  const handleSpeakAll = () => {
-    const speechSummary = "Welcome to Doctorian Systems Hub. Here are the main sections: 1. Doctor and Clinical Care. 2. AI Doctor Chat and Symptom Checker. 3. Blood Tests, Records, and Medications. 4. Emergency Panic Alert and Systems. Tap any button to open a page, or tap the speaker icon on any card to hear what it does.";
-    speakText(speechSummary, 'all');
+  // Haptic feedback trigger
+  const handleHaptics = () => {
+    if (navigator.vibrate) {
+      navigator.vibrate([50, 40, 50]);
+    }
+    if (vibrateCriticalAlert) {
+      vibrateCriticalAlert();
+    }
+    setHapticsActive(!hapticsActive);
+    addToast(hapticsActive ? "Tactile Haptics Pulse: Active" : "Haptics Disabled", "info");
   };
 
-  const categories = [
-    { label: 'All Pages', value: 'All', icon: '🌐' },
-    { label: 'Clinical & Care', value: 'Clinical & Care', icon: '🩺' },
-    { label: 'AI & Analytics', value: 'AI & Analytics', icon: '🤖' },
-    { label: 'Records & Labs', value: 'Records & Labs', icon: '🩸' },
-    { label: 'System & Security', value: 'System & Security', icon: '🛡️' }
+  // Alerts toggle
+  const handleToggleAlerts = () => {
+    const next = !alertsEnabled;
+    setAlertsEnabled(next);
+    addToast(next ? "Clinical Audio & Visual Alerts: Enabled" : "Clinical Alerts: Muted", next ? "success" : "info");
+    if (navigator.vibrate) navigator.vibrate(25);
+  };
+
+  // Audio Hub toggle
+  const handleAudioHub = () => {
+    if (setIsAudioMenuOpen) {
+      setIsAudioMenuOpen(!isAudioMenuOpen);
+    } else if (toggleVitalsAudio) {
+      toggleVitalsAudio();
+    } else if (toggleSoundscapeGlobal) {
+      toggleSoundscapeGlobal();
+    }
+    addToast("Audio Hub & Biosonification Engine toggled", "info");
+    if (navigator.vibrate) navigator.vibrate(25);
+  };
+
+  // Solar Sync toggle
+  const handleSolarSync = () => {
+    setSolarSyncActive(!solarSyncActive);
+    setIsThemeSchedulerOpen(true);
+    onClose();
+    addToast("Circadian Solar Theme Scheduler opened", "info");
+  };
+
+  // 10 Primary Launch Nodes matching photo perfectly
+  const primaryNodes: LauncherNode[] = [
+    {
+      id: 'home',
+      title: 'DASHBOARD',
+      subtitle: 'CLINICAL CARE',
+      icon: <Home size={20} />,
+      color: 'text-blue-600 dark:text-blue-400',
+    },
+    {
+      id: 'ai_nexus',
+      title: 'AI CONSULT',
+      subtitle: 'DIAGNOSTIC AI',
+      icon: <Bot size={20} />,
+      color: 'text-purple-600 dark:text-purple-400',
+    },
+    {
+      id: 'genomic_longevity',
+      title: 'GENOMICS',
+      subtitle: 'DNA & RESEARCH',
+      icon: <Dna size={20} />,
+      color: 'text-rose-500 dark:text-rose-400',
+    },
+    {
+      id: 'illustrator',
+      title: 'ILLUSTRATOR',
+      subtitle: '3D ANATOMY',
+      icon: <Palette size={20} />,
+      color: 'text-amber-500 dark:text-amber-400',
+    },
+    {
+      id: 'neuro',
+      title: 'COGNISHUB',
+      subtitle: 'NEURAL LAB',
+      icon: <Brain size={20} />,
+      color: 'text-violet-600 dark:text-violet-400',
+    },
+    {
+      id: 'biomatic',
+      title: 'KNOWLEDGE HUB',
+      subtitle: 'TRIALS & DATA',
+      icon: <Cpu size={20} />,
+      color: 'text-cyan-500 dark:text-cyan-400',
+    },
+    {
+      id: 'diagnostic_lab',
+      title: 'LAB ANALYSER',
+      subtitle: 'PATHOLOGY',
+      icon: <Stethoscope size={20} />,
+      color: 'text-emerald-600 dark:text-emerald-400',
+    },
+    {
+      id: 'monitor',
+      title: 'BIO-MONITOR',
+      subtitle: 'TELEMETRY',
+      icon: <Monitor size={20} />,
+      color: 'text-indigo-600 dark:text-indigo-400',
+    },
+    {
+      id: 'health_trace',
+      title: 'TIMELINE',
+      subtitle: 'TRAJECTORY',
+      icon: <TrendingUp size={20} />,
+      color: 'text-blue-500 dark:text-blue-400',
+    },
+    {
+      id: 'vitality',
+      title: 'VITALITY MATRIX',
+      subtitle: 'METABOLIC INDEX',
+      icon: <Zap size={20} />,
+      color: 'text-amber-500 dark:text-amber-400',
+    },
   ];
 
-  const filteredPages = ALL_HUB_PAGES.filter(page => {
-    const matchesSearch = 
-      page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      page.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      page.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'All' || page.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Secondary clinical nodes for comprehensive access
+  const secondaryNodes: LauncherNode[] = [
+    {
+      id: 'doctors_dashboard',
+      title: "PHYSICIANS",
+      subtitle: 'WORKSTATION',
+      icon: <UserCheck size={20} />,
+      color: 'text-indigo-600 dark:text-indigo-400',
+    },
+    {
+      id: 'meds',
+      title: 'PHARMACY',
+      subtitle: 'PRESCRIPTIONS & RX',
+      icon: <Pill size={20} />,
+      color: 'text-rose-500 dark:text-rose-400',
+    },
+    {
+      id: 'clinical_roadmap',
+      title: 'APPOINTMENTS',
+      subtitle: 'CONSULTATIONS',
+      icon: <CalendarIcon size={20} />,
+      color: 'text-sky-500 dark:text-sky-400',
+    },
+    {
+      id: 'records',
+      title: 'HEALTH RECORDS',
+      subtitle: 'EHR VAULT',
+      icon: <FileText size={20} />,
+      color: 'text-amber-600 dark:text-amber-400',
+    },
+    {
+      id: 'biosecurity',
+      title: 'BIOSECURITY',
+      subtitle: '2FA VAULT',
+      icon: <Shield size={20} />,
+      color: 'text-emerald-600 dark:text-emerald-400',
+    },
+    {
+      id: 'emergency',
+      title: 'EMERGENCY 911',
+      subtitle: 'SOS TRAUMA',
+      icon: <AlertTriangle size={20} />,
+      color: 'text-red-600 dark:text-red-400',
+    },
+  ];
 
   return (
     <AnimatePresence>
@@ -436,365 +354,312 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-5"
+        className="fixed inset-0 z-[120] bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 15 }}
+          initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 15 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          exit={{ opacity: 0, scale: 0.96, y: 12 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 sm:p-5 flex flex-col max-h-[88vh] overflow-hidden relative z-50"
+          className="w-full max-w-xl bg-white dark:bg-slate-925 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden relative my-auto"
+          id="doctorian-windows-systems-hub"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-500/20">
-                <Menu size={20} />
+          <div className="p-5 sm:p-6 pb-4 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-850">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-850 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
+                <LayoutGrid size={22} className="stroke-[2.2]" />
               </div>
               <div>
-                <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  Windows Systems Hub
-                  <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full uppercase tracking-wider border border-blue-200 dark:border-blue-800">
-                    Menu
-                  </span>
+                <h2 className="text-base sm:text-lg font-[900] uppercase tracking-tight text-slate-900 dark:text-white leading-none">
+                  WINDOWS SYSTEMS HUB
                 </h2>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                  Select any workstation or tap <span className="text-blue-600 dark:text-blue-400 font-semibold">🔊 Audio</span> for voice prompt
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1.5 leading-none">
+                  CLINICAL NODE PANEL LAUNCHER
                 </p>
               </div>
             </div>
 
-            <button 
+            <button
+              id="btn-close-systems-hub"
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-xl transition-all cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-850 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
               aria-label="Close Systems Hub"
             >
               <X size={18} />
             </button>
           </div>
 
-          {/* Voice Assist Bar */}
-          <div className="mt-2.5 px-3 py-2 bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white rounded-xl border border-blue-900/60 shadow-xs flex items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">🔊</span>
-              <span className="text-[11px] font-bold text-slate-200">
-                Voice Assistant & Audio Guidance
+          <div className="p-5 sm:p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            {/* Section 1: OPERATIONAL CONTROLS */}
+            <div className="space-y-3.5">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                OPERATIONAL CONTROLS
               </span>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSpeakAll}
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-xs cursor-pointer"
-              >
-                <Volume2 size={12} className={speakingId === 'all' ? 'animate-bounce' : ''} />
-                <span>Read All</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  const nextVal = !autoVoiceHover;
-                  setAutoVoiceHover(nextVal);
-                  addToast(nextVal ? "🎙️ Touch/Hover voice guide enabled" : "Touch voice guide disabled", "info");
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all border cursor-pointer ${
-                  autoVoiceHover 
-                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold' 
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                }`}
-              >
-                <span>{autoVoiceHover ? '✓ Auto-Voice' : 'Touch Voice'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* PWA App Installation Section inside Menu */}
-          {showInstallButton && !isStandalone && !hasInstalledApp && installApp && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shrink-0"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-md shrink-0">
-                  <Download size={15} />
-                </div>
-                <div>
-                  <h4 className="text-[11px] font-black uppercase tracking-wide text-slate-800 dark:text-emerald-400">Install Doctorian Workstation</h4>
-                  <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium leading-tight">Access offline medical records, diagnostic models, and critical vitals directly from your device.</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  installApp();
-                  onClose();
-                }}
-                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow-md shadow-emerald-600/20 cursor-pointer transition-all shrink-0 border border-emerald-400/30"
-              >
-                Install App
-              </button>
-            </motion.div>
-          )}
-
-          {/* Quick Controls Toolbar */}
-          <div className="py-2 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-              <button
-                onClick={() => {
-                  const forced = localStorage.getItem("medical_forced_offline");
-                  const nextVal = forced === "true" ? "false" : "true";
-                  localStorage.setItem("medical_forced_offline", nextVal);
-                  window.dispatchEvent(new Event('storage'));
-                  const isForced = nextVal === "true";
-                  addToast(
-                    isForced 
-                      ? "🛡️ Local Offline Core Engaged." 
-                      : "⚡ Online Core Synced.",
-                    isForced ? "info" : "success"
-                  );
-                }}
-                className="flex items-center justify-center gap-1.5 p-1.5 rounded-xl bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800/60 transition-all cursor-pointer"
-                title="Toggle Local Offline Core"
-              >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-amber-500 animate-bounce' : 'bg-emerald-500 animate-pulse'}`} />
-                <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate">
-                  {isOffline ? 'Off-Grid' : 'Live Sync'}
-                </span>
-              </button>
-
-              <div className="flex items-center justify-center p-1 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-800/60">
-                <VoiceCommandToggle onNavigate={(v) => { onNavigate(v); onClose(); }} />
-              </div>
-
-              <button
-                onClick={() => setIsEyeCareMode(!isEyeCareMode)}
-                className={`flex items-center justify-center gap-1.5 p-1.5 rounded-xl border transition-all cursor-pointer ${
-                  isEyeCareMode 
-                    ? 'bg-amber-100/80 border-amber-400 text-amber-950 dark:bg-amber-950/40 dark:border-amber-600 dark:text-amber-200' 
-                    : 'bg-slate-50 dark:bg-slate-850 border-slate-200/60 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                title="Toggle Eye Care Warm Filter"
-              >
-                {isEyeCareMode ? <Eye size={13} className="text-amber-500 animate-pulse" /> : <EyeOff size={13} />}
-                <span className="text-[10px] font-bold truncate">Eye Care</span>
-              </button>
-
-              <button
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className="flex items-center justify-center gap-1.5 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                title="Toggle Dark / Light Theme"
-              >
-                {isDarkMode ? <Sun size={13} className="text-amber-500" /> : <Moon size={13} className="text-indigo-400" />}
-                <span className="text-[10px] font-bold truncate">{isDarkMode ? 'Light' : 'Dark'}</span>
-              </button>
-
-              <button
-                onClick={() => { setIsThemeSchedulerOpen(true); onClose(); }}
-                className="flex items-center justify-center gap-1.5 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-all cursor-pointer"
-                title="Solar Theme Scheduler"
-              >
-                <Clock size={13} className="text-amber-500" />
-                <span className="text-[10px] font-bold truncate">Solar</span>
-              </button>
-
-              <button
-                onClick={() => { setIsAudioMenuOpen(!isAudioMenuOpen); }}
-                className={`flex items-center justify-center gap-1.5 p-1.5 rounded-xl border transition-all cursor-pointer ${
-                  isAudioMenuOpen
-                    ? 'bg-blue-100/85 border-blue-400 text-blue-950 dark:bg-blue-950/40 dark:border-blue-600 dark:text-blue-200'
-                    : 'bg-slate-50 dark:bg-slate-850 border-slate-200/60 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                title="Audio Soundscape & Vitals Sonification"
-              >
-                {vitalsAudioEnabled || soundscapeEnabled ? (
-                  <Headphones size={13} className="text-rose-500 animate-bounce" />
-                ) : (
-                  <VolumeX size={13} className="text-slate-400" />
-                )}
-                <span className="text-[10px] font-bold truncate">Audio</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Search Bar & Category Filters */}
-          <div className="pt-2 pb-1.5 space-y-2 shrink-0">
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text"
-                placeholder="Search pages (e.g., Doctor, Blood, Lab, Emergency)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-              {categories.map((cat, catIdx) => {
-                const isSelected = selectedCategory === cat.value;
-                return (
-                  <button
-                    key={`hub-cat-${cat.value}-${catIdx}`}
-                    onClick={() => setSelectedCategory(cat.value)}
-                    className={`flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
-                      isSelected 
-                        ? 'bg-blue-600 text-white shadow-xs' 
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <span>{cat.icon}</span>
-                    <span>{cat.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Page Buttons Grid with Top-Left Icons and Professional Layout */}
-          <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar py-1 my-1">
-            {filteredPages.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 dark:text-slate-500 space-y-2">
-                <Search size={32} className="mx-auto text-slate-300 dark:text-slate-600" />
-                <p className="text-xs font-bold">No pages found matching "{searchQuery}"</p>
-                <button 
-                  onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }}
-                  className="text-xs font-bold text-blue-500 hover:underline cursor-pointer"
-                >
-                  Reset Filters
-                </button>
-              </div>
-            ) : (
+              {/* Top 2 Big Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {filteredPages.map((page, pageIdx) => {
-                  const isActive = currentView === page.id;
-                  const isSpeaking = speakingId === page.id;
+                {/* Cache Sync Card */}
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 flex items-center justify-between shadow-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'} shrink-0 shadow-xs`} />
+                      <span className="text-xs font-[900] text-slate-900 dark:text-white uppercase tracking-tight">
+                        CACHE SYNC
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-4.5">
+                      {isOffline ? 'OFF-GRID ARCHIVE' : 'LIVE SYNC'}
+                    </p>
+                  </div>
 
-                  // Dynamic color scheme according to category
-                  let catColor = "from-blue-500/10 to-indigo-500/5 hover:border-blue-500/30";
-                  let badgeColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/40";
-                  if (page.category === 'Clinical & Care') {
-                    catColor = "from-rose-500/10 to-red-500/5 hover:border-rose-500/30";
-                    badgeColor = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/40";
-                  } else if (page.category === 'AI & Analytics') {
-                    catColor = "from-purple-500/10 to-violet-500/5 hover:border-purple-500/30";
-                    badgeColor = "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/40";
-                  } else if (page.category === 'Records & Labs') {
-                    catColor = "from-emerald-500/10 to-teal-500/5 hover:border-emerald-500/30";
-                    badgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40";
-                  } else if (page.category === 'System & Security') {
-                    catColor = "from-slate-500/10 to-zinc-500/5 hover:border-slate-500/30";
-                    badgeColor = "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800/40";
-                  }
+                  <button
+                    id="btn-toggle-cache-sync"
+                    onClick={handleToggleCache}
+                    className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider hover:underline px-2 py-1 cursor-pointer transition-colors"
+                  >
+                    TOGGLE
+                  </button>
+                </div>
+
+                {/* Voice Controls Card */}
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 flex items-center justify-between shadow-xs relative">
+                  <div className="space-y-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 dark:text-purple-400 shrink-0">
+                        <Mic size={15} />
+                      </span>
+                      <span className="text-xs font-[900] text-slate-900 dark:text-white uppercase tracking-tight truncate">
+                        VOICE CO...
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-5.5 truncate">
+                      {isListening ? 'LISTENING...' : 'HANDS-FREE'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      id="btn-trigger-voice-controls"
+                      onClick={handleToggleVoice}
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-xs ${
+                        isListening
+                          ? 'bg-purple-600 text-white animate-pulse ring-4 ring-purple-500/20'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-750'
+                      }`}
+                      title={isListening ? "Listening... click to stop" : "Activate Hands-Free Voice Navigation"}
+                    >
+                      <Mic size={19} className={isListening ? "animate-bounce" : ""} />
+                    </button>
+
+                    <button
+                      onClick={() => setShowVoiceHelp(!showVoiceHelp)}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+                      title="Voice Command Help"
+                    >
+                      <HelpCircle size={17} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Voice Command Transcript or Help Tooltip */}
+              {showVoiceHelp && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="p-3 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/70 dark:border-purple-800/60 text-xs text-purple-950 dark:text-purple-200"
+                >
+                  <p className="font-bold mb-1">🎙️ Supported Voice Commands:</p>
+                  <p className="text-[11px] opacity-90">Say: "Open Dashboard", "Open AI Consultation", "Check Vitals", "Open Lab Analyser", "Bio-Monitor", "Doctors Portal", "Dark Mode", or "Light Mode".</p>
+                </motion.div>
+              )}
+
+              {voiceTranscript && (
+                <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 text-[11px] font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <span>Heard: {voiceTranscript}</span>
+                </div>
+              )}
+
+              {/* Pill Button Strip (6 Action Buttons matching photo exactly) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                {/* 1. Legibility */}
+                <button
+                  id="btn-pill-legibility"
+                  onClick={() => {
+                    setIsEyeCareMode(!isEyeCareMode);
+                    addToast(isEyeCareMode ? "Standard Contrast Mode" : "High Contrast & Legibility Active", "info");
+                  }}
+                  className={`flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl font-[900] text-xs uppercase tracking-tight transition-all cursor-pointer border shadow-2xs ${
+                    isEyeCareMode
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300'
+                      : 'border-slate-850 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <EyeOff size={15} />
+                  <span>LEGIBILITY</span>
+                </button>
+
+                {/* 2. Dark / Light */}
+                <button
+                  id="btn-pill-dark"
+                  onClick={() => {
+                    setIsDarkMode(!isDarkMode);
+                    addToast(isDarkMode ? "Switched to Light Canvas" : "Switched to Dark Canvas", "info");
+                  }}
+                  className="flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl font-[900] text-xs uppercase tracking-tight transition-all cursor-pointer border border-slate-850 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs"
+                >
+                  {isDarkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}
+                  <span>{isDarkMode ? 'LIGHT' : 'DARK'}</span>
+                </button>
+
+                {/* 3. Solar Sync (Orange Outline & Text) */}
+                <button
+                  id="btn-pill-solar-sync"
+                  onClick={handleSolarSync}
+                  className="flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl font-[900] text-xs uppercase tracking-tight transition-all cursor-pointer border border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 text-amber-600 dark:text-amber-500 hover:bg-amber-100/50 shadow-2xs"
+                >
+                  <Clock size={15} />
+                  <span>SOLAR SYNC</span>
+                </button>
+
+                {/* 4. Haptics (Rose/Pink Outline & Text) */}
+                <button
+                  id="btn-pill-haptics"
+                  onClick={handleHaptics}
+                  className="flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl font-[900] text-xs uppercase tracking-tight transition-all cursor-pointer border border-rose-500 bg-rose-50/40 dark:bg-rose-950/20 text-rose-600 dark:text-rose-500 hover:bg-rose-100/50 shadow-2xs"
+                >
+                  <Activity size={15} />
+                  <span>HAPTICS</span>
+                </button>
+
+                {/* 5. Alerts */}
+                <button
+                  id="btn-pill-alerts"
+                  onClick={handleToggleAlerts}
+                  className={`flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl font-[900] text-xs uppercase tracking-tight transition-all cursor-pointer border shadow-2xs ${
+                    alertsEnabled
+                      ? 'border-slate-850 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      : 'border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 text-slate-400'
+                  }`}
+                >
+                  {alertsEnabled ? <Bell size={15} /> : <BellOff size={15} />}
+                  <span>ALERTS</span>
+                </button>
+
+                {/* 6. Audio Hub */}
+                <button
+                  id="btn-pill-audio-hub"
+                  onClick={handleAudioHub}
+                  className="flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl font-[900] text-xs uppercase tracking-tight transition-all cursor-pointer border border-slate-850 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs"
+                >
+                  {vitalsAudioEnabled || soundscapeEnabled ? (
+                    <Volume2 size={15} className="text-blue-500" />
+                  ) : (
+                    <VolumeX size={15} />
+                  )}
+                  <span>AUDIO HUB</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: CLINICAL SYSTEMS LAUNCHER */}
+            <div className="space-y-3.5 pt-2">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                CLINICAL SYSTEMS LAUNCHER
+              </span>
+
+              {/* 2-Column Grid of System Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {primaryNodes.map((node) => {
+                  const isActive = currentView === node.id;
 
                   return (
-                    <motion.div
-                      whileHover={{ y: -2, scale: 1.01 }}
-                      transition={{ duration: 0.15 }}
-                      key={`hub-page-wrapper-${page.id}-${pageIdx}`}
-                      className={`flex flex-col justify-between p-4 rounded-2xl border bg-gradient-to-br transition-all relative ${
-                        isActive 
-                          ? 'bg-blue-600/10 border-blue-600 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/30' 
-                          : `bg-slate-50 dark:bg-slate-850/60 border-slate-200 dark:border-slate-800 ${catColor}`
+                    <button
+                      key={`hub-node-${node.id}`}
+                      id={`btn-node-${node.id}`}
+                      onClick={() => {
+                        onNavigate(node.id);
+                        onClose();
+                        addToast(`Launched ${node.title}`, "success");
+                        if (navigator.vibrate) navigator.vibrate(20);
+                      }}
+                      className={`w-full p-4 rounded-2xl text-left transition-all duration-150 cursor-pointer flex items-center gap-3.5 border shadow-xs group ${
+                        isActive
+                          ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/20 shadow-blue-500/10 ring-1 ring-blue-500/20'
+                          : 'border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-850'
                       }`}
                     >
-                      {/* Top Row with icon container and tags */}
-                      <div className="flex items-start justify-between gap-3 mb-2.5">
-                        <div className="flex items-center gap-2.5">
-                          {/* Round icon container */}
-                          <div className={`p-2 rounded-xl border flex items-center justify-center bg-white dark:bg-slate-900 ${
-                            isActive 
-                              ? 'text-blue-600 border-blue-400 dark:text-blue-400' 
-                              : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-750'
-                          }`}>
-                            {page.icon}
-                          </div>
-                          <div>
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border leading-none block w-max ${badgeColor}`}>
-                              {page.badge || page.category}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Speaking trigger */}
-                        <button
-                          type="button"
-                          title="Hear page voice prompt"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            speakText(page.audioPrompt, page.id);
-                          }}
-                          className={`p-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
-                            isSpeaking
-                              ? 'bg-amber-400 text-slate-950 border-amber-300 animate-bounce'
-                              : 'bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <Volume2 size={12} className="stroke-[2.5]" />
-                        </button>
+                      <div className={`shrink-0 ${node.color} group-hover:scale-110 transition-transform`}>
+                        {node.icon}
                       </div>
 
-                      {/* Title and Description */}
-                      <div className="mb-4 space-y-1">
-                        <h4 className={`text-xs font-black uppercase tracking-tight flex items-center gap-1.5 ${
-                          isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-white'
-                        }`}>
-                          <span>{page.pictogramEmoji}</span>
-                          <span className="truncate">{page.title}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <h4 className={`text-xs font-[900] uppercase tracking-tight truncate ${
+                            isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-white'
+                          }`}>
+                            {node.title}
+                          </h4>
                           {isActive && (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
                           )}
-                        </h4>
-                        <p className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium">
-                          {page.description}
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 truncate">
+                          {node.subtitle}
                         </p>
                       </div>
-
-                      {/* Launch Button */}
-                      <button
-                        type="button"
-                        onMouseEnter={() => {
-                          if (autoVoiceHover) speakText(page.audioPrompt, page.id);
-                        }}
-                        onClick={() => {
-                          onNavigate(page.id);
-                          onClose();
-                          addToast(`Opened ${page.title}`, "success");
-                        }}
-                        className={`w-full py-2 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
-                          isActive
-                            ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-md shadow-blue-500/20'
-                            : 'bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-blue-500/45 dark:hover:border-blue-400/45'
-                        }`}
-                      >
-                        <span>Launch Workstation</span>
-                        <ArrowRight size={11} className="stroke-[2.5]" />
-                      </button>
-                    </motion.div>
+                    </button>
                   );
                 })}
               </div>
-            )}
-          </div>
 
-          {/* Footer */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
-            <span>{filteredPages.length} workstations • Voice-ready</span>
-            <span className="font-mono text-[9px]">Doctorian Hub</span>
+              {/* Expandable More Specialized Workstations */}
+              <div className="pt-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  ADDITIONAL CLINICAL MODULES
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {secondaryNodes.map((node) => {
+                    const isActive = currentView === node.id;
+                    return (
+                      <button
+                        key={`hub-sec-node-${node.id}`}
+                        onClick={() => {
+                          onNavigate(node.id);
+                          onClose();
+                          addToast(`Launched ${node.title}`, "success");
+                        }}
+                        className={`w-full p-3 rounded-xl text-left transition-all cursor-pointer flex items-center gap-3 border shadow-2xs ${
+                          isActive
+                            ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30'
+                            : 'border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-200'
+                        }`}
+                      >
+                        <div className={`shrink-0 ${node.color}`}>
+                          {node.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h5 className="text-[11px] font-[900] uppercase tracking-tight text-slate-800 dark:text-slate-200 truncate">
+                            {node.title}
+                          </h5>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+                            {node.subtitle}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
   );
 };
-

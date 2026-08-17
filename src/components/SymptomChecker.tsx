@@ -435,7 +435,7 @@ Return ONLY the raw JSON.`;
       const response = await api.ai.aiChat(
         prompt, 
         "You are a specialized clinical AI diagnostic engine. Your reasoning is grounded in WHO guidelines and emergency stabilization protocols. Always identify a specific and accurate probable disease matching the signs. Return raw valid JSON.",
-        "google/gemma-2-27b-it" // Explicitly using Google Gemma 2 (Expert Brain)
+        "gemini-2.5-flash"
       );
       
       if (response && 'creditsRemaining' in response && response.creditsRemaining !== undefined && user && onUpdateUser) {
@@ -593,7 +593,7 @@ Return ONLY the raw JSON response.`;
       const response = await api.ai.aiChat(
         prompt,
         "You are an expert Clinical Pharmacologist specializing in WHO-standardized drug therapies and patient medication safety. Always respond with JSON.",
-        "google/gemma-2-27b-it"
+        "gemini-2.5-flash"
       );
 
       const responseText = response.text;

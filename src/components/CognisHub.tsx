@@ -156,8 +156,8 @@ export const CognisHub: React.FC = () => {
         `Perform a deep neural data analysis on this mental performance dataset: ${dataStr}. 
          Focus on identifying hidden patterns between focus scores and reactivity latency. 
          Be concise, scientific, and provide actionable insights for optimization.`,
-        "You are the Cognis Intelligence Engine (Llama 3.1 8B / DeepSeek R1). Provide expert-level data synthesis and algorithmic insights.",
-        "meta-llama/llama-3.1-70b-instruct"
+        "You are the Cognis Intelligence Engine powered by Gemini. Provide expert-level data synthesis and algorithmic insights.",
+        "gemini-2.5-flash"
       );
       setAiAnalysis(res.text);
     } catch (err) {
@@ -303,7 +303,7 @@ export const CognisHub: React.FC = () => {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <motion.span 
-                        key={focusScore}
+                        key={`synaptic-focus-score-${focusScore}`}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         className="text-6xl font-black text-slate-900 dark:text-white tracking-tighter"

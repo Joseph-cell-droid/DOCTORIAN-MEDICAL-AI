@@ -245,7 +245,7 @@ Output strictly valid JSON (no markdown formatting, no code blocks, no backticks
 console.log("[SERVER] Starting Doctorian Backend...");
 
 const JWT_SECRET = process.env.JWT_SECRET || "medical-super-secret-key-123";
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Global map of online user sessions
 // Key: userId, Value: { lastActive: number, ip: string, userAgent: string }
@@ -256,7 +256,7 @@ const revokedSessions = new Set<string>(); // set of user IDs whose sessions hav
 console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
-// Toggle between "ollama", "huggingface", "openrouter", "gemini" or "LM_STUDIO"
+// Toggle between "gemini", "huggingface", "ollama", "openrouter" or "LM_STUDIO"
 const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
@@ -1699,7 +1699,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.6-flash";
+              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-2.5-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1757,12 +1757,12 @@ async function callAIWorkflow(options: {
                       attempts = maxAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
-                      if (currentModelId === "gemini-3.6-flash") {
-                        currentModelId = "gemini-3.1-pro-preview";
-                      } else if (currentModelId === "gemini-3.1-pro-preview") {
-                        currentModelId = "gemini-3.1-flash-lite";
+                      if (currentModelId === "gemini-2.5-flash") {
+                        currentModelId = "gemini-2.5-pro";
+                      } else if (currentModelId === "gemini-2.5-pro") {
+                        currentModelId = "gemini-2.0-flash";
                       } else {
-                        currentModelId = "gemini-3.1-flash-lite";
+                        currentModelId = "gemini-2.5-flash";
                       }
                       console.log(`[AI-BRAIN] Temporary API busy status (${genErr.message || "503/429"}) on attempt ${attempts}. Rotating to ${currentModelId} and retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
@@ -1786,7 +1786,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"];
+                  const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"];
                   for (const modelId of modelsToTry) {
                     let retryAttempts = 0;
                     const maxRetryAttempts = 2;

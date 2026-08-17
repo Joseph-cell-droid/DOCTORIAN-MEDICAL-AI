@@ -785,8 +785,8 @@ export const useArduino = () => {
 
       const res = await api.ai.aiChat(
         [{ role: 'user', text: analysisPrompt }],
-        "You are Doctorian (Llama 3.1 Neural Core). You analyze high-resolution longitudinal health data to trace patient progress across all biological subsystems.",
-        "meta-llama/llama-3.1-70b-instruct"
+        "You are Doctorian (Gemini Neural Core). You analyze high-resolution longitudinal health data to trace patient progress across all biological subsystems.",
+        "gemini-2.5-flash"
       );
 
       return res.text;

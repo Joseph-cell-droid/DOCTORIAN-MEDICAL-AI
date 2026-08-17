@@ -81,7 +81,9 @@ import { Compass,
   Clock,
   Sparkles,
   Laptop,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  AlertTriangle,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -95,6 +97,7 @@ import { BiomaticSandbox } from './components/BiomaticSandbox';
 import { EdgeScrollNavigation } from './components/EdgeScrollNavigation';
 import { LocalBackupModal } from './components/LocalBackupModal';
 import { WindowsSystemsHubModal } from './components/WindowsSystemsHubModal';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
@@ -360,45 +363,45 @@ import { AppTutorial } from './components/AppTutorial';
 import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 const viewNamesMap: Record<string, string> = {
-  home: 'Home Dashboard',
-  monitor: 'Real-time Bio-Monitor',
-  features: 'Clinical Modules',
-  about: 'System & App Info',
-  learn_more: 'Documentation',
-  records: 'Health Records',
-  profile: 'User Profile',
-  admin: 'Admin Command Center',
-  specialist: 'Specialist Referral Network',
-  neuro: 'Neural Core Trainer',
-  vitality: 'Vitality Bio-Energy',
-  meds: 'Clinical Pharmacy',
-  fitness: 'Fitness Analytics',
-  symptoms: 'Symptom Checker',
-  biosecurity: 'Biosecurity Shield',
-  ai_nexus: 'AI Consultation',
-  illustrator: 'Anatomy Illustrator',
-  diagnostic_lab: 'Diagnostic Lab Analyser',
-  emergency: 'Emergency Portal',
-  training: 'Neural training',
-  tasks: 'System Queue',
-  clinical_roadmap: 'Clinical Roadmap',
-  anomaly_detail: 'Anomaly Detail',
-  health_matrix: 'Biomatic Sandbox',
-  autonomous_sync: 'Autonomous Core',
-  dev_portal: 'Developer Portal',
-  gsm_sms_gateway: 'GSM AT Modem & SMS Gateway',
-  billing: 'Resource Billings',
-  health_trace: 'Clinical History Trace',
-  biomatic: 'Clinical Hub',
-  genomic_longevity: 'Longevity & DNA Lab',
-  systems_hub: 'Systems Launchpad',
-  doctors_dashboard: 'Doctors\' Portal',
-  help: 'Help Center',
-  community: 'Global Forum',
-  privacy: 'Privacy Vault',
-  terms: 'Terms of Use',
-  feedback: 'Clinical Feedback',
-  protocols: 'Medical Protocols'
+  home: 'Clinical Health Dashboard',
+  monitor: 'Real-Time Bio-Telemetry Monitor',
+  features: 'Clinical Modules & Intelligence',
+  about: 'System Architecture & Platform Info',
+  learn_more: 'Clinical Documentation & Guidance',
+  records: 'Electronic Health Records (EHR)',
+  profile: 'Patient Profile & Medical Identity',
+  admin: 'Administrator Command Console',
+  specialist: 'Specialist Directory & Referral',
+  neuro: 'Cognis Neural & Cognitive Lab',
+  vitality: 'Vitality & Metabolic Index',
+  meds: 'Precision Clinical Pharmacy',
+  fitness: 'Physiological Longevity Protocols',
+  symptoms: 'Clinical Symptom Triage',
+  biosecurity: 'Biometric Security & 2FA Vault',
+  ai_nexus: 'AI Diagnostic Consultation',
+  illustrator: '3D Anatomical & Surgical Illustrator',
+  diagnostic_lab: 'Diagnostic Laboratory Analyser',
+  emergency: 'Emergency SOS & Trauma Response',
+  training: 'Neural Model Training Engine',
+  tasks: 'Clinical System Queue & Tasks',
+  clinical_roadmap: 'Clinical Appointments & Consultations',
+  anomaly_detail: 'Clinical Anomaly Diagnostics',
+  health_matrix: 'Biomatic Simulation Sandbox',
+  autonomous_sync: 'Autonomous Core Synchronization',
+  dev_portal: 'Developer API & FHIR Integration',
+  gsm_sms_gateway: 'Clinical SMS & Telemetry Relay',
+  billing: 'Healthcare Insurance & Billing Ledger',
+  health_trace: 'Longitudinal Clinical Timeline',
+  biomatic: 'Clinical Knowledge Hub & Literature',
+  genomic_longevity: 'Genomic & Longevity Research Core',
+  systems_hub: 'Systems Intelligence Hub',
+  doctors_dashboard: 'Physician Clinical Workstation',
+  help: 'Clinical Help Center & FAQ',
+  community: 'Global Clinical Forum',
+  privacy: 'HIPAA & Privacy Data Policy',
+  terms: 'Clinical Terms of Service',
+  feedback: 'Clinical Intelligence Feedback',
+  protocols: 'Standardized Medical Protocols'
 };
 
 export default function App() {
@@ -1001,10 +1004,22 @@ export default function App() {
   };
   const [dailyTip, setDailyTip] = useState<HealthTip>(HEALTH_TIPS[0]);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
+  const [isSubPagesMenuExpanded, setIsSubPagesMenuExpanded] = useState(false);
   const [isWindowsMenuOpen, setIsWindowsMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [weatherData, setWeatherData] = useState<any>(null);
   const navigationContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const subPageList = [
+      'symptoms', 'diagnostic_lab', 'monitor', 'health_trace', 'illustrator',
+      'doctors_dashboard', 'specialist', 'neuro', 'genomic_longevity', 'biomatic',
+      'profile', 'biosecurity', 'gsm_sms_gateway', 'fitness', 'billing', 'help', 'privacy', 'terms', 'admin'
+    ];
+    if (subPageList.includes(currentView)) {
+      setIsSubPagesMenuExpanded(true);
+    }
+  }, [currentView]);
 
   const arduino = useArduinoContext();
   useMedicationReminders(user);
@@ -1875,101 +1890,55 @@ export default function App() {
       let responseText = "";
       let sourceAttribution = "";
 
-      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
-      const localFailCount = parseInt(localStorage.getItem('doctorian_local_fail_count') || '0', 10);
-      const shouldBypassLocal = !prioritizeLocalAI || localFailCount >= 3;
-
-      if (!shouldBypassLocal) {
-        // 1. Try local Gemma 3:1b first (prioritizing PC Local LM Studio on User's PC / local Ollama)
-        const localUrlStr = user?.ollamaUrl || 'http://localhost:11434';
-        const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
-        
-        const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
-        const finalUrl = isLMStudio
-          ? (cleanLocalUrl.includes('/v1') ? `${cleanLocalUrl}/chat/completions` : `${cleanLocalUrl}/v1/chat/completions`)
-          : (cleanLocalUrl.includes('/api/chat') ? cleanLocalUrl : `${cleanLocalUrl}/api/chat`);
-
-        const modelToUse = "gemma3:1b";
-
-        console.log(`[Insight Fallback Route] Querying local PC LLM for model '${modelToUse}' at ${finalUrl}...`);
-        try {
-          const bodyPayload = isLMStudio ? {
-            model: modelToUse,
-            messages: [
-              { role: "system", content: systemInstruction },
-              { role: "user", content: prompt }
-            ],
-            stream: false,
-            temperature: 0.7
-          } : {
-            model: modelToUse,
-            messages: [
-              { role: "system", content: systemInstruction },
-              { role: "user", content: prompt }
-            ],
-            stream: false,
-            options: { temperature: 0.7 }
-          };
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s fast timeout for local PC retry path
-
-          const localRes = await fetch(finalUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(bodyPayload),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-
-          if (!localRes.ok) throw new Error(`HTTP status ${localRes.status}`);
-
-          const localData = await localRes.json();
-          if (isLMStudio) {
-            responseText = localData?.choices?.[0]?.message?.content || "";
-          } else {
-            responseText = localData?.message?.content || localData?.response || "";
-          }
-
-          if (responseText) {
-            // Success! Reset failure count
-            localStorage.setItem('doctorian_local_fail_count', '0');
-            sourceAttribution = "Gemma4 (Local LM Studio)";
-          } else {
-            throw new Error("No text content from local Gemma4 model");
-          }
-        } catch (localErr: any) {
-          // Increment consecutive failures
-          const nextFailCount = localFailCount + 1;
-          localStorage.setItem('doctorian_local_fail_count', String(nextFailCount));
-          console.warn(`[Insight Fallback] Local Gemma4 on PC failed or is unreachable (Attempts: ${nextFailCount}/3, Error: ${localErr?.message || localErr}). Escalating request to cloud provider backup...`);
-          
-          if (nextFailCount >= 3) {
-            localStorage.setItem('doctorian_prioritize_local_ai', 'false');
-            console.warn(`[Insight Fallback] 3 consecutive direct local AI failures reached. Smart Fallback triggered: automatically switched to cloud-based provider.`);
-          }
-
-          // 2. Cascade fallback to Cloud provider as backup
-          const response = await api.ai.aiChat(
-            [{ role: "user", text: prompt }], 
-            systemInstruction, 
-            "gemma-2-27b-it", // Cloud Gemma model
-            0.7
-          );
-          responseText = response.text;
-          sourceAttribution = "Gemma 2 (Cloud Neural Link)";
-        }
-      } else {
-        // Switch directly to Cloud provider as backup
-        console.log(`[Insight Fallback] Bypassing local direct fetch (prioritizeLocalAI: ${prioritizeLocalAI}, localFailCount: ${localFailCount}). Querying Cloud provider immediately...`);
+      // Primary Cloud Gemini AI Neural Link
+      try {
+        console.log("[Insight Engine] Generating real-time wellness protocol via Gemini AI...");
         const response = await api.ai.aiChat(
           [{ role: "user", text: prompt }], 
           systemInstruction, 
-          "gemma-2-27b-it", // Cloud Gemma model
+          "gemini-2.5-flash",
           0.7
         );
         responseText = response.text;
-        sourceAttribution = "Gemma 2 (Cloud Neural Link)";
+        sourceAttribution = "Gemini 2.5 Flash Neural Engine";
+      } catch (geminiErr: any) {
+        console.warn("[Insight Engine] Cloud Gemini temporarily busy, evaluating failovers...", geminiErr);
+        
+        // Secondary Local/Cloud Failover
+        const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
+        if (prioritizeLocalAI) {
+          const localUrlStr = user?.ollamaUrl || 'http://localhost:11434';
+          const cleanLocalUrl = localUrlStr.trim().replace(/\/$/, "");
+          const isLMStudio = cleanLocalUrl.includes(':1234') || cleanLocalUrl.includes('/v1') || cleanLocalUrl.toLowerCase().includes('lmstudio');
+          const finalUrl = isLMStudio
+            ? (cleanLocalUrl.includes('/v1') ? `${cleanLocalUrl}/chat/completions` : `${cleanLocalUrl}/v1/chat/completions`)
+            : (cleanLocalUrl.includes('/api/chat') ? cleanLocalUrl : `${cleanLocalUrl}/api/chat`);
+
+          try {
+            const bodyPayload = {
+              model: "gemini-2.5-flash",
+              messages: [
+                { role: "system", content: systemInstruction },
+                { role: "user", content: prompt }
+              ],
+              stream: false,
+              temperature: 0.7
+            };
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const localRes = await fetch(finalUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(bodyPayload),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (localRes.ok) {
+              const localData = await localRes.json();
+              responseText = localData?.choices?.[0]?.message?.content || localData?.message?.content || "";
+            }
+          } catch (e) {}
+        }
       }
 
       if (responseText) {
@@ -2129,85 +2098,105 @@ export default function App() {
     triggerPWAInstall();
   };
 
-  const navLinks = [
-    { id: 'home', label: 'Home', icon: <Home size={16} /> },
-    { id: 'ai_nexus', label: 'AI Medical Assistant', icon: <Bot size={16} /> },
-    { id: 'vitality', label: 'Health', icon: <Activity size={16} /> },
-    { id: 'meds', label: 'Medications', icon: <Pill size={16} /> },
-    { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} /> },
-    { id: 'records', label: 'Medical Records', icon: <FileText size={16} /> },
-    { id: 'doctors_dashboard', label: 'Doctors', icon: <Stethoscope size={16} /> },
-    { id: 'gsm_sms_gateway', label: 'Notifications', icon: <Bell size={16} /> },
-    { id: 'profile', label: 'Profile', icon: <UserIcon size={16} /> },
-  ];
-
-  const allNavLinks = [
-    ...navLinks,
-    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: <Shield size={16} />, action: handleAdminAccess }] : [])
-  ];
-
-  const isSubViewActive = (linkId: string, current: string) => {
-    if (linkId === current) return true;
-    if (linkId === 'vitality' && (current === 'monitor' || current === 'health_trace' || current === 'health_matrix')) return true;
-    if (linkId === 'records' && (current === 'diagnostic_lab' || current === 'symptoms')) return true;
-    if (linkId === 'doctors_dashboard' && (current === 'specialist' || current === 'neuro' || current === 'training')) return true;
-    return false;
-  };
-
+  // Sidebar Navigation Structure (Matching UI Specification)
   const sidebarSections = [
     {
-      title: "Daily Health Core",
-      accent: {
-        active: "bg-gradient-to-b from-blue-500 to-blue-600 text-white font-bold border-t border-blue-400 border-b-2 border-blue-700 shadow-md shadow-blue-500/15 overflow-hidden",
-        hover: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-805/85 hover:shadow-sm",
-        iconActive: "text-white",
-        iconInactive: "text-slate-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400",
-        bar: "bg-blue-500"
-      },
+      title: "CLINICAL INTELLIGENCE",
       items: [
-        { id: 'home', label: 'Home', icon: <Home size={15} /> },
-        { id: 'ai_nexus', label: 'AI Medical Assistant', icon: <Bot size={15} /> },
-        { id: 'vitality', label: 'Health', icon: <Activity size={15} /> },
-        { id: 'meds', label: 'Medications', icon: <Pill size={15} /> },
+        { id: 'home', label: 'Clinical Dashboard', icon: <Home size={18} /> },
+        { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={18} />, badgeDot: 'purple' },
+        { id: 'biomatic', label: 'Knowledge Hub', icon: <Cpu size={18} /> },
       ]
     },
     {
-      title: "Clinical & Care",
-      accent: {
-        active: "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-bold border-t border-emerald-400 border-b-2 border-emerald-700 shadow-md shadow-emerald-500/15 overflow-hidden",
-        hover: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-805/85 hover:shadow-sm",
-        iconActive: "text-white",
-        iconInactive: "text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400",
-        bar: "bg-emerald-500"
-      },
+      title: "DIAGNOSTICS & LABS",
       items: [
-        { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={15} /> },
-        { id: 'records', label: 'Medical Records', icon: <FileText size={15} /> },
-        { id: 'doctors_dashboard', label: 'Doctors', icon: <Stethoscope size={15} /> },
+        { id: 'diagnostic_lab', label: 'Laboratory Analyser', icon: <Stethoscope size={18} /> },
+        { id: 'monitor', label: 'Bio-Telemetry Monitor', icon: <Monitor size={18} /> },
       ]
     },
     {
-      title: "Settings & System",
-      accent: {
-        active: "bg-gradient-to-b from-purple-500 to-purple-600 text-white font-bold border-t border-purple-400 border-b-2 border-purple-700 shadow-md shadow-purple-500/15 overflow-hidden",
-        hover: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-805/85 hover:shadow-sm",
-        iconActive: "text-white",
-        iconInactive: "text-slate-400 dark:text-slate-500 group-hover:text-purple-500 dark:group-hover:text-purple-400",
-        bar: "bg-purple-500"
-      },
+      title: "CARE & GOVERNANCE",
       items: [
-        { id: 'gsm_sms_gateway', label: 'Notifications', icon: <Bell size={15} /> },
-        { id: 'profile', label: 'Profile', icon: <UserIcon size={15} /> },
-        ...(isAdmin ? [{ id: 'admin', label: 'Admin Command', icon: <Shield size={15} />, action: handleAdminAccess }] : [])
+        { id: 'doctors_dashboard', label: 'Physician Workstation', icon: <FileText size={18} /> },
+        { id: 'about', label: 'Platform & Systems', icon: <Info size={18} /> },
+        { id: 'admin', label: 'Command Console', icon: <Shield size={18} />, action: handleAdminAccess },
       ]
     }
   ];
 
+  const priorityNavLinks = [
+    { id: 'home', label: 'Clinical Dashboard', icon: <Home size={16} />, badge: undefined, color: 'blue' },
+    { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={16} />, badge: 'AI Live', color: 'indigo' },
+    { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
+    { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={16} />, badge: undefined, color: 'amber' },
+    { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} />, badge: undefined, color: 'sky' },
+    { id: 'records', label: 'Health Records (EHR)', icon: <FileText size={16} />, badge: undefined, color: 'teal' },
+    { id: 'emergency', label: 'Emergency SOS 911', icon: <AlertTriangle size={16} />, badge: '24/7 Rapid', color: 'rose', isUrgent: true },
+  ];
+
+  const subPagesCategories = [
+    {
+      category: "Diagnostics & Pathology",
+      items: [
+        { id: 'symptoms', label: 'Symptom Triage & Differential', icon: <Sparkles size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
+        { id: 'diagnostic_lab', label: 'Diagnostic Laboratory Analyser', icon: <Stethoscope size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
+        { id: 'monitor', label: 'Real-Time Bio-Telemetry Monitor', icon: <Monitor size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
+        { id: 'health_trace', label: 'Longitudinal Clinical Timeline', icon: <TrendingUp size={14} />, color: 'text-teal-500 hover:bg-teal-500/10' },
+        { id: 'illustrator', label: '3D Anatomical & Surgical Visuals', icon: <Palette size={14} />, color: 'text-purple-500 hover:bg-purple-500/10' },
+      ]
+    },
+    {
+      category: "Clinical Care & Research Core",
+      items: [
+        { id: 'doctors_dashboard', label: "Physician Clinical Workstation", icon: <UserCheck size={14} />, color: 'text-indigo-500 hover:bg-indigo-500/10' },
+        { id: 'specialist', label: 'Specialist Directory & Referral', icon: <UserPlus size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
+        { id: 'neuro', label: 'Cognis Neural & Cognitive Lab', icon: <Brain size={14} />, color: 'text-violet-500 hover:bg-violet-500/10' },
+        { id: 'genomic_longevity', label: 'Genomic & Longevity Core', icon: <Dna size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
+        { id: 'biomatic', label: 'Clinical Knowledge Hub', icon: <Cpu size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
+      ]
+    },
+    {
+      category: "Patient Identity, Security & Administration",
+      items: [
+        { id: 'profile', label: 'Patient Profile & Medical ID', icon: <UserIcon size={14} />, color: 'text-slate-500 hover:bg-slate-500/10' },
+        { id: 'biosecurity', label: 'Biometric Security & 2FA Vault', icon: <Fingerprint size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
+        { id: 'gsm_sms_gateway', label: 'Clinical SMS & Telemetry Gateway', icon: <Bell size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
+        { id: 'fitness', label: 'Physiological Longevity Protocols', icon: <Activity size={14} />, color: 'text-green-500 hover:bg-green-500/10' },
+        { id: 'billing', label: 'Healthcare Insurance & Billing', icon: <CreditCard size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
+        { id: 'help', label: 'Clinical Help Center & FAQ', icon: <Info size={14} />, color: 'text-sky-500 hover:bg-sky-500/10' },
+        { id: 'privacy', label: 'HIPAA & Privacy Data Policy', icon: <Shield size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
+        { id: 'terms', label: 'Clinical Terms of Service', icon: <FileText size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
+        ...(isAdmin ? [{ id: 'admin', label: 'Administrator Command Console', icon: <Shield size={14} />, color: 'text-red-500 hover:bg-red-500/10', action: handleAdminAccess }] : [])
+      ]
+    }
+  ];
+
+  const allSubPageIds = subPagesCategories.flatMap(c => c.items.map(i => i.id));
+  const isCurrentViewSubPage = allSubPageIds.includes(currentView);
+
+  const navLinks = priorityNavLinks;
+
+  const allNavLinks = [
+    ...navLinks,
+    ...(isAdmin ? [{ id: 'admin', label: 'Administrator Command Console', icon: <Shield size={16} />, action: handleAdminAccess }] : [])
+  ];
+
+  const isSubViewActive = (linkId: string, current: string) => {
+    if (linkId === current) return true;
+    if (linkId === 'biomatic' && (current === 'genomic_longevity' || current === 'neuro' || current === 'health_matrix' || current === 'fitness')) return true;
+    if (linkId === 'diagnostic_lab' && (current === 'symptoms' || current === 'illustrator')) return true;
+    if (linkId === 'monitor' && (current === 'vitality' || current === 'health_trace')) return true;
+    if (linkId === 'doctors_dashboard' && (current === 'specialist' || current === 'clinical_roadmap' || current === 'records' || current === 'meds')) return true;
+    if (linkId === 'about' && (current === 'learn_more' || current === 'help' || current === 'privacy' || current === 'terms' || current === 'features')) return true;
+    return false;
+  };
+
   const quickTools = [
-    { icon: <Thermometer className="w-5 h-5 text-orange-500" />, label: "Symptom Check", color: "bg-orange-50 dark:bg-orange-900/20", action: () => setCurrentView('features') },
+    { icon: <Thermometer className="w-5 h-5 text-orange-500" />, label: "Symptom Triage", color: "bg-orange-50 dark:bg-orange-900/20", action: () => setCurrentView('symptoms') },
     { icon: <Scale className="w-5 h-5 text-green-500" />, label: "BMI Calculator", color: "bg-green-50 dark:bg-green-900/20", action: () => setIsBMIModalOpen(true) },
-    { icon: <Activity className="w-5 h-5 text-blue-500" />, label: "Vital Tracker", color: "bg-blue-50 dark:bg-blue-900/20", action: () => setCurrentView('monitor') },
-    { icon: <Heart className="w-5 h-5 text-red-500" />, label: "Heart Rate", color: "bg-red-50 dark:bg-red-900/20", action: () => setCurrentView('monitor') },
+    { icon: <Activity className="w-5 h-5 text-blue-500" />, label: "Vitality Index", color: "bg-blue-50 dark:bg-blue-900/20", action: () => setCurrentView('vitality') },
+    { icon: <Heart className="w-5 h-5 text-red-500" />, label: "Bio-Telemetry", color: "bg-red-50 dark:bg-red-900/20", action: () => setCurrentView('monitor') },
   ];
 
   const filteredSearchResults = searchQuery.trim() === '' 
@@ -2228,15 +2217,17 @@ export default function App() {
       });
 
   const subViewGroups = {
-    biomatic: ['biomatic', 'genomic_longevity', 'illustrator'],
-    monitor: ['monitor', 'health_trace', 'vitality'],
-    doctors: ['doctors_dashboard', 'neuro', 'meds', 'specialist']
+    diagnostics: ['diagnostic_lab', 'symptoms', 'monitor', 'health_trace', 'illustrator'],
+    research: ['biomatic', 'genomic_longevity', 'neuro'],
+    physicians: ['doctors_dashboard', 'specialist'],
+    account: ['profile', 'biosecurity', 'gsm_sms_gateway', 'fitness', 'billing', 'help', 'privacy', 'terms']
   };
 
-  const getSubViewGroup = (view: string): 'biomatic' | 'monitor' | 'doctors' | null => {
-    if (subViewGroups.biomatic.includes(view)) return 'biomatic';
-    if (subViewGroups.monitor.includes(view)) return 'monitor';
-    if (subViewGroups.doctors.includes(view)) return 'doctors';
+  const getSubViewGroup = (view: string): 'diagnostics' | 'research' | 'physicians' | 'account' | null => {
+    if (subViewGroups.diagnostics.includes(view)) return 'diagnostics';
+    if (subViewGroups.research.includes(view)) return 'research';
+    if (subViewGroups.physicians.includes(view)) return 'physicians';
+    if (subViewGroups.account.includes(view)) return 'account';
     return null;
   };
 
@@ -2244,37 +2235,72 @@ export default function App() {
     const activeGroup = getSubViewGroup(currentView);
     if (!activeGroup || !user) return null;
 
-    const tabs = {
-      biomatic: [
-        { id: 'biomatic', label: 'Clinical Hub', icon: <Cpu size={14} /> },
-        { id: 'genomic_longevity', label: 'Longevity & DNA Lab', icon: <Dna size={14} /> },
-        { id: 'illustrator', label: 'Anatomy Illustrator', icon: <Palette size={14} /> }
-      ],
-      monitor: [
-        { id: 'monitor', label: 'Real-time Bio-Monitor', icon: <Monitor size={14} /> },
-        { id: 'vitality', label: 'Vitality Bio-Energy', icon: <Zap size={14} /> },
-        { id: 'health_trace', label: 'Clinical History Trace', icon: <TrendingUp size={14} /> }
-      ],
-      doctors: [
-        { id: 'doctors_dashboard', label: "Doctors' Portal", icon: <FileText size={14} /> },
-        { id: 'neuro', label: 'Neural Core Trainer', icon: <Brain size={14} /> },
-        { id: 'meds', label: 'Clinical Pharmacy', icon: <Pill size={14} /> },
-        { id: 'specialist', label: 'Specialist Referral Network', icon: <Stethoscope size={14} /> }
-      ]
+    const groupMeta = {
+      diagnostics: {
+        title: "Clinical Diagnostics & Labs",
+        tabs: [
+          { id: 'symptoms', label: 'Symptom Triage', icon: <Sparkles size={13} /> },
+          { id: 'diagnostic_lab', label: 'Laboratory Analyser', icon: <Stethoscope size={13} /> },
+          { id: 'monitor', label: 'Bio-Telemetry Monitor', icon: <Monitor size={13} /> },
+          { id: 'health_trace', label: 'Clinical Timeline', icon: <TrendingUp size={13} /> },
+          { id: 'illustrator', label: '3D Anatomy', icon: <Palette size={13} /> }
+        ]
+      },
+      research: {
+        title: "Clinical Research & Genomics",
+        tabs: [
+          { id: 'biomatic', label: 'Knowledge Hub', icon: <Cpu size={13} /> },
+          { id: 'genomic_longevity', label: 'Genomics & Longevity', icon: <Dna size={13} /> },
+          { id: 'neuro', label: 'Neural Cognitive Lab', icon: <Brain size={13} /> }
+        ]
+      },
+      physicians: {
+        title: "Physician & Specialist Network",
+        tabs: [
+          { id: 'doctors_dashboard', label: "Physician Workstation", icon: <UserCheck size={13} /> },
+          { id: 'specialist', label: 'Specialist Directory', icon: <UserPlus size={13} /> }
+        ]
+      },
+      account: {
+        title: "Patient Identity, Security & Ledger",
+        tabs: [
+          { id: 'profile', label: 'Medical Profile', icon: <UserIcon size={13} /> },
+          { id: 'biosecurity', label: '2FA Security Vault', icon: <Fingerprint size={13} /> },
+          { id: 'fitness', label: 'Longevity Protocols', icon: <Activity size={13} /> },
+          { id: 'billing', label: 'Insurance & Billing', icon: <CreditCard size={13} /> },
+          { id: 'help', label: 'Help & Guidance', icon: <Info size={13} /> }
+        ]
+      }
     };
 
+    const currentGroupData = groupMeta[activeGroup];
+
     return (
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/50 dark:border-slate-800/40 pb-4 shrink-0 px-2 sm:px-0">
-        <div>
-          <h2 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">
-            {translate(activeGroup === 'biomatic' ? 'Clinical Hub & Research' : activeGroup === 'monitor' ? 'Bio-Monitoring Systems' : 'Clinical & Doctors Core', currentLanguage)}
-          </h2>
-          <p className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
-            {translate(viewNamesMap[currentView] || '', currentLanguage)}
-          </p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-4 shrink-0 px-2 sm:px-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCurrentView('home')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer border border-slate-200/60 dark:border-slate-800/80 shadow-2xs"
+            title="Return to Priority Dashboard"
+          >
+            <ArrowLeft size={13} />
+            <span>Dashboard</span>
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">
+              <span>Priority Care</span>
+              <span>/</span>
+              <span>{translate(currentGroupData.title, currentLanguage)}</span>
+            </div>
+            <p className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+              {translate(viewNamesMap[currentView] || '', currentLanguage)}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100/70 dark:bg-slate-900/45 backdrop-blur-2xl rounded-2xl border border-slate-200/30 dark:border-slate-800/40 overflow-x-auto no-scrollbar max-w-full">
-          {tabs[activeGroup].map((tab, tbIdx) => {
+
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-900/60 backdrop-blur-2xl rounded-2xl border border-slate-200/40 dark:border-slate-800/50 overflow-x-auto no-scrollbar max-w-full">
+          {currentGroupData.tabs.map((tab, tbIdx) => {
             const isTabActive = currentView === tab.id;
             return (
               <button
@@ -2286,17 +2312,26 @@ export default function App() {
                     setCurrentView(tab.id as any);
                   }
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap relative ${
                   isTabActive
-                    ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-md border border-slate-200/35 dark:border-slate-850/50 scale-[1.02]'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-850/25'
+                    ? 'bg-white dark:bg-slate-950 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-800 scale-[1.01]'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-850/30'
                 }`}
               >
-                {React.cloneElement(tab.icon, { className: isTabActive ? 'text-blue-500' : 'text-slate-400' })}
+                {tab.icon}
                 <span>{translate(tab.label, currentLanguage)}</span>
               </button>
             );
           })}
+
+          <button
+            onClick={() => setIsWindowsMenuOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-slate-800 transition-all border-l border-slate-200/60 dark:border-slate-800 ml-1"
+            title="Open all sub-pages menu (⌘K)"
+          >
+            <LayoutGrid size={12} className="text-blue-500" />
+            <span className="hidden sm:inline">All Tools</span>
+          </button>
         </div>
       </div>
     );
@@ -2363,92 +2398,66 @@ export default function App() {
               </button>
             </div>
 
-            <nav className="flex-1 w-full px-3 flex flex-col gap-5 overflow-y-auto no-scrollbar smooth-scroll pr-1 pb-6" aria-label="Main navigation">
-              {sidebarSections.map((section, sIdx) => (
-                <div key={`sidebar-sec-${section.title}-${sIdx}`} className="flex flex-col gap-1.5 shrink-0">
-                  <div className={`px-3 pb-0.5 ${isSidebarCollapsed ? 'text-center' : ''}`}>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase select-none">
-                      {isSidebarCollapsed ? "•" : translate(section.title, currentLanguage)}
+            <nav className="flex-1 w-full px-3 flex flex-col gap-3 overflow-y-auto no-scrollbar smooth-scroll pr-1 pb-4" aria-label="Main navigation">
+              {sidebarSections.map((sec, sIdx) => (
+                <div key={`sidebar-sec-${sec.title}-${sIdx}`} className="flex flex-col gap-1 shrink-0">
+                  <div className={`px-3 pt-2 pb-1 flex items-center justify-between ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase select-none">
+                      {isSidebarCollapsed ? "•" : translate(sec.title, currentLanguage)}
                     </span>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    {section.items.map((link, lIdx) => {
-                      const isActive = isSubViewActive(link.id, currentView);
+                    {sec.items.map((item, iIdx) => {
+                      const isActive = isSubViewActive(item.id, currentView);
+
                       return (
-                        <button 
-                          key={`sidebar-item-${link.id}-${lIdx}`}
+                        <button
+                          key={`sidebar-item-${item.id}-${iIdx}`}
                           onClick={() => {
-                            if ((link as any).action) {
-                              (link as any).action();
+                            if ((item as any).action) {
+                              (item as any).action();
                             } else {
-                              setCurrentView(link.id as any);
+                              setCurrentView(item.id as any);
                             }
                           }}
-                          className={`flex items-center ${
-                            isSidebarCollapsed ? 'justify-center px-1' : 'gap-3 px-3.5'
-                          } py-2 rounded-xl transition-all duration-200 group relative text-left outline-none ${
-                            isActive 
-                              ? section.accent.active
-                              : section.accent.hover
+                          className={`w-full flex items-center ${
+                            isSidebarCollapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2.5'
+                          } rounded-2xl transition-all duration-200 group relative text-left outline-none cursor-pointer ${
+                            isActive
+                              ? 'bg-blue-600 dark:bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25'
+                              : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-transparent hover:bg-slate-100/80 dark:hover:bg-slate-900/60'
                           }`}
-                          title={isSidebarCollapsed ? translate(link.label, currentLanguage) : undefined}
+                          title={isSidebarCollapsed ? translate(item.label, currentLanguage) : undefined}
                         >
-                          <div className={`shrink-0 flex items-center justify-center w-8.5 h-8.5 rounded-lg transition-all duration-300 ease-out group-hover:scale-115 group-hover:rotate-6 relative ${
-                            isActive 
-                              ? 'bg-white/10 shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.15)] ring-1 ring-white/10' 
-                              : 'bg-slate-50 dark:bg-slate-900/60 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 border border-slate-100/50 dark:border-slate-800/30'
+                          <div className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all relative ${
+                            isActive
+                              ? 'bg-white/20 text-white shadow-xs'
+                              : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 group-hover:text-slate-800 dark:group-hover:text-slate-100 group-hover:scale-105'
                           }`}>
-                            {React.cloneElement(link.icon as any, { 
-                              size: 18, 
-                              className: `w-[18px] h-[18px] transition-colors ${
-                                isActive 
-                                  ? section.accent.iconActive 
-                                  : section.accent.iconInactive
-                              }` 
+                            {React.cloneElement(item.icon as any, {
+                              size: 18,
+                              className: "transition-colors"
                             })}
 
-                            {/* Neural Core Real-time Flicker status indicator */}
-                            {link.id === 'ai_nexus' && (
-                              <div className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                                <motion.span 
-                                  animate={{
-                                    scale: [1, 1.8, 1.2, 2.2, 1],
-                                    opacity: [0.7, 0.2, 0.8, 0.1, 0.7]
-                                  }}
-                                  transition={{
-                                    duration: 2.5,
-                                    repeat: Infinity,
-                                    ease: "easeInOut"
-                                  }}
-                                  className="absolute inline-flex h-full w-full rounded-full bg-violet-450 dark:bg-violet-400 opacity-75"
-                                />
-                                <motion.span 
-                                  animate={{
-                                    opacity: [1, 0.35, 0.9, 0.25, 0.8, 1, 0.4, 0.95, 1],
-                                    scale: [1, 0.9, 1.1, 0.85, 1, 1.05, 0.95, 1.1, 1]
-                                  }}
-                                  transition={{
-                                    duration: 3.2,
-                                    repeat: Infinity,
-                                    ease: "linear"
-                                  }}
-                                  className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]"
-                                />
-                              </div>
+                            {item.badgeDot === 'purple' && (
+                              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
+                              </span>
                             )}
                           </div>
 
                           {!isSidebarCollapsed && (
-                            <span className="text-sm font-bold truncate flex-1 leading-none tracking-tight">
-                              {translate(link.label, currentLanguage)}
+                            <span className="text-[13.5px] font-bold truncate flex-1 leading-none tracking-tight">
+                              {translate(item.label, currentLanguage)}
                             </span>
                           )}
 
                           {isActive && !isSidebarCollapsed && (
-                            <motion.span 
-                              layoutId={`active-indicator-${section.title}`}
-                              className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-sm shadow-white/50 shrink-0" 
+                            <motion.span
+                              layoutId="sidebar-active-dot"
+                              className="w-2 h-2 rounded-full bg-white ml-auto shrink-0 shadow-xs"
                               transition={{ type: "spring", stiffness: 350, damping: 30 }}
                             />
                           )}
@@ -2458,103 +2467,63 @@ export default function App() {
                   </div>
                 </div>
               ))}
-              
-              <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/80 w-full relative shrink-0 px-1">
-                <button 
-                  onClick={() => {
-                    setIsResourcesOpen(!isResourcesOpen);
-                    setCurrentView('systems_hub');
-                  }}
-                  className={`flex items-center ${
-                    isSidebarCollapsed ? 'justify-center px-1' : 'gap-3 px-3.5'
-                  } py-2.5 text-left rounded-xl transition-all duration-200 group outline-none ${
-                    isResourcesOpen || currentView === 'systems_hub'
-                      ? "bg-slate-50 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 font-semibold border-l-4 border-slate-400 dark:border-slate-600 rounded-l-none"
-                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:text-slate-900 dark:hover:text-slate-200"
+
+              {/* Systems Hub Launchpad Section */}
+              <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/80 w-full shrink-0">
+                <button
+                  onClick={() => setCurrentView('systems_hub')}
+                  className={`w-full flex items-center ${
+                    isSidebarCollapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2.5'
+                  } rounded-2xl transition-all duration-200 group text-left outline-none cursor-pointer ${
+                    currentView === 'systems_hub'
+                      ? 'bg-blue-600 dark:bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25'
+                      : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-transparent hover:bg-slate-100/80 dark:hover:bg-slate-900/60'
                   }`}
-                  aria-label={translate("Clinical Systems Hub", currentLanguage)}
-                  title={translate("Systems Hub", currentLanguage)}
+                  title={isSidebarCollapsed ? translate("Systems Hub", currentLanguage) : undefined}
                 >
-                  <motion.div
-                    animate={isResourcesOpen ? { rotate: 90, scale: 1.1 } : { rotate: 0, scale: 1 }}
-                    className={`shrink-0 flex items-center justify-center w-8.5 h-8.5 rounded-lg transition-all duration-300 ease-out group-hover:scale-115 group-hover:rotate-6 ${
-                      isResourcesOpen 
-                        ? 'bg-slate-100 dark:bg-slate-800/60' 
-                        : 'bg-slate-50 dark:bg-slate-900/60'
-                    }`}
-                  >
-                    <LayoutGrid size={18} className={`w-[18px] h-[18px] transition-colors ${isResourcesOpen ? "text-slate-700 dark:text-slate-300" : "text-slate-450 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`} />
-                  </motion.div>
+                  <div className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
+                    currentView === 'systems_hub'
+                      ? 'bg-white/20 text-white shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 group-hover:text-slate-800 dark:group-hover:text-slate-100 group-hover:scale-105'
+                  }`}>
+                    <LayoutGrid size={18} />
+                  </div>
 
                   {!isSidebarCollapsed && (
-                    <span className="text-sm font-semibold truncate flex-1 leading-none tracking-tight">
+                    <span className="text-[13.5px] font-bold truncate flex-1 leading-none tracking-tight">
                       {translate("Systems Hub", currentLanguage)}
                     </span>
                   )}
-                </button>
 
-                {/* Modern Inline Dropdown Menu */}
-                <AnimatePresence>
-                  {isResourcesOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className={`overflow-hidden flex flex-col gap-1 mt-1.5 ${
-                        isSidebarCollapsed ? 'items-center pl-0' : 'pl-4 ml-2 border-l-2 border-slate-100 dark:border-slate-800/80'
-                      }`}
-                    >
-                      {[
-                        { label: 'Help Center', id: 'help', icon: <Info size={14} />, color: 'hover:text-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20' },
-                        { label: 'Privacy Vault', id: 'privacy', icon: <Shield size={14} />, color: 'hover:text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/20' },
-                        { label: 'Terms & Data', id: 'terms', icon: <FileText size={14} />, color: 'hover:text-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20' }
-                      ].map((res, i) => {
-                        const isSubActive = currentView === res.id;
-                        return (
-                          <motion.button 
-                            key={`sidebar-sub-link-${res.id}-${i}`}
-                            initial={{ opacity: 0, x: isSidebarCollapsed ? 0 : -8 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.03 }}
-                            onClick={() => {
-                              setCurrentView(res.id as any);
-                            }}
-                            className={`w-full flex items-center ${
-                              isSidebarCollapsed ? 'justify-center p-1.5' : 'gap-2 px-3 py-2'
-                            } rounded-lg text-[13px] font-semibold transition-all duration-200 tracking-tight group/sub ${
-                              isSubActive
-                                ? "bg-slate-100 dark:bg-slate-900 text-slate-950 dark:text-slate-100"
-                                : `text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 ${res.color} hover:translate-x-0.5`
-                            }`}
-                            title={isSidebarCollapsed ? res.label : undefined}
-                          >
-                            <div className={`shrink-0 flex items-center justify-center w-7.5 h-7.5 rounded-lg transition-all duration-300 ease-out group-hover/sub:scale-115 group-hover/sub:rotate-6 ${
-                              isSubActive 
-                                ? "text-slate-950 dark:text-slate-100 bg-slate-200 dark:bg-slate-800" 
-                                : "text-slate-450 dark:text-slate-500 group-hover/sub:text-current bg-transparent group-hover/sub:bg-slate-100 dark:group-hover/sub:bg-slate-800"
-                            }`}>
-                              {React.cloneElement(res.icon as any, { size: 14, className: "w-3.5 h-3.5" })}
-                            </div>
-                            {!isSidebarCollapsed && <span className="truncate flex-1 text-left leading-none">{res.label}</span>}
-                          </motion.button>
-                        );
-                      })}
-                    </motion.div>
+                  {currentView === 'systems_hub' && !isSidebarCollapsed && (
+                    <motion.span
+                      layoutId="sidebar-active-dot"
+                      className="w-2 h-2 rounded-full bg-white ml-auto shrink-0 shadow-xs"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
                   )}
-                </AnimatePresence>
+                </button>
               </div>
             </nav>
 
-            <div className="mt-auto w-full p-4 border-t border-slate-50 dark:border-slate-900 flex flex-col gap-3 shrink-0">
-                <div className={`flex items-center ${
-                  isSidebarCollapsed ? 'justify-center p-2 h-11' : 'justify-between px-3 py-2'
-                } bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100/50 dark:border-slate-800/80`} title="Secure Core System Status: Active">
-                  {!isSidebarCollapsed && <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Secure Core</span>}
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                    {!isSidebarCollapsed && <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active</span>}
-                  </div>
+            <div className="mt-auto w-full px-3 py-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col gap-2 shrink-0">
+              <div className={`flex items-center ${
+                isSidebarCollapsed ? 'justify-center p-2' : 'justify-between px-3.5 py-2.5'
+              } bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100/80 dark:border-slate-800/80`} title="Secure Core System Status: Active">
+                {!isSidebarCollapsed && (
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none">
+                    SECURE CORE
+                  </span>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
+                  {!isSidebarCollapsed && (
+                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                      ACTIVE
+                    </span>
+                  )}
                 </div>
+              </div>
             </div>
           </div>
         </aside>
@@ -3791,74 +3760,201 @@ export default function App() {
         ) : currentView === 'systems_hub' ? (
           <motion.div
             key="systems_hub"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            className="w-full max-w-7xl mx-auto py-8 px-4"
+            exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full max-w-5xl mx-auto py-6 px-4 space-y-6"
           >
             {/* Systems Hub Header */}
-            <div className="mb-8 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-              <div>
-                <h1 className="text-3xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tighter">{translate("Clinical Systems Hub", currentLanguage)}</h1>
-                <p className="text-slate-500 dark:text-slate-400 font-medium font-sans">Access system guides, sandboxed security vaults, and regulatory clinical definitions.</p>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <LayoutGrid size={24} className="stroke-[2.2]" />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
+                    WINDOWS SYSTEMS HUB
+                  </h1>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">
+                    CLINICAL NODE PANEL LAUNCHER & OPERATIONAL MATRIX
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'help', label: 'Help Center', icon: <Info size={14} /> },
-                  { id: 'privacy', label: 'Privacy Vault', icon: <Shield size={14} /> },
-                  { id: 'terms', label: 'Terms & Legal', icon: <FileText size={14} /> }
-                ].map((tab, hbIdx) => (
-                  <button
-                    key={`hubtab-${tab.id}-${hbIdx}`}
-                    onClick={() => setCurrentView(tab.id as any)}
-                    className="flex items-center gap-2 px-4 py-2 border border-slate-150 dark:border-slate-800 hover:border-blue-500 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-350 hover:text-blue-500 dark:hover:text-blue-400 rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-sm"
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsWindowsMenuOpen(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                >
+                  Quick Dock (⌘K)
+                </button>
               </div>
             </div>
 
-            {/* Unified Cards Grid for the Hub */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Help & Support Card */}
-              <div 
-                onClick={() => setCurrentView('help')}
-                className="group cursor-pointer bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-[2.5rem] p-8 hover:border-blue-500 transition-all duration-300 hover:translate-y-[-4px] shadow-sm"
-              >
-                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:scale-110 group-hover:rotate-3 shadow-[inset_0_1px_2px_rgba(59,130,246,0.1)]">
-                  <Info size={24} />
+            {/* Operational Controls Section */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                OPERATIONAL CONTROLS
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Cache Sync */}
+                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-850/60 border border-slate-200/70 dark:border-slate-750 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'} shrink-0`} />
+                      <span className="text-xs font-[900] text-slate-900 dark:text-white uppercase tracking-tight">CACHE SYNC</span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-4.5">
+                      {isOffline ? 'OFF-GRID ARCHIVE' : 'LIVE SYNC'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const forced = localStorage.getItem("medical_forced_offline");
+                      const nextVal = forced === "true" ? "false" : "true";
+                      localStorage.setItem("medical_forced_offline", nextVal);
+                      window.dispatchEvent(new Event('storage'));
+                      addToast(nextVal === "true" ? "Offline Storage Cache Activated" : "Live Cloud Cache Sync Connected", "success");
+                    }}
+                    className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider hover:underline px-2 py-1 cursor-pointer"
+                  >
+                    TOGGLE
+                  </button>
                 </div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-white mb-2">Help Center</h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4">Explore deep FAQs, quick tutorials, and ask our technical or clinical staff directly for support.</p>
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">Open Center &rarr;</span>
+
+                {/* Voice Commands */}
+                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-850/60 border border-slate-200/70 dark:border-slate-750 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Mic size={15} className="text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-[900] text-slate-900 dark:text-white uppercase tracking-tight">VOICE CONTROLS</span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-5.5">HANDS-FREE</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsWindowsMenuOpen(true);
+                      addToast("Voice control engine initiated in Dock", "info");
+                    }}
+                    className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-500 transition-all cursor-pointer shadow-xs"
+                    title="Launch Voice Controls"
+                  >
+                    <Mic size={18} />
+                  </button>
+                </div>
               </div>
 
-              {/* Privacy Vault Card */}
-              <div 
-                onClick={() => setCurrentView('privacy')}
-                className="group cursor-pointer bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-[2.5rem] p-8 hover:border-rose-500 transition-all duration-300 hover:translate-y-[-4px] shadow-sm"
-              >
-                <div className="w-12 h-12 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:scale-110 group-hover:rotate-3 shadow-[inset_0_1px_2px_rgba(244,63,94,0.1)]">
-                  <Shield size={24} />
-                </div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-white mb-2">Privacy Vault</h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4 font-sans">View physical/digital biometric data keys, read about state-of-the-art encryption layers, and enforce secure sessions.</p>
-                <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">Open Vault &rarr;</span>
-              </div>
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1">
+                <button
+                  onClick={() => setIsEyeCareMode(!isEyeCareMode)}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl font-[900] text-xs uppercase tracking-tight border border-slate-800 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-2xs"
+                >
+                  <EyeOff size={14} />
+                  <span>LEGIBILITY</span>
+                </button>
 
-              {/* Terms & compliance Card */}
-              <div 
-                onClick={() => setCurrentView('terms')}
-                className="group cursor-pointer bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-[2.5rem] p-8 hover:border-amber-500 transition-all duration-300 hover:translate-y-[-4px] shadow-sm"
-              >
-                <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:scale-110 group-hover:rotate-3 shadow-[inset_0_1px_2px_rgba(217,119,6,0.1)]">
-                  <FileText size={24} />
-                </div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-white mb-2">Terms & Legal</h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4 font-sans">Examine patient consent agreements, license disclosures, regulatory status registries, and raw clinical data schemes.</p>
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 font-sans">Open compliance &rarr;</span>
+                <button
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl font-[900] text-xs uppercase tracking-tight border border-slate-800 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-2xs"
+                >
+                  {isDarkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} />}
+                  <span>{isDarkMode ? 'LIGHT' : 'DARK'}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsThemeSchedulerOpen(true)}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl font-[900] text-xs uppercase tracking-tight border border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 text-amber-600 dark:text-amber-500 hover:bg-amber-100/50 cursor-pointer shadow-2xs"
+                >
+                  <Clock size={14} />
+                  <span>SOLAR SYNC</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+                    vibrateCriticalAlert();
+                    addToast("Tactile Haptics Pulse: Active", "info");
+                  }}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl font-[900] text-xs uppercase tracking-tight border border-rose-500 bg-rose-50/40 dark:bg-rose-950/20 text-rose-600 dark:text-rose-500 hover:bg-rose-100/50 cursor-pointer shadow-2xs"
+                >
+                  <Activity size={14} />
+                  <span>HAPTICS</span>
+                </button>
+
+                <button
+                  onClick={() => addToast("Clinical Alert Engine: Synchronized", "success")}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl font-[900] text-xs uppercase tracking-tight border border-slate-800 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-2xs"
+                >
+                  <Bell size={14} />
+                  <span>ALERTS</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    toggleVitalsAudio();
+                    addToast("Biometric Sonification Audio toggled", "info");
+                  }}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl font-[900] text-xs uppercase tracking-tight border border-slate-800 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-2xs"
+                >
+                  {vitalsAudioEnabled ? <Volume2 size={14} className="text-blue-500" /> : <VolumeX size={14} />}
+                  <span>AUDIO HUB</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Clinical Systems Launcher Section */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                CLINICAL SYSTEMS LAUNCHER
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                {[
+                  { id: 'home', title: 'DASHBOARD', subtitle: 'ANALYSES', icon: <Home size={20} />, color: 'text-blue-600 dark:text-blue-400' },
+                  { id: 'ai_nexus', title: 'NEURAL CORE', subtitle: 'COGNITION', icon: <Bot size={20} />, color: 'text-purple-600 dark:text-purple-400' },
+                  { id: 'genomic_longevity', title: 'GENOMICS', subtitle: 'DNA CORE', icon: <Dna size={20} />, color: 'text-rose-500 dark:text-rose-400' },
+                  { id: 'illustrator', title: 'ILLUSTRATOR', subtitle: 'VISUALS', icon: <Palette size={20} />, color: 'text-amber-500 dark:text-amber-400' },
+                  { id: 'neuro', title: 'COGNISHUB', subtitle: 'BRAIN AI', icon: <Brain size={20} />, color: 'text-violet-600 dark:text-violet-400' },
+                  { id: 'biomatic', title: 'CLINICAL HUB', subtitle: 'RESEARCH', icon: <Cpu size={20} />, color: 'text-cyan-500 dark:text-cyan-400' },
+                  { id: 'diagnostic_lab', title: 'LABS NODE', subtitle: 'CLINICAL', icon: <Stethoscope size={20} />, color: 'text-emerald-600 dark:text-emerald-400' },
+                  { id: 'monitor', title: 'BIO-MONITOR', subtitle: 'REAL-TIME', icon: <Monitor size={20} />, color: 'text-indigo-600 dark:text-indigo-400' },
+                  { id: 'health_trace', title: 'TRACE NODE', subtitle: 'LOGBOOKS', icon: <TrendingUp size={20} />, color: 'text-blue-500 dark:text-blue-400' },
+                  { id: 'vitality', title: 'VITALITY MATRIX', subtitle: 'BIO-ENERGY', icon: <Zap size={20} />, color: 'text-amber-500 dark:text-amber-400' },
+                  { id: 'doctors_dashboard', title: "DOCTORS' PORTAL", subtitle: 'WORKSTATION', icon: <UserCheck size={20} />, color: 'text-indigo-600 dark:text-indigo-400' },
+                  { id: 'meds', title: 'MEDICATIONS', subtitle: 'PRESCRIPTIONS', icon: <Pill size={20} />, color: 'text-rose-500 dark:text-rose-400' },
+                ].map((node) => {
+                  const isActive = currentView === node.id;
+                  return (
+                    <button
+                      key={`page-node-${node.id}`}
+                      onClick={() => {
+                        setCurrentView(node.id as any);
+                        addToast(`Launched ${node.title}`, "success");
+                      }}
+                      className={`p-4 rounded-2xl text-left transition-all duration-150 cursor-pointer flex items-center gap-3.5 border shadow-xs group ${
+                        isActive
+                          ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/20 shadow-blue-500/10 ring-1 ring-blue-500/20'
+                          : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50/60 dark:hover:bg-slate-850'
+                      }`}
+                    >
+                      <div className={`shrink-0 ${node.color} group-hover:scale-110 transition-transform`}>
+                        {node.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className={`text-xs font-[900] uppercase tracking-tight truncate ${
+                          isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-white'
+                        }`}>
+                          {node.title}
+                        </h4>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 truncate">
+                          {node.subtitle}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
@@ -4350,19 +4446,79 @@ export default function App() {
             </div>
             
             {/* Content Categories */}
-            <div className="flex-1 p-6 space-y-8 overflow-y-auto custom-scrollbar">
-              {sidebarSections.map((section, sIdx) => (
-                <div key={`mob-sec-${section.title}-${sIdx}`} className="space-y-4">
-                  <div className="flex items-center gap-2 px-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${section.accent.bar} animate-ping`} />
-                    <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{translate(section.title, currentLanguage)}</h4>
+            <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
+              {/* Priority Core Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <h4 className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.2em]">{translate("Priority Care", currentLanguage)}</h4>
                   </div>
-                  <div className="grid grid-cols-2 gap-3.5">
+                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">Core</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {priorityNavLinks.map((item, iIdx) => {
+                    const isActive = currentView === item.id;
+                    const isUrgent = (item as any).isUrgent;
+                    return (
+                      <button
+                        key={`mob-priority-item-${item.id}-${iIdx}`}
+                        onClick={() => {
+                          if ('action' in item && typeof item.action === 'function') {
+                            (item as any).action();
+                          } else {
+                            setCurrentView(item.id as any);
+                          }
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all duration-200 active:scale-[0.96] group cursor-pointer ${
+                          isActive
+                            ? isUrgent
+                              ? 'bg-rose-600 border-rose-500 text-white shadow-md shadow-rose-500/20'
+                              : 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
+                            : isUrgent
+                              ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+                              : 'bg-white dark:bg-slate-850 border-slate-200/70 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-xl shrink-0 transition-all ${
+                          isActive 
+                            ? 'bg-white/20 text-white' 
+                            : isUrgent
+                              ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:text-blue-600'
+                        }`}>
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold leading-tight line-clamp-1">
+                            {translate(item.label, currentLanguage)}
+                          </span>
+                          {item.badge && !isActive && (
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sub-Pages & Tools Categorized */}
+              {subPagesCategories.map((section, sIdx) => (
+                <div key={`mob-sec-${section.category}-${sIdx}`} className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
+                    <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{translate(section.category, currentLanguage)}</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
                     {section.items.map((item, iIdx) => {
                       const isActive = currentView === item.id;
                       return (
                         <button
-                          key={`mob-item-${item.id}-${iIdx}`}
+                          key={`mob-sub-item-${item.id}-${iIdx}`}
                           onClick={() => {
                             if ('action' in item && typeof item.action === 'function') {
                               (item as any).action();
@@ -4371,64 +4527,27 @@ export default function App() {
                             }
                             setIsMobileMenuOpen(false);
                           }}
-                          className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all duration-350 active:scale-[0.96] group cursor-pointer ${
+                          className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all duration-200 active:scale-[0.96] group cursor-pointer ${
                             isActive
-                              ? section.accent.active + ' shadow-md shadow-slate-900/10 dark:shadow-slate-950/30 translate-y-[-2px]'
-                              : 'bg-white dark:bg-slate-800/40 border-slate-100/80 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'
+                              ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
+                              : 'bg-white dark:bg-slate-850 border-slate-200/70 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs'
                           }`}
                         >
-                          <div className={`p-2.5 rounded-xl shrink-0 transition-all relative ${
+                          <div className={`p-2 rounded-xl shrink-0 transition-all ${
                             isActive 
-                              ? 'bg-white/20 text-white shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.15)] ring-1 ring-white/10' 
-                              : 'bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 shadow-sm border border-slate-100 dark:border-slate-800/50 group-hover:scale-110'
+                              ? 'bg-white/20 text-white' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:text-blue-500'
                           }`}>
-                            {React.cloneElement(item.icon as any, { 
-                              size: 16,
-                              className: `w-4 h-4 transition-colors ${
-                                isActive 
-                                  ? section.accent.iconActive 
-                                  : section.accent.iconInactive
-                              }`
-                            })}
-
-                            {/* Mobile Neural Core Real-time Flicker status indicator */}
-                            {item.id === 'ai_nexus' && (
-                              <div className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                                <motion.span 
-                                  animate={{
-                                    scale: [1, 1.8, 1.2, 2.2, 1],
-                                    opacity: [0.7, 0.2, 0.8, 0.1, 0.7]
-                                  }}
-                                  transition={{
-                                    duration: 2.5,
-                                    repeat: Infinity,
-                                    ease: "easeInOut"
-                                  }}
-                                  className="absolute inline-flex h-full w-full rounded-full bg-violet-450 dark:bg-violet-400 opacity-75"
-                                />
-                                <motion.span 
-                                  animate={{
-                                    opacity: [1, 0.35, 0.9, 0.25, 0.8, 1, 0.4, 0.95, 1],
-                                    scale: [1, 0.9, 1.1, 0.85, 1, 1.05, 0.95, 1.1, 1]
-                                  }}
-                                  transition={{
-                                    duration: 3.2,
-                                    repeat: Infinity,
-                                    ease: "linear"
-                                  }}
-                                  className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]"
-                                />
-                              </div>
-                            )}
+                            {item.icon}
                           </div>
                           
                           <div className="flex-1 min-w-0">
-                            <span className="text-xs font-black leading-tight uppercase tracking-tight line-clamp-2 transition-colors">
+                            <span className="text-[11px] font-bold leading-tight line-clamp-1">
                               {translate(item.label, currentLanguage)}
                             </span>
                             {isActive && (
-                              <span className="block text-[7px] font-bold text-white/70 uppercase tracking-widest mt-0.5 animate-pulse">
-                                ACTIVE VIEW
+                              <span className="block text-[7px] font-bold text-white/80 uppercase tracking-widest mt-0.5">
+                                ACTIVE
                               </span>
                             )}
                           </div>
@@ -4534,49 +4653,12 @@ export default function App() {
       </div>
     </div>
 
-    {/* Mobile Bottom Navigation Bar */}
+    {/* Mobile Bottom Navigation Bar - Scrollable Android Style */}
     {user && (
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[120] bg-white/95 dark:bg-slate-950/95 border-t border-slate-200/50 dark:border-slate-800/80 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.4)] backdrop-blur-xl flex justify-around items-center h-16 px-2">
-        {[
-          { id: 'home', label: 'Home', icon: <Home size={18} /> },
-          { id: 'ai_nexus', label: 'AI Assistant', icon: <Bot size={18} /> },
-          { id: 'vitality', label: 'Health', icon: <Activity size={18} /> },
-          { id: 'meds', label: 'Meds', icon: <Pill size={18} /> },
-          { id: 'menu', label: 'More', icon: <Menu size={18} />, action: () => setIsMobileMenuOpen(true) }
-        ].map((tab, idx) => {
-          const isActive = tab.id === 'menu' ? isMobileMenuOpen : currentView === tab.id;
-          return (
-            <button
-              key={`mobile-bottom-tab-${tab.id}-${idx}`}
-              onClick={() => {
-                if (tab.action) {
-                  tab.action();
-                } else {
-                  setCurrentView(tab.id as any);
-                }
-              }}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-center transition-all duration-150 active:scale-95 cursor-pointer relative ${
-                isActive 
-                  ? 'text-blue-600 dark:text-blue-400' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <div className={`p-1.5 rounded-xl transition-all ${
-                isActive ? 'bg-blue-500/10 scale-110' : ''
-              }`}>
-                {tab.icon}
-              </div>
-              <span className="text-[9px] font-black uppercase tracking-tight mt-1 leading-none">{tab.label}</span>
-              {isActive && tab.id !== 'menu' && (
-                <motion.span 
-                  layoutId="activeMobileIndicator" 
-                  className="absolute bottom-1 w-5 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" 
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <MobileBottomNav 
+        currentView={currentView} 
+        onNavigate={(view) => setCurrentView(view as any)} 
+      />
     )}
 
   </div>

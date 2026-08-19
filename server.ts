@@ -257,7 +257,7 @@ console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
 // Toggle between "gemini", "huggingface", "ollama", "openrouter" or "LM_STUDIO"
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "huggingface";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
 // Default Models (Gemini 2.5 Flash configured as primary standard model)
@@ -1920,7 +1920,29 @@ async function sendEmail(to: string, subject: string, text: string, html?: strin
 }
 
 // Database Setup
-const DB_PATH = "medical.db";
+const DB_PATH = (() => {
+  const localDbName = "medical.db";
+  // Detect serverless environment (Google Cloud Run sets K_SERVICE) or production/container mode
+  if (process.env.K_SERVICE || process.env.NODE_ENV === "production" || process.env.PORT) {
+    const tmpPath = path.join(os.tmpdir(), localDbName);
+    if (!fs.existsSync(tmpPath)) {
+      try {
+        if (fs.existsSync(localDbName)) {
+          fs.copyFileSync(localDbName, tmpPath);
+          console.log(`[DB] Copied seeded ${localDbName} to writable path: ${tmpPath}`);
+        } else {
+          console.log(`[DB] No seeded ${localDbName} found. Starting fresh database in: ${tmpPath}`);
+        }
+      } catch (err: any) {
+        console.error(`[DB ERROR] Failed to copy database to ${tmpPath}:`, err.message);
+      }
+    } else {
+      console.log(`[DB] Reusing existing writable database at: ${tmpPath}`);
+    }
+    return tmpPath;
+  }
+  return localDbName;
+})();
 
 let db: Database.Database;
 

@@ -354,7 +354,7 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[120] bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto"
+        className="fixed inset-0 z-[300] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div
@@ -363,20 +363,20 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-xl bg-white dark:bg-slate-925 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden relative my-auto"
+          className="w-full max-w-lg bg-white dark:bg-slate-925 border border-slate-200/90 dark:border-slate-800 rounded-[32px] shadow-[0_25px_60px_rgba(16,43,117,0.3)] overflow-hidden relative my-auto"
           id="doctorian-windows-systems-hub"
         >
           {/* Header */}
-          <div className="p-5 sm:p-6 pb-4 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-850">
+          <div className="p-4 sm:p-5 pb-3 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-850">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-850 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
-                <LayoutGrid size={22} className="stroke-[2.2]" />
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-850 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
+                <LayoutGrid size={20} className="stroke-[2.2]" />
               </div>
               <div>
-                <h2 className="text-base sm:text-lg font-[900] uppercase tracking-tight text-slate-900 dark:text-white leading-none">
+                <h2 className="text-sm sm:text-base font-[900] uppercase tracking-tight text-slate-900 dark:text-white leading-none">
                   WINDOWS SYSTEMS HUB
                 </h2>
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1.5 leading-none">
+                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1 leading-none">
                   CLINICAL NODE PANEL LAUNCHER
                 </p>
               </div>
@@ -385,14 +385,14 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
             <button
               id="btn-close-systems-hub"
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-850 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
               aria-label="Close Systems Hub"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
 
-          <div className="p-5 sm:p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+          <div className="p-4 sm:p-5 space-y-5 max-h-[55vh] overflow-y-auto custom-scrollbar">
             {/* Section 1: OPERATIONAL CONTROLS */}
             <div className="space-y-3.5">
               <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">

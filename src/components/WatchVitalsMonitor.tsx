@@ -400,10 +400,10 @@ export const WatchVitalsMonitor: React.FC<WatchVitalsMonitorProps> = ({
         </div>
       </div>
 
-      {/* Main Watch Telemetry & Gemini Triage Matrix */}
+      {/* Main Watch Telemetry & Doctorian Triage Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Gemini AI Triage Card */}
+        {/* Doctorian AI Triage Card */}
         <div className={`lg:col-span-5 rounded-3xl p-8 border transition-all ${
           triageStatus === 'URGENT'
             ? 'bg-red-950/60 border-red-500 text-white shadow-2xl'
@@ -414,7 +414,7 @@ export const WatchVitalsMonitor: React.FC<WatchVitalsMonitorProps> = ({
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Sparkles size={20} className="text-amber-400 animate-pulse" />
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">Gemini Clinical Triage Engine</h3>
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">Doctorian AI Triage Engine</h3>
             </div>
             <span className="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700 text-slate-300">
               Score: {triageScore}/100

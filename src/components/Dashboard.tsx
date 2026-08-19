@@ -62,6 +62,71 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateUser,
   currentLanguage = 'English (US)'
 }) => {
+  const [encouragingInfo, setEncouragingInfo] = useState<string>(() => {
+    return localStorage.getItem('doctorian_encouraging_health_info') || 'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time health protocols with sub-millisecond latencies.';
+  });
+  const [aiValue, setAiValue] = useState<string>(() => {
+    return localStorage.getItem('doctorian_encouraging_health_value') || '99.8%';
+  });
+  const [aiTrend, setAiTrend] = useState<string>(() => {
+    return localStorage.getItem('doctorian_encouraging_health_trend') || 'Optimal';
+  });
+
+  useEffect(() => {
+    const fetchEncouragingInfo = async () => {
+      try {
+        console.log("[AI-CARD-UPDATE] Fetching encouraging health information via Hugging Face...");
+        const prompt = "Give me a short, highly encouraging health tip or medical insight (maximum 2 sentences). Start with a positive clinical recommendation for maintaining biological vitality, cellular sync, or heart stability. Also provide a high clinical percentage (e.g. 99.4%) and a short trend word (e.g., Improving, Optimal, Active, Excellent). Return strictly a JSON object with keys: 'tip', 'value', and 'trend'. No other text or markdown.";
+        
+        const response = await api.ai.aiChat(
+          prompt,
+          "You are a supportive clinical assistant returning strictly JSON data.",
+          "huggingface"
+        );
+        
+        if (response && response.text) {
+          let text = response.text.trim();
+          if (text.startsWith("```")) {
+            text = text.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+          }
+          
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed.tip) {
+              setEncouragingInfo(parsed.tip);
+              localStorage.setItem('doctorian_encouraging_health_info', parsed.tip);
+            }
+            if (parsed.value) {
+              setAiValue(parsed.value);
+              localStorage.setItem('doctorian_encouraging_health_value', parsed.value);
+            }
+            if (parsed.trend) {
+              setAiTrend(parsed.trend);
+              localStorage.setItem('doctorian_encouraging_health_trend', parsed.trend);
+            }
+            console.log("[AI-CARD-UPDATE] Dashboard blue card successfully updated with Hugging Face insights.");
+          } catch (jsonErr) {
+            console.warn("[AI-CARD-UPDATE] Could not parse exact JSON, falling back to text mapping:", jsonErr);
+            const cleanedText = response.text.replace(/[\{\}\"\'\`]/g, '').trim();
+            setEncouragingInfo(cleanedText.substring(0, 200));
+            setAiValue("99.9%");
+            setAiTrend("Optimal");
+            localStorage.setItem('doctorian_encouraging_health_info', cleanedText.substring(0, 200));
+            localStorage.setItem('doctorian_encouraging_health_value', "99.9%");
+            localStorage.setItem('doctorian_encouraging_health_trend', "Optimal");
+          }
+        }
+      } catch (err) {
+        console.error("[AI-CARD-UPDATE] Failed to fetch Hugging Face auto-update:", err);
+      }
+    };
+
+    fetchEncouragingInfo();
+
+    const intervalId = setInterval(fetchEncouragingInfo, 120000);
+    return () => clearInterval(intervalId);
+  }, []);
+
   const getHeartRateTrend = () => {
     if (!history || history.length < 2) return null;
     const lastFive = history.slice(-5);
@@ -90,11 +155,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const vitalStats = [
     { 
       label: translate('Doctorian AI Core', currentLanguage), 
-      value: '99.8%', 
-      trend: translate('Optimal', currentLanguage), 
+      value: aiValue, 
+      trend: translate(aiTrend, currentLanguage), 
       icon: <Brain size={16} />, 
       color: 'blue',
-      details: translate('Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.', currentLanguage)
+      details: translate(encouragingInfo, currentLanguage)
     },
     { label: translate('Cardiac Flux', currentLanguage), value: '72 BPM', trend: '+2%', icon: <Heart size={16} />, color: 'rose' },
     { label: translate('Neural Energy', currentLanguage), value: `${formatCredits(user?.credits)} Units`, trend: translate('Resets Daily', currentLanguage), icon: <Battery size={16} />, color: 'emerald' },

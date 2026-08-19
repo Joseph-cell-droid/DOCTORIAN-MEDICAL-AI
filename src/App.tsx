@@ -932,8 +932,8 @@ export default function App() {
   };
   const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
   const [isBMIModalOpen, setIsBMIModalOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(true);
-  const [isDoctorAuthenticated, setIsDoctorAuthenticated] = useState(true);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isDoctorAuthenticated, setIsDoctorAuthenticated] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [adminError, setAdminError] = useState('');
@@ -1033,8 +1033,8 @@ export default function App() {
     setToast,
   });
 
-  const isAdmin = true;
-  const isDoctor = true;
+  const isAdmin = user?.role === 'admin' || user?.role === 'doctor_admin' || user?.email === 'gloriajayakullo@gmail.com' || user?.email === 'admin@doctorian.com' || (user && !user.role); // Fallback to true if logged in for full admin control, else restrict based on explicit values
+  const isDoctor = user?.role === 'doctor' || user?.role === 'doctor_admin' || user?.email === 'gloriajayakullo@gmail.com' || user?.email === 'doctor@doctorian.com' || isAdmin;
 
   const handleNeuralCoreAccess = () => {
     if (isAdminAuthenticated) {
@@ -1890,17 +1890,17 @@ export default function App() {
       let responseText = "";
       let sourceAttribution = "";
 
-      // Primary Cloud Gemini AI Neural Link
+      // Primary Cloud Hugging Face AI Neural Link
       try {
-        console.log("[Insight Engine] Generating real-time wellness protocol via Gemini AI...");
+        console.log("[Insight Engine] Generating real-time wellness protocol via Hugging Face AI...");
         const response = await api.ai.aiChat(
           [{ role: "user", text: prompt }], 
           systemInstruction, 
-          "gemini-2.5-flash",
+          "huggingface",
           0.7
         );
         responseText = response.text;
-        sourceAttribution = "Gemini 2.5 Flash Neural Engine";
+        sourceAttribution = "Hugging Face Neural Engine";
       } catch (geminiErr: any) {
         console.warn("[Insight Engine] Cloud Gemini temporarily busy, evaluating failovers...", geminiErr);
         
@@ -2955,39 +2955,6 @@ export default function App() {
                       <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
                     )}
                   </motion.button>
-
-                  <WindowsSystemsHubModal 
-                    isOpen={isWindowsMenuOpen}
-                    onClose={() => setIsWindowsMenuOpen(false)}
-                    currentView={currentView}
-                    onNavigate={(v) => setCurrentView(v as any)}
-                    isOffline={isOffline}
-                    isEyeCareMode={isEyeCareMode}
-                    setIsEyeCareMode={setIsEyeCareMode}
-                    isDarkMode={isDarkMode}
-                    setIsDarkMode={setIsDarkMode}
-                    setIsThemeSchedulerOpen={setIsThemeSchedulerOpen}
-                    vibrateCriticalAlert={vibrateCriticalAlert}
-                    addToast={(msg, type) => setToast({ message: msg, type: type || 'info' })}
-                    handleOpenAdminInfo={handleOpenAdminInfo}
-                    hasNotification={hasNotification}
-                    isAudioMenuOpen={isAudioMenuOpen}
-                    setIsAudioMenuOpen={setIsAudioMenuOpen}
-                    vitalsAudioEnabled={vitalsAudioEnabled}
-                    toggleVitalsAudio={toggleVitalsAudio}
-                    vitalsAudioVolume={vitalsAudioVolume}
-                    handleVitalsVolumeChange={handleVitalsVolumeChange}
-                    soundscapeEnabled={soundscapeEnabled}
-                    toggleSoundscapeGlobal={toggleSoundscapeGlobal}
-                    soundscapeVolume={soundscapeVolume}
-                    handleSoundscapeVolChangeGlobal={handleSoundscapeVolChangeGlobal}
-                    soundscapePreset={soundscapePreset}
-                    changePresetGlobal={changePresetGlobal}
-                    showInstallButton={showInstallButton}
-                    hasInstalledApp={hasInstalledApp}
-                    isStandalone={isStandalone}
-                    installApp={installApp}
-                  />
                 </div>
               </div>
               
@@ -4628,6 +4595,39 @@ export default function App() {
                   setShowInstallButton(false);
                   setIsDownloadAppOpen(false);
                 }}
+              />
+
+              <WindowsSystemsHubModal 
+                isOpen={isWindowsMenuOpen}
+                onClose={() => setIsWindowsMenuOpen(false)}
+                currentView={currentView}
+                onNavigate={(v) => setCurrentView(v as any)}
+                isOffline={isOffline}
+                isEyeCareMode={isEyeCareMode}
+                setIsEyeCareMode={setIsEyeCareMode}
+                isDarkMode={isDarkMode}
+                setIsDarkMode={setIsDarkMode}
+                setIsThemeSchedulerOpen={setIsThemeSchedulerOpen}
+                vibrateCriticalAlert={vibrateCriticalAlert}
+                addToast={(msg, type) => setToast({ message: msg, type: type || 'info' })}
+                handleOpenAdminInfo={handleOpenAdminInfo}
+                hasNotification={hasNotification}
+                isAudioMenuOpen={isAudioMenuOpen}
+                setIsAudioMenuOpen={setIsAudioMenuOpen}
+                vitalsAudioEnabled={vitalsAudioEnabled}
+                toggleVitalsAudio={toggleVitalsAudio}
+                vitalsAudioVolume={vitalsAudioVolume}
+                handleVitalsVolumeChange={handleVitalsVolumeChange}
+                soundscapeEnabled={soundscapeEnabled}
+                toggleSoundscapeGlobal={toggleSoundscapeGlobal}
+                soundscapeVolume={soundscapeVolume}
+                handleSoundscapeVolChangeGlobal={handleSoundscapeVolChangeGlobal}
+                soundscapePreset={soundscapePreset}
+                changePresetGlobal={changePresetGlobal}
+                showInstallButton={showInstallButton}
+                hasInstalledApp={hasInstalledApp}
+                isStandalone={isStandalone}
+                installApp={installApp}
               />
               {isBackupModalOpen && (
                 <LocalBackupModal

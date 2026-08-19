@@ -55,6 +55,29 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
     }, 600);
   };
 
+  // PWA Installation
+  const handlePWAInstall = async () => {
+    const promptEvent = installPrompt || (window as any).deferredPWAInstallPrompt;
+    if (promptEvent) {
+      showStatus("Initiating secure PWA install...", "✨");
+      try {
+        promptEvent.prompt();
+        const { outcome } = await promptEvent.userChoice;
+        if (outcome === 'accepted') {
+          showStatus("Successfully installed Doctorian PWA!", "🎉");
+          if (onInstalled) onInstalled();
+        } else {
+          showStatus("Installation cancelled.", "⚠️");
+        }
+      } catch (err) {
+        console.warn("PWA prompt error:", err);
+        showStatus("Browser security blocked direct prompt. Tap install icon in URL bar or Add to Home Screen!", "ℹ️");
+      }
+    } else {
+      showStatus("To install on iOS: Tap Share ⎙ -> 'Add to Home Screen'. On Desktop: Click [+] in the address bar!", "ℹ️");
+    }
+  };
+
   // 2. Windows Download
   const handleWindowsDownload = () => {
     showStatus("Preparing Doctorian for Windows...", "📥");
@@ -138,8 +161,8 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
             </p>
           </div>
 
-          {/* TWO PLATFORM CARDS */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto mb-8 sm:mb-10 text-left">
+          {/* THREE PLATFORM CARDS */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto mb-8 sm:mb-10 text-left">
             
             {/* ANDROID CARD */}
             <div className="relative rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 bg-white/95 dark:bg-slate-800/90 border border-[#e5ecf8] dark:border-slate-700/80 shadow-[0_15px_40px_rgba(16,43,117,0.08)] dark:shadow-none hover:shadow-[0_22px_50px_rgba(16,43,117,0.15)] transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col justify-between group">
@@ -218,6 +241,79 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
 
             </div>
 
+            {/* UNIVERSAL WEB APP (PWA) CARD */}
+            <div className="relative rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 bg-white/95 dark:bg-slate-800/90 border border-blue-200 dark:border-blue-900 shadow-[0_15px_40px_rgba(37,99,235,0.08)] dark:shadow-none hover:shadow-[0_22px_50px_rgba(37,99,235,0.18)] transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col justify-between group">
+              
+              {/* Subtle Globe Watermark in Background */}
+              <svg 
+                className="absolute -top-3 -right-4 w-32 h-32 text-blue-500/[0.07] dark:text-blue-400/[0.05] pointer-events-none select-none transition-transform duration-500 group-hover:scale-110" 
+                viewBox="0 0 24 24" 
+                fill="currentColor"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
+
+              <div>
+                {/* Header Group */}
+                <div className="flex items-center gap-4 sm:gap-5 mb-6 relative z-10">
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                    <svg className="w-8 h-8 sm:w-9 sm:h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                      <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight leading-none mb-1">
+                      Universal
+                    </h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base font-medium">
+                      All Devices & OS (iOS/PC)
+                    </p>
+                  </div>
+                </div>
+
+                {/* PWA Install Button */}
+                <button
+                  id="install-pwa-btn"
+                  onClick={handlePWAInstall}
+                  className="w-full rounded-2xl py-4 px-5 sm:px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-[0_12px_28px_rgba(37,99,235,0.32)] hover:shadow-[0_16px_36px_rgba(37,99,235,0.45)] transition-all duration-200 active:scale-[0.98] flex items-center justify-between gap-3 cursor-pointer group/btn"
+                >
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    {/* Sparkle Icon */}
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+                      <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+                      </svg>
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white/90">
+                        INSTALL PROGRESSIVE WEB APP
+                      </span>
+                      <span className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+                        Install PWA App
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="text-2xl font-light text-white/80 group-hover/btn:translate-x-1 transition-transform">
+                    ›
+                  </span>
+                </button>
+              </div>
+
+              {/* Security Tagline */}
+              <div className="flex items-center justify-center gap-4 sm:gap-6 mt-5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                  <Check size={15} className="font-bold stroke-[3]" />
+                  Instant Launch
+                </span>
+                <span className="w-1 h-3 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="flex items-center gap-1.5">
+                  Offline Support
+                </span>
+              </div>
+
+            </div>
 
             {/* WINDOWS CARD */}
             <div className="relative rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 bg-white/95 dark:bg-slate-800/90 border border-[#e5ecf8] dark:border-slate-700/80 shadow-[0_15px_40px_rgba(16,43,117,0.08)] dark:shadow-none hover:shadow-[0_22px_50px_rgba(16,43,117,0.15)] transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col justify-between group">

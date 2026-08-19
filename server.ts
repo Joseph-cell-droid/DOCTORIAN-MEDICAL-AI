@@ -245,7 +245,7 @@ Output strictly valid JSON (no markdown formatting, no code blocks, no backticks
 console.log("[SERVER] Starting Doctorian Backend...");
 
 const JWT_SECRET = process.env.JWT_SECRET || "medical-super-secret-key-123";
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = 3000;
 
 // Global map of online user sessions
 // Key: userId, Value: { lastActive: number, ip: string, userAgent: string }

@@ -392,7 +392,7 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
             </button>
           </div>
 
-          <div className="p-4 sm:p-5 space-y-5 max-h-[55vh] overflow-y-auto custom-scrollbar">
+          <div className="p-3.5 sm:p-4 space-y-4 max-h-[40vh] overflow-y-auto custom-scrollbar">
             {/* Section 1: OPERATIONAL CONTROLS */}
             <div className="space-y-3.5">
               <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">

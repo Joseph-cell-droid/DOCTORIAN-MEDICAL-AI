@@ -696,7 +696,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [patientCameraBlur, setPatientCameraBlur] = useState<boolean>(false);
   const [patientCameraFacing, setPatientCameraFacing] = useState<'user' | 'environment'>('user');
   const [videoQuality, setVideoQuality] = useState<'1080p HD' | '4K Ultra' | '720p Mobile'>('1080p HD');
-  const [showVitalsOverlay, setShowVitalsOverlay] = useState<boolean>(true);
+  const [showVitalsOverlay, setShowVitalsOverlay] = useState<boolean>(false);
   
   const ringtoneCleanupRef = useRef<(() => void) | null>(null);
   const callRecognitionRef = useRef<any>(null);
@@ -707,6 +707,86 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const patientWebcamVideoRef = useRef<HTMLVideoElement | null>(null);
   const patientWebcamStreamRef = useRef<MediaStream | null>(null);
   const [webcamHasRealStream, setWebcamHasRealStream] = useState<boolean>(false);
+
+  // Synapse-3D Immersive Telehealth Telemetry & Clinical Documentation States
+  const [copilotNotes, setCopilotNotes] = useState<string[]>([
+    "Subjective: Patient initiated secure clinical consultation.",
+    "Objective: Standard 60FPS Video/Audio connection established.",
+    "Assessment: Awaiting verbal telemetry transcription.",
+    "Plan: Monitor vitals, prepare potential diagnosis codes."
+  ]);
+  const [vitalsScenario, setVitalsScenario] = useState<'normal' | 'tachycardia' | 'hypoxia' | 'fever'>('normal');
+  const [vitalsHR, setVitalsHR] = useState(74);
+  const [vitalsSPO2, setVitalsSPO2] = useState(98);
+  const [vitalsTemp, setVitalsTemp] = useState(36.6);
+  const [vitalsStress, setVitalsStress] = useState(12);
+
+  // Medical translation accent state
+  const [medicalTranslationAccent, setMedicalTranslationAccent] = useState<string>('English');
+  const [showAdvancedCallSettings, setShowAdvancedCallSettings] = useState(false);
+
+  // Vitals simulation loop
+  useEffect(() => {
+    let interval: any = null;
+    if (callState === 'connected') {
+      interval = setInterval(() => {
+        setVitalsHR(prev => {
+          let base = 74;
+          if (vitalsScenario === 'tachycardia') base = 128;
+          else if (vitalsScenario === 'hypoxia') base = 98;
+          else if (vitalsScenario === 'fever') base = 104;
+          const drift = Math.floor(Math.random() * 5) - 2;
+          return Math.max(40, Math.min(220, base + drift));
+        });
+        setVitalsSPO2(prev => {
+          let base = 98;
+          if (vitalsScenario === 'hypoxia') base = 87;
+          const drift = Math.floor(Math.random() * 3) - 1;
+          return Math.max(70, Math.min(100, base + drift));
+        });
+        setVitalsTemp(prev => {
+          let base = 36.6;
+          if (vitalsScenario === 'fever') base = 39.2;
+          const drift = (Math.random() * 0.4) - 0.2;
+          return Math.max(34, Math.min(43, Math.round((base + drift) * 10) / 10));
+        });
+        setVitalsStress(prev => {
+          let base = 12;
+          if (vitalsScenario === 'tachycardia') base = 82;
+          else if (vitalsScenario === 'hypoxia') base = 68;
+          else if (vitalsScenario === 'fever') base = 44;
+          const drift = Math.floor(Math.random() * 7) - 3;
+          return Math.max(5, Math.min(99, base + drift));
+        });
+      }, 2000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [callState, vitalsScenario]);
+
+  // Synchronize clinical copilot notes on transcript update
+  useEffect(() => {
+    if (voiceCallTranscript.length > 1) {
+      const lastMsg = voiceCallTranscript[voiceCallTranscript.length - 1].text.toLowerCase();
+      const notes: string[] = ["Subjective: Active patient clinical dialogue."];
+      
+      if (lastMsg.includes('pain') || lastMsg.includes('chest') || lastMsg.includes('hurt')) {
+        notes.push("Assessment: ICD-10 R07.9 Chest Pain, Unspecified.");
+        notes.push("Plan: EKG, cardiac enzymes, sublingual nitroglycerin PRN.");
+      } else if (lastMsg.includes('head') || lastMsg.includes('headache') || lastMsg.includes('migraine')) {
+        notes.push("Assessment: ICD-10 G43.9 Migraine, Unspecified.");
+        notes.push("Plan: Dark room resting, Ibuprofen 400mg, track aura occurrences.");
+      } else if (lastMsg.includes('cough') || lastMsg.includes('breathe') || lastMsg.includes('fever') || lastMsg.includes('hot')) {
+        notes.push("Assessment: ICD-10 J06.9 Acute Respiratory Tract Infection.");
+        notes.push("Plan: Hydration, antipyretics, chest X-ray if respiratory rate increases.");
+      } else {
+        notes.push("Assessment: Non-specific general health consultation.");
+        notes.push("Plan: Continue active telehealth monitoring and routine consult.");
+      }
+      setCopilotNotes(notes);
+    }
+  }, [voiceCallTranscript]);
 
   useEffect(() => {
     if (patientCameraActive && (callState === 'connected' || callState === 'calling') && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
@@ -6851,7 +6931,20 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                      </div>
                    </div>
 
-                   {/* Configuration Row: Cadence & Quality */}
+                   {/* Collapsible Advanced Settings Toggle Button */}
+                   <div className="flex justify-center pt-2">
+                     <button
+                       type="button"
+                       onClick={() => setShowAdvancedCallSettings(!showAdvancedCallSettings)}
+                       className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest border border-slate-800 hover:border-slate-700 bg-slate-900/60 px-5 py-3 rounded-2xl transition-all flex items-center gap-2 cursor-pointer"
+                     >
+                       {showAdvancedCallSettings ? "Hide Language & Call Customisations" : "Configure Regional Ugandan Accents & Quality Options"}
+                     </button>
+                   </div>
+
+                   {showAdvancedCallSettings && (
+                     <div className="space-y-6 animate-in slide-in-from-top-4 duration-300 w-full">
+                       {/* Configuration Row: Cadence & Quality */}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6">
                      {/* Regional African Accent & Cadence */}
                      <div className="space-y-3">
@@ -7035,7 +7128,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                          </div>
                        </div>
                      </div>
+                     </div>
                    </div>
+                 )}
 
                    {/* Main Action Button */}
                    <div>
@@ -7221,56 +7316,143 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                            <p className="text-[9px] text-slate-400 font-mono mt-0.5">{AI_PROFESSIONAL_AVATARS[voiceSelection]?.hospital}</p>
                          </div>
                        </div>
-
                        {/* Top-Right Telehealth Stream Status Badge */}
-                       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
-                         <div className="bg-slate-950/80 backdrop-blur-xl border border-slate-800 px-3.5 py-2 rounded-2xl flex items-center gap-2 text-[10px] font-mono font-bold text-slate-300">
-                           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                           <span>{videoQuality} • 60FPS</span>
-                           <span className="text-slate-600">|</span>
-                           <span className="text-emerald-400">14ms Latency</span>
-                         </div>
-                       </div>
+                        <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+                          <div className="bg-slate-950/80 backdrop-blur-xl border border-slate-800 px-3.5 py-2 rounded-2xl flex items-center gap-2 text-[10px] font-mono font-bold text-slate-300">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                            <span>{videoQuality} • 60FPS</span>
+                            <span className="text-slate-600">|</span>
+                            <span className="text-emerald-400">14ms Latency</span>
+                          </div>
+                        </div>
 
-                       {/* Left Side: Real-Time Patient Vitals HUD (Toggleable) */}
-                       <AnimatePresence>
-                         {showVitalsOverlay && (
-                           <motion.div
-                             initial={{ opacity: 0, x: -30 }}
-                             animate={{ opacity: 1, x: 0 }}
-                             exit={{ opacity: 0, x: -30 }}
-                             className="absolute top-28 left-6 z-20 hidden lg:flex flex-col gap-2.5 bg-slate-950/70 backdrop-blur-xl border border-slate-800 p-4 rounded-3xl text-xs w-48 shadow-2xl"
-                           >
-                             <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[10px] font-mono font-bold text-slate-400 uppercase">
-                               <span>PATIENT VITALS</span>
-                               <span className="text-emerald-400">LIVE</span>
-                             </div>
+                        {/* Left Side: Real-Time Patient Vitals HUD & Scenario Simulation Controllers (Toggleable) */}
+                        <AnimatePresence>
+                          {showVitalsOverlay && (
+                            <motion.div
+                              initial={{ opacity: 0, x: -30 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -30 }}
+                              className="absolute top-24 left-6 z-20 hidden lg:flex flex-col gap-3 bg-slate-950/85 backdrop-blur-2xl border border-slate-800 p-5 rounded-3xl text-xs w-64 shadow-2xl overflow-y-auto max-h-[75%]"
+                            >
+                              <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest">
+                                <span>PATIENT VITALS SIMULATOR</span>
+                                <span className={`w-2 h-2 rounded-full ${vitalsHR > 100 || vitalsSPO2 < 90 ? 'bg-rose-500 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+                              </div>
 
-                             <div className="flex items-center justify-between">
-                               <span className="text-slate-400 text-[11px]">Heart Rate:</span>
-                               <span className="font-mono font-bold text-rose-400 flex items-center gap-1">
-                                 <Heart size={12} className="animate-pulse" /> 74 BPM
-                               </span>
-                             </div>
+                              {/* Interactive Vitals Scenario Selector */}
+                              <div className="space-y-1.5 bg-slate-900/50 p-2.5 rounded-2xl border border-slate-800/60 font-sans w-full">
+                                <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 block">Simulation Scenario</span>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {(['normal', 'tachycardia', 'hypoxia', 'fever'] as const).map((scen) => (
+                                    <button
+                                      key={`scen-${scen}`}
+                                      type="button"
+                                      onClick={() => setVitalsScenario(scen)}
+                                      className={`py-1 rounded-lg text-[9px] font-bold uppercase transition-all cursor-pointer border ${
+                                        vitalsScenario === scen
+                                          ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300'
+                                          : 'bg-slate-950/40 border-slate-900 text-slate-400 hover:text-white'
+                                      }`}
+                                    >
+                                      {scen}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
 
-                             <div className="flex items-center justify-between">
-                               <span className="text-slate-400 text-[11px]">Blood Oxygen:</span>
-                               <span className="font-mono font-bold text-cyan-400">98% SpO2</span>
-                             </div>
+                              {/* Vitals Telemetry */}
+                              <div className="space-y-2.5">
+                                {/* Heart Rate */}
+                                <div className="flex items-center justify-between bg-slate-900/20 p-2 rounded-xl">
+                                  <span className="text-slate-400 text-[11px]">Heart Rate:</span>
+                                  <span className={`font-mono font-black text-[12px] flex items-center gap-1 ${vitalsHR > 100 ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}`}>
+                                    <Heart size={12} className={vitalsHR > 100 ? 'animate-ping' : 'animate-pulse'} /> {vitalsHR} BPM
+                                  </span>
+                                </div>
 
-                             <div className="flex items-center justify-between">
-                               <span className="text-slate-400 text-[11px]">Temperature:</span>
-                               <span className="font-mono font-bold text-amber-400">36.6 °C</span>
-                             </div>
+                                {/* Blood Oxygen */}
+                                <div className="flex items-center justify-between bg-slate-900/20 p-2 rounded-xl">
+                                  <span className="text-slate-400 text-[11px]">Blood Oxygen:</span>
+                                  <span className={`font-mono font-black text-[12px] ${vitalsSPO2 < 90 ? 'text-rose-400 animate-bounce' : 'text-cyan-400'}`}>
+                                    {vitalsSPO2}% SpO2 {vitalsSPO2 < 90 && '⚠️ LOW'}
+                                  </span>
+                                </div>
 
-                             <div className="flex items-center justify-between">
-                               <span className="text-slate-400 text-[11px]">Stress Level:</span>
-                               <span className="font-mono font-bold text-emerald-400">Low (12%)</span>
-                             </div>
-                           </motion.div>
-                         )}
-                       </AnimatePresence>
+                                {/* Temperature */}
+                                <div className="flex items-center justify-between bg-slate-900/20 p-2 rounded-xl">
+                                  <span className="text-slate-400 text-[11px]">Temperature:</span>
+                                  <span className={`font-mono font-black text-[12px] ${vitalsTemp > 38 ? 'text-rose-400' : 'text-amber-400'}`}>
+                                    {vitalsTemp} °C
+                                  </span>
+                                </div>
 
+                                {/* Stress Level */}
+                                <div className="flex items-center justify-between bg-slate-900/20 p-2 rounded-xl">
+                                  <span className="text-slate-400 text-[11px]">Stress Level:</span>
+                                  <span className={`font-mono font-black text-[12px] ${vitalsStress > 50 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    {vitalsStress > 50 ? 'High' : 'Normal'} ({vitalsStress}%)
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Dynamic Medical Scribe & Diagnostic Copilot Notes */}
+                              <div className="border-t border-slate-800/80 pt-3 mt-1.5 space-y-2">
+                                <div className="flex items-center justify-between text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest">
+                                  <span>AI TELE-SCRIBE NOTES</span>
+                                  <span className="text-[8px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">ACTIVE</span>
+                                </div>
+                                <div className="space-y-1.5 bg-slate-900/40 p-2.5 rounded-2xl border border-slate-800/40 max-h-[160px] overflow-y-auto custom-scrollbar text-[10px] leading-relaxed text-slate-300 font-medium font-sans font-medium">
+                                  {copilotNotes.map((note, noteIdx) => (
+                                    <p key={`note-${noteIdx}`} className="border-b border-slate-850 pb-1 last:border-0 last:pb-0">
+                                      ✨ {note}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Multi-Language Accent Selector */}
+                              <div className="border-t border-slate-800/80 pt-3 space-y-2 font-sans">
+                                <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest block">AI AUDIO TRANSLATOR</span>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {([
+                                    { id: 'English', label: '🇬🇧 English' },
+                                    { id: 'Swahili', label: '🇺🇬 Swahili' },
+                                    { id: 'Luganda', label: '🇺🇬 Luganda' },
+                                    { id: 'Runyankole-Rukiga', label: '🇺🇬 Runyankole' },
+                                    { id: 'Acholi-Luo', label: '🇺🇬 Acholi' },
+                                    { id: 'Langi', label: '🇺🇬 Langi' },
+                                    { id: 'Iteso', label: '🇺🇬 Iteso' },
+                                    { id: 'Lusoga', label: '🇺🇬 Lusoga' },
+                                    { id: 'Lugbara', label: '🇺🇬 Lugbara' },
+                                    { id: 'Runyoro-Rutooro', label: '🇺🇬 Tooro/Nyoro' },
+                                    { id: 'Rukonjo', label: '🇺🇬 Rukonjo' },
+                                    { id: 'Samia', label: '🇺🇬 Samia' },
+                                    { id: 'Karamojong', label: '🇺🇬 Karamojong' }
+                                  ] as { id: string; label: string }[]).map((accent) => (
+                                    <button
+                                      key={`accent-${accent.id}`}
+                                      type="button"
+                                      onClick={() => {
+                                        setMedicalTranslationAccent(accent.id);
+                                        setVoiceCallLogs(prev => [...prev, `[TRANSLATOR] Switched language core to ${accent.id}`]);
+                                      }}
+                                      className={`py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer border ${
+                                        medicalTranslationAccent === accent.id
+                                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                          : 'bg-slate-950/40 border-slate-900 text-slate-400 hover:text-white'
+                                      }`}
+                                    >
+                                      {accent.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                      
                        {/* Bottom Right: Patient Self View (PiP Inset Camera Box) */}
                        <div className="absolute bottom-24 right-6 z-20">
                          <div className="relative w-40 h-52 md:w-48 md:h-64 rounded-3xl overflow-hidden border-2 border-slate-800 bg-slate-900 shadow-2xl backdrop-blur-2xl group">

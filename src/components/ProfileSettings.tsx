@@ -73,6 +73,9 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     return localStorage.getItem('doctorian_local_api_key') || '';
   });
   const [huggingfaceToken, setHuggingfaceToken] = useState(user?.huggingfaceToken || '');
+  const [geminiApiKey, setGeminiApiKey] = useState(() => {
+    return localStorage.getItem('doctorian_gemini_api_key') || '';
+  });
   const [huggingfaceModel, setHuggingfaceModel] = useState(user?.huggingfaceModel || 'doctorian-2.0');
   const [hfModels, setHfModels] = useState<{ id: string; downloads: number; likes: number }[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -475,6 +478,7 @@ Verified by Joseph Akora - Development Lead.
       }
 
       localStorage.setItem('doctorian_local_api_key', localApiKey);
+      localStorage.setItem('doctorian_gemini_api_key', geminiApiKey.trim());
       // Reset the local connection failure counter to allow 3 fresh attempts under the new settings
       localStorage.setItem('doctorian_local_fail_count', '0');
 
@@ -1579,6 +1583,26 @@ Verified by Joseph Akora - Development Lead.
 
                   <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2 mb-4 ml-1">
+                      <Sparkles size={14} className="text-amber-500 animate-pulse" />
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Google AI Studio (Gemini Client Synapse)</h4>
+                    </div>
+
+                    <div className="space-y-4 mb-8">
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-amber-600 transition-colors">
+                          <Key size={18} />
+                        </div>
+                        <input
+                          type="password"
+                          value={geminiApiKey}
+                          onChange={e => setGeminiApiKey(e.target.value)}
+                          className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-amber-600 transition-all outline-none"
+                          placeholder="Gemini API Key from Google AI Studio (AIzaSy...)"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-4 ml-1">
                       <Cpu size={14} className="text-blue-500 animate-pulse" />
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
                     </div>
@@ -1860,6 +1884,26 @@ Verified by Joseph Akora - Development Lead.
                     </div>
 
                     <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2 mb-4 ml-1">
+                        <Sparkles size={14} className="text-amber-500 animate-pulse" />
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Google AI Studio (Gemini Client Synapse)</h4>
+                      </div>
+
+                      <div className="space-y-4 mb-8">
+                        <div className="relative group">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-amber-600 transition-colors">
+                            <Key size={18} />
+                          </div>
+                          <input
+                            type="password"
+                            value={geminiApiKey}
+                            onChange={e => setGeminiApiKey(e.target.value)}
+                            className="w-full bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-3xl pl-12 pr-6 py-4 text-sm font-black text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-amber-600 transition-all outline-none"
+                            placeholder="Gemini API Key from Google AI Studio (AIzaSy...)"
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex items-center gap-2 mb-4 ml-1">
                         <Cpu size={14} className="text-blue-500 animate-pulse" />
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>

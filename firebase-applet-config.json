@@ -3,6 +3,7 @@
   "appId": "1:30834212387:web:a34aaf5fcde2dcea083b96",
   "apiKey": "AIzaSyCtuA5ufwcJsuSdCQw8GxGfRWBHXAOYzoI",
   "authDomain": "carbide-hour-3dzmz.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-doctorianmedical-bedeeb5b-1e5d-4171-be12-6f2b139b7b30",
   "storageBucket": "carbide-hour-3dzmz.firebasestorage.app",
   "messagingSenderId": "30834212387",
   "measurementId": "",

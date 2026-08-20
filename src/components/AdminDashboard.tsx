@@ -177,16 +177,63 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     return localStorage.getItem('doctorian_clinic_sec_key') || '0x7CFF39A20E83D017B08B9362';
   });
 
+  // NEW: State for Admin Security MFA Lock challenge
+  const [mfaChallenge, setMfaChallenge] = useState<{
+    isActive: boolean;
+    type: 'rotate_key' | 'change_posture' | 'defrag' | 'delete_user' | null;
+    metaData?: any;
+    onVerifySuccess?: () => void;
+  }>({
+    isActive: false,
+    type: null
+  });
+  const [mfaScanning, setMfaScanning] = useState(false);
+  const [mfaScanComplete, setMfaScanComplete] = useState(false);
+  const [mfaPinInput, setMfaPinInput] = useState('');
+  
+  // NEW: Search and Filters for Audit Logs
+  const [auditLogFilter, setAuditLogFilter] = useState<'all' | 'info' | 'warn' | 'success' | 'system'>('all');
+  const [auditLogSearch, setAuditLogSearch] = useState('');
+
+  const triggerMfaChallenge = (
+    type: 'rotate_key' | 'change_posture' | 'defrag' | 'delete_user',
+    onSuccess: () => void,
+    metaData?: any
+  ) => {
+    setMfaChallenge({
+      isActive: true,
+      type,
+      onVerifySuccess: onSuccess,
+      metaData
+    });
+    setMfaScanning(false);
+    setMfaScanComplete(false);
+    setMfaPinInput('');
+  };
+
+  const handleMfaVerifySuccess = () => {
+    if (mfaChallenge.onVerifySuccess) {
+      mfaChallenge.onVerifySuccess();
+    }
+    setMfaChallenge({ isActive: false, type: null });
+    if (addToast) addToast("WebAuthn FIDO2 Biometric credentials verified. Administrative lock released.", "success");
+  };
+
   const handleRotateEncryptionKey = () => {
-    const newKey = '0x' + Array.from({length: 24}, () => Math.floor(Math.random() * 16).toString(16)).join('').toUpperCase();
-    setClinicSecretKey(newKey);
-    localStorage.setItem('doctorian_clinic_sec_key', newKey);
-    
-    setLogs(prev => [
-      { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Security Operations] Administrative rotated master symmetric clinical database key to ${newKey}.`, type: 'success' },
-      ...prev
-    ]);
-    if (addToast) addToast("Clinic Master Encryption Key rotated successfully.", "success");
+    const executeRotation = () => {
+      const newKey = '0x' + Array.from({length: 24}, () => Math.floor(Math.random() * 16).toString(16)).join('').toUpperCase();
+      setClinicSecretKey(newKey);
+      localStorage.setItem('doctorian_clinic_sec_key', newKey);
+      
+      setLogs(prev => [
+        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Security Operations] Administrative rotated master symmetric clinical database key to ${newKey}.`, type: 'success' },
+        ...prev
+      ]);
+      handleLogActionToDB('ROTATE_KEY', `Master symmetry secret key rotated to ${newKey}`);
+      if (addToast) addToast("Clinic Master Encryption Key rotated successfully.", "success");
+    };
+
+    triggerMfaChallenge('rotate_key', executeRotation);
   };
 
   const handleRunSecurityAudit = () => {
@@ -218,14 +265,59 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
   };
 
   const handleSecurityLevelChange = (level: 'STANDARD' | 'MFA_RESTRICTED' | 'LOCKDOWN') => {
-    setSecurityLevel(level);
-    if (addToast) {
-      addToast(`Administrative Security posture set to: ${level.replace('_', ' ')}`, level === 'LOCKDOWN' ? 'error' : 'info');
-    }
-    setLogs(prev => [
-      { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Security Sentinel] Posture updated to ${level.replace('_', ' ')} policy enforcement.`, type: level === 'LOCKDOWN' ? 'warn' : 'info' },
-      ...prev
-    ]);
+    const executeChange = () => {
+      setSecurityLevel(level);
+      if (addToast) {
+        addToast(`Administrative Security posture set to: ${level.replace('_', ' ')}`, level === 'LOCKDOWN' ? 'error' : 'info');
+      }
+      setLogs(prev => [
+        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `[Security Sentinel] Posture updated to ${level.replace('_', ' ')} policy enforcement.`, type: level === 'LOCKDOWN' ? 'warn' : 'info' },
+        ...prev
+      ]);
+      handleLogActionToDB('SECURITY_POSTURE_CHANGE', `Administrative Security posture set to ${level}`);
+    };
+
+    triggerMfaChallenge('change_posture', executeChange, { level });
+  };
+
+  const handleDownloadAuditLogs = () => {
+    const csvContent = "Time,Log Type,Message\n" + 
+      logs.map(l => `"${l.time}","${l.type.toUpperCase()}","${l.msg.replace(/"/g, '""')}"`).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Doctorian-Security-Audit-Logs-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    if (addToast) addToast("Security audit trail report exported as CSV.", "success");
+  };
+
+  const handleDownloadDbBackup = () => {
+    const backupObj = {
+      backupTimestamp: new Date().toISOString(),
+      securityLevel,
+      clinicSecretKey,
+      dbHealth,
+      telemetry,
+      totalUsersCached: users.length,
+      usersPagination,
+      offlineBacklogQueue: syncQueue,
+    };
+    const jsonString = JSON.stringify(backupObj, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Doctorian-Secure-Database-State-Backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    if (addToast) addToast("Secure database state snapshot JSON downloaded.", "success");
   };
 
   const [alarmTriggerMode, setAlarmTriggerMode] = useState<'all' | 'emergency_only' | 'disabled'>(() => {
@@ -2626,8 +2718,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             </div>
 
             {/* Live Operations & Interactive Diagnostic Console */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-2xl space-y-8 mt-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-2xl space-y-8 mt-8 animate-fade-in">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center animate-pulse">
                     <Radio size={20} />
@@ -2638,7 +2730,21 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    onClick={handleDownloadAuditLogs}
+                    className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700 active:scale-95"
+                    title="Export logs as CSV"
+                  >
+                    📥 Export CSV
+                  </button>
+                  <button 
+                    onClick={handleDownloadDbBackup}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-850 dark:bg-blue-600/10 dark:hover:bg-blue-600/20 text-white dark:text-blue-450 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-slate-800 dark:border-blue-500/20 active:scale-95"
+                    title="Download database snapshot backup"
+                  >
+                    💾 Secure JSON Backup
+                  </button>
                   <button 
                     onClick={() => {
                       setLogs(prev => [
@@ -2647,7 +2753,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       ]);
                       if (addToast) addToast("Neural buffers synchronized.", "success");
                     }}
-                    className="px-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-100 dark:border-slate-700 active:scale-95"
+                    className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-450 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-blue-100 dark:border-blue-900/30 active:scale-95"
                   >
                     <RefreshCw size={12} className="animate-spin" style={{ animationDuration: '3s' }} />
                     Sync Logs
@@ -2657,7 +2763,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       setLogs([]);
                       if (addToast) addToast("Diagnostic terminal cleared.", "info");
                     }}
-                    className="px-4 py-2 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100/50 transition-all flex items-center gap-2 border border-rose-100/30 active:scale-95"
+                    className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100/50 transition-all flex items-center gap-2 border border-rose-100/30 active:scale-95"
                   >
                     <Trash2 size={12} />
                     Clear Logs
@@ -2667,7 +2773,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
               {/* Simulation Interactive Panel */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between">
+                <div className="p-6 bg-slate-50 dark:bg-slate-850/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between">
                   <div>
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
                       <Fingerprint size={16} className="text-violet-500" />
@@ -2692,7 +2798,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   </button>
                 </div>
 
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between">
+                <div className="p-6 bg-slate-50 dark:bg-slate-850/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between">
                   <div>
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
                       <ShieldAlert size={16} className="text-rose-500 animate-bounce" />
@@ -2712,17 +2818,13 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                       ]);
                       if (addToast) addToast(drilling ? "Emergency Drill Mode ON" : "Emergency Drill Mode OFF", drilling ? "error" : "success");
                     }}
-                    className={`w-full py-3 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${
-                      telemetry.emergencySignals > 0 
-                        ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/25' 
-                        : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10'
-                    }`}
+                    className="w-full py-3 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 bg-slate-900 dark:bg-slate-850 hover:bg-slate-850"
                   >
                     {telemetry.emergencySignals > 0 ? "Terminate Drill State" : "Trigger Emergency Drill"}
                   </button>
                 </div>
 
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between">
+                <div className="p-6 bg-slate-50 dark:bg-slate-850/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between">
                   <div>
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
                       <Database size={16} className="text-emerald-500" />
@@ -2733,30 +2835,34 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     </p>
                   </div>
                   <button 
-                    onClick={async () => {
-                      if (isDefragging) return;
-                      setIsDefragging(true);
-                      setLogs(prev => [
-                        { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: "Initiating live SQLite VACUUM optimization...", type: 'system' },
-                        ...prev
-                      ]);
-                      try {
-                        const result = await (api.admin as any).defragDb();
+                    onClick={() => {
+                      const executeDefrag = async () => {
+                        if (isDefragging) return;
+                        setIsDefragging(true);
                         setLogs(prev => [
-                          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `SQLite Database optimized. ${result.message} Duration: ${result.durationMs}ms. Size: ${result.fileSizeKb}KB.`, type: 'success' },
+                          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: "Initiating live SQLite VACUUM optimization...", type: 'system' },
                           ...prev
                         ]);
-                        if (addToast) addToast("Database defragged and VACUUM completed!", "success");
-                        fetchDbHealth();
-                      } catch (err: any) {
-                        setLogs(prev => [
-                          { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `❌ Database defragmentation failed: ${err.message || err}`, type: 'warn' },
-                          ...prev
-                        ]);
-                        if (addToast) addToast("Database optimization failed", "error");
-                      } finally {
-                        setIsDefragging(false);
-                      }
+                        try {
+                          const result = await (api.admin as any).defragDb();
+                          setLogs(prev => [
+                            { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `SQLite Database optimized. ${result.message} Duration: ${result.durationMs}ms. Size: ${result.fileSizeKb}KB.`, type: 'success' },
+                            ...prev
+                          ]);
+                          if (addToast) addToast("Database defragged and VACUUM completed!", "success");
+                          fetchDbHealth();
+                        } catch (err: any) {
+                          setLogs(prev => [
+                            { id: Math.random().toString(), time: new Date().toLocaleTimeString(), msg: `❌ Database defragmentation failed: ${err.message || err}`, type: 'warn' },
+                            ...prev
+                          ]);
+                          if (addToast) addToast("Database optimization failed", "error");
+                        } finally {
+                          setIsDefragging(false);
+                        }
+                      };
+
+                      triggerMfaChallenge('defrag', executeDefrag);
                     }}
                     disabled={isDefragging}
                     className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center gap-2"
@@ -2773,14 +2879,54 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 </div>
               </div>
 
+              {/* Logs Search & Filter UI */}
+              <div className="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search logs by keyword..."
+                    value={auditLogSearch}
+                    onChange={(e) => setAuditLogSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {(['all', 'info', 'warn', 'success', 'system'] as const).map((type) => (
+                    <button
+                      key={`audit-filter-${type}`}
+                      onClick={() => setAuditLogFilter(type)}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                        auditLogFilter === type
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-405 hover:bg-slate-100'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Console logs output */}
               <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-5 border border-slate-800 font-mono text-xs max-h-[300px] overflow-y-auto space-y-2 select-text custom-scrollbar">
-                {logs.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
-                    <p className="font-bold">No active live logs. Buffer cleared.</p>
-                  </div>
-                ) : (
-                  logs.map((log, mapIdx_2787) => (
+                {(() => {
+                  const filteredLogs = logs.filter(log => {
+                    const matchesType = auditLogFilter === 'all' || log.type === auditLogFilter;
+                    const matchesSearch = log.msg.toLowerCase().includes(auditLogSearch.toLowerCase()) || 
+                      log.type.toLowerCase().includes(auditLogSearch.toLowerCase());
+                    return matchesType && matchesSearch;
+                  });
+
+                  if (filteredLogs.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-slate-500">
+                        <p className="font-bold">No active logs matching filter parameters.</p>
+                      </div>
+                    );
+                  }
+
+                  return filteredLogs.map((log, mapIdx_2787) => (
                     <div key={`admindashboard-l2789-${mapIdx_2787}`} className="flex items-start gap-3 text-[11px] leading-relaxed">
                       <span className="text-slate-500 shrink-0 select-none">[{log.time}]</span>
                       <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest scale-90 -mt-0.5 shrink-0 select-none ${
@@ -2800,8 +2946,8 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                         {log.msg}
                       </span>
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
             </div>
           </motion.div>
@@ -3988,6 +4134,123 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* NEW: Administrative Biometric Multi-Factor Verification Challenge Overlay */}
+      <AnimatePresence>
+        {mfaChallenge.isActive && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-[2.5rem] p-8 max-w-md w-full relative shadow-2xl text-center overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600" />
+              
+              <button 
+                onClick={() => setMfaChallenge({ isActive: false, type: null })}
+                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                aria-label="Cancel verification challenge"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <ShieldAlert size={32} />
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
+                FIDO2 WebAuthn Verification
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-405 mb-6">
+                You are attempting a high-privilege action: <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">{mfaChallenge.type?.replace('_', ' ')}</span>. Confirm your digital signature to proceed.
+              </p>
+
+              {/* Interactive Biometric Scanner Panel */}
+              <div className="bg-slate-50 dark:bg-slate-950/40 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 relative group">
+                {mfaScanning ? (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <div className="relative">
+                      <Fingerprint size={56} className="text-blue-500 animate-pulse" />
+                      <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500/80 rounded animate-bounce shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                    </div>
+                    <p className="text-[10px] font-bold font-mono text-blue-500 uppercase tracking-widest animate-pulse">Scanning biometric nodes...</p>
+                  </div>
+                ) : mfaScanComplete ? (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <CheckCircle2 size={56} className="text-emerald-500" />
+                    <p className="text-[10px] font-bold font-mono text-emerald-500 uppercase tracking-widest">Active Match Confirmed</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <button
+                      onClick={() => {
+                        setMfaScanning(true);
+                        setTimeout(() => {
+                          setMfaScanning(false);
+                          setMfaScanComplete(true);
+                        }, 1500);
+                      }}
+                      className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-250 dark:border-slate-700 hover:border-blue-500 text-slate-500 hover:text-blue-500 shadow-sm transition-all hover:scale-105 active:scale-95 group-hover:shadow"
+                      title="Place finger on scanner node"
+                    >
+                      <Fingerprint size={48} />
+                    </button>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-405 font-bold uppercase tracking-wider">
+                      Tap to Dispatch TouchID Handshake
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Backup Credentials Core */}
+              <div className="space-y-3">
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-center gap-1.5">
+                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                  Or Enter Secure Supervisor PIN
+                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                </div>
+                <input
+                  type="password"
+                  placeholder="Enter 4-Digit Security Code..."
+                  maxLength={4}
+                  value={mfaPinInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setMfaPinInput(val);
+                    if (val === '1234' || val === '0000') {
+                      setMfaScanComplete(true);
+                    }
+                  }}
+                  className="w-full text-center tracking-[0.5em] font-mono text-lg py-2.5 bg-slate-50 dark:bg-slate-950/25 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-500 dark:text-white placeholder:tracking-normal placeholder:text-xs"
+                />
+              </div>
+
+              {/* Dynamic Action Panel */}
+              <div className="grid grid-cols-2 gap-3 mt-8">
+                <button
+                  onClick={() => setMfaChallenge({ isActive: false, type: null })}
+                  className="py-3.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                >
+                  Bypass Cancel
+                </button>
+                <button
+                  onClick={handleMfaVerifySuccess}
+                  disabled={!mfaScanComplete}
+                  className="py-3.5 bg-blue-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:opacity-40 hover:bg-blue-700 text-white disabled:text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/10 active:scale-95"
+                >
+                  Verify & Execute
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

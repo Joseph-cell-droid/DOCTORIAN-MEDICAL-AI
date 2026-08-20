@@ -1314,7 +1314,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                 return (
                   <button
                     type="button"
-                    key={d.id}
+                    key={`watch-${d.id}-${mapIdx_1302}`}
                     onClick={() => handleSelectWatch(d.id as any)}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none flex flex-col justify-between ${activeStyle}`}
                   >
@@ -1348,7 +1348,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
                   return (
                     <button
                       type="button"
-                      key={p.id}
+                      key={`phys-preset-${p.id}-${mapIdx_1341}`}
                       onClick={() => setPhysPreset(p.id as any)}
                       className={`py-1.5 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider text-center transition-all cursor-pointer select-none ${style}`}
                     >
@@ -1748,9 +1748,9 @@ Provide a clean array or scannable markdown blocks containing these structured a
                       Chronological Logs (Recent Nights)
                     </span>
                     <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                      {sleepLogs.slice(0, 3).map((log: any) => (
+                      {sleepLogs.slice(0, 3).map((log: any, mapIdx_1751) => (
                         <div 
-                          key={log.id} 
+                          key={`sleep-log-${log.id}-${mapIdx_1751}`} 
                           className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-2xl flex items-center justify-between gap-4 shadow-sm"
                         >
                           <div className="flex items-center gap-3">
@@ -1849,7 +1849,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
 
                  return (
                    <div 
-                     key={member.id}
+                     key={`member-${member.id}-${mapIdx_1839}`}
                      onClick={() => setSelectedMemberId(member.id)}
                      className={`p-6 rounded-3xl border transition-all cursor-pointer select-none relative flex flex-col justify-between ${borderHighlight}`}
                    >

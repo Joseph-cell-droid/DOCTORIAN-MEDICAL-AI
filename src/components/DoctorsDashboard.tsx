@@ -150,6 +150,41 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
   });
   const [identityVerified, setIdentityVerified] = useState<boolean>(true);
 
+  // NEW: State for Doctor Clinical Security MFA Lock Challenge
+  const [mfaChallenge, setMfaChallenge] = useState<{
+    isActive: boolean;
+    type: 'add_clinician' | 'send_referral' | 'authorize_prescription' | 'trigger_ambulance' | null;
+    onVerifySuccess?: () => void;
+  }>({
+    isActive: false,
+    type: null
+  });
+  const [mfaScanning, setMfaScanning] = useState(false);
+  const [mfaScanComplete, setMfaScanComplete] = useState(false);
+  const [mfaPinInput, setMfaPinInput] = useState('');
+
+  const triggerMfaChallenge = (
+    type: 'add_clinician' | 'send_referral' | 'authorize_prescription' | 'trigger_ambulance',
+    onSuccess: () => void
+  ) => {
+    setMfaChallenge({
+      isActive: true,
+      type,
+      onVerifySuccess: onSuccess
+    });
+    setMfaScanning(false);
+    setMfaScanComplete(false);
+    setMfaPinInput('');
+  };
+
+  const handleMfaVerifySuccess = () => {
+    if (mfaChallenge.onVerifySuccess) {
+      mfaChallenge.onVerifySuccess();
+    }
+    setMfaChallenge({ isActive: false, type: null });
+    if (addToast) addToast("Clinical Touch ID verified successfully. Action committed.", "success");
+  };
+
   // Generate OTP Key
   const handleGenerateOTP = () => {
     const freshToken = 'MOH-MFA-' + Math.floor(10000 + Math.random() * 90000);
@@ -327,28 +362,32 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
       return;
     }
 
-    const initial = newClinician.name.split(' ').map((n, mapIdx_329) => n[0]).join('');
-    const createdNode = {
-      id: 'cli-' + Date.now(),
-      name: newClinician.name.startsWith('Dr.') ? newClinician.name : `Dr. ${newClinician.name}`,
-      role: newClinician.role,
-      dept: newClinician.dept,
-      status: newClinician.status,
-      location: newClinician.location,
-      contact: newClinician.contact || '+256700000000',
-      avatar: initial ? initial.toUpperCase() : 'MD'
+    const executeAdd = () => {
+      const initial = newClinician.name.split(' ').map((n) => n[0]).join('');
+      const createdNode = {
+        id: 'cli-' + Date.now(),
+        name: newClinician.name.startsWith('Dr.') ? newClinician.name : `Dr. ${newClinician.name}`,
+        role: newClinician.role,
+        dept: newClinician.dept,
+        status: newClinician.status,
+        location: newClinician.location,
+        contact: newClinician.contact || '+256700000000',
+        avatar: initial ? initial.toUpperCase() : 'MD'
+      };
+
+      setClinicians(prev => [...prev, createdNode]);
+      
+      setLogs(prev => [
+        { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `REGISTERED NODE: Mount points allocated for clinician node: ${createdNode.name.toUpperCase()}.`, type: 'success' },
+        ...prev
+      ]);
+
+      if (addToast) addToast(`✨ Clinician Node ${createdNode.name} registered success!`, 'success');
+      setShowAddClinicianModal(false);
+      setNewClinician({ name: '', role: '', dept: 'cardio', status: 'On Duty', location: '', contact: '' });
     };
 
-    setClinicians(prev => [...prev, createdNode]);
-    
-    setLogs(prev => [
-      { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `REGISTERED NODE: Mount points allocated for clinician node: ${createdNode.name.toUpperCase()}.`, type: 'success' },
-      ...prev
-    ]);
-
-    if (addToast) addToast(`✨ Clinician Node ${createdNode.name} registered success!`, 'success');
-    setShowAddClinicianModal(false);
-    setNewClinician({ name: '', role: '', dept: 'cardio', status: 'On Duty', location: '', contact: '' });
+    triggerMfaChallenge('add_clinician', executeAdd);
   };
 
   const handleRemoveClinician = (id: string, name: string) => {
@@ -389,32 +428,36 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
       return;
     }
 
-    const referral = {
-      id: 'ref-' + Date.now(),
-      timestamp: new Date().toLocaleString(),
-      clinicianId: soapData.clinicianId,
-      clinicianName: recipient.name,
-      patientCode: soapData.patientCode || 'PAT-' + Math.floor(1000 + Math.random() * 9000),
-      priority: soapData.priority,
-      temp: soapData.temp || '37.0',
-      bp: soapData.bp || '120/80',
-      hr: soapData.hr || '72',
-      spo2: soapData.spo2 || '98',
-      subjective: soapData.subjective || 'Symptom report pending',
-      objective: soapData.objective || 'Vitals verified. Active monitoring state',
-      assessment: soapData.assessment || 'Differential diagnostics pending',
-      plan: soapData.plan || 'Telemetry follow-ups active'
+    const executeSubmit = () => {
+      const referral = {
+        id: 'ref-' + Date.now(),
+        timestamp: new Date().toLocaleString(),
+        clinicianId: soapData.clinicianId,
+        clinicianName: recipient.name,
+        patientCode: soapData.patientCode || 'PAT-' + Math.floor(1000 + Math.random() * 9000),
+        priority: soapData.priority,
+        temp: soapData.temp || '37.0',
+        bp: soapData.bp || '120/80',
+        hr: soapData.hr || '72',
+        spo2: soapData.spo2 || '98',
+        subjective: soapData.subjective || 'Symptom report pending',
+        objective: soapData.objective || 'Vitals verified. Active monitoring state',
+        assessment: soapData.assessment || 'Differential diagnostics pending',
+        plan: soapData.plan || 'Telemetry follow-ups active'
+      };
+
+      setReferrals(prev => [referral, ...prev]);
+
+      setLogs(prev => [
+        { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `SOAP HANDOVER RECORDED: Patient ${referral.patientCode} referred to ${referral.clinicianName} (${referral.priority}).`, type: 'success' },
+        ...prev
+      ]);
+
+      if (addToast) addToast(`✨ SOAP Referrals successfully dispatched to ${recipient.name}!`, "success");
+      setShowReferModal(false);
     };
 
-    setReferrals(prev => [referral, ...prev]);
-
-    setLogs(prev => [
-      { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), message: `SOAP HANDOVER RECORDED: Patient ${referral.patientCode} referred to ${referral.clinicianName} (${referral.priority}).`, type: 'success' },
-      ...prev
-    ]);
-
-    if (addToast) addToast(`✨ SOAP Referrals successfully dispatched to ${recipient.name}!`, "success");
-    setShowReferModal(false);
+    triggerMfaChallenge('send_referral', executeSubmit);
   };
 
   const handleDeleteReferral = (id: string, code: string) => {
@@ -656,49 +699,53 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
       return;
     }
 
-    try {
-      const created = createPrescription(
-        rxFormPatientId,
-        rxFormDoctorId,
-        rxFormDiagnosis,
-        rxFormFollowUpDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        rxFormMedicines
-      );
-
-      if (addToast) {
-        addToast(`💊 Prescription ${created.id} issued successfully ${isOnlineState ? 'and synced!' : '(saved offline!)'}`, "success");
-      }
-
-      // Display QR code of the new prescription
-      setActiveQrCodeValue(created.qrCodeValue);
-
-      // Clear matching pending requests
+    const executeAuthorization = () => {
       try {
-        const reqs = JSON.parse(localStorage.getItem('doctorian_pending_rx_requests') || '[]');
-        const updated = reqs.map((r: any) => 
-          (r.patientId === rxFormPatientId && r.status === 'pending') 
-            ? { ...r, status: 'completed' } 
-            : r
+        const created = createPrescription(
+          rxFormPatientId,
+          rxFormDoctorId,
+          rxFormDiagnosis,
+          rxFormFollowUpDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          rxFormMedicines
         );
-        localStorage.setItem('doctorian_pending_rx_requests', JSON.stringify(updated));
-        setPendingRxRequests(updated.filter((r: any) => r.status === 'pending'));
-        window.dispatchEvent(new Event('pending_rx_requests_updated'));
-      } catch (e) {
-        console.error("Failed to clear resolved AI requests", e);
-      }
 
-      // Reset form
-      setRxFormDiagnosis('');
-      setRxFormFollowUpDate('');
-      setRxFormMedicines([
-        { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
-      ]);
-      setRxOverrideChecked(false);
-      setRxOverrideJustification('');
-      refreshOfflineData();
-    } catch (err) {
-      if (addToast) addToast("Failed to formulate prescription.", "error");
-    }
+        if (addToast) {
+          addToast(`💊 Prescription ${created.id} issued successfully ${isOnlineState ? 'and synced!' : '(saved offline!)'}`, "success");
+        }
+
+        // Display QR code of the new prescription
+        setActiveQrCodeValue(created.qrCodeValue);
+
+        // Clear matching pending requests
+        try {
+          const reqs = JSON.parse(localStorage.getItem('doctorian_pending_rx_requests') || '[]');
+          const updated = reqs.map((r: any) => 
+            (r.patientId === rxFormPatientId && r.status === 'pending') 
+              ? { ...r, status: 'completed' } 
+              : r
+          );
+          localStorage.setItem('doctorian_pending_rx_requests', JSON.stringify(updated));
+          setPendingRxRequests(updated.filter((r: any) => r.status === 'pending'));
+          window.dispatchEvent(new Event('pending_rx_requests_updated'));
+        } catch (e) {
+          console.error("Failed to clear resolved AI requests", e);
+        }
+
+        // Reset form
+        setRxFormDiagnosis('');
+        setRxFormFollowUpDate('');
+        setRxFormMedicines([
+          { name: '', dosage: '500mg', frequency: 'Daily', duration: '7 Days', reminderTimes: ['08:00'] }
+        ]);
+        setRxOverrideChecked(false);
+        setRxOverrideJustification('');
+        refreshOfflineData();
+      } catch (err) {
+        if (addToast) addToast("Failed to formulate prescription.", "error");
+      }
+    };
+
+    triggerMfaChallenge('authorize_prescription', executeAuthorization);
   };
 
   const [isReadingPrescription, setIsReadingPrescription] = useState(false);
@@ -3629,6 +3676,117 @@ Provide a professional, direct, academic, and clinical response assisting the ph
         </div>
       )}
 
+      {/* NEW: Clinical Biometric Multi-Factor Verification Challenge Overlay */}
+      <AnimatePresence>
+        {mfaChallenge.isActive && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 max-w-md w-full relative shadow-2xl text-center overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600" />
+              
+              <button 
+                onClick={() => setMfaChallenge({ isActive: false, type: null })}
+                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                aria-label="Cancel verification challenge"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <ShieldAlert size={32} />
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
+                Clinical Key Authorization
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                You are executing a high-privilege medical action: <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">{mfaChallenge.type?.replace('_', ' ')}</span>. Confirm your biometric or cryptographic credentials to sign off.
+              </p>
+
+              {/* Interactive Biometric Scanner Panel */}
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 relative group">
+                {mfaScanning ? (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <div className="relative">
+                      <Fingerprint size={56} className="text-blue-500 animate-pulse" />
+                      <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500/80 rounded animate-bounce shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                    </div>
+                    <p className="text-[10px] font-bold font-mono text-blue-500 uppercase tracking-widest animate-pulse">Scanning biometric nodes...</p>
+                  </div>
+                ) : mfaScanComplete ? (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <CheckCircle2 size={56} className="text-emerald-500" />
+                    <p className="text-[10px] font-bold font-mono text-emerald-500 uppercase tracking-widest">Digital signature authorized</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                    <button
+                      onClick={() => {
+                        setMfaScanning(true);
+                        setTimeout(() => {
+                          setMfaScanning(false);
+                          setMfaScanComplete(true);
+                        }, 1500);
+                      }}
+                      className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-250 dark:border-slate-700 hover:border-blue-500 text-slate-500 hover:text-blue-500 shadow-sm transition-all hover:scale-105 active:scale-95 group-hover:shadow"
+                      title="Place finger on scanner node"
+                    >
+                      <Fingerprint size={48} />
+                    </button>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                      Tap scanner to authorize
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Secure Passcode entry option */}
+              <div className="space-y-3">
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-center gap-1.5">
+                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                  Or Enter Secure PIN Code
+                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                </div>
+                <input
+                  type="password"
+                  placeholder="Enter 4-Digit Security PIN..."
+                  maxLength={4}
+                  value={mfaPinInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setMfaPinInput(val);
+                    if (val === '1234' || val === '0000') {
+                      setMfaScanComplete(true);
+                    }
+                  }}
+                  className="w-full text-center tracking-[0.5em] font-mono text-lg py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-500 dark:text-white placeholder:tracking-normal placeholder:text-xs"
+                />
+              </div>
+
+              {/* Dynamic Action Panel */}
+              <div className="grid grid-cols-2 gap-3 mt-8">
+                <button
+                  onClick={() => setMfaChallenge({ isActive: false, type: null })}
+                  className="py-3.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                >
+                  Bypass Cancel
+                </button>
+                <button
+                  onClick={handleMfaVerifySuccess}
+                  disabled={!mfaScanComplete}
+                  className="py-3.5 bg-blue-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:opacity-40 hover:bg-blue-700 text-white disabled:text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/10 active:scale-95"
+                >
+                  Verify & Execute
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

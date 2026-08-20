@@ -332,7 +332,7 @@ export const BioSecurity: React.FC = () => {
                   <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3">
                     {nodes.map((node, i) => (
                       <motion.div
-                        key={node.id}
+                        key={`biosec-node-${node.id}-${i}`}
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: i * 0.005 }}

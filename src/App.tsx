@@ -2300,7 +2300,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-900/60 backdrop-blur-2xl rounded-2xl border border-slate-200/40 dark:border-slate-800/50 overflow-x-auto no-scrollbar max-w-full">
-          {currentGroupData.tabs.map((tab, tbIdx) => {
+          {currentGroupData.tabs.filter(tab => tab.id !== currentView).map((tab, tbIdx) => {
             const isTabActive = currentView === tab.id;
             return (
               <button
@@ -2312,11 +2312,7 @@ export default function App() {
                     setCurrentView(tab.id as any);
                   }
                 }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap relative ${
-                  isTabActive
-                    ? 'bg-white dark:bg-slate-950 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-800 scale-[1.01]'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-850/30'
-                }`}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap relative text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-850/30"
               >
                 {tab.icon}
                 <span>{translate(tab.label, currentLanguage)}</span>

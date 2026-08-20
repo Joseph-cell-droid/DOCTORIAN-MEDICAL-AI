@@ -767,11 +767,10 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["keys", "huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
-    pathways = ["keys", "huggingface", "ollama", "together"];
-  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "keys", "ollama", "together"];
+  // Strictly configured to use Hugging Face (and other compliant open providers), but NOT Google.
+  let pathways = ["huggingface", "ollama", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini" || ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
+    pathways = ["huggingface", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
@@ -1427,11 +1426,10 @@ async function callAIWorkflow(options: {
   }
 
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  let pathways = ["keys", "huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
-    pathways = ["keys", "huggingface", "ollama", "together"];
-  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "keys", "ollama", "together"];
+  // Strictly configured to use Hugging Face (and other compliant open providers), but NOT Google.
+  let pathways = ["huggingface", "ollama", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini" || ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
+    pathways = ["huggingface", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
@@ -3046,6 +3044,11 @@ const RP_NAME = "Doctorian";
 const challenges = new Map<string, string>();
 const activeMfaTokens = new Map<string, { code: string; expiresAt: number; verified?: boolean }>();
 
+// Simple, zero-dependency robust Rate Limiting Store
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 150; // max 150 requests per minute
+
 async function startServer() {
   console.log("[SERVER] Initializing Express Application...");
   const app = express();
@@ -3065,16 +3068,123 @@ async function startServer() {
     credentials: true
   }));
 
-  // 1. HARDEN HTTP SECURITY HEADERS
+  // Robust Global IP Rate Limiter
+  app.use((req: any, res: any, next: any) => {
+    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz') {
+      return next();
+    }
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const record = rateLimitStore.get(ip);
+
+    if (!record || now > record.resetTime) {
+      rateLimitStore.set(ip, {
+        count: 1,
+        resetTime: now + RATE_LIMIT_WINDOW
+      });
+      return next();
+    }
+
+    if (record.count >= RATE_LIMIT_MAX) {
+      console.warn(`[SECURITY-RATE-LIMIT] IP ${ip} exceeded rate limit on path ${req.path}`);
+      return res.status(429).json({ error: "Too many requests. Please try again later." });
+    }
+
+    record.count++;
+    next();
+  });
+
+  // 1. HARDEN HTTP SECURITY HEADERS WITH ADVANCED ZERO-TRUST DEFENSE
   app.use((req, res, next) => {
     if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz') {
       return next();
     }
+    
+    // Strict Transport Security (HSTS)
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    
+    // Anti-Clickjacking
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    
+    // Content-Type Sniffing Prevention
     res.setHeader("X-Content-Type-Options", "nosniff");
+    
+    // XSS filter configuration
     res.setHeader("X-XSS-Protection", "1; mode=block");
+    
+    // Referrer policy
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    
+    // Content Security Policy (CSP) - Deep protection against script/injection compromises
+    res.setHeader("Content-Security-Policy", 
+      "default-src 'self' https: data: blob:; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
+      "style-src 'self' 'unsafe-inline' https:; " +
+      "img-src 'self' data: blob: https:; " +
+      "font-src 'self' data: https:; " +
+      "connect-src 'self' wss: ws: https:; " +
+      "frame-src 'self' https:;"
+    );
+
+    // Permission control limits
     res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(self)");
+    
+    // Remove metadata signature leaks
     res.removeHeader("X-Powered-By");
+    next();
+  });
+
+  // CSRF token injector cookie middleware
+  app.use((req: any, res: any, next: any) => {
+    if (!req.cookies?.csrfToken) {
+      const csrfToken = crypto.randomBytes(32).toString('hex');
+      res.cookie("csrfToken", csrfToken, {
+        secure: true,
+        sameSite: "none",
+        path: "/"
+      });
+    }
+    next();
+  });
+
+  // CSRF verification middleware for state-changing calls
+  app.use((req: any, res: any, next: any) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      return next();
+    }
+    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz' || req.path.startsWith('/api/vitals')) {
+      return next();
+    }
+
+    const cookieCsrfToken = req.cookies?.csrfToken;
+    const headerCsrfToken = req.headers['x-csrf-token'];
+
+    if (!cookieCsrfToken || !headerCsrfToken || cookieCsrfToken !== headerCsrfToken) {
+      console.warn(`[SECURITY-CSRF] Blocked potential CSRF exploit on ${req.path}`);
+      return res.status(403).json({ error: "Invalid or missing CSRF security token." });
+    }
+    next();
+  });
+
+  // Zero-Trust Security Audit Logger
+  app.use((req: any, res: any, next: any) => {
+    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz') {
+      return next();
+    }
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const method = req.method;
+    const url = req.originalUrl || req.url;
+    const timestamp = new Date().toISOString();
+    
+    res.on('finish', () => {
+      const userEmail = req.user?.email || 'unauthenticated';
+      const userId = req.user?.id || 'anonymous';
+      const statusCode = res.statusCode;
+      
+      if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) || statusCode >= 400) {
+        console.log(`[AUDIT-LOG] [${timestamp}] User:${userEmail} (ID:${userId}) IP:${ip} Action:${method} Path:${url} Status:${statusCode}`);
+      }
+    });
     next();
   });
 

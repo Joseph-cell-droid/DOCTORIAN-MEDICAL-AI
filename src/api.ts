@@ -151,17 +151,29 @@ const customFetch = async function (input: RequestInfo | URL, init?: RequestInit
     url = (input as any).url || "";
   }
 
-  // Capture token and include in outgoing authorization headers
+  // Capture token and include in outgoing authorization headers and CSRF protections
   if (url.startsWith("/api/") || url.includes("/api/")) {
+    init = init || {};
+    init.credentials = init.credentials || "include"; // enforce cookie transmission
+    const headers = new Headers(init.headers || {});
+    
     const token = typeof window !== "undefined" ? localStorage.getItem("doctorian_token") : null;
-    if (token) {
-      init = init || {};
-      const headers = new Headers(init.headers || {});
-      if (!headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${token}`);
-        init.headers = headers;
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    // Read CSRF Token from cookie
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|; )csrfToken=([^;]*)/);
+      if (match) {
+        const csrfToken = decodeURIComponent(match[1]);
+        if (csrfToken && !headers.has("X-CSRF-Token")) {
+          headers.set("X-CSRF-Token", csrfToken);
+        }
       }
     }
+    
+    init.headers = headers;
   }
 
   try {
@@ -2351,9 +2363,9 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Failed to get AI response");
         return data as { text: string; imageData?: string; creditsRemaining?: number | string };
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing Hugging Face / Local PC failover...");
+        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing Gemini AI / Hugging Face / Local PC failover...");
 
-        // 1. Direct Client-side Hugging Face Inference (Works on Vercel, static PWA, and direct web clients)
+        // 0. Direct Client-side Hugging Face Inference (Works on Vercel, static PWA, and direct web clients)
         try {
           const userStr = localStorage.getItem('medical_user');
           let parsedUser: any = null;
@@ -2397,6 +2409,49 @@ export const api = {
           console.warn("[Neural Link] Client Hugging Face direct invocation failed, escalating to local PC node:", hfErr);
         }
         
+        // 1. Direct Client-side Gemini (Last-resort failover only) AI (Works on Vercel, static PWA, and direct web clients)
+        try {
+          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
+          if (geminiApiKey) {
+            console.log(`[Neural Link] Executing direct Client Gemini Synapse for Vercel/Web...`);
+            
+            const contents = payloadMessages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: m.text }]
+            }));
+            
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: {
+                  parts: [{ text: systemInstruction }]
+                },
+                generationConfig: {
+                  temperature: temperature || 0.7,
+                  maxOutputTokens: 2048
+                }
+              })
+            });
+
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text && text.trim()) {
+                return { text: text.trim(), creditsRemaining: "Unlimited (Google AI Studio Client Synapse)" };
+              }
+            } else {
+              const errData = await geminiRes.json().catch(() => ({}));
+              console.warn("[Neural Link] Client Gemini direct call returned error status:", geminiRes.status, errData);
+            }
+          }
+        } catch (geminiErr) {
+          console.warn("[Neural Link] Client Gemini direct invocation failed, trying Hugging Face next:", geminiErr);
+        }
+
         // Failover handle: Local Ollama or LM Studio on User's PC if configured
         const userStr = localStorage.getItem('medical_user');
         if (userStr) {
@@ -2725,7 +2780,85 @@ export const api = {
           }
         }
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend stream failed or offline. Securing Hugging Face / Local PC stream failover...");
+        console.warn("[Neural Link] Backend stream failed or offline. Securing Gemini AI / Hugging Face / Local PC stream failover...");
+
+        // 0. Direct Client-side Gemini Streaming (for Vercel and web clients)
+        try {
+          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
+          if (geminiApiKey) {
+            console.log(`[Neural Link] Executing direct Client Gemini Stream Synapse for Vercel/Web...`);
+            
+            const contents = messages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: m.text }]
+            }));
+
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${geminiApiKey}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: {
+                  parts: [{ text: systemInstruction }]
+                },
+                generationConfig: {
+                  temperature: temperature || 0.7,
+                  maxOutputTokens: 2048
+                }
+              }),
+              signal
+            });
+
+            if (geminiRes.ok && geminiRes.body) {
+              const reader = geminiRes.body.getReader();
+              const decoder = new TextDecoder();
+              let streamBuf = "";
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                streamBuf += decoder.decode(value, { stream: true });
+                
+                let braceCount = 0;
+                let startIdx = -1;
+                for (let i = 0; i < streamBuf.length; i++) {
+                  if (streamBuf[i] === '{') {
+                    if (braceCount === 0) startIdx = i;
+                    braceCount++;
+                  } else if (streamBuf[i] === '}') {
+                    braceCount--;
+                    if (braceCount === 0 && startIdx !== -1) {
+                      const jsonStr = streamBuf.slice(startIdx, i + 1);
+                      try {
+                        const parsed = JSON.parse(jsonStr);
+                        const txt = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (txt) {
+                          yield txt;
+                        }
+                      } catch (e) {
+                        const match = jsonStr.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+                        if (match && match[1]) {
+                          try {
+                            yield JSON.parse(`"${match[1]}"`);
+                          } catch (_) {
+                            yield match[1];
+                          }
+                        }
+                      }
+                      streamBuf = streamBuf.slice(i + 1);
+                      i = -1;
+                    }
+                  }
+                }
+              }
+              onMetadata?.({ credits: "Unlimited (Google AI Studio Client Synapse)" });
+              return;
+            }
+          }
+        } catch (geminiErr) {
+          console.warn("[Neural Link] Client Gemini stream failed, cascading to Hugging Face:", geminiErr);
+        }
 
         // 1. Direct Client-side Hugging Face Streaming (for Vercel and web clients)
         try {

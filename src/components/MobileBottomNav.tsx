@@ -48,7 +48,6 @@ export const MOBILE_NAV_TABS: NavTabItem[] = [
   { id: 'diagnostic_lab', label: 'Lab Analyser', icon: <Stethoscope size={17} /> },
   { id: 'monitor', label: 'Bio-Monitor', icon: <Monitor size={17} /> },
   { id: 'doctors_dashboard', label: 'Physicians', icon: <UserCheck size={17} /> },
-  { id: 'systems_hub', label: 'Systems Hub', icon: <LayoutGrid size={17} /> },
   
   // High-Frequency Patient Care
   { id: 'meds', label: 'Pharmacy', icon: <Pill size={17} /> },

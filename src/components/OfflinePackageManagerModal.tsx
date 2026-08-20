@@ -75,6 +75,26 @@ export const OfflinePackageManagerModal: React.FC<OfflinePackageManagerModalProp
     }
   };
 
+  const handlePWAInstallClick = async () => {
+    const promptEvent = deferredPrompt || (window as any).deferredPWAInstallPrompt;
+    if (promptEvent) {
+      try {
+        promptEvent.prompt();
+        const { outcome } = await promptEvent.userChoice;
+        if (outcome === 'accepted') {
+          console.log('User accepted the PWA install prompt');
+        } else {
+          console.log('User dismissed the PWA install prompt');
+        }
+      } catch (err) {
+        console.warn('PWA prompt error:', err);
+        onDirectInstall();
+      }
+    } else {
+      onDirectInstall();
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleDownloadOfflineBundle = () => {
@@ -161,11 +181,11 @@ export const OfflinePackageManagerModal: React.FC<OfflinePackageManagerModalProp
             </div>
 
             <button
-              onClick={onDirectInstall}
+              onClick={handlePWAInstallClick}
               className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/25 transition-all cursor-pointer flex items-center justify-center gap-3 shrink-0"
             >
               <Download size={18} />
-              <span>{deferredPrompt ? 'Install App Now' : 'Launch Install Guide'}</span>
+              <span>{(deferredPrompt || (window as any).deferredPWAInstallPrompt) ? 'Install PWA App' : 'Launch Install Guide'}</span>
             </button>
           </div>
 

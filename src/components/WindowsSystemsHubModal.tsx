@@ -575,12 +575,12 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
 
               {/* 2-Column Grid of System Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {primaryNodes.map((node) => {
+                {primaryNodes.map((node, i) => {
                   const isActive = currentView === node.id;
 
                   return (
                     <button
-                      key={`hub-node-${node.id}`}
+                      key={`hub-node-${node.id}-${i}`}
                       id={`btn-node-${node.id}`}
                       onClick={() => {
                         onNavigate(node.id);
@@ -624,11 +624,11 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
                   ADDITIONAL CLINICAL MODULES
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {secondaryNodes.map((node) => {
+                  {secondaryNodes.map((node, i) => {
                     const isActive = currentView === node.id;
                     return (
                       <button
-                        key={`hub-sec-node-${node.id}`}
+                        key={`hub-sec-node-${node.id}-${i}`}
                         onClick={() => {
                           onNavigate(node.id);
                           onClose();

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Cpu, Zap, RefreshCw, Activity, Heart, Thermometer, 
   Wind, Droplets, ToggleLeft, ToggleRight, Radio, BellRing,
-  Award, Play, Square, Settings, RefreshCw as LoopIcon, Check, HelpCircle, Lock
+  Award, Play, Square, Settings, RefreshCw as LoopIcon, Check, HelpCircle, Lock,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DoctorVerificationModal } from './DoctorVerificationModal';
@@ -59,6 +60,8 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
     diastolicBP: 80,
     respiratoryRate: 14
   });
+
+  const diagnosis = analyzeTelemetry(simVitals);
 
   const [connectionState, setConnectionState] = useState<'offline' | 'linking' | 'online'>('offline');
   const [pulseWaveFrame, setPulseWaveFrame] = useState(0);
@@ -445,6 +448,68 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
                 <span>ECG Amplitude: 45mV</span>
               </div>
             </div>
+
+            {/* Real-time AI Differential Diagnosis Co-pilot */}
+            <div className="p-5 bg-slate-950 border border-slate-800 rounded-3xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-indigo-400 animate-pulse shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-200">
+                    Neural Diagnostic Co-pilot
+                  </span>
+                </div>
+                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                  diagnosis.severity === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse' :
+                  diagnosis.severity === 'warning' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                  'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                }`}>
+                  {diagnosis.severity}
+                </span>
+              </div>
+
+              {/* Primary Diagnosis */}
+              <div className="space-y-1 bg-slate-900/60 p-3 rounded-2xl border border-slate-800/65">
+                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block">Primary Detection</span>
+                <h5 className="text-xs font-black text-white uppercase tracking-tight leading-tight">
+                  {diagnosis.primary}
+                </h5>
+                <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-800/40 text-[9px] text-slate-450">
+                  <span>Probability Match</span>
+                  <span className="font-mono font-black text-indigo-450">{diagnosis.probability.toFixed(1)}%</span>
+                </div>
+              </div>
+
+              {/* Thinking Log Stream */}
+              <div className="space-y-1.5 bg-slate-900/40 p-3.5 rounded-2xl border border-slate-850">
+                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Clinical Reasoning Stream</span>
+                <div className="space-y-1 max-h-[110px] overflow-y-auto font-mono text-[9px] text-slate-400 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                  {diagnosis.clinicalThoughts.map((t, tIdx) => (
+                    <div key={`thought-${tIdx}`} className="flex items-start gap-1.5">
+                      <span className="text-indigo-500 shrink-0 select-none">&gt;</span>
+                      <p className="leading-tight">{t}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Differentials & Actions */}
+              <div className="space-y-2">
+                <span className="text-[8px] font-black text-slate-450 uppercase tracking-widest block">Differential Diagnostics</span>
+                <div className="space-y-2">
+                  {diagnosis.differentials.map((diff, diffIdx) => (
+                    <div key={`diff-${diffIdx}`} className="p-2.5 bg-slate-900/30 rounded-xl border border-slate-900 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black text-slate-300 uppercase truncate">{diff.condition}</span>
+                        <span className="font-mono text-[8px] font-black text-slate-550 shrink-0">{diff.prob}% probability</span>
+                      </div>
+                      <p className="text-[8px] font-medium text-slate-400 leading-normal">
+                        <strong className="text-indigo-405">Action:</strong> {diff.action}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Dials & Sliding Overrides (Right 8 Cols) */}
@@ -653,3 +718,150 @@ export const BiomedicalSimulator: React.FC<BiomedicalSimulatorProps> = ({
     </div>
   );
 };
+
+interface DiagnosticResult {
+  primary: string;
+  probability: number;
+  severity: 'nominal' | 'warning' | 'critical';
+  differentials: { condition: string; prob: number; action: string }[];
+  clinicalThoughts: string[];
+}
+
+function analyzeTelemetry(vitals: SimulatedVitals): DiagnosticResult {
+  const { heartRate, temperature, spo2, systolicBP, diastolicBP, respiratoryRate } = vitals;
+  
+  const thoughts: string[] = [];
+  thoughts.push(`Synthesizing input parameters: HR=${heartRate} bpm, Temp=${temperature}°C, SpO2=${spo2}%, BP=${systolicBP}/${diastolicBP} mmHg, RR=${respiratoryRate} bpm.`);
+
+  if (spo2 < 90) thoughts.push(`Critique: Severe blood desaturation (SpO2 ${spo2}%) is triggering systemic hypoxia alert.`);
+  if (heartRate > 100) thoughts.push(`Observation: Heart rate exceeding tachycardic baseline of 100 bpm.`);
+  if (heartRate < 60) thoughts.push(`Observation: Heart rate indicates active bradycardia (<60 bpm).`);
+  if (temperature > 38.3) thoughts.push(`Observation: Thermal spike identified (>38.3°C), validating inflammatory response.`);
+  if (systolicBP > 140 || diastolicBP > 90) thoughts.push(`Observation: Active arterial hypertension detected.`);
+  if (systolicBP < 90) thoughts.push(`Observation: Circulatory shock hypotension threat.`);
+  if (respiratoryRate > 20) thoughts.push(`Observation: Exceeded tachypnea rate (>20 breaths/min).`);
+
+  const satisfiesSirs = (heartRate > 90 ? 1 : 0) + (respiratoryRate > 20 ? 1 : 0) + (temperature > 38.3 || temperature < 36.0 ? 1 : 0);
+  if (satisfiesSirs >= 2) {
+    thoughts.push(`SIRS alert: Meets ${satisfiesSirs}/3 criteria for Systemic Inflammatory Response Syndrome.`);
+  }
+
+  if (satisfiesSirs >= 2 && systolicBP < 100) {
+    return {
+      primary: "Septic Shock Protocol",
+      probability: Math.min(98, 75 + satisfiesSirs * 5 + (95 - systolicBP) * 0.5),
+      severity: 'critical',
+      differentials: [
+        { condition: "Hypovolemic Shock", prob: 45, action: "Administer aggressive IV fluid challenge (30mL/kg) immediately." },
+        { condition: "Systemic Sepsis Syndrome", prob: 35, action: "Identify infectious focus. Draw blood cultures and begin broad-spectrum empiric antibiotics." },
+        { condition: "Anaphylactic Event", prob: 18, action: "Assess for airway stridor or cutaneous hives. Prepare epinephrine." }
+      ],
+      clinicalThoughts: [
+        ...thoughts,
+        "Crucial SIRS triggers identified concurrently with cellular hypoperfusion.",
+        "Initiate sepsis bundle within 1 hour: measure lactate, draw blood cultures, begin broad-spectrum antibiotics.",
+        "Consider vasopressor support (Norepinephrine) if hypotension persists after fluid challenge."
+      ]
+    };
+  }
+
+  if (systolicBP > 180 || diastolicBP > 120) {
+    return {
+      primary: "Acute Hypertensive Emergency",
+      probability: Math.min(99, 80 + (systolicBP - 180) * 0.5 + (diastolicBP - 120)),
+      severity: 'critical',
+      differentials: [
+        { condition: "Hypertensive Urgency (No Organ Damage)", prob: 60, action: "Initiate oral antihypertensives (Labetalol or Clonidine)." },
+        { condition: "Acute End-Organ Compromise", prob: 25, action: "Initiate IV Nicardipine or Esmolol infusion; target controlled SBP reduction." }
+      ],
+      clinicalThoughts: [
+        ...thoughts,
+        "Severe arterial pressure elevation poses immediate risk of cardiovascular or neurological stroke.",
+        "Maintain controlled pressure reduction: decrease SBP by no more than 25% in the first hour."
+      ]
+    };
+  }
+
+  if (spo2 < 88) {
+    return {
+      primary: "Acute Hypoxemic Respiratory Failure",
+      probability: Math.min(98, 85 + (88 - spo2) * 1.5),
+      severity: 'critical',
+      differentials: [
+        { condition: "Acute ARDS / Pneumonitis", prob: 45, action: "Apply high-flow nasal oxygen or BiPAP support." },
+        { condition: "Pulmonary Embolism", prob: 35, action: "Obtain urgent CT angiogram and consider anticoagulant loading." }
+      ],
+      clinicalThoughts: [
+        ...thoughts,
+        "Critical hypoxemia with alveolar ventilation mismatch.",
+        "Target oxygen saturation of 92-96% for stable patients; monitor respiratory muscles closely."
+      ]
+    };
+  }
+
+  if (heartRate > 120 && temperature > 37.5 && respiratoryRate > 20) {
+    return {
+      primary: "Exertional Hyperthermia & Tachycardia",
+      probability: 88,
+      severity: 'warning',
+      differentials: [
+        { condition: "Heat Exhaustion", prob: 65, action: "Transfer to cool environment and begin active rehydration." },
+        { condition: "Infectious Pyrexia Response", prob: 25, action: "Identify source of infection and administer antipyretics." }
+      ],
+      clinicalThoughts: [
+        ...thoughts,
+        "Vitals reflect high cardiac output state with thermoregulatory strain.",
+        "Monitor for muscle cramps, extreme diaphoresis, or core heating trends."
+      ]
+    };
+  }
+
+  if (heartRate > 110) {
+    return {
+      primary: "Supraventricular Tachycardia (SVT)",
+      probability: 82,
+      severity: 'warning',
+      differentials: [
+        { condition: "Sinus Tachycardia (Stress/Dehydration)", prob: 60, action: "Provide IV saline hydration and reduce stressors." },
+        { condition: "Atrial Fibrillation with Rapid Ventricular Response", prob: 25, action: "Acquire 12-lead ECG; prepare rate control therapy." }
+      ],
+      clinicalThoughts: [
+        ...thoughts,
+        "Cardiac cycle exceeds typical physiological pacing bounds.",
+        "Perform vagal maneuvers (Valsalva) first if hemodynamically stable."
+      ]
+    };
+  }
+
+  if (heartRate < 55) {
+    return {
+      primary: "Symptomatic Sinus Bradycardia",
+      probability: 78,
+      severity: 'warning',
+      differentials: [
+        { condition: "Mobitz II / Complete Heart Block", prob: 45, action: "Acquire a formal 12-lead ECG; prepare pacing backup." },
+        { condition: "Athletic Adaptation Baseline", prob: 35, action: "Confirm asymptomatic state; monitor for cerebral hypoperfusion." }
+      ],
+      clinicalThoughts: [
+        ...thoughts,
+        "Slowing of ventricular conduction identified.",
+        "Monitor for syncopal episodes or acute chest discomfort."
+      ]
+    };
+  }
+
+  return {
+    primary: "Hemodynamically Stable Adult",
+    probability: 96,
+    severity: 'nominal',
+    differentials: [
+      { condition: "Physiological Resting State", prob: 95, action: "No acute interventions required. Continue routine telemetry logs." },
+      { condition: "Slight Autonomic Balance", prob: 5, action: "Observe regular daily activity and exercise parameters." }
+    ],
+    clinicalThoughts: [
+      ...thoughts,
+      "All cardiopulmonary parameters remain within target reference ranges.",
+      "Homeodynamic homeostatic equilibrium is preserved."
+    ]
+  };
+}

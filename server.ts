@@ -30,6 +30,15 @@ import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync"
 import { initFirestoreSync, syncFromFirestoreToSqlite, syncToFirestore, syncRowToFirestore } from "./src/db/firestoreSync";
 
 dotenv.config();
+
+process.on("uncaughtException", (err) => {
+  console.error("[SERVER-RECOVERY] Uncaught exception safely handled:", err);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[SERVER-RECOVERY] Unhandled rejection safely handled:", reason);
+});
+
 if (!process.env.OPENROUTER_API_KEY) {
   process.env.OPENROUTER_API_KEY = "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";
 }
@@ -212,7 +221,7 @@ Output strictly valid JSON (no markdown formatting, no code blocks, no backticks
     const text = await callAI({
       messages: [{ role: 'user', text: prompt }],
       systemInstruction: 'You are a clinical triage AI engine.',
-      modelName: 'huggingface'
+      modelName: 'gemini-2.5-flash'
     });
 
     if (text) {
@@ -257,26 +266,26 @@ console.log("[SERVER] Configuring AI Engines...");
 
 // 3. Neural Architecture & Configuration
 // Toggle between "gemini", "huggingface", "ollama", "openrouter" or "LM_STUDIO"
-const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "huggingface";
+const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
-// Default Models (Gemini 2.5 Flash configured as primary standard model)
-const GEMINI_PRIMARY = "gemini-2.5-flash"; 
-const GEMINI_VISION = "gemini-2.5-flash";
+// Default Models (Gemini 3.7 Flash configured as permanent primary standard model)
+const GEMINI_PRIMARY = "gemini-3.7-flash"; 
+const GEMINI_VISION = "gemini-3.7-flash";
 
 // Option One Engines
-const LLAMA_PRIMARY = "gemini-2.5-flash";
-const LLAMA_VISION = "gemini-2.5-flash";
+const LLAMA_PRIMARY = "gemini-3.7-flash";
+const LLAMA_VISION = "gemini-3.7-flash";
 
-const PRIMARY_ENGINE = "gemini-2.5-flash";
-const MEDICAL_REASONING_ENGINE = "gemini-2.5-flash";
-const DATA_ANALYTICS_ENGINE = "gemini-2.5-flash";
-const VISION_ENGINE = "gemini-2.5-flash";
-const DEEPSEEK_ENGINE = "gemini-2.5-flash";
-const MISTRAL_ENGINE = "gemini-2.5-flash";
-const DEFAULT_GEMINI_ENGINE = "gemini-2.5-flash";
-const DEFAULT_LLAMA_ENGINE = "gemini-2.5-flash";
-const DEFAULT_GEMMA_ENGINE = "gemini-2.5-flash";
+const PRIMARY_ENGINE = "gemini-3.7-flash";
+const MEDICAL_REASONING_ENGINE = "gemini-3.7-flash";
+const DATA_ANALYTICS_ENGINE = "gemini-3.7-flash";
+const VISION_ENGINE = "gemini-3.7-flash";
+const DEEPSEEK_ENGINE = "gemini-3.7-flash";
+const MISTRAL_ENGINE = "gemini-3.7-flash";
+const DEFAULT_GEMINI_ENGINE = "gemini-3.7-flash";
+const DEFAULT_LLAMA_ENGINE = "gemini-3.7-flash";
+const DEFAULT_GEMMA_ENGINE = "gemini-3.7-flash";
 const BACKUP_ENGINE = "gemini-2.5-flash";
 
 const OLLAMA_URL = IS_LM_STUDIO
@@ -335,7 +344,7 @@ function getValidApiKeys(userId?: string, localApiKey?: string) {
     process.env.google_api_key,
     process.env.API_KEY,
     process.env.VITE_API_KEY,
-    process.env.OPENROUTER_API_KEY || "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",
+    process.env.OPENROUTER_API_KEY,
     process.env.DEEPSEEK_API_KEY,
     process.env.OPENAI_API_KEY,
     process.env.MISTRAL_API_KEY,
@@ -350,7 +359,7 @@ function getValidApiKeys(userId?: string, localApiKey?: string) {
       if (userRow && userRow.huggingfaceToken && userRow.huggingfaceToken.trim() !== "") {
         dbUserKey = userRow.huggingfaceToken.trim();
         if (dbUserKey && !envKeys.includes(dbUserKey)) {
-          envKeys.unshift(dbUserKey);
+          envKeys.push(dbUserKey);
         }
       }
     } catch (e) {
@@ -385,18 +394,12 @@ function getValidApiKeys(userId?: string, localApiKey?: string) {
     !k.includes("://") 
   );
   
-  const skKeys = valid.filter(k => k.toLowerCase().startsWith('sk-'));
   const googleKeys = valid.filter(k => !k.toLowerCase().startsWith('sk-'));
+  const skKeys = valid.filter(k => k.toLowerCase().startsWith('sk-'));
 
-  const provider = (ACTIVE_AI_PROVIDER || "").toLowerCase();
-  if (provider === "openrouter" || provider === "ollama" || provider === "lm_studio") {
-    // OpenRouter / Local LLMs prioritized
-    const ordered = [...skKeys, ...googleKeys];
-    return [...new Set(ordered)];
-  } else {
-    const ordered = [...skKeys, ...googleKeys];
-    return [...new Set(ordered)];
-  }
+  // Default to Google Gemini keys first for high performance and reliable clinical intelligence
+  const ordered = [...googleKeys, ...skKeys];
+  return [...new Set(ordered)];
 }
 
 function mapModelForProvider(modelId: string, apiKey: string): string {
@@ -404,15 +407,11 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   const isORKey = apiKey.toLowerCase().startsWith('sk-or-');
   const isOpenAI = apiKey.startsWith('sk-proj-') || (isSkKey && !isORKey);
 
-  const m = modelId.toLowerCase();
+  const m = (modelId || "").toLowerCase();
 
   if (isORKey) {
-    // Map requests to Google Gemma 3 4B IT and Mistral 7B Instruct on OpenRouter
     if (m.includes('mistral') || m.includes('reason') || m.includes('deepseek')) {
       return "mistralai/mistral-7b-instruct";
-    }
-    if (m.includes('gemma') || m.includes('gemini') || m.includes('flash') || m.includes('pro') || m.includes('vision') || m.includes('image')) {
-      return "google/gemma-3-4b-it";
     }
     return "google/gemma-3-4b-it";
   }
@@ -422,26 +421,22 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
     return "gpt-4o-mini";
   }
 
-  // Native Google key fallback (AIza...)
-  if (m.includes('gemini-2.5-flash')) {
-    return "gemini-2.5-flash";
+  // Native Google Gemini key
+  if (m.includes('lite') || m.includes('flash-lite')) {
+    return "gemini-3.1-flash-lite";
   }
-  if (m.includes('image') || m.includes('vision')) {
-    return "gemini-2.5-flash";
+  if (m.includes('pro')) {
+    return "gemini-3.1-pro-preview";
   }
-  if (m.includes('pro') || m.includes('complex') || m.includes('code') || m.includes('reason') || m.includes('deepseek')) {
-    return "gemini-2.5-pro";
-  }
-  return "gemini-2.5-flash";
+  return "gemini-3.7-flash";
 }
 
-function getGenAI(apiKey: string): GoogleGenAI | null {
-  if (!apiKey || apiKey.trim().length < 5) return null;
-  const trimmed = apiKey.trim();
+function getGenAI(apiKey?: string): GoogleGenAI | null {
+  const candidate = (apiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+  if (!candidate || candidate.length < 5) return null;
   const baseURL = process.env.GEMINI_BASE_URL || process.env.GOOGLE_API_BASE || process.env.GEMINI_API_BASE || undefined;
-  if (!trimmed.startsWith('AIza') && !baseURL) return null; // Only Google API keys work by default unless a custom base URL is set
   return new GoogleGenAI({
-    apiKey: trimmed,
+    apiKey: candidate,
     httpOptions: {
       baseUrl: baseURL,
       headers: {
@@ -728,9 +723,9 @@ async function* callAIStream(options: {
   let activeHFModel = HUGGINGFACE_MODEL;
 
   if (modelName) {
-    if (modelName === "gemini-3.6-flash" || modelName === "medlm-medium") {
+    if (modelName === "gemini-3.6-flash" || modelName === "medlm-medium" || modelName.toLowerCase().includes("flash") || modelName.toLowerCase().includes("gemini")) {
       activeHFModel = "google/gemma-3-4b-it";
-    } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
+    } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large" || modelName.toLowerCase().includes("pro")) {
       activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
     } else if (modelName !== "huggingface" && modelName !== "llama-clinical" && modelName !== "gemma3-tfjs") {
       activeHFModel = modelName;
@@ -767,16 +762,18 @@ async function* callAIStream(options: {
   const lastMessage = messages[messages.length - 1];
   
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  // Strictly configured to use Hugging Face (and other compliant open providers), but NOT Google.
-  let pathways = ["huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini" || ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
+  // Strictly configured to use Google Gemini/Keys as the primary provider.
+  let pathways = ["keys", "huggingface", "ollama", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
+    pathways = ["keys", "huggingface", "ollama", "together"];
+  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
     pathways = ["huggingface", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   }
 
   for (const pathway of pathways) {
@@ -1229,12 +1226,12 @@ async function* callAIStream(options: {
                       streamAttempts = maxStreamAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && streamAttempts < maxStreamAttempts) {
-                      if (currentModelId === "gemini-3.6-flash") {
-                        currentModelId = "gemini-3.1-pro-preview";
-                      } else if (currentModelId === "gemini-3.1-pro-preview") {
+                      if (currentModelId === "gemini-2.5-flash") {
                         currentModelId = "gemini-3.1-flash-lite";
+                      } else if (currentModelId === "gemini-3.1-flash-lite") {
+                        currentModelId = "gemini-flash-latest";
                       } else {
-                        currentModelId = "gemini-3.1-flash-lite";
+                        currentModelId = "gemini-2.5-flash";
                       }
                       console.log(`[AI-STREAM] Temporary API busy status (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Rotating to ${currentModelId} and retrying in ${streamAttempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, streamAttempts * 1000));
@@ -1248,7 +1245,7 @@ async function* callAIStream(options: {
                         cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                       }
                       console.log("[AI-STREAM] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
-                      const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"];
+                      const modelsToTry = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.7-flash"];
                       for (const modelId of modelsToTry) {
                         let retryAttempts = 0;
                         const maxRetryAttempts = 2;
@@ -1389,9 +1386,9 @@ async function callAIWorkflow(options: {
   let activeHFModel = HUGGINGFACE_MODEL;
 
   if (modelName) {
-    if (modelName === "gemini-3.6-flash" || modelName === "medlm-medium") {
+    if (modelName === "gemini-3.6-flash" || modelName === "medlm-medium" || modelName.toLowerCase().includes("flash") || modelName.toLowerCase().includes("gemini")) {
       activeHFModel = "google/gemma-3-4b-it";
-    } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large") {
+    } else if (modelName === "gemini-3.1-pro-preview" || modelName === "medlm-large" || modelName.toLowerCase().includes("pro")) {
       activeHFModel = "meta-llama/Llama-3.1-8B-Instruct";
     } else if (modelName !== "huggingface" && modelName !== "llama-clinical" && modelName !== "gemma3-tfjs") {
       activeHFModel = modelName;
@@ -1426,16 +1423,18 @@ async function callAIWorkflow(options: {
   }
 
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  // Strictly configured to use Hugging Face (and other compliant open providers), but NOT Google.
-  let pathways = ["huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini" || ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
+  // Strictly configured to use Google Gemini/Keys as the primary provider.
+  let pathways = ["keys", "huggingface", "ollama", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
+    pathways = ["keys", "huggingface", "ollama", "together"];
+  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
     pathways = ["huggingface", "ollama", "together"];
   } else if (IS_LM_STUDIO) {
     pathways = ["ollama"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["ollama", "huggingface", "together"];
+    pathways = ["ollama", "keys", "huggingface", "together"];
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -1756,9 +1755,9 @@ async function callAIWorkflow(options: {
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
                       if (currentModelId === "gemini-2.5-flash") {
-                        currentModelId = "gemini-2.5-pro";
-                      } else if (currentModelId === "gemini-2.5-pro") {
-                        currentModelId = "gemini-2.0-flash";
+                        currentModelId = "gemini-3.1-flash-lite";
+                      } else if (currentModelId === "gemini-3.1-flash-lite") {
+                        currentModelId = "gemini-flash-latest";
                       } else {
                         currentModelId = "gemini-2.5-flash";
                       }
@@ -1784,7 +1783,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"];
+                  const modelsToTry = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.7-flash"];
                   for (const modelId of modelsToTry) {
                     let retryAttempts = 0;
                     const maxRetryAttempts = 2;
@@ -3348,7 +3347,7 @@ async function startServer() {
     res.status(501).json({ error: "Local indexing decommissioned." });
   });
 
-  // Doctorian Medical AI Chat Endpoint (Ollama Integration with Gemma 3:1b)
+  // Doctorian Medical AI Chat Endpoint (Permanently Powered by Google Gemini AI)
   app.post("/api/chat", async (req, res) => {
     try {
       const rawMessage = req.body.message || req.body.prompt || 
@@ -3360,75 +3359,37 @@ async function startServer() {
 
       const userMessage = rawMessage.trim();
       const customSystemInstruction = req.body.systemInstruction || 
-        "You are Doctorian Medical AI, a specialized medical AI assistant. Provide professional medical guidance, explain your clinical reasoning clearly when appropriate, acknowledge uncertainty instead of guessing, and encourage users to consult qualified healthcare professionals for diagnosis and treatment.";
+        "You are Doctorian Medical AI, an advanced clinical intelligence assistant permanently powered by Google Gemini. Provide evidence-based medical guidance, explain clinical reasoning clearly, correlate relevant Ugandan Clinical Guidelines and WHO protocols when applicable, and encourage users to consult licensed medical professionals for emergency care.";
 
-      const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-      const ollamaModel = process.env.OLLAMA_MODEL || "gemma3:1b";
+      console.log(`[DOCTORIAN AI] Processing clinical chat query permanently via Google Gemini AI (gemini-3.7-flash)...`);
 
-      const fullPrompt = `${customSystemInstruction}\n\nUser Query: ${userMessage}\n\nDoctorian Medical AI:`;
+      const result = await callAI({
+        messages: [{ role: "user", text: userMessage }],
+        systemInstruction: customSystemInstruction,
+        modelName: "gemini-3.7-flash",
+        userId: (req as any).user?.id
+      });
 
-      console.log(`[DOCTORIAN AI] Routing chat query to Ollama at ${ollamaUrl}/api/generate using model ${ollamaModel}...`);
+      const resText = typeof result === 'object' 
+        ? ((result as any)?.text || (result as any)?.response || (result as any)?.message) 
+        : result;
 
-      try {
-        const ollamaRes = await fetch(`${ollamaUrl}/api/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: ollamaModel,
-            prompt: fullPrompt,
-            stream: false
-          })
+      if (resText && typeof resText === 'string' && resText.trim() !== "") {
+        return res.json({
+          response: resText,
+          text: resText,
+          message: resText,
+          model: "gemini-3.7-flash",
+          provider: "gemini"
         });
-
-        if (ollamaRes.ok) {
-          const data = await ollamaRes.json();
-          const aiResponseText = data.response || data.text || "";
-          return res.json({
-            response: aiResponseText,
-            text: aiResponseText,
-            message: aiResponseText,
-            model: ollamaModel,
-            provider: "ollama"
-          });
-        } else {
-          console.warn(`[OLLAMA HTTP ERROR] Status ${ollamaRes.status} from ${ollamaUrl}.`);
-        }
-      } catch (ollamaErr: any) {
-        console.warn(`[OLLAMA CONNECT ERROR] ${ollamaUrl} unreachable (${ollamaErr?.message}). Engaging Doctorian Medical AI fallback...`);
       }
 
-      // Fallback: Use Doctorian Clinical AI Inference Engine if local Ollama is offline
-      try {
-        const fallbackResult = await callAI({
-          messages: [{ role: "user", text: userMessage }],
-          systemInstruction: customSystemInstruction,
-          modelName: "gemma-3-4b"
-        });
-
-        const resText = typeof fallbackResult === 'object' 
-          ? ((fallbackResult as any)?.text || (fallbackResult as any)?.response || (fallbackResult as any)?.message) 
-          : fallbackResult;
-
-        if (resText && typeof resText === 'string' && resText.trim() !== "") {
-          return res.json({
-            response: resText,
-            text: resText,
-            message: resText,
-            model: "doctorian-clinical-engine",
-            provider: "doctorian"
-          });
-        }
-      } catch (fbErr: any) {
-        console.error("[DOCTORIAN FALLBACK ERROR]", fbErr);
-      }
-
-      return res.status(503).json({
-        error: "Doctorian AI service unavailable.",
-        details: `Could not reach local Ollama server at ${ollamaUrl} with model ${ollamaModel}. Ensure Ollama is running (ollama run ${ollamaModel}).`
+      return res.status(500).json({
+        error: "Failed to generate AI response from Gemini neural pipeline."
       });
     } catch (err: any) {
       console.error("[API CHAT FATAL ERROR]", err);
-      return res.status(500).json({ error: err.message || "Internal server error in Doctorian AI engine." });
+      return res.status(500).json({ error: err.message || "Internal server error in Doctorian Gemini AI engine." });
     }
   });
 
@@ -10289,7 +10250,12 @@ INSTRUCTIONS FOR SMS PAYLOAD:
       if (req.originalUrl.startsWith('/api')) {
         return res.status(404).json({ error: "API endpoint not found" });
       }
-      res.sendFile(path.join(distPath, "index.html"));
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(200).send("<!DOCTYPE html><html><head><title>Doctorian Medical AI</title></head><body><h1>Doctorian Medical AI is loading...</h1></body></html>");
+      }
     });
   }
 

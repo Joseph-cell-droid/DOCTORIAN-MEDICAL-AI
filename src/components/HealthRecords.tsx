@@ -1072,16 +1072,28 @@ export const HealthRecords: React.FC = () => {
 
                     return (
                       <article key={`healthrecords-l1074-${index}`} className={`rounded-3xl border-2 transition-all ${isExpanded ? 'border-blue-100 dark:border-blue-900 bg-blue-50/10 dark:bg-blue-900/5' : 'border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
-                        <button
+                        <div
                           id={`med-toggle-${med.id}`}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setExpandedMeds(prev => {
                             const s = new Set(prev);
                             s.has(med.id) ? s.delete(med.id) : s.add(med.id);
                             return s;
                           })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setExpandedMeds(prev => {
+                                const s = new Set(prev);
+                                s.has(med.id) ? s.delete(med.id) : s.add(med.id);
+                                return s;
+                              });
+                            }
+                          }}
                           aria-expanded={isExpanded}
                           aria-controls={`med-content-${med.id}`}
-                          className="w-full flex items-center gap-4 px-6 py-5 text-left"
+                          className="w-full flex items-center gap-4 px-6 py-5 text-left cursor-pointer select-none"
                         >
                           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm ${med.name ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`} aria-hidden="true">
                             {index + 1}
@@ -1098,15 +1110,16 @@ export const HealthRecords: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-4">
                             <button 
+                              type="button"
                               onClick={e => { e.stopPropagation(); removeMedication(med.id); }} 
-                              className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
+                              className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 transition-colors cursor-pointer"
                               aria-label={`Remove medication ${med.name || index + 1}`}
                             >
                               <Trash2 size={18} aria-hidden="true" />
                             </button>
                             {isExpanded ? <ChevronUp size={20} className="text-slate-400 dark:text-slate-500" aria-hidden="true" /> : <ChevronDown size={20} className="text-slate-400 dark:text-slate-500" aria-hidden="true" />}
                           </div>
-                        </button>
+                        </div>
                         <AnimatePresence>
                           {isExpanded && (
                             <motion.div

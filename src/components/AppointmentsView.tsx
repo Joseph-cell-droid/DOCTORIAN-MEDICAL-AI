@@ -12,9 +12,12 @@ import {
   ChevronRight,
   Shield,
   Stethoscope,
-  ChevronLeft
+  ChevronLeft,
+  RefreshCw,
+  Share2
 } from 'lucide-react';
 import { AppointmentScheduler } from './AppointmentScheduler';
+import { syncAppointmentToCalendar } from '../utils/googleWorkspace';
 
 interface Appointment {
   id: string;
@@ -69,6 +72,26 @@ export const AppointmentsView: React.FC<{ user: any; onShowToast: (msg: string, 
     specialty: 'Cardiovascular Medicine',
     rating: 4.9
   });
+  const [syncingMap, setSyncingMap] = useState<Record<string, boolean>>({});
+
+  const handleSyncCalendar = async (apt: Appointment) => {
+    setSyncingMap(prev => ({ ...prev, [apt.id]: true }));
+    try {
+      await syncAppointmentToCalendar({
+        summary: `Doctorian Consultation: ${apt.doctorName}`,
+        description: `Clinician: ${apt.doctorName} (${apt.specialty})\nNotes: ${apt.notes || 'Routine EHR Telehealth checkup.'}`,
+        dateStr: apt.date,
+        timeStr: apt.time,
+        type: apt.type
+      });
+      onShowToast(`📅 Synchronized! Session pinned to your Google Calendar.`, 'success');
+    } catch (err: any) {
+      console.error("Google Calendar Sync Error:", err);
+      onShowToast(`Calendar Sync failed. Please authenticate Google credentials.`, 'error');
+    } finally {
+      setSyncingMap(prev => ({ ...prev, [apt.id]: false }));
+    }
+  };
 
   const handleBookAppointment = (details: any) => {
     const newApt: Appointment = {
@@ -265,21 +288,39 @@ export const AppointmentsView: React.FC<{ user: any; onShowToast: (msg: string, 
                           )}
                         </div>
 
-                        {apt.status === 'upcoming' && (
-                          <button
-                            onClick={() => {
-                              if (apt.type === 'virtual') {
-                                onShowToast(`Connecting securely to Telehealth Scribe server...`, 'success');
-                              } else {
-                                onShowToast(`Directions sent to connected GPS module.`, 'info');
-                              }
-                            }}
-                            className="text-[9px] font-black uppercase tracking-widest text-slate-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
-                          >
-                            <span>{apt.type === 'virtual' ? 'Join Call' : 'Directions'}</span>
-                            <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-4">
+                          {apt.status === 'upcoming' && (
+                            <button
+                              onClick={() => handleSyncCalendar(apt)}
+                              disabled={syncingMap[apt.id]}
+                              className="text-[9px] font-black uppercase tracking-widest text-blue-650 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                              title="Sync to Google Calendar"
+                            >
+                              {syncingMap[apt.id] ? (
+                                <RefreshCw size={11} className="animate-spin" />
+                              ) : (
+                                <Share2 size={11} />
+                              )}
+                              <span>Sync to Calendar</span>
+                            </button>
+                          )}
+
+                          {apt.status === 'upcoming' && (
+                            <button
+                              onClick={() => {
+                                if (apt.type === 'virtual') {
+                                  onShowToast(`Connecting securely to Telehealth Scribe server...`, 'success');
+                                } else {
+                                  onShowToast(`Directions sent to connected GPS module.`, 'info');
+                                }
+                              }}
+                              className="text-[9px] font-black uppercase tracking-widest text-slate-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <span>{apt.type === 'virtual' ? 'Join Call' : 'Directions'}</span>
+                              <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   ))}

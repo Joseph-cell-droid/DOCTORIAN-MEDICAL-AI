@@ -224,7 +224,7 @@ export const PatientsDashboardView: React.FC<PatientsDashboardViewProps> = ({
               };
               return [watchCard, ...prev];
             } else {
-              return prev.map(p => {
+              return prev.map((p, _idx_226) => {
                 if (p.id === latestWatch.device_id || p.name === latestWatch.patient_name) {
                   return {
                     ...p,
@@ -250,7 +250,7 @@ export const PatientsDashboardView: React.FC<PatientsDashboardViewProps> = ({
     fetchWatchDevices();
     const interval = setInterval(() => {
       fetchWatchDevices();
-      setPatients(prev => prev.map(pt => {
+      setPatients(prev => prev.map((pt, _idx_252) => {
         if (pt.status === 'syncing' || !pt.vitals.hr) return pt;
         
         // Random micro-fluctuations in live vitals

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mail, 
@@ -6,10 +6,24 @@ import {
   ExternalLink,
   ShieldCheck,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   ArrowRight,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Sparkles,
+  Cpu,
+  Activity,
+  Stethoscope,
+  Database,
+  FileHeart,
+  Pill,
+  HeartPulse,
+  Share2,
+  Globe,
+  Radio,
+  Lock
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { api } from '../api';
@@ -24,11 +38,21 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const [subscribed, setSubscribed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Horizontal Quick Nav Scroll Container Ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Feedback states
   const [feedbackRating, setFeedbackRating] = useState<'up' | 'down' | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
+  const scrollQuickNav = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = direction === 'left' ? -280 : 280;
+      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +62,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
       setIsSubmitting(false);
       setSubscribed(true);
       setEmail('');
-    }, 1200);
+    }, 1000);
   };
 
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
@@ -55,137 +79,214 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
       setFeedbackText('');
       setFeedbackRating(null);
     } catch (err) {
-      console.error(err);
+      console.error("Feedback submit error:", err);
     } finally {
       setIsSubmittingFeedback(false);
     }
   };
 
+  const quickNavModules = [
+    { label: "AI Diagnostic Lab", view: 'diagnostic_lab', icon: <Cpu size={13} className="text-cyan-500" />, badge: "Gemini 3.7" },
+    { label: "Real-Time Bio-Monitor", view: 'monitor', icon: <Activity size={13} className="text-emerald-500" />, badge: "Live Vitals" },
+    { label: "Clinical Synapse AI", view: 'ai_nexus', icon: <Sparkles size={13} className="text-blue-500" />, badge: "Neural" },
+    { label: "Patient EHR Vault", view: 'records', icon: <Database size={13} className="text-purple-500" />, badge: "Encrypted" },
+    { label: "CognisHub Core", view: 'neuro', icon: <Stethoscope size={13} className="text-indigo-500" />, badge: "Triage" },
+    { label: "E-Prescription & Pharmacy", view: 'meds', icon: <Pill size={13} className="text-amber-500" />, badge: "Formulary" },
+    { label: "VHT Field Records", view: 'fitness', icon: <HeartPulse size={13} className="text-rose-500" />, badge: "Community" },
+    { label: "Genomic Longevity", view: 'genomic_longevity', icon: <FileHeart size={13} className="text-teal-500" />, badge: "Biomarkers" },
+    { label: "SMS GSM Gateway", view: 'gsm_sms_gateway', icon: <Radio size={13} className="text-sky-500" />, badge: "Offline SMS" },
+    { label: "Specialist Relay", view: 'specialist', icon: <Share2 size={13} className="text-orange-500" />, badge: "On-Duty" },
+  ];
+
   const menuSections = [
     {
-      title: "Medical Suite",
+      title: "Medical Intelligence",
       links: [
         { label: "Clinical Dashboard", view: 'home' },
         { label: "AI Diagnostic Lab", view: 'diagnostic_lab' },
-        { label: "Bio-Monitor Link", view: 'monitor' },
-        { label: "Neural Network Analysis", view: 'ai_nexus' },
-        { label: "CognisHub Core", view: 'neuro' }
+        { label: "Bio-Telemetry Monitor", view: 'monitor' },
+        { label: "Neural Synapse Engine", view: 'ai_nexus' },
+        { label: "CognisHub Clinical Matrix", view: 'neuro' },
+        { label: "Genomic Health Protocol", view: 'genomic_longevity' }
       ]
     },
     {
-      title: "Clinical Records",
+      title: "Patient Care & Protocols",
       links: [
-        { label: "Patient Registry", view: 'records' },
-        { label: "Specialist Routing", view: 'specialist' },
-        { label: "E-Pharmacy Vault", view: 'meds' },
-        { label: "VHT Physical Logs", view: 'fitness' },
-        { label: "Billing & Protocol Control", view: 'billing' }
+        { label: "Patient Registry & EHR", view: 'records' },
+        { label: "Specialist Physician Hub", view: 'specialist' },
+        { label: "E-Pharmacy & Formulary", view: 'meds' },
+        { label: "VHT Community Field Logs", view: 'fitness' },
+        { label: "Emergency SOS Relay", view: 'gsm_sms_gateway' },
+        { label: "Clinical Protocol Control", view: 'tasks' }
       ]
     },
     {
-      title: "Regional Gateways",
+      title: "Regional Gateways & Standards",
       links: [
         { label: "Uganda Ministry of Health", href: "https://health.go.ug" },
         { label: "WhatsApp Clinic Relay", href: "https://wa.me/256787674140" },
         { label: "WHO Great Lakes Node", href: "https://www.who.int" },
+        { label: "Ugandan Clinical Guidelines (UCG)", href: "https://health.go.ug" },
         { label: "E-Mail Clinical Lead", href: "mailto:gloriajayakullo@gmail.com" },
-        { label: "National Health Line", href: "tel:256787674140" }
+        { label: "National Health Toll-Free Line", href: "tel:256787674140" }
       ]
     }
   ];
 
   return (
-    <footer className="relative bg-[#f8fafc] dark:bg-[#030712] pt-16 sm:pt-20 pb-48 lg:pb-32 max-h-[85vh] lg:max-h-none overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-850 mt-auto transition-colors duration-300 border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-15px_30px_rgba(0,0,0,0.02)] dark:shadow-[0_-15px_40px_rgba(0,0,0,0.4)]">
+    <footer id="doctorian-main-footer" className="relative bg-[#fafbfd] dark:bg-[#030610] pt-12 pb-28 sm:pb-20 md:pb-16 mt-auto transition-colors duration-300 border-t border-slate-200/70 dark:border-slate-900/80 overflow-visible select-none">
       
-      {/* High-tech Separator Laser Line & Ambient Glow */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-550/40 to-transparent dark:via-cyan-500/50" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[280px] h-[20px] bg-blue-500/10 dark:bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
+      {/* Decorative High-Tech Glow Elements */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent dark:via-cyan-500/40" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-[1px] bg-gradient-to-r from-transparent via-blue-500/60 to-transparent dark:via-cyan-400/60 filter blur-[1px]" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-16 bg-blue-500/[0.05] dark:bg-cyan-500/[0.06] rounded-full blur-3xl pointer-events-none" />
 
-      {/* Elegantly soft illumination backdrops */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-        <div className="absolute top-0 left-1/4 w-[450px] h-[350px] bg-gradient-to-br from-blue-500/10 to-transparent dark:from-blue-500/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-10 right-1/4 w-[350px] h-[300px] bg-gradient-to-br from-indigo-500/10 to-transparent dark:from-indigo-500/20 rounded-full blur-[90px]" />
-        <div className="absolute top-1/2 right-10 w-[200px] h-[200px] bg-gradient-to-br from-emerald-500/10 to-transparent dark:from-emerald-500/20 rounded-full blur-[70px]" />
-      </div>
-
-      <div className="max-w-none mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 relative z-10 w-full">
+      {/* Main Container */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10 w-full flex flex-col space-y-10">
         
-        {/* Main Grid: Branding, Links, Bulletin, Feedback */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 pb-6">
-          
-          {/* Brand Identity Panel */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="flex items-center gap-3">
-              <Logo size="md" />
+        {/* Scrollable Quick-Access Navigation Ribbon */}
+        <div className="w-full space-y-2.5">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                <Globe size={11} className="text-blue-500 dark:text-cyan-400" />
+                Clinical Nodes & Express Hubs
+              </span>
+              <span className="text-[9px] text-slate-400 dark:text-slate-600 font-bold hidden sm:inline">
+                (Scrollable Horizontal Strip)
+              </span>
             </div>
-
-            <p className="text-slate-600 dark:text-slate-300 text-xs font-semibold leading-relaxed max-w-sm">
-              An advanced, user-centric clinical platform bridging bio-telemetry pipelines in real-time with reliable automated medical insights. Built to ensure smooth workflows for practitioners, VHTs, and regional patients in Great Lakes communities.
-            </p>
-
-            {/* Quick Contact Info */}
-            <div className="flex flex-col gap-3 pt-2 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-              <div className="flex items-center gap-3 group">
-                <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 text-slate-550 rounded-xl flex items-center justify-center">
-                  <Mail size={14} />
-                </div>
-                <span className="break-all select-all font-bold">{process.env.MTN_EMAIL || 'gloriajayakullo@gmail.com'}</span>
-              </div>
-              <div className="flex items-center gap-3 group">
-                <div className="w-8 h-8 bg-slate-150 dark:bg-slate-900 text-slate-550 rounded-xl flex items-center justify-center">
-                  <MapPin size={14} />
-                </div>
-                <span className="font-bold">Kampala Region, Uganda Node</span>
-              </div>
+            
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => scrollQuickNav('left')}
+                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors cursor-pointer"
+                title="Scroll Left"
+                aria-label="Scroll Left"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => scrollQuickNav('right')}
+                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors cursor-pointer"
+                title="Scroll Right"
+                aria-label="Scroll Right"
+              >
+                <ChevronRight size={14} />
+              </button>
             </div>
           </div>
 
-          {/* Nav Links columns */}
-          <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-8">
-            {menuSections.map((section, idx) => (
-              <div key={`footer-l146-idx-${idx}`} className="space-y-5">
-                <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{section.title}</h4>
-                <ul className="space-y-3">
-                  {section.links.map((link: any, linkIdx: number) => (
-                    <li key={`footer-link-${idx}-${linkIdx}-${link.label}`}>
-                      {link.href ? (
-                        <a 
-                          href={link.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-400 transition-all duration-150 flex items-center gap-1.5 group/item whitespace-normal break-words"
-                        >
-                          <span className="flex-1 group-hover/item:translate-x-1 transition-transform">{link.label}</span>
-                          <ExternalLink size={10} className="text-blue-500 dark:text-cyan-450 transform group-hover/item:scale-110 transition-transform shrink-0" />
-                        </a>
-                      ) : (
-                        <button
-                          onClick={() => onNavigate(link.view)}
-                          className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-400 transition-all duration-150 text-left block w-full whitespace-normal break-words hover:translate-x-1"
-                        >
-                          {link.label}
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          {/* Smooth Horizontal Scroll Ribbon */}
+          <div 
+            ref={scrollContainerRef}
+            className="flex items-center gap-2.5 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800 scroll-smooth snap-x select-none"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {quickNavModules.map((item, idx) => (
+              <button
+                key={`quick-node-${idx}-${item.label}`}
+                onClick={() => onNavigate(item.view)}
+                className="snap-start shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900/80 hover:bg-blue-50/50 dark:hover:bg-slate-850 border border-slate-200/70 dark:border-slate-800/80 transition-all text-left shadow-xs group cursor-pointer"
+              >
+                <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 group-hover:scale-105 transition-transform shrink-0">
+                  {item.icon}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-cyan-400 transition-colors whitespace-nowrap">
+                    {item.label}
+                  </span>
+                  <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                    {item.badge}
+                  </span>
+                </div>
+              </button>
             ))}
           </div>
+        </div>
 
-          {/* Bulletin Feed panel */}
-          <div className="lg:col-span-2.5 space-y-5">
-            <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">Clinical Bulletins</h4>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-              Subscribe to the secure feed for modern clinical announcements, infectious health warnings, and telemetry release briefs.
+        {/* Brand & Menu Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10 lg:gap-8 py-8 border-t border-b border-slate-200/60 dark:border-slate-900/80">
+          
+          {/* Brand Info */}
+          <div className="flex flex-col space-y-4 lg:pr-4 text-center lg:text-left items-center lg:items-start">
+            <Logo size="md" />
+            <p className="text-slate-500 dark:text-slate-400 text-xs font-medium leading-relaxed max-w-sm">
+              Next-generation clinical intelligence platform bridging real-time bio-telemetry, offline VHT field operations, and multilingual medical reasoning for Ugandan and regional healthcare systems.
             </p>
+            
+            <div className="flex flex-col space-y-2 pt-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-2">
+                <Mail size={12} className="text-blue-500 dark:text-cyan-400 shrink-0" />
+                <span className="font-semibold select-all">{process.env.MTN_EMAIL || 'gloriajayakullo@gmail.com'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin size={12} className="text-blue-500 dark:text-cyan-400 shrink-0" />
+                <span>Kampala Medical Node, Uganda</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Lock size={12} className="text-emerald-500 shrink-0" />
+                <span>256-Bit TLS Clinical Encryption</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Columns */}
+          {menuSections.map((section, idx) => (
+            <div key={`footer-menu-col-${idx}`} className="flex flex-col space-y-3.5 text-center lg:text-left items-center lg:items-start">
+              <h4 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-[0.2em]">
+                {section.title}
+              </h4>
+              <ul className="space-y-2 w-full">
+                {section.links.map((link: any, linkIdx: number) => (
+                  <li key={`footer-link-item-${idx}-${linkIdx}`} className="flex justify-center lg:justify-start">
+                    {link.href ? (
+                      <a 
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-400 transition-colors duration-150 inline-flex items-center gap-1.5 group/link uppercase tracking-wider"
+                      >
+                        <span>{link.label}</span>
+                        <ExternalLink size={10} className="text-blue-500/80 dark:text-cyan-500/80 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform shrink-0" />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => onNavigate(link.view)}
+                        className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-400 transition-colors duration-150 uppercase tracking-wider cursor-pointer text-left"
+                      >
+                        {link.label}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+        </div>
+
+        {/* Interactive Segment: Feedback + Newsletter */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+          
+          {/* Newsletter Panel */}
+          <div className="bg-white dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-850/80 rounded-2xl p-5 flex flex-col space-y-3.5 shadow-xs">
+            <div>
+              <h4 className="text-[10px] font-black text-slate-900 dark:text-slate-200 uppercase tracking-[0.2em]">
+                Clinical Bulletins & Protocols
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium mt-0.5">
+                Subscribe to official clinical alerts, telemetry releases, and regional health warnings.
+              </p>
+            </div>
 
             <AnimatePresence mode="wait">
               {!subscribed ? (
                 <motion.form 
                   key="subscribe-form"
                   onSubmit={handleSubscribe}
-                  className="space-y-2.5 mt-2"
+                  className="space-y-2.5 w-full"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -194,40 +295,40 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                     <input 
                       required
                       type="email"
-                      placeholder="ENTER TERMINAL EMAIL..."
+                      placeholder="ENTER CLINICAL EMAIL..."
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-850 dark:text-white placeholder:text-slate-400/90 outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-slate-950 transition-all"
+                      className="w-full bg-slate-50 dark:bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 transition-all border border-slate-200 dark:border-slate-800"
                     />
                     <button 
                       type="submit" 
                       disabled={isSubmitting}
-                      className="absolute right-2 top-2 bottom-2 px-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all active:scale-95 flex items-center justify-center shadow-md shadow-blue-500/10 cursor-pointer"
+                      className="absolute right-1 top-1 bottom-1 px-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg transition-all active:scale-95 flex items-center justify-center shadow-xs cursor-pointer"
                       title="Subscribe"
                     >
                       {isSubmitting ? (
-                        <span className="text-[9px] font-black uppercase tracking-widest px-1 animate-pulse">...</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest px-1 animate-pulse">...</span>
                       ) : (
-                        <ArrowRight size={13} />
+                        <ArrowRight size={12} />
                       )}
                     </button>
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wider ml-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[8px] font-black uppercase tracking-wider">
                     <ShieldCheck size={11} className="text-emerald-500 shrink-0" />
-                    <span>Secure Delivery TLS Encrypted</span>
+                    <span>Secure Encrypted Delivery Channel</span>
                   </div>
                 </motion.form>
               ) : (
                 <motion.div 
                   key="subscribe-success"
-                  className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-2xl flex items-center gap-3"
+                  className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3"
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
-                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0 animate-bounce" />
+                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block pb-0.5">Terminal Registered</span>
-                    <span className="text-[8px] text-slate-400 uppercase tracking-widest font-black block">Secure notification channel online</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">Terminal Enrolled</span>
+                    <span className="text-[8px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black block">Clinical notifications active</span>
                   </div>
                 </motion.div>
               )}
@@ -235,89 +336,93 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           {/* Feedback Panel */}
-          <div className="lg:col-span-2.5 space-y-5">
-            <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">Share Feedback</h4>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-              Help us improve this portal. Rate your overall experience and let us know your suggestions.
-            </p>
+          <div className="bg-white dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-850/80 rounded-2xl p-5 flex flex-col space-y-3.5 shadow-xs">
+            <div>
+              <h4 className="text-[10px] font-black text-slate-900 dark:text-slate-200 uppercase tracking-[0.2em]">
+                Diagnostic Experience Feedback
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium mt-0.5">
+                Help us calibrate Doctorian Medical AI for practitioners and field workers.
+              </p>
+            </div>
 
             <AnimatePresence mode="wait">
               {!feedbackSubmitted ? (
                 <motion.form
                   key="feedback-form"
                   onSubmit={handleFeedbackSubmit}
-                  className="space-y-4 mt-2"
+                  className="space-y-2.5 w-full"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
                   {/* Rating buttons */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setFeedbackRating('up')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
                         feedbackRating === 'up'
-                          ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-slate-50 dark:bg-slate-950/70 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800"
                       }`}
                     >
-                      <ThumbsUp size={14} className={feedbackRating === 'up' ? "scale-110" : ""} />
-                      Good
+                      <ThumbsUp size={12} className={feedbackRating === 'up' ? "scale-110" : ""} />
+                      Accurate
                     </button>
                     <button
                       type="button"
                       onClick={() => setFeedbackRating('down')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
                         feedbackRating === 'down'
-                          ? "bg-rose-600 text-white shadow-md shadow-rose-600/10"
-                          : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+                          ? "bg-rose-600 text-white border-rose-600 shadow-xs"
+                          : "bg-slate-50 dark:bg-slate-950/70 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800"
                       }`}
                     >
-                      <ThumbsDown size={14} className={feedbackRating === 'down' ? "scale-110" : ""} />
-                      Bad
+                      <ThumbsDown size={12} className={feedbackRating === 'down' ? "scale-110" : ""} />
+                      Needs Tuning
                     </button>
                   </div>
 
                   {/* Suggestions textbox */}
                   <div className="relative">
-                    <textarea
-                      rows={2}
-                      placeholder="ANY CONSTRUCTIVE FEEDBACK..."
+                    <input
+                      type="text"
+                      placeholder="SUGGESTION OR CLINICAL NOTE..."
                       value={feedbackText}
                       onChange={(e) => setFeedbackText(e.target.value)}
-                      className="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-850 dark:text-white placeholder:text-slate-400/90 outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-slate-950 transition-all resize-none font-sans"
+                      className="w-full bg-slate-50 dark:bg-slate-950/70 rounded-xl px-3.5 py-2 text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 transition-all border border-slate-200 dark:border-slate-800"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmittingFeedback || !feedbackRating}
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 shadow-md shadow-blue-500/10 cursor-pointer font-sans"
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                   >
-                    {isSubmittingFeedback ? "SUBMITTING..." : "SUBMIT FEEDBACK"}
+                    {isSubmittingFeedback ? "TRANSMITTING..." : "SUBMIT CLINICAL FEEDBACK"}
                   </button>
                 </motion.form>
               ) : (
                 <motion.div
                   key="feedback-success"
-                  className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-2xl flex flex-col gap-2"
+                  className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex flex-col gap-1"
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Feedback Submitted</span>
+                    <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Feedback Logged</span>
                   </div>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black leading-relaxed">
-                    Thank you for helping us build a better Doctorian AI. Your input is valuable.
-                  </span>
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black">
+                    Thank you. Your feedback optimizes our Gemini clinical intelligence model.
+                  </p>
                   <button
                     type="button"
                     onClick={() => setFeedbackSubmitted(false)}
-                    className="text-left text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-cyan-400 hover:underline mt-1 cursor-pointer font-sans"
+                    className="text-left text-[8px] font-black uppercase tracking-wider text-blue-600 dark:text-cyan-400 hover:underline mt-0.5 cursor-pointer"
                   >
-                    Submit Another
+                    Submit Additional Notes
                   </button>
                 </motion.div>
               )}
@@ -326,37 +431,35 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         </div>
 
-        {/* Bottom Bar: Copyright, HIPAA Certification, Scroll up button */}
-        <div className="pt-10 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-slate-200/40 dark:border-slate-800/40 mt-10">
-          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 text-center md:text-left">
-            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
-              © {currentYear} Doctorian AI. All rights reserved.
+        {/* Bottom Bar */}
+        <div className="w-full pt-6 border-t border-slate-200/60 dark:border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+          
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+              © {currentYear} Doctorian Medical AI.
             </p>
-            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 dark:bg-emerald-400/10 rounded-full shadow-sm shrink-0">
-              <ShieldCheck size={12} className="text-emerald-600 dark:text-emerald-400 shadow-sm" />
-              <span className="text-[8px] font-black tracking-widest uppercase text-emerald-600 dark:text-emerald-400">PRIVACY & SECURITY CONTROLS ACTIVE</span>
+            <span className="text-slate-300 dark:text-slate-800 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-900 rounded-full text-[9px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-800/60">
+              Developed by <span className="text-blue-600 dark:text-cyan-400 font-extrabold ml-0.5">Akora Joseph</span>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-5">
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-800/40 font-sans">
-              Developed by <span className="text-blue-600 dark:text-cyan-400 font-extrabold ml-1 animate-pulse font-sans">Akora Joseph</span>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-                Pulse Calibration Sync
-              </span>
-              <button
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="p-3 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-md cursor-pointer"
-                title="Return to Core Stream"
-              >
-                <ChevronUp size={16} />
-              </button>
-            </div>
+          <div className="flex items-center gap-4">
+            <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              Gemini Synapse Connected
+            </span>
+            <span className="text-slate-300 dark:text-slate-800">|</span>
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="p-2 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 rounded-xl transition-all hover:-translate-y-0.5 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1 text-[9px] font-black uppercase tracking-wider"
+              title="Return to top of page"
+            >
+              <ChevronUp size={13} />
+              <span>Top</span>
+            </button>
           </div>
+
         </div>
 
       </div>

@@ -48,14 +48,14 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [enableExternalAI, setEnableExternalAI] = useState(user?.enableExternalAI || false);
   const [aiBrainOption, setAiBrainOption] = useState<'in_browser' | 'cloud' | 'laptop_node' | 'huggingface' | 'gemma_cloud'>(() => {
     const engine = typeof window !== 'undefined' ? localStorage.getItem('doctorian_clinical_engine') : null;
-    if (engine === 'gemma3-tfjs' || !engine) {
-      return 'in_browser'; // Default/primary is in_browser / Option 1
+    if (engine === 'gemma3-tfjs') {
+      return 'in_browser';
+    }
+    if (!engine || engine === 'huggingface') {
+      return 'gemma_cloud'; // Default/primary is Google Gemini Cloud
     }
     if (engine === 'gemma-cloud') {
       return 'gemma_cloud';
-    }
-    if (engine === 'huggingface') {
-      return 'huggingface';
     }
     const prioritizeLocal = typeof window !== 'undefined' ? localStorage.getItem('doctorian_prioritize_local_ai') !== 'false' : false;
     if (prioritizeLocal) {
@@ -1380,36 +1380,6 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                     </button>
 
-                    {/* Option 4: Hugging Face Cloud Brain */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAiBrainOption('huggingface');
-                        setPrioritizeLocalAI(false);
-                      }}
-                      className={`p-5 rounded-3xl border-2 text-left transition-all hover:scale-[1.02] flex flex-col justify-between h-48 cursor-pointer ${
-                        aiBrainOption === 'huggingface'
-                          ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
-                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className={`p-3 rounded-2xl ${aiBrainOption === 'huggingface' ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-450'}`}>
-                          <Sparkles size={20} />
-                        </div>
-                        {aiBrainOption === 'huggingface' && (
-                          <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider">Stable HF</span>
-                        )}
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Doctorian Triage AI</h5>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">Doctorian Triage AI Core</p>
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-normal">
-                          Fast, serverless execution of DOCTORIAN 2.5 via secure API keys.
-                        </p>
-                      </div>
-                    </button>
-
                     {/* Option 5: Google Gemma 3 Cloud Brain */}
                     <button
                       type="button"
@@ -1602,12 +1572,6 @@ Verified by Joseph Akora - Development Lead.
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mb-4 ml-1">
-                      <Cpu size={14} className="text-blue-500 animate-pulse" />
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
-                    </div>
-                    
-                    {renderHuggingFaceSection()}
 
                     <div className="flex items-center gap-2 mb-4 ml-1">
                       <Globe size={14} className="text-violet-500" />
@@ -1904,12 +1868,6 @@ Verified by Joseph Akora - Development Lead.
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-4 ml-1">
-                        <Cpu size={14} className="text-blue-500 animate-pulse" />
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hugging Face Cloud Neural Link (Stable API)</h4>
-                      </div>
-                      
-                      {renderHuggingFaceSection()}
 
                       <div className="flex items-center gap-2 mb-4 ml-1">
                         <Globe size={14} className="text-violet-500" />

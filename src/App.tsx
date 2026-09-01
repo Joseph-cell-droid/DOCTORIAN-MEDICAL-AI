@@ -186,7 +186,7 @@ import { BioSecurity } from "./components/BioSecurity";
 const DeveloperPortal = safeLazy(() => import("./components/DeveloperPortal"), "DeveloperPortal");
 const GsmSmsGateway = safeLazy(() => import("./components/GsmSmsGateway"), "GsmSmsGateway");
 const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
-const BMICalculator = safeLazy(() => import("./components/BMICalculator"), "BMICalculator");
+import { BMICalculator } from "./components/BMICalculator";
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
 const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
@@ -1567,7 +1567,7 @@ export default function App() {
       window.history.replaceState({}, document.title, newUrl);
 
       try {
-        const decodedString = decodeURIComponent(atob(scanUserData).split('').map((c) => {
+        const decodedString = decodeURIComponent(atob(scanUserData).split('').map((c, _idx_1569) => {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         const profileData = JSON.parse(decodedString);
@@ -1617,25 +1617,32 @@ export default function App() {
   useEffect(() => {
     sessionStorage.setItem('doctor_authenticated', 'true');
     sessionStorage.setItem('admin_authenticated', 'true');
+    
+    // Exactly 3 seconds (3000ms) neural initialization process before loading the app
+    const minInitDurationPromise = new Promise(resolve => setTimeout(resolve, 3000));
+
     const checkAuth = async () => {
       console.log("[Doctorian] Initiating Auth Authentication Sequence...");
       
       // Attempt immediate recovery from localStorage for seamless transition on an existing authenticated device
       const savedUserStr = localStorage.getItem('medical_user');
       let recoveredUser: User | null = null;
-      if (savedUserStr) {
+      if (savedUserStr && savedUserStr !== "undefined" && savedUserStr !== "null" && savedUserStr.trim() !== "") {
         try {
           const parsed = JSON.parse(savedUserStr);
-          if (parsed && parsed.email) {
+          if (parsed && typeof parsed === "object" && parsed.email) {
             recoveredUser = parsed;
             setUser(parsed);
-            setIsAuthReady(true);
             console.log("[Doctorian] Recovered active local session on this device:", parsed.email);
           }
         } catch (e) {
-          console.error("Error parsing offline user profile:", e);
+          console.warn("[Doctorian] Cleaned invalid offline user profile:", e);
+          try { localStorage.removeItem('medical_user'); } catch (_) {}
         }
       } else {
+        if (savedUserStr === "undefined" || savedUserStr === "null") {
+          try { localStorage.removeItem('medical_user'); } catch (_) {}
+        }
         console.log("[Doctorian] New device detected: No locally stored user session exists.");
       }
 
@@ -1645,7 +1652,7 @@ export default function App() {
 
       while (attempts < maxAttempts) {
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Auth Synchronization Timeout")), 30000)
+          setTimeout(() => reject(new Error("Auth Synchronization Timeout")), 10000)
         );
 
         try {
@@ -1660,7 +1667,6 @@ export default function App() {
           } else {
             // No active server-side session. If this is a brand new device (no localStorage session),
             // we start with NO ACCOUNT (null state) to protect privacy.
-            // This prevents automatic login as Gloria Jayakullo on shared devices via Bluetooth or Xender.
             if (!savedUserStr) {
               console.log("[Doctorian] Modern Security Active: New/unauthenticated device. Starting on clean landing page.");
               setUser(null);
@@ -1670,8 +1676,9 @@ export default function App() {
               setUser(recoveredUser);
             }
           }
+          await minInitDurationPromise;
           setIsAuthReady(true);
-          console.log("[Doctorian] Neural Interface Ready.");
+          console.log("[Doctorian] Neural Interface Ready (3-second initialization completed).");
           return; // Success, exit completely
         } catch (error: any) {
           attempts++;
@@ -1684,11 +1691,12 @@ export default function App() {
             } else {
               setUser(recoveredUser);
             }
+            await minInitDurationPromise;
             setIsAuthReady(true);
-            console.log("[Doctorian] Neural Interface Ready (Offline fallback active).");
+            console.log("[Doctorian] Neural Interface Ready (Offline fallback active, 3-second initialization completed).");
           } else {
             // Wait a bit before retry
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 800));
           }
         }
       }
@@ -1890,17 +1898,17 @@ export default function App() {
       let responseText = "";
       let sourceAttribution = "";
 
-      // Primary Cloud Hugging Face AI Neural Link
+      // Primary Cloud Gemini AI Neural Link
       try {
-        console.log("[Insight Engine] Generating real-time wellness protocol via Hugging Face AI...");
+        console.log("[Insight Engine] Generating real-time wellness protocol via Google Gemini AI...");
         const response = await api.ai.aiChat(
           [{ role: "user", text: prompt }], 
           systemInstruction, 
-          "huggingface",
+          "gemini-2.5-flash",
           0.7
         );
         responseText = response.text;
-        sourceAttribution = "Hugging Face Neural Engine";
+        sourceAttribution = "Google Gemini Neural Engine";
       } catch (geminiErr: any) {
         console.warn("[Insight Engine] Cloud Gemini temporarily busy, evaluating failovers...", geminiErr);
         
@@ -1996,7 +2004,7 @@ export default function App() {
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: "100%" }}
-              transition={{ duration: 1.5, ease: "easeInOut" }}
+              transition={{ duration: 3.0, ease: "easeInOut" }}
               className="absolute left-0 top-0 h-full bg-blue-600 shadow-[0_0_12px_rgba(37,99,235,0.6)]"
             />
           </div>
@@ -2131,7 +2139,6 @@ export default function App() {
     { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
     { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={16} />, badge: undefined, color: 'amber' },
     { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} />, badge: undefined, color: 'sky' },
-    { id: 'records', label: 'Health Records (EHR)', icon: <FileText size={16} />, badge: undefined, color: 'teal' },
     { id: 'emergency', label: 'Emergency SOS 911', icon: <AlertTriangle size={16} />, badge: '24/7 Rapid', color: 'rose', isUrgent: true },
   ];
 
@@ -2159,8 +2166,6 @@ export default function App() {
     {
       category: "Patient Identity, Security & Administration",
       items: [
-        { id: 'profile', label: 'Patient Profile & Medical ID', icon: <UserIcon size={14} />, color: 'text-slate-500 hover:bg-slate-500/10' },
-        { id: 'biosecurity', label: 'Biometric Security & 2FA Vault', icon: <Fingerprint size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
         { id: 'gsm_sms_gateway', label: 'Clinical SMS & Telemetry Gateway', icon: <Bell size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
         { id: 'fitness', label: 'Physiological Longevity Protocols', icon: <Activity size={14} />, color: 'text-green-500 hover:bg-green-500/10' },
         { id: 'billing', label: 'Healthcare Insurance & Billing', icon: <CreditCard size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
@@ -2172,7 +2177,7 @@ export default function App() {
     }
   ];
 
-  const allSubPageIds = subPagesCategories.flatMap(c => c.items.map(i => i.id));
+  const allSubPageIds = subPagesCategories.flatMap(c => c.items.map((i, _idx_2175) => i.id));
   const isCurrentViewSubPage = allSubPageIds.includes(currentView);
 
   const navLinks = priorityNavLinks;
@@ -2220,7 +2225,7 @@ export default function App() {
     diagnostics: ['diagnostic_lab', 'symptoms', 'monitor', 'health_trace', 'illustrator'],
     research: ['biomatic', 'genomic_longevity', 'neuro'],
     physicians: ['doctors_dashboard', 'specialist'],
-    account: ['profile', 'biosecurity', 'gsm_sms_gateway', 'fitness', 'billing', 'help', 'privacy', 'terms']
+    account: ['gsm_sms_gateway', 'fitness', 'billing', 'help', 'privacy', 'terms']
   };
 
   const getSubViewGroup = (view: string): 'diagnostics' | 'research' | 'physicians' | 'account' | null => {
@@ -2264,8 +2269,6 @@ export default function App() {
       account: {
         title: "Patient Identity, Security & Ledger",
         tabs: [
-          { id: 'profile', label: 'Medical Profile', icon: <UserIcon size={13} /> },
-          { id: 'biosecurity', label: '2FA Security Vault', icon: <Fingerprint size={13} /> },
           { id: 'fitness', label: 'Longevity Protocols', icon: <Activity size={13} /> },
           { id: 'billing', label: 'Insurance & Billing', icon: <CreditCard size={13} /> },
           { id: 'help', label: 'Help & Guidance', icon: <Info size={13} /> }
@@ -2353,7 +2356,7 @@ export default function App() {
         </div>
       )}
       <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
-        <AmbientBubbleBackground isDarkMode={isDarkMode} />
+        <AmbientBubbleBackground isDarkMode={isDarkMode} currentView={currentView} />
         <div ref={navigationContainerRef} className="fixed inset-0 z-[140] pointer-events-none" />
       <a 
         href="#main-content" 
@@ -2529,7 +2532,7 @@ export default function App() {
       <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-md overflow-hidden z-10">
 
 
-        <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative pb-16 md:pb-0 ${
+        <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative scroll-smooth overscroll-y-contain ${
           currentView === 'ai_nexus' ? 'overflow-hidden' : 'overflow-y-auto'
         }`}>
         <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
@@ -3887,11 +3890,11 @@ export default function App() {
                   { id: 'vitality', title: 'VITALITY MATRIX', subtitle: 'BIO-ENERGY', icon: <Zap size={20} />, color: 'text-amber-500 dark:text-amber-400' },
                   { id: 'doctors_dashboard', title: "DOCTORS' PORTAL", subtitle: 'WORKSTATION', icon: <UserCheck size={20} />, color: 'text-indigo-600 dark:text-indigo-400' },
                   { id: 'meds', title: 'MEDICATIONS', subtitle: 'PRESCRIPTIONS', icon: <Pill size={20} />, color: 'text-rose-500 dark:text-rose-400' },
-                ].map((node) => {
+                ].map((node, nIdx) => {
                   const isActive = currentView === node.id;
                   return (
                     <button
-                      key={`page-node-${node.id}`}
+                      key={`page-node-${node.id}-${nIdx}`}
                       onClick={() => {
                         setCurrentView(node.id as any);
                         addToast(`Launched ${node.title}`, "success");
@@ -4649,11 +4652,12 @@ export default function App() {
       </div>
     </div>
 
-    {/* Mobile Bottom Navigation Bar - Scrollable Android Style */}
+    {/* Mobile Bottom Navigation Bar - Streamlined Modern Android Style */}
     {user && (
       <MobileBottomNav 
         currentView={currentView} 
-        onNavigate={(view) => setCurrentView(view as any)} 
+        onNavigate={(view) => setCurrentView(view as any)}
+        onOpenMenu={() => setIsMobileMenuOpen(true)}
       />
     )}
 

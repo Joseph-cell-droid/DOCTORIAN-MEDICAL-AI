@@ -1,7 +1,170 @@
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, useMemo } from 'react';
 
-export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(({ isDarkMode = true }) => {
+export type BubbleDensityLevel = 'minimal' | 'low' | 'balanced' | 'dynamic';
+
+export interface BubbleDensityProfile {
+  targetCount: number;
+  maxAlpha: number;
+  speedMultiplier: number;
+  level: BubbleDensityLevel;
+  category: 'dense_dashboard' | 'clinical_focus' | 'ambient_presentation';
+  description: string;
+}
+
+/**
+ * Dynamically determines the particle bubble density profile based on the active view.
+ * Dense data views (telemetry, lab analyzers, clinical monitors) get minimal density
+ * to reduce visual noise, while overview and presentation screens receive full dynamic ambiance.
+ */
+export function getViewBubbleDensity(view?: string, override?: BubbleDensityLevel | number): BubbleDensityProfile {
+  if (typeof override === 'number') {
+    const clamped = Math.max(20, Math.min(300, override));
+    return {
+      targetCount: clamped,
+      maxAlpha: clamped < 80 ? 0.35 : clamped < 160 ? 0.5 : 0.7,
+      speedMultiplier: clamped < 80 ? 0.5 : 0.85,
+      level: clamped < 80 ? 'minimal' : clamped < 160 ? 'balanced' : 'dynamic',
+      category: clamped < 80 ? 'dense_dashboard' : clamped < 160 ? 'clinical_focus' : 'ambient_presentation',
+      description: `Custom density override (${clamped} nodes)`
+    };
+  }
+
+  if (override === 'minimal') {
+    return {
+      targetCount: 45,
+      maxAlpha: 0.28,
+      speedMultiplier: 0.45,
+      level: 'minimal',
+      category: 'dense_dashboard',
+      description: 'Ultra-clean minimal density for dense medical data'
+    };
+  }
+
+  if (override === 'low') {
+    return {
+      targetCount: 85,
+      maxAlpha: 0.4,
+      speedMultiplier: 0.6,
+      level: 'low',
+      category: 'dense_dashboard',
+      description: 'Low density for telemetry and reports'
+    };
+  }
+
+  if (override === 'balanced') {
+    return {
+      targetCount: 130,
+      maxAlpha: 0.52,
+      speedMultiplier: 0.75,
+      level: 'balanced',
+      category: 'clinical_focus',
+      description: 'Balanced ambient density for clinical interaction'
+    };
+  }
+
+  if (override === 'dynamic') {
+    return {
+      targetCount: 240,
+      maxAlpha: 0.75,
+      speedMultiplier: 1.0,
+      level: 'dynamic',
+      category: 'ambient_presentation',
+      description: 'Full dynamic Antigravity particle ambiance'
+    };
+  }
+
+  const v = (view || '').toLowerCase().trim();
+
+  // 1. High-Density Medical Dashboards, Lab Workstations & Real-Time Telemetry
+  const denseDashboardViews = [
+    'monitor',
+    'vitality',
+    'diagnostic_lab',
+    'doctors_dashboard',
+    'admin',
+    'health_matrix',
+    'dev_portal',
+    'biosecurity',
+    'training',
+    'records',
+    'anomaly_detail',
+    'autonomous_sync'
+  ];
+
+  if (denseDashboardViews.includes(v)) {
+    return {
+      targetCount: 48,
+      maxAlpha: 0.3,
+      speedMultiplier: 0.48,
+      level: 'minimal',
+      category: 'dense_dashboard',
+      description: 'Clean low-noise background for high-density clinical charts'
+    };
+  }
+
+  // 2. Focused Clinical Chat, Forms & Interactive Workflow Views
+  const clinicalFocusViews = [
+    'ai_nexus',
+    'symptoms',
+    'specialist',
+    'neuro',
+    'clinical_roadmap',
+    'tasks',
+    'meds',
+    'fitness',
+    'billing',
+    'gsm_sms_gateway',
+    'health_trace',
+    'profile'
+  ];
+
+  if (clinicalFocusViews.includes(v)) {
+    return {
+      targetCount: 115,
+      maxAlpha: 0.48,
+      speedMultiplier: 0.72,
+      level: 'balanced',
+      category: 'clinical_focus',
+      description: 'Serene balanced density for interactive clinical tools'
+    };
+  }
+
+  // 3. Overview, Explorer, Visualizer & Home Presentations (Default Dynamic)
+  return {
+    targetCount: 230,
+    maxAlpha: 0.72,
+    speedMultiplier: 0.95,
+    level: 'dynamic',
+    category: 'ambient_presentation',
+    description: 'Dynamic Antigravity particle matrix'
+  };
+}
+
+interface AmbientBubbleBackgroundProps {
+  isDarkMode?: boolean;
+  currentView?: string;
+  densityOverride?: BubbleDensityLevel | number;
+  className?: string;
+}
+
+export const AmbientBubbleBackground: React.FC<AmbientBubbleBackgroundProps> = memo(({ 
+  isDarkMode = true,
+  currentView = 'home',
+  densityOverride,
+  className = ''
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Compute profile based on view
+  const densityProfile = useMemo(() => {
+    return getViewBubbleDensity(currentView, densityOverride);
+  }, [currentView, densityOverride]);
+
+  // Keep a ref to the latest profile to allow seamless live transitions inside requestAnimationFrame
+  const densityProfileRef = useRef(densityProfile);
+  useEffect(() => {
+    densityProfileRef.current = densityProfile;
+  }, [densityProfile]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,7 +217,7 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
           { r: 5, g: 150, b: 105 }    // Emerald
         ];
 
-    const particleCount = 240;
+    const MAX_PARTICLES = 300;
     
     // Create micro-particles radiating radially like Google Antigravity
     const resetParticle = (p: any) => {
@@ -63,26 +226,35 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
       p.x = width / 2 + Math.cos(angle) * distance;
       p.y = height / 2 + Math.sin(angle) * distance;
       p.angle = angle;
-      p.speed = Math.random() * 0.45 + 0.15;
-      p.radius = Math.random() < 0.75 ? Math.random() * 1.5 + 0.8 : Math.random() * 2.8 + 1.8;
+      p.baseSpeed = Math.random() * 0.42 + 0.14;
+      p.radius = Math.random() < 0.75 ? Math.random() * 1.5 + 0.8 : Math.random() * 2.6 + 1.6;
       p.length = Math.random() < 0.5 ? Math.random() * 4 + 2 : p.radius;
       p.color = colors[Math.floor(Math.random() * colors.length)];
-      p.alpha = Math.random() * 0.6 + 0.35;
+      p.baseAlpha = Math.random() * 0.55 + 0.3;
       p.maxLife = Math.random() * 400 + 200;
       p.life = Math.random() * p.maxLife;
       p.isDash = Math.random() < 0.6;
+      p.fadeFactor = 1;
     };
 
-    const particles = Array.from({ length: particleCount }).map(() => {
+    const particles = Array.from({ length: MAX_PARTICLES }).map(() => {
       const p = {} as any;
       resetParticle(p);
       return p;
     });
 
-    let time = 0;
+    // Smoothly interpolated active density properties
+    let currentParticleCount = densityProfileRef.current.targetCount;
+    let currentAlphaMultiplier = densityProfileRef.current.maxAlpha;
+    let currentSpeedMultiplier = densityProfileRef.current.speedMultiplier;
 
     const render = () => {
-      time += 0.008;
+      const targetProfile = densityProfileRef.current;
+
+      // Smoothly interpolate towards target density settings without sudden jumps
+      currentParticleCount += (targetProfile.targetCount - currentParticleCount) * 0.04;
+      currentAlphaMultiplier += (targetProfile.maxAlpha - currentAlphaMultiplier) * 0.04;
+      currentSpeedMultiplier += (targetProfile.speedMultiplier - currentSpeedMultiplier) * 0.04;
 
       // Smooth mouse interpolation
       mouseX += (targetMouseX - mouseX) * 0.05;
@@ -90,18 +262,32 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
 
       ctx.clearRect(0, 0, width, height);
 
-      const centerX = width / 2 + (mouseX - width / 2) * 0.03;
-      const centerY = height / 2 + (mouseY - height / 2) * 0.03;
+      const activeCount = Math.floor(currentParticleCount);
 
-      particles.forEach((p) => {
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        const p = particles[i];
+        const isActive = i < activeCount;
+
+        // Transition individual particle fade factor smoothly
+        if (isActive) {
+          p.fadeFactor = Math.min(1, p.fadeFactor + 0.03);
+        } else {
+          p.fadeFactor = Math.max(0, p.fadeFactor - 0.04);
+        }
+
+        // If completely faded out and inactive, skip rendering
+        if (p.fadeFactor <= 0.01) {
+          continue;
+        }
+
         p.life += 1;
         if (p.life > p.maxLife) {
           resetParticle(p);
         }
 
-        // Radial outward motion + gentle swirl angle
-        p.angle += 0.0012;
-        const currentSpeed = p.speed * (1 + (p.life / p.maxLife) * 0.5);
+        // Radial outward motion + gentle swirl angle modulated by current speed
+        p.angle += 0.001 * currentSpeedMultiplier;
+        const currentSpeed = p.baseSpeed * currentSpeedMultiplier * (1 + (p.life / p.maxLife) * 0.5);
         p.x += Math.cos(p.angle) * currentSpeed;
         p.y += Math.sin(p.angle) * currentSpeed;
 
@@ -110,10 +296,12 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
           resetParticle(p);
         }
 
-        // Alpha fade in & out
+        // Alpha fade in & out scaled by density alpha multiplier and transition fadeFactor
         const fadeIn = Math.min(1, p.life / 40);
         const fadeOut = Math.min(1, (p.maxLife - p.life) / 40);
-        const currentAlpha = p.alpha * fadeIn * fadeOut;
+        const currentAlpha = p.baseAlpha * currentAlphaMultiplier * fadeIn * fadeOut * p.fadeFactor;
+
+        if (currentAlpha <= 0.01) continue;
 
         ctx.save();
         ctx.beginPath();
@@ -137,7 +325,7 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
         }
 
         ctx.restore();
-      });
+      }
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -151,10 +339,15 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
     };
   }, [isDarkMode]);
 
+  // Adjust center radial glow opacity and size based on active density
+  const isMinimal = densityProfile.level === 'minimal';
+
   return (
     <div 
       aria-hidden="true" 
-      className="fixed inset-0 pointer-events-none overflow-hidden z-[1] select-none transition-opacity duration-1000"
+      data-view-density={densityProfile.level}
+      data-view-category={densityProfile.category}
+      className={`fixed inset-0 pointer-events-none overflow-hidden z-[1] select-none transition-opacity duration-1000 ${className}`}
     >
       {/* Premium Modern Backdrop */}
       <div 
@@ -166,10 +359,18 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
       />
 
       {/* Subtle Radial Mesh */}
-      <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1.2px,transparent_1.2px)] [background-size:32px_32px] opacity-[0.05] dark:opacity-[0.10]" />
+      <div className={`absolute inset-0 bg-[radial-gradient(#3b82f6_1.2px,transparent_1.2px)] [background-size:32px_32px] transition-opacity duration-700 ${
+        isMinimal 
+          ? 'opacity-[0.02] dark:opacity-[0.05]' 
+          : 'opacity-[0.05] dark:opacity-[0.10]'
+      }`} />
 
-      {/* Center Antigravity Soft Radial Glow */}
-      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full blur-[140px] pointer-events-none transition-all duration-700 ${
+      {/* Center Antigravity Soft Radial Glow with Adaptive View Intensity */}
+      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[140px] pointer-events-none transition-all duration-1000 ${
+        isMinimal
+          ? 'w-[500px] h-[500px] opacity-40'
+          : 'w-[700px] h-[700px] opacity-100'
+      } ${
         isDarkMode 
           ? 'bg-radial from-blue-600/15 via-purple-600/10 to-transparent' 
           : 'bg-radial from-blue-400/20 via-indigo-300/15 to-transparent'
@@ -186,4 +387,3 @@ export const AmbientBubbleBackground: React.FC<{ isDarkMode?: boolean }> = memo(
     </div>
   );
 });
-

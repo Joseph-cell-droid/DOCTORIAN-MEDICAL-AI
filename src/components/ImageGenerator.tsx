@@ -401,9 +401,9 @@ export const ImageGenerator = () => {
           <div className="space-y-2">
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">AI GENERATIVE ENGINE</span>
             <div className="grid grid-cols-1 gap-2">
-              {AI_MODEL_ENGINES.map((eng) => (
+              {AI_MODEL_ENGINES.map((eng, engIdx) => (
                 <button
-                  key={eng.id}
+                  key={`img-eng-${eng.id}-${engIdx}`}
                   type="button"
                   onClick={() => setSelectedEngine(eng.id)}
                   className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
@@ -429,9 +429,9 @@ export const ImageGenerator = () => {
           <div className="space-y-2">
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">RENDER STYLE PRESET</span>
             <div className="grid grid-cols-2 gap-2">
-              {RENDER_STYLES.map((st) => (
+              {RENDER_STYLES.map((st, stIdx) => (
                 <button
-                  key={st.id}
+                  key={`img-st-${st.id}-${stIdx}`}
                   type="button"
                   onClick={() => setSelectedStyle(st.id)}
                   className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
@@ -450,9 +450,9 @@ export const ImageGenerator = () => {
           <div className="space-y-2">
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">ASPECT ASPECT RATIO</span>
             <div className="grid grid-cols-4 gap-2">
-              {ASPECT_RATIOS.map((r) => (
+              {ASPECT_RATIOS.map((r, rIdx) => (
                 <button
-                  key={r.id}
+                  key={`img-r-${r.id}-${rIdx}`}
                   type="button"
                   onClick={() => setSelectedRatio(r.id)}
                   className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
@@ -471,9 +471,9 @@ export const ImageGenerator = () => {
           <div className="space-y-2">
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">SCIENTIFIC SPECTRAL TONING</span>
             <div className="grid grid-cols-2 gap-2">
-              {COLOR_TEMPS.map((temp) => (
+              {COLOR_TEMPS.map((temp, tIdx) => (
                 <button
-                  key={temp.id}
+                  key={`img-temp-${temp.id}-${tIdx}`}
                   type="button"
                   onClick={() => setSelectedColor(temp.id)}
                   className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${

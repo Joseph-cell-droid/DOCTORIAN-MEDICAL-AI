@@ -326,20 +326,6 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
       color: 'text-sky-500 dark:text-sky-400',
     },
     {
-      id: 'records',
-      title: 'HEALTH RECORDS',
-      subtitle: 'EHR VAULT',
-      icon: <FileText size={20} />,
-      color: 'text-amber-600 dark:text-amber-400',
-    },
-    {
-      id: 'biosecurity',
-      title: 'BIOSECURITY',
-      subtitle: '2FA VAULT',
-      icon: <Shield size={20} />,
-      color: 'text-emerald-600 dark:text-emerald-400',
-    },
-    {
       id: 'emergency',
       title: 'EMERGENCY 911',
       subtitle: 'SOS TRAUMA',

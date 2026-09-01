@@ -282,7 +282,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
 
   const handleDownloadAuditLogs = () => {
     const csvContent = "Time,Log Type,Message\n" + 
-      logs.map(l => `"${l.time}","${l.type.toUpperCase()}","${l.msg.replace(/"/g, '""')}"`).join("\n");
+      logs.map((l, _idx_284) => `"${l.time}","${l.type.toUpperCase()}","${l.msg.replace(/"/g, '""')}"`).join("\n");
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -1625,9 +1625,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                     const startPage = Math.max(1, Math.min(usersPagination.page - 2, totalPages - maxButtons + 1));
                     const pages = Array.from({ length: maxButtons }, (_, idx) => startPage + idx);
                     
-                    return pages.map((pageNum) => (
+                    return pages.map((pageNum, pgIdx) => (
                       <button
-                        key={`admin-user-page-${pageNum}`}
+                        key={`admin-user-page-${pageNum}-${pgIdx}`}
                         onClick={() => fetchUsers(pageNum)}
                         className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl transition-all ${
                           usersPagination.page === pageNum
@@ -2892,9 +2892,9 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                   />
                 </div>
                 <div className="flex gap-2">
-                  {(['all', 'info', 'warn', 'success', 'system'] as const).map((type) => (
+                  {(['all', 'info', 'warn', 'success', 'system'] as const).map((type, tIdx) => (
                     <button
-                      key={`audit-filter-${type}`}
+                      key={`audit-filter-${type}-${tIdx}`}
                       onClick={() => setAuditLogFilter(type)}
                       className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
                         auditLogFilter === type

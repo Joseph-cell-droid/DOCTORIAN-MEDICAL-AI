@@ -1706,8 +1706,8 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
         return saved as any;
       }
     }
-    // Set Hugging Face (Google Gemma 4 / Gemma 3 4B) as standard default cloud brain for everyone!
-    return 'huggingface';
+    // Standard default is Doctorian Clinical AI powered by Google Gemini
+    return 'gemma-cloud';
   });
 
   const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface' | 'gemma-cloud') => {
@@ -3494,14 +3494,14 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
-        ? 'gemma3:1b' 
+        ? 'gemini-2.5-flash' 
         : (clinicalEngine === 'medlm-large' 
-          ? 'gemma3:1b' 
+          ? 'gemini-2.5-flash' 
           : (clinicalEngine === 'huggingface' 
-            ? 'huggingface' 
+            ? 'gemini-2.5-flash' 
             : (clinicalEngine === 'gemma-cloud'
-              ? 'gemma3:1b'
-              : 'gemma3:1b')));
+              ? 'gemini-2.5-flash'
+              : 'gemini-2.5-flash')));
 
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map((m, mapIdx_3425) => ({
@@ -7344,9 +7344,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                               <div className="space-y-1.5 bg-slate-900/50 p-2.5 rounded-2xl border border-slate-800/60 font-sans w-full">
                                 <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 block">Simulation Scenario</span>
                                 <div className="grid grid-cols-2 gap-1.5">
-                                  {(['normal', 'tachycardia', 'hypoxia', 'fever'] as const).map((scen) => (
+                                  {(['normal', 'tachycardia', 'hypoxia', 'fever'] as const).map((scen, scenIdx) => (
                                     <button
-                                      key={`scen-${scen}`}
+                                      key={`scen-${scen}-${scenIdx}`}
                                       type="button"
                                       onClick={() => setVitalsScenario(scen)}
                                       className={`py-1 rounded-lg text-[9px] font-bold uppercase transition-all cursor-pointer border ${
@@ -7429,9 +7429,9 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                                     { id: 'Rukonjo', label: '🇺🇬 Rukonjo' },
                                     { id: 'Samia', label: '🇺🇬 Samia' },
                                     { id: 'Karamojong', label: '🇺🇬 Karamojong' }
-                                  ] as { id: string; label: string }[]).map((accent) => (
+                                  ] as { id: string; label: string }[]).map((accent, accIdx) => (
                                     <button
-                                      key={`accent-${accent.id}`}
+                                      key={`accent-${accent.id}-${accIdx}`}
                                       type="button"
                                       onClick={() => {
                                         setMedicalTranslationAccent(accent.id);

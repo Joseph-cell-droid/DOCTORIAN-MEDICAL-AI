@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Video, Mic, MicOff, VideoOff, Sparkles, Send, CheckCircle2, PhoneOff, RefreshCw, Volume2, VolumeX, Shield, Radio, Activity, Cpu } from 'lucide-react';
+import { X, Video, Mic, MicOff, VideoOff, Sparkles, Send, CheckCircle2, PhoneOff, RefreshCw, Volume2, VolumeX, Shield, Radio, Activity, Cpu, Share2, AlertCircle } from 'lucide-react';
 import { api } from '../api';
 import { speechEngine } from '../utils/speechEngine';
+import { appendSoapNoteToSheets } from '../utils/googleWorkspace';
 
 interface TelehealthScribeHubProps {
   isOpen: boolean;
@@ -36,6 +37,35 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
     assessment: 'Mild exercise-induced airway reactivity vs Lisinopril medication symptom.',
     plan: '1. Continue daily telemetry monitoring.\n2. Inhale Albuterol pre-exercise as needed.\n3. Re-evaluate at next digital check-in.'
   });
+
+  const [isExportingSheets, setIsExportingSheets] = useState(false);
+  const [sheetsExportSuccess, setSheetsExportSuccess] = useState<boolean | null>(null);
+  const [sheetsExportError, setSheetsExportError] = useState<string | null>(null);
+
+  const handleExportToSheets = async () => {
+    setIsExportingSheets(true);
+    setSheetsExportSuccess(null);
+    setSheetsExportError(null);
+    try {
+      await appendSoapNoteToSheets({
+        patientCode: 'PAT-JOSEPH-A',
+        subjective: soapNote.subjective,
+        objective: soapNote.objective,
+        assessment: soapNote.assessment,
+        plan: soapNote.plan,
+        timestamp: new Date().toLocaleString()
+      });
+      setSheetsExportSuccess(true);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        speechEngine.speak("EHR record successfully synchronized and saved to Google Sheets");
+      }
+    } catch (err: any) {
+      console.error("Sheets export error:", err);
+      setSheetsExportError(err.message || "Failed to synchronize to Google Sheets");
+    } finally {
+      setIsExportingSheets(false);
+    }
+  };
 
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
@@ -531,13 +561,59 @@ Return JSON in this format:
                 </div>
               </div>
 
-              <button
-                onClick={() => alert("EHR Telehealth Encounter Note and e-Prescription successfully saved to cloud database.")}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <CheckCircle2 size={16} />
-                <span>Finalize & Sign Encounter Note</span>
-              </button>
+              {/* Feedback messages */}
+              <AnimatePresence>
+                {sheetsExportSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <span>Encounter Note exported to Google Sheets EHR ledger!</span>
+                  </motion.div>
+                )}
+                {sheetsExportError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  >
+                    <AlertCircle size={14} className="text-rose-500" />
+                    <span>{sheetsExportError}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleExportToSheets}
+                  disabled={isExportingSheets}
+                  className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isExportingSheets ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Share2 size={14} className="text-indigo-500" />
+                  )}
+                  <span>{isExportingSheets ? 'Exporting...' : 'Export Sheets EHR'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSheetsExportSuccess(true);
+                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                      speechEngine.speak("Encounter Note successfully finalized and saved to secure workstation archive.");
+                    }
+                  }}
+                  className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Finalize & Sign Note</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

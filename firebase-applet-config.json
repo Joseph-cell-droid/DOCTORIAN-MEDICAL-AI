@@ -1,12 +1,11 @@
 {
-  "projectId": "carbide-hour-3dzmz",
-  "appId": "1:30834212387:web:a34aaf5fcde2dcea083b96",
-  "apiKey": "AIzaSyCtuA5ufwcJsuSdCQw8GxGfRWBHXAOYzoI",
-  "authDomain": "carbide-hour-3dzmz.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-doctorianmedical-bedeeb5b-1e5d-4171-be12-6f2b139b7b30",
-  "storageBucket": "carbide-hour-3dzmz.firebasestorage.app",
-  "messagingSenderId": "30834212387",
+  "projectId": "gen-lang-client-0373963828",
+  "appId": "1:112622754067:web:cfa5af8765cb51813ba2e6",
+  "apiKey": "AIzaSyC-0Ta85tm7bybYpmvjUK7oWKaGZgmUcRE",
+  "authDomain": "gen-lang-client-0373963828.firebaseapp.com",
+  "storageBucket": "gen-lang-client-0373963828.firebasestorage.app",
+  "messagingSenderId": "112622754067",
   "measurementId": "",
-  "oAuthClientId": "30834212387-uoiqdv1emc2quce1n5n6da4jaio7eumo.apps.googleusercontent.com",
+  "oAuthClientId": "112622754067-1f1n90jn7qtdb48b0sunnmrietioucfl.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

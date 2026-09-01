@@ -659,7 +659,7 @@ const getStorageItem = <T>(key: string, defaultValue: T): T => {
     const exemptKeys = ["medical_offline_users", "medical_user", "medical_offline_actions_queue"];
     if (!exemptKeys.includes(key) && (key.startsWith("medical_offline_") || key.startsWith("doctorian_") || key.startsWith("emergency_contacts"))) {
       const usrStr = localStorage.getItem("medical_user");
-      if (usrStr) {
+      if (usrStr && usrStr !== "undefined" && usrStr !== "null" && usrStr.trim() !== "") {
         try {
           const parsed = JSON.parse(usrStr);
           if (parsed && parsed.id) {
@@ -696,7 +696,7 @@ const setStorageItem = <T>(key: string, value: T): void => {
     const exemptKeys = ["medical_offline_users", "medical_user", "medical_offline_actions_queue"];
     if (!exemptKeys.includes(key) && (key.startsWith("medical_offline_") || key.startsWith("doctorian_") || key.startsWith("emergency_contacts"))) {
       const usrStr = localStorage.getItem("medical_user");
-      if (usrStr) {
+      if (usrStr && usrStr !== "undefined" && usrStr !== "null" && usrStr.trim() !== "") {
         try {
           const parsed = JSON.parse(usrStr);
           if (parsed && parsed.id) {
@@ -2247,9 +2247,9 @@ export const api = {
         return { text, creditsRemaining: "Unlimited (Offline Local Back-up Mode)" };
       }
 
-      // Check if user has prioritize local AI active in localStorage, or if URL is local (localhost / 127.0.0.1 / ::1) which only browser direct call can hit
+      // Check if user has explicitly prioritized local AI in settings
       const userStr = localStorage.getItem('medical_user');
-      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
       let isLocalUrl = false;
       let parsedUser: any = null;
       if (userStr) {
@@ -2258,23 +2258,12 @@ export const api = {
         } catch (e) {}
       }
 
-      if (!parsedUser) {
-        parsedUser = {
-          ollamaUrl: 'http://localhost:11434',
-          ollamaModel: 'gemma3:1b',
-          enableExternalAI: true
-        };
-      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '' || parsedUser.ollamaUrl.includes('fuzzy-bugs')) {
-        parsedUser.ollamaUrl = 'http://localhost:11434';
-        parsedUser.ollamaModel = 'gemma3:1b';
-      }
-
       if (parsedUser && parsedUser.ollamaUrl) {
         const urlLower = parsedUser.ollamaUrl.toLowerCase();
         isLocalUrl = urlLower.includes("localhost") || urlLower.includes("127.0.0.1") || urlLower.includes("::1");
       }
 
-      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl)) {
+      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || (isLocalUrl && prioritizeLocalAI))) {
         const user = parsedUser;
         try {
           const activeNode = await detectActiveLocalNode(user.ollamaUrl, user.ollamaModel);
@@ -2365,7 +2354,50 @@ export const api = {
       } catch (backendErr: any) {
         console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing Gemini AI / Hugging Face / Local PC failover...");
 
-        // 0. Direct Client-side Hugging Face Inference (Works on Vercel, static PWA, and direct web clients)
+        // 0. Direct Client-side Gemini AI (Works on Vercel, static PWA, and direct web clients)
+        try {
+          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
+          if (geminiApiKey) {
+            console.log(`[Neural Link] Executing direct Client Gemini Synapse for Vercel/Web...`);
+            
+            const contents = payloadMessages.map(m => ({
+              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: m.text }]
+            }));
+            
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: {
+                  parts: [{ text: systemInstruction }]
+                },
+                generationConfig: {
+                  temperature: temperature || 0.7,
+                  maxOutputTokens: 2048
+                }
+              })
+            });
+
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text && text.trim()) {
+                return { text: text.trim(), creditsRemaining: "Unlimited (Google AI Studio Client Synapse)" };
+              }
+            } else {
+              const errData = await geminiRes.json().catch(() => ({}));
+              console.warn("[Neural Link] Client Gemini direct call returned error status:", geminiRes.status, errData);
+            }
+          }
+        } catch (geminiErr) {
+          console.warn("[Neural Link] Client Gemini direct invocation failed, trying Hugging Face as failover backup:", geminiErr);
+        }
+
+        // 1. Direct Client-side Hugging Face Inference (Works on Vercel, static PWA, and direct web clients)
         try {
           const userStr = localStorage.getItem('medical_user');
           let parsedUser: any = null;
@@ -2409,52 +2441,9 @@ export const api = {
           console.warn("[Neural Link] Client Hugging Face direct invocation failed, escalating to local PC node:", hfErr);
         }
         
-        // 1. Direct Client-side Gemini (Last-resort failover only) AI (Works on Vercel, static PWA, and direct web clients)
-        try {
-          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
-          if (geminiApiKey) {
-            console.log(`[Neural Link] Executing direct Client Gemini Synapse for Vercel/Web...`);
-            
-            const contents = payloadMessages.map(m => ({
-              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.text }]
-            }));
-            
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                contents,
-                systemInstruction: {
-                  parts: [{ text: systemInstruction }]
-                },
-                generationConfig: {
-                  temperature: temperature || 0.7,
-                  maxOutputTokens: 2048
-                }
-              })
-            });
-
-            if (geminiRes.ok) {
-              const geminiData = await geminiRes.json();
-              const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text && text.trim()) {
-                return { text: text.trim(), creditsRemaining: "Unlimited (Google AI Studio Client Synapse)" };
-              }
-            } else {
-              const errData = await geminiRes.json().catch(() => ({}));
-              console.warn("[Neural Link] Client Gemini direct call returned error status:", geminiRes.status, errData);
-            }
-          }
-        } catch (geminiErr) {
-          console.warn("[Neural Link] Client Gemini direct invocation failed, trying Hugging Face next:", geminiErr);
-        }
-
         // Failover handle: Local Ollama or LM Studio on User's PC if configured
         const userStr = localStorage.getItem('medical_user');
-        if (userStr) {
+        if (userStr && userStr !== "undefined" && userStr !== "null") {
           try {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl) {
@@ -2585,9 +2574,9 @@ export const api = {
         return;
       }
 
-      // Check if user has prioritize local AI active in localStorage, or if URL is local (localhost / 127.0.0.1 / ::1) which only browser direct call can hit
+      // Check if user has explicitly prioritized local AI in settings
       const userStr = localStorage.getItem('medical_user');
-      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') !== 'false';
+      const prioritizeLocalAI = localStorage.getItem('doctorian_prioritize_local_ai') === 'true';
       let isLocalUrl = false;
       let parsedUser: any = null;
       if (userStr) {
@@ -2596,23 +2585,12 @@ export const api = {
         } catch (e) {}
       }
 
-      if (!parsedUser) {
-        parsedUser = {
-          ollamaUrl: 'http://localhost:11434',
-          ollamaModel: 'gemma3:1b',
-          enableExternalAI: true
-        };
-      } else if (!parsedUser.ollamaUrl || parsedUser.ollamaUrl.trim() === '' || parsedUser.ollamaUrl.includes('fuzzy-bugs')) {
-        parsedUser.ollamaUrl = 'http://localhost:11434';
-        parsedUser.ollamaModel = 'gemma3:1b';
-      }
-
       if (parsedUser && parsedUser.ollamaUrl) {
         const urlLower = parsedUser.ollamaUrl.toLowerCase();
         isLocalUrl = urlLower.includes("localhost") || urlLower.includes("127.0.0.1") || urlLower.includes("::1");
       }
 
-      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || isLocalUrl)) {
+      if (parsedUser && parsedUser.ollamaUrl && (prioritizeLocalAI || (isLocalUrl && prioritizeLocalAI))) {
         const user = parsedUser;
         try {
           const activeNode = await detectActiveLocalNode(user.ollamaUrl, user.ollamaModel);
@@ -2926,7 +2904,7 @@ export const api = {
         
         // Local Ollama or LM Studio stream failover for offline use
         const userStr = localStorage.getItem('medical_user');
-        if (userStr) {
+        if (userStr && userStr !== "undefined" && userStr !== "null") {
           try {
             const user = JSON.parse(userStr);
             if (user.ollamaUrl) {
@@ -3599,6 +3577,35 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Translation failed");
         return data.text as string;
       } catch (err) {
+        // Direct Client-side Gemini fallback if backend is offline/unavailable (e.g. Vercel static)
+        try {
+          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
+          if (geminiApiKey) {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  role: "user",
+                  parts: [{ text: `Translate the following medical text into ${targetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style. Return ONLY the translated output without any conversational conversational preamble or explanation:\n\n${text}` }]
+                }],
+                generationConfig: {
+                  temperature: 0.3,
+                  maxOutputTokens: 2048
+                }
+              })
+            });
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              const textOutput = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (textOutput && textOutput.trim()) {
+                return textOutput.trim();
+              }
+            }
+          }
+        } catch (geminiErr) {
+          console.warn("[Neural Link] Direct Client-side Gemini translation fallback failed:", geminiErr);
+        }
         return `[Offline Sync Translation]: ${text}`;
       }
     },

@@ -377,14 +377,17 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
               </div>
 
               {/* Security Tagline */}
-              <div className="flex items-center justify-center gap-4 sm:gap-6 mt-5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
-                <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                  <Check size={15} className="font-bold stroke-[3]" />
-                  Safe & Secure
-                </span>
-                <span className="w-1 h-3 bg-slate-300 dark:bg-slate-700 rounded-full" />
-                <span className="flex items-center gap-1.5">
-                  Offline Installer
+              <div className="flex flex-col items-center gap-1.5 mt-4">
+                <div className="flex items-center justify-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                    <Check size={14} className="font-bold stroke-[3]" />
+                    Safe Windows EXE
+                  </span>
+                  <span className="w-1 h-3 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                  <span>Size: ~74.6 MB</span>
+                </div>
+                <span className="text-[9px] font-black uppercase text-blue-600 dark:text-cyan-400 tracking-widest">
+                  Includes 62MB local dictionary & neural schema
                 </span>
               </div>
 

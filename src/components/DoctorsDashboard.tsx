@@ -363,7 +363,7 @@ export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'succes
     }
 
     const executeAdd = () => {
-      const initial = newClinician.name.split(' ').map((n) => n[0]).join('');
+      const initial = newClinician.name.split(' ').map((n, _idx_365) => n[0]).join('');
       const createdNode = {
         id: 'cli-' + Date.now(),
         name: newClinician.name.startsWith('Dr.') ? newClinician.name : `Dr. ${newClinician.name}`,

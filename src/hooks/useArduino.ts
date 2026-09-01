@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { vibrateCriticalAlert, vibrateWarning } from '../utils/haptics';
 
 export interface Vitals {
@@ -203,7 +203,7 @@ export const useArduino = () => {
              Detect if patient is WORSENING or STABLE. 
              Return JSON: {"insight": "1-sentence clinician summary", "alert": true/false}`,
             "You are a specialized medical telemetry analyst (Doctorian AI).",
-            "gemini-3.6-flash"
+            "gemini-3.7-flash"
           ).then(res => {
             try {
               const data = JSON.parse(res.text.replace(/```json|```/g, '').trim());
@@ -786,7 +786,7 @@ export const useArduino = () => {
       const res = await api.ai.aiChat(
         [{ role: 'user', text: analysisPrompt }],
         "You are Doctorian (Gemini Neural Core). You analyze high-resolution longitudinal health data to trace patient progress across all biological subsystems.",
-        "gemini-2.5-flash"
+        "gemini-3.7-flash"
       );
 
       return res.text;

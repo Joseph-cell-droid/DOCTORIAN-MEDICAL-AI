@@ -530,7 +530,7 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
-  const selectedModel = 'gemini-2.5-flash';
+  const selectedModel = 'gemini-3.7-flash';
   const [neuralContext, setNeuralContext] = useState<{ mood: string; preferredGreeting: string; lastGreeting: string | null }>({ mood: 'neutral', preferredGreeting: 'Professional', lastGreeting: null });
   const [localKnowledge, setLocalKnowledge] = useState<any[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -3494,14 +3494,14 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       }
 
       const targetEngineId = clinicalEngine === 'medlm-medium' 
-        ? 'gemini-2.5-flash' 
+        ? 'gemini-3.7-flash' 
         : (clinicalEngine === 'medlm-large' 
-          ? 'gemini-2.5-flash' 
+          ? 'gemini-3.7-flash' 
           : (clinicalEngine === 'huggingface' 
-            ? 'gemini-2.5-flash' 
+            ? 'gemini-3.7-flash' 
             : (clinicalEngine === 'gemma-cloud'
-              ? 'gemini-2.5-flash'
-              : 'gemini-2.5-flash')));
+              ? 'gemini-3.7-flash'
+              : 'gemini-3.7-flash')));
 
       const stream = api.ai.aiChatStream(
         [...messages, userMessage].map((m, mapIdx_3425) => ({

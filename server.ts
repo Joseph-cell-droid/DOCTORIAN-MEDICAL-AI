@@ -221,7 +221,7 @@ Output strictly valid JSON (no markdown formatting, no code blocks, no backticks
     const text = await callAI({
       messages: [{ role: 'user', text: prompt }],
       systemInstruction: 'You are a clinical triage AI engine.',
-      modelName: 'gemini-2.5-flash'
+      modelName: 'gemini-3.7-flash'
     });
 
     if (text) {
@@ -286,7 +286,7 @@ const MISTRAL_ENGINE = "gemini-3.7-flash";
 const DEFAULT_GEMINI_ENGINE = "gemini-3.7-flash";
 const DEFAULT_LLAMA_ENGINE = "gemini-3.7-flash";
 const DEFAULT_GEMMA_ENGINE = "gemini-3.7-flash";
-const BACKUP_ENGINE = "gemini-2.5-flash";
+const BACKUP_ENGINE = "gemini-3.1-flash-lite";
 
 const OLLAMA_URL = IS_LM_STUDIO
   ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
@@ -1226,12 +1226,12 @@ async function* callAIStream(options: {
                       streamAttempts = maxStreamAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && streamAttempts < maxStreamAttempts) {
-                      if (currentModelId === "gemini-2.5-flash") {
+                      if (currentModelId === "gemini-3.7-flash") {
                         currentModelId = "gemini-3.1-flash-lite";
                       } else if (currentModelId === "gemini-3.1-flash-lite") {
                         currentModelId = "gemini-flash-latest";
                       } else {
-                        currentModelId = "gemini-2.5-flash";
+                        currentModelId = "gemini-3.7-flash";
                       }
                       console.log(`[AI-STREAM] Temporary API busy status (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Rotating to ${currentModelId} and retrying in ${streamAttempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, streamAttempts * 1000));
@@ -1245,7 +1245,7 @@ async function* callAIStream(options: {
                         cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                       }
                       console.log("[AI-STREAM] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
-                      const modelsToTry = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.7-flash"];
+                      const modelsToTry = ["gemini-3.7-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.1-pro-preview"];
                       for (const modelId of modelsToTry) {
                         let retryAttempts = 0;
                         const maxRetryAttempts = 2;
@@ -1696,7 +1696,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-2.5-flash";
+              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.7-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1754,12 +1754,12 @@ async function callAIWorkflow(options: {
                       attempts = maxAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
-                      if (currentModelId === "gemini-2.5-flash") {
+                      if (currentModelId === "gemini-3.7-flash") {
                         currentModelId = "gemini-3.1-flash-lite";
                       } else if (currentModelId === "gemini-3.1-flash-lite") {
                         currentModelId = "gemini-flash-latest";
                       } else {
-                        currentModelId = "gemini-2.5-flash";
+                        currentModelId = "gemini-3.7-flash";
                       }
                       console.log(`[AI-BRAIN] Temporary API busy status (${genErr.message || "503/429"}) on attempt ${attempts}. Rotating to ${currentModelId} and retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
@@ -1783,7 +1783,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.7-flash"];
+                  const modelsToTry = ["gemini-3.7-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.1-pro-preview"];
                   for (const modelId of modelsToTry) {
                     let retryAttempts = 0;
                     const maxRetryAttempts = 2;

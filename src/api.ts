@@ -2365,7 +2365,7 @@ export const api = {
               parts: [{ text: m.text }]
             }));
             
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${geminiApiKey}`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json"

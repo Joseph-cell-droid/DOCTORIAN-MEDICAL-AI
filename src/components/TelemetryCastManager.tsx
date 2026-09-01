@@ -1789,7 +1789,7 @@ export const TelemetryCastManager: React.FC = () => {
       const response = await api.ai.aiChat(
         [{ role: 'user', text: prompt }],
         "You are Doctorian Sports Intelligence. Return only valid raw JSON.",
-        "gemini-3.6-flash"
+        "gemini-3.7-flash"
       );
 
       const cleaned = response.text.replace(/```json|```/g, '').trim();

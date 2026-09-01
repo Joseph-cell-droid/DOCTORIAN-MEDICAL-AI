@@ -967,7 +967,7 @@ Provide a clean array or scannable markdown blocks containing these structured a
       const res = await api.ai.aiChat(
         prompt,
         "You are Doctorian (v2.4), a high-resolution smartwatch biometrics intelligence core powered by Gemini.",
-        "gemini-2.5-flash"
+        "gemini-3.7-flash"
       );
       if (res && res.text) {
         let finalAdvices = res.text.split('\n')

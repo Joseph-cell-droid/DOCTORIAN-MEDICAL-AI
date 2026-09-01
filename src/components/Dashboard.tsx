@@ -87,7 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const response = await api.ai.aiChat(
         prompt,
         "You are a supportive clinical assistant returning strictly JSON data.",
-        "gemini-2.5-flash",
+        "gemini-3.7-flash",
         0.4
       );
       
@@ -473,7 +473,7 @@ Provide 3 clear clinical takeaways:
       const res = await api.ai.aiChat(
         prompt,
         "You are an advanced medical clinical reasoning AI focused on evidence-based physiology.",
-        "gemini-2.5-flash",
+        "gemini-3.7-flash",
         0.3
       );
       setStatAiAnalysis(res.text);
@@ -502,7 +502,7 @@ Provide 3 clear clinical takeaways:
       const res = await api.ai.aiChat(
         prompt,
         "You are an expert biophysics diagnostic AI.",
-        "gemini-2.5-flash",
+        "gemini-3.7-flash",
         0.3
       );
       setTelemetryAiAnalysis(prev => ({ ...prev, [type]: res.text }));
@@ -687,8 +687,8 @@ Provide 3 clear clinical takeaways:
                 className="mb-12"
               >
                 <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] shadow-[0_32px_64px_-15px_rgba(37,99,235,0.3)] relative overflow-hidden group border border-white/10">
-                  {/* Coordinated Shape-Morphing Series Bubbles Background */}
-                  <ShapeMorphingBubbles bubbleCount={32} />
+                  {/* Coordinated Shape-Morphing Series Jewel Beads Background */}
+                  <ShapeMorphingBubbles bubbleCount={42} />
                   <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-[100px] animate-pulse" />
                   
                   <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 sm:gap-14">
@@ -707,11 +707,11 @@ Provide 3 clear clinical takeaways:
                     
                     <div className="flex-1 text-center lg:text-left space-y-4">
                       <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                        <span className="px-3 py-1 bg-white/20 backdrop-blur-md text-white rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20">
-                          Neural Intelligence Level 5
+                        <span className="px-3 py-1 bg-white/20 backdrop-blur-md text-white rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20 flex items-center gap-1.5">
+                          <Sparkles size={11} className="text-cyan-300" /> Powered by Gemini AI
                         </span>
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-400/20 backdrop-blur-md text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-400/20">
-                          <CheckCircle2 size={10} /> Validated Insights
+                          <CheckCircle2 size={10} /> Clinical Protocol
                         </div>
                       </div>
                       

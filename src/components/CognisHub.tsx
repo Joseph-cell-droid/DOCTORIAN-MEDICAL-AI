@@ -157,7 +157,7 @@ export const CognisHub: React.FC = () => {
          Focus on identifying hidden patterns between focus scores and reactivity latency. 
          Be concise, scientific, and provide actionable insights for optimization.`,
         "You are the Cognis Intelligence Engine powered by Gemini. Provide expert-level data synthesis and algorithmic insights.",
-        "gemini-2.5-flash"
+        "gemini-3.7-flash"
       );
       setAiAnalysis(res.text);
     } catch (err) {

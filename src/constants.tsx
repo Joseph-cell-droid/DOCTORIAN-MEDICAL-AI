@@ -26,7 +26,7 @@ import {
 import { HealthTip } from './components/HealthTipModal';
 
 export const SEARCHABLE_ITEMS = [
-  { label: 'Doctorian Healthcare Ecosystem Hub', view: 'ecosystem', icon: <Compass size={18} />, category: 'National Ecosystem', description: 'End-to-end healthcare ecosystem: clinical triage, verified doctors, EHR vault, medical wearables, FHIR APIs, frontier robotics & regulatory compliance.' },
+  { label: 'Clinical Features & Platform Capabilities', view: 'features', icon: <Compass size={18} />, category: 'Platform Suite', description: 'Explore all active clinical tools, bio-telemetry monitors, AI diagnostic suites, and health services.' },
   { label: 'Clinical Health Dashboard', view: 'home', icon: <LayoutGrid size={18} />, category: 'Clinical Core', description: 'Real-time patient health summary, vital signs telemetry, and AI clinical insights.' },
   { label: 'AI Diagnostic Consultation', view: 'ai_nexus', icon: <Zap size={18} />, category: 'AI Intelligence', description: 'Multimodal AI-driven clinical triage, differential diagnoses, and medical queries.' },
   { label: 'Real-Time Bio-Telemetry Monitor', view: 'monitor', icon: <Activity size={18} />, category: 'Diagnostics & Labs', description: 'Continuous electrocardiogram (ECG), heart rate, and physiological sensor telemetry.' },

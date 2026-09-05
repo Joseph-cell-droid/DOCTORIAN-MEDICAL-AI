@@ -190,8 +190,6 @@ import { BMICalculator } from "./components/BMICalculator";
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
 const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
-const HealthcareEcosystemHub = safeLazy(() => import("./components/HealthcareEcosystemHub"), "HealthcareEcosystemHub");
-const ClinicalAIEngine = safeLazy(() => import("./components/ClinicalAIEngine"), "ClinicalAIEngine");
 
 const josephPortrait = "/african_doctor_male.png";
 import { AuthModal } from "./components/AuthModal";
@@ -366,7 +364,6 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 const viewNamesMap: Record<string, string> = {
   home: 'Clinical Health Dashboard',
-  ecosystem: 'Doctorian Healthcare Ecosystem Hub',
   monitor: 'Real-Time Bio-Telemetry Monitor',
   features: 'Clinical Modules & Intelligence',
   about: 'System Architecture & Platform Info',
@@ -786,7 +783,7 @@ export default function App() {
     };
   }, [currentLanguage]);
 
-  const [currentView, _setCurrentView] = useState<'home' | 'ecosystem' | 'clinical_ai_core' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -2109,78 +2106,92 @@ export default function App() {
     triggerPWAInstall();
   };
 
-  // Sidebar Navigation Structure (Matching UI Specification)
+  // Sidebar Navigation Structure (Matching Clean Clinical Specification)
   const sidebarSections = [
     {
-      title: "CLINICAL INTELLIGENCE",
+      title: "Core Clinical Care",
       items: [
         { id: 'home', label: 'Clinical Dashboard', icon: <Home size={18} /> },
-        { id: 'clinical_ai_core', label: '12-Pillar Medical AI Core', icon: <Cpu size={18} />, badgeDot: 'cyan' },
-        { id: 'ecosystem', label: 'Healthcare Ecosystem', icon: <Globe size={18} />, badgeDot: 'emerald' },
         { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={18} />, badgeDot: 'purple' },
+        { id: 'symptoms', label: 'Symptom Triage', icon: <Sparkles size={18} />, badgeDot: 'amber' },
+        { id: 'monitor', label: 'Bio-Telemetry Monitor', icon: <Monitor size={18} />, badgeDot: 'blue' },
+        { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={18} /> },
+        { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={18} /> },
+        { id: 'clinical_roadmap', label: 'Appointments & Visits', icon: <CalendarIcon size={18} /> },
+        { id: 'emergency', label: 'Emergency SOS 911', icon: <AlertTriangle size={18} />, badgeDot: 'rose', isUrgent: true },
+      ]
+    },
+    {
+      title: "Diagnostics & Pathology",
+      items: [
+        { id: 'diagnostic_lab', label: 'Laboratory Analyser', icon: <Stethoscope size={18} /> },
+        { id: 'health_trace', label: 'Longitudinal Timeline', icon: <TrendingUp size={18} /> },
+        { id: 'illustrator', label: '3D Anatomical Visuals', icon: <Palette size={18} /> },
+      ]
+    },
+    {
+      title: "Specialized Care & Longevity",
+      items: [
+        { id: 'doctors_dashboard', label: 'Physician Workstation', icon: <UserCheck size={18} /> },
+        { id: 'specialist', label: 'Specialist Directory', icon: <UserPlus size={18} /> },
+        { id: 'neuro', label: 'Cognis Neural Lab', icon: <Brain size={18} /> },
+        { id: 'genomic_longevity', label: 'Genomics & Longevity', icon: <Dna size={18} /> },
+        { id: 'fitness', label: 'Longevity Protocols', icon: <Activity size={18} /> },
         { id: 'biomatic', label: 'Knowledge Hub', icon: <Cpu size={18} /> },
       ]
     },
     {
-      title: "DIAGNOSTICS & LABS",
+      title: "Platform & Governance",
       items: [
-        { id: 'diagnostic_lab', label: 'Laboratory Analyser', icon: <Stethoscope size={18} /> },
-        { id: 'monitor', label: 'Bio-Telemetry Monitor', icon: <Monitor size={18} /> },
-      ]
-    },
-    {
-      title: "CARE & GOVERNANCE",
-      items: [
-        { id: 'doctors_dashboard', label: 'Physician Workstation', icon: <FileText size={18} /> },
+        { id: 'features', label: 'Platform Features & Suite', icon: <Sparkles size={18} /> },
         { id: 'about', label: 'Platform & Systems', icon: <Info size={18} /> },
-        { id: 'admin', label: 'Command Console', icon: <Shield size={18} />, action: handleAdminAccess },
+        ...(isAdmin ? [{ id: 'admin', label: 'Command Console', icon: <Shield size={18} />, action: handleAdminAccess }] : [])
       ]
     }
   ];
 
   const priorityNavLinks = [
     { id: 'home', label: 'Clinical Dashboard', icon: <Home size={16} />, badge: undefined, color: 'blue' },
-    { id: 'clinical_ai_core', label: '12-Pillar AI Core', icon: <Cpu size={16} />, badge: 'Architecture', color: 'cyan' },
-    { id: 'ecosystem', label: 'Ecosystem Hub', icon: <Globe size={16} />, badge: 'Unified', color: 'teal' },
     { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={16} />, badge: 'AI Live', color: 'indigo' },
-    { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
+    { id: 'symptoms', label: 'Symptom Triage', icon: <Sparkles size={16} />, badge: 'Differential', color: 'amber' },
+    { id: 'monitor', label: 'Bio-Telemetry', icon: <Monitor size={16} />, badge: 'Live Telemetry', color: 'cyan' },
     { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={16} />, badge: undefined, color: 'amber' },
+    { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
     { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} />, badge: undefined, color: 'sky' },
     { id: 'emergency', label: 'Emergency SOS 911', icon: <AlertTriangle size={16} />, badge: '24/7 Rapid', color: 'rose', isUrgent: true },
   ];
 
   const subPagesCategories = [
     {
-      category: "Healthcare Ecosystem & Network",
+      category: "Core Clinical Care",
       items: [
-        { id: 'clinical_ai_core', label: '12-Pillar Multi-Agent Medical AI', icon: <Cpu size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
-        { id: 'ecosystem', label: 'Doctorian Healthcare Ecosystem', icon: <Globe size={14} />, color: 'text-teal-500 hover:bg-teal-500/10' },
-        { id: 'specialist', label: 'Specialist Directory & Referral', icon: <UserPlus size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
-        { id: 'doctors_dashboard', label: "Physician Clinical Workstation", icon: <UserCheck size={14} />, color: 'text-indigo-500 hover:bg-indigo-500/10' },
-        { id: 'biomatic', label: 'Clinical Knowledge Hub', icon: <Cpu size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
-        { id: 'neuro', label: 'Cognis Neural & Cognitive Lab', icon: <Brain size={14} />, color: 'text-violet-500 hover:bg-violet-500/10' },
-        { id: 'genomic_longevity', label: 'Genomic & Longevity Core', icon: <Dna size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
+        { id: 'home', label: 'Clinical Dashboard', icon: <Home size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
+        { id: 'ai_nexus', label: 'AI Medical Consultation', icon: <Bot size={14} />, color: 'text-purple-500 hover:bg-purple-500/10' },
+        { id: 'symptoms', label: 'Symptom Triage & Differential', icon: <Sparkles size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
+        { id: 'monitor', label: 'Real-Time Bio-Telemetry', icon: <Monitor size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
+        { id: 'meds', label: 'Precision Pharmacy & Prescriptions', icon: <Pill size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
+        { id: 'vitality', label: 'Vitality & Biomarker Matrix', icon: <Activity size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
+        { id: 'clinical_roadmap', label: 'Appointments & Scheduling', icon: <CalendarIcon size={14} />, color: 'text-sky-500 hover:bg-sky-500/10' },
+        { id: 'emergency', label: 'Emergency SOS 911 Dispatch', icon: <AlertTriangle size={14} />, color: 'text-rose-600 hover:bg-rose-500/10' },
       ]
     },
     {
       category: "Diagnostics & Pathology",
       items: [
-        { id: 'symptoms', label: 'Symptom Triage & Differential', icon: <Sparkles size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
         { id: 'diagnostic_lab', label: 'Diagnostic Laboratory Analyser', icon: <Stethoscope size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
-        { id: 'monitor', label: 'Real-Time Bio-Telemetry Monitor', icon: <Monitor size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
         { id: 'health_trace', label: 'Longitudinal Clinical Timeline', icon: <TrendingUp size={14} />, color: 'text-teal-500 hover:bg-teal-500/10' },
         { id: 'illustrator', label: '3D Anatomical & Surgical Visuals', icon: <Palette size={14} />, color: 'text-purple-500 hover:bg-purple-500/10' },
       ]
     },
     {
-      category: "Patient Identity, Security & Administration",
+      category: "Specialized Care & Longevity",
       items: [
-        { id: 'gsm_sms_gateway', label: 'Clinical SMS & Telemetry Gateway', icon: <Bell size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
+        { id: 'doctors_dashboard', label: "Physician Clinical Workstation", icon: <UserCheck size={14} />, color: 'text-indigo-500 hover:bg-indigo-500/10' },
+        { id: 'specialist', label: 'Specialist Directory & Referral', icon: <UserPlus size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
+        { id: 'neuro', label: 'Cognis Neural & Cognitive Lab', icon: <Brain size={14} />, color: 'text-violet-500 hover:bg-violet-500/10' },
+        { id: 'genomic_longevity', label: 'Genomic & Longevity Core', icon: <Dna size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
         { id: 'fitness', label: 'Physiological Longevity Protocols', icon: <Activity size={14} />, color: 'text-green-500 hover:bg-green-500/10' },
-        { id: 'billing', label: 'Healthcare Insurance & Billing', icon: <CreditCard size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
-        { id: 'help', label: 'Clinical Help Center & FAQ', icon: <Info size={14} />, color: 'text-sky-500 hover:bg-sky-500/10' },
-        { id: 'privacy', label: 'HIPAA & Privacy Data Policy', icon: <Shield size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
-        { id: 'terms', label: 'Clinical Terms of Service', icon: <FileText size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
+        { id: 'biomatic', label: 'Clinical Knowledge Hub', icon: <Cpu size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
         ...(isAdmin ? [{ id: 'admin', label: 'Administrator Command Console', icon: <Shield size={14} />, color: 'text-red-500 hover:bg-red-500/10', action: handleAdminAccess }] : [])
       ]
     }
@@ -3468,27 +3479,16 @@ export default function App() {
               <SpecialistFinder />
             </motion.div>
           ) : currentView === 'monitor' ? (
-            isDoctor ? (
-              <motion.div
-                key="monitor"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} onNavigate={(v) => setCurrentView(v)} />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="view-restricted-monitor"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="w-full"
-              >
-                <AccessRestriction />
-              </motion.div>
-            )
-        ) : currentView === 'features' ? (
+            <motion.div
+              key="monitor"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="w-full"
+            >
+              <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} onNavigate={(v) => setCurrentView(v)} />
+            </motion.div>
+          ) : currentView === 'features' ? (
           <motion.div
             key="features"
             initial={{ opacity: 0, y: 20 }}
@@ -3749,32 +3749,6 @@ export default function App() {
             className="w-full"
           >
             <BioSecurity />
-          </motion.div>
-        ) : currentView === 'clinical_ai_core' ? (
-          <motion.div
-            key="clinical_ai_core"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            className="w-full"
-          >
-            <ClinicalAIEngine
-              onNavigate={(v) => setCurrentView(v)}
-              user={user}
-            />
-          </motion.div>
-        ) : currentView === 'ecosystem' ? (
-          <motion.div
-            key="ecosystem"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            className="w-full"
-          >
-            <HealthcareEcosystemHub
-              onNavigate={(v) => setCurrentView(v)}
-              user={user}
-            />
           </motion.div>
         ) : currentView === 'dev_portal' ? (
           <motion.div
@@ -4794,14 +4768,12 @@ export default function App() {
       </div>
     </div>
 
-    {/* Mobile Bottom Navigation Bar - Streamlined Modern Android Style */}
-    {user && (
-      <MobileBottomNav 
-        currentView={currentView} 
-        onNavigate={(view) => setCurrentView(view as any)}
-        onOpenMenu={() => setIsMobileMenuOpen(true)}
-      />
-    )}
+    {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << */}
+    <MobileBottomNav 
+      currentView={currentView} 
+      onNavigate={(view) => setCurrentView(view as any)}
+      onOpenMenu={() => setIsMobileMenuOpen(true)}
+    />
 
   </div>
 </ErrorBoundary>

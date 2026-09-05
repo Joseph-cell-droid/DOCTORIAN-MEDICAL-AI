@@ -2809,12 +2809,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       {connection.connected && connection.type === 'demo' && (
                         <button
                           onClick={() => {
-                            const isDocAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
-                            if (!isDocAuthed) {
-                              setIsDoctorVerifyOpen(true);
-                            } else {
-                              setIsSimulatorOpen(true);
-                            }
+                            setIsSimulatorOpen(true);
                           }}
                           className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-2xl transition-all text-[10px] font-black uppercase tracking-wider shadow-sm cursor-pointer border border-slate-700/50"
                           title="Open Clinical Simulation Dials"
@@ -2959,16 +2954,14 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                     <div className="lg:col-span-4 bg-slate-50 dark:bg-slate-950/60 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-2">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2 flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <ShieldCheck size={12} className="text-amber-500" />
-                          <span>Clinical Security Suite</span>
+                          <ShieldCheck size={12} className="text-emerald-500" />
+                          <span>Clinical Analysis Suite</span>
                         </div>
-                        {!isAdmin && <span className="text-[9px] font-mono text-amber-500 font-bold">DOCTOR AUTH</span>}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => {
                             setActiveTab('genomics');
-                            if (!isAdmin) setIsDoctorVerifyOpen(true);
                           }}
                           className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                             activeTab === 'genomics'
@@ -2976,14 +2969,13 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-emerald-600 border border-slate-200 dark:border-slate-800'
                           }`}
                         >
-                          {!isAdmin && <span className="text-[10px]">🔒</span>}
+                          <Dna size={12} className="text-emerald-500" />
                           <span>Genomic Matrix</span>
                         </button>
 
                         <button
                           onClick={() => {
                             setActiveTab('emergency');
-                            if (!isAdmin) setIsDoctorVerifyOpen(true);
                           }}
                           className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                             activeTab === 'emergency'
@@ -2991,14 +2983,13 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-rose-600 border border-slate-200 dark:border-slate-800'
                           }`}
                         >
-                          {!isAdmin && <span className="text-[10px]">🔒</span>}
+                          <AlertTriangle size={12} className="text-rose-500" />
                           <span>Emergency Registry</span>
                         </button>
 
                         <button
                           onClick={() => {
                             setActiveTab('alarms');
-                            if (!isAdmin) setIsDoctorVerifyOpen(true);
                           }}
                           className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                             activeTab === 'alarms'
@@ -3006,8 +2997,8 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-800'
                           }`}
                         >
-                          {!isAdmin && <span className="text-[10px]">🔒</span>}
-                          <span>🚨 Clinical Alarm Hub</span>
+                          <Activity size={12} className="text-red-500" />
+                          <span>Clinical Alarm Hub</span>
                         </button>
                       </div>
                     </div>
@@ -3033,43 +3024,21 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             ) : activeTab === 'analytics' ? (
               <DiagnosticAnalysisView vitals={vitals} history={history} />
             ) : activeTab === 'genomics' ? (
-              !isAdmin ? (
-                <div className="max-w-2xl mx-auto py-12 px-6 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-red-200 dark:border-red-900/50 shadow-2xl space-y-4 my-8">
-                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <ShieldAlert size={32} />
-                  </div>
-                  <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
-                    Doctor's Portal Exclusive Access
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
-                    Genomic Matrix sequencing is restricted to Doctor's Portal authorization. Please verify Doctor credentials to continue.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-                    <button
-                      onClick={() => setIsDoctorVerifyOpen(true)}
-                      className="w-full sm:w-auto px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transition-all"
-                    >
-                      🔐 Verify Doctor Identity / Enter Security PIN
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  <DnaMatrix dnaStatus={dnaStatus} onStartSequencing={startDnaSequencing} />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {activeMachines.filter(m => m.type === 'Genomic' || m.status === 'online').map((m, mapIdx_2880) => (
-                      <div key={`patientmonitor-l2882-${mapIdx_2880}`} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex items-center gap-4">
-                        <div className={`w-3 h-3 rounded-full ${m.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                        <div className="flex-1">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.type}</p>
-                          <p className="text-sm font-black text-slate-900 dark:text-white">{m.label}</p>
-                        </div>
-                        <div className="text-[10px] font-black text-blue-600 uppercase">{m.lastSync}</div>
+              <div className="space-y-8">
+                <DnaMatrix dnaStatus={dnaStatus} onStartSequencing={startDnaSequencing} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {activeMachines.filter(m => m.type === 'Genomic' || m.status === 'online').map((m, mapIdx_2880) => (
+                    <div key={`patientmonitor-l2882-${mapIdx_2880}`} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex items-center gap-4">
+                      <div className={`w-3 h-3 rounded-full ${m.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                      <div className="flex-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.type}</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{m.label}</p>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-[10px] font-black text-blue-600 uppercase">{m.lastSync}</div>
+                    </div>
+                  ))}
                 </div>
-              )
+              </div>
             ) : activeTab === 'neural' ? (
               <NeuralSynthesisPanel 
                 vitals={vitals} 
@@ -3078,79 +3047,35 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                 onUpdateUser={onUpdateUser} 
               />
             ) : activeTab === 'emergency' ? (
-              !isAdmin ? (
-                <div className="max-w-2xl mx-auto py-12 px-6 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-red-200 dark:border-red-900/50 shadow-2xl space-y-4 my-8">
-                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <ShieldAlert size={32} />
-                  </div>
-                  <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
-                    Doctor's Portal Exclusive Access
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
-                    Emergency Registry is restricted to Doctor's Portal authorization. Please verify Doctor credentials to continue.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-                    <button
-                      onClick={() => setIsDoctorVerifyOpen(true)}
-                      className="w-full sm:w-auto px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transition-all"
-                    >
-                      🔐 Verify Doctor Identity / Enter Security PIN
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="max-w-4xl mx-auto px-4 py-8">
-                  <EmergencyRegistry 
-                    user={user} 
-                    onUpdate={onUpdateUser} 
-                    isAdmin={isAdmin} 
-                    setIsAdmin={setIsAdmin} 
-                  />
-                </div>
-              )
+              <div className="max-w-4xl mx-auto px-4 py-8">
+                <EmergencyRegistry 
+                  user={user} 
+                  onUpdate={onUpdateUser} 
+                  isAdmin={true} 
+                  setIsAdmin={setIsAdmin} 
+                />
+              </div>
             ) : activeTab === 'alarms' ? (
-              !isAdmin ? (
-                <div className="max-w-2xl mx-auto py-12 px-6 text-center bg-white dark:bg-slate-900 rounded-[2.5rem] border border-red-200 dark:border-red-900/50 shadow-2xl space-y-4 my-8">
-                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <ShieldAlert size={32} />
-                  </div>
-                  <h3 className="text-2xl font-[1000] text-slate-900 dark:text-white uppercase tracking-tight">
-                    Doctor's Portal Exclusive Access
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
-                    Clinical Alarm Hub is restricted to Doctor's Portal authorization. Please verify Doctor credentials to continue.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-                    <button
-                      onClick={() => setIsDoctorVerifyOpen(true)}
-                      className="w-full sm:w-auto px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transition-all"
-                    >
-                      🔐 Verify Doctor Identity / Enter Security PIN
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="max-w-7xl mx-auto px-4 py-8">
-                  <AlarmHubView 
-                    vitals={vitals}
-                    thresholds={thresholds}
-                    setThresholds={setThresholds}
-                    alarmHistory={alarmHistory}
-                    clearAlarmHistory={() => setAlarmHistory([])}
-                    isAlarmMuted={isAlarmMuted}
-                    setIsAlarmMuted={setIsAlarmMuted}
-                    isHeartbeatToneEnabled={isHeartbeatToneEnabled}
-                    setIsHeartbeatToneEnabled={setIsHeartbeatToneEnabled}
-                    synthRef={synthRef}
-                    addAlarmLog={addAlarmLog}
-                    snoozeDuration={snoozeDuration}
-                    setSnoozeDuration={setSnoozeDuration}
-                    isCurrentlyAcknowledged={isCurrentlyAcknowledged}
-                    alarmAcknowledgeTime={alarmAcknowledgeTime}
-                    acknowledgeAlarm={acknowledgeAlarm}
-                  />
-                </div>
-              )
+              <div className="max-w-7xl mx-auto px-4 py-8">
+                <AlarmHubView 
+                  vitals={vitals}
+                  thresholds={thresholds}
+                  setThresholds={setThresholds}
+                  alarmHistory={alarmHistory}
+                  clearAlarmHistory={() => setAlarmHistory([])}
+                  isAlarmMuted={isAlarmMuted}
+                  setIsAlarmMuted={setIsAlarmMuted}
+                  isHeartbeatToneEnabled={isHeartbeatToneEnabled}
+                  setIsHeartbeatToneEnabled={setIsHeartbeatToneEnabled}
+                  synthRef={synthRef}
+                  addAlarmLog={addAlarmLog}
+                  snoozeDuration={snoozeDuration}
+                  setSnoozeDuration={setSnoozeDuration}
+                  isCurrentlyAcknowledged={isCurrentlyAcknowledged}
+                  alarmAcknowledgeTime={alarmAcknowledgeTime}
+                  acknowledgeAlarm={acknowledgeAlarm}
+                />
+              </div>
             ) : activeTab === 'ambulance' ? (
               <div className="max-w-7xl mx-auto px-4 py-8 space-y-4">
                 <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg">

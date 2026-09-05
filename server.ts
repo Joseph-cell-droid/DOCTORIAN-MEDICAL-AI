@@ -3151,7 +3151,17 @@ async function startServer() {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       return next();
     }
-    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz' || req.path.startsWith('/api/vitals')) {
+    if (
+      req.path.includes('__aistudio_internal_control_plane') || 
+      req.path === '/api/health' || 
+      req.path === '/health' || 
+      req.path === '/healthz' || 
+      req.path.startsWith('/api/vitals') ||
+      req.path.startsWith('/api/chat') ||
+      req.path.startsWith('/api/ai') ||
+      req.path.startsWith('/api/triage') ||
+      req.path.startsWith('/api/diagnose')
+    ) {
       return next();
     }
 

@@ -3363,11 +3363,23 @@ async function startServer() {
 
       console.log(`[DOCTORIAN AI] Processing clinical chat query permanently via Google Gemini AI (gemini-3.7-flash)...`);
 
+      let messagesPayload = [{ role: "user", text: userMessage }];
+      if (Array.isArray(req.body.messages) && req.body.messages.length > 0) {
+        messagesPayload = req.body.messages.map((m: any) => ({
+          role: (m.role === 'bot' || m.role === 'assistant' || m.role === 'model') ? 'model' : 'user',
+          text: (m.text || m.content || '').trim()
+        })).filter((m: any) => m.text);
+        if (messagesPayload.length === 0) {
+          messagesPayload = [{ role: "user", text: userMessage }];
+        }
+      }
+
       const result = await callAI({
-        messages: [{ role: "user", text: userMessage }],
+        messages: messagesPayload,
         systemInstruction: customSystemInstruction,
         modelName: "gemini-3.7-flash",
-        userId: (req as any).user?.id
+        userId: (req as any).user?.id,
+        localApiKey: req.body.localApiKey
       });
 
       const resText = typeof result === 'object' 
@@ -3390,6 +3402,31 @@ async function startServer() {
     } catch (err: any) {
       console.error("[API CHAT FATAL ERROR]", err);
       return res.status(500).json({ error: err.message || "Internal server error in Doctorian Gemini AI engine." });
+    }
+  });
+
+  // Doctorian AI Neural Connectivity & Status Diagnostic Endpoint
+  app.get("/api/ai/status", async (req, res) => {
+    try {
+      const keys = getValidApiKeys();
+      const hasKey = keys.length > 0;
+      res.json({
+        status: "online",
+        provider: "Google Gemini 3.7 Neural Synapse",
+        activeEngine: "gemini-3.7-flash",
+        availableEngines: [
+          "gemini-3.7-flash",
+          "gemini-3.1-flash-lite",
+          "gemini-flash-latest",
+          "gemini-3.1-pro-preview"
+        ],
+        failoverAvailable: true,
+        credentialsConfigured: hasKey,
+        supportedLanguages: ["English", "Luganda", "Runyankole", "Acholi", "Swahili", "Ateso"],
+        timestamp: Date.now()
+      });
+    } catch (statusErr: any) {
+      res.status(500).json({ status: "error", message: statusErr.message });
     }
   });
 
@@ -10396,7 +10433,7 @@ function detectSpecificDiseaseMapping(prompt: string): string {
   return "";
 }
 
-    app.post("/api/ai/chat", authenticate, async (req, res) => {
+    app.post("/api/ai/chat", optionalAuthenticate, async (req, res) => {
       if (req.body && req.body.encryptedPayload) {
         try {
           const decrypted = decryptText(req.body.encryptedPayload);
@@ -10407,12 +10444,13 @@ function detectSpecificDiseaseMapping(prompt: string): string {
         }
       }
       const { messages, systemInstruction, modelName, temperature, useSearch, thinkingLevel, modelOverride, images, targetLanguage, localApiKey } = req.body;
-      const userId = (req as any).user.id;
-      const user = db.prepare("SELECT enableExternalAI, subscriptionTier, subscriptionStatus, email FROM users WHERE id = ?").get(userId) as any;
+      const userId = (req as any).user?.id || 'guest';
+      const isGuest = userId === 'guest';
+      const user = !isGuest ? (db.prepare("SELECT enableExternalAI, subscriptionTier, subscriptionStatus, email FROM users WHERE id = ?").get(userId) as any) : null;
       const hasExternalAI = user?.enableExternalAI === 1;
 
       // Credit Check
-      const credits = getUserCredits(userId);
+      const credits = !isGuest ? getUserCredits(userId) : 999;
       if (credits <= 0) {
         return res.status(403).json({ 
           error: "Neural units exhausted.", 
@@ -10652,7 +10690,7 @@ function detectSpecificDiseaseMapping(prompt: string): string {
 
             if (success) {
               res.write("data: [DONE]\n\n");
-              deductCredits(userId, 1);
+              if (!isGuest) deductCredits(userId, 1);
             }
             res.end();
           } catch (err: any) {
@@ -10685,8 +10723,8 @@ function detectSpecificDiseaseMapping(prompt: string): string {
               });
             }
 
-            deductCredits(userId, 1);
-            const responseObj = { text: finalResponse, creditsRemaining: getUserCredits(userId) };
+            if (!isGuest) deductCredits(userId, 1);
+            const responseObj = { text: finalResponse, creditsRemaining: !isGuest ? getUserCredits(userId) : 999 };
             const encryptedResponse = encryptText(JSON.stringify(responseObj));
             res.json({ encryptedResponse });
           } catch (err: any) {

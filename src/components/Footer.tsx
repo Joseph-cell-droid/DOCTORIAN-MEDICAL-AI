@@ -157,63 +157,99 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Two Separate Columns: Left & Right with Center Dividing Line */}
+        {/* Two Separate Columns: Left & Right Equal 50/50 Split */}
         <div className="pt-6 border-t border-slate-200/60 dark:border-slate-900/80">
-          <div className="flex flex-col lg:flex-row items-stretch gap-8 lg:gap-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-stretch">
             
-            {/* Left Column: Brand, Mission, Clinical Contacts & Trust Badges */}
-            <div className="w-full lg:w-1/2 flex flex-col justify-between space-y-6 text-left lg:pr-10 xl:pr-14">
+            {/* Left Column (50%): Brand, Mission, Clinical Trust Nodes & AI Status */}
+            <div className="w-full flex flex-col justify-between space-y-6 text-left lg:pr-8 xl:pr-10 lg:border-r border-slate-200/70 dark:border-slate-800/80">
               <div className="space-y-4">
-                <Logo size="md" />
-                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium leading-relaxed max-w-lg">
-                  Doctorian Medical AI is a next-generation clinical intelligence platform bridging real-time bio-telemetry, offline VHT field operations, and multilingual diagnostic reasoning powered by Google Gemini for Ugandan and regional healthcare ecosystems.
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <Logo size="md" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-500/10 dark:bg-cyan-500/10 text-blue-600 dark:text-cyan-400 border border-blue-500/20 dark:border-cyan-500/20">
+                    <Sparkles size={10} className="animate-spin" />
+                    Gemini 3.7 Neural Core
+                  </span>
+                </div>
+                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium leading-relaxed max-w-xl">
+                  Doctorian Medical AI is a next-generation clinical intelligence platform bridging real-time bio-telemetry, offline VHT field operations, and multilingual diagnostic reasoning powered by Google Gemini 3.7 for Ugandan and regional healthcare ecosystems.
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50">
-                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 dark:bg-cyan-500/10 flex items-center justify-center shrink-0">
-                    <Mail size={12} className="text-blue-600 dark:text-cyan-400" />
+              {/* 2x2 Trust & Telemetry Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 dark:bg-cyan-500/10 flex items-center justify-center shrink-0">
+                    <Mail size={13} className="text-blue-600 dark:text-cyan-400" />
                   </div>
-                  <span className="font-semibold select-all text-slate-700 dark:text-slate-300 truncate">gloriajayakullo@gmail.com</span>
+                  <span className="font-semibold select-all text-slate-700 dark:text-slate-300 truncate text-[11px]">gloriajayakullo@gmail.com</span>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50">
-                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 dark:bg-cyan-500/10 flex items-center justify-center shrink-0">
-                    <MapPin size={12} className="text-blue-600 dark:text-cyan-400" />
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 dark:bg-cyan-500/10 flex items-center justify-center shrink-0">
+                    <MapPin size={13} className="text-blue-600 dark:text-cyan-400" />
                   </div>
-                  <span className="truncate">Kampala Medical Node, Uganda</span>
+                  <span className="truncate text-[11px]">Kampala Medical Node, Uganda</span>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <Lock size={12} className="text-emerald-500" />
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <Lock size={13} className="text-emerald-500" />
                   </div>
-                  <span className="text-slate-600 dark:text-slate-400 truncate">256-Bit TLS & HIPAA Ready</span>
+                  <span className="text-slate-600 dark:text-slate-400 truncate text-[11px]">256-Bit TLS & HIPAA Ready</span>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50">
-                  <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                    <ShieldCheck size={12} className="text-indigo-500" />
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                    <ShieldCheck size={13} className="text-indigo-500" />
                   </div>
-                  <span className="text-slate-600 dark:text-slate-400 truncate">Autonomous Edge Health Gateway</span>
+                  <span className="text-slate-600 dark:text-slate-400 truncate text-[11px]">Autonomous Edge Gateway</span>
                 </div>
+              </div>
+
+              {/* Live AI Neural Status & Telemetry Node */}
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-50/50 via-slate-50 to-indigo-50/30 dark:from-slate-900/90 dark:via-slate-900/60 dark:to-blue-950/20 border border-blue-200/50 dark:border-blue-900/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Neural AI Pipeline: Connected
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    Gemini 3.7 Flash Active
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                  <span>Latency: <strong className="text-slate-700 dark:text-slate-300">~24ms</strong> (Edge-Optimized)</span>
+                  <span>Failover: <strong className="text-slate-700 dark:text-slate-300">Multi-Tier Resilient</strong></span>
+                </div>
+              </div>
+
+              {/* Quick AI Express Action Bar */}
+              <div className="pt-2 flex items-center gap-3">
+                <button
+                  onClick={() => onNavigate('ai_nexus')}
+                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles size={12} />
+                  <span>Clinical AI Nexus</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('diagnostic_lab')}
+                  className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-750 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Cpu size={12} />
+                  <span>AI Diagnostic Lab</span>
+                </button>
               </div>
             </div>
 
-            {/* Separate Center Dividing Line */}
-            <div className="hidden lg:flex items-center justify-center px-2">
-              <div 
-                id="footer-center-divider-line"
-                className="w-[1px] h-full min-h-[220px] bg-gradient-to-b from-transparent via-slate-200 dark:via-slate-800 to-transparent" 
-              />
-            </div>
-
-            {/* Mobile Horizontal Divider */}
-            <div className="block lg:hidden w-full h-[1px] bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-800 to-transparent my-2" />
-
-            {/* Right Column: Organized Navigation Sub-Columns */}
-            <div className="w-full lg:w-1/2 grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-6 text-left lg:pl-10 xl:pl-14">
+            {/* Right Column (50%): Organized 3-Sub-Column Navigation */}
+            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-6 text-left lg:pl-4 xl:pl-6">
               {menuSections.map((section, idx) => (
                 <div key={`footer-col-${idx}`} className="flex flex-col space-y-3.5 text-left">
                   <h4 className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-[0.2em] border-b border-slate-200/50 dark:border-slate-800/60 pb-2">

@@ -190,6 +190,8 @@ import { BMICalculator } from "./components/BMICalculator";
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
 const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
+const HealthcareEcosystemHub = safeLazy(() => import("./components/HealthcareEcosystemHub"), "HealthcareEcosystemHub");
+const ClinicalAIEngine = safeLazy(() => import("./components/ClinicalAIEngine"), "ClinicalAIEngine");
 
 const josephPortrait = "/african_doctor_male.png";
 import { AuthModal } from "./components/AuthModal";
@@ -364,6 +366,7 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 const viewNamesMap: Record<string, string> = {
   home: 'Clinical Health Dashboard',
+  ecosystem: 'Doctorian Healthcare Ecosystem Hub',
   monitor: 'Real-Time Bio-Telemetry Monitor',
   features: 'Clinical Modules & Intelligence',
   about: 'System Architecture & Platform Info',
@@ -783,7 +786,7 @@ export default function App() {
     };
   }, [currentLanguage]);
 
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'ecosystem' | 'clinical_ai_core' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -2112,6 +2115,8 @@ export default function App() {
       title: "CLINICAL INTELLIGENCE",
       items: [
         { id: 'home', label: 'Clinical Dashboard', icon: <Home size={18} /> },
+        { id: 'clinical_ai_core', label: '12-Pillar Medical AI Core', icon: <Cpu size={18} />, badgeDot: 'cyan' },
+        { id: 'ecosystem', label: 'Healthcare Ecosystem', icon: <Globe size={18} />, badgeDot: 'emerald' },
         { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={18} />, badgeDot: 'purple' },
         { id: 'biomatic', label: 'Knowledge Hub', icon: <Cpu size={18} /> },
       ]
@@ -2135,6 +2140,8 @@ export default function App() {
 
   const priorityNavLinks = [
     { id: 'home', label: 'Clinical Dashboard', icon: <Home size={16} />, badge: undefined, color: 'blue' },
+    { id: 'clinical_ai_core', label: '12-Pillar AI Core', icon: <Cpu size={16} />, badge: 'Architecture', color: 'cyan' },
+    { id: 'ecosystem', label: 'Ecosystem Hub', icon: <Globe size={16} />, badge: 'Unified', color: 'teal' },
     { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={16} />, badge: 'AI Live', color: 'indigo' },
     { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
     { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={16} />, badge: undefined, color: 'amber' },
@@ -2144,6 +2151,18 @@ export default function App() {
 
   const subPagesCategories = [
     {
+      category: "Healthcare Ecosystem & Network",
+      items: [
+        { id: 'clinical_ai_core', label: '12-Pillar Multi-Agent Medical AI', icon: <Cpu size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
+        { id: 'ecosystem', label: 'Doctorian Healthcare Ecosystem', icon: <Globe size={14} />, color: 'text-teal-500 hover:bg-teal-500/10' },
+        { id: 'specialist', label: 'Specialist Directory & Referral', icon: <UserPlus size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
+        { id: 'doctors_dashboard', label: "Physician Clinical Workstation", icon: <UserCheck size={14} />, color: 'text-indigo-500 hover:bg-indigo-500/10' },
+        { id: 'biomatic', label: 'Clinical Knowledge Hub', icon: <Cpu size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
+        { id: 'neuro', label: 'Cognis Neural & Cognitive Lab', icon: <Brain size={14} />, color: 'text-violet-500 hover:bg-violet-500/10' },
+        { id: 'genomic_longevity', label: 'Genomic & Longevity Core', icon: <Dna size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
+      ]
+    },
+    {
       category: "Diagnostics & Pathology",
       items: [
         { id: 'symptoms', label: 'Symptom Triage & Differential', icon: <Sparkles size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
@@ -2151,16 +2170,6 @@ export default function App() {
         { id: 'monitor', label: 'Real-Time Bio-Telemetry Monitor', icon: <Monitor size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
         { id: 'health_trace', label: 'Longitudinal Clinical Timeline', icon: <TrendingUp size={14} />, color: 'text-teal-500 hover:bg-teal-500/10' },
         { id: 'illustrator', label: '3D Anatomical & Surgical Visuals', icon: <Palette size={14} />, color: 'text-purple-500 hover:bg-purple-500/10' },
-      ]
-    },
-    {
-      category: "Clinical Care & Research Core",
-      items: [
-        { id: 'doctors_dashboard', label: "Physician Clinical Workstation", icon: <UserCheck size={14} />, color: 'text-indigo-500 hover:bg-indigo-500/10' },
-        { id: 'specialist', label: 'Specialist Directory & Referral', icon: <UserPlus size={14} />, color: 'text-blue-500 hover:bg-blue-500/10' },
-        { id: 'neuro', label: 'Cognis Neural & Cognitive Lab', icon: <Brain size={14} />, color: 'text-violet-500 hover:bg-violet-500/10' },
-        { id: 'genomic_longevity', label: 'Genomic & Longevity Core', icon: <Dna size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
-        { id: 'biomatic', label: 'Clinical Knowledge Hub', icon: <Cpu size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
       ]
     },
     {
@@ -3358,30 +3367,48 @@ export default function App() {
               </div>
             </motion.div>
           ) : currentView === 'home' ? (
-            <Dashboard 
-              onNavigate={showView} 
-              user={user} 
-              aiInsight={aiInsight} 
-              onRefreshInsight={fetchAiInsight} 
-              isInsightLoading={isInsightLoading} 
-              onInstall={handleDirectInstall}
-              vitals={arduino.vitals}
-              healthStatus={arduino.healthStatus}
-              history={arduino.history}
-              onUpdateUser={(u) => setUser(u)}
-              currentLanguage={currentLanguage}
-            />
+            <motion.div
+              role="main"
+              key="view-home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full"
+            >
+              <Dashboard 
+                onNavigate={showView} 
+                user={user} 
+                aiInsight={aiInsight} 
+                onRefreshInsight={fetchAiInsight} 
+                isInsightLoading={isInsightLoading} 
+                onInstall={handleDirectInstall}
+                vitals={arduino.vitals}
+                healthStatus={arduino.healthStatus}
+                history={arduino.history}
+                onUpdateUser={(u) => setUser(u)}
+                currentLanguage={currentLanguage}
+              />
+            </motion.div>
           ) : currentView === 'ai_nexus' ? (
-            <MedicalAI 
-              user={user} 
-              onUpdate={(u) => setUser(u)} 
-              onRefreshUser={refreshUser} 
-              onNavigate={setCurrentView} 
-              arduino={arduino} 
-              onUpgradeRequested={() => setIsSubscriptionModalOpen(true)}
-              currentLanguage={currentLanguage}
-              onChangeLanguage={setCurrentLanguage}
-            />
+            <motion.div
+              role="main"
+              key="view-ai_nexus"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full h-full"
+            >
+              <MedicalAI 
+                user={user} 
+                onUpdate={(u) => setUser(u)} 
+                onRefreshUser={refreshUser} 
+                onNavigate={setCurrentView} 
+                arduino={arduino} 
+                onUpgradeRequested={() => setIsSubscriptionModalOpen(true)}
+                currentLanguage={currentLanguage}
+                onChangeLanguage={setCurrentLanguage}
+              />
+            </motion.div>
           ) : currentView === 'genomic_longevity' ? (
             <motion.div
               role="main"
@@ -3410,15 +3437,24 @@ export default function App() {
                 <DoctorsDashboard addToast={(msg, type) => addToast(msg, type || 'info')} />
               </motion.div>
             ) : (
-              <TerminalSecureGate 
-                role="doctor"
-                onUnlock={() => {
-                  setIsDoctorAuthenticated(true);
-                }}
-                onCancel={() => {
-                  setCurrentView('home');
-                }}
-              />
+              <motion.div
+                role="main"
+                key="view-gate-doctor"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full"
+              >
+                <TerminalSecureGate 
+                  role="doctor"
+                  onUnlock={() => {
+                    setIsDoctorAuthenticated(true);
+                  }}
+                  onCancel={() => {
+                    setCurrentView('home');
+                  }}
+                />
+              </motion.div>
             )
           ) : currentView === 'specialist' ? (
             <motion.div
@@ -3442,7 +3478,15 @@ export default function App() {
                 <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} onNavigate={(v) => setCurrentView(v)} />
               </motion.div>
             ) : (
-              <AccessRestriction />
+              <motion.div
+                key="view-restricted-monitor"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full"
+              >
+                <AccessRestriction />
+              </motion.div>
             )
         ) : currentView === 'features' ? (
           <motion.div
@@ -3592,18 +3636,35 @@ export default function App() {
                 <AdminDashboard addToast={addToast} />
               </motion.div>
             ) : (
-              <TerminalSecureGate 
-                role="admin"
-                onUnlock={() => {
-                  setIsAdminAuthenticated(true);
-                }}
-                onCancel={() => {
-                  setCurrentView('home');
-                }}
-              />
+              <motion.div
+                role="main"
+                key="view-gate-admin"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full"
+              >
+                <TerminalSecureGate 
+                  role="admin"
+                  onUnlock={() => {
+                    setIsAdminAuthenticated(true);
+                  }}
+                  onCancel={() => {
+                    setCurrentView('home');
+                  }}
+                />
+              </motion.div>
             )
           ) : (
-            <AccessRestriction />
+            <motion.div
+              key="view-restricted-admin"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full"
+            >
+              <AccessRestriction />
+            </motion.div>
           )
         ) : currentView === 'neuro' ? (
           <motion.div
@@ -3647,7 +3708,15 @@ export default function App() {
               </Suspense>
             </motion.div>
           ) : (
-            <AccessRestriction />
+            <motion.div
+              key="view-restricted-biomatic"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full"
+            >
+              <AccessRestriction />
+            </motion.div>
           )
         ) : currentView === 'emergency' ? (
           (user?.role === 'doctor' || user?.role === 'admin' || (user as any)?.isDoctor || (user as any)?.isAdmin) ? (
@@ -3661,7 +3730,15 @@ export default function App() {
               <EmergencyRegistry user={user} onUpdate={setUser} isAdmin={true} />
             </motion.div>
           ) : (
-            <AccessRestriction />
+            <motion.div
+              key="view-restricted-emergency"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full"
+            >
+              <AccessRestriction />
+            </motion.div>
           )
         ) : currentView === 'biosecurity' ? (
           <motion.div
@@ -3672,6 +3749,32 @@ export default function App() {
             className="w-full"
           >
             <BioSecurity />
+          </motion.div>
+        ) : currentView === 'clinical_ai_core' ? (
+          <motion.div
+            key="clinical_ai_core"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="w-full"
+          >
+            <ClinicalAIEngine
+              onNavigate={(v) => setCurrentView(v)}
+              user={user}
+            />
+          </motion.div>
+        ) : currentView === 'ecosystem' ? (
+          <motion.div
+            key="ecosystem"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="w-full"
+          >
+            <HealthcareEcosystemHub
+              onNavigate={(v) => setCurrentView(v)}
+              user={user}
+            />
           </motion.div>
         ) : currentView === 'dev_portal' ? (
           <motion.div
@@ -3965,19 +4068,28 @@ export default function App() {
             <AppointmentsView user={user} onShowToast={(msg, type) => addToast(msg, type || 'info')} />
           </motion.div>
         ) : (
-          <Dashboard 
-            onNavigate={showView} 
-            user={user} 
-            aiInsight={aiInsight} 
-            onRefreshInsight={fetchAiInsight} 
-            isInsightLoading={isInsightLoading} 
-            onInstall={handleDirectInstall}
-            vitals={arduino.vitals}
-            healthStatus={arduino.healthStatus}
-            history={arduino.history}
-            onUpdateUser={(u) => setUser(u)}
-            currentLanguage={currentLanguage}
-          />
+          <motion.div
+            role="main"
+            key="view-fallback-home"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-full"
+          >
+            <Dashboard 
+              onNavigate={showView} 
+              user={user} 
+              aiInsight={aiInsight} 
+              onRefreshInsight={fetchAiInsight} 
+              isInsightLoading={isInsightLoading} 
+              onInstall={handleDirectInstall}
+              vitals={arduino.vitals}
+              healthStatus={arduino.healthStatus}
+              history={arduino.history}
+              onUpdateUser={(u) => setUser(u)}
+              currentLanguage={currentLanguage}
+            />
+          </motion.div>
         )}
               </AnimatePresence>
             </Suspense>
@@ -4198,7 +4310,13 @@ export default function App() {
   {/* Admin Authentication Overlay */}
   <AnimatePresence>
     {showAdminLogin && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <motion.div 
+        key="admin-auth-overlay-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+      >
         <motion.div 
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -4358,14 +4476,20 @@ export default function App() {
               </div>
            </div>
         </motion.div>
-      </div>
+      </motion.div>
     )}
    </AnimatePresence>
 
     {/* Mobile Systems Menu Drawer */}
     <AnimatePresence>
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[160] md:hidden flex flex-col justify-end pointer-events-none">
+        <motion.div 
+          key="mobile-systems-menu-drawer-wrapper"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[160] md:hidden flex flex-col justify-end pointer-events-none"
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -4525,7 +4649,7 @@ export default function App() {
               ))}
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
 
@@ -4562,6 +4686,7 @@ export default function App() {
             <AnimatePresence>
               {isMarianConsoleOpen && (
                 <MarianConsole
+                  key="modal-marian-console"
                   isOpen={isMarianConsoleOpen}
                   onClose={() => setIsMarianConsoleOpen(false)}
                   downloadedLanguages={downloadedLanguages}
@@ -4570,66 +4695,82 @@ export default function App() {
                 />
               )}
 
-              <ClinicalReportExporter
-                isOpen={isEhrExportOpen}
-                onClose={() => setIsEhrExportOpen(false)}
-              />
+              {isEhrExportOpen && (
+                <ClinicalReportExporter
+                  key="modal-ehr-export"
+                  isOpen={isEhrExportOpen}
+                  onClose={() => setIsEhrExportOpen(false)}
+                />
+              )}
 
-              <TelehealthScribeHub
-                isOpen={isTelehealthOpen}
-                onClose={() => setIsTelehealthOpen(false)}
-              />
+              {isTelehealthOpen && (
+                <TelehealthScribeHub
+                  key="modal-telehealth"
+                  isOpen={isTelehealthOpen}
+                  onClose={() => setIsTelehealthOpen(false)}
+                />
+              )}
 
-              <AuditTrailModal
-                isOpen={isAuditTrailOpen}
-                onClose={() => setIsAuditTrailOpen(false)}
-              />
+              {isAuditTrailOpen && (
+                <AuditTrailModal
+                  key="modal-audit-trail"
+                  isOpen={isAuditTrailOpen}
+                  onClose={() => setIsAuditTrailOpen(false)}
+                />
+              )}
 
-              <DownloadAppModal
-                isOpen={isDownloadAppOpen}
-                onClose={() => setIsDownloadAppOpen(false)}
-                onInstalled={() => {
-                  setHasInstalledApp(true);
-                  setIsStandalone(true);
-                  setShowInstallButton(false);
-                  setIsDownloadAppOpen(false);
-                }}
-              />
+              {isDownloadAppOpen && (
+                <DownloadAppModal
+                  key="modal-download-app"
+                  isOpen={isDownloadAppOpen}
+                  onClose={() => setIsDownloadAppOpen(false)}
+                  onInstalled={() => {
+                    setHasInstalledApp(true);
+                    setIsStandalone(true);
+                    setShowInstallButton(false);
+                    setIsDownloadAppOpen(false);
+                  }}
+                />
+              )}
 
-              <WindowsSystemsHubModal 
-                isOpen={isWindowsMenuOpen}
-                onClose={() => setIsWindowsMenuOpen(false)}
-                currentView={currentView}
-                onNavigate={(v) => setCurrentView(v as any)}
-                isOffline={isOffline}
-                isEyeCareMode={isEyeCareMode}
-                setIsEyeCareMode={setIsEyeCareMode}
-                isDarkMode={isDarkMode}
-                setIsDarkMode={setIsDarkMode}
-                setIsThemeSchedulerOpen={setIsThemeSchedulerOpen}
-                vibrateCriticalAlert={vibrateCriticalAlert}
-                addToast={(msg, type) => setToast({ message: msg, type: type || 'info' })}
-                handleOpenAdminInfo={handleOpenAdminInfo}
-                hasNotification={hasNotification}
-                isAudioMenuOpen={isAudioMenuOpen}
-                setIsAudioMenuOpen={setIsAudioMenuOpen}
-                vitalsAudioEnabled={vitalsAudioEnabled}
-                toggleVitalsAudio={toggleVitalsAudio}
-                vitalsAudioVolume={vitalsAudioVolume}
-                handleVitalsVolumeChange={handleVitalsVolumeChange}
-                soundscapeEnabled={soundscapeEnabled}
-                toggleSoundscapeGlobal={toggleSoundscapeGlobal}
-                soundscapeVolume={soundscapeVolume}
-                handleSoundscapeVolChangeGlobal={handleSoundscapeVolChangeGlobal}
-                soundscapePreset={soundscapePreset}
-                changePresetGlobal={changePresetGlobal}
-                showInstallButton={showInstallButton}
-                hasInstalledApp={hasInstalledApp}
-                isStandalone={isStandalone}
-                installApp={installApp}
-              />
+              {isWindowsMenuOpen && (
+                <WindowsSystemsHubModal 
+                  key="modal-windows-hub"
+                  isOpen={isWindowsMenuOpen}
+                  onClose={() => setIsWindowsMenuOpen(false)}
+                  currentView={currentView}
+                  onNavigate={(v) => setCurrentView(v as any)}
+                  isOffline={isOffline}
+                  isEyeCareMode={isEyeCareMode}
+                  setIsEyeCareMode={setIsEyeCareMode}
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                  setIsThemeSchedulerOpen={setIsThemeSchedulerOpen}
+                  vibrateCriticalAlert={vibrateCriticalAlert}
+                  addToast={(msg, type) => setToast({ message: msg, type: type || 'info' })}
+                  handleOpenAdminInfo={handleOpenAdminInfo}
+                  hasNotification={hasNotification}
+                  isAudioMenuOpen={isAudioMenuOpen}
+                  setIsAudioMenuOpen={setIsAudioMenuOpen}
+                  vitalsAudioEnabled={vitalsAudioEnabled}
+                  toggleVitalsAudio={toggleVitalsAudio}
+                  vitalsAudioVolume={vitalsAudioVolume}
+                  handleVitalsVolumeChange={handleVitalsVolumeChange}
+                  soundscapeEnabled={soundscapeEnabled}
+                  toggleSoundscapeGlobal={toggleSoundscapeGlobal}
+                  soundscapeVolume={soundscapeVolume}
+                  handleSoundscapeVolChangeGlobal={handleSoundscapeVolChangeGlobal}
+                  soundscapePreset={soundscapePreset}
+                  changePresetGlobal={changePresetGlobal}
+                  showInstallButton={showInstallButton}
+                  hasInstalledApp={hasInstalledApp}
+                  isStandalone={isStandalone}
+                  installApp={installApp}
+                />
+              )}
               {isBackupModalOpen && (
                 <LocalBackupModal
+                  key="modal-local-backup"
                   isOpen={isBackupModalOpen}
                   onClose={() => setIsBackupModalOpen(false)}
                   showToast={addToast}
@@ -4637,6 +4778,7 @@ export default function App() {
               )}
               {isThemeSchedulerOpen && (
                 <ThemeSchedulerModal
+                  key="modal-theme-scheduler"
                   isOpen={isThemeSchedulerOpen}
                   onClose={() => setIsThemeSchedulerOpen(false)}
                   onApplyTheme={(isDark, isEyeCare) => {

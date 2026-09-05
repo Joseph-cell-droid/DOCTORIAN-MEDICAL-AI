@@ -110,6 +110,8 @@ export const ClinicalReportExporter: React.FC<ClinicalReportExporterProps> = ({
     window.print();
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl overflow-y-auto">
       <motion.div

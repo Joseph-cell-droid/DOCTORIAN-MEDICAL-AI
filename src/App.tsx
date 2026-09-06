@@ -4800,6 +4800,11 @@ export default function App() {
                   onClose={() => setIsStorageVaultOpen(false)}
                   user={user}
                   onShowToast={addToast}
+                  onNavigateToBilling={() => {
+                    setIsStorageVaultOpen(false);
+                    setCurrentView('billing');
+                    addToast('Storage quota reached — redirected to Billing to purchase extra storage.', 'info');
+                  }}
                 />
               )}
               {isThemeSchedulerOpen && (

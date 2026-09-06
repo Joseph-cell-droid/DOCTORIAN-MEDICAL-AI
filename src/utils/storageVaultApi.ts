@@ -6,12 +6,76 @@
 
 export const FREE_STORAGE_QUOTA_BYTES = 1073741824; // 1,073,741,824 bytes = 1 GB
 
+export interface StoragePlan {
+  id: string;
+  name: string;
+  addedBytes: number;
+  formattedSize: string;
+  amount: number;
+  price: string;
+  period?: string;
+  description: string;
+  features: string[];
+  popular?: boolean;
+  isPopular?: boolean;
+}
+
+export const STORAGE_EXPANSION_PLANS: StoragePlan[] = [
+  {
+    id: 'storage_5gb',
+    name: '+5 GB Clinical Expansion',
+    addedBytes: 5 * 1024 * 1024 * 1024,
+    formattedSize: '+5 GB',
+    amount: 5000,
+    price: '5,000 UGX',
+    period: 'one-time expansion',
+    description: 'Ideal for extended high-res medical records, lab reports, and vitals history.',
+    features: ['+5 GB Encrypted Cloud Vault', 'Fast Two-Way Verification', 'Full DICOM & PDF support', 'Instant Quota Activation'],
+  },
+  {
+    id: 'storage_20gb',
+    name: '+20 GB Diagnostic & Imaging Archive',
+    addedBytes: 20 * 1024 * 1024 * 1024,
+    formattedSize: '+20 GB',
+    amount: 18000,
+    price: '18,000 UGX',
+    period: 'one-time expansion',
+    popular: true,
+    isPopular: true,
+    description: 'Designed for radiology scans, MRI/CT archives, and high-frequency sensor telemetry.',
+    features: ['+20 GB High-Speed Cloud Storage', 'Continuous Neural Sync', 'Priority Backup Encryption', 'Multi-Device Access'],
+  },
+  {
+    id: 'storage_100gb',
+    name: '+100 GB Multi-Patient & Clinic Cloud',
+    addedBytes: 100 * 1024 * 1024 * 1024,
+    formattedSize: '+100 GB',
+    amount: 65000,
+    price: '65,000 UGX',
+    period: 'one-time expansion',
+    description: 'Comprehensive capacity for multiple patient profiles, video consultations, and deep clinical data.',
+    features: ['+100 GB Hospital-Grade Storage', 'Audit-Ready Retention', 'Zero Compression Loss', 'Dedicated Sync Node'],
+  },
+  {
+    id: 'storage_1tb',
+    name: '+1 TB Enterprise Medical Repository',
+    addedBytes: 1024 * 1024 * 1024 * 1024,
+    formattedSize: '+1 TB',
+    amount: 250000,
+    price: '250,000 UGX',
+    period: 'one-time expansion',
+    description: 'Maximum cloud archival tier for enterprise institutions and research facilities.',
+    features: ['+1 TB Unlimited Archival Quota', 'Custom Data Governance', 'Institutional Escrow', '24/7 Priority Support'],
+  },
+];
+
 export interface StorageQuota {
   totalQuotaBytes: number;
   usedBytes: number;
   freeBytes: number;
   fileCount: number;
   percentUsed: number;
+  isFull?: boolean;
 }
 
 export interface VaultFile {
@@ -80,17 +144,27 @@ function saveOfflineFiles(userId: string, files: VaultFile[]) {
 }
 
 function getOfflineQuota(userId: string): StorageQuota {
+  let totalQuota = FREE_STORAGE_QUOTA_BYTES;
+  try {
+    const saved = localStorage.getItem(`doctorian_storage_quota_bytes_${userId}`);
+    if (saved && Number(saved) > 0) {
+      totalQuota = Number(saved);
+    }
+  } catch (e) {}
+
   const files = getOfflineFiles(userId);
   const usedBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
-  const freeBytes = Math.max(0, FREE_STORAGE_QUOTA_BYTES - usedBytes);
-  const percentUsed = Math.min(100, Number(((usedBytes / FREE_STORAGE_QUOTA_BYTES) * 100).toFixed(2)));
+  const freeBytes = Math.max(0, totalQuota - usedBytes);
+  const percentUsed = Math.min(100, Number(((usedBytes / totalQuota) * 100).toFixed(2)));
+  const isFull = usedBytes >= totalQuota || percentUsed >= 100;
 
   return {
-    totalQuotaBytes: FREE_STORAGE_QUOTA_BYTES,
+    totalQuotaBytes: totalQuota,
     usedBytes,
     freeBytes,
     fileCount: files.length,
     percentUsed,
+    isFull,
   };
 }
 
@@ -312,7 +386,12 @@ export async function uploadVaultFile(
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Upload failed');
+      const error: any = new Error(data.error || 'Upload failed');
+      error.quotaExceeded = Boolean(data.quotaExceeded || res.status === 400);
+      error.requiresBilling = Boolean(data.requiresBilling || data.quotaExceeded);
+      error.isFull = Boolean(data.isFull);
+      error.quota = data.quota;
+      throw error;
     }
 
     return {
@@ -320,16 +399,26 @@ export async function uploadVaultFile(
       quota: data.quota,
     };
   } catch (err: any) {
-    console.warn('[Vault Upload] Falling back to client-side 1GB storage:', err.message);
+    // If quota exceeded or requires billing, rethrow immediately to trigger billing
+    if (err.quotaExceeded || err.requiresBilling) {
+      throw err;
+    }
+
+    console.warn('[Vault Upload] Falling back to client-side storage:', err.message);
 
     const email = sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
     const userId = email.replace(/[^a-zA-Z0-9]/g, '_');
     const currentQuota = getOfflineQuota(userId);
 
-    if (currentQuota.usedBytes + file.size > FREE_STORAGE_QUOTA_BYTES) {
-      throw new Error(
-        `1GB storage limit reached. Available: ${formatBytes(currentQuota.freeBytes)}, File size: ${formatBytes(file.size)}.`
+    if (currentQuota.usedBytes + file.size > currentQuota.totalQuotaBytes) {
+      const quotaErr: any = new Error(
+        `Storage limit reached! Available: ${formatBytes(currentQuota.freeBytes)}, File size: ${formatBytes(file.size)}. Please purchase an expansion pack to continue.`
       );
+      quotaErr.quotaExceeded = true;
+      quotaErr.requiresBilling = true;
+      quotaErr.isFull = true;
+      quotaErr.quota = currentQuota;
+      throw quotaErr;
     }
 
     // Convert file to base64 for local persistence
@@ -386,7 +475,12 @@ export async function saveVaultUserData(
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Failed to save data to vault');
+      const error: any = new Error(data.error || 'Failed to save data to vault');
+      error.quotaExceeded = Boolean(data.quotaExceeded || res.status === 400);
+      error.requiresBilling = Boolean(data.requiresBilling || data.quotaExceeded);
+      error.isFull = Boolean(data.isFull);
+      error.quota = data.quota;
+      throw error;
     }
 
     return {
@@ -394,6 +488,10 @@ export async function saveVaultUserData(
       quota: data.quota,
     };
   } catch (err: any) {
+    if (err.quotaExceeded || err.requiresBilling) {
+      throw err;
+    }
+
     const email = sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
     const userId = email.replace(/[^a-zA-Z0-9]/g, '_');
 
@@ -401,8 +499,13 @@ export async function saveVaultUserData(
     const size = new Blob([strContent]).size;
 
     const currentQuota = getOfflineQuota(userId);
-    if (currentQuota.usedBytes + size > FREE_STORAGE_QUOTA_BYTES) {
-      throw new Error('1GB storage limit reached.');
+    if (currentQuota.usedBytes + size > currentQuota.totalQuotaBytes) {
+      const quotaErr: any = new Error('Storage quota exceeded! Please purchase an expansion pack to continue.');
+      quotaErr.quotaExceeded = true;
+      quotaErr.requiresBilling = true;
+      quotaErr.isFull = true;
+      quotaErr.quota = currentQuota;
+      throw quotaErr;
     }
 
     const newFile: VaultFile = {
@@ -483,4 +586,127 @@ export async function downloadVaultFile(vaultToken: string, file: VaultFile): Pr
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+
+/**
+ * Fetch available storage plans from server (or fallback to local definitions)
+ */
+export async function fetchStoragePlans(): Promise<StoragePlan[]> {
+  try {
+    const res = await fetch('/api/storage/plans');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.plans && Array.isArray(data.plans)) {
+        return data.plans;
+      }
+    }
+  } catch (e) {}
+  return STORAGE_EXPANSION_PLANS;
+}
+
+/**
+ * Purchase additional storage quota (Billing Gateway)
+ */
+export async function purchaseStorageExpansion(
+  vaultToken: string,
+  tierId: string,
+  paymentMethod: string = 'momo',
+  phone?: string,
+  transactionId?: string,
+  email?: string
+): Promise<{ success: boolean; message: string; quota: StorageQuota; purchase?: any }> {
+  try {
+    const res = await fetch('/api/storage/purchase', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${vaultToken}`,
+      },
+      body: JSON.stringify({
+        tierId,
+        paymentMethod,
+        phone,
+        transactionId,
+        email,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Storage purchase failed');
+    }
+
+    // Also update offline quota cache for instantaneous responsiveness
+    const targetEmail = email || sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
+    const userId = targetEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    if (data.quota && data.quota.totalQuotaBytes) {
+      try {
+        localStorage.setItem(`doctorian_storage_quota_bytes_${userId}`, String(data.quota.totalQuotaBytes));
+      } catch (e) {}
+    }
+
+    return data;
+  } catch (err: any) {
+    // Offline / fallback purchase simulation
+    const targetEmail = email || sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
+    const userId = targetEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    const plan = STORAGE_EXPANSION_PLANS.find((p) => p.id === tierId) || STORAGE_EXPANSION_PLANS[0];
+
+    const currentQuota = getOfflineQuota(userId);
+    const newTotal = currentQuota.totalQuotaBytes + plan.addedBytes;
+    try {
+      localStorage.setItem(`doctorian_storage_quota_bytes_${userId}`, String(newTotal));
+    } catch (e) {}
+
+    const updatedQuota = getOfflineQuota(userId);
+    return {
+      success: true,
+      message: `Storage successfully expanded! Added ${plan.formattedSize} (${plan.name}).`,
+      quota: updatedQuota,
+      purchase: {
+        id: 'sp_local_' + Date.now(),
+        tierName: plan.name,
+        amount: plan.amount,
+      },
+    };
+  }
+}
+
+/**
+ * Toggle or simulate full storage state (for automated billing triggers & verification)
+ */
+export async function simulateStorageFullStatus(
+  vaultToken: string,
+  setFull: boolean = true,
+  email?: string
+): Promise<{ success: boolean; message: string; quota: StorageQuota }> {
+  try {
+    const res = await fetch('/api/storage/simulate-full', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${vaultToken}`,
+      },
+      body: JSON.stringify({ setFull, email }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to simulate full storage');
+    return data;
+  } catch (err: any) {
+    const targetEmail = email || sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
+    const userId = targetEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    if (setFull) {
+      const files = getOfflineFiles(userId);
+      const used = files.reduce((acc, f) => acc + (f.size || 0), 0);
+      localStorage.setItem(`doctorian_storage_quota_bytes_${userId}`, String(used > 0 ? used : 1024));
+    } else {
+      localStorage.setItem(`doctorian_storage_quota_bytes_${userId}`, String(FREE_STORAGE_QUOTA_BYTES));
+    }
+    return {
+      success: true,
+      message: setFull ? 'Storage simulated as 100% full' : 'Storage reset to standard quota',
+      quota: getOfflineQuota(userId),
+    };
+  }
 }

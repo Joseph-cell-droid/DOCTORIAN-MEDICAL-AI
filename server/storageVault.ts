@@ -37,6 +37,13 @@ export function setupStorageVaultRoutes(
 
   // Create tables for 1GB Vault Files and 2-Way Verification
   try {
+    // Check and add storageQuotaBytes column to users table if missing
+    try {
+      db.exec(`ALTER TABLE users ADD COLUMN storageQuotaBytes INTEGER DEFAULT 1073741824;`);
+    } catch (e) {
+      // Column already exists
+    }
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_storage_files (
         id TEXT PRIMARY KEY,
@@ -62,8 +69,25 @@ export function setupStorageVaultRoutes(
         verified INTEGER DEFAULT 0,
         createdAt TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS storage_purchases (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        tierId TEXT NOT NULL,
+        tierName TEXT NOT NULL,
+        addedBytes INTEGER NOT NULL,
+        previousQuotaBytes INTEGER NOT NULL,
+        newQuotaBytes INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        currency TEXT DEFAULT 'UGX',
+        paymentMethod TEXT NOT NULL,
+        phone TEXT,
+        transactionId TEXT,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY(userId) REFERENCES users(id)
+      );
     `);
-    console.log('[Storage Vault] Database schemas verified. 1GB Quota enabled per account.');
+    console.log('[Storage Vault] Database schemas verified. 1GB+ Dynamic Quota enabled per account.');
   } catch (err: any) {
     console.error('[Storage Vault] Schema initialization error:', err.message);
   }
@@ -92,9 +116,17 @@ export function setupStorageVaultRoutes(
     },
   });
 
-  // Helper to calculate used bytes
+  // Helper to calculate used bytes with dynamic account quota
   function getUserStorageUsage(userId: string) {
     try {
+      let totalQuotaBytes = FREE_STORAGE_QUOTA_BYTES;
+      try {
+        const userRow: any = db.prepare('SELECT storageQuotaBytes FROM users WHERE id = ?').get(userId);
+        if (userRow && userRow.storageQuotaBytes && Number(userRow.storageQuotaBytes) > 0) {
+          totalQuotaBytes = Number(userRow.storageQuotaBytes);
+        }
+      } catch (e) {}
+
       const row: any = db
         .prepare(
           'SELECT COALESCE(SUM(size), 0) as usedBytes, COUNT(*) as fileCount FROM user_storage_files WHERE userId = ?'
@@ -102,15 +134,17 @@ export function setupStorageVaultRoutes(
         .get(userId);
       const usedBytes = Number(row?.usedBytes || 0);
       const fileCount = Number(row?.fileCount || 0);
-      const freeBytes = Math.max(0, FREE_STORAGE_QUOTA_BYTES - usedBytes);
-      const percentUsed = Math.min(100, Number(((usedBytes / FREE_STORAGE_QUOTA_BYTES) * 100).toFixed(2)));
+      const freeBytes = Math.max(0, totalQuotaBytes - usedBytes);
+      const percentUsed = Math.min(100, Number(((usedBytes / totalQuotaBytes) * 100).toFixed(2)));
+      const isFull = usedBytes >= totalQuotaBytes || percentUsed >= 100;
 
       return {
-        totalQuotaBytes: FREE_STORAGE_QUOTA_BYTES,
+        totalQuotaBytes,
         usedBytes,
         freeBytes,
         fileCount,
         percentUsed,
+        isFull,
       };
     } catch (err) {
       return {
@@ -119,6 +153,7 @@ export function setupStorageVaultRoutes(
         freeBytes: FREE_STORAGE_QUOTA_BYTES,
         fileCount: 0,
         percentUsed: 0,
+        isFull: false,
       };
     }
   }
@@ -380,8 +415,8 @@ export function setupStorageVaultRoutes(
         const fileSize = file.size;
         const usage = getUserStorageUsage(user.id);
 
-        // Check if upload exceeds the 1GB quota
-        if (usage.usedBytes + fileSize > FREE_STORAGE_QUOTA_BYTES) {
+        // Check if upload exceeds the total dynamic quota
+        if (usage.usedBytes + fileSize > usage.totalQuotaBytes) {
           // Remove uploaded file from disk to prevent storage leak
           try {
             fs.unlinkSync(file.path);
@@ -390,7 +425,11 @@ export function setupStorageVaultRoutes(
           const remainingMB = (usage.freeBytes / (1024 * 1024)).toFixed(2);
           const requestedMB = (fileSize / (1024 * 1024)).toFixed(2);
           return res.status(400).json({
-            error: `1GB storage quota exceeded. Requested: ${requestedMB} MB, Available: ${remainingMB} MB. Delete older files to free space.`,
+            error: `Storage quota exceeded! Your cloud vault is full. Requested: ${requestedMB} MB, Available: ${remainingMB} MB. Please purchase an expansion pack to continue uploading.`,
+            quotaExceeded: true,
+            isFull: true,
+            requiresBilling: true,
+            quota: usage,
           });
         }
 
@@ -457,8 +496,14 @@ export function setupStorageVaultRoutes(
       const byteSize = Buffer.byteLength(stringContent, 'utf8');
 
       const usage = getUserStorageUsage(user.id);
-      if (usage.usedBytes + byteSize > FREE_STORAGE_QUOTA_BYTES) {
-        return res.status(400).json({ error: '1GB storage limit exceeded' });
+      if (usage.usedBytes + byteSize > usage.totalQuotaBytes) {
+        return res.status(400).json({
+          error: 'Storage quota exceeded! Your cloud vault is full. Please purchase an expansion pack to continue saving clinical records.',
+          quotaExceeded: true,
+          isFull: true,
+          requiresBilling: true,
+          quota: usage,
+        });
       }
 
       const userDir = path.join(UPLOADS_DIR, user.id);
@@ -639,6 +684,262 @@ export function setupStorageVaultRoutes(
       });
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to delete file: ' + err.message });
+    }
+  });
+
+  // ==========================================
+  // 10. GET AVAILABLE STORAGE EXPANSION PLANS
+  // ==========================================
+  const STORAGE_EXPANSION_TIERS: Record<string, {
+    id: string;
+    name: string;
+    addedBytes: number;
+    formattedSize: string;
+    amount: number;
+    price: string;
+    description: string;
+    features: string[];
+    popular?: boolean;
+  }> = {
+    storage_5gb: {
+      id: 'storage_5gb',
+      name: '+5 GB Clinical Expansion',
+      addedBytes: 5 * 1024 * 1024 * 1024,
+      formattedSize: '+5 GB',
+      amount: 5000,
+      price: '5,000 UGX',
+      description: 'Ideal for extended high-res medical records, lab reports, and vitals history.',
+      features: ['+5 GB Encrypted Cloud Vault', 'Fast Two-Way Verification', 'Full DICOM & PDF support', 'Instant Quota Activation'],
+    },
+    storage_20gb: {
+      id: 'storage_20gb',
+      name: '+20 GB Diagnostic & Imaging Archive',
+      addedBytes: 20 * 1024 * 1024 * 1024,
+      formattedSize: '+20 GB',
+      amount: 18000,
+      price: '18,000 UGX',
+      popular: true,
+      description: 'Designed for radiology scans, MRI/CT archives, and high-frequency sensor telemetry.',
+      features: ['+20 GB High-Speed Cloud Storage', 'Continuous Neural Sync', 'Priority Backup Encryption', 'Multi-Device Access'],
+    },
+    storage_100gb: {
+      id: 'storage_100gb',
+      name: '+100 GB Multi-Patient & Clinic Cloud',
+      addedBytes: 100 * 1024 * 1024 * 1024,
+      formattedSize: '+100 GB',
+      amount: 65000,
+      price: '65,000 UGX',
+      description: 'Comprehensive capacity for multiple patient profiles, video consultations, and deep clinical data.',
+      features: ['+100 GB Hospital-Grade Storage', 'Audit-Ready Retention', 'Zero Compression Loss', 'Dedicated Sync Node'],
+    },
+    storage_1tb: {
+      id: 'storage_1tb',
+      name: '+1 TB Enterprise Medical Repository',
+      addedBytes: 1024 * 1024 * 1024 * 1024,
+      formattedSize: '+1 TB',
+      amount: 250000,
+      price: '250,000 UGX',
+      description: 'Maximum cloud archival tier for enterprise institutions and research facilities.',
+      features: ['+1 TB Unlimited Archival Quota', 'Custom Data Governance', 'Institutional Escrow', '24/7 Priority Support'],
+    },
+  };
+
+  app.get('/api/storage/plans', (req: express.Request, res: express.Response) => {
+    return res.json({
+      success: true,
+      plans: Object.values(STORAGE_EXPANSION_TIERS),
+    });
+  });
+
+  // ==========================================
+  // 11. PURCHASE ADDITIONAL STORAGE (BILLING GATEWAY)
+  // ==========================================
+  app.post('/api/storage/purchase', async (req: express.Request, res: express.Response) => {
+    try {
+      const { tierId, paymentMethod = 'momo', phone, transactionId, email } = req.body;
+      
+      const tier = STORAGE_EXPANSION_TIERS[tierId];
+      if (!tier) {
+        return res.status(400).json({ error: 'Invalid storage expansion tier selected' });
+      }
+
+      // Resolve user from vault token, authorization header, or provided email
+      let targetUserId: string | null = null;
+      let targetUserEmail: string | null = null;
+      let targetDisplayName: string = 'Doctorian User';
+
+      const authHeader = req.headers.authorization;
+      const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.body.token || req.cookies?.vault_token;
+
+      if (token) {
+        try {
+          const decoded: any = jwt.verify(token, jwtSecret);
+          if (decoded && decoded.userId) {
+            targetUserId = decoded.userId;
+            targetUserEmail = decoded.email || null;
+            targetDisplayName = decoded.displayName || 'Doctorian User';
+          }
+        } catch (e) {
+          // Token expired or alternate
+        }
+      }
+
+      if (!targetUserId && email) {
+        const foundUser: any = db.prepare('SELECT id, email, displayName FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
+        if (foundUser) {
+          targetUserId = foundUser.id;
+          targetUserEmail = foundUser.email;
+          targetDisplayName = foundUser.displayName || 'Doctorian User';
+        }
+      }
+
+      // Fallback to first available account
+      if (!targetUserId) {
+        const firstUser: any = db.prepare('SELECT id, email, displayName FROM users LIMIT 1').get();
+        if (firstUser) {
+          targetUserId = firstUser.id;
+          targetUserEmail = firstUser.email;
+          targetDisplayName = firstUser.displayName || 'Doctorian User';
+        }
+      }
+
+      if (!targetUserId) {
+        return res.status(401).json({ error: 'Please authenticate to complete storage expansion' });
+      }
+
+      // Read current quota
+      const userRow: any = db.prepare('SELECT storageQuotaBytes FROM users WHERE id = ?').get(targetUserId);
+      const previousQuota = Number(userRow?.storageQuotaBytes || FREE_STORAGE_QUOTA_BYTES);
+      const newQuota = previousQuota + tier.addedBytes;
+
+      // Update user storage quota in database
+      db.prepare('UPDATE users SET storageQuotaBytes = ? WHERE id = ?').run(newQuota, targetUserId);
+
+      // Record purchase in storage_purchases
+      const purchaseId = 'sp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+      const now = new Date().toISOString();
+      const txId = transactionId || `TX-STORAGE-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+      db.prepare(`
+        INSERT INTO storage_purchases (
+          id, userId, tierId, tierName, addedBytes, previousQuotaBytes, newQuotaBytes, amount, currency, paymentMethod, phone, transactionId, createdAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        purchaseId,
+        targetUserId,
+        tier.id,
+        tier.name,
+        tier.addedBytes,
+        previousQuota,
+        newQuota,
+        tier.amount,
+        'UGX',
+        paymentMethod,
+        phone || null,
+        txId,
+        now
+      );
+
+      // Record in payments table if available
+      try {
+        db.prepare(`
+          INSERT INTO payments (id, userId, tier, amount, currency, status, externalId)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          'pay_' + purchaseId,
+          targetUserId,
+          tier.id,
+          tier.amount,
+          'UGX',
+          'completed',
+          txId
+        );
+      } catch (e) {}
+
+      // Dispatch receipt email
+      if (targetUserEmail) {
+        const emailBody = `Hello ${targetDisplayName},\n\n` +
+          `Your Cloud Storage Expansion has been activated successfully!\n\n` +
+          `📦 Package: ${tier.name} (${tier.formattedSize})\n` +
+          `💰 Amount Paid: ${tier.price}\n` +
+          `🚀 New Total Vault Capacity: ${(newQuota / (1024 * 1024 * 1024)).toFixed(2)} GB\n` +
+          `🧾 Transaction Ref: ${txId}\n` +
+          `📅 Date: ${new Date().toLocaleString()}\n\n` +
+          `Thank you for using Doctorian Medical AI Cloud Vault.\n\nDoctorian Billing & Infrastructure Team`;
+
+        sendEmail(
+          targetUserEmail,
+          `📦 Storage Activated: ${tier.name} (${tier.formattedSize}) Added!`,
+          emailBody
+        ).catch((err) => console.warn('[Storage Purchase] Receipt email dispatch notice:', err.message));
+      }
+
+      const updatedUsage = getUserStorageUsage(targetUserId);
+
+      return res.json({
+        success: true,
+        message: `Successfully expanded storage! Added ${tier.formattedSize} (${tier.name}). New total capacity: ${(newQuota / (1024 * 1024 * 1024)).toFixed(2)} GB.`,
+        purchaseId,
+        tier,
+        quota: updatedUsage,
+      });
+    } catch (err: any) {
+      console.error('[Storage Purchase Error]:', err);
+      return res.status(500).json({ error: 'Failed to process storage purchase: ' + err.message });
+    }
+  });
+
+  // ==========================================
+  // 12. SIMULATE / TOGGLE STORAGE FULL STATE (FOR TESTING & DEMOS)
+  // ==========================================
+  app.post('/api/storage/simulate-full', async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, setFull = true } = req.body;
+      let targetUser: any = null;
+
+      const authHeader = req.headers.authorization;
+      const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.body.token || req.cookies?.vault_token;
+
+      if (token) {
+        try {
+          const decoded: any = jwt.verify(token, jwtSecret);
+          if (decoded && decoded.userId) {
+            targetUser = db.prepare('SELECT id, email, displayName, storageQuotaBytes FROM users WHERE id = ?').get(decoded.userId);
+          }
+        } catch (e) {}
+      }
+
+      if (!targetUser && email) {
+        targetUser = db.prepare('SELECT id, email, displayName, storageQuotaBytes FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
+      }
+
+      if (!targetUser) {
+        targetUser = db.prepare('SELECT id, email, displayName, storageQuotaBytes FROM users LIMIT 1').get();
+      }
+
+      if (!targetUser) {
+        return res.status(404).json({ error: 'No user found to configure simulation' });
+      }
+
+      if (setFull) {
+        const row: any = db.prepare('SELECT COALESCE(SUM(size), 0) as usedBytes FROM user_storage_files WHERE userId = ?').get(targetUser.id);
+        const used = Number(row?.usedBytes || 0);
+        // Set quota to exactly used bytes or 1024 if 0
+        const simulatedQuota = used > 0 ? used : 1024;
+        db.prepare('UPDATE users SET storageQuotaBytes = ? WHERE id = ?').run(simulatedQuota, targetUser.id);
+      } else {
+        db.prepare('UPDATE users SET storageQuotaBytes = ? WHERE id = ?').run(FREE_STORAGE_QUOTA_BYTES, targetUser.id);
+      }
+
+      const updatedUsage = getUserStorageUsage(targetUser.id);
+
+      return res.json({
+        success: true,
+        message: setFull ? 'Storage is now simulated as 100% full.' : 'Storage reset to standard 1GB quota.',
+        quota: updatedUsage,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
   });
 

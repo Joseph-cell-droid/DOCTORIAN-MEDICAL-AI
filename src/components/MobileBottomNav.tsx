@@ -20,6 +20,7 @@ import {
   Search,
   Layers,
   ArrowRightLeft,
+  HardDrive,
 } from 'lucide-react';
 import { AndroidAppButtons } from './AndroidAppButtons';
 
@@ -96,6 +97,15 @@ export const ALL_APP_PAGES: PageItem[] = [
     subtitle: 'Manage your schedule',
     category: 'core',
     icon: <Calendar size={20} className="text-sky-500" />,
+  },
+  {
+    id: 'storage_vault',
+    label: '1GB Cloud Storage',
+    subtitle: 'Free 1GB vault for files & docs',
+    category: 'core',
+    icon: <HardDrive size={20} className="text-indigo-600" />,
+    badge: '1GB FREE',
+    badgeColor: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
   },
   {
     id: 'emergency',

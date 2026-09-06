@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ChevronRight,
   ArrowRight,
+  HardDrive,
 } from 'lucide-react';
 
 export interface AppButtonItem {
@@ -121,6 +122,19 @@ export const APP_BUTTONS_CONFIG: AppButtonItem[] = [
       text: 'text-sky-500',
       darkBg: 'dark:bg-sky-950/40',
       darkText: 'dark:text-sky-400',
+    },
+    section: 'main',
+  },
+  {
+    id: 'storage_vault',
+    label: '1GB Cloud Storage',
+    subtitle: 'Free 1GB vault for files & docs',
+    icon: HardDrive,
+    color: {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-600',
+      darkBg: 'dark:bg-indigo-950/40',
+      darkText: 'dark:text-indigo-400',
     },
     section: 'main',
   },

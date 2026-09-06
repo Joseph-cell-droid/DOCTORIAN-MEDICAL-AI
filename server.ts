@@ -28,6 +28,7 @@ import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { translations } from "./src/utils/translations";
 import { syncToPostgres, syncFromPostgresToSqlite } from "./src/db/postgresSync";
 import { initFirestoreSync, syncFromFirestoreToSqlite, syncToFirestore, syncRowToFirestore } from "./src/db/firestoreSync";
+import { setupStorageVaultRoutes } from "./server/storageVault";
 
 dotenv.config();
 
@@ -3102,9 +3103,18 @@ async function startServer() {
     // Strict Transport Security (HSTS)
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     
-    // Anti-Clickjacking
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
-    
+    // Allow embedding in AI Studio and Google preview iframes
+    res.setHeader("Content-Security-Policy", 
+      "default-src 'self' https: data: blob:; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
+      "style-src 'self' 'unsafe-inline' https:; " +
+      "img-src 'self' data: blob: https:; " +
+      "font-src 'self' data: https:; " +
+      "connect-src 'self' wss: ws: https:; " +
+      "frame-src 'self' https:; " +
+      "frame-ancestors *;"
+    );
+
     // Content-Type Sniffing Prevention
     res.setHeader("X-Content-Type-Options", "nosniff");
     
@@ -3113,17 +3123,6 @@ async function startServer() {
     
     // Referrer policy
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    
-    // Content Security Policy (CSP) - Deep protection against script/injection compromises
-    res.setHeader("Content-Security-Policy", 
-      "default-src 'self' https: data: blob:; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
-      "style-src 'self' 'unsafe-inline' https:; " +
-      "img-src 'self' data: blob: https:; " +
-      "font-src 'self' data: https:; " +
-      "connect-src 'self' wss: ws: https:; " +
-      "frame-src 'self' https:;"
-    );
 
     // Permission control limits
     res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(self)");
@@ -11155,6 +11154,9 @@ INSTRUCTIONS FOR SMS PAYLOAD:
     app.get("/api/gsm/messages", (req: any, res: any) => {
       res.json({ success: true, messages: gsmSmsThreads });
     });
+
+    // Mount 1GB Free Cloud Storage Vault & Two-Way Verification System
+    setupStorageVaultRoutes(app, db, JWT_SECRET, sendEmail);
 
     // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

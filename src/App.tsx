@@ -83,7 +83,8 @@ import { Compass,
   Laptop,
   Calendar as CalendarIcon,
   AlertTriangle,
-  Layers
+  Layers,
+  HardDrive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -98,6 +99,7 @@ import { EdgeScrollNavigation } from './components/EdgeScrollNavigation';
 import { LocalBackupModal } from './components/LocalBackupModal';
 import { WindowsSystemsHubModal } from './components/WindowsSystemsHubModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { StorageVaultModal } from './components/StorageVaultModal';
 import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
@@ -791,6 +793,10 @@ export default function App() {
   const [isBackHovered, setIsBackHovered] = useState(false);
 
   const setCurrentView = (view: any) => {
+    if (view === 'storage_vault') {
+      setIsStorageVaultOpen(true);
+      return;
+    }
     _setCurrentView(view);
     
     // Track chronological sequential navigation path
@@ -890,6 +896,7 @@ export default function App() {
   });
   const [isRegisteringBiometrics, setIsRegisteringBiometrics] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isStorageVaultOpen, setIsStorageVaultOpen] = useState(false);
   const [isThemeSchedulerOpen, setIsThemeSchedulerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -2987,6 +2994,22 @@ export default function App() {
                         {displayCredits}
                       </span>
                     </div>
+
+                    {/* 1GB Cloud Storage Vault Top Header Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button"
+                      onClick={() => setIsStorageVaultOpen(true)}
+                      className="flex items-center gap-1.5 px-2.5 sm:px-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/80 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all shrink-0 h-10 md:h-10.5 lg:h-11 shadow-xs cursor-pointer"
+                      title="1GB Free Cloud Storage Vault (Files, Documents & User Data - 2FA Protected)"
+                    >
+                      <HardDrive size={15} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
+                      <span className="hidden xl:inline text-[11px] font-black uppercase tracking-tight">1GB Vault</span>
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-200/80 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-300 px-1.5 py-0.5 rounded-md">
+                        1GB Free
+                      </span>
+                    </motion.button>
                     <div className="relative shrink-0">
                       <button 
                         className="group flex items-center gap-2 pl-1 pr-2 md:pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-10 md:h-10.5 lg:h-11 items-center"
@@ -3065,6 +3088,26 @@ export default function App() {
                               </div>
                               
                               <div className="px-2 space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsProfileOpen(false);
+                                    setIsStorageVaultOpen(true);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all group border border-indigo-100 dark:border-indigo-900/40"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <HardDrive size={16} className="text-indigo-600 dark:text-indigo-400" />
+                                    <div className="flex flex-col text-left">
+                                      <span className="leading-tight">1GB Storage Vault</span>
+                                      <span className="text-[9px] text-slate-400 font-normal">Files, Docs & Medical Data</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 px-1.5 py-0.5 rounded-md">
+                                    1GB FREE
+                                  </span>
+                                </button>
+
                                 <button
                                   onClick={() => {
                                     setCurrentView('profile');
@@ -4748,6 +4791,15 @@ export default function App() {
                   isOpen={isBackupModalOpen}
                   onClose={() => setIsBackupModalOpen(false)}
                   showToast={addToast}
+                />
+              )}
+              {isStorageVaultOpen && (
+                <StorageVaultModal
+                  key="modal-storage-vault"
+                  isOpen={isStorageVaultOpen}
+                  onClose={() => setIsStorageVaultOpen(false)}
+                  user={user}
+                  onShowToast={addToast}
                 />
               )}
               {isThemeSchedulerOpen && (

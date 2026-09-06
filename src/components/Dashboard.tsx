@@ -24,6 +24,7 @@ import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { VitalWaveform } from './VitalWaveform';
 import { isCreditsUnlimited, parseCreditsToNumber, formatCredits } from '../utils/creditUtils';
 import { translate } from '../utils/translations';
+import { AndroidAppButtons } from './AndroidAppButtons';
 
 const performanceData = [
   { time: '00:00', value: 82 },
@@ -677,6 +678,15 @@ Provide 3 clear clinical takeaways:
           exit={{ opacity: 0, y: -20 }}
           className="space-y-6 sm:space-y-12 pb-24 px-4 sm:px-6 lg:px-8"
         >
+          {/* Quick Android & Tablet App Buttons Row (Image 2 Top Mockup) */}
+          <div className="block lg:hidden -mx-2 sm:mx-0 px-2 sm:px-0 pt-2 pb-1">
+            <AndroidAppButtons
+              currentView="home"
+              onNavigate={onNavigate}
+              variant="horizontal_row"
+            />
+          </div>
+
           {/* AI Wellness Insight Card */}
           <AnimatePresence>
             {aiInsight && (

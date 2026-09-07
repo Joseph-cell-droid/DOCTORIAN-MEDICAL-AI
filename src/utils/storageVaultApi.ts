@@ -143,7 +143,7 @@ function saveOfflineFiles(userId: string, files: VaultFile[]) {
   }
 }
 
-function getOfflineQuota(userId: string): StorageQuota {
+export function getOfflineQuota(userId: string): StorageQuota {
   let totalQuota = FREE_STORAGE_QUOTA_BYTES;
   try {
     const saved = localStorage.getItem(`doctorian_storage_quota_bytes_${userId}`);
@@ -166,6 +166,12 @@ function getOfflineQuota(userId: string): StorageQuota {
     percentUsed,
     isFull,
   };
+}
+
+export function getAccountStorageQuota(userEmail?: string): StorageQuota {
+  const targetEmail = userEmail || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('doctorian_vault_user_email') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('doctorian_vault_user_email') : null) || 'default_user';
+  const userId = targetEmail.replace(/[^a-zA-Z0-9]/g, '_');
+  return getOfflineQuota(userId);
 }
 
 // -------------------------------------------------------------
@@ -700,6 +706,9 @@ export async function simulateStorageFullStatus(
       const files = getOfflineFiles(userId);
       const used = files.reduce((acc, f) => acc + (f.size || 0), 0);
       localStorage.setItem(`doctorian_storage_quota_bytes_${userId}`, String(used > 0 ? used : 1024));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('doctorian_storage_full', { detail: { email: targetEmail } }));
+      }
     } else {
       localStorage.setItem(`doctorian_storage_quota_bytes_${userId}`, String(FREE_STORAGE_QUOTA_BYTES));
     }

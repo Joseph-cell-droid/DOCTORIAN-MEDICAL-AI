@@ -4,8 +4,10 @@ import {
   Heart, Droplets, Wind, Activity, AlertTriangle,
   CheckCircle, Info, Radio, Signal, XCircle, Monitor, Stethoscope, WifiOff,
   Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3, Sliders,
-  Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2, LayoutGrid
+  Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2, LayoutGrid,
+  Cloud, Volume2, VolumeX
 } from 'lucide-react';
+import { HumanBodyVitalsModel } from './HumanBodyVitalsModel';
 import { PatientsDashboardView } from './PatientsDashboardView';
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
 import { motion, AnimatePresence } from 'motion/react';

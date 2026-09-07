@@ -47,9 +47,6 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
     <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 overflow-hidden transition-all">
       {/* Universal Neural Content Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950/20 overflow-hidden">
-
-
-        
         <AnimatePresence>
           {user?.subscriptionStatus === 'pending' && (
             <motion.div 

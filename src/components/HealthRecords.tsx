@@ -282,7 +282,7 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => voi
 
 // ─── Main Component ────────────────────────────────────────
 
-export const HealthRecords: React.FC = () => {
+export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void; onOpenVault?: () => void }> = ({ user, onNavigate, onOpenVault }) => {
   const [prescription, setPrescription] = useState<Prescription>({
     id: generateId(), doctorName: 'Dr. Smith', date: new Date().toISOString().split('T')[0],
     patient: { ...defaultPatient }, medications: [emptyMedication()], notes: '', diagnosis: '',

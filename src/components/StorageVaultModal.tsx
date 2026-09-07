@@ -147,6 +147,9 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
       if (isFull) {
         setShowStorageBilling(true);
         setBillingReason((prev) => prev || 'quota_full');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('doctorian_storage_full', { detail: { quota } }));
+        }
       }
     }
   }, [quota, authStep]);

@@ -25,7 +25,6 @@ import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { VitalWaveform } from './VitalWaveform';
 import { isCreditsUnlimited, parseCreditsToNumber, formatCredits } from '../utils/creditUtils';
 import { translate } from '../utils/translations';
-import { AndroidAppButtons } from './AndroidAppButtons';
 
 const performanceData = [
   { time: '00:00', value: 82 },
@@ -679,59 +678,6 @@ Provide 3 clear clinical takeaways:
           exit={{ opacity: 0, y: -20 }}
           className="space-y-6 sm:space-y-12 pb-24 px-4 sm:px-6 lg:px-8"
         >
-          {/* Quick Android & Tablet App Buttons Row (Image 2 Top Mockup) */}
-          <div className="block lg:hidden -mx-2 sm:mx-0 px-2 sm:px-0 pt-2 pb-1">
-            <AndroidAppButtons
-              currentView="home"
-              onNavigate={onNavigate}
-              variant="horizontal_row"
-            />
-          </div>
-
-          {/* Free 1GB Real Storage Vault Banner */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 border border-indigo-500/30 text-white shadow-xl relative overflow-hidden group"
-          >
-            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-700" />
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center shrink-0 text-indigo-300 shadow-inner">
-                  <HardDrive size={24} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
-                      1GB Cloud Storage Vault
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                      <ShieldCheck size={12} /> 2-Way Verification & Password Protected
-                    </span>
-                  </div>
-                  <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
-                    Free 1GB Real Storage for Your Medical Records & User Data
-                  </h3>
-                  <p className="text-xs text-slate-300 max-w-2xl mt-0.5 leading-relaxed">
-                    Store lab PDFs, telemetry archives, diagnostic imaging, and backup snapshots in your private encrypted vault.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('storage_vault')}
-                  className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
-                >
-                  <Lock size={13} />
-                  <span>Access 1GB Vault</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-
           {/* AI Wellness Insight Card */}
           <AnimatePresence>
             {aiInsight && (

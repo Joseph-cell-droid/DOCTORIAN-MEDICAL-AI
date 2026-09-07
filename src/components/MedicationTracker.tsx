@@ -67,10 +67,12 @@ import { useArduinoContext } from '../ArduinoContext';
 import { validateMoHClinicalDosage, validateDrugForDisease, validateOverdoseFromLogs, getOptimalReminderTimes } from '../utils/clinicalValidation';
 
 interface MedicationTrackerProps {
+  user?: any;
+  onNavigate?: (v: any) => void;
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ addToast }) => {
+export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ user, onNavigate, addToast }) => {
   const arduino = useArduinoContext();
   const [notificationState, setNotificationState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
 

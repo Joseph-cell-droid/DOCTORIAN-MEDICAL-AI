@@ -94,10 +94,24 @@ interface BillingProps {
   user: User | null;
   onUpdateUser: (user: User) => void;
   onShowToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  initialTab?: 'protocols' | 'storage';
 }
 
-export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToast }) => {
-  const [billingTab, setBillingTab] = useState<'protocols' | 'storage'>('protocols');
+export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToast, initialTab }) => {
+  const [billingTab, setBillingTab] = useState<'protocols' | 'storage'>(() => {
+    if (initialTab) return initialTab;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('doctorian_storage_open_billing') === 'true') {
+      localStorage.removeItem('doctorian_storage_open_billing');
+      return 'storage';
+    }
+    return 'protocols';
+  });
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setBillingTab(initialTab);
+    }
+  }, [initialTab]);
   const [selectedPlan, setSelectedPlan] = useState<string>('catalyst');
   const [loading, setLoading] = useState(false);
 

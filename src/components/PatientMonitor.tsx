@@ -8,6 +8,7 @@ import {
   Cloud, Volume2, VolumeX
 } from 'lucide-react';
 import { HumanBodyVitalsModel } from './HumanBodyVitalsModel';
+import { ModernizedPatientMonitorView } from './ModernizedPatientMonitorView';
 import { PatientsDashboardView } from './PatientsDashboardView';
 import { useArduino, HealthStatus, Vitals } from '../hooks/useArduino';
 import { motion, AnimatePresence } from 'motion/react';
@@ -588,6 +589,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   } = arduino;
 
   const [wifiInput, setWifiInput] = useState('http://192.168.1.100');
+  const [monitorLayout, setMonitorLayout] = useState<'modern' | 'clinical'>('modern');
   const [connectionTab, setConnectionTab] = useState<'bluetooth' | 'wifi' | 'serial' | 'cloud' | 'watch'>('bluetooth');
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     const saved = localStorage.getItem('doctorian_is_admin');
@@ -1874,6 +1876,21 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
 
 
+  if (monitorLayout === 'modern') {
+    return (
+      <div className="w-full relative min-h-screen">
+        <ModernizedPatientMonitorView
+          user={user}
+          vitals={vitals}
+          onNavigate={onNavigate || (() => {})}
+          onOpenVault={() => onNavigate?.('records')}
+          onSimulateEmergency={simulateEmergency}
+          onSwitchToDetailed={() => setMonitorLayout('clinical')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
       {/* Non-intrusive Floating Emergency Audio Dispatch Panel */}
@@ -2216,6 +2233,16 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
       {/* Header */}
       <div className="mb-8">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+          <button
+            type="button"
+            onClick={() => setMonitorLayout('modern')}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            <span>← Return to Modern Monitor</span>
+          </button>
+          <span className="text-xs text-slate-400 font-mono">Clinical Detailed Mode</span>
+        </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div className="text-center sm:text-left">
             <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">

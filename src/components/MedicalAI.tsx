@@ -4,6 +4,7 @@ import {
   Bot, Brain, Crown, Loader2, Dna
 } from 'lucide-react';
 import { ChatInterface } from './ChatInterface';
+import { ModernizedChatView } from './ModernizedChatView';
 import { api, User } from '../api';
 import { parseResponseCredits } from '../utils/creditUtils';
 import { UpgradeModal } from './UpgradeModal';
@@ -25,6 +26,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
   const [showVisualizer, setShowVisualizer] = useState(false);
   const [operationalIdea, setOperationalIdea] = useState<string | null>(null);
   const [isGeneratingIdea, setIsGeneratingIdea] = useState(false);
+  const [chatMode, setChatMode] = useState<'modern' | 'matrix'>('modern');
 
   const fetchOperationalIdea = async () => {
     if (user?.subscriptionTier !== 'enterprise' || user?.subscriptionStatus !== 'active') return;
@@ -63,16 +65,39 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
         </AnimatePresence>
 
         <div className="flex-1 min-h-0 relative">
-          <ChatInterface 
-            user={user} 
-            onUpdate={onUpdate} 
-            arduino={arduino} 
-            onUpgradeRequested={onUpgradeRequested}
-            currentLanguage={currentLanguage}
-            onChangeLanguage={onChangeLanguage}
-            onNavigate={onNavigate}
-            onShowNeuralVisualizer={() => setShowVisualizer(true)}
-          />
+          {chatMode === 'modern' ? (
+            <ModernizedChatView 
+              user={user} 
+              onUpdate={onUpdate} 
+              arduino={arduino} 
+              onUpgradeRequested={onUpgradeRequested}
+              currentLanguage={currentLanguage}
+              onChangeLanguage={onChangeLanguage}
+              onNavigate={onNavigate}
+              onShowNeuralVisualizer={() => setShowVisualizer(true)}
+              onSwitchToMatrix={() => setChatMode('matrix')}
+            />
+          ) : (
+            <div className="relative h-full w-full">
+              <button
+                type="button"
+                onClick={() => setChatMode('modern')}
+                className="absolute top-2 right-24 z-50 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Return to Modern View</span>
+              </button>
+              <ChatInterface 
+                user={user} 
+                onUpdate={onUpdate} 
+                arduino={arduino} 
+                onUpgradeRequested={onUpgradeRequested}
+                currentLanguage={currentLanguage}
+                onChangeLanguage={onChangeLanguage}
+                onNavigate={onNavigate}
+                onShowNeuralVisualizer={() => setShowVisualizer(true)}
+              />
+            </div>
+          )}
         </div>
       </div>
 

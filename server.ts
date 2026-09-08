@@ -494,8 +494,22 @@ function isMedicalQuery(text: string): boolean {
   return medicalKeywords.some(k => lower.includes(k));
 }
 
+export function cleanAiResponseText(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/(^|\s)\*(?!\s)/g, '$1')
+    .replace(/\*(?=\s|$)/g, '')
+    .replace(/^\s*[\*\-]\s+/gm, '• ')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
+}
+
 // --- FALLBACK SYNTHESIS ENGINE (Local Knowledge-Based) ---
 function doctorianLocalSynthesis(prompt: string): string {
+  const synthesize = (): string => {
   const lower = prompt.trim().toLowerCase();
   
   // Define standard thinking indicator that represents deep clinical analysis
@@ -704,6 +718,8 @@ To help me analyze this with maximum clinical precision, let's explore this toge
 - **📚 Multilingual Support**: I support Luganda, Swahili, Acholi, Rutooro, Lugbara, Ateso, Runyankole, and English terminology. 
 
 How can we work together to optimize your health or analyze your medical cases today? Empathy, privacy, and scientific rigor are my guiding metrics. 🌟`;
+  };
+  return cleanAiResponseText(synthesize());
 }
 
 async function* callAIStream(options: {
@@ -3368,7 +3384,10 @@ async function startServer() {
 
       const userMessage = rawMessage.trim();
       const customSystemInstruction = req.body.systemInstruction || 
-        "You are Doctorian Medical AI, an advanced clinical intelligence assistant permanently powered by Google Gemini. Provide evidence-based medical guidance, explain clinical reasoning clearly, correlate relevant Ugandan Clinical Guidelines and WHO protocols when applicable, and encourage users to consult licensed medical professionals for emergency care.";
+        "You are Doctorian Medical AI, an advanced modern clinical intelligence assistant permanently powered by Google Gemini. " +
+        "MANDATORY FORMATTING: NEVER use double asterisks (**) or single asterisks (*) anywhere in your responses. Do not use markdown bolding. Present all headers, labels, and text cleanly without asterisks. " +
+        "MANDATORY EMOJIS: Always use vibrant, relevant medical and health emojis (🩺, 💊, 💧, 🌡️, 🏥, 💡, ⚠️, ✨, 📋, ❓) across your sections and bullet points to make the consultation interactive and engaging. " +
+        "Provide evidence-based medical guidance, explain clinical reasoning clearly, correlate relevant Ugandan Clinical Guidelines and WHO protocols when applicable, and encourage users to consult licensed medical professionals for emergency care. Always conclude with 1-2 interactive diagnostic questions.";
 
       console.log(`[DOCTORIAN AI] Processing clinical chat query permanently via Google Gemini AI (gemini-3.7-flash)...`);
 
@@ -3391,11 +3410,12 @@ async function startServer() {
         localApiKey: req.body.localApiKey
       });
 
-      const resText = typeof result === 'object' 
+      const rawResText = typeof result === 'object' 
         ? ((result as any)?.text || (result as any)?.response || (result as any)?.message) 
         : result;
 
-      if (resText && typeof resText === 'string' && resText.trim() !== "") {
+      if (rawResText && typeof rawResText === 'string' && rawResText.trim() !== "") {
+        const resText = cleanAiResponseText(rawResText);
         return res.json({
           response: resText,
           text: resText,
@@ -10630,30 +10650,31 @@ function detectSpecificDiseaseMapping(prompt: string): string {
           }
         } catch (ftErr) { }
 
-        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR PROTOCOL - ELITE COMPETITIVE CONVERSATIONAL MODE]:
+        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR PROTOCOL - MODERN INTERACTIVE CONVERSATIONAL MODE]:
 1. STRICT DOMAIN CONSTRAINT: You are trained and programmed to ONLY answer questions directly related to medicine, public health, healthcare, pharmacology, clinical vitals, biophysics, fitness, human biology, or the Doctorian application and its creators (Akora Joseph / EBRO company). If the query is outside these bounds, gently but strictly refuse, stating your core medical constraints.
 
-2. ADVANCED WORLDWIDE & local UGANDAN HEALTH MODELING:
+2. ADVANCED WORLDWIDE & LOCAL UGANDAN HEALTH MODELING:
    - Leverage your extensive knowledge base of global guidelines (WHO, CDC) and local health frameworks (Uganda Clinical Guidelines - UCG).
    - Address regional medical contexts naturally: integrate knowledge of endemic diseases (Malaria, tuberculosis, cholera, Mpox, Ebola), Village Health Team (VHT) referral networks, maternal health guidelines (IPTp SP dosage schedules, obstetric danger signs), and regional health center tiers (HC II, HC III, HC IV, General and Regional Referral Hospitals like Mulago or Mbarara).
    - Feel free to incorporate recognized regional medical terminology and language expressions (such as Luganda terms like 'Musujja' for fever, Swahili terms like 'Homa', or terms from Runyankole, Acholi, and Ateso) to make the patient feel heard, respected, and clinically safe.
 
-3. EMPATHIC STRUCTURAL INQUIRY & CHATGPT CONVERSATIONAL FLUIDITY:
-   - Provide highly competitive, smooth, and warm conversational answers that exceed other AIs. Start every conversation with high clinical bedside manner—validating physical or emotional distress with gentle, reassurring warmth.
-   - Avoid generic, repetitive, or rigid template blocks (e.g., repeating boilerplate headers like 'SYMPTOMS MAPPED') unless responding to formal, multi-parameter biometric/vitals readings.
-   - Organize diagnostic breakdowns, symptom analyses, and medical summaries with clear, bold section headings (e.g., \`### Clinical Impression\`, \`### Pathophysiological Mechanism\`, \`### Structured Health Plan\`) with high-contrast readability.
+3. STRICT MODERN FORMATTING (ZERO ASTERISKS RULE - CRITICAL):
+   - You MUST NEVER use double asterisks (**) or single asterisks (*) anywhere in your response. Do not use markdown bolding like **word**.
+   - Output all section headers, titles, medical terms, and emphasis in clean modern text without any asterisks. For headers, simply use an emoji followed by clean title text (e.g. 🩺 Clinical Assessment, 💡 Recommended Care, 💊 Medication Guidance, ⚠️ Red Flags).
 
-4. MARKDOWN TABLES ON DEMAND:
-   - Whenever comparing medications, therapeutic regimens, normal vital ranges, diagnostic differentials, or when requested explicitly, you MUST construct elegant, highly scannable Markdown comparison tables.
+4. MANDATORY EMOJI USAGE & INTERACTIVE ENGAGEMENT:
+   - Always use vibrant, relevant, and friendly medical/health emojis throughout your response (e.g., 🩺, 💊, 💧, 🌡️, 🏥, 🍎, 💡, ✨, 📋, ⚠️, ❤️, 🏃‍♂️, 🛌, 🤝, ❓).
+   - Begin every key clinical section, recommendation item, and piece of advice with a descriptive emoji.
+   - Use emojis to make the conversation warm, accessible, modern, and engaging.
 
 5. ACTIVE PARTNERSHIP CLOSING:
-   - At the absolute end of every response, always ask 1 or 2 relevant, warm, and highly actionable diagnostic questions (e.g., regarding symptom duration, temperature readings, associated alarms, or local district location) to continue active patient co-piloting.
+   - At the absolute end of every response, always ask 1 or 2 relevant, warm, and highly actionable diagnostic questions with emojis (e.g., "❓ How many hours or days have you noticed this?", "🌡️ Have you been able to measure your temperature?") to continue active patient co-piloting.
    - Conclude all medical guidance with: "Medical attention is recommended."`;
 
-        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL COMPETITIVE INTENT DIRECTIVE]: Answer directly, fluidly, and naturally with the empathic expertise of a senior world-class physician.
-- Weave in worldwide and localized Ugandan clinical insights (referral paths, preventative guidelines, and medical terms) to establish instant clinical authority.
-- Avoid robotic boilerplate templates; use clean Markdown tables for comparisons.
-- Always conclude with a caring bedside manner and 1-2 interactive, helpful follow-up questions to partner with the patient.`;
+        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL MODERN INTERACTION & NO-ASTERISK DIRECTIVE]:
+- STRICT RULE: NEVER use double asterisks (**) or single asterisks (*) anywhere in your output. Do not output ** or *.
+- ALWAYS use colorful, relevant medical emojis (🩺, 💊, 💧, 🌡️, 🏥, 🍎, 💡, ✨, 📋, ⚠️, ❤️, ❓) on every section and bullet to make the chat modern and interactive.
+- Conclude with 1-2 interactive questions with emojis (❓) asking the patient how they are doing and encouraging two-way dialogue.`;
         const diseaseSpecificOverlay = detectSpecificDiseaseMapping(rawUserMessage);
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${diseaseSpecificOverlay}${EMOJI_CHUNKS_DIRECTIVE}`;
 
@@ -10690,9 +10711,9 @@ function detectSpecificDiseaseMapping(prompt: string): string {
             if (success && activeTargetLang !== "English") {
               const translated = await callAI({
                 messages: [{ role: 'user', text: `Translate the following medical advice into ${activeTargetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style: ${fullResponse}` }],
-                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology (e.g. use standard medical terms in Luganda, Swahili, French, German, Spanish, etc.), keeping the tone professional, comforting, precise, and completely faithful to the clinical content.`
+                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology (e.g. use standard medical terms in Luganda, Swahili, French, German, Spanish, etc.), keeping the tone professional, comforting, precise, and completely faithful to the clinical content. STRICT RULE: Do not use any double asterisks (**) or single asterisks (*) anywhere in the translation.`
               });
-              const chunkObj = { text: translated, credits: credits - 1 };
+              const chunkObj = { text: cleanAiResponseText(translated), credits: credits - 1 };
               const encryptedChunk = encryptText(JSON.stringify(chunkObj));
               res.write(`data: ${JSON.stringify({ encryptedChunk })}\n\n`);
             }
@@ -10724,12 +10745,13 @@ function detectSpecificDiseaseMapping(prompt: string): string {
               localApiKey
             });
 
-            let finalResponse = responseText;
+            let finalResponse = cleanAiResponseText(responseText);
             if (activeTargetLang !== "English") {
-              finalResponse = await callAI({
+              const translated = await callAI({
                 messages: [{ role: 'user', text: `Translate the following medical advice into ${activeTargetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style: ${responseText}` }],
-                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology, keeping the tone professional, comforting, precise, and completely faithful to the clinical content.`
+                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology, keeping the tone professional, comforting, precise, and completely faithful to the clinical content. STRICT RULE: Do not use any double asterisks (**) or single asterisks (*) anywhere in the translation.`
               });
+              finalResponse = cleanAiResponseText(translated);
             }
 
             if (!isGuest) deductCredits(userId, 1);

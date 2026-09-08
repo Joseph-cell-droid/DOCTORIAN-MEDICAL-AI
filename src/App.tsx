@@ -793,18 +793,30 @@ export default function App() {
   const [isBackHovered, setIsBackHovered] = useState(false);
 
   const setCurrentView = (view: any) => {
+    let target = view;
     if (view === 'storage_vault') {
       setIsStorageVaultOpen(true);
-      return;
+      target = 'records';
+    } else if (view === 'triage') {
+      target = 'symptoms';
+    } else if (view === 'bio_simulation' || view === 'telemetry' || view === 'vitals' || view === 'alarms') {
+      target = 'vitality';
+    } else if (view === 'lab') {
+      target = 'diagnostic_lab';
+    } else if (view === 'prescription') {
+      target = 'meds';
+    } else if (view === 'ambulance' || view === 'sos') {
+      target = 'emergency';
     }
-    _setCurrentView(view);
+
+    _setCurrentView(target);
     
     // Track chronological sequential navigation path
     setNavigationHistory((prev) => {
-      if (prev.length > 0 && prev[prev.length - 1] === view) {
+      if (prev.length > 0 && prev[prev.length - 1] === target) {
         return prev;
       }
-      return [...prev, view];
+      return [...prev, target];
     });
 
     // Restores viewport scroll to the top for seamless navigation

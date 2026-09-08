@@ -1,5 +1,7 @@
 
 import { generateProfessionalTitle } from './utils/titleGenerator';
+import { cleanAiResponse } from './utils/cleanAiResponse';
+export { cleanAiResponse } from './utils/cleanAiResponse';
 
 export interface User {
   id: string;
@@ -248,6 +250,7 @@ const isOffline = (): boolean => {
 };
 
 const generateOfflineMedicalResponse = (msg: string, targetLanguage?: string): string => {
+  const compute = (): string => {
   const norm = msg.toLowerCase().trim();
   const activeLang = (targetLanguage || '').toLowerCase();
   
@@ -458,6 +461,8 @@ Since I am currently running in **offline local cache failover mode**, here is t
 - **Consultation**: Ask about general health symptoms (such as fever, malaria, cholera ORS preparation, high BP, headache, respiratory concerns, or pregnancy guidelines) to display immediate clinical care references. 🔄
 
 *To run live, unrestricted neural reasoning across the entire medicine spectrum, please restore internet connectivity or sync new custom knowledge blocks in the Doctors' Dashboard -> Neural Training Hub.*`;
+  };
+  return cleanAiResponse(compute());
 };
 
 export function getLocalLLMEndpoint(baseUrl: string): { url: string; isOpenAI: boolean } {
@@ -2313,11 +2318,11 @@ export const api = {
             if (isOpenAI) {
               const text = localData.choices?.[0]?.message?.content;
               if (text) {
-                return { text: text as string, creditsRemaining: `Unlimited (Direct Local Bridge - LM Studio)` };
+                return { text: cleanAiResponse(text as string), creditsRemaining: `Unlimited (Direct Local Bridge - LM Studio)` };
               }
             } else {
               if (localData.message?.content) {
-                return { text: localData.message.content as string, creditsRemaining: `Unlimited (Direct Local Bridge - Ollama)` };
+                return { text: cleanAiResponse(localData.message.content as string), creditsRemaining: `Unlimited (Direct Local Bridge - Ollama)` };
               }
             }
           }
@@ -2350,6 +2355,9 @@ export const api = {
           data = JSON.parse(decrypted);
         }
         if (!res.ok) throw new Error(data.error || "Failed to get AI response");
+        if (data && typeof data.text === 'string') {
+          data.text = cleanAiResponse(data.text);
+        }
         return data as { text: string; imageData?: string; creditsRemaining?: number | string };
       } catch (backendErr: any) {
         console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing Gemini AI / Hugging Face / Local PC failover...");
@@ -2493,11 +2501,11 @@ export const api = {
                 if (isOpenAI) {
                   const text = localData.choices?.[0]?.message?.content;
                   if (text) {
-                    return { text: text as string, creditsRemaining: 'Unlimited (Offline Failover - LM Studio)' };
+                    return { text: cleanAiResponse(text as string), creditsRemaining: 'Unlimited (Offline Failover - LM Studio)' };
                   }
                 } else {
                   if (localData.message?.content) {
-                    return { text: localData.message.content as string, creditsRemaining: 'Unlimited (Offline Failover - Ollama)' };
+                    return { text: cleanAiResponse(localData.message.content as string), creditsRemaining: 'Unlimited (Offline Failover - Ollama)' };
                   }
                 }
               }

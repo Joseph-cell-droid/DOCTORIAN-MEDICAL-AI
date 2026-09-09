@@ -38,14 +38,96 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
   const [showNews2Modal, setShowNews2Modal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
-  // Health Alert Thresholds State
-  const [hrMin, setHrMin] = useState(50);
-  const [hrMax, setHrMax] = useState(110);
-  const [spo2Min, setSpo2Min] = useState(94);
-  const [tempMax, setTempMax] = useState(38.0);
+  // Health Alert Thresholds State (Load from localStorage if present)
+  const [hrMin, setHrMin] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_alert_thresholds');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.heartRate?.min === 'number') return parsed.heartRate.min;
+      }
+    } catch (e) {}
+    return 50;
+  });
+
+  const [hrMax, setHrMax] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_alert_thresholds');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.heartRate?.max === 'number') return parsed.heartRate.max;
+      }
+    } catch (e) {}
+    return 110;
+  });
+
+  const [spo2Min, setSpo2Min] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_alert_thresholds');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.spo2?.min === 'number') return parsed.spo2.min;
+      }
+    } catch (e) {}
+    return 94;
+  });
+
+  const [tempMax, setTempMax] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_alert_thresholds');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.temperature?.max === 'number') return parsed.temperature.max;
+      }
+    } catch (e) {}
+    return 38.0;
+  });
+
   const [soundAlerts, setSoundAlerts] = useState(true);
   const [pushAlerts, setPushAlerts] = useState(true);
   const [alertsSavedToast, setAlertsSavedToast] = useState(false);
+
+  // Monitor Card Inline Thresholds Adjuster state
+  const [showInlineThresholds, setShowInlineThresholds] = useState(false);
+  const [inlineSavedToast, setInlineSavedToast] = useState(false);
+
+  // Helper to persist and synchronize threshold changes
+  const saveThresholds = (newHrMin: number, newHrMax: number, newSpo2Min: number) => {
+    setHrMin(newHrMin);
+    setHrMax(newHrMax);
+    setSpo2Min(newSpo2Min);
+    try {
+      const saved = localStorage.getItem('doctorian_alert_thresholds');
+      let data: any = {};
+      if (saved) {
+        try {
+          data = JSON.parse(saved);
+        } catch (e) {}
+      }
+      data.heartRate = {
+        ...(data.heartRate || {}),
+        min: newHrMin,
+        max: newHrMax,
+        warningMin: Math.min(newHrMin + 5, newHrMax - 10),
+        warningMax: Math.max(newHrMax - 15, newHrMin + 10),
+      };
+      data.spo2 = {
+        ...(data.spo2 || {}),
+        min: newSpo2Min,
+        warningMin: Math.min(99, newSpo2Min + 2),
+        max: 100,
+      };
+      data.temperature = {
+        ...(data.temperature || {}),
+        max: tempMax,
+        min: 35.0,
+      };
+      localStorage.setItem('doctorian_alert_thresholds', JSON.stringify(data));
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Biofeedback Breathing State
   const [breathPhase, setBreathPhase] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
@@ -269,51 +351,79 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
         <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-row items-center justify-between gap-2 sm:gap-6">
-          {/* Left Column: ECG Wave, Title, Description, System Online -> Clicking opens Vitality Matrix */}
-          <button
-            type="button"
-            onClick={() => onNavigate('vitality')}
-            className="flex-1 min-w-0 pr-1 sm:pr-2 flex flex-col justify-center text-left cursor-pointer group"
-            title="Click to open comprehensive Vitality Matrix health telemetry"
-          >
-            {/* Glowing Cyan ECG Pulse Wave Icon */}
-            <div className="mb-2 sm:mb-3">
-              <svg 
-                className="w-10 h-7 text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.9)] group-hover:scale-105 transition-transform" 
-                viewBox="0 0 40 28" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
+          {/* Left Column: ECG Wave, Title, Description, System Online & Set Thresholds Control */}
+          <div className="flex-1 min-w-0 pr-1 sm:pr-2 flex flex-col justify-center text-left">
+            {/* Clickable Header Area -> Inspect Vitality Matrix */}
+            <div
+              onClick={() => onNavigate('vitality')}
+              className="cursor-pointer group"
+              title="Click to open comprehensive Vitality Matrix health telemetry"
+            >
+              {/* Glowing Cyan ECG Pulse Wave Icon */}
+              <div className="mb-2 sm:mb-3">
+                <svg 
+                  className="w-10 h-7 text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.9)] group-hover:scale-105 transition-transform" 
+                  viewBox="0 0 40 28" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path 
+                    d="M2 16 L10 16 L14 4 L19 24 L24 9 L27 18 L30 16 L38 16" 
+                    stroke="#00e5ff" 
+                    strokeWidth="2.8" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                  />
+                </svg>
+              </div>
+
+              {/* Card Title */}
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight leading-tight group-hover:text-cyan-300 transition-colors flex items-center gap-2">
+                <span>Patient Monitor</span>
+                <ChevronRight size={20} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-cyan-400" />
+              </h2>
+
+              {/* Subtitle / Description */}
+              <p className="text-xs sm:text-sm text-slate-300 font-normal leading-relaxed mt-1.5 sm:mt-2 max-w-[240px] sm:max-w-xs">
+                Real-time health data from Arduino via Bluetooth &amp; WiFi. Tap to inspect telemetry trends.
+              </p>
+            </div>
+
+            {/* Status & Threshold Control Row */}
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-4 sm:mt-5">
+              {/* Status: System Online with glowing green dot */}
+              <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-emerald-400">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 shadow-[0_0_10px_#10b981]" />
+                </span>
+                <span>System Online</span>
+              </div>
+
+              {/* 'Set Thresholds' Option within the Monitor Card */}
+              <button
+                type="button"
+                id="monitor-card-set-thresholds-btn"
+                onClick={() => setShowInlineThresholds(!showInlineThresholds)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 ${
+                  showInlineThresholds
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-cyan-500/30 ring-2 ring-cyan-400/40'
+                    : 'bg-[#081b40]/90 hover:bg-[#0e2759] text-cyan-300 border-cyan-400/50 hover:border-cyan-300'
+                }`}
+                title="Visually adjust personal HR or SpO2 alert limits directly within this monitor card"
               >
-                <path 
-                  d="M2 16 L10 16 L14 4 L19 24 L24 9 L27 18 L30 16 L38 16" 
-                  stroke="#00e5ff" 
-                  strokeWidth="2.8" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                />
-              </svg>
+                <Sliders size={13} className={showInlineThresholds ? 'text-slate-950' : 'text-cyan-400'} />
+                <span>Set Thresholds</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  showInlineThresholds 
+                    ? 'bg-cyan-900/30 text-slate-950 font-bold' 
+                    : 'bg-cyan-950/80 text-cyan-200 border border-cyan-500/30'
+                }`}>
+                  HR {hrMin}-{hrMax} • SpO2 &gt;{spo2Min}%
+                </span>
+              </button>
             </div>
-
-            {/* Card Title */}
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight leading-tight group-hover:text-cyan-300 transition-colors flex items-center gap-2">
-              <span>Patient Monitor</span>
-              <ChevronRight size={20} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-cyan-400" />
-            </h2>
-
-            {/* Subtitle / Description */}
-            <p className="text-xs sm:text-sm text-slate-300 font-normal leading-relaxed mt-1.5 sm:mt-2 max-w-[240px] sm:max-w-xs">
-              Real-time health data from Arduino via Bluetooth &amp; WiFi. Tap to inspect telemetry trends.
-            </p>
-
-            {/* Status: System Online with glowing green dot */}
-            <div className="flex items-center gap-2 mt-4 sm:mt-6 text-xs sm:text-sm font-semibold text-emerald-400">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 shadow-[0_0_10px_#10b981]" />
-              </span>
-              <span>System Online &bull; Live Telemetry Feed</span>
-            </div>
-          </button>
+          </div>
 
           {/* Right Column: Holographic Torso with Radar Rings & 4 Orbital Nodes */}
           <div className="shrink-0 flex items-center justify-center">
@@ -340,6 +450,269 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
             />
           </div>
         </div>
+
+        {/* VISUAL THRESHOLD ADJUSTER PANEL WITHIN MONITOR CARD */}
+        <AnimatePresence>
+          {showInlineThresholds && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -8 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -8 }}
+              transition={{ duration: 0.22 }}
+              className="relative z-20 mt-4 sm:mt-5 pt-4 border-t border-cyan-500/30 bg-[#05122b]/95 backdrop-blur-xl rounded-2xl p-3.5 sm:p-5 shadow-2xl space-y-4"
+            >
+              {/* Header with Presets & Close */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shrink-0">
+                    <Sliders size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                      <span>Personal Alert Thresholds</span>
+                      <span className="text-[10px] font-medium text-cyan-400/80 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                        Live Calibration
+                      </span>
+                    </h4>
+                    <p className="text-[10px] sm:text-[11px] text-slate-300">
+                      Visually adjust your personal safe bounds for Heart Rate and Blood Oxygen alarms.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Presets & Close */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-slate-400 hidden sm:inline">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => saveThresholds(50, 110, 94)}
+                    className="px-2 py-0.5 rounded-md bg-slate-800/90 hover:bg-slate-700 text-[10px] font-semibold text-slate-200 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    Standard (50-110)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => saveThresholds(45, 130, 92)}
+                    className="px-2 py-0.5 rounded-md bg-slate-800/90 hover:bg-slate-700 text-[10px] font-semibold text-slate-200 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    Athletic (45-130)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => saveThresholds(60, 100, 96)}
+                    className="px-2 py-0.5 rounded-md bg-slate-800/90 hover:bg-slate-700 text-[10px] font-semibold text-slate-200 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    Sensitive (60-100)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineThresholds(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/90 transition-colors ml-1 cursor-pointer"
+                    title="Close Threshold Calibrator"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Visual Adjusters: 2 Column Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+                {/* 1. Heart Rate Visual Calibrator */}
+                <div className="p-3.5 rounded-xl bg-[#08183d] border border-blue-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <Heart size={14} className="text-rose-400 animate-pulse" />
+                      <span>Heart Rate Alert Limits</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold text-slate-300">
+                        Live: <strong className={currentHR < hrMin || currentHR > hrMax ? 'text-rose-400 font-bold' : 'text-emerald-400'}>{currentHR} BPM</strong>
+                      </span>
+                      <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                        {hrMin} – {hrMax} BPM
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Visual HR Spectrum Zone Bar with Live Pin */}
+                  <div className="space-y-1">
+                    <div className="relative h-3.5 w-full rounded-full bg-slate-800 overflow-hidden flex shadow-inner border border-slate-700">
+                      {/* Low/Bradycardia zone */}
+                      <div 
+                        style={{ width: `${Math.max(0, Math.min(100, ((hrMin - 40) / 120) * 100))}%` }} 
+                        className="h-full bg-blue-600/70"
+                        title="Bradycardia Alert Zone"
+                      />
+                      {/* Normal safe target window */}
+                      <div 
+                        style={{ width: `${Math.max(0, Math.min(100, ((hrMax - hrMin) / 120) * 100))}%` }} 
+                        className="h-full bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                        title="Safe Normal Physiological Zone"
+                      />
+                      {/* High/Tachycardia zone */}
+                      <div 
+                        style={{ width: `${Math.max(0, Math.min(100, ((160 - hrMax) / 120) * 100))}%` }} 
+                        className="h-full bg-rose-600/70"
+                        title="Tachycardia Alert Zone"
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] text-slate-400 font-mono">
+                      <span>40 (Low Alarm)</span>
+                      <span className="text-emerald-400 font-bold">Safe Window: {hrMin} - {hrMax} BPM</span>
+                      <span>160 (High Alarm)</span>
+                    </div>
+                  </div>
+
+                  {/* Slider 1: Min HR (Bradycardia bound) */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-300 font-medium">Low Limit (Bradycardia Trigger):</span>
+                      <span className="text-blue-300 font-mono font-bold">&lt; {hrMin} BPM</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={40}
+                      max={70}
+                      value={hrMin}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        saveThresholds(val, Math.max(val + 20, hrMax), spo2Min);
+                      }}
+                      className="w-full accent-blue-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Slider 2: Max HR (Tachycardia bound) */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-300 font-medium">High Limit (Tachycardia Trigger):</span>
+                      <span className="text-rose-400 font-mono font-bold">&gt; {hrMax} BPM</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={90}
+                      max={160}
+                      value={hrMax}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        saveThresholds(Math.min(hrMin, val - 20), val, spo2Min);
+                      }}
+                      className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. SpO2 Blood Oxygen Visual Calibrator */}
+                <div className="p-3.5 rounded-xl bg-[#08183d] border border-cyan-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <Droplets size={14} className="text-cyan-400" />
+                      <span>Blood Oxygen (SpO2) Alert Limit</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold text-slate-300">
+                        Live: <strong className={currentSpo2 < spo2Min ? 'text-rose-400 font-bold' : 'text-cyan-400'}>{currentSpo2}%</strong>
+                      </span>
+                      <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                        &lt; {spo2Min}% Alert
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Visual SpO2 Spectrum Zone Bar with Live Pin */}
+                  <div className="space-y-1">
+                    <div className="relative h-3.5 w-full rounded-full bg-slate-800 overflow-hidden flex shadow-inner border border-slate-700">
+                      {/* Hypoxia Zone */}
+                      <div 
+                        style={{ width: `${Math.max(0, Math.min(100, ((spo2Min - 85) / 15) * 100))}%` }} 
+                        className="h-full bg-rose-600/80 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
+                        title="Hypoxic Desaturation Alert Zone"
+                      />
+                      {/* Normal Zone */}
+                      <div 
+                        style={{ width: `${Math.max(0, Math.min(100, ((100 - spo2Min) / 15) * 100))}%` }} 
+                        className="h-full bg-cyan-500/80 shadow-[0_0_8px_rgba(6,182,212,0.5)]"
+                        title="Optimal Oxygenation Zone"
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] text-slate-400 font-mono">
+                      <span className="text-rose-400">85% (Hypoxia Alert)</span>
+                      <span className="text-cyan-400 font-bold">Safe Range: &ge; {spo2Min}%</span>
+                      <span>100% (Optimal)</span>
+                    </div>
+                  </div>
+
+                  {/* Slider: SpO2 Critical Bound */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-300 font-medium">Critical Hypoxia Trigger:</span>
+                      <span className="text-cyan-300 font-mono font-bold">&lt; {spo2Min}% SpO2</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={85}
+                      max={98}
+                      value={spo2Min}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        saveThresholds(hrMin, hrMax, val);
+                      }}
+                      className="w-full accent-cyan-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                    <p className="text-[10px] text-slate-400 pt-1">
+                      {currentSpo2 < spo2Min 
+                        ? '⚠️ Current SpO2 is below your personal threshold! Hypoxia alarm will sound.' 
+                        : `✅ Current SpO2 (${currentSpo2}%) is securely within normal bounds (> ${spo2Min}%).`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom confirmation and action row */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400">
+                    Thresholds automatically save to device &amp; telemetry sync.
+                  </span>
+                  {inlineSavedToast && (
+                    <motion.span 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-[11px] font-bold text-emerald-400 flex items-center gap-1"
+                    >
+                      <CheckCircle2 size={13} /> Saved!
+                    </motion.span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInlineSavedToast(true);
+                      setTimeout(() => setInlineSavedToast(false), 2000);
+                      setShowInlineThresholds(false);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Check size={14} />
+                    <span>Done</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAlertsModal(true);
+                      setShowInlineThresholds(false);
+                    }}
+                    className="text-xs text-slate-400 hover:text-cyan-300 font-medium underline px-1 transition-colors cursor-pointer"
+                  >
+                    All Alert Settings &rarr;
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* 3. Four Quick Action Tiles (2x2 Grid) -> Every button linked to relevant health data */}
@@ -774,6 +1147,7 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
                 <button
                   type="button"
                   onClick={() => {
+                    saveThresholds(hrMin, hrMax, spo2Min);
                     setAlertsSavedToast(true);
                     setTimeout(() => {
                       setAlertsSavedToast(false);

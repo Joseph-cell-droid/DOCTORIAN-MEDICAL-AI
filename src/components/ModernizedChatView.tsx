@@ -8,7 +8,7 @@ import {
   BrainCircuit, BookOpen, Volume2, VolumeX, Trash2, Mic, MicOff,
   Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
-  PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown
+  PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
 import { api } from '../api';
@@ -76,62 +76,25 @@ const ModernBotMessageBubble: React.FC<{
   const lines = cleanedText.split('\n');
 
   return (
-    <div className="bg-[#0b152d]/95 border border-slate-800/90 p-4 sm:p-5 rounded-2xl rounded-tl-xs shadow-xl text-slate-100 space-y-3.5">
-      {/* Bot Header with Clinical Badge and Action Controls */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/80 text-xs">
+    <div className="w-full text-slate-100 space-y-3 pt-0.5">
+      {/* Bot Identity Header - Minimalist like ChatGPT */}
+      <div className="flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-            <Sparkles size={11} className="text-cyan-400" />
-            <span>Doctorian Medical AI</span>
-          </span>
-          <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">Clinical Intelligence</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setFeedback(feedback === 'up' ? null : 'up')}
-            className={`p-1.5 rounded hover:bg-slate-800/80 transition-colors ${feedback === 'up' ? 'text-emerald-400' : 'text-slate-400'}`}
-            title="Helpful"
-          >
-            <ThumbsUp size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setFeedback(feedback === 'down' ? null : 'down')}
-            className={`p-1.5 rounded hover:bg-slate-800/80 transition-colors ${feedback === 'down' ? 'text-rose-400' : 'text-slate-400'}`}
-            title="Not helpful"
-          >
-            <ThumbsDown size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="p-1.5 rounded hover:bg-slate-800/80 text-slate-400 hover:text-cyan-300 transition-colors"
-            title="Copy response"
-          >
-            {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-          </button>
-          <button
-            type="button"
-            onClick={() => onSpeak(cleanedText)}
-            className="p-1.5 rounded hover:bg-slate-800/80 text-slate-400 hover:text-cyan-300 transition-colors"
-            title="Listen to audio"
-          >
-            {isSpeaking ? <VolumeX size={13} className="text-cyan-400 animate-pulse" /> : <Volume2 size={13} />}
-          </button>
+          <span className="font-semibold text-cyan-300 text-xs tracking-wide">Doctorian AI</span>
+          <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">• Clinical Intelligence</span>
         </div>
       </div>
 
-      {/* Formatted Content */}
-      <div className="space-y-2.5 text-sm leading-relaxed">
+      {/* Formatted Content - Generated directly on the page background */}
+      <div className="space-y-2.5 text-[14.5px] sm:text-[15px] leading-relaxed text-slate-200">
         {lines.map((line, idx) => {
           const trimmed = line.trim();
-          if (!trimmed) return <div key={idx} className="h-1" />;
+          if (!trimmed) return <div key={idx} className="h-1.5" />;
 
           // Check if line is an emoji header
           const isEmojiHeader = /^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]/.test(trimmed) && (
             trimmed.endsWith(':') || 
-            trimmed.length < 50 || 
+            trimmed.length < 55 || 
             trimmed.includes('Assessment') || 
             trimmed.includes('Actions') || 
             trimmed.includes('Guidelines') || 
@@ -144,7 +107,7 @@ const ModernBotMessageBubble: React.FC<{
             return (
               <div
                 key={idx}
-                className="mt-3 pt-2 pb-1 font-semibold text-cyan-200 flex items-center gap-2 border-b border-cyan-500/20 text-sm tracking-wide"
+                className="mt-3.5 pt-1.5 pb-0.5 font-semibold text-cyan-200 flex items-center gap-2 text-[14.5px] sm:text-base tracking-wide"
               >
                 <span>{trimmed}</span>
               </div>
@@ -154,9 +117,9 @@ const ModernBotMessageBubble: React.FC<{
           // Bullet point
           if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
             return (
-              <div key={idx} className="flex items-start gap-2 text-slate-200 pl-1">
-                <span className="text-cyan-400 mt-0.5 shrink-0">•</span>
-                <span className="font-normal">{trimmed.replace(/^[•\-]\s*/, '')}</span>
+              <div key={idx} className="flex items-start gap-2.5 text-slate-200 pl-1">
+                <span className="text-cyan-400 mt-1 shrink-0 text-xs">●</span>
+                <span className="font-normal text-[14px] sm:text-[14.5px] leading-relaxed">{trimmed.replace(/^[•\-]\s*/, '')}</span>
               </div>
             );
           }
@@ -164,8 +127,8 @@ const ModernBotMessageBubble: React.FC<{
           // Interactive Question line (contains ❓ or ends with question mark)
           if (trimmed.startsWith('❓') || (trimmed.endsWith('?') && (trimmed.toLowerCase().includes('how') || trimmed.toLowerCase().includes('have you') || trimmed.toLowerCase().includes('do you')))) {
             return (
-              <div key={idx} className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-200 font-medium text-xs sm:text-sm flex items-start gap-2.5 mt-2">
-                <span className="shrink-0 text-base">❓</span>
+              <div key={idx} className="p-2.5 sm:p-3 rounded-xl bg-cyan-950/25 border-l-2 border-cyan-400 text-cyan-200 font-medium text-xs sm:text-sm flex items-start gap-2.5 mt-2">
+                <span className="shrink-0 text-sm sm:text-base">❓</span>
                 <span>{trimmed.replace(/^❓\s*/, '')}</span>
               </div>
             );
@@ -173,16 +136,16 @@ const ModernBotMessageBubble: React.FC<{
 
           // Regular paragraph
           return (
-            <p key={idx} className="text-slate-200 font-normal">
+            <p key={idx} className="text-slate-200 font-normal leading-relaxed">
               {trimmed}
             </p>
           );
         })}
       </div>
 
-      {/* Structured Recommendation Card (if present) */}
+      {/* Structured Recommendation Items (if present) - clean layout on background */}
       {msg.structuredCard && (
-        <div className="mt-3 pt-3 border-t border-slate-800/90 space-y-2">
+        <div className="mt-3 pt-2 space-y-2">
           {msg.structuredCard.items.map((item, idx) => {
             const iconBg = {
               blue: 'bg-blue-600/20 text-blue-400 border-blue-500/40',
@@ -199,7 +162,7 @@ const ModernBotMessageBubble: React.FC<{
             }[item.icon];
 
             return (
-              <div key={idx} className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition-colors">
+              <div key={idx} className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80 hover:border-cyan-500/30 transition-colors">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${iconBg}`}>
                   <IconComp size={15} />
                 </div>
@@ -217,19 +180,16 @@ const ModernBotMessageBubble: React.FC<{
         </div>
       )}
 
-      {/* Interactive Quick-Response Chips (ai should always use emojis to make the chat interactive) */}
+      {/* Interactive Quick-Response Chips directly on page background */}
       {interactiveSuggestions.length > 0 && (
-        <div className="pt-2 border-t border-slate-800/70 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400/90">
-            <span>⚡ Interactive Quick Replies:</span>
-          </div>
+        <div className="pt-2 space-y-1.5">
           <div className="flex flex-wrap gap-1.5">
             {interactiveSuggestions.map((suggestion, sIdx) => (
               <button
                 key={sIdx}
                 type="button"
                 onClick={() => onSendPrompt(suggestion)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0f1d40] hover:bg-[#162a5c] text-cyan-200 border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-all cursor-pointer active:scale-95 text-left"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900/60 hover:bg-slate-800/80 text-cyan-200 hover:text-white border border-slate-700/60 hover:border-cyan-400/60 transition-all cursor-pointer active:scale-95 text-left"
               >
                 <span>{suggestion}</span>
               </button>
@@ -238,10 +198,41 @@ const ModernBotMessageBubble: React.FC<{
         </div>
       )}
 
-      {/* Footer Timestamp */}
-      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
-        <span>{msg.timestamp}</span>
-        <span className="text-[10px] text-slate-400">Doctorian AI • Evidence-based</span>
+      {/* Action Controls Toolbar - ChatGPT style bottom row on background */}
+      <div className="flex items-center gap-2 pt-1 text-slate-400 text-xs">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="p-1.5 rounded-lg hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
+          title="Copy response"
+        >
+          {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSpeak(cleanedText)}
+          className="p-1.5 rounded-lg hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
+          title="Listen to audio"
+        >
+          {isSpeaking ? <VolumeX size={14} className="text-cyan-400 animate-pulse" /> : <Volume2 size={14} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFeedback(feedback === 'up' ? null : 'up')}
+          className={`p-1.5 rounded-lg hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer ${feedback === 'up' ? 'text-emerald-400' : 'text-slate-400'}`}
+          title="Helpful"
+        >
+          <ThumbsUp size={14} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setFeedback(feedback === 'down' ? null : 'down')}
+          className={`p-1.5 rounded-lg hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer ${feedback === 'down' ? 'text-rose-400' : 'text-slate-400'}`}
+          title="Not helpful"
+        >
+          <ThumbsDown size={14} />
+        </button>
+        <span className="text-[10px] text-slate-500 font-mono ml-auto">{msg.timestamp}</span>
       </div>
     </div>
   );
@@ -564,7 +555,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       const response = await api.ai.aiChat(
         prompt,
         clinicalSystemInstruction,
-        "gemini-2.5-flash",
+        "gemini-3.8-flash",
         0.6
       );
 
@@ -1016,35 +1007,24 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 custom-scrollbar flex flex-col">
         {filteredMessages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto select-none">
-            <div className="relative mb-5">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-blue-600/20 via-cyan-500/10 to-indigo-600/20 border border-cyan-500/30 p-4 flex items-center justify-center shadow-[0_0_40px_rgba(6,182,212,0.2)]">
-                <Doctorian3DRobot size="md" isAvatar={false} />
-              </div>
-              <div className="absolute -inset-1 rounded-full border border-cyan-400/20 animate-ping pointer-events-none" />
+          /* Blank Waiting Canvas (ChatGPT style clean waiting state) */
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto select-none opacity-40">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-2.5">
+              <Sparkles size={20} className="text-cyan-400" />
             </div>
-            <div className="space-y-1.5 max-w-sm">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                <Activity size={12} className="animate-pulse" />
-                <span>DOCTORIAN AI CLINICAL SYSTEM</span>
-              </div>
-            </div>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium">
+              Doctorian AI is ready. Waiting for your query...
+            </p>
           </div>
         ) : (
           filteredMessages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex items-start gap-2.5 sm:gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} py-1 sm:py-2`}
             >
-              {/* Bot Glowing Avatar on Left */}
-              {msg.sender === 'bot' && (
-                <Doctorian3DRobot size="sm" isAvatar={true} className="mt-0.5 shrink-0" />
-              )}
-
-              {/* Bubble Container */}
-              <div className={`max-w-[88%] sm:max-w-xl space-y-2.5 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                {msg.sender === 'user' ? (
-                  /* User Message (Photo 2 Vivid Royal Blue) */
+              {msg.sender === 'user' ? (
+                /* User Message */
+                <div className="flex items-start gap-2.5 max-w-[85%] sm:max-w-xl">
                   <div className="bg-[#1d61f2] text-white p-3.5 sm:p-4 rounded-2xl rounded-tr-xs shadow-md shadow-blue-600/15">
                     <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">
                       {msg.text}
@@ -1054,40 +1034,45 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       <CheckCheck size={14} className="text-cyan-300 stroke-[2.5]" />
                     </div>
                   </div>
-                ) : (
-                  /* Bot Message (Modern Interactive Clean Text & Emoji Bubble) */
-                  <ModernBotMessageBubble
-                    msg={msg}
-                    onSendPrompt={(p) => handleSendMessage(p)}
-                    onSpeak={(t) => speakText(t)}
-                    isSpeaking={isSpeaking}
-                  />
-                )}
-              </div>
-
-              {/* User Avatar on Right */}
-              {msg.sender === 'user' && (
-                <div className="w-8 h-8 rounded-full border border-blue-400/50 overflow-hidden bg-slate-800 flex items-center justify-center mt-0.5 shrink-0">
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="User" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-blue-600 flex items-center justify-center font-bold text-[10px] text-white">
-                      {user?.name?.[0] || 'U'}
-                    </div>
-                  )}
+                  <div className="w-8 h-8 rounded-full border border-blue-400/50 overflow-hidden bg-slate-800 flex items-center justify-center mt-0.5 shrink-0">
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="User" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-blue-600 flex items-center justify-center font-bold text-[10px] text-white">
+                        {user?.name?.[0] || 'U'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Bot Message: Generated directly on page background like ChatGPT, NO CARDS */
+                <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 border border-cyan-400/30 shrink-0 mt-0.5">
+                    <Sparkles size={16} className="text-cyan-200" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <ModernBotMessageBubble
+                      msg={msg}
+                      onSendPrompt={(p) => handleSendMessage(p)}
+                      onSpeak={(t) => speakText(t)}
+                      isSpeaking={isSpeaking}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           ))
         )}
 
-        {/* Loading Indicator */}
+        {/* Loading Indicator - Generated directly on background */}
         {isLoading && (
-          <div className="flex items-center gap-3">
-            <Doctorian3DRobot size="sm" isAvatar={true} />
-            <div className="bg-[#0b152d]/95 border border-slate-800 px-4 py-3 rounded-2xl flex items-center gap-2 text-slate-300 text-xs">
-              <Loader2 size={16} className="animate-spin text-cyan-400" />
-              <span>Doctorian AI is formulating clinical recommendations...</span>
+          <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl py-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 border border-cyan-400/30 shrink-0 mt-0.5">
+              <Sparkles size={16} className="text-cyan-200 animate-spin" />
+            </div>
+            <div className="flex items-center gap-2.5 py-1 text-slate-300 text-sm">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-slate-300 font-medium">Doctorian AI is formulating response...</span>
             </div>
           </div>
         )}
@@ -1104,177 +1089,274 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           {/* TOP: Raised Chatbot Text Card */}
           <div className="relative bg-[#0c183a]/95 backdrop-blur-xl border border-slate-700/90 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 shadow-2xl shadow-black/70 focus-within:border-blue-500/80 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
             
-            {/* TOP LEFT: Small Non-Obstructing Smart Action Icon */}
-            <div className="flex items-center justify-between pb-1.5 px-0.5">
-              <div className="relative">
+            {/* TOP LEFT: Prominently displayed Smart Actions Icons */}
+            <div className="flex items-center justify-between pb-2 px-1 border-b border-slate-800/70 mb-2 gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-400 mr-0.5 shrink-0">
+                  <Sparkles size={13} className="text-cyan-400" />
+                  <span className="hidden xs:inline">Smart Actions:</span>
+                </div>
+
+                {/* 1. Medication Reminder */}
                 <button
                   type="button"
-                  id="chatbot-smart-actions-btn"
-                  onClick={() => setShowSmartActions(!showSmartActions)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#08132c]/90 hover:bg-[#0d1f48] border border-cyan-500/35 hover:border-cyan-400/80 text-[10.5px] font-semibold text-cyan-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95 group"
-                  title="Smart Clinical Actions"
+                  id="smart-action-reminder"
+                  onClick={() => onNavigate ? onNavigate('meds') : alert("Medication Reminders opened")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-950/60 hover:bg-blue-900/80 border border-blue-500/30 hover:border-blue-400 text-blue-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  title="Set Medication Reminder"
                 >
-                  <Sparkles size={11} className="text-cyan-400 group-hover:rotate-12 transition-transform shrink-0" />
-                  <span className="text-[10px] text-slate-300 group-hover:text-cyan-200">Smart Actions</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <Calendar size={13} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Reminder</span>
                 </button>
 
-                {/* Smart Actions Popup (Floats neatly above without obstructing the input) */}
-                <AnimatePresence>
-                  {showSmartActions && (
-                    <>
-                      <div className="fixed inset-0 z-30" onClick={() => setShowSmartActions(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                        className="absolute left-0 bottom-full mb-2 w-72 sm:w-80 bg-[#091533]/98 border border-blue-500/40 rounded-2xl shadow-2xl z-40 p-2.5 space-y-1.5 backdrop-blur-2xl"
-                      >
-                        <div className="flex items-center justify-between px-1.5 py-1 border-b border-slate-800/80">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                            <Sparkles size={13} className="text-cyan-400" />
-                            <span>Smart Clinical Actions</span>
+                {/* 2. Book Doctor */}
+                <button
+                  type="button"
+                  id="smart-action-doctor"
+                  onClick={() => {
+                    setCallMode('voice');
+                    setShowVoiceCallModal(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/30 hover:border-purple-400 text-purple-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  title="Book Doctor Consultation"
+                >
+                  <UserCheck size={13} className="text-purple-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Book Doctor</span>
+                </button>
+
+                {/* 3. Clinical Advice */}
+                <button
+                  type="button"
+                  id="smart-action-advice"
+                  onClick={() => handleSendMessage("Can you provide evidence-based clinical precautions, dosage details, and differential diagnoses?")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-950/60 hover:bg-amber-900/80 border border-amber-500/30 hover:border-amber-400 text-amber-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  title="Clinical Advice & Guidance"
+                >
+                  <Lightbulb size={13} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Advice</span>
+                </button>
+
+                {/* 4. Lab Tests */}
+                <button
+                  type="button"
+                  id="smart-action-lab"
+                  onClick={() => {
+                    setActiveToolTab('lab');
+                    setShowToolHub(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/30 hover:border-emerald-400 text-emerald-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  title="Diagnostic Lab Tests"
+                >
+                  <Activity size={13} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Lab Tests</span>
+                </button>
+
+                {/* 5. Vitals */}
+                <button
+                  type="button"
+                  id="smart-action-vitals"
+                  onClick={() => {
+                    if (arduino) {
+                      handleSendMessage(`Analyze my current bio-telemetry: Heart Rate is ${arduino.heartRate || 72} bpm, Blood Oxygen is ${arduino.spo2 || 98}%, Temperature is ${arduino.temperature || 36.7}°C. Are these within normal limits?`);
+                    } else {
+                      handleSendMessage("Analyze my vital signs snapshot: HR 72 bpm, SpO2 98%, Temp 36.8°C. What is the clinical interpretation?");
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  title="Analyze Live Vitals"
+                >
+                  <Heart size={13} className="text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Vitals</span>
+                </button>
+
+                {/* 6. Emergency SOS */}
+                <button
+                  type="button"
+                  id="smart-action-sos"
+                  onClick={() => handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!")}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/50 hover:bg-rose-900/80 border border-rose-500/40 hover:border-rose-400 text-rose-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  title="Emergency SOS"
+                >
+                  <AlertCircle size={13} className="text-rose-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden md:inline">SOS</span>
+                </button>
+
+                {/* 7. More Actions Trigger & Popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    id="chatbot-smart-actions-btn"
+                    onClick={() => setShowSmartActions(!showSmartActions)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-[11px] font-medium transition-all cursor-pointer shadow-xs active:scale-95"
+                    title="All Smart Actions"
+                  >
+                    <MoreHorizontal size={13} />
+                    <span className="text-[10px]">All</span>
+                  </button>
+
+                  {/* Smart Actions Popup (Floats neatly above without obstructing the input) */}
+                  <AnimatePresence>
+                    {showSmartActions && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setShowSmartActions(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                          className="absolute left-0 bottom-full mb-2 w-72 sm:w-80 bg-[#091533]/98 border border-blue-500/40 rounded-2xl shadow-2xl z-40 p-2.5 space-y-1.5 backdrop-blur-2xl"
+                        >
+                          <div className="flex items-center justify-between px-1.5 py-1 border-b border-slate-800/80">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                              <Sparkles size={13} className="text-cyan-400" />
+                              <span>All Smart Clinical Actions</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowSmartActions(false)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowSmartActions(false)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-1.5 pt-1">
-                          {/* 1. Set Reminder */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowSmartActions(false);
-                              onNavigate ? onNavigate('meds') : alert("Medication Reminders opened");
-                            }}
-                            className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-blue-500/30 hover:border-blue-400 text-left transition-all cursor-pointer group active:scale-95"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-blue-600/30 flex items-center justify-center text-blue-400 shrink-0">
-                                <Calendar size={13} />
+                          <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            {/* 1. Set Reminder */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSmartActions(false);
+                                onNavigate ? onNavigate('meds') : alert("Medication Reminders opened");
+                              }}
+                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-blue-500/30 hover:border-blue-400 text-left transition-all cursor-pointer group active:scale-95"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-blue-600/30 flex items-center justify-center text-blue-400 shrink-0">
+                                  <Calendar size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-blue-300">Set Reminder</div>
+                                  <div className="text-[9px] text-slate-400 truncate">Medication alerts</div>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-bold text-white truncate group-hover:text-blue-300">Set Reminder</div>
-                                <div className="text-[9px] text-slate-400 truncate">Medication alerts</div>
-                              </div>
-                            </div>
-                          </button>
+                            </button>
 
-                          {/* 2. Book a Doctor */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowSmartActions(false);
-                              setCallMode('voice');
-                              setShowVoiceCallModal(true);
-                            }}
-                            className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-purple-500/30 hover:border-purple-400 text-left transition-all cursor-pointer group active:scale-95"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-purple-600/30 flex items-center justify-center text-purple-400 shrink-0">
-                                <UserCheck size={13} />
+                            {/* 2. Book a Doctor */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSmartActions(false);
+                                setCallMode('voice');
+                                setShowVoiceCallModal(true);
+                              }}
+                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-purple-500/30 hover:border-purple-400 text-left transition-all cursor-pointer group active:scale-95"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-purple-600/30 flex items-center justify-center text-purple-400 shrink-0">
+                                  <UserCheck size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-purple-300">Book a Doctor</div>
+                                  <div className="text-[9px] text-slate-400 truncate">Tele-consultation</div>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-bold text-white truncate group-hover:text-purple-300">Book a Doctor</div>
-                                <div className="text-[9px] text-slate-400 truncate">Tele-consultation</div>
-                              </div>
-                            </div>
-                          </button>
+                            </button>
 
-                          {/* 3. More Advice */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowSmartActions(false);
-                              handleSendMessage("Can you provide more evidence-based clinical precautions, dosage details, and differential diagnoses?");
-                            }}
-                            className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-amber-500/30 hover:border-amber-400 text-left transition-all cursor-pointer group active:scale-95"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-amber-600/30 flex items-center justify-center text-amber-400 shrink-0">
-                                <Lightbulb size={13} />
+                            {/* 3. More Advice */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSmartActions(false);
+                                handleSendMessage("Can you provide more evidence-based clinical precautions, dosage details, and differential diagnoses?");
+                              }}
+                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-amber-500/30 hover:border-amber-400 text-left transition-all cursor-pointer group active:scale-95"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-amber-600/30 flex items-center justify-center text-amber-400 shrink-0">
+                                  <Lightbulb size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-amber-300">More Advice</div>
+                                  <div className="text-[9px] text-slate-400 truncate">Precautions & info</div>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-bold text-white truncate group-hover:text-amber-300">More Advice</div>
-                                <div className="text-[9px] text-slate-400 truncate">Precautions & info</div>
-                              </div>
-                            </div>
-                          </button>
+                            </button>
 
-                          {/* 4. Lab Analysis */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowSmartActions(false);
-                              setActiveToolTab('lab');
-                              setShowToolHub(true);
-                            }}
-                            className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-emerald-500/30 hover:border-emerald-400 text-left transition-all cursor-pointer group active:scale-95"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-emerald-600/30 flex items-center justify-center text-emerald-400 shrink-0">
-                                <Activity size={13} />
+                            {/* 4. Lab Analysis */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSmartActions(false);
+                                setActiveToolTab('lab');
+                                setShowToolHub(true);
+                              }}
+                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-emerald-500/30 hover:border-emerald-400 text-left transition-all cursor-pointer group active:scale-95"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-emerald-600/30 flex items-center justify-center text-emerald-400 shrink-0">
+                                  <Activity size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-emerald-300">Lab Analysis</div>
+                                  <div className="text-[9px] text-slate-400 truncate">Tests & diagnostics</div>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-bold text-white truncate group-hover:text-emerald-300">Lab Analysis</div>
-                                <div className="text-[9px] text-slate-400 truncate">Tests & diagnostics</div>
-                              </div>
-                            </div>
-                          </button>
+                            </button>
 
-                          {/* 5. Check Vitals */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowSmartActions(false);
-                              if (arduino) {
-                                handleSendMessage(`Analyze my current bio-telemetry: Heart Rate is ${arduino.heartRate || 72} bpm, Blood Oxygen is ${arduino.spo2 || 98}%, Temperature is ${arduino.temperature || 36.7}°C. Are these within normal limits?`);
-                              } else {
-                                handleSendMessage("Analyze my vital signs snapshot: HR 72 bpm, SpO2 98%, Temp 36.8°C. What is the clinical interpretation?");
-                              }
-                            }}
-                            className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-cyan-500/30 hover:border-cyan-400 text-left transition-all cursor-pointer group active:scale-95"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-cyan-600/30 flex items-center justify-center text-cyan-400 shrink-0">
-                                <Heart size={13} />
+                            {/* 5. Check Vitals */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSmartActions(false);
+                                if (arduino) {
+                                  handleSendMessage(`Analyze my current bio-telemetry: Heart Rate is ${arduino.heartRate || 72} bpm, Blood Oxygen is ${arduino.spo2 || 98}%, Temperature is ${arduino.temperature || 36.7}°C. Are these within normal limits?`);
+                                } else {
+                                  handleSendMessage("Analyze my vital signs snapshot: HR 72 bpm, SpO2 98%, Temp 36.8°C. What is the clinical interpretation?");
+                                }
+                              }}
+                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-cyan-500/30 hover:border-cyan-400 text-left transition-all cursor-pointer group active:scale-95"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-cyan-600/30 flex items-center justify-center text-cyan-400 shrink-0">
+                                  <Heart size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-cyan-300">Check Vitals</div>
+                                  <div className="text-[9px] text-slate-400 truncate">Telemetry review</div>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-bold text-white truncate group-hover:text-cyan-300">Check Vitals</div>
-                                <div className="text-[9px] text-slate-400 truncate">Telemetry review</div>
-                              </div>
-                            </div>
-                          </button>
+                            </button>
 
-                          {/* 6. Emergency SOS */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowSmartActions(false);
-                              handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!");
-                            }}
-                            className="p-2 rounded-xl bg-rose-950/40 hover:bg-rose-950/70 border border-rose-500/40 hover:border-rose-400 text-left transition-all cursor-pointer group active:scale-95"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-rose-600/30 flex items-center justify-center text-rose-400 shrink-0">
-                                <AlertCircle size={13} />
+                            {/* 6. Emergency SOS */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSmartActions(false);
+                                handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!");
+                              }}
+                              className="p-2 rounded-xl bg-rose-950/40 hover:bg-rose-950/70 border border-rose-500/40 hover:border-rose-400 text-left transition-all cursor-pointer group active:scale-95"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-rose-600/30 flex items-center justify-center text-rose-400 shrink-0">
+                                  <AlertCircle size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[11px] font-bold text-rose-200 truncate group-hover:text-rose-100">Emergency SOS</div>
+                                  <div className="text-[9px] text-rose-300/80 truncate">Immediate triage</div>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-bold text-rose-200 truncate group-hover:text-rose-100">Emergency SOS</div>
-                                <div className="text-[9px] text-rose-300/80 truncate">Immediate triage</div>
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+                            </button>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {/* Right: Mode status */}
+              <div className="flex items-center gap-1.5 ml-auto text-[10.5px] text-slate-400 font-mono shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="hidden md:inline text-slate-400">Online</span>
               </div>
             </div>
 

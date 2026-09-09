@@ -2279,10 +2279,18 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             </button>
              <button
               onClick={() => setShowSettings(true)}
+              className="flex items-center justify-center gap-2 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider border border-cyan-200 dark:border-cyan-700/50 transition-all active:scale-95 shadow-sm"
+              title="Visually adjust personal HR or SpO2 alert limits"
+            >
+              <Sliders size={14} className="shrink-0 text-cyan-500" />
+              <span>Set Thresholds</span>
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
               className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider border border-slate-200 dark:border-slate-700 transition-all active:scale-95"
             >
               <Settings size={14} className="shrink-0" />
-              <span>Set Alerts</span>
+              <span>Alerts</span>
             </button>
             {connection.connected && (
               <>

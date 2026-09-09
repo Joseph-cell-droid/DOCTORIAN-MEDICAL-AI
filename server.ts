@@ -270,24 +270,24 @@ console.log("[SERVER] Configuring AI Engines...");
 const ACTIVE_AI_PROVIDER = process.env.ACTIVE_AI_PROVIDER || "gemini";
 const IS_LM_STUDIO = ACTIVE_AI_PROVIDER.toUpperCase() === "LM_STUDIO";
 
-// Default Models (Gemini 3.7 Flash configured as permanent primary standard model)
-const GEMINI_PRIMARY = "gemini-3.7-flash"; 
-const GEMINI_VISION = "gemini-3.7-flash";
+// Default Models (Gemini 3.8 Flash configured as primary standard model per @google/genai guidelines)
+const GEMINI_PRIMARY = "gemini-3.8-flash"; 
+const GEMINI_VISION = "gemini-3.8-flash";
 
 // Option One Engines
-const LLAMA_PRIMARY = "gemini-3.7-flash";
-const LLAMA_VISION = "gemini-3.7-flash";
+const LLAMA_PRIMARY = "gemini-3.8-flash";
+const LLAMA_VISION = "gemini-3.8-flash";
 
-const PRIMARY_ENGINE = "gemini-3.7-flash";
-const MEDICAL_REASONING_ENGINE = "gemini-3.7-flash";
-const DATA_ANALYTICS_ENGINE = "gemini-3.7-flash";
-const VISION_ENGINE = "gemini-3.7-flash";
-const DEEPSEEK_ENGINE = "gemini-3.7-flash";
-const MISTRAL_ENGINE = "gemini-3.7-flash";
-const DEFAULT_GEMINI_ENGINE = "gemini-3.7-flash";
-const DEFAULT_LLAMA_ENGINE = "gemini-3.7-flash";
-const DEFAULT_GEMMA_ENGINE = "gemini-3.7-flash";
-const BACKUP_ENGINE = "gemini-3.1-flash-lite";
+const PRIMARY_ENGINE = "gemini-3.8-flash";
+const MEDICAL_REASONING_ENGINE = "gemini-3.8-flash";
+const DATA_ANALYTICS_ENGINE = "gemini-3.8-flash";
+const VISION_ENGINE = "gemini-3.8-flash";
+const DEEPSEEK_ENGINE = "gemini-3.8-flash";
+const MISTRAL_ENGINE = "gemini-3.8-flash";
+const DEFAULT_GEMINI_ENGINE = "gemini-3.8-flash";
+const DEFAULT_LLAMA_ENGINE = "gemini-3.8-flash";
+const DEFAULT_GEMMA_ENGINE = "gemini-3.8-flash";
+const BACKUP_ENGINE = "gemini-2.5-flash";
 
 const OLLAMA_URL = IS_LM_STUDIO
   ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
@@ -1713,7 +1713,7 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.7-flash";
+              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.8-flash";
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1730,7 +1730,7 @@ async function callAIWorkflow(options: {
                 let result;
                 let attempts = 0;
                 const maxAttempts = 3;
-                let currentModelId = effectiveModel;
+                let currentModelId = effectiveModel === "gemini-3.7-flash" ? "gemini-3.8-flash" : effectiveModel;
                 while (attempts < maxAttempts) {
                   try {
                     result = await modernClient.models.generateContent({
@@ -1771,12 +1771,12 @@ async function callAIWorkflow(options: {
                       attempts = maxAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
-                      if (currentModelId === "gemini-3.7-flash") {
-                        currentModelId = "gemini-3.1-flash-lite";
-                      } else if (currentModelId === "gemini-3.1-flash-lite") {
+                      if (currentModelId === "gemini-3.8-flash") {
+                        currentModelId = "gemini-2.5-flash";
+                      } else if (currentModelId === "gemini-2.5-flash") {
                         currentModelId = "gemini-flash-latest";
                       } else {
-                        currentModelId = "gemini-3.7-flash";
+                        currentModelId = "gemini-3.1-flash-lite";
                       }
                       console.log(`[AI-BRAIN] Temporary API busy status (${genErr.message || "503/429"}) on attempt ${attempts}. Rotating to ${currentModelId} and retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
@@ -10562,20 +10562,7 @@ function detectSpecificDiseaseMapping(prompt: string): string {
                                 lowerRaw.includes('hiv') ||
                                 lowerRaw.includes('tb');
 
-        if (!isHealthRelated) {
-          const rejectText = `⚠️ **Clinical Core Lock Active** 🩺\n\nI am Doctorian, a specialized AI Clinical Assistant created by **Akora Joseph** from **EBRO company**.\n\nMy core programming is strictly restricted exclusively to medicine, public health, nursing, biochemistry, bio-engineering, and healthcare-related topics. Therefore, I cannot assist with non-health queries (such as general software development, history, politics, sports, or entertainment).\n\nPlease let me know if you have any questions regarding clinical symptoms, wellness goals, medical guidelines, or the developer of this App! 🌟`;
-          if (wantsStream) {
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
-            res.write(`data: ${JSON.stringify({ text: rejectText, credits: credits })}\n\n`);
-            res.write("data: [DONE]\n\n");
-            return res.end();
-          } else {
-            return res.json({ text: rejectText });
-          }
-        }
-
+        // Proceed to generate thoughtful, clinically grounded responses without abrupt rejection blocks
         let finalMessages = [...messages];
         let activeTargetLang = targetLanguage || 'English';
         if (activeTargetLang.startsWith('English')) {

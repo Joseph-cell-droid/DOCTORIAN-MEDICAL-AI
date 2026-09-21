@@ -54,7 +54,7 @@ class VitalsSonifierEngine {
       if (!this.ctx || !this.masterGain) return;
 
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
+        this.ctx.resume().catch(() => {});
       }
 
       this.isPlaying = true;

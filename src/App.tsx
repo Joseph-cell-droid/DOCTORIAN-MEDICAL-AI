@@ -99,6 +99,7 @@ import { EdgeScrollNavigation } from './components/EdgeScrollNavigation';
 import { LocalBackupModal } from './components/LocalBackupModal';
 import { WindowsSystemsHubModal } from './components/WindowsSystemsHubModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { AndroidAppButtons } from './components/AndroidAppButtons';
 import { StorageVaultModal } from './components/StorageVaultModal';
 import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
@@ -513,18 +514,9 @@ export default function App() {
     Soundscape.setPreset(preset);
   };
 
-  // Automatically trigger a silent setup/validation of translation dictionaries
+  // Automatically trigger silent setup/validation of translation dictionaries
   useEffect(() => {
-    const hasNotified = sessionStorage.getItem("offline_lang_notified_v5");
-    if (!hasNotified) {
-      setTimeout(() => {
-        setToast({
-          message: `📥 Offline Translation Engine ready: 26 clinical language lexicons fully validated and loaded in hardcompiled code memory.`,
-          type: 'success'
-        });
-        sessionStorage.setItem("offline_lang_notified_v5", "true");
-      }, 4000);
-    }
+    sessionStorage.setItem("offline_lang_notified_v5", "true");
   }, []);
 
   const handleDownloadLanguage = (langName: string, e?: React.MouseEvent) => {
@@ -899,7 +891,7 @@ export default function App() {
     return Math.min(Math.round(parsed) / 4, 100);
   }, [user, isCreditsUnlimited]);
 
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<'login' | 'signup' | 'authorize'>('login');
@@ -1669,102 +1661,17 @@ export default function App() {
   useEffect(() => {
     sessionStorage.setItem('doctor_authenticated', 'true');
     sessionStorage.setItem('admin_authenticated', 'true');
-    
-    // Exactly 3 seconds (3000ms) neural initialization process before loading the app
-    const minInitDurationPromise = new Promise(resolve => setTimeout(resolve, 3000));
 
     const checkAuth = async () => {
-      console.log("[Doctorian] Initiating Auth Authentication Sequence...");
-      
-      // Attempt immediate recovery from localStorage for seamless transition on an existing authenticated device
-      const savedUserStr = localStorage.getItem('medical_user');
-      let recoveredUser: User | null = null;
-      if (savedUserStr && savedUserStr !== "undefined" && savedUserStr !== "null" && savedUserStr.trim() !== "") {
-        try {
-          const parsed = JSON.parse(savedUserStr);
-          if (parsed && typeof parsed === "object" && parsed.email) {
-            recoveredUser = parsed;
-            setUser(parsed);
-            console.log("[Doctorian] Recovered active local session on this device:", parsed.email);
-          }
-        } catch (e) {
-          console.warn("[Doctorian] Cleaned invalid offline user profile:", e);
-          try { localStorage.removeItem('medical_user'); } catch (_) {}
+      try {
+        const authenticatedUser = await api.auth.me();
+        if (authenticatedUser) {
+          setUser(authenticatedUser);
         }
-      } else {
-        if (savedUserStr === "undefined" || savedUserStr === "null") {
-          try { localStorage.removeItem('medical_user'); } catch (_) {}
-        }
-        console.log("[Doctorian] New device detected: No locally stored user session exists.");
-      }
-
-      let attempts = 0;
-      const maxAttempts = 2;
-      let authenticatedUser: User | null = null;
-
-      while (attempts < maxAttempts) {
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Auth Synchronization Timeout")), 10000)
-        );
-
-        try {
-          authenticatedUser = await Promise.race([
-            api.auth.me(),
-            timeoutPromise
-          ]) as User | null;
-          
-          console.log("[Doctorian] Identity verified from server:", authenticatedUser ? authenticatedUser.email : "Guest/No Account");
-          if (authenticatedUser) {
-            setUser(authenticatedUser);
-          } else {
-            if (!savedUserStr) {
-              const defaultProfile: User = {
-                id: "usr-gloria-01",
-                email: "gloriajayakullo@gmail.com",
-                displayName: "Gloria Jay Akullo",
-                role: "doctor_admin",
-                subscriptionStatus: "active",
-                subscriptionTier: "pro",
-                credits: 99999,
-                createdAt: "2024-01-01T00:00:00.000Z"
-              };
-              setUser(defaultProfile);
-            } else {
-              setUser(recoveredUser);
-            }
-          }
-          await minInitDurationPromise;
-          setIsAuthReady(true);
-          console.log("[Doctorian] Neural Interface Ready (Initialization completed).");
-          return; // Success, exit completely
-        } catch (error: any) {
-          attempts++;
-          console.warn(`[Doctorian] Auth Handshake Notice (Attempt ${attempts}):`, error?.message || error);
-          if (attempts === maxAttempts) {
-            // Link sync offline fallback
-            if (!savedUserStr) {
-              const defaultProfile: User = {
-                id: "usr-gloria-01",
-                email: "gloriajayakullo@gmail.com",
-                displayName: "Gloria Jay Akullo",
-                role: "doctor_admin",
-                subscriptionStatus: "active",
-                subscriptionTier: "pro",
-                credits: 99999,
-                createdAt: "2024-01-01T00:00:00.000Z"
-              };
-              setUser(defaultProfile);
-            } else {
-              setUser(recoveredUser);
-            }
-            await minInitDurationPromise;
-            setIsAuthReady(true);
-            console.log("[Doctorian] Neural Interface Ready (Offline fallback active, 3-second initialization completed).");
-          } else {
-            // Wait a bit before retry
-            await new Promise(r => setTimeout(r, 800));
-          }
-        }
+      } catch (error: any) {
+        console.warn("[Doctorian] Background session check:", error?.message || error);
+      } finally {
+        setIsAuthReady(true);
       }
     };
     checkAuth();
@@ -4602,118 +4509,16 @@ export default function App() {
               </button>
             </div>
             
-            {/* Content Categories */}
-            <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
-              {/* Priority Core Section */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <h4 className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.2em]">{translate("Priority Care", currentLanguage)}</h4>
-                  </div>
-                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">Core</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {priorityNavLinks.map((item, iIdx) => {
-                    const isActive = currentView === item.id;
-                    const isUrgent = (item as any).isUrgent;
-                    return (
-                      <button
-                        key={`mob-priority-item-${item.id}-${iIdx}`}
-                        onClick={() => {
-                          if ('action' in item && typeof item.action === 'function') {
-                            (item as any).action();
-                          } else {
-                            setCurrentView(item.id as any);
-                          }
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all duration-200 active:scale-[0.96] group cursor-pointer ${
-                          isActive
-                            ? isUrgent
-                              ? 'bg-rose-600 border-rose-500 text-white shadow-md shadow-rose-500/20'
-                              : 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
-                            : isUrgent
-                              ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
-                              : 'bg-white dark:bg-slate-850 border-slate-200/70 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs'
-                        }`}
-                      >
-                        <div className={`p-2 rounded-xl shrink-0 transition-all ${
-                          isActive 
-                            ? 'bg-white/20 text-white' 
-                            : isUrgent
-                              ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:text-blue-600'
-                        }`}>
-                          {item.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-bold leading-tight line-clamp-1">
-                            {translate(item.label, currentLanguage)}
-                          </span>
-                          {item.badge && !isActive && (
-                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Sub-Pages & Tools Categorized */}
-              {subPagesCategories.map((section, sIdx) => (
-                <div key={`mob-sec-${section.category}-${sIdx}`} className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="flex items-center gap-2 px-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
-                    <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{translate(section.category, currentLanguage)}</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {section.items.map((item, iIdx) => {
-                      const isActive = currentView === item.id;
-                      return (
-                        <button
-                          key={`mob-sub-item-${item.id}-${iIdx}`}
-                          onClick={() => {
-                            if ('action' in item && typeof item.action === 'function') {
-                              (item as any).action();
-                            } else {
-                              setCurrentView(item.id as any);
-                            }
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all duration-200 active:scale-[0.96] group cursor-pointer ${
-                            isActive
-                              ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
-                              : 'bg-white dark:bg-slate-850 border-slate-200/70 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-xl shrink-0 transition-all ${
-                            isActive 
-                              ? 'bg-white/20 text-white' 
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:text-blue-500'
-                          }`}>
-                            {item.icon}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[11px] font-bold leading-tight line-clamp-1">
-                              {translate(item.label, currentLanguage)}
-                            </span>
-                            {isActive && (
-                              <span className="block text-[7px] font-bold text-white/80 uppercase tracking-widest mt-0.5">
-                                ACTIVE
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            {/* Content Categories with Intelligent Non-Repeating App Buttons in Two Columns */}
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+              <AndroidAppButtons
+                currentView={currentView}
+                onNavigate={(view) => {
+                  setCurrentView(view as any);
+                  setIsMobileMenuOpen(false);
+                }}
+                onItemClick={() => setIsMobileMenuOpen(false)}
+              />
             </div>
           </motion.div>
         </motion.div>
@@ -4876,12 +4681,14 @@ export default function App() {
       </div>
     </div>
 
-    {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << */}
-    <MobileBottomNav 
-      currentView={currentView} 
-      onNavigate={(view) => setCurrentView(view as any)}
-      onOpenMenu={() => setIsMobileMenuOpen(true)}
-    />
+    {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << (Hidden in full-screen AI chat to prevent blocking the input card) */}
+    {currentView !== 'ai_nexus' && (
+      <MobileBottomNav 
+        currentView={currentView} 
+        onNavigate={(view) => setCurrentView(view as any)}
+        onOpenMenu={() => setIsMobileMenuOpen(true)}
+      />
+    )}
 
   </div>
 </ErrorBoundary>

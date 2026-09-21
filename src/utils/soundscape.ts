@@ -121,7 +121,7 @@ class SoundscapeEngine {
 
       // Handle locked browser situations
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
+        this.ctx.resume().catch(() => {});
       }
 
       this.isPlaying = true;

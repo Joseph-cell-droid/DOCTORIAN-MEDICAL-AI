@@ -125,30 +125,14 @@ export function useAutoLanguageSetup({
     if (mappedLang === 'English (US)' || mappedLang === 'English (UK)') {
       setCurrentLanguage(mappedLang);
       localStorage.setItem("app_lang", mappedLang);
-      
-      // Notify user about the automatic language match
-      setToast({
-        message: `🌐 Browser language detected (${detectedLangCode}). Interface set to ${mappedLang}.`,
-        type: 'success'
-      });
     } else {
-      // For any non-English language, we set the active language and download the offline MarianMT package
+      // For any non-English language, set the active language and initialize offline pack quietly
       setCurrentLanguage(mappedLang);
       localStorage.setItem("app_lang", mappedLang);
 
       const isDownloaded = downloadedLanguages.includes(mappedLang);
       if (!isDownloaded) {
-        // Trigger the MarianMT translation pack download on first load for onboarding smoothness!
         handleDownloadLanguage(mappedLang);
-        setToast({
-          message: `🌐 Auto-detected language: ${mappedLang}. Downloading offline MarianMT translation package for a smooth offline experience...`,
-          type: 'info'
-        });
-      } else {
-        setToast({
-          message: `🌐 Auto-detected language: ${mappedLang}. Offline translation model package is already compiled.`,
-          type: 'success'
-        });
       }
     }
   }, []);

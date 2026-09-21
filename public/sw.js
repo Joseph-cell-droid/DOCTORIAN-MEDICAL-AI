@@ -102,6 +102,7 @@ self.addEventListener('fetch', (event) => {
           })
           .catch((err) => {
             console.debug('[Doctorian SW] Network fetch omitted (offline):', url.pathname);
+            return cachedResponse || new Response('', { status: 408, statusText: 'Offline' });
           });
 
         return cachedResponse || fetchPromise;
@@ -113,17 +114,22 @@ self.addEventListener('fetch', (event) => {
   // 4. Default standard caching - Cache falling back to network
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Safe fallback if asset not in cache and network offline
-      });
+      return (
+        response ||
+        fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseClone);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            return new Response('', { status: 404, statusText: 'Not Found' });
+          })
+      );
     })
   );
 });

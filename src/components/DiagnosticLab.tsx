@@ -272,6 +272,67 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
   const [tfBackendName, setTfBackendName] = useState<string>('cpu');
   const [biometricSyncStatus, setBiometricSyncStatus] = useState<string | null>(null);
 
+  // Genomic Sequencer States
+  const [genomicSequence, setGenomicSequence] = useState<string>('');
+  const [sequencingProgress, setSequencingProgress] = useState(0);
+
+  // Imaging Scan States
+  const [imagingScan, setImagingScan] = useState<{ 
+    id: string; 
+    type: string; 
+    findings: string; 
+    confidence: number;
+    isMicroscopeBlood?: boolean;
+    microscopeDetails?: MicroscopeBloodAnalysis;
+    imageUrl?: string;
+  } | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Lab Tests States
+  const [labTests, setLabTests] = useState<LabTest[]>([
+    {
+      id: '1',
+      name: 'Glucose (HbA1c)',
+      category: 'Blood',
+      status: 'Completed',
+      date: '2026-04-28',
+      result: '5.4',
+      unit: '%',
+      referenceRange: '4.0 - 5.6',
+      isNormal: true
+    },
+    {
+      id: '2',
+      name: 'Dopamine Synthesis Index',
+      category: 'Genetic',
+      status: 'Analyzed',
+      date: '2026-04-10',
+      result: '88',
+      unit: 'PSI',
+      referenceRange: '70 - 100',
+      isNormal: true
+    },
+    {
+      id: '3',
+      name: 'Cortisol (Am)',
+      category: 'Blood',
+      status: 'Completed',
+      date: '2026-05-01',
+      result: '22.4',
+      unit: 'µg/dL',
+      referenceRange: '6.2 - 19.4',
+      isNormal: false
+    }
+  ]);
+  const [showAddTest, setShowAddTest] = useState(false);
+  const [newTest, setNewTest] = useState<Partial<LabTest>>({
+    category: 'Blood',
+    status: 'Completed'
+  });
+
+  // Clinical AI Synthesis State
+  const [aiSynthesisResult, setAiSynthesisResult] = useState<string | null>(null);
+
   const handleSyncVitalsFromWearable = useCallback(() => {
     if (arduino && arduino.vitals) {
       if (arduino.vitals.heartRate) setHeartRate(arduino.vitals.heartRate);
@@ -424,9 +485,6 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
     }
   };
 
-  const [genomicSequence, setGenomicSequence] = useState<string>('');
-  const [sequencingProgress, setSequencingProgress] = useState(0);
-
   const numericCredits = parseCreditsToNumber(user?.credits);
   const isUnlimited = isCreditsUnlimited(user?.credits);
 
@@ -445,59 +503,6 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ user, onUpdateUser
       });
     }, 50);
   };
-  const [imagingScan, setImagingScan] = useState<{ 
-    id: string; 
-    type: string; 
-    findings: string; 
-    confidence: number;
-    isMicroscopeBlood?: boolean;
-    microscopeDetails?: MicroscopeBloodAnalysis;
-    imageUrl?: string;
-  } | null>(null);
-
-  const [labTests, setLabTests] = useState<LabTest[]>([
-    {
-      id: '1',
-      name: 'Glucose (HbA1c)',
-      category: 'Blood',
-      status: 'Completed',
-      date: '2026-04-28',
-      result: '5.4',
-      unit: '%',
-      referenceRange: '4.0 - 5.6',
-      isNormal: true
-    },
-    {
-      id: '2',
-      name: 'Dopamine Synthesis Index',
-      category: 'Genetic',
-      status: 'Analyzed',
-      date: '2026-04-10',
-      result: '88',
-      unit: 'PSI',
-      referenceRange: '70 - 100',
-      isNormal: true
-    },
-    {
-      id: '3',
-      name: 'Cortisol (Am)',
-      category: 'Blood',
-      status: 'Completed',
-      date: '2026-05-01',
-      result: '22.4',
-      unit: 'µg/dL',
-      referenceRange: '6.2 - 19.4',
-      isNormal: false
-    }
-  ]);
-
-  const [showAddTest, setShowAddTest] = useState(false);
-  const [newTest, setNewTest] = useState<Partial<LabTest>>({
-    category: 'Blood',
-    status: 'Completed'
-  });
-
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -639,8 +644,6 @@ Format your response as a JSON object matching this schema exactly:
       setNewTest({ category: 'Blood', status: 'Completed' });
     }
   };
-
-  const [aiSynthesisResult, setAiSynthesisResult] = useState<string | null>(null);
 
   const runClinicalSynthesis = async () => {
     if (numericCredits < 0.5 && !isUnlimited) {
@@ -2074,3 +2077,5 @@ Can you synthesize these probabilistic mathematical outcomes, describe potential
     </div>
   );
 };
+
+export default DiagnosticLab;

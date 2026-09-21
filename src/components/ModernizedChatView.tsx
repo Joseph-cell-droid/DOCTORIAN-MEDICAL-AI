@@ -13,6 +13,8 @@ import {
 import { Doctorian3DRobot } from './Doctorian3DRobot';
 import { api } from '../api';
 import { cleanAiResponse, ensureModernEmojiInteractivity, extractInteractiveSuggestions } from '../utils/cleanAiResponse';
+import { ModernBotResponseSpace } from './ModernBotResponseSpace';
+import { DoctorianWelcomeCanvas } from './DoctorianWelcomeCanvas';
 
 export interface ModernizedChatViewProps {
   user: any;
@@ -537,23 +539,34 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         contextNote += ` Patient real-time telemetry: HR ${arduino.heartRate} bpm, SpO2 ${arduino.spo2 || 98}%, Temp ${arduino.temperature || 36.8}°C.`;
       }
 
-      const prompt = `Patient symptom/inquiry: "${text}".${contextNote} Provide an empathetic, clear, structured medical response. If prescribing or suggesting supportive care, include clear rest/fluids, medication cautions, and warning signs.`;
+      // Build multi-turn context array for conversational memory
+      const chatPayload = newMsgs.map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        text: m.text,
+      }));
+
+      // Enrich the active user query with telemetry & guidelines context
+      if (chatPayload.length > 0 && contextNote) {
+        const lastIdx = chatPayload.length - 1;
+        chatPayload[lastIdx].text = `${chatPayload[lastIdx].text}\n[Clinical Context: ${contextNote.trim()}]`;
+      }
       
       const clinicalSystemInstruction = 
-        "You are Doctorian AI, an advanced modern clinical intelligence assistant.\n" +
-        "MANDATORY FORMATTING INSTRUCTIONS:\n" +
-        "1. ZERO ASTERISKS: NEVER use double asterisks (**) or single asterisks (*) anywhere in your response. Do not use markdown bolding like **this**. Present all headings, titles, labels, and text cleanly without asterisks.\n" +
-        "2. MANDATORY EMOJIS: You MUST always use rich, friendly, and relevant emojis throughout your entire response (e.g. 🩺, 💊, 💧, 🌡️, 🏥, 🍎, 💡, ✨, 📋, ⚠️, ❤️, 🏃‍♂️, 🛌, 🤝, ❓). Every key section, list bullet, and recommendation MUST begin with an emoji to make the consultation vibrant, modern, and engaging.\n" +
-        "3. MODERN STRUCTURE: Organize your consultation into clean, easy-to-read sections using emoji badges:\n" +
+        "You are Doctorian Clinical AI, an advanced evidence-based clinical intelligence co-pilot.\n\n" +
+        "MANDATORY CLINICAL DIRECTIVES:\n" +
+        "1. EVIDENCE-BASED GROUNDING: Adhere to WHO standards and Uganda Clinical Guidelines (UCG 2023/2026). Address endemic diseases (Malaria, tuberculosis, cholera) with clinical precision.\n" +
+        "2. STRUCTURED CLINICAL SECTIONS: Format your consultation with distinct emoji-badged sections:\n" +
         "   🩺 Clinical Assessment\n" +
         "   💡 Recommended Actions\n" +
         "   💊 Medication & Care Guidance\n" +
         "   ⚠️ Warning Signs & Safety\n" +
         "   ❓ Interactive Follow-Up Questions\n" +
-        "4. INTERACTIVITY: Always conclude with 1 to 2 caring diagnostic questions (with emojis) asking about their symptoms, duration, or comfort to keep the conversation interactive.";
+        "3. FORMATTING: Clean readable lines with bullet points (•). Keep explanations concise, clear, and reassuring.\n" +
+        "4. INTERACTIVE CO-PILOT: At the conclusion of your response, always ask 1 to 2 warm diagnostic questions (with ❓) regarding duration, fever, or symptom changes to support ongoing clinical triage.\n" +
+        "5. CLOSING: Conclude all medical guidance with: 'Medical attention is recommended.'";
 
       const response = await api.ai.aiChat(
-        prompt,
+        chatPayload,
         clinicalSystemInstruction,
         "gemini-3.8-flash",
         0.6
@@ -600,6 +613,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Regenerate last response
+  const handleRegenerate = () => {
+    const lastUser = [...messages].reverse().find((m) => m.sender === 'user');
+    if (lastUser && !isLoading) {
+      handleSendMessage(lastUser.text);
     }
   };
 
@@ -1007,15 +1028,12 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 custom-scrollbar flex flex-col">
         {filteredMessages.length === 0 ? (
-          /* Blank Waiting Canvas (ChatGPT style clean waiting state) */
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto select-none opacity-40">
-            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-2.5">
-              <Sparkles size={20} className="text-cyan-400" />
-            </div>
-            <p className="text-xs sm:text-sm text-slate-400 font-medium">
-              Doctorian AI is ready. Waiting for your query...
-            </p>
-          </div>
+          /* Doctorian Clinical Welcome Canvas with Quick Starts & Live Telemetry */
+          <DoctorianWelcomeCanvas
+            onSelectPrompt={(p) => handleSendMessage(p)}
+            arduino={arduino}
+            isUgandaMOHActive={isUgandaMOHActive}
+          />
         ) : (
           filteredMessages.map((msg) => (
             <div
@@ -1045,17 +1063,18 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   </div>
                 </div>
               ) : (
-                /* Bot Message: Generated directly on page background like ChatGPT, NO CARDS */
+                /* Bot Message: Clinical Response Space */
                 <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 border border-cyan-400/30 shrink-0 mt-0.5">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25 border border-cyan-400/40 shrink-0 mt-0.5">
                     <Sparkles size={16} className="text-cyan-200" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <ModernBotMessageBubble
+                    <ModernBotResponseSpace
                       msg={msg}
                       onSendPrompt={(p) => handleSendMessage(p)}
                       onSpeak={(t) => speakText(t)}
                       isSpeaking={isSpeaking}
+                      onRegenerate={handleRegenerate}
                     />
                   </div>
                 </div>
@@ -1083,18 +1102,21 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 3. RAISED CHATBOT TEXT CARD & BOTTOM BUTTONS CARD */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className="mt-auto px-3 sm:px-5 pb-3 sm:pb-5 pt-2 bg-gradient-to-t from-[#040816] via-[#050b1a]/95 to-transparent z-20 shrink-0">
+      <div className="mt-auto px-3 sm:px-6 pb-4 sm:pb-6 pt-3 bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent z-30 shrink-0">
         <div className="max-w-4xl mx-auto space-y-2 sm:space-y-2.5">
           
-          {/* TOP: Raised Chatbot Text Card */}
-          <div className="relative bg-[#0c183a]/95 backdrop-blur-xl border border-slate-700/90 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 shadow-2xl shadow-black/70 focus-within:border-blue-500/80 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+          {/* TOP: Raised Illuminated Chatbot Text Card */}
+          <div className="relative bg-[#071333] sm:bg-[#081842]/98 backdrop-blur-2xl border-2 border-cyan-400/60 hover:border-cyan-300 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)] focus-within:border-cyan-300 focus-within:ring-4 focus-within:ring-cyan-400/30 transition-all overflow-visible">
             
+            {/* Top Cyan Neon Accent Line */}
+            <div className="absolute -top-[2px] left-6 right-6 h-[2.5px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent pointer-events-none opacity-100 shadow-[0_0_12px_rgba(6,182,212,0.8)]" />
+
             {/* TOP LEFT: Prominently displayed Smart Actions Icons */}
-            <div className="flex items-center justify-between pb-2 px-1 border-b border-slate-800/70 mb-2 gap-2 flex-wrap">
+            <div className="flex items-center justify-between pb-2.5 px-1 border-b border-cyan-900/40 mb-2.5 gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-400 mr-0.5 shrink-0">
-                  <Sparkles size={13} className="text-cyan-400" />
-                  <span className="hidden xs:inline">Smart Actions:</span>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/40 text-[11px] font-bold text-cyan-300 mr-0.5 shrink-0">
+                  <Sparkles size={13} className="text-cyan-400 animate-pulse" />
+                  <span>Smart Actions</span>
                 </div>
 
                 {/* 1. Medication Reminder */}
@@ -1102,10 +1124,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   type="button"
                   id="smart-action-reminder"
                   onClick={() => onNavigate ? onNavigate('meds') : alert("Medication Reminders opened")}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-950/60 hover:bg-blue-900/80 border border-blue-500/30 hover:border-blue-400 text-blue-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-600/25 hover:bg-blue-600/40 border border-blue-400/60 hover:border-blue-300 text-blue-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
                   title="Set Medication Reminder"
                 >
-                  <Calendar size={13} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                  <Calendar size={13} className="text-blue-300 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">Reminder</span>
                 </button>
 
@@ -1117,10 +1139,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     setCallMode('voice');
                     setShowVoiceCallModal(true);
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/30 hover:border-purple-400 text-purple-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-600/25 hover:bg-purple-600/40 border border-purple-400/60 hover:border-purple-300 text-purple-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
                   title="Book Doctor Consultation"
                 >
-                  <UserCheck size={13} className="text-purple-400 group-hover:scale-110 transition-transform" />
+                  <UserCheck size={13} className="text-purple-300 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">Book Doctor</span>
                 </button>
 
@@ -1129,10 +1151,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   type="button"
                   id="smart-action-advice"
                   onClick={() => handleSendMessage("Can you provide evidence-based clinical precautions, dosage details, and differential diagnoses?")}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-950/60 hover:bg-amber-900/80 border border-amber-500/30 hover:border-amber-400 text-amber-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-600/25 hover:bg-amber-600/40 border border-amber-400/60 hover:border-amber-300 text-amber-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
                   title="Clinical Advice & Guidance"
                 >
-                  <Lightbulb size={13} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                  <Lightbulb size={13} className="text-amber-300 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">Advice</span>
                 </button>
 
@@ -1144,10 +1166,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     setActiveToolTab('lab');
                     setShowToolHub(true);
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/30 hover:border-emerald-400 text-emerald-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-400/60 hover:border-emerald-300 text-emerald-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
                   title="Diagnostic Lab Tests"
                 >
-                  <Activity size={13} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <Activity size={13} className="text-emerald-300 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">Lab Tests</span>
                 </button>
 
@@ -1162,10 +1184,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       handleSendMessage("Analyze my vital signs snapshot: HR 72 bpm, SpO2 98%, Temp 36.8°C. What is the clinical interpretation?");
                     }
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-600/25 hover:bg-cyan-600/40 border border-cyan-400/60 hover:border-cyan-300 text-cyan-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
                   title="Analyze Live Vitals"
                 >
-                  <Heart size={13} className="text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <Heart size={13} className="text-cyan-300 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">Vitals</span>
                 </button>
 
@@ -1174,10 +1196,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   type="button"
                   id="smart-action-sos"
                   onClick={() => handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!")}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/50 hover:bg-rose-900/80 border border-rose-500/40 hover:border-rose-400 text-rose-300 hover:text-white text-[11px] font-medium transition-all shadow-xs active:scale-95 group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-400/70 hover:border-rose-300 text-rose-100 hover:text-white text-[11px] font-bold transition-all shadow-xs active:scale-95 group cursor-pointer"
                   title="Emergency SOS"
                 >
-                  <AlertCircle size={13} className="text-rose-400 group-hover:scale-110 transition-transform" />
+                  <AlertCircle size={13} className="text-rose-300 group-hover:scale-110 transition-transform" />
                   <span className="hidden md:inline">SOS</span>
                 </button>
 
@@ -1187,7 +1209,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     type="button"
                     id="chatbot-smart-actions-btn"
                     onClick={() => setShowSmartActions(!showSmartActions)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-[11px] font-medium transition-all cursor-pointer shadow-xs active:scale-95"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-700 border border-slate-500/80 hover:border-slate-400 text-slate-100 text-[11px] font-semibold transition-all cursor-pointer shadow-xs active:scale-95"
                     title="All Smart Actions"
                   >
                     <MoreHorizontal size={13} />
@@ -1354,9 +1376,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               </div>
 
               {/* Right: Mode status */}
-              <div className="flex items-center gap-1.5 ml-auto text-[10.5px] text-slate-400 font-mono shrink-0">
+              <div className="flex items-center gap-1.5 ml-auto px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10.5px] text-emerald-300 font-mono font-semibold shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden md:inline text-slate-400">Online</span>
+                <span className="hidden md:inline">Online</span>
               </div>
             </div>
 
@@ -1443,7 +1465,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               }}
             />
 
-            {/* Input Form with Plus Button, Text Input, Mic & Send */}
+            {/* Input Form with Plus Button, High-Contrast Text Input Pill, Mic & Glowing Send Button */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1455,40 +1477,40 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPlusMenu(!showPlusMenu)}
-                className="w-10 h-10 rounded-full bg-[#08122a] border border-slate-700 hover:border-blue-500 flex items-center justify-center text-slate-300 hover:text-white shrink-0 transition-all cursor-pointer shadow-xs active:scale-95"
-                title="Attach clinical photo or vitals"
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0c1c47] hover:bg-[#142c6e] border-2 border-cyan-400/60 hover:border-cyan-300 flex items-center justify-center text-cyan-300 hover:text-white shrink-0 transition-all cursor-pointer shadow-lg active:scale-95"
+                title="Attach clinical photo, document or vitals"
               >
-                <Plus size={20} className={showPlusMenu ? 'rotate-45 transition-transform text-blue-400' : 'transition-transform'} />
+                <Plus size={20} className={showPlusMenu ? 'rotate-45 transition-transform text-cyan-300' : 'transition-transform'} />
               </button>
 
-              {/* Pill Input */}
-              <div className="flex-1 relative flex items-center bg-[#08122a] rounded-full border border-slate-700/90 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 px-4 py-1.5 transition-all">
+              {/* High-Contrast Pill Input Container */}
+              <div className="flex-1 relative flex items-center bg-[#040c24] rounded-full border-2 border-cyan-400/60 hover:border-cyan-300 focus-within:border-cyan-300 focus-within:ring-2 focus-within:ring-cyan-400/40 px-4 sm:px-5 py-1.5 sm:py-2 transition-all shadow-inner">
                 <input
                   type="text"
                   value={inputVal}
                   onChange={(e) => setInputVal(e.target.value)}
                   placeholder="Type your clinical question or symptom..."
-                  className="w-full bg-transparent text-sm text-white placeholder-slate-400 focus:outline-hidden py-1"
+                  className="w-full bg-transparent text-sm sm:text-base text-white placeholder-slate-200 font-medium focus:outline-hidden py-1"
                 />
 
                 {/* Voice Dictation Mic inside Pill */}
                 <button
                   type="button"
                   onClick={toggleSpeechRecognition}
-                  className={`p-1.5 rounded-full transition-colors cursor-pointer mr-1 ${
-                    isRecording ? 'text-rose-400 animate-pulse bg-rose-500/20' : 'text-slate-400 hover:text-white'
+                  className={`p-2 rounded-full transition-colors cursor-pointer mr-0.5 ${
+                    isRecording ? 'text-rose-400 animate-pulse bg-rose-500/30' : 'text-slate-300 hover:text-cyan-300 hover:bg-white/10'
                   }`}
                   title={isRecording ? 'Listening... click to stop' : 'Click to speak'}
                 >
-                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                  {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
                 </button>
               </div>
 
-              {/* Royal Blue Send Button */}
+              {/* Royal Blue / Cyan Gradient Send Button */}
               <button
                 type="submit"
                 disabled={!inputVal.trim() || isLoading}
-                className="w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30 active:scale-95 transition-all cursor-pointer"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 hover:from-blue-500 hover:via-cyan-400 hover:to-teal-300 disabled:from-slate-800 disabled:via-slate-800 disabled:to-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-400/50 active:scale-95 transition-all cursor-pointer border border-cyan-300/60"
                 title="Send Message"
               >
                 <Send size={18} className="translate-x-0.5" />
@@ -1496,8 +1518,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             </form>
           </div>
 
-          {/* Medical Disclaimer */}
-          <p className="text-[9px] text-center text-slate-400 font-medium tracking-wide">
+          {/* High-Legibility Medical Disclaimer */}
+          <p className="text-[10px] sm:text-[11px] text-center text-slate-300/90 font-medium tracking-wide">
             Doctorian AI provides clinical decision support • In an emergency, call your local medical facility immediately.
           </p>
         </div>

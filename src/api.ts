@@ -1279,16 +1279,23 @@ export const api = {
         return getStorageItem<User | null>("medical_user", null);
       }
       try {
-        const res = await fetchWithRetry(`${API_BASE}/auth/me`, {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const res = await fetch(`${API_BASE}/auth/me`, {
           credentials: "include",
+          signal: controller.signal,
         });
-        const data = await res.json();
-        if (data.user) {
-          setStorageItem("medical_user", data.user);
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          return getStorageItem<User | null>("medical_user", null);
         }
-        return data.user as User | null;
+        const data = await res.json();
+        if (data && data.user) {
+          setStorageItem("medical_user", data.user);
+          return data.user as User;
+        }
+        return getStorageItem<User | null>("medical_user", null);
       } catch (err) {
-        console.warn("[Offline Auth] Failed to fetch active profile context, loading cached local copy...");
         return getStorageItem<User | null>("medical_user", null);
       }
     },

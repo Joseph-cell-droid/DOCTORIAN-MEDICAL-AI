@@ -21,8 +21,9 @@ import {
   Layers,
   ArrowRightLeft,
   HardDrive,
+  LayoutGrid,
 } from 'lucide-react';
-import { AndroidAppButtons } from './AndroidAppButtons';
+import { AndroidAppButtons, CLINICAL_MODULES_REGISTRY } from './AndroidAppButtons';
 
 interface MobileBottomNavProps {
   currentView: string;
@@ -340,6 +341,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const isRecordsActive = currentView === 'records' || currentView === 'health_trace';
   const isProfileActive = currentView === 'profile' || currentView === 'admin';
 
+  // In the dedicated full-screen AI Consultation view, hide MobileBottomNav
+  // so it never blocks or overlaps the chatbot's bottom text card and input controls.
+  if (currentView === 'ai_nexus') {
+    return null;
+  }
+
   return (
     <>
       {/* 1. App Buttons Full Drawer / Modal (Matching Image 1 and Image 2) */}
@@ -361,66 +368,48 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="relative w-full max-w-2xl mx-auto bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 rounded-t-[2.5rem] shadow-2xl overflow-hidden max-h-[88vh] flex flex-col"
+              className="relative w-full max-w-2xl mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 rounded-t-[2.2rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
               {/* Top Handle */}
-              <div className="w-full pt-3 pb-2 flex justify-center shrink-0">
+              <div className="w-full pt-3 pb-1.5 flex justify-center shrink-0">
                 <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
               </div>
 
-              {/* Sheet Header */}
+              {/* Sheet Header - Modern Doctorian Look */}
               <div className="px-5 sm:px-6 pb-3 pt-1 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0">
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-                    App Buttons & Clinical Pages
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Quickly switch across medical monitoring & triage modules
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                      <LayoutGrid size={15} strokeWidth={2.4} />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                      Clinical App Buttons & Hub
+                    </h3>
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 font-mono">
+                      16 Modules
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Tap any app button below to navigate between diagnostic modules & tools
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsSwitcherOpen(false)}
                   className="p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Close Navigation Drawer"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              {/* Sheet Body with App Buttons */}
-              <div className="p-5 sm:p-6 overflow-y-auto space-y-6 no-scrollbar">
-                {/* Horizontal Squircle Buttons Row (Image 2 Top) */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Quick Access
-                    </span>
-                    <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                      Tap any to open
-                    </span>
-                  </div>
-                  <AndroidAppButtons
-                    variant="horizontal_row"
-                    currentView={currentView}
-                    onNavigate={onNavigate}
-                    onItemClick={() => setIsSwitcherOpen(false)}
-                  />
-                </div>
-
-                {/* Vertical App Buttons List (Image 1) */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      All Clinical Modules
-                    </span>
-                  </div>
-                  <AndroidAppButtons
-                    variant="vertical_list"
-                    currentView={currentView}
-                    onNavigate={onNavigate}
-                    onItemClick={() => setIsSwitcherOpen(false)}
-                  />
-                </div>
+              {/* Sheet Body with Intelligent Non-Repeating App Buttons & Directory */}
+              <div className="p-4 sm:p-5 overflow-y-auto no-scrollbar">
+                <AndroidAppButtons
+                  currentView={currentView}
+                  onNavigate={onNavigate}
+                  onItemClick={() => setIsSwitcherOpen(false)}
+                />
               </div>
             </motion.div>
           </div>
@@ -449,14 +438,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 title="Expand Navigation Bar"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
-                  <Sparkles size={16} />
+                  <LayoutGrid size={16} strokeWidth={2.4} />
                 </div>
                 <div className="flex flex-col pr-1">
                   <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 leading-tight">
                     {activePageMeta.label.split(' ')[0]}
                   </span>
                   <span className="text-[9px] text-blue-600 dark:text-blue-400 font-semibold uppercase">
-                    Tap to expand
+                    Apps • Tap to expand
                   </span>
                 </div>
               </button>
@@ -484,144 +473,283 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-[140] w-auto max-w-lg sm:max-w-xl select-none"
           >
             {/* The Main Curved Capsule */}
-            <div className="bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800 rounded-full shadow-[0_12px_45px_rgba(0,0,0,0.14)] dark:shadow-[0_12px_45px_rgba(0,0,0,0.7)] backdrop-blur-2xl h-16 sm:h-18 px-3 sm:px-5 flex items-center justify-between gap-1 sm:gap-2">
-              {/* Optional Mini Left Slide Trigger */}
+            <div className="bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800/80 rounded-full shadow-[0_16px_40px_-10px_rgba(0,0,0,0.16)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-2xl h-17 sm:h-19 px-2 sm:px-4 flex items-center justify-between gap-1">
+              {/* Sleek Mini Left Slide Trigger */}
               <button
                 type="button"
                 onClick={() => toggleCornerDock('left')}
                 title="Slide to left corner (<<)"
-                className="p-1.5 rounded-full text-slate-300 hover:text-blue-600 dark:text-slate-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                className="w-6 h-9 rounded-full bg-slate-100/60 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-all cursor-pointer shrink-0"
               >
-                <ChevronsLeft size={16} className="stroke-[2.5]" />
+                <ChevronsLeft size={15} className="stroke-[2.5]" />
               </button>
 
-              {/* 1. Home Button */}
+              {/* 1. Home Button - Latest Capsule Squircle Look */}
               <button
                 type="button"
                 onClick={() => onNavigate('home')}
-                className={`flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0 ${
-                  isHomeActive
-                    ? 'text-blue-600 dark:text-blue-400 font-bold'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
+                aria-label="Home Overview"
+                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
-                <Home size={22} className="shrink-0" />
-                <span className="text-[10px] sm:text-[11px] font-semibold mt-0.5 leading-none">
+                <div
+                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                    isHomeActive
+                      ? 'bg-blue-500/15 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30 dark:ring-blue-400/30 shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Home
+                    size={19}
+                    strokeWidth={isHomeActive ? 2.5 : 2}
+                    className={`transition-transform duration-200 group-hover:scale-110 ${
+                      isHomeActive ? 'scale-105' : ''
+                    }`}
+                  />
+                  {isHomeActive && (
+                    <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-600" />
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                    isHomeActive
+                      ? 'font-bold text-blue-600 dark:text-blue-400'
+                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                  }`}
+                >
                   Home
                 </span>
                 {isHomeActive ? (
                   <motion.span
                     layoutId="activeDockDot"
-                    className="w-3.5 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1"
+                    className="w-4 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1 shadow-[0_1px_5px_rgba(37,99,235,0.4)]"
                     transition={{ type: 'spring', stiffness: 450, damping: 30 }}
                   />
                 ) : (
-                  <span className="w-3.5 h-1 mt-1 opacity-0" />
+                  <span className="w-4 h-1 mt-1 opacity-0" />
                 )}
               </button>
 
-              {/* 2. Health Button (Direct to Monitor / Vitality) */}
+              {/* 2. Health Button (Direct to Monitor / Vitality) - Latest Capsule Squircle Look */}
               <button
                 type="button"
                 onClick={() => onNavigate('monitor')}
-                className={`flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0 ${
-                  isHealthActive
-                    ? 'text-blue-600 dark:text-blue-400 font-bold'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
+                aria-label="Health Bio-Telemetry"
+                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
-                <Heart size={22} className="shrink-0" />
-                <span className="text-[10px] sm:text-[11px] font-semibold mt-0.5 leading-none">
+                <div
+                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                    isHealthActive
+                      ? 'bg-rose-500/15 dark:bg-rose-400/20 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30 dark:ring-rose-400/30 shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Heart
+                    size={19}
+                    strokeWidth={isHealthActive ? 2.5 : 2}
+                    className={`transition-transform duration-200 group-hover:scale-110 ${
+                      isHealthActive ? 'scale-105 fill-rose-500/20' : ''
+                    }`}
+                  />
+                  {/* Micro Live Telemetry Pulse Beacon */}
+                  <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
+                  </span>
+                </div>
+                <span
+                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                    isHealthActive
+                      ? 'font-bold text-rose-600 dark:text-rose-400'
+                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                  }`}
+                >
                   Health
                 </span>
                 {isHealthActive ? (
                   <motion.span
                     layoutId="activeDockDot"
-                    className="w-3.5 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1"
+                    className="w-4 h-1 rounded-full bg-rose-600 dark:bg-rose-400 mt-1 shadow-[0_1px_5px_rgba(225,29,72,0.4)]"
                     transition={{ type: 'spring', stiffness: 450, damping: 30 }}
                   />
                 ) : (
-                  <span className="w-3.5 h-1 mt-1 opacity-0" />
+                  <span className="w-4 h-1 mt-1 opacity-0" />
                 )}
               </button>
 
-              {/* 3. Center Promoted Elevated Circular Sparkle Button (Image 2) */}
-              <div className="relative shrink-0 px-1">
+              {/* 3. Center Promoted Elevated Circular App Buttons Launcher */}
+              <div className="relative shrink-0 px-1 flex flex-col items-center justify-center">
                 {/* Glowing Concentric Halo Effect */}
-                <div className="absolute -inset-2 rounded-full bg-blue-500/20 blur-md -z-10 animate-pulse" />
-                <div className="p-1 rounded-full bg-gradient-to-b from-blue-500/10 to-transparent">
+                <div className="absolute -inset-2 top-0 rounded-full bg-blue-500/25 blur-md -z-10 animate-pulse" />
+                <div className="p-1 rounded-full bg-gradient-to-b from-blue-500/15 to-transparent">
                   <button
                     type="button"
                     onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-                    title="Open App Buttons Drawer"
-                    className="w-13 h-13 sm:w-15 sm:h-15 -mt-5 sm:-mt-6 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-[0_8px_25px_rgba(37,99,235,0.5)] active:scale-95 hover:scale-105 transition-all cursor-pointer ring-4 ring-white dark:ring-slate-900 group"
+                    title="Clinical App Buttons & All Modules Hub (16 Apps)"
+                    aria-label="Clinical App Buttons & All Modules Hub"
+                    className="w-13 h-13 sm:w-15 sm:h-15 -mt-5 sm:-mt-6 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-600 text-white flex flex-col items-center justify-center shadow-[0_8px_25px_rgba(37,99,235,0.5)] active:scale-95 hover:scale-105 transition-all cursor-pointer ring-4 ring-white dark:ring-slate-900 group relative"
                   >
-                    <Sparkles
-                      size={24}
-                      className="text-white drop-shadow-sm group-hover:rotate-12 transition-transform duration-300"
-                    />
+                    {isSwitcherOpen ? (
+                      <div className="flex flex-col items-center justify-center">
+                        <X
+                          size={22}
+                          className="text-white drop-shadow-sm group-hover:rotate-90 transition-transform duration-300"
+                        />
+                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-wider uppercase text-blue-100 leading-none mt-0.5">
+                          Close
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center">
+                        {/* 4-App Square Grid Symbol representing App Buttons */}
+                        <div className="relative">
+                          <LayoutGrid
+                            size={21}
+                            strokeWidth={2.4}
+                            className="text-white drop-shadow-sm group-hover:scale-110 transition-transform duration-300"
+                          />
+                          {/* Mini indicator dot showing more app buttons inside */}
+                          <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-300 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400 border border-blue-600" />
+                          </span>
+                        </div>
+                        {/* Clear text indicator right on the button face */}
+                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-wider uppercase text-blue-100 leading-none mt-0.5 font-mono">
+                          Apps
+                        </span>
+                      </div>
+                    )}
                   </button>
                 </div>
+
+                {/* Subtitle label underneath aligned with Home, Health, Records, Profile */}
+                <span
+                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                    isSwitcherOpen
+                      ? 'font-bold text-blue-600 dark:text-blue-400'
+                      : 'font-medium text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  Apps
+                </span>
+                {isSwitcherOpen ? (
+                  <motion.span
+                    layoutId="activeDockDot"
+                    className="w-4 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1 shadow-[0_1px_5px_rgba(37,99,235,0.4)]"
+                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                  />
+                ) : (
+                  <span className="w-4 h-1 mt-1 opacity-0" />
+                )}
               </div>
 
-              {/* 4. Records Button */}
+              {/* 4. Records Button - Latest Capsule Squircle Look */}
               <button
                 type="button"
                 onClick={() => onNavigate('records')}
-                className={`flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0 ${
-                  isRecordsActive
-                    ? 'text-blue-600 dark:text-blue-400 font-bold'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
+                aria-label="Medical Records & Vault"
+                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
-                <Folder size={22} className="shrink-0" />
-                <span className="text-[10px] sm:text-[11px] font-semibold mt-0.5 leading-none">
+                <div
+                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                    isRecordsActive
+                      ? 'bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30 dark:ring-emerald-400/30 shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Folder
+                    size={19}
+                    strokeWidth={isRecordsActive ? 2.5 : 2}
+                    className={`transition-transform duration-200 group-hover:scale-110 ${
+                      isRecordsActive ? 'scale-105' : ''
+                    }`}
+                  />
+                  {isRecordsActive && (
+                    <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-600" />
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                    isRecordsActive
+                      ? 'font-bold text-emerald-600 dark:text-emerald-400'
+                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                  }`}
+                >
                   Records
                 </span>
                 {isRecordsActive ? (
                   <motion.span
                     layoutId="activeDockDot"
-                    className="w-3.5 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1"
+                    className="w-4 h-1 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-1 shadow-[0_1px_5px_rgba(5,150,105,0.4)]"
                     transition={{ type: 'spring', stiffness: 450, damping: 30 }}
                   />
                 ) : (
-                  <span className="w-3.5 h-1 mt-1 opacity-0" />
+                  <span className="w-4 h-1 mt-1 opacity-0" />
                 )}
               </button>
 
-              {/* 5. Profile Button */}
+              {/* 5. Profile Button - Latest Capsule Squircle Look */}
               <button
                 type="button"
                 onClick={() => onNavigate('profile')}
-                className={`flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0 ${
-                  isProfileActive
-                    ? 'text-blue-600 dark:text-blue-400 font-bold'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
+                aria-label="User Profile & Settings"
+                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
-                <User size={22} className="shrink-0" />
-                <span className="text-[10px] sm:text-[11px] font-semibold mt-0.5 leading-none">
+                <div
+                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                    isProfileActive
+                      ? 'bg-indigo-500/15 dark:bg-indigo-400/20 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 dark:ring-indigo-400/30 shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                  }`}
+                >
+                  <User
+                    size={19}
+                    strokeWidth={isProfileActive ? 2.5 : 2}
+                    className={`transition-transform duration-200 group-hover:scale-110 ${
+                      isProfileActive ? 'scale-105' : ''
+                    }`}
+                  />
+                  {isProfileActive && (
+                    <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-600" />
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                    isProfileActive
+                      ? 'font-bold text-indigo-600 dark:text-indigo-400'
+                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                  }`}
+                >
                   Profile
                 </span>
                 {isProfileActive ? (
                   <motion.span
                     layoutId="activeDockDot"
-                    className="w-3.5 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1"
+                    className="w-4 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-1 shadow-[0_1px_5px_rgba(79,70,229,0.4)]"
                     transition={{ type: 'spring', stiffness: 450, damping: 30 }}
                   />
                 ) : (
-                  <span className="w-3.5 h-1 mt-1 opacity-0" />
+                  <span className="w-4 h-1 mt-1 opacity-0" />
                 )}
               </button>
 
-              {/* Optional Mini Right Slide Trigger */}
+              {/* Sleek Mini Right Slide Trigger */}
               <button
                 type="button"
                 onClick={() => toggleCornerDock('right')}
                 title="Slide to right corner (>>)"
-                className="p-1.5 rounded-full text-slate-300 hover:text-blue-600 dark:text-slate-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                className="w-6 h-9 rounded-full bg-slate-100/60 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-all cursor-pointer shrink-0"
               >
-                <ChevronsRight size={16} className="stroke-[2.5]" />
+                <ChevronsRight size={15} className="stroke-[2.5]" />
               </button>
             </div>
           </motion.nav>

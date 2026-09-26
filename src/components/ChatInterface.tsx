@@ -4080,9 +4080,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
             ref={scrollRef} 
             onScroll={handleScroll} 
             className="flex-1 overflow-y-auto custom-scrollbar smooth-scroll chatbot-zoom-container"
+          >
+          <div 
+            className={`chatbot-zoom-content mx-auto px-3 sm:px-6 pt-3 sm:pt-4 pb-10 sm:pb-12 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}
             style={{ '--chatbot-zoom': zoomLevel / 100 } as React.CSSProperties}
           >
-          <div className={`mx-auto px-3 sm:px-6 pt-3 sm:pt-4 pb-10 sm:pb-12 transition-all duration-300 ${isWidescreen ? 'max-w-[95%] xl:max-w-7xl' : 'max-w-4xl'}`}>
             <AnimatePresence initial={false}>
               {messages.length === 0 && !isLoading ? (
                 <motion.div 

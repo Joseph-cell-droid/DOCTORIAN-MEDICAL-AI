@@ -38,7 +38,8 @@ import {
   Edit,
   MessageSquare,
   Wifi,
-  WifiOff
+  WifiOff,
+  Pill
 } from 'lucide-react';
 import { api, User, HealthRecord, Doctor, syncOfflineActions } from '../api';
 import { CyberSecurityPanel } from './CyberSecurityPanel';
@@ -46,6 +47,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { NeuralTrainingHub } from './NeuralTrainingHub';
 import { EmergencyRegistry } from './EmergencyRegistry';
 import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
+import { AdminMedicationAlarmManager } from './AdminMedicationAlarmManager';
 
 export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const currentUser = (() => {
@@ -60,7 +62,7 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
     return null;
   })();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback' | 'sectors' | 'emergency'>(() => {
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'system' | 'billing' | 'training' | 'doctors' | 'feedback' | 'sectors' | 'emergency' | 'med_alarms'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('admin_active_tab');
       if (saved) return saved as any;
@@ -1172,7 +1174,18 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
             }`}
           >
             <ShieldAlert size={16} aria-hidden="true" />
-            🚨 Emergency Registry & Dispatches
+            🚨 Emergency Registry
+          </button>
+          <button 
+            onClick={() => setActiveTab('med_alarms')}
+            role="tab"
+            aria-selected={activeTab === 'med_alarms'}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
+              activeTab === 'med_alarms' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <Pill size={16} aria-hidden="true" />
+            Targeted Dose Alarms
           </button>
         </div>
       </div>
@@ -3282,6 +3295,22 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
               <AmbulanceDispatchPanel />
               <EmergencyRegistry user={currentUser} onUpdate={() => {}} isAdmin={true} />
             </div>
+          </motion.div>
+        ) : activeTab === 'med_alarms' ? (
+          <motion.div
+            key="med_alarms-tab"
+            id="med_alarms-panel"
+            role="tabpanel"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
+          >
+            <AdminMedicationAlarmManager
+              currentUser={currentUser}
+              usersList={users}
+              onShowToast={(msg, type) => (addToast ? addToast(msg, type === 'warning' ? 'info' : (type || 'info')) : null)}
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>

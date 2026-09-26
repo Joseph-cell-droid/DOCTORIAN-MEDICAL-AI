@@ -1407,38 +1407,93 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Registration verification failed");
         return data.verified as boolean;
       },
-      async loginOptions(email: string) {
+      async checkDeviceBiometrics(): Promise<{
+        isSupported: boolean;
+        isPlatformAvailable: boolean;
+        authenticatorType: string;
+      }> {
+        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+          return { isSupported: false, isPlatformAvailable: false, authenticatorType: 'None' };
+        }
+        try {
+          const isPlatformAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          let authenticatorType = 'Platform Biometrics';
+          const ua = navigator.userAgent.toLowerCase();
+          if (ua.includes('mac') || ua.includes('iphone') || ua.includes('ipad')) {
+            authenticatorType = 'Touch ID / Face ID';
+          } else if (ua.includes('win')) {
+            authenticatorType = 'Windows Hello';
+          } else if (ua.includes('android')) {
+            authenticatorType = 'Fingerprint / Face Unlock';
+          }
+          return { isSupported: true, isPlatformAvailable, authenticatorType };
+        } catch (_) {
+          return { isSupported: true, isPlatformAvailable: false, authenticatorType: 'FIDO2 Security Key' };
+        }
+      },
+      async loginOptions(email?: string) {
         const res = await fetch(`${API_BASE}/auth/webauthn/login-options`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: email || undefined }),
           credentials: "include",
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to get login options");
+        if (!res.ok) throw new Error(data.error || "Failed to generate biometric challenge options");
         return data;
       },
-      async loginVerify(response: any, userId: string, email: string) {
+      async loginVerify(response: any, userId?: string | null, email?: string, challengeKey?: string) {
         const res = await fetch(`${API_BASE}/auth/webauthn/login-verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ response, userId, email, challengeKey }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Biometric login verification failed");
+        if (data.user) {
+          setStorageItem("medical_user", data.user);
+        }
+        return data as { verified: boolean; user: User; token?: string };
+      },
+      async enrollOptions(email?: string, displayName?: string) {
+        const res = await fetch(`${API_BASE}/auth/webauthn/enroll-options`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, displayName }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to get device enrollment options");
+        return data;
+      },
+      async enrollVerify(response: any, userId?: string, email?: string) {
+        const res = await fetch(`${API_BASE}/auth/webauthn/enroll-verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ response, userId, email }),
           credentials: "include",
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Login verification failed");
-        return data as { verified: boolean; user: User };
+        if (!res.ok) throw new Error(data.error || "Device passkey enrollment failed");
+        if (data.user) {
+          setStorageItem("medical_user", data.user);
+        }
+        return data as { verified: boolean; user: User; token?: string };
       },
-      async simulateLogin(email: string) {
+      async simulateLogin(email?: string) {
         const res = await fetch(`${API_BASE}/auth/webauthn/simulate-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: email || undefined }),
           credentials: "include",
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Simulated login failed");
-        return data as { verified: boolean; user: User };
+        if (data.user) {
+          setStorageItem("medical_user", data.user);
+        }
+        return data as { verified: boolean; user: User; token?: string };
       }
     },
     async sendMfaToken(email?: string) {

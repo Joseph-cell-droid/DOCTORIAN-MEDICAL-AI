@@ -23,6 +23,7 @@ import { AnomalyDetector } from './AnomalyDetector';
 import { ShapeMorphingBubbles } from './ShapeMorphingBubbles';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { VitalWaveform } from './VitalWaveform';
+import { DashboardQuickActions } from './DashboardQuickActions';
 import { isCreditsUnlimited, parseCreditsToNumber, formatCredits } from '../utils/creditUtils';
 import { translate } from '../utils/translations';
 
@@ -74,6 +75,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return localStorage.getItem('doctorian_encouraging_health_trend') || 'Optimal';
   });
   const [isAiCardLoading, setIsAiCardLoading] = useState<boolean>(false);
+  const [hourlyTipEnabled, setHourlyTipEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('doctorian_hourly_health_tip_enabled');
+      return stored !== null ? stored === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleHourlyTip = (enabled: boolean) => {
+    setHourlyTipEnabled(enabled);
+    try {
+      localStorage.setItem('doctorian_hourly_health_tip_enabled', String(enabled));
+    } catch {}
+  };
 
   const fetchEncouragingInfo = async (isManual: boolean = false) => {
     setIsAiCardLoading(true);
@@ -1206,6 +1222,15 @@ Provide 3 clear clinical takeaways:
         </div>
       </div>
 
+      {/* Quick Actions Widget */}
+      <DashboardQuickActions
+        user={user}
+        hourlyTipEnabled={hourlyTipEnabled}
+        onToggleHourlyTip={handleToggleHourlyTip}
+        onNavigate={onNavigate}
+        onShowToast={(msg, type) => addNotification(msg, type === 'error' ? 'warning' : (type || 'info'))}
+      />
+
       {/* Primary Metrics Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {vitalStats.map((stat, i) => (
@@ -1262,7 +1287,7 @@ Provide 3 clear clinical takeaways:
                 {stat.trend}
               </span>
             </div>
-            {i === 0 && encouragingInfo && (
+            {i === 0 && encouragingInfo && hourlyTipEnabled && (
               <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium relative z-10">
                 {encouragingInfo}
               </p>

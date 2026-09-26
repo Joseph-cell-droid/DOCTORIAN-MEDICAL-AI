@@ -30,6 +30,26 @@ export const db = firestoreInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+// Add Google Workspace Gmail scope for login and security alerts
+googleProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+
+// In-memory cache for Google OAuth access token (per workspace integration guidelines)
+let cachedAccessToken: string | null = null;
+
+export const getAccessToken = async (): Promise<string | null> => {
+  return cachedAccessToken;
+};
+
+export const setAccessToken = (token: string | null) => {
+  cachedAccessToken = token;
+};
+
+// Clear token on sign out
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    cachedAccessToken = null;
+  }
+});
 
 export const githubProvider = new GithubAuthProvider();
 githubProvider.addScope('user:email');
@@ -115,11 +135,21 @@ const syncUserProfile = async (user: User) => {
 };
 
 export const signInWithGoogle = async () => {
-  console.log("Starting Google Sign-In...");
+  console.log("Starting Google Sign-In with Gmail permissions...");
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
     console.log("Successfully signed in with Google:", user.email);
+
+    try {
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        cachedAccessToken = credential.accessToken;
+        console.log("[FIREBASE] Cached Google Workspace access token in memory");
+      }
+    } catch (tokenErr) {
+      console.warn("[FIREBASE] Could not extract Google OAuth credential:", tokenErr);
+    }
     
     await syncUserProfile(user);
     
@@ -140,6 +170,18 @@ export const signInWithSocial = async (provider: GoogleAuthProvider | GithubAuth
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
     
+    try {
+      if (provider instanceof GoogleAuthProvider || provider.providerId === 'google.com') {
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.accessToken) {
+          cachedAccessToken = credential.accessToken;
+          console.log("[FIREBASE] Cached Google Workspace access token in memory");
+        }
+      }
+    } catch (tokenErr) {
+      console.warn("[FIREBASE] Could not extract OAuth credential:", tokenErr);
+    }
+
     await syncUserProfile(user);
     
     return user;
@@ -152,4 +194,7 @@ export const signInWithSocial = async (provider: GoogleAuthProvider | GithubAuth
   }
 };
 
-export const logout = () => signOut(auth);
+export const logout = async () => {
+  cachedAccessToken = null;
+  return signOut(auth);
+};

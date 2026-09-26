@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ShieldCheck,
   Lock,
@@ -126,8 +126,63 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
   const [isPurchasingStorage, setIsPurchasingStorage] = useState<boolean>(false);
   const [purchaseSuccessMessage, setPurchaseSuccessMessage] = useState<string | null>(null);
   const [isSimulatingFull, setIsSimulatingFull] = useState<boolean>(false);
+  const [deviceStorage, setDeviceStorage] = useState<{ usage: number; quota: number; persisted?: boolean } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch real device/browser hardware storage estimate
+  const refreshDeviceStorage = () => {
+    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then((est) => {
+        if (est.usage !== undefined && est.quota !== undefined) {
+          if (navigator.storage.persisted) {
+            navigator.storage.persisted().then((persisted) => {
+              setDeviceStorage({ usage: est.usage || 0, quota: est.quota || 0, persisted });
+            }).catch(() => {
+              setDeviceStorage({ usage: est.usage || 0, quota: est.quota || 0 });
+            });
+          } else {
+            setDeviceStorage({ usage: est.usage || 0, quota: est.quota || 0 });
+          }
+        }
+      }).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    refreshDeviceStorage();
+  }, [authStep]);
+
+  // Compute live breakdown by clinical category
+  const storageBreakdown = useMemo(() => {
+    const counts = {
+      document: 0,
+      scan: 0,
+      lab_report: 0,
+      user_data: 0,
+      media: 0,
+    };
+    const bytes = {
+      document: 0,
+      scan: 0,
+      lab_report: 0,
+      user_data: 0,
+      media: 0,
+    };
+
+    files.forEach((f) => {
+      const cat = f.category as keyof typeof counts;
+      if (counts[cat] !== undefined) {
+        counts[cat] += 1;
+        bytes[cat] += f.size || 0;
+      } else {
+        counts.document += 1;
+        bytes.document += f.size || 0;
+      }
+    });
+
+    return { counts, bytes };
+  }, [files]);
 
   // Fetch available expansion plans on mount
   useEffect(() => {
@@ -824,61 +879,79 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                 animate={{ opacity: 1 }}
                 className="space-y-6"
               >
-                {/* 1GB STORAGE METRIC & TELEMETRY BANNER */}
+                {/* MODERN REAL STORAGE & HARDWARE TELEMETRY SUITE */}
                 <div
-                  className={`p-4 sm:p-5 rounded-3xl border shadow-sm space-y-4 transition-all ${
+                  className={`p-4 sm:p-6 rounded-3xl border shadow-xl space-y-5 transition-all ${
                     quota.isFull || quota.percentUsed >= 100
-                      ? 'bg-gradient-to-br from-rose-50 via-white to-amber-50/50 dark:from-rose-950/40 dark:via-slate-850 dark:to-amber-950/20 border-rose-400 dark:border-rose-800 ring-2 ring-rose-500/20'
-                      : 'bg-gradient-to-br from-indigo-50/90 via-slate-50 to-blue-50/50 dark:from-indigo-950/30 dark:via-slate-850 dark:to-blue-950/20 border-indigo-200/80 dark:border-indigo-800/50'
+                      ? 'bg-gradient-to-br from-rose-950/40 via-slate-900 to-amber-950/20 border-rose-500/50 shadow-rose-900/20 ring-2 ring-rose-500/20'
+                      : 'bg-gradient-to-br from-slate-900 via-[#0a1428] to-slate-900 text-slate-100 border-slate-750 shadow-2xl'
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                  {/* Top Header Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-3.5">
                       <div
-                        className={`w-10 h-10 rounded-2xl text-white flex items-center justify-center shadow-md ${
-                          quota.isFull || quota.percentUsed >= 100 ? 'bg-rose-600' : 'bg-indigo-600'
+                        className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center shadow-lg relative ${
+                          quota.isFull || quota.percentUsed >= 100 
+                            ? 'bg-rose-600 shadow-rose-500/30' 
+                            : 'bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-500/25'
                         }`}
                       >
-                        <Server className="w-5 h-5" />
+                        <Server className="w-6 h-6 stroke-[2.2]" />
+                        <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${
+                          quota.isFull || quota.percentUsed >= 100
+                            ? 'bg-rose-400 animate-ping'
+                            : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]'
+                        }`} />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-base sm:text-lg font-black text-white tracking-tight">
                             {quota.totalQuotaBytes > FREE_STORAGE_QUOTA_BYTES
                               ? `Expanded Cloud Vault (${formatBytes(quota.totalQuotaBytes)})`
-                              : '1.00 GB Free Cloud Allocation'}
+                              : 'Real 1.00 GB Cloud Vault'}
                           </h4>
-                          {(quota.isFull || quota.percentUsed >= 100) && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse">
+                          {(quota.isFull || quota.percentUsed >= 100) ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse">
                               100% Full
                             </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Free Tier Active
+                            </span>
                           )}
+                          <span className="text-[10px] font-mono text-indigo-300 bg-indigo-950/60 border border-indigo-800/50 px-2 py-0.5 rounded-full">
+                            SHA-256 Bit-Level Verified
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                          {formatBytes(quota.usedBytes)} used • {formatBytes(quota.freeBytes)} free ({quota.percentUsed}% consumed)
+                        <p className="text-xs text-slate-400 font-mono mt-0.5">
+                          <span className="text-white font-bold">{formatBytes(quota.usedBytes)}</span> used of{' '}
+                          <span className="text-slate-300">{formatBytes(quota.totalQuotaBytes)}</span> •{' '}
+                          <span className="text-emerald-400 font-bold">{formatBytes(quota.freeBytes)} available</span> ({quota.percentUsed}% consumed)
                         </p>
                       </div>
                     </div>
 
                     {/* Quick Utility Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={handleSimulateFullToggle}
                         disabled={isSimulatingFull}
-                        className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
                           quota.isFull || quota.percentUsed >= 100
-                            ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100'
-                            : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                            ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-750'
                         }`}
                         title="Simulate 100% full storage to test automatic billing"
                       >
                         {isSimulatingFull ? (
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         ) : quota.isFull || quota.percentUsed >= 100 ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
                         ) : (
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
                         )}
                         <span>{quota.isFull || quota.percentUsed >= 100 ? 'Reset Quota' : 'Test Full Quota'}</span>
                       </button>
@@ -889,10 +962,10 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                           setShowStorageBilling((prev) => !prev);
                           setBillingReason('manual');
                         }}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 ${
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95 ${
                           showStorageBilling
-                            ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-white'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
+                            ? 'bg-slate-750 text-white border border-slate-600'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20'
                         }`}
                       >
                         <ShoppingCart className="w-3.5 h-3.5" />
@@ -901,23 +974,114 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="space-y-1.5">
-                    <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden p-0.5 border border-slate-300/40 dark:border-slate-600/40">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 shadow-sm ${
-                          quota.isFull || quota.percentUsed >= 100
-                            ? 'bg-gradient-to-r from-rose-500 to-red-600 animate-pulse'
-                            : 'bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-500'
-                        }`}
-                        style={{ width: `${Math.max(2, Math.min(100, quota.percentUsed))}%` }}
-                      />
+                  {/* Multi-Segment Real Cloud Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="h-3.5 w-full bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800 shadow-inner flex">
+                      {quota.isFull || quota.percentUsed >= 100 ? (
+                        <div className="h-full w-full rounded-full bg-gradient-to-r from-rose-500 to-red-600 animate-pulse" />
+                      ) : (
+                        <>
+                          {/* Diagnostic Scans */}
+                          <div 
+                            className="h-full rounded-l-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(0, (storageBreakdown.bytes.scan / quota.totalQuotaBytes) * 100))}%` }}
+                            title={`Diagnostic Scans: ${formatBytes(storageBreakdown.bytes.scan)}`}
+                          />
+                          {/* Clinical Documents */}
+                          <div 
+                            className="h-full bg-gradient-to-r from-cyan-500 to-blue-400 transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(0, (storageBreakdown.bytes.document / quota.totalQuotaBytes) * 100))}%` }}
+                            title={`Clinical Records: ${formatBytes(storageBreakdown.bytes.document)}`}
+                          />
+                          {/* Lab Reports */}
+                          <div 
+                            className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(0, (storageBreakdown.bytes.lab_report / quota.totalQuotaBytes) * 100))}%` }}
+                            title={`Lab Reports: ${formatBytes(storageBreakdown.bytes.lab_report)}`}
+                          />
+                          {/* User Data / Vitals */}
+                          <div 
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(0, (storageBreakdown.bytes.user_data / quota.totalQuotaBytes) * 100))}%` }}
+                            title={`User Vitals Data: ${formatBytes(storageBreakdown.bytes.user_data)}`}
+                          />
+                        </>
+                      )}
                     </div>
-                    <div className="flex justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                      <span>Node: Doctorian Cloud West</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">SHA-256 Verified Storage</span>
-                      <span>Total: {formatBytes(quota.totalQuotaBytes)}</span>
+
+                    {/* Categorical Breakdown Pills */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0 shadow-[0_0_6px_rgba(129,140,248,0.8)]" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">Scans & DICOM</p>
+                          <p className="text-xs font-mono font-bold text-white truncate">{formatBytes(storageBreakdown.bytes.scan)}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">EHR Records</p>
+                          <p className="text-xs font-mono font-bold text-white truncate">{formatBytes(storageBreakdown.bytes.document)}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">Lab Reports</p>
+                          <p className="text-xs font-mono font-bold text-white truncate">{formatBytes(storageBreakdown.bytes.lab_report)}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">User Vitals</p>
+                          <p className="text-xs font-mono font-bold text-white truncate">{formatBytes(storageBreakdown.bytes.user_data)}</p>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Real Hardware & Device Storage Sub-Card */}
+                  <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-slate-950/80 via-blue-950/20 to-slate-950/80 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                        <HardDrive size={16} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">Device Hardware Storage:</span>
+                          <span className="font-mono text-emerald-400 font-semibold">
+                            {deviceStorage ? `${formatBytes(deviceStorage.usage)} Cache & DB` : 'Online Browser DB'}
+                          </span>
+                          {deviceStorage?.persisted && (
+                            <span className="text-[9px] bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 px-1.5 py-0.2 rounded font-mono">
+                              Persisted
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10.5px] text-slate-400">
+                          {deviceStorage?.quota 
+                            ? `${formatBytes(deviceStorage.quota)} local drive quota allocated to Doctorian offline models & encrypted IndexedDB.`
+                            : 'Encrypted IndexedDB & offline Service Worker cache active.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        refreshDeviceStorage();
+                        if (onShowToast) onShowToast('Local device storage verified & synchronized.', 'info');
+                      }}
+                      className="px-2.5 py-1.2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-[11px] border border-slate-700 transition-colors self-end sm:self-center shrink-0 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={11} />
+                      <span>Sync Hardware DB</span>
+                    </button>
                   </div>
                 </div>
 

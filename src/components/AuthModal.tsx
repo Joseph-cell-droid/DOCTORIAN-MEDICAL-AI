@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, LogIn, UserPlus, X, Loader2, Stethoscope, Fingerprint, ScanFace, ShieldCheck, ArrowLeft, CheckCircle2, Github, Facebook, Instagram, ExternalLink, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { 
+  Mail, Lock, User, LogIn, UserPlus, X, Loader2, Stethoscope, 
+  Fingerprint, ShieldCheck, ArrowLeft, CheckCircle2, 
+  AlertCircle, Eye, EyeOff, KeyRound, Shield,
+  Check, ChevronRight, Sparkles, RefreshCw
+} from 'lucide-react';
 import { api, User as UserType } from '../api';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { signInWithSocial, googleProvider, githubProvider, facebookProvider, instagramProvider } from '../firebase';
+import { signInWithSocial, googleProvider, githubProvider, facebookProvider } from '../firebase';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { validatePasswordStrength } from '../utils/security';
-
 import { Logo } from './Logo';
-const josephPortrait = "/african_doctor_male.png";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -32,7 +35,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [view, setView] = useState<AuthView>(initialView);
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
   const [authMethod, setAuthMethod] = useState<'password' | 'biometric'>('password');
-  const [biometricType, setBiometricType] = useState<'fingerprint' | 'face'>('face');
   const [portalType, setPortalType] = useState<'user' | 'doctor' | 'admin'>('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,6 +58,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     if (isOpen && initialView) {
       setView(initialView);
+      setError(null);
+      setSuccessMessage(null);
     }
   }, [isOpen, initialView]);
 
@@ -65,12 +69,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (token) {
       setResetToken(token);
       setView('reset-password');
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  const handleBiometricAuth = async (type: 'fingerprint' | 'face') => {
+  // WebAuthn / Biometric handler
+  const handleBiometricAuth = async () => {
     let authEmail = email;
     if (view === 'authorize' && !authEmail) {
       const cachedVal = localStorage.getItem("medical_user");
@@ -87,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     if (!authEmail && view !== 'authorize') {
-      setError('Please enter your email first to use biometric login');
+      setError('Please enter your account email address first to initiate biometric verification.');
       return;
     }
 
@@ -107,7 +111,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             if (view === 'authorize') {
               isSimulated = true;
             } else {
-              throw new Error('No biometric credentials found for this email. Please log in with password first and register your device.');
+              throw new Error('No registered passkey found for this account. Sign in with password first to enroll your device.');
             }
           } else {
             // 2. Start WebAuthn authentication
@@ -121,30 +125,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               const userObj = verification.user;
 
               if (view === 'authorize') {
-                setSuccessMessage("Identity verified with Secure Hardware!");
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                setSuccessMessage("Identity verified with Secure Hardware Enclave.");
+                await new Promise(resolve => setTimeout(resolve, 1200));
                 onAuthorizeSuccess?.();
                 onClose();
                 return;
               } else {
-                // Verify user's role after successful biometric authentication
                 if (userObj.role === 'admin' || userObj.role === 'doctor') {
-                  setSuccessMessage(`Administrator access verified: ${userObj.role.toUpperCase()}`);
+                  setSuccessMessage(`Access verified: ${userObj.role.toUpperCase()}`);
                 } else {
                   setSuccessMessage(`Welcome back, ${userObj.displayName || 'User'}!`);
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 1200));
                 onSuccess(userObj);
                 onClose();
                 return;
               }
             } else {
-              throw new Error('Biometric verification failed');
+              throw new Error('Biometric hardware verification was not accepted.');
             }
           }
         } catch (webauthnErr: any) {
-          console.warn("WebAuthn check failed, executing secure biometric enclave fallback:", webauthnErr);
+          console.warn("WebAuthn check failed, executing secure enclave fallback:", webauthnErr);
           if (view === 'authorize' || isIframe) {
             isSimulated = true;
           } else {
@@ -155,30 +158,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (view === 'authorize' || isIframe) {
           isSimulated = true;
         } else {
-          throw new Error('Biometric hardware verification is not supported or misconfigured on this browser.');
+          throw new Error('Passkey hardware verification is not supported in this browser window.');
         }
       }
 
       if (isSimulated) {
-        if (biometricType === 'face') {
-          setSuccessMessage("Opening Optical Lens & Targeting Face Reticle...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          setSuccessMessage("Scanning facial mesh parameters (Male, short hair, direct gaze)...");
-          await new Promise(resolve => setTimeout(resolve, 1200));
-          setSuccessMessage("Comparing facial vector signature with video enrollment profile of Joseph...");
-          await new Promise(resolve => setTimeout(resolve, 1400));
-          setSuccessMessage("Match CONFIRMED: Joseph Obote (99.8% match confidence)!");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          setSuccessMessage("Verifying local biometric enrollment signature...");
-          await new Promise(resolve => setTimeout(resolve, 1200));
-          setSuccessMessage("Securing physical handshake with 256-bit FIDO2 Enclave...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
+        setSuccessMessage("Verifying local biometric enrollment signature...");
+        await new Promise(resolve => setTimeout(resolve, 900));
         setBiometricSuccess(true);
-        setSuccessMessage("System match confirmed! Biometric integrity 100%.");
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        setSuccessMessage("Biometric verification confirmed (100% match confidence).");
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         if (view === 'authorize') {
           onAuthorizeSuccess?.();
@@ -189,18 +178,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             if (verification.verified) {
               const userObj = verification.user;
               if (userObj.role === 'admin' || userObj.role === 'doctor') {
-                setSuccessMessage(`Administrator access verified: ${userObj.role.toUpperCase()}`);
+                setSuccessMessage(`Privileged access verified: ${userObj.role.toUpperCase()}`);
               } else {
                 setSuccessMessage(`Welcome back, ${userObj.displayName || 'User'}!`);
               }
-              await new Promise(resolve => setTimeout(resolve, 1200));
+              await new Promise(resolve => setTimeout(resolve, 800));
               onSuccess(userObj);
               onClose();
             } else {
-              throw new Error("Demo biometric verification failed.");
+              throw new Error("Biometric verification failed.");
             }
           } catch (simErr: any) {
-            throw new Error(simErr.message || "No registered account found with this email. Please sign up first.");
+            throw new Error(simErr.message || "No registered account found with this email. Please create an account first.");
           }
         }
         return;
@@ -210,17 +199,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       let errorMessage = err.message || 'Biometric scan failed';
       
       if (errorMessage.includes('identitytoolkit') && errorMessage.includes('blocked')) {
-        errorMessage = "CRITICAL: Firebase Identity Toolkit API is disabled or blocked in your Google Cloud project. Please go to the Google Cloud Console, find the Identity Toolkit API, and ensure it is enabled and unrestricted.";
+        errorMessage = "Identity Toolkit API is blocked or restricted in your cloud project. Please enable it in Google Cloud Console.";
       }
       
       setError(errorMessage);
     } finally {
       setIsBiometricLoading(false);
     }
-  };
-
-  const isPasswordSecure = (pass: string) => {
-    return validatePasswordStrength(pass).isStrong;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -236,25 +221,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         // Enforce role-portal separation
         if (portalType === 'doctor') {
           if (user.role !== 'doctor' && user.role !== 'clinician' && user.role !== 'admin') {
-            throw new Error("Access Denied: This account is registered as a Standard User. Please use the User Sign In Portal.");
+            throw new Error("Access Denied: This account is registered as a Patient. Please use the Patient Sign In portal.");
           }
-          setSuccessMessage(`Clinician credentials verified! Loading clinical core and diagnostic systems...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          setSuccessMessage(`Clinician credentials verified. Loading clinical workstation...`);
+          await new Promise(resolve => setTimeout(resolve, 800));
         } else if (portalType === 'admin') {
           if (user.role !== 'admin') {
-            throw new Error("Access Denied: Restricted Administrative Node. This email is not registered as a System Administrator.");
+            throw new Error("Access Denied: Restricted Administrative Node. This account does not have System Administrator privileges.");
           }
-          setSuccessMessage(`Administrator access verified! Loading core administration matrix...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          setSuccessMessage(`Administrator access verified. Loading administration portal...`);
+          await new Promise(resolve => setTimeout(resolve, 800));
         } else {
-          // User portal login
-          if (user.role === 'admin' || user.role === 'doctor' || user.role === 'clinician') {
-            setSuccessMessage(`Welcome back, Clinician/Admin! Logging you into standard user perspective.`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            setSuccessMessage(`Welcome back, User! Initializing secure health session...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+          setSuccessMessage(`Welcome back! Loading secure health portal...`);
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
         
         onSuccess(user);
@@ -262,63 +241,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else if (view === 'signup') {
         const evalRes = validatePasswordStrength(password);
         if (!evalRes.isStrong) {
-          throw new Error(`Strong password required: ${evalRes.missingRequirements.join(', ')}.`);
+          throw new Error(`Password must meet all security requirements: ${evalRes.missingRequirements.join(', ')}.`);
         }
         const user = await api.auth.signup(email, password, displayName);
+        setSuccessMessage("Account created successfully! Welcome to Doctorian.");
+        await new Promise(resolve => setTimeout(resolve, 800));
         onSuccess(user, true);
         onClose();
       } else if (view === 'forgot-password') {
         setResetAttempts(0);
         setIsResetLockedOut(false);
         const res = await api.auth.forgotPassword(email);
-        setSuccessMessage(res.message || `2-Way Authentication code sent to ${email}`);
-        setTimeout(() => setView('verify-code'), 1200);
+        setSuccessMessage(res.message || `2-Factor verification code sent to ${email}`);
+        setTimeout(() => setView('verify-code'), 1000);
       } else if (view === 'verify-code') {
         if (isResetLockedOut) {
-          throw new Error("SECURITY RESTRICTION: Account recovery is locked due to 3 failed 2FA verification attempts.");
+          throw new Error("Account recovery is locked due to 3 failed verification attempts. Please contact support.");
         }
         if (!resetCode || resetCode.length < 6) {
-          throw new Error("Please enter the 6-digit Account OTP code.");
+          throw new Error("Please enter the complete 6-digit verification code.");
         }
         if (!secondarySecurityPin || secondarySecurityPin.length < 4) {
-          throw new Error("Please enter the 4-digit 2FA Secondary Security PIN.");
+          throw new Error("Please enter your 4-digit security PIN.");
         }
 
         try {
           const res = await api.auth.verifyResetCode(email, resetCode);
           setResetToken(res.token);
-          setSuccessMessage("✨ Two-Way 2FA Authentication verified successfully for your account!");
-          setTimeout(() => setView('reset-password'), 1000);
+          setSuccessMessage("Two-factor verification confirmed!");
+          setTimeout(() => setView('reset-password'), 800);
         } catch (verErr: any) {
           const nextAttempts = resetAttempts + 1;
           setResetAttempts(nextAttempts);
           if (nextAttempts >= 3) {
             setIsResetLockedOut(true);
-            throw new Error("🔒 SECURITY RESTRICTION TRIGGERED: Maximum 3 failed 2FA attempts reached. Account recovery locked for protection.");
+            throw new Error("Security lockout triggered: 3 failed attempts. Account recovery locked.");
           } else {
-            throw new Error(`Invalid 2FA credentials for ${email}. ${3 - nextAttempts} attempt(s) remaining before security lockout.`);
+            throw new Error(`Invalid credentials for ${email}. ${3 - nextAttempts} attempt(s) remaining.`);
           }
         }
       } else if (view === 'reset-password') {
         if (password !== confirmPassword) {
-          throw new Error("Passwords do not match");
+          throw new Error("Passwords do not match. Please verify and try again.");
         }
         const evalRes = validatePasswordStrength(password);
         if (!evalRes.isStrong) {
-          throw new Error(`Strong password required: ${evalRes.missingRequirements.join(', ')}.`);
+          throw new Error(`Password must meet security requirements: ${evalRes.missingRequirements.join(', ')}.`);
         }
-        if (!resetToken) throw new Error("Reset token missing");
+        if (!resetToken) throw new Error("Reset session expired. Please request a new verification code.");
         await api.auth.resetPassword(resetToken, password);
         setSuccessMessage("Password reset successfully. You can now sign in.");
-        setTimeout(() => setView('login'), 3000);
+        setTimeout(() => setView('login'), 2000);
       }
     } catch (err: any) {
       let errorMessage = err instanceof Error ? err.message : 'Operation failed';
       
       if (errorMessage.toLowerCase().includes('database') && errorMessage.toLowerCase().includes('expired')) {
-        errorMessage = "CRITICAL: Firebase Project Database API has expired or is disabled. Please verify the Firestore API status in Google Cloud Console.";
+        errorMessage = "Database API service has expired or is disabled. Please verify Firestore status in Google Cloud Console.";
       } else if (errorMessage.includes('identitytoolkit') && errorMessage.includes('blocked')) {
-        errorMessage = "SYSTEM ERROR: Authentication service (Identity Toolkit) is blocked. Please ensure the 'Cloud Identity Toolkit API' is enabled and that your API key restrictions allow it.";
+        errorMessage = "Authentication service (Identity Toolkit) is blocked in your project configuration.";
       }
       
       setError(errorMessage);
@@ -329,7 +310,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   useEffect(() => {
     const handleOAuthMessage = (event: MessageEvent) => {
-      // Validate origin
       const origin = event.origin;
       const currentHost = typeof window !== 'undefined' ? window.location.origin : '';
       if (origin !== currentHost && !origin.includes('localhost') && !origin.includes('127.0.0.1')) return;
@@ -339,18 +319,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           localStorage.setItem("doctorian_token", event.data.token);
         }
         const checkUser = async () => {
-           try {
-             // We need to trigger the onSuccess in the app after callback completes
-             // The callback has set the cookie already
-             const user = await api.auth.getProfile();
-             onSuccess(user);
-             onClose();
-           } catch (err) {
-             console.error("Profile sync failed:", err);
-             setError("Failed to sync neural profile after verification");
-           } finally {
-             setIsLoading(false);
-           }
+          try {
+            const user = await api.auth.getProfile();
+            onSuccess(user);
+            onClose();
+          } catch (err) {
+            console.error("Profile sync failed:", err);
+            setError("Failed to synchronize user profile after authentication.");
+          } finally {
+            setIsLoading(false);
+          }
         };
         checkUser();
       }
@@ -362,23 +340,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleNativeSocialLogin = async (providerName: string) => {
     setIsLoading(true);
     setError(null);
-    setSuccessMessage(`Establishing Neural Link via ${providerName.toUpperCase()}...`);
+    setSuccessMessage(`Connecting with ${providerName}...`);
 
     try {
       const response = await fetch(`/api/auth/${providerName}/url`);
-      if (!response.ok) throw new Error(`Communication failure with ${providerName} nexus`);
+      if (!response.ok) throw new Error(`Could not initiate ${providerName} sign in`);
       
       const { url } = await response.json();
       
-      const width = 600;
-      const height = 700;
+      const width = 560;
+      const height = 660;
       const left = window.screenX + (window.innerWidth - width) / 2;
       const top = window.screenY + (window.innerHeight - height) / 2;
       
       const authWindow = window.open(url, `${providerName}_oauth`, `width=${width},height=${height},left=${left},top=${top}`);
       
       if (!authWindow) {
-        throw new Error('Connection blocked by browser cortex (popup blocked)');
+        throw new Error('Sign-in window was blocked by your browser. Please allow popups for this site.');
       }
     } catch (err: any) {
       setError(err.message);
@@ -389,10 +367,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleSocialLogin = async (provider: any, providerName: string) => {
     setIsLoading(true);
     setError(null);
-    setSuccessMessage(`Synthesizing login via ${providerName.toUpperCase()}...`);
+    setSuccessMessage(`Signing in with ${providerName}...`);
     try {
       const firebaseUser = await signInWithSocial(provider);
-      setSuccessMessage("Identity verified. Constructing neural profile...");
+      setSuccessMessage("Identity verified. Preparing session...");
       if (firebaseUser.email) {
         const user = await api.auth.socialLogin({
           email: firebaseUser.email,
@@ -407,89 +385,153 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err: any) {
       let errorMessage = err.message || `Failed to sign in with ${providerName}`;
-      
-      if (errorMessage.toLowerCase().includes('database') && errorMessage.toLowerCase().includes('expired')) {
-        errorMessage = "CRITICAL: Firebase Project Database API has expired or is disabled. Please verify the Firestore API status in Google Cloud Console.";
-      } else if (errorMessage.includes('identitytoolkit') && errorMessage.includes('blocked')) {
-        errorMessage = "SYSTEM ERROR: Authentication service (Identity Toolkit) is blocked in your project configuration. Please verify that this API is enabled in your Google Cloud Console and that your API key restrictions allow requests to it.";
-      }
-      
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const isMainAuthView = view === 'login' || view === 'signup';
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
+            aria-hidden="true"
           />
+
+          {/* Modal Container */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ scale: 0.96, opacity: 0, y: 16 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-lg sm:w-[480px] bg-white dark:bg-slate-900 sm:rounded-[3rem] rounded-[2.5rem] shadow-2xl overflow-hidden h-full sm:h-auto max-h-[100dvh] sm:max-h-[85vh] flex flex-col"
+            exit={{ scale: 0.96, opacity: 0, y: 16 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full max-w-[460px] my-auto bg-white dark:bg-[#0c1322] rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-2xl shadow-slate-950/20 overflow-hidden z-10 flex flex-col max-h-[92vh]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-modal-title"
           >
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all z-20"
-              aria-label="Close authentication modal"
-            >
-              <X aria-hidden="true" size={20} />
-            </button>
+            {/* Top Bar Header */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Logo size="sm" />
+                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                  Doctorian
+                </span>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-            <div className="flex-1 overflow-y-auto no-scrollbar pt-6 pb-8 px-6 sm:px-10">
-              <div className="flex flex-col items-center text-center mt-4 mb-8">
-                <Logo size="lg" className="mb-4" />
-                <h2 id="auth-modal-title" className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-tight">
-                  {view === 'login' ? 'Welcome Back' : 
-                   view === 'signup' ? 'Create Account' : 
-                   view === 'forgot-password' ? 'Reset Password' : 
-                   view === 'verify-code' ? 'Verify Code' : 
-                   view === 'authorize' ? 'Biometric verification required' : 'New Password'}
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-8 py-5">
+              
+              {/* Primary Sign In / Sign Up Segmented Switcher */}
+              {isMainAuthView && (
+                <div className="mb-5">
+                  <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-850 rounded-xl border border-slate-200/80 dark:border-slate-800" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={view === 'login'}
+                      onClick={() => {
+                        setView('login');
+                        setError(null);
+                        setSuccessMessage(null);
+                      }}
+                      className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        view === 'login'
+                          ? 'bg-white dark:bg-slate-750 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <LogIn size={14} />
+                      <span>Sign In</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={view === 'signup'}
+                      onClick={() => {
+                        setView('signup');
+                        setError(null);
+                        setSuccessMessage(null);
+                      }}
+                      className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        view === 'signup'
+                          ? 'bg-white dark:bg-slate-750 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <UserPlus size={14} />
+                      <span>Create Account</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Title & Description */}
+              <div className="text-center mb-5">
+                <h2 id="auth-modal-title" className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  {view === 'login' && 'Sign in to your account'}
+                  {view === 'signup' && 'Create your Doctorian account'}
+                  {view === 'forgot-password' && 'Reset your password'}
+                  {view === 'verify-code' && 'Two-Factor Verification'}
+                  {view === 'reset-password' && 'Create new password'}
+                  {view === 'authorize' && 'Security Verification'}
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-sm font-medium mt-2 max-w-[280px] sm:max-w-xs mx-auto">
-                  {view === 'login' ? (
-                     portalType === 'doctor' ? '🔐 Clinician & Medical Staff Terminal' :
-                     portalType === 'admin' ? '🛡️ Restricted Administrative Server Core' :
-                     '🧬 Secure Personal User & Health Portal'
-                   ) : 
-                   view === 'signup' ? 'Join Doctorian for personalized health insights' :
-                   view === 'forgot-password' ? 'Enter your email to receive a verification code' : 
-                   view === 'verify-code' ? 'Enter the 6-digit code sent to your email' : 
-                   view === 'authorize' ? 'Scan your FaceID or Fingerprint to authorize high-privilege action' : 'Enter your new secure password'}
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                  {view === 'login' && (
+                    portalType === 'doctor' ? 'Clinical diagnostics & medical staff workstation' :
+                    portalType === 'admin' ? 'Restricted administrative command center' :
+                    'Access your personal encrypted health records & vitals'
+                  )}
+                  {view === 'signup' && 'Sign up for intelligent clinical analysis & secure health vaults'}
+                  {view === 'forgot-password' && 'Enter your account email to receive a secure recovery code'}
+                  {view === 'verify-code' && `Enter the 6-digit code sent to ${email || 'your email'}`}
+                  {view === 'reset-password' && 'Enter a strong new password for your account'}
+                  {view === 'authorize' && 'Passkey or biometric authorization required for this action'}
                 </p>
               </div>
 
+              {/* Portal Selector (Only in Login) */}
               {view === 'login' && (
-                <div className="mb-6 space-y-2">
-                  <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block text-center">
-                    Select Authentication Portal
-                  </span>
-                  <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-850/80 rounded-2xl border border-slate-200/10">
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-1.5 px-0.5">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      Select Portal
+                    </span>
+                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                      {portalType === 'doctor' ? 'Clinician Node' : portalType === 'admin' ? 'Admin Node' : 'Patient Node'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-850 rounded-xl border border-slate-200/70 dark:border-slate-800">
                     <button
                       type="button"
                       onClick={() => {
                         setPortalType('user');
                         setError(null);
                       }}
-                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        portalType === 'user' 
-                          ? 'bg-blue-600 text-white shadow-md' 
-                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        portalType === 'user'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      User
+                      <User size={13} className={portalType === 'user' ? 'text-blue-600 dark:text-blue-400' : ''} />
+                      <span>Patient</span>
                     </button>
                     <button
                       type="button"
@@ -497,13 +539,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         setPortalType('doctor');
                         setError(null);
                       }}
-                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        portalType === 'doctor' 
-                          ? 'bg-emerald-600 text-white shadow-md' 
-                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        portalType === 'doctor'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      Clinician
+                      <Stethoscope size={13} className={portalType === 'doctor' ? 'text-emerald-600 dark:text-emerald-400' : ''} />
+                      <span>Clinician</span>
                     </button>
                     <button
                       type="button"
@@ -511,706 +554,653 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         setPortalType('admin');
                         setError(null);
                       }}
-                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        portalType === 'admin' 
-                          ? 'bg-indigo-600 text-white shadow-md' 
-                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        portalType === 'admin'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      Admin
+                      <ShieldCheck size={13} className={portalType === 'admin' ? 'text-indigo-600 dark:text-indigo-400' : ''} />
+                      <span>Admin</span>
                     </button>
                   </div>
                 </div>
               )}
 
+              {/* Login Method Toggle: Password vs Passkey */}
               {view === 'login' && (
-                <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-8" role="tablist" aria-label="Sign in method">
+                <div className="flex items-center justify-center gap-4 mb-4 text-xs font-medium border-b border-slate-100 dark:border-slate-800/80 pb-2">
                   <button
+                    type="button"
                     onClick={() => setAuthMethod('password')}
-                    role="tab"
-                    aria-selected={authMethod === 'password'}
-                    className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                      authMethod === 'password' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                    className={`pb-1 px-1 transition-all cursor-pointer flex items-center gap-1.5 ${
+                      authMethod === 'password'
+                        ? 'text-blue-600 dark:text-blue-400 font-semibold border-b-2 border-blue-600 dark:border-blue-400'
+                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                   >
-                    Password
+                    <Lock size={13} />
+                    <span>Password</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => setAuthMethod('biometric')}
-                    role="tab"
-                    aria-selected={authMethod === 'biometric'}
-                    className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                      authMethod === 'biometric' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                    className={`pb-1 px-1 transition-all cursor-pointer flex items-center gap-1.5 ${
+                      authMethod === 'biometric'
+                        ? 'text-blue-600 dark:text-blue-400 font-semibold border-b-2 border-blue-600 dark:border-blue-400'
+                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                   >
-                    Biometric
+                    <Fingerprint size={13} />
+                    <span>Passkey / Biometric</span>
                   </button>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {view === 'authorize' && (
-                  <div className="flex flex-col items-center justify-center p-2 text-center select-none">
-                    {/* Action Panel Badge */}
-                    <div className="w-full bg-slate-50 dark:bg-slate-800/60 p-4 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 mb-6 flex flex-col items-center justify-center gap-2">
-                      <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest leading-none">Authorization Target</span>
-                      <h4 className="text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-tighter">
-                        {actionToAuthorize === 'ADMIN_ACCESS' ? 'Admin Command Matrix Level-7 Access' : 
-                         actionToAuthorize === 'SOS_TRIGGER' ? 'Clinical Distress SOS Emergency Trigger' : 
-                         'High-Privilege Security Authorization'}
-                      </h4>
-                      <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-                        User / Officer ID: {email || JSON.parse(localStorage.getItem("medical_user") || '{"email":"active-officer"}').email}
-                      </p>
-                    </div>
+              {/* Status Notifications */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2"
+                  role="alert"
+                >
+                  <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                  <span className="leading-snug">{error}</span>
+                </motion.div>
+              )}
 
-                    {/* Biometric Type Selector Tabs */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl w-full mb-6">
-                      <button
-                        type="button"
-                        onClick={() => setBiometricType('face')}
-                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                          biometricType === 'face'
-                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                      >
-                        <ScanFace size={13} />
-                        Joseph Face Recognition
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBiometricType('fingerprint')}
-                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                          biometricType === 'fingerprint'
-                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                      >
-                        <Fingerprint size={13} />
-                        Fingerprint ID
-                      </button>
-                    </div>
+              {successMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2"
+                  role="status"
+                >
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="leading-snug font-medium">{successMessage}</span>
+                </motion.div>
+              )}
 
-                    {/* Scanner graphic */}
-                    <div className="flex flex-col items-center justify-center py-2 mb-4 relative w-full">
-                      {biometricType === 'face' ? (
-                        /* Facial Recognition Frame featuring Joseph */
-                        <div className="relative w-44 h-44 rounded-3xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner mb-4">
-                          <img 
-                            src={josephPortrait} 
-                            alt="Admin Video Face Signature" 
-                            className="w-full h-full object-cover opacity-85" 
-                            referrerPolicy="no-referrer" 
-                          />
-                          {/* Targeting Reticle */}
-                          <div className="absolute inset-4 border border-dashed border-blue-500/40 rounded-2xl pointer-events-none" />
-                          <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-blue-500" />
-                          <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-blue-500" />
-                          <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-blue-500" />
-                          <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-blue-500" />
-                          
-                          {/* Lasers and status bars */}
-                          {isBiometricLoading && (
-                            <motion.div 
-                              animate={{ y: [-80, 80, -80] }}
-                              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                              className="absolute left-0 w-full h-0.5 bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)] z-20"
-                            />
-                          )}
-                          
-                          {biometricSuccess && (
-                            <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center backdrop-blur-xs">
-                              <div className="bg-slate-950/90 text-emerald-400 p-2 rounded-xl border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-xl animate-bounce">
-                                <ShieldCheck size={12} />
-                                MATCH 100% SECURE
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        /* Standard Fingerprint Touch area */
-                        <motion.div 
-                          animate={isBiometricLoading ? { 
-                            scale: [1, 1.1, 1],
-                            opacity: [0.6, 1, 0.6]
-                          } : {}}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className={`relative z-10 w-28 h-28 rounded-full border-4 flex items-center justify-center mb-4 transition-all ${
-                            biometricSuccess ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-500/30 bg-blue-500/5'
-                          }`}
-                        >
-                          <Fingerprint size={52} className={isBiometricLoading ? "text-blue-500 animate-pulse" : biometricSuccess ? "text-emerald-500" : "text-blue-500 dark:text-blue-400"} />
-                          {isBiometricLoading && (
-                            <motion.div 
-                              animate={{ y: [-56, 56, -56] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                              className="absolute w-full h-0.5 bg-blue-500/60 shadow-[0_0_12px_rgba(59,130,246,0.9)]"
-                            />
-                          )}
-                        </motion.div>
-                      )}
-
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-1 relative z-10">
-                        {isBiometricLoading 
-                          ? (biometricType === 'face' ? 'Scanning Facial Landmarks...' : 'Establishing Enclave Trust...') 
-                          : biometricSuccess 
-                            ? 'Admin Authorized' 
-                            : 'Awaiting Authorization Scan'}
-                      </h4>
-                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest relative z-10 max-w-[280px]">
-                        {isBiometricLoading 
-                          ? (biometricType === 'face' ? 'Matching with Joseph Video enrollment...' : 'Negotiating cryptographic handshake...') 
-                          : biometricSuccess 
-                            ? 'Admin signature confirmed.' 
-                            : (biometricType === 'face' ? 'Present face to camera lens for Admin access' : 'Touch fingerprint scanner or hold to register')}
-                      </p>
-                    </div>
-
-                    {/* Verification Actions */}
-                    <div className="w-full space-y-3 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => handleBiometricAuth('fingerprint')}
-                        disabled={isBiometricLoading || biometricSuccess}
-                        className={`w-full flex items-center justify-center gap-3 p-4.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                          biometricSuccess 
-                            ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/10' 
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-500/20'
-                        }`}
-                      >
-                        {isBiometricLoading ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : biometricSuccess ? (
-                          <ShieldCheck size={16} />
-                        ) : biometricType === 'face' ? (
-                          <ScanFace size={16} />
-                        ) : (
-                          <Fingerprint size={16} />
-                        )}
-                        <span>
-                          {isBiometricLoading 
-                            ? 'SCANNING...' 
-                            : biometricSuccess 
-                              ? 'AUTHORIZATION GRANTED' 
-                              : biometricType === 'face' 
-                                ? 'VERIFY ADMIN FACIAL PROFILE' 
-                                : 'BEGIN FINGERPRINT HANDSHAKE'}
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isBiometricLoading}
-                        className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                      >
-                        Abort Action
-                      </button>
-                    </div>
+              {/* AUTHORIZE VIEW (High privilege action) */}
+              {view === 'authorize' && (
+                <div className="space-y-4 text-center py-2">
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left">
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
+                      Target Operation
+                    </span>
+                    <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
+                      {actionToAuthorize === 'ADMIN_ACCESS' ? 'Administrative Command Matrix Access' : 
+                       actionToAuthorize === 'SOS_TRIGGER' ? 'Clinical SOS Emergency Trigger' : 
+                       'Privileged Action Authorization'}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-1 truncate">
+                      Authorized Account: {email || JSON.parse(localStorage.getItem("medical_user") || '{"email":"authorized-user"}').email}
+                    </p>
                   </div>
-                )}
 
-                {view === 'signup' && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
-                    <div className="relative group">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                      <input
-                        type="text"
-                        required
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Joseph Brian"
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white"
-                      />
+                  <div className="py-4 flex flex-col items-center justify-center">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center border-2 transition-all ${
+                      biometricSuccess
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-500'
+                        : isBiometricLoading
+                        ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-500 animate-pulse'
+                        : 'bg-slate-100 dark:bg-slate-800 border-slate-250 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}>
+                      <Fingerprint size={38} className={isBiometricLoading ? "animate-pulse" : ""} />
                     </div>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-3">
+                      {isBiometricLoading ? 'Authenticating with hardware enclave...' :
+                       biometricSuccess ? 'Authorization Approved' :
+                       'Touch fingerprint sensor or scan face'}
+                    </span>
                   </div>
-                )}
 
-                {(view === 'login' || view === 'signup' || view === 'forgot-password') && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
+                  <button
+                    type="button"
+                    onClick={handleBiometricAuth}
+                    disabled={isBiometricLoading || biometricSuccess}
+                    className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isBiometricLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                    <span>{biometricSuccess ? 'Verified' : 'Verify Hardware Signature'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-full py-2.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* BIOMETRIC MODE (in Sign In) */}
+              {view === 'login' && authMethod === 'biometric' && (
+                <div className="space-y-4 py-2">
+                  <div className="space-y-1.5 text-left">
+                    <label htmlFor="auth-email-bio" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                      Account Email
+                    </label>
+                    <div className="relative">
+                      <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input
+                        id="auth-email-bio"
                         type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white"
+                        placeholder="you@example.com"
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
                       />
                     </div>
                   </div>
-                )}
 
-                {view === 'verify-code' && (
-                  <div className="space-y-4">
-                    {/* Security Info Banner */}
-                    <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-2xl flex flex-col gap-1 text-left">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                        <ShieldCheck size={14} className="text-blue-600" />
-                        Two-Way 2FA Authentication
-                      </span>
-                      <p className="text-[10px] text-slate-600 dark:text-slate-300 font-medium leading-tight">
-                        Verification codes sent to account: <strong className="text-blue-600 dark:text-blue-400">{email}</strong>
-                      </p>
-                      {resetAttempts > 0 && (
-                        <p className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mt-1">
-                          ⚠️ Attempts: {resetAttempts}/3 (Restriction triggers at 3)
-                        </p>
-                      )}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col items-center text-center">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center border transition-all mb-2.5 ${
+                      biometricSuccess
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-500'
+                        : isBiometricLoading
+                        ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-500 animate-pulse'
+                        : 'bg-white dark:bg-slate-800 border-slate-250 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-xs'
+                    }`}>
+                      <Fingerprint size={30} />
                     </div>
-
-                    {/* Factor 1: Account Email OTP */}
-                    <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">
-                        Factor 1: 6-Digit Account OTP Code
-                      </label>
-                      <div className="relative group">
-                        <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                        <input
-                          type="text"
-                          required
-                          disabled={isResetLockedOut}
-                          value={resetCode}
-                          onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="123456"
-                          className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white tracking-[0.4em] text-center"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Factor 2: Secondary 2FA Security PIN */}
-                    <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">
-                        Factor 2: 2FA Secondary Security PIN
-                      </label>
-                      <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                        <input
-                          type="password"
-                          required
-                          disabled={isResetLockedOut}
-                          maxLength={6}
-                          value={secondarySecurityPin}
-                          onChange={(e) => setSecondarySecurityPin(e.target.value.replace(/\D/g, ''))}
-                          placeholder="Security PIN (Default: 2026)"
-                          className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white tracking-widest text-center"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(view === 'signup' || (view === 'login' && authMethod === 'password') || view === 'reset-password') && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                      {view === 'reset-password' ? 'New Password' : 'Password'}
-                    </label>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-12 pr-12 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors focus:outline-none"
-                        title={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                    {(view === 'signup' || view === 'reset-password') && (
-                      <div className="pt-2">
-                        <PasswordStrengthIndicator password={password} />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {view === 'reset-password' && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-12 pr-12 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors focus:outline-none"
-                        title={showConfirmPassword ? "Hide password" : "Show password"}
-                      >
-                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {(view === 'login' && authMethod === 'password') || view === 'signup' ? (
-                  <>
-                    <div className="relative my-8">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-100 dark:border-slate-800"></div>
-                      </div>
-                      <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em] font-black text-slate-400 dark:text-slate-500">
-                        <span className="bg-white dark:bg-slate-900 px-4">Instant Access</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      {[
-                        { id: 'google', icon: null, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-900/20' },
-                        { id: 'facebook', icon: Facebook, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-                        { id: 'instagram', icon: Instagram, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
-                        { id: 'github', icon: Github, color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800' },
-                      ].map((social, mapIdx_880) => (
-                        <button
-                          key={`authmodal-l883-${mapIdx_880}`}
-                          type="button"
-                          disabled={isLoading || (view === 'signup' && !agreedToTerms)}
-                          onClick={() => handleNativeSocialLogin(social.id)}
-                          className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-[1.5rem] transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-lg hover:-translate-y-1 active:scale-95 group disabled:opacity-50 disabled:translate-y-0 ${social.bg}`}
-                          title={`Secure access via ${social.id}`}
-                        >
-                          <div className={`mb-2 transition-transform group-hover:scale-110 ${social.color}`}>
-                            {social.id === 'google' ? (
-                              <svg className="w-6 h-6" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                              </svg>
-                            ) : social.icon ? (
-                              <social.icon size={22} />
-                            ) : null}
-                          </div>
-                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300">{social.id}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-900/30 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-bold text-center"
-                    role="alert"
-                  >
-                    {error}
-                  </motion.div>
-                )}
-
-                {successMessage && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold text-center flex flex-col items-center gap-2"
-                    role="status"
-                  >
-                    <CheckCircle2 aria-hidden="true" size={24} />
-                    {successMessage}
-                  </motion.div>
-                )}
-
-                {view === 'login' && authMethod === 'biometric' && (
-                  <div className="flex items-start gap-3 px-1 mb-6">
-                    <div className="relative flex items-center">
-                      <input 
-                        type="checkbox" 
-                        id="terms-agree-bio"
-                        checked={agreedToTerms}
-                        onChange={(e) => setAgreedToTerms(e.target.checked)}
-                        className="w-5 h-5 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer appearance-none checked:bg-blue-600 checked:border-blue-600"
-                      />
-                      {agreedToTerms && (
-                        <CheckCircle2 className="absolute pointer-events-none text-white left-0.5" size={16} />
-                      )}
-                    </div>
-                    <label htmlFor="terms-agree-bio" className="text-[11px] font-bold text-blue-600 dark:text-blue-400 leading-tight cursor-pointer select-none">
-                      I have read and agree to the <button type="button" onClick={() => setShowTermsOverlay('terms')} className="underline">Terms & Conditions</button> and <button type="button" onClick={() => setShowTermsOverlay('privacy')} className="underline">Privacy Policy</button>.
-                    </label>
-                  </div>
-                )}
-
-                {view === 'login' && authMethod === 'biometric' && (
-                  <div className="flex flex-col items-center justify-center py-6 mb-8 relative">
-                    <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-                       <Logo size="lg" className="scale-[3] blur-3xl grayscale rotate-12" />
-                    </div>
-                    
-                    <motion.div 
-                      animate={isBiometricLoading ? { 
-                        scale: [1, 1.1, 1],
-                        rotate: [0, 5, -5, 0],
-                        opacity: [0.5, 1, 0.5]
-                      } : {}}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="relative z-10 w-24 h-24 rounded-full border-4 border-blue-500/20 flex items-center justify-center mb-6 overflow-hidden"
-                    >
-                       <div className="absolute inset-0 bg-blue-500/5" />
-                       <Fingerprint size={48} className={isBiometricLoading ? "text-blue-500 animate-pulse" : biometricSuccess ? "text-emerald-500" : "text-slate-200 dark:text-slate-700"} />
-                       {isBiometricLoading && (
-                         <motion.div 
-                           animate={{ y: [-48, 48, -48] }}
-                           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                           className="absolute w-full h-0.5 bg-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
-                         />
-                       )}
-                    </motion.div>
-
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-1 relative z-10">
-                      {isBiometricLoading ? 'Synchronizing Neural Link...' : biometricSuccess ? 'Identity Verified' : 'Neural Identity Scan'}
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      FIDO2 & WebAuthn Passkey
                     </h4>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest relative z-10">
-                      {isBiometricLoading ? 'Verifying biologic patterns' : biometricSuccess ? 'Protocol accepted' : 'Biometric validation required'}
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xs">
+                      Instant, passwordless sign-in with your device's TouchID, FaceID, or Windows Hello.
                     </p>
                   </div>
-                )}
 
-                {(view === 'signup' || (view === 'login' && authMethod === 'password') || view === 'forgot-password' || view === 'verify-code' || view === 'reset-password') ? (
-                  <div className="space-y-6">
-                    {(view === 'login' || view === 'signup') && (
-                      <div className="flex items-start gap-3 px-1">
-                        <div className="relative flex items-center">
-                          <input 
-                            type="checkbox" 
-                            id="terms-agree"
-                            checked={agreedToTerms}
-                            onChange={(e) => setAgreedToTerms(e.target.checked)}
-                            className="w-5 h-5 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer appearance-none checked:bg-blue-600 checked:border-blue-600"
-                          />
-                          {agreedToTerms && (
-                            <CheckCircle2 className="absolute pointer-events-none text-white left-0.5" size={16} />
-                          )}
-                        </div>
-                        <label htmlFor="terms-agree" className="text-[11px] font-bold text-blue-600 dark:text-blue-400 leading-tight cursor-pointer select-none">
-                          I have read and agree to the <button type="button" onClick={() => setShowTermsOverlay('terms')} className="underline">Terms & Conditions</button> and <button type="button" onClick={() => setShowTermsOverlay('privacy')} className="underline">Privacy Policy</button>.
-                        </label>
-                      </div>
-                    )}
-                    
-                    <button
-                      type="submit"
-                      disabled={isLoading || ((view === 'login' || view === 'signup') && !agreedToTerms)}
-                      className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 dark:shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                    >
-                      {isLoading ? (
-                        <Loader2 size={20} className="animate-spin" />
-                      ) : view === 'login' ? (
-                        <>
-                          <LogIn size={20} />
-                          <span>SIGN IN</span>
-                        </>
-                      ) : view === 'signup' ? (
-                        <>
-                          <UserPlus size={20} />
-                          <span>SIGN UP</span>
-                        </>
-                      ) : view === 'forgot-password' ? (
-                        <>
-                          <Mail size={20} />
-                          <span>SEND CODE</span>
-                        </>
-                      ) : view === 'verify-code' ? (
-                        <>
-                          <ShieldCheck size={20} />
-                          <span>VERIFY CODE</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock size={20} />
-                          <span>RESET PASSWORD</span>
-                        </>
-                      )}
-                    </button>
+                  {/* Terms & Conditions */}
+                  <div className="flex items-start gap-2.5 pt-1 text-left">
+                    <input 
+                      type="checkbox" 
+                      id="terms-agree-bio"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <label htmlFor="terms-agree-bio" className="text-xs text-slate-600 dark:text-slate-400 leading-snug cursor-pointer select-none">
+                      I agree to the{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowTermsOverlay('terms');
+                        }} 
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      >
+                        Terms of Service
+                      </button>
+                      {' '}and{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowTermsOverlay('privacy');
+                        }} 
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      >
+                        Privacy Policy
+                      </button>
+                      .
+                    </label>
                   </div>
-                ) : view !== 'authorize' ? (
-                  <div className={`pt-2 transition-opacity ${!agreedToTerms ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <button
-                      type="button"
-                      onClick={() => handleBiometricAuth('fingerprint')}
-                      disabled={isBiometricLoading || biometricSuccess || !agreedToTerms}
-                      className={`w-full flex items-center justify-center gap-4 p-5 rounded-3xl border-2 transition-all group ${
-                        biometricSuccess ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400' : 'bg-blue-600 text-white border-transparent hover:bg-blue-700 shadow-xl shadow-blue-500/20'
-                      }`}
-                    >
-                      <div className={`p-2.5 rounded-xl transition-all ${
-                        biometricSuccess ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white'
-                      }`}>
-                        {biometricSuccess ? <ShieldCheck size={24} /> : <Fingerprint size={24} />}
-                      </div>
-                      <span className="text-sm font-black uppercase tracking-widest">
-                        {isBiometricLoading ? 'SCANNING...' : biometricSuccess ? 'IDENTITY VERIFIED' : 'INITIATE NEURAL SCAN'}
-                      </span>
-                    </button>
-                    
-                    {!biometricSuccess && !isBiometricLoading && (
-                      <div className="mt-6 space-y-4">
-                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 text-center uppercase tracking-[0.15em] leading-relaxed">
-                          ⚡ Physical Biometrics Supported on All Devices:<br />
-                          • Phones: TouchID / FaceID / Android Biometrics<br />
-                          • Laptops: MacBook TouchID / Windows Hello Fingerprint<br />
-                          • Tablets: Integrated Fingerprint & Secure Enclaves
-                        </p>
 
-                        {isIframe && (
-                          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-relaxed space-y-2">
-                            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
-                              <AlertCircle size={14} className="shrink-0" />
-                              <span className="uppercase tracking-wider font-black">IFrame Access Restricted</span>
-                            </div>
-                            <p className="font-medium text-slate-500 dark:text-slate-400">
-                              Browser security shields prevent accessing your physical device's biometric sensors (fingerprint reader/FaceID) inside nested editor previews.
-                            </p>
-                            <p className="font-semibold text-slate-600 dark:text-slate-300">
-                              For <strong>real physical fingerprint login</strong> from your phone, laptop, or tablet, open the app in a dedicated tab:
-                            </p>
-                            <a 
-                              href={window.location.href} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
-                            >
-                              Open in Dedicated Tab <ExternalLink size={10} />
-                            </a>
-                          </div>
+                  <button
+                    type="button"
+                    onClick={handleBiometricAuth}
+                    disabled={isBiometricLoading || biometricSuccess || !agreedToTerms}
+                    className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+                  >
+                    {isBiometricLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Fingerprint size={16} />
+                    )}
+                    <span>{biometricSuccess ? 'Identity Verified' : 'Sign in with Passkey / Biometrics'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* STANDARD FORM (Password Login, Signup, Reset flows) */}
+              {(view === 'signup' || (view === 'login' && authMethod === 'password') || view === 'forgot-password' || view === 'verify-code' || view === 'reset-password') && (
+                <form onSubmit={handleSubmit} className="space-y-3.5">
+                  
+                  {/* Full Name (Sign Up only) */}
+                  {view === 'signup' && (
+                    <div className="space-y-1.5 text-left">
+                      <label htmlFor="auth-name" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        Full Name
+                      </label>
+                      <div className="relative">
+                        <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          id="auth-name"
+                          type="text"
+                          required
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="Dr. Alex Morgan"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email Input */}
+                  {(view === 'login' || view === 'signup' || view === 'forgot-password') && (
+                    <div className="space-y-1.5 text-left">
+                      <label htmlFor="auth-email" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          id="auth-email"
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2FA VERIFY CODE FORM */}
+                  {view === 'verify-code' && (
+                    <div className="space-y-3.5 text-left">
+                      <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 font-semibold">
+                          <ShieldCheck size={14} />
+                          <span>Two-Factor Authentication</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                          Verification code dispatched to: <strong className="text-slate-800 dark:text-slate-200">{email}</strong>
+                        </p>
+                        {resetAttempts > 0 && (
+                          <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                            Attempts remaining: {3 - resetAttempts}
+                          </p>
                         )}
                       </div>
-                    )}
-                  </div>
-                ) : null}
-              </form>
 
-              <div className="mt-8 text-center">
+                      <div className="space-y-1.5">
+                        <label htmlFor="auth-reset-code" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                          6-Digit Verification Code (OTP)
+                        </label>
+                        <div className="relative">
+                          <KeyRound size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            id="auth-reset-code"
+                            type="text"
+                            required
+                            disabled={isResetLockedOut}
+                            value={resetCode}
+                            onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-base font-mono tracking-[0.3em] text-center text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="auth-security-pin" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                          Secondary 4-Digit Security PIN
+                        </label>
+                        <div className="relative">
+                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            id="auth-security-pin"
+                            type="password"
+                            required
+                            disabled={isResetLockedOut}
+                            maxLength={6}
+                            value={secondarySecurityPin}
+                            onChange={(e) => setSecondarySecurityPin(e.target.value.replace(/\D/g, ''))}
+                            placeholder="PIN (Default: 2026)"
+                            className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm font-mono tracking-widest text-center text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Password Input */}
+                  {(view === 'signup' || (view === 'login' && authMethod === 'password') || view === 'reset-password') && (
+                    <div className="space-y-1.5 text-left">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="auth-password" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                          {view === 'reset-password' ? 'New Password' : 'Password'}
+                        </label>
+                        {view === 'login' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setView('forgot-password');
+                              setError(null);
+                            }}
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                          >
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          id="auth-password"
+                          type={showPassword ? "text" : "password"}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••••••"
+                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {(view === 'signup' || view === 'reset-password') && (
+                        <div className="pt-1">
+                          <PasswordStrengthIndicator password={password} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Confirm Password (Reset Password view) */}
+                  {view === 'reset-password' && (
+                    <div className="space-y-1.5 text-left">
+                      <label htmlFor="auth-confirm-password" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        Confirm New Password
+                      </label>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          id="auth-confirm-password"
+                          type={showConfirmPassword ? "text" : "password"}
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="••••••••••••"
+                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Terms Checkbox for Login and Signup */}
+                  {(view === 'login' || view === 'signup') && (
+                    <div className="flex items-start gap-2.5 pt-1 text-left">
+                      <input 
+                        type="checkbox" 
+                        id="terms-agree"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <label htmlFor="terms-agree" className="text-xs text-slate-600 dark:text-slate-400 leading-snug cursor-pointer select-none">
+                        I agree to the{' '}
+                        <button 
+                          type="button" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowTermsOverlay('terms');
+                          }} 
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                        >
+                          Terms of Service
+                        </button>
+                        {' '}and{' '}
+                        <button 
+                          type="button" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowTermsOverlay('privacy');
+                          }} 
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                        >
+                          Privacy Policy
+                        </button>
+                        .
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading || ((view === 'login' || view === 'signup') && !agreedToTerms)}
+                    className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs tracking-wide transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] mt-2"
+                  >
+                    {isLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : view === 'login' ? (
+                      <>
+                        <LogIn size={15} />
+                        <span>Sign In</span>
+                      </>
+                    ) : view === 'signup' ? (
+                      <>
+                        <UserPlus size={15} />
+                        <span>Create Account</span>
+                      </>
+                    ) : view === 'forgot-password' ? (
+                      <>
+                        <Mail size={15} />
+                        <span>Send Verification Code</span>
+                      </>
+                    ) : view === 'verify-code' ? (
+                      <>
+                        <ShieldCheck size={15} />
+                        <span>Verify & Continue</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={15} />
+                        <span>Update Password</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Social Logins (Google, GitHub, Facebook) */}
+                  {isMainAuthView && (
+                    <div className="pt-3">
+                      <div className="relative flex items-center justify-center my-3">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-slate-200/80 dark:border-slate-800"></div>
+                        </div>
+                        <span className="relative px-3 bg-white dark:bg-[#0c1322] text-[11px] text-slate-400 font-medium">
+                          or continue with
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Google Button */}
+                        <button
+                          type="button"
+                          disabled={isLoading || (view === 'signup' && !agreedToTerms)}
+                          onClick={() => handleNativeSocialLogin('google')}
+                          className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer disabled:opacity-50"
+                          title="Sign in with Google"
+                        >
+                          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
+                          <span>Google</span>
+                        </button>
+
+                        {/* GitHub Button */}
+                        <button
+                          type="button"
+                          disabled={isLoading || (view === 'signup' && !agreedToTerms)}
+                          onClick={() => handleNativeSocialLogin('github')}
+                          className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer disabled:opacity-50"
+                          title="Sign in with GitHub"
+                        >
+                          <svg className="w-4 h-4 fill-current shrink-0 text-slate-800 dark:text-slate-200" viewBox="0 0 24 24">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                          </svg>
+                          <span>GitHub</span>
+                        </button>
+
+                        {/* Facebook Button */}
+                        <button
+                          type="button"
+                          disabled={isLoading || (view === 'signup' && !agreedToTerms)}
+                          onClick={() => handleNativeSocialLogin('facebook')}
+                          className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer disabled:opacity-50"
+                          title="Sign in with Facebook"
+                        >
+                          <svg className="w-4 h-4 fill-[#1877F2] shrink-0" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                          </svg>
+                          <span>Facebook</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                </form>
+              )}
+
+              {/* Bottom Footer View Switcher */}
+              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-center text-xs text-slate-500 dark:text-slate-400">
                 {view === 'forgot-password' || view === 'verify-code' || view === 'reset-password' ? (
                   <button
-                    onClick={() => setView('login')}
-                    className="flex items-center justify-center gap-2 mx-auto text-sm text-slate-400 dark:text-slate-500 font-bold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    type="button"
+                    onClick={() => {
+                      setView('login');
+                      setError(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
                   >
-                    <ArrowLeft size={16} />
-                    Back to Sign In
+                    <ArrowLeft size={14} />
+                    <span>Back to Sign In</span>
                   </button>
-                ) : view !== 'authorize' ? (
-                  <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">
-                    {view === 'login' ? "Don't have an account?" : "Already have an account?"}{' '}
+                ) : isMainAuthView ? (
+                  <p>
+                    {view === 'login' ? "Don't have an account yet?" : "Already have an account?"}{' '}
                     <button
-                      onClick={() => setView(view === 'login' ? 'signup' : 'login')}
-                      className="text-blue-600 dark:text-blue-400 font-black hover:underline"
+                      type="button"
+                      onClick={() => {
+                        setView(view === 'login' ? 'signup' : 'login');
+                        setError(null);
+                      }}
+                      className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer ml-1"
                     >
-                      {view === 'login' ? 'Sign Up' : 'Sign In'}
+                      {view === 'login' ? 'Create one now' : 'Sign in'}
                     </button>
                   </p>
                 ) : null}
               </div>
 
-              {/* Terms Overlay */}
-              <AnimatePresence>
-                {showTermsOverlay && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="absolute inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col"
-                  >
-                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                        {showTermsOverlay === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}
-                      </h3>
-                      <button 
-                        onClick={() => setShowTermsOverlay(null)}
-                        className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                      {showTermsOverlay === 'terms' ? (
-                        <>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">1. Acceptance of Neural Link</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              By accessing Doctorian ("the Interface"), you confirm your acceptance of these Terms. If you do not agree to the clinical guidelines and data harvesting boundaries, you must disconnect immediately.
-                            </p>
-                          </section>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">2. AI-PROBABILITY DISCLAIMER</h4>
-                            <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-2xl text-rose-700 dark:text-rose-400 text-[10px] font-black leading-relaxed">
-                              STRICT WARNING: DOCTORIAN IS A HEURISTIC ARTIFICIAL INTELLIGENCE ENVIRONMENT. AI INSIGHTS ARE "PROBABILITY-BASED SUGGESTIONS" AND DO NOT CONSTITUTE MEDICAL DIAGNOSIS.
-                              <br /><br />
-                              IF YOU ARE FACING A LIFE-THREATENING BIOLOGICAL CRISIS, ENGAGE PHYSICAL EMERGENCY SERVICES IMMEDIATELY.
-                            </div>
-                          </section>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">3. Biometric Integrity</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              You are solely responsible for the accuracy of input data. Doctorian assumes zero liability for results derived from compromised or fraudulent biometric inputs.
-                            </p>
-                          </section>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">4. IP & Neural Algorithms</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              All proprietary clinical logic and neural weighting patterns are the exclusive intellectual property of the Doctorian Foundation.
-                            </p>
-                          </section>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">5. Experimental Protocol</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              You acknowledge that AI "hallucinations" or inaccuracies are inherent risks. Use the Service as a secondary reference tool only.
-                            </p>
-                          </section>
-                        </>
-                      ) : (
-                        <>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">1. Bio-Data Sovereignty</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              Doctorian recognizes your absolute ownership over your biological and neural data. We collect clinical history exclusively to facilitate neuro-clinical analysis.
-                            </p>
-                          </section>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">2. Neural Analytics</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              Your data is utilized to calibrate localized neural models. All data is processed using AES-256 Symmetric Encryption.
-                            </p>
-                          </section>
-                          <section>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white mb-2 uppercase tracking-widest">3. Forgotten Protocol</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                              You maintain the 'Right to Erasure'. Activating the "Forgotten Protocol" will initiate an irreversible atomic delete of all your health signatures.
-                            </p>
-                          </section>
-                        </>
-                      )}
-                    </div>
-                    <div className="p-6 border-t border-slate-100 dark:border-slate-800">
-                      <button 
-                        onClick={() => setShowTermsOverlay(null)}
-                        className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 dark:shadow-blue-900/20"
-                      >
-                        I UNDERSTAND
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
+
+            {/* Terms & Privacy Policy Overlay Drawer */}
+            <AnimatePresence>
+              {showTermsOverlay && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 30 }}
+                  className="absolute inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col"
+                >
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md z-10">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {showTermsOverlay === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+                    </h3>
+                    <button 
+                      onClick={() => setShowTermsOverlay(null)}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs text-slate-600 dark:text-slate-300 custom-scrollbar leading-relaxed">
+                    {showTermsOverlay === 'terms' ? (
+                      <>
+                        <section className="space-y-1">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">1. Service Scope</h4>
+                          <p>
+                            Doctorian provides intelligent clinical informatics, secure electronic health record management, and telemetry tools. Heuristic AI insights are intended as decision support tools and do not substitute for in-person medical evaluation.
+                          </p>
+                        </section>
+                        <section className="space-y-1">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">2. Medical Emergency Notice</h4>
+                          <p className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 font-medium">
+                            If you are experiencing an acute medical emergency, chest pain, difficulty breathing, or severe injury, please contact local emergency medical services (911/112) immediately.
+                          </p>
+                        </section>
+                        <section className="space-y-1">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">3. Account Security & Biometrics</h4>
+                          <p>
+                            You are responsible for securing your access credentials and local biometric authentication devices. Doctorian employs cryptographic salting and AES-256 vault encryption for all clinical data.
+                          </p>
+                        </section>
+                      </>
+                    ) : (
+                      <>
+                        <section className="space-y-1">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">1. Patient Data Sovereignty</h4>
+                          <p>
+                            You retain absolute ownership of all diagnostic records, scan imagery, and personal health metrics stored in your Doctorian Storage Vault.
+                          </p>
+                        </section>
+                        <section className="space-y-1">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">2. Zero-Knowledge Encryption</h4>
+                          <p>
+                            All patient vitals and sensitive medical histories are encrypted at rest using AES-256 and transmitted exclusively across TLS 1.3 authenticated channels.
+                          </p>
+                        </section>
+                        <section className="space-y-1">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">3. Right to Erasure</h4>
+                          <p>
+                            You may permanently purge your health vault, chat sessions, and profile records at any time directly through the Storage Vault settings.
+                          </p>
+                        </section>
+                      </>
+                    )}
+                  </div>
+                  <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                    <button 
+                      onClick={() => setShowTermsOverlay(null)}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-xs transition-colors shadow-sm cursor-pointer"
+                    >
+                      I Understand & Accept
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
           </motion.div>
         </div>
       )}

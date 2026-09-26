@@ -102,6 +102,8 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AndroidAppButtons } from './components/AndroidAppButtons';
 import { StorageVaultModal } from './components/StorageVaultModal';
 import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
+import { TargetedDoseAlarmModal } from './components/TargetedDoseAlarmModal';
+import { ModernAuthPage } from './components/ModernAuthPage';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
 
@@ -348,6 +350,26 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return this.props.children;
   }
 }
+
+export class SafeNavErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.warn("SafeNavErrorBoundary isolated recovery:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
 import { api, User, autoDiscoverLocalNode } from './api';
 import { Logo } from "./components/Logo";
 import { ResourceView, ResourceType } from './components/ResourceView';
@@ -846,20 +868,13 @@ export default function App() {
     try {
       const saved = localStorage.getItem('medical_user');
       if (saved && saved !== 'undefined' && saved !== 'null') {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.email || parsed.id)) return parsed;
       }
     } catch (e) {}
-    return {
-      id: "usr-gloria-01",
-      email: "gloriajayakullo@gmail.com",
-      displayName: "Gloria Jay Akullo",
-      role: "doctor_admin",
-      subscriptionStatus: "active",
-      subscriptionTier: "pro",
-      credits: 99999,
-      createdAt: "2024-01-01T00:00:00.000Z"
-    } as User;
+    return null;
   });
+  const [hasEnteredApp, setHasEnteredApp] = useState<boolean>(false);
   const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
   const [isScanLoading, setIsScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -1766,6 +1781,7 @@ export default function App() {
         const autoTriggerSOS = async () => {
           try {
             await arduino.triggerAlarm('emergency');
+            if (!user) return;
             const alertReason = isViolatingCustomBounds 
               ? `Custom SOS thresholds breached! (HR: ${hr}, SpO2: ${spo2}%)`
               : `CRITICAL vitals detected!`;
@@ -1835,6 +1851,7 @@ export default function App() {
     }
     localStorage.removeItem('medical_user');
     setUser(null);
+    setHasEnteredApp(false);
     setCurrentView('home');
   };
 
@@ -2331,6 +2348,59 @@ export default function App() {
 
   const mobileNavLinks = navLinks.slice(0, 5);
 
+  if (!hasEnteredApp) {
+    return (
+      <ErrorBoundary>
+        <ModernAuthPage
+          isDarkMode={isDarkMode}
+          onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+          initialMode="signup"
+          onSuccess={(authenticatedUser, isSignUp) => {
+            setUser(authenticatedUser);
+            localStorage.setItem('medical_user', JSON.stringify(authenticatedUser));
+            setHasEnteredApp(true);
+            setIsAuthModalOpen(false);
+            if (isSignUp) {
+              addToast(`Welcome to Doctorian! Workstation initialized & confirmation sent to Gmail (${authenticatedUser.email}).`, "success");
+            } else {
+              addToast(`Welcome back, ${authenticatedUser.displayName || 'User'}! Login security alert sent to Gmail (${authenticatedUser.email}).`, "success");
+            }
+          }}
+          onContinueAsGuest={() => {
+            const guestUser: User = {
+              id: "guest_" + Date.now(),
+              email: "guest@doctorian.org",
+              displayName: "Clinical Guest",
+              role: "user",
+              subscriptionTier: "free",
+              credits: 50,
+              createdAt: new Date().toISOString()
+            };
+            setUser(guestUser);
+            localStorage.setItem('medical_user', JSON.stringify(guestUser));
+            setHasEnteredApp(true);
+            addToast("Entered in Guest Exploration Mode. All clinical tools unlocked.", "info");
+          }}
+        />
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-8 py-4 rounded-[2rem] shadow-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-4 border ${
+                toast.type === 'success' ? 'bg-blue-600 border-blue-500 text-white shadow-blue-500/20' : 
+                toast.type === 'info' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-700 dark:border-slate-200' :
+                'bg-rose-600 border-rose-500 text-white shadow-rose-500/20'
+              }`}
+            >
+              <span>{toast.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -3110,16 +3180,28 @@ export default function App() {
                                 )}
                               </div>
 
-                              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 group px-2 pb-2">
+                              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 group px-2 pb-2 space-y-1">
                                 <button
+                                  type="button"
+                                  onClick={() => {
+                                    setHasEnteredApp(false);
+                                    setIsProfileOpen(false);
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all uppercase tracking-wider cursor-pointer"
+                                >
+                                  <LogIn size={15} className="text-blue-500 shrink-0" />
+                                  <span>Switch Account / Gate</span>
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => {
                                     handleLogout();
                                     setIsProfileOpen(false);
                                   }}
-                                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[10px] font-black text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all uppercase tracking-[0.2em]"
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-[10px] font-black text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all uppercase tracking-[0.2em] cursor-pointer"
                                 >
-                                  <LogOut size={16} />
-                                  Log Out Securely
+                                  <LogOut size={15} className="shrink-0" />
+                                  <span>Log Out Securely</span>
                                 </button>
                               </div>
                             </motion.div>
@@ -3129,28 +3211,28 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <button 
                       onClick={() => {
                         setAuthModalView('login');
                         setIsAuthModalOpen(true);
                       }}
-                      className="flex items-center justify-center gap-1 h-9 sm:h-10 px-2 sm:px-4 text-slate-700 dark:text-slate-200 rounded-xl text-[10px] sm:text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group border border-slate-200 dark:border-slate-800 whitespace-nowrap shrink-0"
+                      className="flex items-center justify-center gap-1.5 h-9 sm:h-9.5 px-3 sm:px-3.5 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-250 dark:border-slate-800 whitespace-nowrap shrink-0 cursor-pointer"
                       title="Sign In"
                     >
-                      <LogIn size={14} className="group-hover:translate-x-0.5 transition-transform shrink-0" />
-                      <span className="inline">SIGN IN</span>
+                      <LogIn size={14} className="shrink-0 text-slate-500 dark:text-slate-400" />
+                      <span>Sign In</span>
                     </button>
                     <button 
                       onClick={() => {
                         setAuthModalView('signup');
                         setIsAuthModalOpen(true);
                       }}
-                      className="hidden sm:flex items-center justify-center gap-1.5 h-10 px-4 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-md shadow-blue-200 dark:shadow-blue-900/20 group whitespace-nowrap shrink-0"
-                      title="Sign Up"
+                      className="hidden sm:flex items-center justify-center gap-1.5 h-9 sm:h-9.5 px-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-all shadow-sm shadow-blue-600/20 whitespace-nowrap shrink-0 cursor-pointer"
+                      title="Create Account"
                     >
-                      <UserPlus size={15} className="group-hover:scale-110 transition-transform shrink-0" />
-                      <span>SIGN UP</span>
+                      <UserPlus size={14} className="shrink-0" />
+                      <span>Sign Up</span>
                     </button>
                   </div>
                 )
@@ -3317,19 +3399,19 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-10 sm:mb-16">
                   <button 
                     onClick={() => setIsAuthModalOpen(true)}
-                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-blue-600 text-white rounded-2xl font-black text-sm sm:text-base hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/30 group active:scale-95"
+                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 sm:px-10 py-3.5 sm:py-4 bg-blue-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/25 group active:scale-[0.98] cursor-pointer"
                   >
-                    <LogIn size={22} className="group-hover:translate-x-1 transition-transform" />
-                    <span className="tracking-widest">GET STARTED</span>
+                    <LogIn size={20} className="group-hover:translate-x-0.5 transition-transform" />
+                    <span>Get Started</span>
                   </button>
                   <button 
                     onClick={() => setCurrentView('learn_more')}
-                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-sm sm:text-base hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-slate-100 dark:border-slate-700 transition-all shadow-sm hover:shadow-xl active:scale-95 group/learn"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 sm:px-10 py-3.5 sm:py-4 bg-white dark:bg-slate-850 text-slate-700 dark:text-slate-200 rounded-xl font-semibold text-sm sm:text-base hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-750 transition-all shadow-sm hover:shadow-md active:scale-[0.98] group/learn cursor-pointer"
                   >
-                    <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center group-hover/learn:bg-blue-50 dark:group-hover/learn:bg-blue-900/20 group-hover/learn:text-blue-600 transition-colors">
-                      <Info size={18} />
+                    <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover/learn:text-blue-600 transition-colors">
+                      <Info size={16} />
                     </div>
-                    <span className="tracking-widest">LEARN MORE</span>
+                    <span>Learn More</span>
                   </button>
                 </div>
 
@@ -4543,6 +4625,12 @@ export default function App() {
       </motion.div>
     )}
   </AnimatePresence>
+
+  {/* Targeted Account-Specific Medication Dose Alarm Modal (Admin Authorized) */}
+  <TargetedDoseAlarmModal
+    currentUser={user}
+    onShowToast={(msg, type) => addToast(msg, type === 'warning' ? 'info' : (type || 'info'))}
+  />
   
             {currentView !== 'ai_nexus' && (
               <>
@@ -4683,11 +4771,13 @@ export default function App() {
 
     {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << (Hidden in full-screen AI chat to prevent blocking the input card) */}
     {currentView !== 'ai_nexus' && (
-      <MobileBottomNav 
-        currentView={currentView} 
-        onNavigate={(view) => setCurrentView(view as any)}
-        onOpenMenu={() => setIsMobileMenuOpen(true)}
-      />
+      <SafeNavErrorBoundary key={`bottom-nav-${currentView}`}>
+        <MobileBottomNav 
+          currentView={currentView} 
+          onNavigate={(view) => setCurrentView(view as any)}
+          onOpenMenu={() => setIsMobileMenuOpen(true)}
+        />
+      </SafeNavErrorBoundary>
     )}
 
   </div>

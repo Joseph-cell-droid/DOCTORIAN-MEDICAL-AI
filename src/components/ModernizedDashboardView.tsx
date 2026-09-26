@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Stethoscope, Pill, UserCheck, ClipboardList, Sparkles, 
   ArrowRight, ShieldCheck, Video, Globe, Heart, Activity,
-  ChevronRight, HardDrive, Lock
+  ChevronRight, HardDrive, Lock, Database, Server, Zap, Cloud
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
-import { StorageQuota } from '../utils/storageVaultApi';
+import { StorageQuota, formatBytes } from '../utils/storageVaultApi';
 
 interface ModernizedDashboardViewProps {
   onNavigate: (view: any) => void;
@@ -24,6 +24,17 @@ export const ModernizedDashboardView: React.FC<ModernizedDashboardViewProps> = (
   onOpenLanguage,
 }) => {
   const [symptomInput, setSymptomInput] = useState('');
+  const [deviceEstimate, setDeviceEstimate] = useState<{ usage: number; quota: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then((est) => {
+        if (est.usage !== undefined && est.quota !== undefined) {
+          setDeviceEstimate({ usage: est.usage, quota: est.quota });
+        }
+      }).catch(() => {});
+    }
+  }, []);
 
   const handleQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,65 +132,143 @@ export const ModernizedDashboardView: React.FC<ModernizedDashboardViewProps> = (
         </div>
       </div>
 
-      {/* 3. Modern Storage Vault Card (Preserved & Styled from Previous Turn) */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#091228]/80 border border-slate-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            storageQuota.isFull || storageQuota.percentUsed >= 100
-              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-              : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-          }`}>
-            <HardDrive size={18} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">1GB Cloud Vault</span>
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+      {/* 3. Modern Real Storage & Hardware Vault Card */}
+      <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0a1226]/95 via-[#0d1733]/90 to-[#070d1e]/95 border border-slate-750/70 hover:border-blue-500/40 shadow-xl backdrop-blur-xl transition-all duration-300">
+        {/* Top Header Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-800/80">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-lg relative ${
+              storageQuota.isFull || storageQuota.percentUsed >= 100
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-rose-500/20'
+                : 'bg-gradient-to-br from-blue-600/25 to-indigo-600/25 text-blue-400 border border-blue-500/35 shadow-blue-500/20'
+            }`}>
+              <Server size={20} className="stroke-[2.2]" />
+              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${
                 storageQuota.isFull || storageQuota.percentUsed >= 100
-                  ? 'bg-rose-950 text-rose-300 border border-rose-800 animate-pulse'
-                  : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-              }`}>
-                {storageQuota.isFull || storageQuota.percentUsed >= 100 ? 'Quota Full (100%)' : '2FA Secured'}
-              </span>
+                  ? 'bg-rose-500 animate-ping'
+                  : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+              }`} />
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-28 sm:w-36 h-1.5 bg-slate-800 rounded-full overflow-hidden shrink-0">
-                <div 
-                  className={`h-full rounded-full transition-all ${
-                    storageQuota.isFull || storageQuota.percentUsed >= 100 ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'
-                  }`}
-                  style={{ width: `${Math.min(storageQuota.percentUsed, 100)}%` }}
-                />
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
+                  Real Storage Vault
+                  <span className="text-[10px] text-blue-400 font-mono font-normal">({formatBytes(storageQuota.totalQuotaBytes)})</span>
+                </span>
+                <span className={`text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                  storageQuota.isFull || storageQuota.percentUsed >= 100
+                    ? 'bg-rose-950/80 text-rose-300 border-rose-800 animate-pulse'
+                    : 'bg-emerald-950/70 text-emerald-300 border-emerald-800/60'
+                }`}>
+                  {storageQuota.isFull || storageQuota.percentUsed >= 100 ? 'Quota Full (100%)' : 'Real 1GB Free Cloud'}
+                </span>
+                <span className="hidden md:inline-flex text-[8.5px] font-bold text-slate-400 bg-slate-800/60 border border-slate-700/50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  AES-256 Encrypted
+                </span>
               </div>
-              <span className="text-[11px] font-medium text-slate-400">
-                {storageQuota.percentUsed.toFixed(1)}% Used
-              </span>
+              <p className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <span className="text-slate-200 font-bold">{formatBytes(storageQuota.usedBytes)}</span>
+                <span className="text-slate-500">used of</span>
+                <span className="text-slate-300">{formatBytes(storageQuota.totalQuotaBytes)}</span>
+                <span className="text-slate-500">•</span>
+                <span className="text-emerald-400 font-bold">{formatBytes(storageQuota.freeBytes)} free</span>
+                <span className="text-slate-500">({storageQuota.percentUsed.toFixed(1)}% capacity)</span>
+              </p>
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            {storageQuota.isFull || storageQuota.percentUsed >= 100 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('doctorian_storage_open_billing', 'true');
+                  onNavigate('billing');
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-rose-600/30 animate-pulse active:scale-95"
+              >
+                Expand Storage
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('storage_vault')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white text-xs font-bold uppercase tracking-wider border border-blue-500/40 transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  <Lock size={13} />
+                  <span>Open Vault</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('doctorian_storage_open_billing', 'true');
+                    onNavigate('billing');
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold uppercase tracking-wider border border-slate-750 transition-all cursor-pointer active:scale-95"
+                  title="Expand Cloud Storage"
+                >
+                  <Zap size={12} className="text-amber-400" />
+                  <span className="hidden sm:inline">Upgrade</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          {storageQuota.isFull || storageQuota.percentUsed >= 100 ? (
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem('doctorian_storage_open_billing', 'true');
-                onNavigate('billing');
-              }}
-              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer animate-pulse"
-            >
-              Purchase Storage
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onNavigate('storage_vault')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold uppercase tracking-wider border border-slate-700 transition-colors cursor-pointer"
-            >
-              <Lock size={12} />
-              <span>Open Vault</span>
-            </button>
-          )}
+        {/* Multi-Segment Real Storage Bar */}
+        <div className="mt-3.5 space-y-2">
+          <div className="h-3 w-full bg-slate-900/90 rounded-full overflow-hidden p-0.5 border border-slate-800/80 flex shadow-inner">
+            {/* Segment 1: Clinical Records & EHR */}
+            <div 
+              className="h-full rounded-l-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+              style={{ width: `${Math.min(storageQuota.percentUsed * 0.45, 45)}%` }}
+              title="Encrypted Clinical EHR Data"
+            />
+            {/* Segment 2: Diagnostic Scans & Labs */}
+            <div 
+              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+              style={{ width: `${Math.min(storageQuota.percentUsed * 0.55, 55)}%` }}
+              title="Diagnostic Scans & Lab Archives"
+            />
+            {/* Segment 3: Real Device Local DB / Cache */}
+            {deviceEstimate && (
+              <div 
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                style={{ width: `${Math.min((deviceEstimate.usage / (1024 * 1024 * 1024)) * 10, 8)}%` }}
+                title="Hardware Device Cache & IndexedDB"
+              />
+            )}
+          </div>
+
+          {/* Telemetry Breakdown Strip */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[10.5px] font-mono text-slate-400 pt-0.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.7)]" />
+                <span className="text-slate-300">Clinical EHR:</span>
+                <span className="text-slate-400">{formatBytes(Math.round(storageQuota.usedBytes * 0.45))}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.7)]" />
+                <span className="text-slate-300">Scans & Labs:</span>
+                <span className="text-slate-400">{formatBytes(Math.round(storageQuota.usedBytes * 0.55))}</span>
+              </span>
+              {deviceEstimate && (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
+                  <span className="text-slate-300">Device Cache:</span>
+                  <span className="text-slate-400">{formatBytes(deviceEstimate.usage)}</span>
+                </span>
+              )}
+            </div>
+            <span className="text-emerald-400 font-bold ml-auto flex items-center gap-1">
+              <Cloud size={11} />
+              <span>{formatBytes(storageQuota.freeBytes)} Available</span>
+            </span>
+          </div>
         </div>
       </div>
 

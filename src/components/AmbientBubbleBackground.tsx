@@ -349,32 +349,48 @@ export const AmbientBubbleBackground: React.FC<AmbientBubbleBackgroundProps> = m
       data-view-category={densityProfile.category}
       className={`fixed inset-0 pointer-events-none overflow-hidden z-[1] select-none transition-opacity duration-1000 ${className}`}
     >
-      {/* Premium Modern Backdrop */}
+      {/* Premium Modern Atmosphere Backdrop */}
       <div 
         className={`absolute inset-0 transition-all duration-700 ${
           isDarkMode 
-            ? 'bg-gradient-to-br from-slate-950 via-slate-900/95 to-slate-950' 
-            : 'bg-gradient-to-br from-white via-slate-50 to-blue-50/20'
+            ? 'bg-[#060a12]' 
+            : 'bg-[#f8fafc]'
         }`}
       />
 
-      {/* Subtle Radial Mesh */}
-      <div className={`absolute inset-0 bg-[radial-gradient(#3b82f6_1.2px,transparent_1.2px)] [background-size:32px_32px] transition-opacity duration-700 ${
-        isMinimal 
-          ? 'opacity-[0.02] dark:opacity-[0.05]' 
-          : 'opacity-[0.05] dark:opacity-[0.10]'
-      }`} />
+      {/* Cyber-Medical Aurora Glow Orbs */}
+      <div 
+        className={`absolute -top-[15%] -left-[10%] w-[55vw] h-[55vw] rounded-full blur-[140px] pointer-events-none transition-all duration-1000 ${
+          isDarkMode
+            ? 'bg-radial from-blue-600/18 via-cyan-500/10 to-transparent'
+            : 'bg-radial from-blue-400/15 via-cyan-300/10 to-transparent'
+        } ${isMinimal ? 'opacity-40' : 'opacity-100'}`}
+      />
+      <div 
+        className={`absolute -bottom-[15%] -right-[10%] w-[50vw] h-[50vw] rounded-full blur-[150px] pointer-events-none transition-all duration-1000 ${
+          isDarkMode
+            ? 'bg-radial from-indigo-600/16 via-purple-600/10 to-transparent'
+            : 'bg-radial from-indigo-300/15 via-purple-200/10 to-transparent'
+        } ${isMinimal ? 'opacity-40' : 'opacity-100'}`}
+      />
 
       {/* Center Antigravity Soft Radial Glow with Adaptive View Intensity */}
       <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[140px] pointer-events-none transition-all duration-1000 ${
         isMinimal
-          ? 'w-[500px] h-[500px] opacity-40'
-          : 'w-[700px] h-[700px] opacity-100'
+          ? 'w-[450px] h-[450px] opacity-30'
+          : 'w-[720px] h-[720px] opacity-90'
       } ${
         isDarkMode 
-          ? 'bg-radial from-blue-600/15 via-purple-600/10 to-transparent' 
-          : 'bg-radial from-blue-400/20 via-indigo-300/15 to-transparent'
+          ? 'bg-radial from-cyan-500/10 via-blue-600/8 to-transparent' 
+          : 'bg-radial from-blue-400/12 via-indigo-200/10 to-transparent'
       }`} />
+
+      {/* Precision Micro-Lattice & Dot-Matrix Grid */}
+      <div className={`absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.035)_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:36px_36px] transition-opacity duration-700 ${
+        isMinimal 
+          ? 'opacity-40' 
+          : 'opacity-100'
+      } [mask-image:radial-gradient(ellipse_at_center,black_75%,transparent_100%)]`} />
 
       {/* Google Antigravity Particle Field Canvas */}
       <canvas 
@@ -383,7 +399,7 @@ export const AmbientBubbleBackground: React.FC<AmbientBubbleBackgroundProps> = m
       />
 
       {/* Vignette frame overlay */}
-      <div className="absolute inset-0 bg-radial from-transparent via-transparent to-slate-950/5 dark:to-slate-950/40 pointer-events-none" />
+      <div className="absolute inset-0 bg-radial from-transparent via-transparent to-slate-900/10 dark:to-slate-950/50 pointer-events-none" />
     </div>
   );
 });

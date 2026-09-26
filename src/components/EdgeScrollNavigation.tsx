@@ -17,12 +17,8 @@ export const EdgeScrollNavigation: React.FC<EdgeScrollNavigationProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Do not render on AI Consultation page (ai_nexus)
-  if (currentView === 'ai_nexus') {
-    return null;
-  }
-
   useEffect(() => {
+    if (currentView === 'ai_nexus') return;
     const scrollContainer = document.getElementById('app-scroll-viewport') || window;
     
     const handleScroll = () => {
@@ -37,6 +33,11 @@ export const EdgeScrollNavigation: React.FC<EdgeScrollNavigationProps> = ({
       scrollContainer.removeEventListener('scroll', handleScroll);
     };
   }, [currentView]);
+
+  // Do not render on AI Consultation page (ai_nexus)
+  if (currentView === 'ai_nexus') {
+    return null;
+  }
 
   const handleScrollTop = () => {
     const scrollContainer = document.getElementById('app-scroll-viewport');

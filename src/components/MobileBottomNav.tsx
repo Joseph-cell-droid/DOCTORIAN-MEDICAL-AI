@@ -173,61 +173,60 @@ export const ALL_APP_PAGES: PageItem[] = [
 ];
 
 /**
- * Checks if the current client is an Android device, a tablet (iPad, Android tablet),
- * or viewed in a mobile/tablet viewport or iframe preview.
+ * Strict Android Phone Detection:
+ * ONLY appears on real Android phones and never on another devices.
+ * Explicitly excludes:
+ *  - iPhones, iPads, iPods (Apple iOS/iPadOS)
+ *  - Laptops, Desktops (Mac, Windows, Linux, Chromebooks)
+ *  - Tablets (iPad, Android tablets without mobile phone user agents)
+ *  - Resized desktop browsers or non-Android devices
  */
 export function isAndroidOrTabletDevice(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return false;
   }
 
+  // Optional developer simulation override via URL search query (?device=android_phone) or session storage for testing
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('device') === 'android_phone') return true;
+    if (sessionStorage.getItem('doctorian_force_android_phone') === 'true') return true;
+  } catch {}
+
   const ua = (navigator.userAgent || navigator.vendor || (window as any).opera || '').toLowerCase();
-  const platform = (navigator.platform || '').toLowerCase();
 
-  // 1. Android Detection (All Android phones, foldables, and tablets)
+  // 1. MUST be an Android operating system
   const isAndroid = ua.includes('android');
-
-  // 2. iPad Detection (including iPadOS where Safari identifies as MacIntel with multi-touch)
-  const isIPad =
-    ua.includes('ipad') ||
-    (platform.includes('macintel') && navigator.maxTouchPoints > 1 && !ua.includes('iphone'));
-
-  // 3. Dedicated Tablet Detection (Android Tablets, Kindle Fire, Silk, PlayBook)
-  const isGenericTablet = /(tablet|playbook|silk)|(android(?!.*mobile))/i.test(ua);
-
-  // 4. Other Mobile Phones (iPhone, iPod, handheld mobile browsers)
-  const isMobileHandheld = /(mobi|iphone|ipod|blackberry|iemobile|opera mini)/i.test(ua);
-
-  const width = window.innerWidth;
-  const isInIframe = window.self !== window.top;
-
-  // If in an iframe preview (such as AI Studio preview) or width <= 1280px, allow preview
-  if (isInIframe && width <= 1280) {
-    return true;
+  if (!isAndroid) {
+    return false;
   }
 
-  // If confirmed Android (phone or tablet) -> Show
-  if (isAndroid) {
-    return true;
+  // 2. EXCLUDE all Apple devices (iPhone, iPad, iPod, Mac)
+  if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod') || ua.includes('macintosh')) {
+    return false;
   }
 
-  // If confirmed iPad or Tablet -> Show
-  if (isIPad || isGenericTablet) {
-    return true;
+  // 3. EXCLUDE tablets (Android tablets have "Android" but DO NOT include "Mobile", or explicitly specify "Tablet")
+  const isExplicitTablet = ua.includes('tablet') || ua.includes('playbook') || ua.includes('silk');
+  if (isExplicitTablet) {
+    return false;
   }
 
-  // If mobile handheld -> Show
-  if (isMobileHandheld) {
-    return true;
+  // 4. Standard Chrome/Firefox/Samsung Internet on Android:
+  // Android smartphones explicitly contain the token "Mobile" (e.g. "Linux; Android 14; ... Mobile Safari/537.36")
+  // Android tablets omit the "Mobile" token.
+  const hasMobileToken = ua.includes('mobile');
+  if (!hasMobileToken) {
+    return false;
   }
 
-  // If viewport is mobile/tablet size (< 1024px) -> Show
-  if (width < 1024) {
-    return true;
+  // 5. Verify screen geometry: handheld smartphone screens (min dimension < 820px)
+  const minDimension = Math.min(window.innerWidth, window.innerHeight);
+  if (minDimension >= 820) {
+    return false; // Tablet / large display
   }
 
-  // Laptops and desktops with large screens -> Hide
-  return false;
+  return true;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -307,10 +306,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     }
   });
 
-  // If not on Android or Tablet, do not render the bottom bar at all
-  if (!isAllowedDevice) {
-    return null;
-  }
+  const activePageMeta = useMemo(() => {
+    return ALL_APP_PAGES.find((p) => p.id === currentView) || ALL_APP_PAGES[0];
+  }, [currentView]);
 
   const toggleCornerDock = (side?: 'right' | 'left') => {
     const nextDocked = !isCornerDocked;
@@ -332,87 +330,163 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     } catch {}
   };
 
-  const activePageMeta = useMemo(() => {
-    return ALL_APP_PAGES.find((p) => p.id === currentView) || ALL_APP_PAGES[0];
-  }, [currentView]);
+  // If not on Android or Tablet, or in the dedicated full-screen AI Consultation view,
+  // do not render the bottom bar (all hooks have already executed above).
+  if (!isAllowedDevice || currentView === 'ai_nexus') {
+    return null;
+  }
 
   const isHomeActive = currentView === 'home';
   const isHealthActive = currentView === 'monitor' || currentView === 'vitality';
   const isRecordsActive = currentView === 'records' || currentView === 'health_trace';
   const isProfileActive = currentView === 'profile' || currentView === 'admin';
 
-  // In the dedicated full-screen AI Consultation view, hide MobileBottomNav
-  // so it never blocks or overlaps the chatbot's bottom text card and input controls.
-  if (currentView === 'ai_nexus') {
-    return null;
-  }
-
   return (
     <>
-      {/* 1. App Buttons Full Drawer / Modal (Matching Image 1 and Image 2) */}
+      {/* 1. Floating App Buttons in Transparent Background (No Enclosing Card) */}
       <AnimatePresence>
         {isSwitcherOpen && (
-          <div className="fixed inset-0 z-[150] flex flex-col justify-end">
-            {/* Backdrop */}
+          <>
+            {/* Transparent Frosted Backdrop - Clicking anywhere dismisses */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsSwitcherOpen(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm cursor-pointer"
+              onClick={() => {
+                setIsSwitcherOpen(false);
+                setSearchQuery('');
+              }}
+              className="fixed inset-0 z-[135] bg-slate-950/50 dark:bg-slate-950/75 backdrop-blur-xl cursor-pointer"
             />
 
-            {/* Modal / Sheet Container */}
+            {/* Pure Floating App Buttons - No background card, floating directly on transparent space */}
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="relative w-full max-w-2xl mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 rounded-t-[2.2rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, y: 35 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 25, transition: { duration: 0.15 } }}
+              transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+              className="fixed inset-x-0 bottom-24 sm:bottom-28 z-[138] pointer-events-none flex flex-col items-center justify-end px-3 sm:px-6 max-h-[calc(100vh-120px)] overflow-y-auto no-scrollbar"
             >
-              {/* Top Handle */}
-              <div className="w-full pt-3 pb-1.5 flex justify-center shrink-0">
-                <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
-              </div>
-
-              {/* Sheet Header - Modern Doctorian Look */}
-              <div className="px-5 sm:px-6 pb-3 pt-1 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                      <LayoutGrid size={15} strokeWidth={2.4} />
-                    </div>
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-                      Clinical App Buttons & Hub
-                    </h3>
-                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 font-mono">
-                      16 Modules
-                    </span>
+              <div className="pointer-events-auto w-full max-w-md sm:max-w-lg mx-auto flex flex-col items-center pb-2">
+                {/* Floating Header Chip & Search Bar (Transparent Glass) */}
+                <div className="w-full flex items-center justify-between gap-2.5 mb-3 px-1">
+                  <div className="relative flex-1">
+                    <Search
+                      size={14}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search 16 clinical apps..."
+                      className="w-full pl-9 pr-8 py-2 rounded-full bg-white/15 dark:bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/55 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400/70 shadow-lg"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white cursor-pointer"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Tap any app button below to navigate between diagnostic modules & tools
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSwitcherOpen(false);
+                      setSearchQuery('');
+                    }}
+                    className="h-8.5 px-3.5 rounded-full bg-white/15 dark:bg-white/10 hover:bg-white/25 text-white backdrop-blur-md border border-white/20 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-lg active:scale-95 shrink-0"
+                    title="Close Floating Apps"
+                  >
+                    <X size={14} />
+                    <span>Close</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsSwitcherOpen(false)}
-                  className="p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Close Navigation Drawer"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
-              {/* Sheet Body with Intelligent Non-Repeating App Buttons & Directory */}
-              <div className="p-4 sm:p-5 overflow-y-auto no-scrollbar">
-                <AndroidAppButtons
-                  currentView={currentView}
-                  onNavigate={onNavigate}
-                  onItemClick={() => setIsSwitcherOpen(false)}
-                />
+                {/* Floating App Buttons Grid - 4 Columns floating freely on transparent background */}
+                <div className="w-full grid grid-cols-4 gap-y-3.5 sm:gap-y-5 gap-x-2 sm:gap-x-4 px-1 py-1">
+                  {CLINICAL_MODULES_REGISTRY.filter((btn) => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase().trim();
+                    return (
+                      btn.label.toLowerCase().includes(q) ||
+                      btn.subtitle.toLowerCase().includes(q) ||
+                      btn.categoryLabel.toLowerCase().includes(q)
+                    );
+                  }).map((btn, index) => {
+                    const isActive = currentView === btn.id;
+                    const IconComp = btn.icon;
+
+                    return (
+                      <motion.button
+                        key={`floating-app-${btn.id}`}
+                        type="button"
+                        initial={{ opacity: 0, scale: 0.55, y: 25 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.7, y: 15 }}
+                        transition={{
+                          type: 'spring',
+                          damping: 18,
+                          stiffness: 350,
+                          delay: Math.min(index * 0.02, 0.25),
+                        }}
+                        whileHover={{ scale: 1.12, y: -4 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={() => {
+                          onNavigate(btn.id);
+                          setIsSwitcherOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className="group flex flex-col items-center justify-start cursor-pointer select-none focus:outline-none relative py-1"
+                      >
+                        {/* 1. Floating Icon Squircle */}
+                        <div className="relative">
+                          <div
+                            className={`w-13 h-13 sm:w-15 sm:h-15 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-tr ${btn.theme.iconGradient} text-white flex items-center justify-center shadow-[0_8px_22px_rgba(0,0,0,0.4)] ring-1 ring-white/35 backdrop-blur-xs transition-all duration-200 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.6)] group-hover:ring-white/70`}
+                          >
+                            {/* Glassy reflection sheen */}
+                            <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent rounded-t-2xl sm:rounded-t-[1.35rem] pointer-events-none" />
+
+                            <IconComp
+                              size={22}
+                              className="text-white drop-shadow-sm transition-transform duration-200 group-hover:scale-110 sm:w-6 sm:h-6"
+                            />
+
+                            {/* Floating Micro-Badge */}
+                            {btn.isUrgent ? (
+                              <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-[7.5px] font-black text-white uppercase tracking-wider shadow-md ring-1.5 ring-black/40 animate-pulse">
+                                SOS
+                              </span>
+                            ) : btn.badge ? (
+                              <span className="absolute -top-1.5 -right-1.5 px-1 py-0.2 rounded-full bg-slate-950/75 backdrop-blur-md text-[7px] font-bold text-white uppercase tracking-tight ring-1 ring-white/25 shadow-md">
+                                {btn.badge.replace(' FREE', '').replace(' AI', '').replace(' LIVE', '')}
+                              </span>
+                            ) : null}
+
+                            {/* Active Glow Ring */}
+                            {isActive && (
+                              <span className="absolute -inset-1.5 rounded-[1.3rem] sm:rounded-[1.55rem] ring-2 ring-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.7)] animate-pulse" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 2. Floating Title Underneath */}
+                        <span className="text-[10.5px] sm:text-[11px] font-bold text-white/95 text-center mt-1.5 leading-tight tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] line-clamp-1 max-w-[74px] sm:max-w-[84px] group-hover:text-white transition-colors">
+                          {btn.label}
+                        </span>
+                        <span className="text-[8.5px] text-white/70 text-center leading-none tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] line-clamp-1 max-w-[74px] sm:max-w-[84px] mt-0.5">
+                          {btn.categoryLabel}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
-          </div>
+          </>
         )}
       </AnimatePresence>
 
@@ -603,21 +677,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center">
-                        {/* 4-App Square Grid Symbol representing App Buttons */}
-                        <div className="relative">
+                        {/* 4-App Square Grid Symbol representing App Buttons with +16 Counter */}
+                        <div className="relative flex items-center justify-center">
                           <LayoutGrid
-                            size={21}
+                            size={20}
                             strokeWidth={2.4}
                             className="text-white drop-shadow-sm group-hover:scale-110 transition-transform duration-300"
                           />
-                          {/* Mini indicator dot showing more app buttons inside */}
-                          <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-300 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400 border border-blue-600" />
+                          {/* Mini "+16" indicator badge indicating all app buttons inside */}
+                          <span className="absolute -top-1.5 -right-3 px-1 py-0.2 rounded-full bg-cyan-400 text-blue-950 font-black text-[7px] leading-tight shadow-sm border border-white/60 tracking-tighter">
+                            +16
                           </span>
                         </div>
                         {/* Clear text indicator right on the button face */}
-                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-wider uppercase text-blue-100 leading-none mt-0.5 font-mono">
+                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-wider uppercase text-blue-100 leading-none mt-1 font-mono">
                           Apps
                         </span>
                       </div>

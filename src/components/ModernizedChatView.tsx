@@ -1,14 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Send, Plus, Menu, Search, Calendar, UserCheck, 
   Lightbulb, Activity, Check, CheckCheck, Loader2,
   Pill, Thermometer, AlertTriangle, Heart, RefreshCw, X,
-  ArrowLeft, History, PlusCircle, ChevronDown, Phone, Video,
+  ArrowLeft, History, PlusCircle, ChevronDown, ChevronUp, ChevronRight, Phone, Video,
   BrainCircuit, BookOpen, Volume2, VolumeX, Trash2, Mic, MicOff,
   Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
-  PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal
+  PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal,
+  CheckCircle2, Shield
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
 import { api } from '../api';
@@ -325,6 +326,244 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [callDuration, setCallDuration] = useState(0);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<'chat' | 'records' | 'meds' | 'tools' | 'profile'>('chat');
+
+  // Dedicated Non-Blocking Smart Actions State
+  const [isSmartActionsCollapsed, setIsSmartActionsCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('doctorian_smart_actions_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [smartActionsSearch, setSmartActionsSearch] = useState('');
+  const [smartActionNotice, setSmartActionNotice] = useState<string | null>(null);
+
+  const toggleSmartActionsCollapsed = () => {
+    setIsSmartActionsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('doctorian_smart_actions_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const showTemporaryNotice = (msg: string) => {
+    setSmartActionNotice(msg);
+    setTimeout(() => {
+      setSmartActionNotice(null);
+    }, 3200);
+  };
+
+  // Context-aware clinical signals detected in the conversation
+  const conversationContext = useMemo(() => {
+    const allText = messages.map((m) => m.text.toLowerCase()).join(' ');
+    return {
+      hasFever: allText.includes('fever') || allText.includes('temperature') || allText.includes('chills') || allText.includes('hot'),
+      hasMeds: allText.includes('dose') || allText.includes('mg') || allText.includes('drug') || allText.includes('coartem') || allText.includes('paracetamol') || allText.includes('antibiotic') || allText.includes('pill'),
+      hasVitals: allText.includes('heart') || allText.includes('pulse') || allText.includes('spo2') || allText.includes('pressure') || allText.includes('bp'),
+      hasMaternal: allText.includes('pregnant') || allText.includes('trimester') || allText.includes('baby') || allText.includes('infant') || allText.includes('child'),
+    };
+  }, [messages]);
+
+  const handleVitalsAction = () => {
+    if (arduino && arduino.heartRate) {
+      handleSendMessage(
+        `Analyze my current live telemetry snapshot from hardware sensors: Heart Rate is ${arduino.heartRate} bpm, Blood Oxygen (SpO2) is ${arduino.spo2 || 98}%, Core Temperature is ${arduino.temperature || 36.7}°C. Are these within normal clinical limits, and what risk stratification applies?`
+      );
+    } else {
+      handleSendMessage(
+        "Analyze my vital signs snapshot: Heart Rate 72 bpm, SpO2 98%, Blood Pressure 120/80 mmHg, Temperature 36.8°C. What is the clinical interpretation and risk classification?"
+      );
+    }
+  };
+
+  const handleGenerateSoapNote = () => {
+    handleSendMessage(
+      "Please generate a complete, structured clinical SOAP note (Subjective, Objective, Assessment, Plan) for this consultation, detailing symptoms, vitals, differential diagnoses, and management protocols under Uganda Clinical Guidelines."
+    );
+    showTemporaryNotice("Generating structured clinical SOAP note...");
+  };
+
+  const handleExportConsultationSummary = () => {
+    if (messages.length === 0) {
+      showTemporaryNotice("No consultation messages to export yet.");
+      return;
+    }
+    const dateStr = new Date().toLocaleString();
+    const formatted = [
+      `====================================================`,
+      `DOCTORIAN MEDICAL AI • CLINICAL CONSULTATION SUMMARY`,
+      `====================================================`,
+      `Date & Time: ${dateStr}`,
+      `Patient Name: ${user?.name || 'Authorized Patient'}`,
+      `Session ID: ${currentSessionId}`,
+      `Standards: Uganda Clinical Guidelines (UCG) & WHO Protocols`,
+      `Bio-Telemetry: HR ${arduino?.heartRate || 72} bpm, SpO2 ${arduino?.spo2 || 98}%, Temp ${arduino?.temperature || 36.8}°C`,
+      `----------------------------------------------------`,
+      `TRANSCRIPT & CLINICAL EXCHANGE:`,
+      ...messages.map((m) => `\n[${m.timestamp}] ${m.sender === 'user' ? 'PATIENT' : 'DOCTORIAN AI'}:\n${cleanAiResponse(m.text)}`),
+      `\n----------------------------------------------------`,
+      `DISCLAIMER: Generated by Doctorian AI Clinical Co-pilot for decision support. Seek immediate medical attention for acute red flag signs.`,
+      `====================================================`
+    ].join('\n');
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(formatted).then(() => {
+        showTemporaryNotice("✅ Consultation report copied to clipboard!");
+      }).catch(() => {
+        showTemporaryNotice("Consultation summary generated.");
+      });
+    } else {
+      showTemporaryNotice("Consultation summary generated.");
+    }
+  };
+
+  const allClinicalActions = useMemo(() => [
+    {
+      id: 'soap',
+      category: 'Diagnostics & Triage',
+      title: 'Generate SOAP Note',
+      desc: 'Create structured Subjective, Objective, Assessment, Plan documentation',
+      icon: FileText,
+      badge: 'Documentation',
+      color: 'from-blue-600 to-indigo-600',
+      action: () => handleGenerateSoapNote(),
+    },
+    {
+      id: 'advice',
+      category: 'Diagnostics & Triage',
+      title: 'Differential Diagnosis & Advice',
+      desc: 'Evidence-based clinical precautions, etiology, and differentials',
+      icon: Lightbulb,
+      badge: 'Clinical Advice',
+      color: 'from-amber-600 to-orange-600',
+      action: () => handleSendMessage("Can you provide evidence-based clinical precautions, etiology, dosage details, and differential diagnoses?"),
+    },
+    {
+      id: 'lab',
+      category: 'Diagnostics & Triage',
+      title: 'Diagnostic Lab Test Analyzer',
+      desc: 'Evaluate CBC, malaria RDT, urinalysis, and biomarkers',
+      icon: Activity,
+      badge: 'Lab Panel',
+      color: 'from-emerald-600 to-teal-600',
+      action: () => {
+        setActiveToolTab('lab');
+        setShowToolHub(true);
+      },
+    },
+    {
+      id: 'pediatric',
+      category: 'Diagnostics & Triage',
+      title: 'Maternal & Pediatric Danger Signs',
+      desc: 'Screen emergency warning signs for under-5 and maternal health',
+      icon: Stethoscope,
+      badge: 'Pediatrics',
+      color: 'from-purple-600 to-pink-600',
+      action: () => handleSendMessage("What are the critical pediatric danger signs in a child presenting with fever, fast breathing, and lethargy?"),
+    },
+    {
+      id: 'reminder',
+      category: 'Pharmacotherapy & Meds',
+      title: 'Set Medication Reminder',
+      desc: 'Automated dose schedules and adherence tracking',
+      icon: Calendar,
+      badge: 'Adherence',
+      color: 'from-cyan-600 to-blue-600',
+      action: () => {
+        if (onNavigate) onNavigate('meds');
+        else showTemporaryNotice("Opening Medication Reminders...");
+      },
+    },
+    {
+      id: 'drug-safety',
+      category: 'Pharmacotherapy & Meds',
+      title: 'Drug Interaction & Safety Review',
+      desc: 'Check contraindications, hepatic/renal cautions, and interactions',
+      icon: Pill,
+      badge: 'Safety',
+      color: 'from-indigo-600 to-violet-600',
+      action: () => handleSendMessage("Review the clinical pharmacology, contraindications, dosage cautions, and potential drug interactions for my medications."),
+    },
+    {
+      id: 'fluid',
+      category: 'Pharmacotherapy & Meds',
+      title: 'Fluid Resuscitation Calculator',
+      desc: 'Dehydration severity & Parkland / WHO IV fluid regimen',
+      icon: BrainCircuit,
+      badge: 'Infusion',
+      color: 'from-amber-600 to-red-600',
+      action: () => {
+        setActiveToolTab('fluid');
+        setShowToolHub(true);
+      },
+    },
+    {
+      id: 'telehealth',
+      category: 'Telehealth & Consultation',
+      title: 'Doctorian Voice Call',
+      desc: 'Connect with Doctorian clinical specialist via live audio triage',
+      icon: Phone,
+      badge: 'Live Audio',
+      color: 'from-emerald-600 to-cyan-600',
+      action: () => {
+        setCallMode('voice');
+        setShowVoiceCallModal(true);
+      },
+    },
+    {
+      id: 'moh',
+      category: 'Telehealth & Consultation',
+      title: 'Uganda MoH Protocols 2023/2026',
+      desc: 'Certified local health center triage & national referral guidelines',
+      icon: BookOpen,
+      badge: 'MoH Certified',
+      color: 'from-teal-600 to-emerald-600',
+      action: () => {
+        setIsUgandaMOHActive(true);
+        handleSendMessage("Summarize the standard first-line treatment guidelines according to the Uganda Clinical Guidelines (UCG 2023/2026) for uncomplicated malaria and bacterial pneumonia.");
+      },
+    },
+    {
+      id: 'vitals',
+      category: 'Bio-Telemetry & Critical Care',
+      title: 'Analyze Live Vitals',
+      desc: 'Instant risk triage from connected biometric sensors or snapshot',
+      icon: Heart,
+      badge: 'Telemetry',
+      color: 'from-rose-600 to-pink-600',
+      action: () => handleVitalsAction(),
+    },
+    {
+      id: 'summary',
+      category: 'Bio-Telemetry & Critical Care',
+      title: 'Export Consultation Report',
+      desc: 'Copy complete clinical summary with SOAP format to clipboard',
+      icon: Copy,
+      badge: 'Export',
+      color: 'from-blue-600 to-cyan-600',
+      action: () => handleExportConsultationSummary(),
+    },
+    {
+      id: 'sos',
+      category: 'Bio-Telemetry & Critical Care',
+      title: 'Emergency SOS Dispatch',
+      desc: 'Immediate emergency protocol activation & ambulance triage guidance',
+      icon: AlertCircle,
+      badge: 'Critical',
+      color: 'from-red-600 to-rose-700',
+      action: () => handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!"),
+    },
+  ], [arduino, currentSessionId, messages, user, onNavigate]);
+
+  const filteredClinicalActions = useMemo(() => {
+    if (!smartActionsSearch.trim()) return allClinicalActions;
+    const q = smartActionsSearch.toLowerCase();
+    return allClinicalActions.filter(
+      (a) => a.title.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
+    );
+  }, [allClinicalActions, smartActionsSearch]);
 
   // Interactive Tools state
   const [labHb, setLabHb] = useState('11.8');
@@ -1100,287 +1339,199 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 3. RAISED CHATBOT TEXT CARD & BOTTOM BUTTONS CARD */}
+      {/* 3. DEDICATED SMART ACTIONS DOCK (Compact, Non-Blocking, Smart) */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className="mt-auto px-3 sm:px-6 pb-4 sm:pb-6 pt-3 bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent z-30 shrink-0">
-        <div className="max-w-4xl mx-auto space-y-2 sm:space-y-2.5">
+      <div className="mt-auto px-3 sm:px-6 pb-3 pt-2 bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent z-30 shrink-0">
+        <div className="max-w-4xl mx-auto space-y-2">
           
-          {/* TOP: Raised Illuminated Chatbot Text Card */}
-          <div className="relative bg-[#071333] sm:bg-[#081842]/98 backdrop-blur-2xl border-2 border-cyan-400/60 hover:border-cyan-300 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)] focus-within:border-cyan-300 focus-within:ring-4 focus-within:ring-cyan-400/30 transition-all overflow-visible">
+          {/* Temporary feedback notice toast */}
+          <AnimatePresence>
+            {smartActionNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                className="px-3.5 py-1.5 rounded-xl bg-cyan-950/90 border border-cyan-400/50 text-cyan-200 text-xs font-semibold shadow-lg text-center backdrop-blur-md flex items-center justify-center gap-2"
+              >
+                <Sparkles size={13} className="text-cyan-400 animate-spin" />
+                <span>{smartActionNotice}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Compact Smart Actions Row (Single Line, Never Blocks Features) */}
+          <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-2xl bg-[#06122d]/80 border border-cyan-500/35 backdrop-blur-xl shadow-lg transition-all">
             
-            {/* Top Cyan Neon Accent Line */}
-            <div className="absolute -top-[2px] left-6 right-6 h-[2.5px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent pointer-events-none opacity-100 shadow-[0_0_12px_rgba(6,182,212,0.8)]" />
+            {/* Scrollable Action Chips Container */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
+              
+              {/* Smart Actions Badge & Collapse Toggle */}
+              <button
+                type="button"
+                id="smart-actions-toggle-btn"
+                onClick={toggleSmartActionsCollapsed}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95 ${
+                  isSmartActionsCollapsed
+                    ? 'bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300'
+                    : 'bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-400/60 text-cyan-200'
+                }`}
+                title={isSmartActionsCollapsed ? "Expand Smart Actions" : "Minimize Smart Actions"}
+              >
+                <Sparkles size={12} className="text-cyan-400 animate-pulse" />
+                <span>Smart Actions</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-cyan-400/20 text-cyan-300 font-mono">
+                  {allClinicalActions.length}
+                </span>
+                <ChevronDown size={11} className={`transform transition-transform ${isSmartActionsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
+              </button>
 
-            {/* TOP LEFT: Prominently displayed Smart Actions Icons */}
-            <div className="flex items-center justify-between pb-2.5 px-1 border-b border-cyan-900/40 mb-2.5 gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/40 text-[11px] font-bold text-cyan-300 mr-0.5 shrink-0">
-                  <Sparkles size={13} className="text-cyan-400 animate-pulse" />
-                  <span>Smart Actions</span>
-                </div>
-
-                {/* 1. Medication Reminder */}
-                <button
-                  type="button"
-                  id="smart-action-reminder"
-                  onClick={() => onNavigate ? onNavigate('meds') : alert("Medication Reminders opened")}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-600/25 hover:bg-blue-600/40 border border-blue-400/60 hover:border-blue-300 text-blue-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
-                  title="Set Medication Reminder"
-                >
-                  <Calendar size={13} className="text-blue-300 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline">Reminder</span>
-                </button>
-
-                {/* 2. Book Doctor */}
-                <button
-                  type="button"
-                  id="smart-action-doctor"
-                  onClick={() => {
-                    setCallMode('voice');
-                    setShowVoiceCallModal(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-600/25 hover:bg-purple-600/40 border border-purple-400/60 hover:border-purple-300 text-purple-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
-                  title="Book Doctor Consultation"
-                >
-                  <UserCheck size={13} className="text-purple-300 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline">Book Doctor</span>
-                </button>
-
-                {/* 3. Clinical Advice */}
-                <button
-                  type="button"
-                  id="smart-action-advice"
-                  onClick={() => handleSendMessage("Can you provide evidence-based clinical precautions, dosage details, and differential diagnoses?")}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-600/25 hover:bg-amber-600/40 border border-amber-400/60 hover:border-amber-300 text-amber-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
-                  title="Clinical Advice & Guidance"
-                >
-                  <Lightbulb size={13} className="text-amber-300 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline">Advice</span>
-                </button>
-
-                {/* 4. Lab Tests */}
-                <button
-                  type="button"
-                  id="smart-action-lab"
-                  onClick={() => {
-                    setActiveToolTab('lab');
-                    setShowToolHub(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-400/60 hover:border-emerald-300 text-emerald-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
-                  title="Diagnostic Lab Tests"
-                >
-                  <Activity size={13} className="text-emerald-300 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline">Lab Tests</span>
-                </button>
-
-                {/* 5. Vitals */}
-                <button
-                  type="button"
-                  id="smart-action-vitals"
-                  onClick={() => {
-                    if (arduino) {
-                      handleSendMessage(`Analyze my current bio-telemetry: Heart Rate is ${arduino.heartRate || 72} bpm, Blood Oxygen is ${arduino.spo2 || 98}%, Temperature is ${arduino.temperature || 36.7}°C. Are these within normal limits?`);
-                    } else {
-                      handleSendMessage("Analyze my vital signs snapshot: HR 72 bpm, SpO2 98%, Temp 36.8°C. What is the clinical interpretation?");
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-600/25 hover:bg-cyan-600/40 border border-cyan-400/60 hover:border-cyan-300 text-cyan-100 hover:text-white text-[11px] font-semibold transition-all shadow-xs active:scale-95 group cursor-pointer"
-                  title="Analyze Live Vitals"
-                >
-                  <Heart size={13} className="text-cyan-300 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline">Vitals</span>
-                </button>
-
-                {/* 6. Emergency SOS */}
-                <button
-                  type="button"
-                  id="smart-action-sos"
-                  onClick={() => handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!")}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-400/70 hover:border-rose-300 text-rose-100 hover:text-white text-[11px] font-bold transition-all shadow-xs active:scale-95 group cursor-pointer"
-                  title="Emergency SOS"
-                >
-                  <AlertCircle size={13} className="text-rose-300 group-hover:scale-110 transition-transform" />
-                  <span className="hidden md:inline">SOS</span>
-                </button>
-
-                {/* 7. More Actions Trigger & Popover */}
-                <div className="relative">
+              {/* Expanded Compact Actions Strip */}
+              {!isSmartActionsCollapsed && (
+                <>
+                  {/* Live Vitals Telemetry Chip */}
                   <button
                     type="button"
-                    id="chatbot-smart-actions-btn"
-                    onClick={() => setShowSmartActions(!showSmartActions)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-700 border border-slate-500/80 hover:border-slate-400 text-slate-100 text-[11px] font-semibold transition-all cursor-pointer shadow-xs active:scale-95"
-                    title="All Smart Actions"
+                    onClick={handleVitalsAction}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 hover:border-rose-400 text-rose-200 text-[11px] font-mono font-bold transition-all shrink-0 shadow-xs cursor-pointer active:scale-95 group"
+                    title="Evaluate Live Biometric Telemetry"
                   >
-                    <MoreHorizontal size={13} />
-                    <span className="text-[10px]">All</span>
+                    <Heart size={12} className="text-rose-400 animate-pulse group-hover:scale-110 transition-transform" />
+                    <span>{arduino?.heartRate || 72} bpm</span>
+                    <span className="text-rose-400/70 hidden sm:inline">• {arduino?.spo2 || 98}% SpO2</span>
                   </button>
 
-                  {/* Smart Actions Popup (Floats neatly above without obstructing the input) */}
-                  <AnimatePresence>
-                    {showSmartActions && (
-                      <>
-                        <div className="fixed inset-0 z-30" onClick={() => setShowSmartActions(false)} />
-                        <motion.div
-                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                          className="absolute left-0 bottom-full mb-2 w-72 sm:w-80 bg-[#091533]/98 border border-blue-500/40 rounded-2xl shadow-2xl z-40 p-2.5 space-y-1.5 backdrop-blur-2xl"
-                        >
-                          <div className="flex items-center justify-between px-1.5 py-1 border-b border-slate-800/80">
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                              <Sparkles size={13} className="text-cyan-400" />
-                              <span>All Smart Clinical Actions</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setShowSmartActions(false)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
+                  {/* Contextual Smart Pill: Fever / Malaria */}
+                  {conversationContext.hasFever && (
+                    <button
+                      type="button"
+                      onClick={() => handleSendMessage("Given the fever and chills, what is the recommended clinical workup for malaria RDT, CBC, and antipyretic dosing according to Uganda Clinical Guidelines?")}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/60 text-amber-200 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                      title="Fever & Malaria Workup"
+                    >
+                      <Thermometer size={12} className="text-amber-400" />
+                      <span>Fever Workup</span>
+                    </button>
+                  )}
 
-                          <div className="grid grid-cols-2 gap-1.5 pt-1">
-                            {/* 1. Set Reminder */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowSmartActions(false);
-                                onNavigate ? onNavigate('meds') : alert("Medication Reminders opened");
-                              }}
-                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-blue-500/30 hover:border-blue-400 text-left transition-all cursor-pointer group active:scale-95"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-blue-600/30 flex items-center justify-center text-blue-400 shrink-0">
-                                  <Calendar size={13} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-blue-300">Set Reminder</div>
-                                  <div className="text-[9px] text-slate-400 truncate">Medication alerts</div>
-                                </div>
-                              </div>
-                            </button>
+                  {/* Contextual Smart Pill: Medication Safety */}
+                  {conversationContext.hasMeds && (
+                    <button
+                      type="button"
+                      onClick={() => handleSendMessage("Please verify the drug safety profile, renal/hepatic considerations, and interaction risks for the medications mentioned.")}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/60 text-indigo-200 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                      title="Check Drug Interactions & Safety"
+                    >
+                      <Pill size={12} className="text-indigo-400" />
+                      <span>Drug Safety</span>
+                    </button>
+                  )}
 
-                            {/* 2. Book a Doctor */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowSmartActions(false);
-                                setCallMode('voice');
-                                setShowVoiceCallModal(true);
-                              }}
-                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-purple-500/30 hover:border-purple-400 text-left transition-all cursor-pointer group active:scale-95"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-purple-600/30 flex items-center justify-center text-purple-400 shrink-0">
-                                  <UserCheck size={13} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-purple-300">Book a Doctor</div>
-                                  <div className="text-[9px] text-slate-400 truncate">Tele-consultation</div>
-                                </div>
-                              </div>
-                            </button>
+                  {/* 1. Medication Reminder */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate ? onNavigate('meds') : showTemporaryNotice("Medication Reminders opened")}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-600/20 hover:bg-blue-600/35 border border-blue-400/50 hover:border-blue-300 text-blue-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Set Medication Reminder"
+                  >
+                    <Calendar size={12} className="text-blue-300" />
+                    <span>Reminder</span>
+                  </button>
 
-                            {/* 3. More Advice */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowSmartActions(false);
-                                handleSendMessage("Can you provide more evidence-based clinical precautions, dosage details, and differential diagnoses?");
-                              }}
-                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-amber-500/30 hover:border-amber-400 text-left transition-all cursor-pointer group active:scale-95"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-amber-600/30 flex items-center justify-center text-amber-400 shrink-0">
-                                  <Lightbulb size={13} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-amber-300">More Advice</div>
-                                  <div className="text-[9px] text-slate-400 truncate">Precautions & info</div>
-                                </div>
-                              </div>
-                            </button>
+                  {/* 2. Book Doctor Voice Call */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCallMode('voice');
+                      setShowVoiceCallModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-600/20 hover:bg-purple-600/35 border border-purple-400/50 hover:border-purple-300 text-purple-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Start Telehealth Voice Call"
+                  >
+                    <UserCheck size={12} className="text-purple-300" />
+                    <span>Book Doctor</span>
+                  </button>
 
-                            {/* 4. Lab Analysis */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowSmartActions(false);
-                                setActiveToolTab('lab');
-                                setShowToolHub(true);
-                              }}
-                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-emerald-500/30 hover:border-emerald-400 text-left transition-all cursor-pointer group active:scale-95"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-emerald-600/30 flex items-center justify-center text-emerald-400 shrink-0">
-                                  <Activity size={13} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-emerald-300">Lab Analysis</div>
-                                  <div className="text-[9px] text-slate-400 truncate">Tests & diagnostics</div>
-                                </div>
-                              </div>
-                            </button>
+                  {/* 3. Clinical Advice */}
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage("Can you provide evidence-based clinical precautions, dosage details, and differential diagnoses?")}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-600/20 hover:bg-amber-600/35 border border-amber-400/50 hover:border-amber-300 text-amber-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Evidence-based Clinical Advice"
+                  >
+                    <Lightbulb size={12} className="text-amber-300" />
+                    <span>Advice</span>
+                  </button>
 
-                            {/* 5. Check Vitals */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowSmartActions(false);
-                                if (arduino) {
-                                  handleSendMessage(`Analyze my current bio-telemetry: Heart Rate is ${arduino.heartRate || 72} bpm, Blood Oxygen is ${arduino.spo2 || 98}%, Temperature is ${arduino.temperature || 36.7}°C. Are these within normal limits?`);
-                                } else {
-                                  handleSendMessage("Analyze my vital signs snapshot: HR 72 bpm, SpO2 98%, Temp 36.8°C. What is the clinical interpretation?");
-                                }
-                              }}
-                              className="p-2 rounded-xl bg-[#0d1c42]/80 hover:bg-[#152a62] border border-cyan-500/30 hover:border-cyan-400 text-left transition-all cursor-pointer group active:scale-95"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-cyan-600/30 flex items-center justify-center text-cyan-400 shrink-0">
-                                  <Heart size={13} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-bold text-white truncate group-hover:text-cyan-300">Check Vitals</div>
-                                  <div className="text-[9px] text-slate-400 truncate">Telemetry review</div>
-                                </div>
-                              </div>
-                            </button>
+                  {/* 4. Lab Tests */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveToolTab('lab');
+                      setShowToolHub(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-400/50 hover:border-emerald-300 text-emerald-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Diagnostic Lab Tests"
+                  >
+                    <Activity size={12} className="text-emerald-300" />
+                    <span>Lab Tests</span>
+                  </button>
 
-                            {/* 6. Emergency SOS */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowSmartActions(false);
-                                handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!");
-                              }}
-                              className="p-2 rounded-xl bg-rose-950/40 hover:bg-rose-950/70 border border-rose-500/40 hover:border-rose-400 text-left transition-all cursor-pointer group active:scale-95"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-rose-600/30 flex items-center justify-center text-rose-400 shrink-0">
-                                  <AlertCircle size={13} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[11px] font-bold text-rose-200 truncate group-hover:text-rose-100">Emergency SOS</div>
-                                  <div className="text-[9px] text-rose-300/80 truncate">Immediate triage</div>
-                                </div>
-                              </div>
-                            </button>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
+                  {/* 5. SOAP Note Generator */}
+                  <button
+                    type="button"
+                    onClick={handleGenerateSoapNote}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/35 border border-cyan-400/50 hover:border-cyan-300 text-cyan-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Generate Clinical SOAP Note"
+                  >
+                    <FileText size={12} className="text-cyan-300" />
+                    <span>SOAP Note</span>
+                  </button>
 
-              {/* Right: Mode status */}
-              <div className="flex items-center gap-1.5 ml-auto px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10.5px] text-emerald-300 font-mono font-semibold shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden md:inline">Online</span>
-              </div>
+                  {/* 6. Export Report */}
+                  <button
+                    type="button"
+                    onClick={handleExportConsultationSummary}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-700/50 hover:bg-slate-700/80 border border-slate-500/50 hover:border-slate-400 text-slate-200 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Export Clinical Summary"
+                  >
+                    <Copy size={12} className="text-slate-300" />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+
+                  {/* 7. Emergency SOS */}
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!")}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-600/25 hover:bg-rose-600/45 border border-rose-400/60 hover:border-rose-300 text-rose-200 text-[11px] font-bold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                    title="Emergency SOS Dispatch"
+                  >
+                    <AlertCircle size={12} className="text-rose-400" />
+                    <span>SOS</span>
+                  </button>
+                </>
+              )}
             </div>
+
+            {/* Right: "All Tools" Launcher Button */}
+            <div className="flex items-center gap-1.5 shrink-0 pl-1">
+              <button
+                type="button"
+                id="chatbot-smart-actions-btn"
+                onClick={() => setShowSmartActions(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400/60 hover:border-blue-300 text-cyan-200 hover:text-white text-[11px] font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+                title="All Smart Clinical Actions & Utilities"
+              >
+                <MoreHorizontal size={13} className="text-cyan-300" />
+                <span className="text-[10px]">All ({allClinicalActions.length})</span>
+              </button>
+            </div>
+          </div>
+
+          {/* RAISED ILLUMINATED CHATBOT TEXT CARD (Clean, Compact, Ergonomic) */}
+          <div className="relative bg-[#071333] sm:bg-[#081842]/98 backdrop-blur-2xl border-2 border-cyan-400/60 hover:border-cyan-300 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)] focus-within:border-cyan-300 focus-within:ring-4 focus-within:ring-cyan-400/30 transition-all overflow-visible">
+            
+            {/* Top Cyan Neon Accent Line */}
+            <div className="absolute -top-[2px] left-6 right-6 h-[2px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent pointer-events-none opacity-100 shadow-[0_0_12px_rgba(6,182,212,0.8)]" />
 
             {/* Plus Action Popup Menu (opens cleanly above the raised text card) */}
             <AnimatePresence>
@@ -2088,6 +2239,165 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   </div>
                 )}
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 9. ALL SMART ACTIONS MODAL (Searchable, Categorized, Non-Blocking) */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showSmartActions && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSmartActions(false)}
+              className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-2xl bg-[#071330] border-2 border-cyan-500/50 rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_40px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col max-h-[85vh] text-left"
+              >
+                {/* Header */}
+                <div className="p-4 sm:p-5 border-b border-cyan-900/40 flex items-center justify-between bg-gradient-to-r from-[#091a42] to-[#0b2052]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 border border-cyan-300/40">
+                      <Sparkles size={18} className="text-cyan-100" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm sm:text-base font-black text-white tracking-wide uppercase">
+                          Smart Clinical Actions & Tools
+                        </h3>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                          {filteredClinicalActions.length} Actions
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-cyan-300/80">Certified WHO & Uganda MoH Decision Support Suite</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSmartActions(false)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Close"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Instant Search Bar */}
+                <div className="p-3 sm:p-3.5 border-b border-slate-800/80 bg-[#050e24]">
+                  <div className="relative flex items-center">
+                    <Search size={16} className="absolute left-3.5 text-cyan-400" />
+                    <input
+                      type="text"
+                      value={smartActionsSearch}
+                      onChange={(e) => setSmartActionsSearch(e.target.value)}
+                      placeholder="Search clinical action (e.g. malaria, dose, vitals, soap, reminder, call)..."
+                      className="w-full pl-10 pr-9 py-2 bg-[#09173b] border border-cyan-500/30 focus:border-cyan-400 rounded-xl text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-hidden transition-all shadow-inner"
+                      autoFocus
+                    />
+                    {smartActionsSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setSmartActionsSearch('')}
+                        className="absolute right-3 text-slate-400 hover:text-white"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Categorized Actions Grid */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 custom-scrollbar">
+                  {['Diagnostics & Triage', 'Pharmacotherapy & Meds', 'Telehealth & Consultation', 'Bio-Telemetry & Critical Care'].map((category) => {
+                    const categoryActions = filteredClinicalActions.filter((a) => a.category === category);
+                    if (categoryActions.length === 0) return null;
+
+                    return (
+                      <div key={category} className="space-y-2">
+                        <div className="flex items-center gap-2 px-1">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 font-mono">
+                            {category}
+                          </span>
+                          <div className="h-px bg-cyan-900/40 flex-1" />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {categoryActions.map((action) => {
+                            const Icon = action.icon;
+                            return (
+                              <button
+                                key={action.id}
+                                type="button"
+                                onClick={() => {
+                                  setShowSmartActions(false);
+                                  action.action();
+                                }}
+                                className="p-3 rounded-2xl bg-gradient-to-br from-[#0c1f4c]/70 to-[#071330]/90 hover:from-[#112d70] hover:to-[#0a1c45] border border-cyan-500/25 hover:border-cyan-400/60 transition-all text-left group cursor-pointer flex items-start gap-3 shadow-md active:scale-98"
+                              >
+                                <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${action.color} flex items-center justify-center text-white shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
+                                  <Icon size={17} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h4 className="text-xs font-bold text-white group-hover:text-cyan-200 transition-colors truncate">
+                                      {action.title}
+                                    </h4>
+                                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 shrink-0">
+                                      {action.badge}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-300/80 mt-0.5 leading-snug line-clamp-2">
+                                    {action.desc}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {filteredClinicalActions.length === 0 && (
+                    <div className="text-center py-8 text-slate-400">
+                      <p className="text-sm">No clinical actions match "{smartActionsSearch}"</p>
+                      <button
+                        type="button"
+                        onClick={() => setSmartActionsSearch('')}
+                        className="mt-2 text-xs text-cyan-400 font-bold hover:underline"
+                      >
+                        Reset search filter
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Advice */}
+                <div className="p-3 bg-[#040c1e] border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="flex items-center gap-1.5 text-cyan-300/90 font-medium">
+                    <ShieldCheck size={14} className="text-cyan-400" />
+                    <span>Evidence-based decision support co-pilot</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSmartActions(false)}
+                    className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           </>
         )}

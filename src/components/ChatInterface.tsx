@@ -3172,14 +3172,14 @@ ${f.prescription}
   const [streamingId, setStreamingId] = useState<string | null>(null);
 
   const THINKING_PHASES = [
-    "Initializing Neural Synapse...",
-    "Accessing Medical Knowledge Matrix...",
-    "Cross-referencing Clinical Protocols...",
-    "Synthesizing Bio-logical Data Flows...",
-    "Analyzing Pathophysiological Pathways...",
-    "Evaluating Differential Diagnostics...",
-    "Decrypting Health Ledger Archives...",
-    "Optimizing Diagnostic Reliability..."
+    "Thinking...",
+    "Configuring neural clinical weights...",
+    "Mapping physiological pathways...",
+    "Analyzing symptom correlation matrix...",
+    "Cross-referencing clinical protocols...",
+    "Synthesizing evidence-based guidance...",
+    "Evaluating contraindications & safety thresholds...",
+    "Formulating clinical consultation..."
   ];
 
   useEffect(() => {

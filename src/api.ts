@@ -1138,13 +1138,14 @@ export const api = {
     return isOffline();
   },
   auth: {
-    async signup(email: string, password: string, displayName?: string) {
+    async signup(email: string, password: string, displayName?: string, role?: string, phone?: string) {
       const offlineUser: User = {
         id: "us_" + Date.now(),
         email,
         displayName: displayName || email.split("@")[0],
-        role: "user",
-        credits: 400,
+        role: (role as any) || "user",
+        phone,
+        credits: role === 'admin' ? 5000 : (role === 'doctor' ? 3000 : 1000),
         subscriptionTier: "free",
         createdAt: new Date().toISOString()
       };
@@ -1164,7 +1165,7 @@ export const api = {
         const res = await fetch(`${API_BASE}/auth/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, displayName }),
+          body: JSON.stringify({ email, password, displayName, role, phone }),
           credentials: "include",
         });
         const data = await res.json();
@@ -1178,7 +1179,7 @@ export const api = {
         setStorageItem("medical_user", data.user);
         return data.user as User;
       } catch (err: any) {
-        if (err.message === "Email address already registered offline" || err.message?.includes("already registered")) {
+        if (err.message === "Email address already registered offline" || err.message?.includes("already registered") || err.message?.includes("already exists")) {
           throw err;
         }
         console.warn("[Offline Auth] Signup network failure, falling back to local database secure registry...");
@@ -1201,20 +1202,6 @@ export const api = {
           delete sansPassword.password;
           setStorageItem("medical_user", sansPassword);
           return sansPassword as User;
-        }
-        // Admin first time offline bypasses
-        if (email === "demo@doctorian.com" || email === "gloriajayakullo@gmail.com") {
-          const dummyUser: User = {
-            id: "us_demo_offline",
-            email,
-            displayName: "Clinical Specialist",
-            role: "admin",
-            credits: 400,
-            subscriptionTier: "pro",
-            createdAt: new Date().toISOString()
-          };
-          setStorageItem("medical_user", dummyUser);
-          return dummyUser;
         }
         throw new Error("Invalid credentials when logging in offline.");
       }
@@ -1244,19 +1231,6 @@ export const api = {
           delete sansPassword.password;
           setStorageItem("medical_user", sansPassword);
           return sansPassword as User;
-        }
-        if (email === "demo@doctorian.com" || email === "gloriajayakullo@gmail.com") {
-          const dummyUser: User = {
-            id: "us_demo_offline",
-            email,
-            displayName: "Clinical Specialist",
-            role: "admin",
-            credits: 400,
-            subscriptionTier: "pro",
-            createdAt: new Date().toISOString()
-          };
-          setStorageItem("medical_user", dummyUser);
-          return dummyUser;
         }
         throw err;
       }
@@ -4003,6 +3977,115 @@ export const api = {
       if (!res.ok) throw new Error(data.error || "Failed to reject data request");
       return data;
     }
+  },
+  ambientScribe: {
+    async generateSoapNote(payload: {
+      transcript?: string;
+      language?: string;
+      patientVitals?: any;
+      patientName?: string;
+      clinicianName?: string;
+      consultationNotes?: string;
+    }) {
+      const res = await fetch(`${API_BASE}/ai/ambient-scribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to process ambient consultation");
+      return data;
+    },
+    async getRecords(): Promise<AmbientScribeRecord[]> {
+      const res = await fetch(`${API_BASE}/ambient-scribe/records`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch scribe records");
+      return (data.records || []) as AmbientScribeRecord[];
+    },
+    async saveRecord(record: Partial<AmbientScribeRecord>) {
+      const res = await fetch(`${API_BASE}/ambient-scribe/records`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save scribe record");
+      return data;
+    },
+    async deleteRecord(id: string) {
+      const res = await fetch(`${API_BASE}/ambient-scribe/records/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete scribe record");
+      return data;
+    }
   }
 };
+
+export interface AmbientSoapPrescription {
+  medication: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+export interface AmbientSoapData {
+  subjective: {
+    chiefComplaint: string;
+    historyOfPresentIllness: string;
+    reviewOfSystems: string[];
+  };
+  objective: {
+    vitalSigns: {
+      heartRate?: number | null;
+      spo2?: number | null;
+      bloodPressure?: string | null;
+      temperature?: number | null;
+    };
+    physicalExamFindings: string[];
+  };
+  assessment: {
+    primaryDiagnosis: string;
+    icd10Code: string;
+    differentialDiagnoses: string[];
+    clinicalTriage: 'STABLE' | 'WATCH' | 'URGENT';
+    clinicalSeverityExplanation: string;
+  };
+  plan: {
+    prescriptions: AmbientSoapPrescription[];
+    diagnosticOrders: string[];
+    patientInstructions: {
+      en: string;
+      lg?: string;
+      sw?: string;
+    };
+    followUpDays: number;
+    redFlagWarnings: string[];
+  };
+}
+
+export interface AmbientScribeRecord {
+  id: string;
+  patientId?: string;
+  patientName: string;
+  clinicianId?: string;
+  clinicianName: string;
+  encounterDate: string;
+  audioDurationSeconds?: number;
+  detectedLanguage?: string;
+  rawTranscript: string;
+  subjective?: AmbientSoapData['subjective'];
+  objective?: AmbientSoapData['objective'];
+  assessment?: AmbientSoapData['assessment'];
+  plan?: AmbientSoapData['plan'];
+  icd10Code?: string;
+  fhirResource?: any;
+  syncStatus: 'LOCAL_DRAFT' | 'PEER_SYNCED' | 'CLOUD_PERSISTED';
+  createdAt?: string;
+}
 

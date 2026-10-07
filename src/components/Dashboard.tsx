@@ -9,10 +9,9 @@ import {
   ListTodo,
   Sparkles, Lightbulb, Quote, Cpu, Wind, Shield, Download, Fingerprint, ShieldAlert,
   Terminal, Code2, Flame, Trophy, CalendarDays, Gift, Check,
-  HardDrive, Lock
+  HardDrive, Lock, QrCode, Camera
 } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, BarChart, Bar, Cell 
 } from 'recharts';
 import { SafeResponsiveContainer } from './SafeResponsiveContainer';
@@ -24,8 +23,15 @@ import { ShapeMorphingBubbles } from './ShapeMorphingBubbles';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { VitalWaveform } from './VitalWaveform';
 import { DashboardQuickActions } from './DashboardQuickActions';
+import { BiometricTrendSummary } from './BiometricTrendSummary';
 import { isCreditsUnlimited, parseCreditsToNumber, formatCredits } from '../utils/creditUtils';
 import { translate } from '../utils/translations';
+import { MedicalQrScannerModal } from './MedicalQrScannerModal';
+import { PatientProfileViewer } from './PatientProfileViewer';
+import { RecentScannedProfilesWidget } from './RecentScannedProfilesWidget';
+import { saveQrScanToHistory } from '../utils/recentQrScans';
+import { VitalRadialProgressRing, VitalRadialMetric } from './VitalRadialProgressRing';
+import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
 
 const performanceData = [
   { time: '00:00', value: 82 },
@@ -218,6 +224,100 @@ export const Dashboard: React.FC<DashboardProps> = ({
     },
   ];
 
+  // SVG-based Animated Radial Progress Metrics with Dynamic Vital Thresholds
+  const radialVitalMetrics: VitalRadialMetric[] = [
+    {
+      id: 'ai_core',
+      label: translate('Doctorian AI Core', currentLanguage),
+      sublabel: 'Neural Diagnostic Synthesis',
+      displayValue: aiValue,
+      unit: '%',
+      numericValue: 98,
+      thresholds: {
+        minScale: 50,
+        maxScale: 100,
+        normalMin: 85,
+        normalMax: 100,
+        unit: '%'
+      },
+      trendText: translate(aiTrend, currentLanguage) || '+12% Optimal',
+      trendDirection: 'up',
+      icon: <Brain size={18} />,
+      details: translate(encouragingInfo, currentLanguage),
+      isAiPowered: true,
+      aiEncouragement: encouragingInfo,
+      onRefreshAi: () => fetchEncouragingInfo(true),
+      isAiLoading: isAiCardLoading
+    },
+    {
+      id: 'heart_rate',
+      label: translate('Cardiac Flux (HR)', currentLanguage),
+      sublabel: 'Sinus Rhythm Telemetry',
+      displayValue: vitals?.heartRate ? `${vitals.heartRate}` : '72',
+      unit: 'BPM',
+      numericValue: vitals?.heartRate || 72,
+      thresholds: {
+        minScale: 40,
+        maxScale: 180,
+        normalMin: 60,
+        normalMax: 100,
+        lowCritical: 45,
+        lowWarning: 55,
+        highWarning: 100,
+        highCritical: 140,
+        unit: 'BPM'
+      },
+      trendText: getHeartRateTrend() ? (getHeartRateTrend()?.direction === 'up' ? '+2% Elevated' : '-1% Resting') : '60–100 Target',
+      trendDirection: (getHeartRateTrend()?.direction === 'up' ? 'up' : getHeartRateTrend()?.direction === 'down' ? 'down' : 'stable') as 'up' | 'down' | 'stable',
+      icon: <Heart size={18} />,
+      details: translate('Real-time cardiovascular telemetry tracking sinus rhythm, pulse pressure, and autonomic balance.', currentLanguage)
+    },
+    {
+      id: 'spo2',
+      label: translate('Blood Oxygen (SpO2)', currentLanguage),
+      sublabel: 'Pulse Oximetry Telemetry',
+      displayValue: vitals?.spo2 ? `${vitals.spo2}` : '98',
+      unit: '%',
+      numericValue: vitals?.spo2 || 98,
+      thresholds: {
+        minScale: 80,
+        maxScale: 100,
+        normalMin: 95,
+        normalMax: 100,
+        lowCritical: 90,
+        lowWarning: 94,
+        unit: '%'
+      },
+      trendText: (vitals?.spo2 && vitals.spo2 < 95) ? 'Below Target' : '≥95% Optimal',
+      trendDirection: (vitals?.spo2 && vitals.spo2 < 95) ? 'down' : 'stable',
+      icon: <Droplets size={18} />,
+      details: translate('Arterial hemoglobin oxygen saturation measured via peripheral photoplethysmography sensor. Acceptable target is 95%–100%.', currentLanguage)
+    },
+    {
+      id: 'blood_pressure',
+      label: translate('Hemodynamic Index', currentLanguage),
+      sublabel: 'Systolic Arterial MAP',
+      displayValue: vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : '118/76',
+      unit: 'mmHg',
+      numericValue: vitals?.systolicBP || 118,
+      thresholds: {
+        minScale: 80,
+        maxScale: 180,
+        normalMin: 90,
+        normalMax: 120,
+        lowCritical: 80,
+        lowWarning: 90,
+        highWarning: 130,
+        highCritical: 160,
+        unit: 'mmHg'
+      },
+      trendText: '120/80 Standard',
+      trendDirection: 'stable',
+      icon: <Activity size={18} />,
+      details: translate('Mean arterial pressure and vascular peripheral resistance computed from continuous pulse wave velocity analysis.', currentLanguage)
+    }
+  ];
+
   const [showSosConfirmModal, setShowSosConfirmModal] = useState<boolean>(false);
   const [meds, setMeds] = useState<any[]>(() => {
     try {
@@ -282,6 +382,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return [];
     }
   });
+
+  // Medical QR Scanner FAB & Profile Retrieval States
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [scannedPatientProfile, setScannedPatientProfile] = useState<any | null>(null);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -1231,70 +1335,34 @@ Provide 3 clear clinical takeaways:
         onShowToast={(msg, type) => addNotification(msg, type === 'error' ? 'warning' : (type || 'info'))}
       />
 
-      {/* Primary Metrics Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {vitalStats.map((stat, i) => (
-          <div 
-            key={`dashboard-l1090-i-${i}`} 
-            role="button"
-            tabIndex={0}
+      {/* Primary Metrics Strip: SVG-Based Animated Radial Progress Rings with Live Vital Thresholds */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {radialVitalMetrics.map((metric) => (
+          <VitalRadialProgressRing
+            key={metric.id}
+            metric={metric}
+            size={126}
             onClick={() => {
-              setSelectedStat(stat);
+              setSelectedStat({
+                label: metric.label,
+                value: `${metric.displayValue} ${metric.unit}`.trim(),
+                trend: metric.trendText,
+                details: metric.details,
+                icon: metric.icon,
+                isAiPowered: metric.isAiPowered
+              });
               setStatAiAnalysis(null);
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setSelectedStat(stat);
-                setStatAiAnalysis(null);
-              }
-            }}
-            className="bg-white dark:bg-slate-900 p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden text-left w-full cursor-pointer select-none"
-          >
-            <div className={`absolute -right-2 -top-2 w-12 h-12 sm:w-20 sm:h-20 rounded-full blur-xl sm:blur-2xl transition-all ${getStatBgBlurClasses(stat.color)}`} />
-            
-            <div className="flex items-center justify-between mb-4 sm:mb-6 relative z-10">
-              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm border ${getStatColorClasses(stat.color)}`}>
-                {React.cloneElement(stat.icon as any, { size: 20 })}
-              </div>
-
-              {i === 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                    <Sparkles size={10} className="animate-pulse" />
-                    AI Core
-                  </span>
-                  <button
-                    type="button"
-                    title="Sync AI Core with Gemini"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fetchEncouragingInfo(true);
-                    }}
-                    disabled={isAiCardLoading}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                  >
-                    <RefreshCw size={13} className={isAiCardLoading ? "animate-spin text-blue-600" : ""} />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <p className="text-[10px] sm:text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest leading-none mb-2 sm:mb-2 relative z-10 text-high-visibility">{stat.label}</p>
-            <div className="flex items-baseline justify-between relative z-10">
-              <h3 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter leading-none text-high-visibility">{stat.value}</h3>
-              <span className={`text-[10px] sm:text-[10px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : stat.trend === 'Stable' ? 'text-blue-500' : 'text-rose-500'}`}>
-                {stat.trend}
-              </span>
-            </div>
-            {i === 0 && encouragingInfo && hourlyTipEnabled && (
-              <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium relative z-10">
-                {encouragingInfo}
-              </p>
-            )}
-          </div>
+          />
         ))}
       </div>
+
+      {/* Biometric Trend Summary Widget (Pulls from Arduino historical data to display 7-day sparkline chart of HR & SpO2) */}
+      <BiometricTrendSummary
+        vitals={vitals}
+        history={history}
+        onNavigate={onNavigate}
+      />
 
       {/* Advanced Cognitive & Cellular Analytics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -1455,6 +1523,14 @@ Provide 3 clear clinical takeaways:
         </div>
       </div>
 
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* RECENT SCANNED MEDICAL QR PROFILES (LAST 5 - LOCAL STORAGE) */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <RecentScannedProfilesWidget
+        onOpenScanner={() => setIsQrScannerOpen(true)}
+        onSelectProfile={(profile) => setScannedPatientProfile(profile)}
+      />
+
       {/* Powerful Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
@@ -1532,7 +1608,10 @@ Provide 3 clear clinical takeaways:
           }`}>
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div>
-                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 text-high-visibility">Cardiac Pulse Registry</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest text-high-visibility">Cardiac Pulse Registry</p>
+                  <BioTelemetryRangeTooltip position="top" align="start" showIconBadge />
+                </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter text-high-visibility">{vitals?.heartRate || '--'}</span>
@@ -1963,38 +2042,55 @@ Provide 3 clear clinical takeaways:
             { title: 'Bio-Security', subtitle: 'Neural Identity', icon: <Fingerprint />, view: 'biosecurity', color: 'blue', styles: 'bg-blue-600/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600', detail: 'Encrypted' },
             { title: 'Cognis Hub', subtitle: 'Synaptic Tracking', icon: <Brain />, view: 'neuro', color: 'purple', styles: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 group-hover:bg-purple-600', detail: 'Active' },
             { title: 'Vital Matrix', subtitle: 'Longevity Index', icon: <Zap />, view: 'vitality', color: 'emerald', styles: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600', detail: 'Optimized' },
-            { title: 'Bio-Monitor', subtitle: 'Bio-Telemetry', icon: <Monitor />, view: 'monitor', color: 'cyan', styles: 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-600', detail: 'Live' },
+            { title: 'Bio-Telemetry Monitor', subtitle: 'Live Telemetry & Waves', icon: <Monitor />, view: 'monitor', color: 'cyan', styles: 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-600', detail: 'Live Stream' },
             { title: 'Archive', subtitle: 'Clinical Records', icon: <FileText />, view: 'records', color: 'indigo', styles: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600', detail: 'Synced' },
             { title: 'Specialists', subtitle: 'Expert Network', icon: <Stethoscope />, view: 'specialist', color: 'rose', styles: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600', detail: 'Connected' },
             { title: 'System', subtitle: 'Analytics Ops', icon: <Info />, view: 'about', color: 'slate', styles: 'bg-slate-50 dark:bg-slate-900/20 text-slate-600 dark:text-slate-400 group-hover:bg-slate-600', detail: 'v5.0.2' },
-          ].map((item, i) => (
-            <motion.button
-              key={`dashboard-l1782-i-${i}`}
-              whileHover={{ y: -8, scale: 1.02 }}
-              onClick={() => {
-                if (item.view === 'biosecurity') {
-                  setSubView('biosecurity');
-                } else {
-                  onNavigate(item.view as any);
-                }
-              }}
-              className="group bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all text-left flex flex-col justify-between min-h-[240px] relative overflow-hidden"
-            >
-              <div className="flex justify-between items-start relative z-10">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${item.styles} group-hover:text-white`}>
-                  {React.cloneElement(item.icon as React.ReactElement<any>, { size: 24 })}
+          ].map((item, i) => {
+            const cardButton = (
+              <motion.button
+                key={`dashboard-l1782-i-${i}`}
+                whileHover={{ y: -8, scale: 1.02 }}
+                onClick={() => {
+                  if (item.view === 'biosecurity') {
+                    setSubView('biosecurity');
+                  } else {
+                    onNavigate(item.view as any);
+                  }
+                }}
+                className="group bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all text-left flex flex-col justify-between min-h-[240px] relative overflow-hidden w-full"
+              >
+                <div className="flex justify-between items-start relative z-10">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${item.styles} group-hover:text-white`}>
+                    {React.cloneElement(item.icon as React.ReactElement<any>, { size: 24 })}
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 group-hover:text-blue-500 transition-colors bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-700">
+                    {item.detail}
+                  </span>
                 </div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 group-hover:text-blue-500 transition-colors bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-700">
-                  {item.detail}
-                </span>
-              </div>
-              <div className="relative z-10">
-                <h3 className="font-black text-slate-900 dark:text-white text-xl tracking-tight mb-1 uppercase leading-none group-hover:text-blue-600 transition-colors">{item.title}</h3>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest opacity-80">{item.subtitle}</p>
-              </div>
-              <div className="absolute bottom-0 left-0 w-full h-1.5 bg-blue-600/10 group-hover:bg-blue-600 transition-all translate-y-2 group-hover:translate-y-0" />
-            </motion.button>
-          ))}
+                <div className="relative z-10">
+                  <h3 className="font-black text-slate-900 dark:text-white text-xl tracking-tight mb-1 uppercase leading-none group-hover:text-blue-600 transition-colors">{item.title}</h3>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest opacity-80">{item.subtitle}</p>
+                </div>
+                <div className="absolute bottom-0 left-0 w-full h-1.5 bg-blue-600/10 group-hover:bg-blue-600 transition-all translate-y-2 group-hover:translate-y-0" />
+              </motion.button>
+            );
+
+            if (item.view === 'monitor') {
+              return (
+                <BioTelemetryRangeTooltip
+                  key={`dashboard-monitor-tip-${i}`}
+                  position="top"
+                  align="center"
+                  triggerClassName="w-full h-full block"
+                >
+                  {cardButton}
+                </BioTelemetryRangeTooltip>
+              );
+            }
+
+            return cardButton;
+          })}
         </div>
       </section>
 
@@ -2899,6 +2995,28 @@ Provide 3 clear clinical takeaways:
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Medical QR Code Scanner Camera Modal (Triggered non-intrusively via widget or health records) */}
+      <MedicalQrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onProfileRetrieved={(profile) => {
+          setIsQrScannerOpen(false);
+          saveQrScanToHistory(profile);
+          setScannedPatientProfile(profile);
+          addNotification(`Medical QR verified: ${profile.user.displayName || 'Patient'} profile retrieved.`, 'success');
+        }}
+      />
+
+      {/* Scanned Patient Profile Modal Viewer */}
+      {scannedPatientProfile && (
+        <div className="fixed inset-0 z-[250] overflow-y-auto">
+          <PatientProfileViewer
+            data={scannedPatientProfile}
+            onClose={() => setScannedPatientProfile(null)}
+          />
         </div>
       )}
     </>

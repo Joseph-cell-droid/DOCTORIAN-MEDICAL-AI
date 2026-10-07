@@ -6,7 +6,7 @@ import {
   ClipboardList, Beaker, Stethoscope, ChevronUp,
   Sparkles, Shield, Heart, Activity, Eye, EyeOff, Share2,
   Scale, Loader2, Wind, Zap, Brain, Droplets, Thermometer, RefreshCw, X, MessageSquare,
-  Mic, FileJson, Code
+  Mic, FileJson, Code, QrCode, Camera
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -16,6 +16,10 @@ import { DoctorVerificationModal } from './DoctorVerificationModal';
 import { validateMoHClinicalDosage } from '../utils/clinicalValidation';
 import { downloadFHIRJson } from '../utils/fhirExporter';
 import { searchICD11CPT } from '../utils/clinicalDatasets';
+import { MedicalQrScannerModal, MedicalProfileData } from './MedicalQrScannerModal';
+import { PatientProfileViewer } from './PatientProfileViewer';
+import { RecentScannedProfilesWidget } from './RecentScannedProfilesWidget';
+import { saveQrScanToHistory } from '../utils/recentQrScans';
 
 // ─── Types ────────────────────────────────────────────────
 interface Medication {
@@ -411,7 +415,28 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
     return () => { isMounted = false; };
   }, [showToast]);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
-  const [activeTab, setActiveTab] = useState<'compose' | 'saved' | 'templates'>('compose');
+  const [activeTab, setActiveTab] = useState<'compose' | 'saved' | 'templates' | 'qr_scanner'>('compose');
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [scannedPatientProfile, setScannedPatientProfile] = useState<MedicalProfileData | null>(null);
+
+  const handleIngestScannedPatient = (profile: MedicalProfileData) => {
+    setPrescription(prev => ({
+      ...prev,
+      patient: {
+        ...prev.patient,
+        name: profile.user?.displayName || prev.patient.name,
+        age: profile.user?.age || prev.patient.age || '34',
+        gender: profile.user?.gender || prev.patient.gender || 'Male',
+        bloodType: profile.user?.bloodGroup || prev.patient.bloodType || 'O+',
+        allergies: profile.user?.allergies || prev.patient.allergies || 'None',
+        phone: profile.user?.phone || prev.patient.phone,
+        address: profile.user?.hospitalPreference || prev.patient.address
+      },
+      diagnosis: profile.records?.[0]?.diagnosis || profile.records?.[0]?.summary || prev.diagnosis
+    }));
+    setActiveTab('compose');
+    showToast(`Patient ${profile.user?.displayName || 'Record'} ingested into prescription form.`, 'success');
+  };
   const [expandedMeds, setExpandedMeds] = useState<Set<string>>(new Set([prescription.medications[0]?.id]));
   const [step, setStep] = useState(1);
   const [isDictating, setIsDictating] = useState(false);
@@ -679,10 +704,20 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
             </div>
             <p className="text-slate-400 dark:text-slate-500 text-sm mt-0.5">Comprehensive medical history and prescription tracking</p>
           </div>
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Scan Medical QR Button (Non-blocking, on Health page) */}
+            <button 
+              onClick={() => setIsQrScannerOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-cyan-500/20 transition-all active:scale-95 cursor-pointer shrink-0"
+              title="Scan patient medical QR code for instant record ingest"
+            >
+              <QrCode size={16} />
+              <span>Scan Medical QR</span>
+            </button>
+
             <button 
               onClick={handleFHIRExport}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95"
+              className="hidden sm:flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95 shrink-0"
               title="Export standard FHIR R4 JSON bundle for inter-hospital EHR transfer"
             >
               <FileJson size={16} />
@@ -690,18 +725,18 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
             </button>
             <button 
               onClick={() => setShowNeuralSummary(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
+              className="hidden md:flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95 shrink-0"
             >
               <Brain size={16} />
-              Neural History Review
+              Neural History
             </button>
-            <div className="text-center px-5 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm" role="status" aria-label={`${savedPrescriptions.length} Total Records`}>
-              <p className="text-2xl font-black text-slate-800 dark:text-slate-200">{savedPrescriptions.length}</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">Total Records</p>
+            <div className="hidden xl:block text-center px-4 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm shrink-0" role="status" aria-label={`${savedPrescriptions.length} Total Records`}>
+              <p className="text-xl font-black text-slate-800 dark:text-slate-200">{savedPrescriptions.length}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">Total Records</p>
             </div>
-            <div className="text-center px-5 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm" role="status" aria-label={`${totalMeds} Active Medications`}>
-              <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{totalMeds}</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">Active Meds</p>
+            <div className="hidden xl:block text-center px-4 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm shrink-0" role="status" aria-label={`${totalMeds} Active Medications`}>
+              <p className="text-xl font-black text-blue-600 dark:text-blue-400">{totalMeds}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">Active Meds</p>
             </div>
           </div>
         </div>
@@ -760,22 +795,24 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
 
       {/* ── Tab Navigation ────────────────────────────── */}
       <nav className="flex overflow-x-auto no-scrollbar gap-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-1.5 sm:p-2 shadow-inner border border-slate-100 dark:border-slate-800 mb-8 sm:mb-10" role="tablist" aria-label="Prescription options">
-        {(['compose', 'saved', 'templates'] as const).map((tab, mapIdx_762) => (
+        {(['compose', 'saved', 'templates', 'qr_scanner'] as const).map((tab, mapIdx_762) => (
           <button
             key={`healthrecords-l765-${mapIdx_762}`} 
             onClick={() => {
-              const isAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
-              if (!isAuthed) {
-                setIsDoctorVerifyOpen(true);
-              } else {
-                setActiveTab(tab);
+              if (tab !== 'qr_scanner') {
+                const isAuthed = sessionStorage.getItem('doctor_authenticated') === 'true';
+                if (!isAuthed) {
+                  setIsDoctorVerifyOpen(true);
+                  return;
+                }
               }
+              setActiveTab(tab);
             }}
             role="tab"
             aria-selected={activeTab === tab}
             aria-controls={`${tab}-panel`}
             id={`tab-${tab}`}
-            className={`flex-1 min-w-[120px] sm:min-w-[140px] flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-[1.5rem] text-xs sm:text-sm font-black transition-all duration-300 ${
+            className={`flex-1 min-w-[120px] sm:min-w-[140px] flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-[1.5rem] text-xs sm:text-sm font-black transition-all duration-300 cursor-pointer ${
               activeTab === tab
                 ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-xl shadow-slate-400/20 dark:shadow-blue-900/20 scale-[1.02]'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-slate-800'
@@ -784,13 +821,14 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
             {tab === 'compose' && <Pill size={16} className="sm:w-[18px] sm:h-[18px]" aria-hidden="true" />}
             {tab === 'saved' && <ClipboardList size={16} className="sm:w-[18px] sm:h-[18px]" aria-hidden="true" />}
             {tab === 'templates' && <Sparkles size={16} className="sm:w-[18px] sm:h-[18px]" aria-hidden="true" />}
-            <span className="capitalize">{tab === 'compose' ? 'New Rx' : tab === 'saved' ? `Saved (${savedPrescriptions.length})` : tab}</span>
+            {tab === 'qr_scanner' && <QrCode size={16} className="sm:w-[18px] sm:h-[18px] text-cyan-400" aria-hidden="true" />}
+            <span className="capitalize">{tab === 'compose' ? 'New Rx' : tab === 'saved' ? `Saved (${savedPrescriptions.length})` : tab === 'templates' ? 'Templates' : 'Medical QR Ingest'}</span>
           </button>
         ))}
       </nav>
 
-      {/* ─── Prescription Content Lock Guard ─── */}
-      {!isDoctorAuthed ? (
+      {/* ─── Prescription Content Lock Guard & Panels ─── */}
+      {!isDoctorAuthed && activeTab !== 'qr_scanner' ? (
         <div id="prescription-locked-matrix" className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 sm:p-12 text-center shadow-xl flex flex-col items-center justify-center space-y-6 max-w-xl mx-auto py-16 animate-fade-in my-8">
           <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/25 rounded-3xl flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30">
             <Shield className="w-10 h-10 animate-pulse text-blue-600 dark:text-blue-400" />
@@ -1431,6 +1469,119 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
         </>
       )}
 
+      {/* ─── Medical QR Scanner & Ingest Workstation Tab Panel ─── */}
+      {activeTab === 'qr_scanner' && (
+        <section
+          id="qr_scanner-panel"
+          role="tabpanel"
+          aria-labelledby="tab-qr_scanner"
+          className="space-y-6 animate-fade-in text-left"
+        >
+          {/* Main QR Scanner & Ingest Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-500 flex items-center justify-center shrink-0">
+                  <QrCode size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                    <span>Optical Medical QR Scanner & Record Ingest</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Scan patient wristbands or emergency QR tokens to retrieve verified health dossiers and populate prescriptions.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsQrScannerOpen(true)}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 shrink-0"
+              >
+                <Camera size={16} />
+                <span>Launch Camera Scanner</span>
+              </button>
+            </div>
+
+            {/* Active Retrieved Patient Dossier */}
+            {scannedPatientProfile ? (
+              <div className="my-6 p-5 sm:p-6 rounded-3xl bg-blue-50/70 dark:bg-slate-950/70 border border-blue-200 dark:border-blue-900/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white font-black text-sm flex items-center justify-center shadow-md shrink-0">
+                      {scannedPatientProfile.user?.displayName?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'PT'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-base font-black text-slate-900 dark:text-white">
+                          {scannedPatientProfile.user?.displayName || 'Verified Patient'}
+                        </h4>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25">
+                          {scannedPatientProfile.user?.bloodGroup || 'O+'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                        {scannedPatientProfile.user?.id} · {scannedPatientProfile.user?.hospitalPreference || 'Hospital Referral Center'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleIngestScannedPatient(scannedPatientProfile)}
+                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                    >
+                      <Pill size={14} />
+                      <span>Ingest Into New Rx</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScannedPatientProfile(null)}
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                      title="Clear patient"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Known Allergies:</span>
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">{scannedPatientProfile.user?.allergies || 'None Recorded'}</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Chronic Conditions:</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{scannedPatientProfile.user?.conditions || 'None Declared'}</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Assigned Provider:</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{scannedPatientProfile.contacts?.[0]?.name || 'Attending Physician'}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center space-y-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  Ready to scan. Use the camera button above or select any previously scanned profile from your local storage history below.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Local Storage Scanned Profiles History (Last 5) */}
+          <RecentScannedProfilesWidget
+            onOpenScanner={() => setIsQrScannerOpen(true)}
+            onSelectProfile={(profile) => {
+              setScannedPatientProfile(profile);
+              showToast(`Patient record loaded: ${profile.user?.displayName || 'Patient'}`, 'info');
+            }}
+          />
+        </section>
+      )}
+
       {/* Print Preview Modal */}
       <AnimatePresence>
         {showPrintPreview && (
@@ -1507,6 +1658,28 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
         title="Doctor Access Control"
         description="Prescription formulated databases and registries require verified Doctorian protocol auth key."
       />
+
+      {/* Optical Medical QR Scanner Modal */}
+      <MedicalQrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onProfileRetrieved={(profile) => {
+          setIsQrScannerOpen(false);
+          saveQrScanToHistory(profile);
+          setScannedPatientProfile(profile);
+          showToast(`Medical QR verified: ${profile.user?.displayName || 'Patient'} profile retrieved.`, 'success');
+        }}
+      />
+
+      {/* Scanned Patient Profile Modal Viewer */}
+      {scannedPatientProfile && (
+        <div className="fixed inset-0 z-[250] overflow-y-auto">
+          <PatientProfileViewer
+            data={scannedPatientProfile}
+            onClose={() => setScannedPatientProfile(null)}
+          />
+        </div>
+      )}
     </main>
   );
 };

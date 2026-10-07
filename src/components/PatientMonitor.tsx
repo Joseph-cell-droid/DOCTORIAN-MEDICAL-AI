@@ -34,6 +34,7 @@ import { HistoricalTelemetryChart } from './HistoricalTelemetryChart';
 import { TelemetryCastManager } from './TelemetryCastManager';
 import { WatchVitalsMonitor } from './WatchVitalsMonitor';
 import { ClinicalStationsNav } from './ClinicalStationsNav';
+import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
 import { cacheTelemetryFrame } from '../utils/waveformCache';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -172,7 +173,28 @@ const VitalCard: React.FC<{
         }`} aria-hidden="true">
           {React.cloneElement(icon as any, { size: 24 })}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {(label === "Heart Rate" || label.includes("SpO2") || label.includes("Temp")) && (
+            <BioTelemetryRangeTooltip position="bottom" align="end">
+              <span
+                className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold cursor-help transition-all flex items-center gap-1 ${
+                  highlight 
+                    ? 'bg-white/20 text-white hover:bg-white/30' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+                title="Acceptable range reference"
+              >
+                <Info size={10} />
+                <span>
+                  {label === "Heart Rate"
+                    ? "Normal: 60–100 BPM"
+                    : label.includes("SpO2")
+                    ? "Normal: 95–100%"
+                    : "Normal: 36.5–37.5°C"}
+                </span>
+              </span>
+            </BioTelemetryRangeTooltip>
+          )}
           {status === 'warning' && <AlertTriangle className={`w-5 h-5 ${highlight ? 'text-white' : 'text-amber-500'}`} aria-label="Warning status" />}
           {status === 'critical' && <XCircle className={`w-5 h-5 ${highlight ? 'text-white' : 'text-red-500'}`} aria-label="Critical status" />}
         </div>
@@ -2832,7 +2854,11 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Clinical Bio Monitor Suite</h2>
+                          <BioTelemetryRangeTooltip position="bottom" align="start" showIconBadge>
+                            <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight cursor-help hover:text-blue-600 dark:hover:text-cyan-400 transition-colors">
+                              Clinical Bio-Telemetry Monitor
+                            </h2>
+                          </BioTelemetryRangeTooltip>
                           <span className="px-2.5 py-0.5 text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-full">
                             Active Transponder
                           </span>

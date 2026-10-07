@@ -104,6 +104,8 @@ import { StorageVaultModal } from './components/StorageVaultModal';
 import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
 import { TargetedDoseAlarmModal } from './components/TargetedDoseAlarmModal';
 import { ModernAuthPage } from './components/ModernAuthPage';
+import { AppOperationsSettingsModal } from './components/AppOperationsSettingsModal';
+import { BioTelemetryRangeTooltip } from './components/BioTelemetryRangeTooltip';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
 
@@ -139,12 +141,23 @@ function safeLazy<P extends object = any>(
       <p className="text-xs text-slate-500 max-w-xs mb-4">
         Connecting to the clinical node. Click below to reload the module.
       </p>
-      <button
-        onClick={() => window.location.reload()}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all cursor-pointer"
-      >
-        Reload Page View
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all cursor-pointer"
+        >
+          Reload Page
+        </button>
+        <button
+          onClick={() => {
+            window.location.hash = "";
+            window.location.href = "/";
+          }}
+          className="px-4 py-2 bg-slate-150 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+        >
+          Dashboard
+        </button>
+      </div>
     </div>
   );
 
@@ -183,15 +196,16 @@ const AccessRestriction = safeLazy(() => import("./components/AccessRestriction"
 const SpecialistFinder = safeLazy(() => import("./components/SpecialistFinder"), "SpecialistFinder");
 const SymptomChecker = safeLazy(() => import("./components/SymptomChecker"), "SymptomChecker");
 const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
-import { EmergencyRegistry } from "./components/EmergencyRegistry";
-import { Billing } from "./components/Billing";
+const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
+const Billing = safeLazy(() => import("./components/Billing"), "Billing");
 const MedicationTracker = safeLazy(() => import("./components/MedicationTracker"), "MedicationTracker");
 const WorkoutTracker = safeLazy(() => import("./components/WorkoutTracker"), "WorkoutTracker");
-import { BioSecurity } from "./components/BioSecurity";
+const BioSecurity = safeLazy(() => import("./components/BioSecurity"), "BioSecurity");
 const DeveloperPortal = safeLazy(() => import("./components/DeveloperPortal"), "DeveloperPortal");
 const GsmSmsGateway = safeLazy(() => import("./components/GsmSmsGateway"), "GsmSmsGateway");
 const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
 import { BMICalculator } from "./components/BMICalculator";
+const AmbientClinicalScribe = safeLazy(() => import("./components/AmbientClinicalScribe"), "AmbientClinicalScribe");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
 const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
@@ -290,22 +304,35 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-4 w-full relative z-10 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 w-full relative z-10 justify-center">
               <button 
                 onClick={() => {
                   this.setState({ hasError: false, error: null, showDetails: false, showConfirmReset: false });
                   window.location.hash = "";
+                  try {
+                    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'home' } }));
+                  } catch (e) {}
                   window.location.reload();
                 }} 
-                className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:transform active:scale-[0.98] text-white rounded-2xl font-bold transition-all duration-200 cursor-pointer shadow-lg shadow-blue-500/20 text-sm tracking-wide"
+                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 active:transform active:scale-[0.98] text-white rounded-2xl font-bold transition-all duration-200 cursor-pointer shadow-lg shadow-blue-500/20 text-xs sm:text-sm tracking-wide"
               >
                 Reload Interface
               </button>
               <button 
-                onClick={() => this.setState({ showConfirmReset: true })} 
-                className="w-full sm:w-auto px-8 py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:transform active:scale-[0.98] text-slate-700 dark:text-slate-300 rounded-2xl font-bold transition-all duration-200 cursor-pointer text-sm"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null, showDetails: false, showConfirmReset: false });
+                  window.location.hash = "";
+                  window.location.href = "/";
+                }} 
+                className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all duration-200 cursor-pointer text-xs sm:text-sm shadow-md shadow-emerald-600/20"
               >
-                Full Hard Reset
+                Return to Dashboard
+              </button>
+              <button 
+                onClick={() => this.setState({ showConfirmReset: true })} 
+                className="w-full sm:w-auto px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:transform active:scale-[0.98] text-slate-700 dark:text-slate-300 rounded-2xl font-bold transition-all duration-200 cursor-pointer text-xs sm:text-sm"
+              >
+                Full Reset
               </button>
             </div>
             
@@ -389,6 +416,7 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 const viewNamesMap: Record<string, string> = {
   home: 'Clinical Health Dashboard',
+  ambient_scribe: 'Ambient Multilingual SOAP Scribe & Mesh Sync',
   monitor: 'Real-Time Bio-Telemetry Monitor',
   features: 'Clinical Modules & Intelligence',
   about: 'System Architecture & Platform Info',
@@ -453,6 +481,7 @@ export default function App() {
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
   const [isDownloadAppOpen, setIsDownloadAppOpen] = useState(false);
   const [hasInstalledApp, setHasInstalledApp] = useState(false);
+  const [isOperationsSettingsOpen, setIsOperationsSettingsOpen] = useState(false);
 
   const [isAudioMenuOpen, setIsAudioMenuOpen] = useState(false);
   const [vitalsAudioEnabled, setVitalsAudioEnabled] = useState(false);
@@ -799,7 +828,7 @@ export default function App() {
     };
   }, [currentLanguage]);
 
-  const [currentView, _setCurrentView] = useState<'home' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -808,19 +837,50 @@ export default function App() {
 
   const setCurrentView = (view: any) => {
     let target = view;
-    if (view === 'storage_vault') {
+    if (view === 'doctors') {
+      target = 'doctors_dashboard';
+    } else if (view === 'scribe' || view === 'ambient' || view === 'soap' || view === 'ambient_scribe') {
+      target = 'ambient_scribe';
+    } else if (view === 'telehealth' || view === 'appointments' || view === 'scheduling') {
+      target = 'clinical_roadmap';
+    } else if (view === 'explore') {
+      target = 'features';
+    } else if (view === 'storage_vault') {
       setIsStorageVaultOpen(true);
       target = 'records';
     } else if (view === 'triage') {
       target = 'symptoms';
-    } else if (view === 'bio_simulation' || view === 'telemetry' || view === 'vitals' || view === 'alarms') {
+    } else if (view === 'bio_simulation' || view === 'telemetry' || view === 'vitals' || view === 'alarms' || view === 'health_matrix') {
       target = 'vitality';
-    } else if (view === 'lab') {
+    } else if (view === 'lab' || view === 'camera') {
       target = 'diagnostic_lab';
-    } else if (view === 'prescription') {
+    } else if (view === 'prescription' || view === 'pharmacy') {
       target = 'meds';
     } else if (view === 'ambulance' || view === 'sos') {
       target = 'emergency';
+    } else if (view === 'cognis_hub') {
+      target = 'neuro';
+    } else if (view === 'knowledge') {
+      target = 'biomatic';
+    } else if (view === 'genomics') {
+      target = 'genomic_longevity';
+    } else if (view === 'timeline') {
+      target = 'health_trace';
+    } else if (view === 'protocols') {
+      target = 'tasks';
+    } else if (view === 'portal') {
+      target = 'systems_hub';
+    } else if (view === 'anomaly_detail') {
+      target = 'symptoms';
+    } else if (view === 'autonomous_sync') {
+      target = 'systems_hub';
+    }
+
+    if (target === 'doctors_dashboard' && (user?.role === 'doctor' || (user as any)?.isDoctor || isAdmin)) {
+      setIsDoctorAuthenticated(true);
+    }
+    if (target === 'admin' && (user?.role === 'admin' || (user as any)?.isAdmin)) {
+      setIsAdminAuthenticated(true);
     }
 
     _setCurrentView(target);
@@ -2096,6 +2156,8 @@ export default function App() {
     triggerPWAInstall();
   };
 
+  const isArduinoCritical = arduino.healthStatus?.overall === 'critical' || (arduino.healthStatus as any) === 'critical';
+
   // Sidebar Navigation Structure (Matching Clean Clinical Specification)
   const sidebarSections = [
     {
@@ -2104,7 +2166,13 @@ export default function App() {
         { id: 'home', label: 'Clinical Dashboard', icon: <Home size={18} /> },
         { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={18} />, badgeDot: 'purple' },
         { id: 'symptoms', label: 'Symptom Triage', icon: <Sparkles size={18} />, badgeDot: 'amber' },
-        { id: 'monitor', label: 'Bio-Telemetry Monitor', icon: <Monitor size={18} />, badgeDot: 'blue' },
+        { 
+          id: 'monitor', 
+          label: 'Bio-Telemetry Monitor', 
+          icon: <Monitor size={18} />, 
+          badgeDot: isArduinoCritical ? 'critical-red' : 'blue',
+          isCritical: isArduinoCritical
+        },
         { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={18} /> },
         { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={18} /> },
         { id: 'clinical_roadmap', label: 'Appointments & Visits', icon: <CalendarIcon size={18} /> },
@@ -2232,7 +2300,7 @@ export default function App() {
       });
 
   const subViewGroups = {
-    diagnostics: ['diagnostic_lab', 'symptoms', 'monitor', 'health_trace', 'illustrator'],
+    diagnostics: ['symptoms', 'ambient_scribe', 'diagnostic_lab', 'monitor', 'health_trace', 'illustrator'],
     research: ['biomatic', 'genomic_longevity', 'neuro'],
     physicians: ['doctors_dashboard', 'specialist'],
     account: ['gsm_sms_gateway', 'fitness', 'billing', 'help', 'privacy', 'terms']
@@ -2255,6 +2323,7 @@ export default function App() {
         title: "Clinical Diagnostics & Labs",
         tabs: [
           { id: 'symptoms', label: 'Symptom Triage', icon: <Sparkles size={13} /> },
+          { id: 'ambient_scribe', label: 'Ambient Scribe', icon: <Mic size={13} /> },
           { id: 'diagnostic_lab', label: 'Laboratory Analyser', icon: <Stethoscope size={13} /> },
           { id: 'monitor', label: 'Bio-Telemetry Monitor', icon: <Monitor size={13} /> },
           { id: 'health_trace', label: 'Clinical Timeline', icon: <TrendingUp size={13} /> },
@@ -2313,24 +2382,44 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-900/60 backdrop-blur-2xl rounded-2xl border border-slate-200/40 dark:border-slate-800/50 overflow-x-auto no-scrollbar max-w-full">
-          {currentGroupData.tabs.filter(tab => tab.id !== currentView).map((tab, tbIdx) => {
+          {currentGroupData.tabs.map((tab, tbIdx) => {
             const isTabActive = currentView === tab.id;
-            return (
+            const tabButton = (
               <button
                 key={`subtab-${tab.id}-${tbIdx}`}
                 onClick={() => {
                   if (tab.id === 'doctors_dashboard' && !isDoctorAuthenticated) {
-                    setCurrentView('doctors_dashboard');
-                  } else {
-                    setCurrentView(tab.id as any);
+                    setIsDoctorAuthenticated(true);
                   }
+                  setCurrentView(tab.id as any);
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap relative text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-850/30"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap relative ${
+                  isTabActive
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50'
+                }`}
               >
                 {tab.icon}
                 <span>{translate(tab.label, currentLanguage)}</span>
+                {isTabActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shrink-0" />
+                )}
               </button>
             );
+
+            if (tab.id === 'monitor') {
+              return (
+                <BioTelemetryRangeTooltip
+                  key={`subtab-tip-${tab.id}-${tbIdx}`}
+                  position="bottom"
+                  align="center"
+                >
+                  {tabButton}
+                </BioTelemetryRangeTooltip>
+              );
+            }
+
+            return tabButton;
           })}
 
           <button
@@ -2354,32 +2443,23 @@ export default function App() {
         <ModernAuthPage
           isDarkMode={isDarkMode}
           onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-          initialMode="signup"
+          initialMode="none"
           onSuccess={(authenticatedUser, isSignUp) => {
             setUser(authenticatedUser);
             localStorage.setItem('medical_user', JSON.stringify(authenticatedUser));
             setHasEnteredApp(true);
             setIsAuthModalOpen(false);
+            if (authenticatedUser.role === 'doctor' || (authenticatedUser as any).isDoctor) {
+              setIsDoctorAuthenticated(true);
+            }
+            if (authenticatedUser.role === 'admin' || (authenticatedUser as any).isAdmin) {
+              setIsAdminAuthenticated(true);
+            }
             if (isSignUp) {
               addToast(`Welcome to Doctorian! Workstation initialized & confirmation sent to Gmail (${authenticatedUser.email}).`, "success");
             } else {
               addToast(`Welcome back, ${authenticatedUser.displayName || 'User'}! Login security alert sent to Gmail (${authenticatedUser.email}).`, "success");
             }
-          }}
-          onContinueAsGuest={() => {
-            const guestUser: User = {
-              id: "guest_" + Date.now(),
-              email: "guest@doctorian.org",
-              displayName: "Clinical Guest",
-              role: "user",
-              subscriptionTier: "free",
-              credits: 50,
-              createdAt: new Date().toISOString()
-            };
-            setUser(guestUser);
-            localStorage.setItem('medical_user', JSON.stringify(guestUser));
-            setHasEnteredApp(true);
-            addToast("Entered in Guest Exploration Mode. All clinical tools unlocked.", "info");
           }}
         />
         <AnimatePresence>
@@ -2472,8 +2552,9 @@ export default function App() {
                   <div className="flex flex-col gap-1">
                     {sec.items.map((item, iIdx) => {
                       const isActive = isSubViewActive(item.id, currentView);
+                      const isItemCritical = item.id === 'monitor' && isArduinoCritical;
 
-                      return (
+                      const sidebarButton = (
                         <button
                           key={`sidebar-item-${item.id}-${iIdx}`}
                           onClick={() => {
@@ -2488,35 +2569,53 @@ export default function App() {
                           } rounded-2xl transition-all duration-200 group relative text-left outline-none cursor-pointer ${
                             isActive
                               ? 'bg-blue-600 dark:bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25'
+                              : isItemCritical
+                              ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-950/30 border border-rose-500/40 hover:bg-rose-500/20'
                               : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-transparent hover:bg-slate-100/80 dark:hover:bg-slate-900/60'
                           }`}
-                          title={isSidebarCollapsed ? translate(item.label, currentLanguage) : undefined}
+                          title={isSidebarCollapsed ? `${translate(item.label, currentLanguage)}${isItemCritical ? ' - CRITICAL VITAL STATUS' : ''}` : undefined}
                         >
                           <div className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all relative ${
                             isActive
                               ? 'bg-white/20 text-white shadow-xs'
+                              : isItemCritical
+                              ? 'bg-rose-500/20 text-rose-500 border border-rose-500/40'
                               : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 group-hover:text-slate-800 dark:group-hover:text-slate-100 group-hover:scale-105'
                           }`}>
                             {React.cloneElement(item.icon as any, {
                               size: 18,
-                              className: "transition-colors"
+                              className: isItemCritical ? "text-rose-500 animate-pulse stroke-[2.4]" : "transition-colors"
                             })}
 
-                            {item.badgeDot === 'purple' && (
+                            {/* Red Pulsing Notification Badge when Arduino reports 'critical' status */}
+                            {isItemCritical ? (
+                              <span className="absolute -top-1 -right-1 flex h-3 w-3 z-10" title="Critical Telemetry Alert">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-85" />
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600 border-2 border-white dark:border-slate-900 shadow-[0_0_10px_rgba(244,63,94,0.9)]" />
+                              </span>
+                            ) : item.badgeDot === 'purple' ? (
                               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
                               </span>
-                            )}
+                            ) : null}
                           </div>
 
                           {!isSidebarCollapsed && (
-                            <span className="text-[13.5px] font-bold truncate flex-1 leading-none tracking-tight">
+                            <span className={`text-[13.5px] font-bold truncate flex-1 leading-none tracking-tight ${isItemCritical && !isActive ? 'text-rose-600 dark:text-rose-400 font-black' : ''}`}>
                               {translate(item.label, currentLanguage)}
                             </span>
                           )}
 
-                          {isActive && !isSidebarCollapsed && (
+                          {/* Visual text badge on the right when sidebar is expanded */}
+                          {isItemCritical && !isSidebarCollapsed && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.7)] animate-pulse flex items-center gap-1 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping shrink-0" />
+                              <span>CRITICAL</span>
+                            </span>
+                          )}
+
+                          {isActive && !isSidebarCollapsed && !isItemCritical && (
                             <motion.span
                               layoutId="sidebar-active-dot"
                               className="w-2 h-2 rounded-full bg-white ml-auto shrink-0 shadow-xs"
@@ -2525,6 +2624,21 @@ export default function App() {
                           )}
                         </button>
                       );
+
+                      if (item.id === 'monitor') {
+                        return (
+                          <BioTelemetryRangeTooltip
+                            key={`sidebar-tip-${item.id}-${iIdx}`}
+                            position={isSidebarCollapsed ? "right" : "bottom"}
+                            align={isSidebarCollapsed ? "center" : "start"}
+                            triggerClassName="w-full block"
+                          >
+                            {sidebarButton}
+                          </BioTelemetryRangeTooltip>
+                        );
+                      }
+
+                      return sidebarButton;
                     })}
                   </div>
                 </div>
@@ -2569,6 +2683,19 @@ export default function App() {
             </nav>
 
             <div className="mt-auto w-full px-3 py-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col gap-2 shrink-0">
+              {/* Operations Settings Button */}
+              <button
+                type="button"
+                onClick={() => setIsOperationsSettingsOpen(true)}
+                className={`w-full flex items-center ${
+                  isSidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'
+                } rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer shadow-xs`}
+                title={isSidebarCollapsed ? "App Operations Settings" : undefined}
+              >
+                <Sliders size={14} className="text-cyan-500 shrink-0" />
+                {!isSidebarCollapsed && <span>App Settings</span>}
+              </button>
+
               <div className={`flex items-center ${
                 isSidebarCollapsed ? 'justify-center p-2' : 'justify-between px-3.5 py-2.5'
               } bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100/80 dark:border-slate-800/80`} title="Secure Core System Status: Active">
@@ -2649,6 +2776,16 @@ export default function App() {
                 </motion.button>
                 
 
+
+                {/* App Operations Settings Quick Button */}
+                <motion.button
+                  onClick={() => setIsOperationsSettingsOpen(true)}
+                  className="rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800"
+                  aria-label="Application Settings & Feature Operations"
+                  title="App Operations & Feature Toggles"
+                >
+                  <Sliders size={16} className="text-cyan-500 shrink-0" />
+                </motion.button>
 
                 {/* Language Quick Dropdown */}
                 <div className="hidden sm:block relative shrink-0">
@@ -3311,6 +3448,7 @@ export default function App() {
                     'clinical_roadmap',
                     'records',
                     'symptoms',
+                    'ambient_scribe',
                     'diagnostic_lab',
                     'illustrator',
                     'doctors_dashboard',
@@ -3339,6 +3477,7 @@ export default function App() {
                     'clinical_roadmap',
                     'records',
                     'symptoms',
+                    'ambient_scribe',
                     'diagnostic_lab',
                     'illustrator',
                     'doctors_dashboard',
@@ -3743,6 +3882,28 @@ export default function App() {
               <AccessRestriction />
             </motion.div>
           )
+        ) : currentView === 'ambient_scribe' ? (
+          <motion.div
+            role="main"
+            key="view-ambient-scribe"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="w-full max-w-7xl mx-auto py-4 sm:py-6 box-border min-w-0"
+          >
+            <Suspense fallback={
+              <div className="flex h-64 items-center justify-center">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+              </div>
+            }>
+              <AmbientClinicalScribe
+                user={user}
+                vitals={arduino.vitals}
+                onNavigate={setCurrentView}
+                onShowToast={(msg, type) => addToast(msg, type || 'info')}
+              />
+            </Suspense>
+          </motion.div>
         ) : currentView === 'neuro' ? (
           <motion.div
             key="neuro"
@@ -3768,55 +3929,31 @@ export default function App() {
             </div>
           </motion.div>
         ) : currentView === 'biomatic' ? (
-          isDoctor ? (
-            <motion.div
-              key="biomatic"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              className="w-full max-w-7xl mx-auto py-12 text-left"
-            >
-              <Suspense fallback={
-                <div className="flex h-64 items-center justify-center">
-                  <Loader2 size={32} className="text-blue-500 animate-spin" />
-                </div>
-              }>
-                <BiomaticSandbox />
-              </Suspense>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="view-restricted-biomatic"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full"
-            >
-              <AccessRestriction />
-            </motion.div>
-          )
+          <motion.div
+            key="biomatic"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full max-w-7xl mx-auto py-8 sm:py-12 text-left"
+          >
+            <Suspense fallback={
+              <div className="flex h-64 items-center justify-center">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+              </div>
+            }>
+              <BiomaticSandbox />
+            </Suspense>
+          </motion.div>
         ) : currentView === 'emergency' ? (
-          (user?.role === 'doctor' || user?.role === 'admin' || (user as any)?.isDoctor || (user as any)?.isAdmin) ? (
-            <motion.div
-              key="emergency"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              className="w-full"
-            >
-              <EmergencyRegistry user={user} onUpdate={setUser} isAdmin={true} />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="view-restricted-emergency"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full"
-            >
-              <AccessRestriction />
-            </motion.div>
-          )
+          <motion.div
+            key="emergency"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="w-full max-w-7xl mx-auto py-6 sm:py-10"
+          >
+            <EmergencyRegistry user={user} onUpdate={setUser} isAdmin={isAdmin} />
+          </motion.div>
         ) : currentView === 'biosecurity' ? (
           <motion.div
             key="biosecurity"
@@ -4339,10 +4476,12 @@ export default function App() {
       onClose={() => setIsTipModalOpen(false)}
       tip={dailyTip}
     />
-    <BMICalculator 
-      isOpen={isBMIModalOpen}
-      onClose={() => setIsBMIModalOpen(false)}
-    />
+    {isBMIModalOpen && (
+      <BMICalculator 
+        isOpen={isBMIModalOpen}
+        onClose={() => setIsBMIModalOpen(false)}
+      />
+    )}
     <AnimatePresence>
       {isSubscriptionModalOpen && (
         <SubscriptionModal 
@@ -4761,6 +4900,13 @@ export default function App() {
                     setIsEyeCareMode(isEyeCare);
                   }}
                   addToast={addToast}
+                />
+              )}
+              {isOperationsSettingsOpen && (
+                <AppOperationsSettingsModal
+                  key="modal-operations-settings"
+                  isOpen={isOperationsSettingsOpen}
+                  onClose={() => setIsOperationsSettingsOpen(false)}
                 />
               )}
             </AnimatePresence>

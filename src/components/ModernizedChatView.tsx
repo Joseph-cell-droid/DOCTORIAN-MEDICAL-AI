@@ -6,7 +6,7 @@ import {
   Pill, Thermometer, AlertTriangle, Heart, RefreshCw, X,
   ArrowLeft, History, PlusCircle, ChevronDown, ChevronUp, ChevronRight, Phone, Video,
   BrainCircuit, BookOpen, Volume2, VolumeX, Trash2, Mic, MicOff,
-  Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope,
+  Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope, Baby,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
   PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal,
   CheckCircle2, Shield
@@ -16,6 +16,7 @@ import { api } from '../api';
 import { cleanAiResponse, ensureModernEmojiInteractivity, extractInteractiveSuggestions } from '../utils/cleanAiResponse';
 import { ModernBotResponseSpace } from './ModernBotResponseSpace';
 import { DoctorianWelcomeCanvas } from './DoctorianWelcomeCanvas';
+import { SmartActionCard } from './SmartActionCard';
 
 export interface ModernizedChatViewProps {
   user: any;
@@ -48,6 +49,10 @@ interface ChatMessage {
     items: StructuredItem[];
     followup?: string;
   };
+  isStreaming?: boolean;
+  thoughtDuration?: string;
+  reasoningSteps?: string[];
+  thoughtContent?: string;
 }
 
 interface ChatSession {
@@ -241,6 +246,16 @@ const ModernBotMessageBubble: React.FC<{
   );
 };
 
+const REASONING_STAGES = [
+  { stage: 'Thinking...', detail: 'Initializing clinical inquiry synthesis' },
+  { stage: 'Configuring neural clinical weights...', detail: 'Calibrating multi-system diagnostic models' },
+  { stage: 'Mapping physiological pathways...', detail: 'Correlating presentation with WHO & Uganda protocols' },
+  { stage: 'Analyzing symptom correlation matrix...', detail: 'Auditing vital telemetry and acuity factors' },
+  { stage: 'Synthesizing evidence-based guidelines...', detail: 'Structuring targeted clinical recommendations' },
+  { stage: 'Evaluating safety contraindications...', detail: 'Auditing red flag indicators & emergency signs' },
+  { stage: 'Formulating clinical consultation...', detail: 'Composing structured open response' },
+];
+
 export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   user,
   onNavigate,
@@ -307,6 +322,51 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   });
   const [inputVal, setInputVal] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [reasoningIndex, setReasoningIndex] = useState(0);
+  const [reasoningElapsed, setReasoningElapsed] = useState(0);
+  const reasoningStepsExecutedRef = useRef<string[]>([]);
+  const streamingTimerRef = useRef<any>(null);
+
+  // Clean up streaming on unmount
+  useEffect(() => {
+    return () => {
+      if (streamingTimerRef.current) {
+        clearInterval(streamingTimerRef.current);
+      }
+    };
+  }, []);
+
+  // AI Thinking reasoning text rotator and live timer
+  useEffect(() => {
+    if (!isLoading) {
+      setReasoningElapsed(0);
+      setReasoningIndex(0);
+      return;
+    }
+
+    const startTime = Date.now();
+    reasoningStepsExecutedRef.current = [REASONING_STAGES[0].stage];
+
+    const elapsedInterval = setInterval(() => {
+      setReasoningElapsed((Date.now() - startTime) / 1000);
+    }, 100);
+
+    const stageInterval = setInterval(() => {
+      setReasoningIndex((prev) => {
+        const next = (prev + 1) % REASONING_STAGES.length;
+        const nextStage = REASONING_STAGES[next].stage;
+        if (!reasoningStepsExecutedRef.current.includes(nextStage)) {
+          reasoningStepsExecutedRef.current.push(nextStage);
+        }
+        return next;
+      });
+    }, 1500);
+
+    return () => {
+      clearInterval(elapsedInterval);
+      clearInterval(stageInterval);
+    };
+  }, [isLoading]);
 
   // Upper Bar Toggles
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -326,6 +386,11 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [callDuration, setCallDuration] = useState(0);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<'chat' | 'records' | 'meds' | 'tools' | 'profile'>('chat');
+  
+  // Clinical Consultation Specialization Mode
+  const [consultationMode, setConsultationMode] = useState<'primary' | 'pediatric' | 'emergency' | 'pharmacology' | 'cardiology'>('primary');
+  const [showModeSelector, setShowModeSelector] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
   // Dedicated Non-Blocking Smart Actions State
   const [isSmartActionsCollapsed, setIsSmartActionsCollapsed] = useState<boolean>(() => {
@@ -815,43 +880,129 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       const botText = ensureModernEmojiInteractivity(cleanAiResponse(rawBotText));
       const structured = parseClinicalResponse(botText);
 
+      const thoughtDuration = `${Math.max(1.2, reasoningElapsed).toFixed(1)}s`;
+      const recordedSteps = reasoningStepsExecutedRef.current.length > 0
+        ? [...reasoningStepsExecutedRef.current]
+        : ['Thinking...', 'Configuring neural clinical weights...', 'Mapping physiological pathways...'];
+
+      const botMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
-        id: `bot-${Date.now()}`,
+        id: botMsgId,
         sender: 'bot',
-        text: botText,
+        text: '',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         structuredCard: structured,
+        isStreaming: true,
+        thoughtDuration,
+        reasoningSteps: recordedSteps,
       };
 
       const finalMsgs = [...newMsgs, botMsg];
       setMessages(finalMsgs);
-      speakText(botText);
+      setIsLoading(false);
 
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === currentSessionId ? { ...s, messages: finalMsgs } : s
-        )
-      );
+      // Stream the response smoothly from the background (open-web progressive token reveal)
+      if (streamingTimerRef.current) {
+        clearInterval(streamingTimerRef.current);
+      }
+
+      const words = botText.split(' ');
+      let wordIdx = 0;
+      const wordsPerTick = 2; // Stream 2 words per tick for smooth natural reveal
+
+      streamingTimerRef.current = setInterval(() => {
+        wordIdx += wordsPerTick;
+        const currentSlice = words.slice(0, wordIdx).join(' ');
+
+        if (wordIdx >= words.length) {
+          clearInterval(streamingTimerRef.current);
+          streamingTimerRef.current = null;
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, text: botText, isStreaming: false } : m
+            )
+          );
+
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === currentSessionId
+                ? {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === botMsgId ? { ...m, text: botText, isStreaming: false } : m
+                    ),
+                  }
+                : s
+            )
+          );
+
+          speakText(botText);
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, text: currentSlice, isStreaming: true } : m
+            )
+          );
+        }
+      }, 25);
     } catch (err) {
       console.warn("Error getting AI response:", err);
       const fallbackText = "🩺 I have recorded your symptom profile. 💧 Please rest, drink oral rehydration fluids, and visit a health center if your fever or pain intensifies. ❓ Can you let me know if you are having any other symptoms?";
+      const thoughtDuration = `${Math.max(1.2, reasoningElapsed).toFixed(1)}s`;
+      const botMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
-        id: `bot-${Date.now()}`,
+        id: botMsgId,
         sender: 'bot',
-        text: fallbackText,
+        text: '',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isStreaming: true,
+        thoughtDuration,
+        reasoningSteps: ['Thinking...', 'Configuring neural clinical weights...', 'Synthesizing safe clinical protocol'],
       };
+
       const finalMsgs = [...newMsgs, botMsg];
       setMessages(finalMsgs);
-      speakText(fallbackText);
-
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === currentSessionId ? { ...s, messages: finalMsgs } : s
-        )
-      );
-    } finally {
       setIsLoading(false);
+
+      if (streamingTimerRef.current) {
+        clearInterval(streamingTimerRef.current);
+      }
+
+      const fbWords = fallbackText.split(' ');
+      let fbIdx = 0;
+      streamingTimerRef.current = setInterval(() => {
+        fbIdx += 2;
+        const currentSlice = fbWords.slice(0, fbIdx).join(' ');
+        if (fbIdx >= fbWords.length) {
+          clearInterval(streamingTimerRef.current);
+          streamingTimerRef.current = null;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, text: fallbackText, isStreaming: false } : m
+            )
+          );
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === currentSessionId
+                ? {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === botMsgId ? { ...m, text: fallbackText, isStreaming: false } : m
+                    ),
+                  }
+                : s
+            )
+          );
+          speakText(fallbackText);
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, text: currentSlice, isStreaming: true } : m
+            )
+          );
+        }
+      }, 25);
     }
   };
 
@@ -984,6 +1135,74 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 Your Health, Our Priority
               </p>
             </div>
+          </div>
+
+          {/* Clinical Specialization Mode Selector */}
+          <div className="relative shrink-0 hidden lg:block">
+            <button
+              type="button"
+              onClick={() => setShowModeSelector(!showModeSelector)}
+              className="px-2.5 py-1.5 rounded-xl bg-[#08183d] hover:bg-[#0e255e] border border-cyan-500/40 hover:border-cyan-300 text-cyan-200 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+              title="Clinical Specialization Mode"
+            >
+              <Stethoscope size={12} className="text-cyan-400" />
+              <span className="truncate max-w-[120px]">
+                {consultationMode === 'primary' ? 'Primary Care' :
+                 consultationMode === 'pediatric' ? 'Pediatric & ANC' :
+                 consultationMode === 'emergency' ? 'Emergency Care' :
+                 consultationMode === 'pharmacology' ? 'Rx Pharmacology' : 'Cardiology'}
+              </span>
+              <ChevronDown size={10} className={`transform transition-transform ${showModeSelector ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showModeSelector && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowModeSelector(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                    className="absolute left-0 mt-2 w-56 bg-[#071330] border border-cyan-500/40 rounded-2xl shadow-2xl z-50 p-1.5 space-y-1 text-left backdrop-blur-xl"
+                  >
+                    <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800">
+                      Clinical Specialization
+                    </div>
+                    {[
+                      { id: 'primary', label: 'Primary Care & Triage', icon: Stethoscope, desc: 'General medicine & WHO protocols' },
+                      { id: 'pediatric', label: 'Pediatric & Maternal Care', icon: Baby, desc: 'Under-5 triage & pre-eclampsia' },
+                      { id: 'emergency', label: 'Emergency & Critical Care', icon: AlertCircle, desc: 'Red flags & acute stabilization' },
+                      { id: 'pharmacology', label: 'Pharmacotherapy & Rx', icon: Pill, desc: 'Drug safety & dosing schedule' },
+                      { id: 'cardiology', label: 'Cardiology & Bio-Telemetry', icon: Heart, desc: 'ECG, vitals & hemodynamics' },
+                    ].map((m) => {
+                      const Icon = m.icon;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            setConsultationMode(m.id as any);
+                            setShowModeSelector(false);
+                            showTemporaryNotice(`Switched to ${m.label} Mode`);
+                          }}
+                          className={`w-full text-left p-2 rounded-xl transition-all flex items-start gap-2 cursor-pointer ${
+                            consultationMode === m.id
+                              ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/50'
+                              : 'hover:bg-slate-800/60 text-slate-300'
+                          }`}
+                        >
+                          <Icon size={14} className="text-cyan-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-[11px] font-bold text-white leading-tight">{m.label}</p>
+                            <p className="text-[9px] text-slate-400 leading-snug">{m.desc}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -1322,15 +1541,56 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           ))
         )}
 
-        {/* Loading Indicator - Generated directly on background */}
+        {/* Open-Web AI Thinking State with Dynamically Changing Reasoning Texts */}
         {isLoading && (
-          <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl py-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 border border-cyan-400/30 shrink-0 mt-0.5">
+          <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl py-2.5">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25 border border-cyan-400/40 shrink-0 mt-0.5">
               <Sparkles size={16} className="text-cyan-200 animate-spin" />
             </div>
-            <div className="flex items-center gap-2.5 py-1 text-slate-300 text-sm">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-slate-300 font-medium">Doctorian AI is formulating response...</span>
+            <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <motion.span 
+                  key={reasoningIndex}
+                  initial={{ opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-cyan-300 font-semibold text-sm tracking-wide"
+                >
+                  {REASONING_STAGES[reasoningIndex]?.stage || 'Thinking...'}
+                </motion.span>
+                <span className="text-[11px] font-mono text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-full border border-slate-800">
+                  {reasoningElapsed.toFixed(1)}s
+                </span>
+              </div>
+              
+              <motion.p 
+                key={`desc-${reasoningIndex}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-xs text-slate-400 font-normal pl-4.5"
+              >
+                {REASONING_STAGES[reasoningIndex]?.detail}
+              </motion.p>
+              
+              {/* Subtle animated neural reasoning wave */}
+              <div className="flex items-center gap-1 pl-4.5 pt-0.5">
+                {[0, 1, 2, 3, 4, 5].map((idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{
+                      scaleY: [0.3, 1, 0.3],
+                      opacity: [0.4, 1, 0.4]
+                    }}
+                    transition={{
+                      duration: 0.9,
+                      repeat: Infinity,
+                      delay: idx * 0.12,
+                      ease: 'easeInOut'
+                    }}
+                    className="w-1 h-3 rounded-full bg-cyan-400/70"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1341,8 +1601,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 3. DEDICATED SMART ACTIONS DOCK (Compact, Non-Blocking, Smart) */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className="mt-auto px-3 sm:px-6 pb-3 pt-2 bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent z-30 shrink-0">
-        <div className="max-w-4xl mx-auto space-y-2">
+      <div className="mt-auto px-3 sm:px-6 pb-2.5 pt-1 bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent z-30 shrink-0">
+        <div className="max-w-4xl mx-auto space-y-1.5">
           
           {/* Temporary feedback notice toast */}
           <AnimatePresence>
@@ -1351,7 +1611,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 initial={{ opacity: 0, y: -6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                className="px-3.5 py-1.5 rounded-xl bg-cyan-950/90 border border-cyan-400/50 text-cyan-200 text-xs font-semibold shadow-lg text-center backdrop-blur-md flex items-center justify-center gap-2"
+                className="px-3.5 py-1 rounded-xl bg-cyan-950/90 border border-cyan-400/50 text-cyan-200 text-xs font-semibold shadow-lg text-center backdrop-blur-md flex items-center justify-center gap-2"
               >
                 <Sparkles size={13} className="text-cyan-400 animate-spin" />
                 <span>{smartActionNotice}</span>
@@ -1359,173 +1619,25 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )}
           </AnimatePresence>
 
-          {/* Compact Smart Actions Row (Single Line, Never Blocks Features) */}
-          <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-2xl bg-[#06122d]/80 border border-cyan-500/35 backdrop-blur-xl shadow-lg transition-all">
-            
-            {/* Scrollable Action Chips Container */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
-              
-              {/* Smart Actions Badge & Collapse Toggle */}
-              <button
-                type="button"
-                id="smart-actions-toggle-btn"
-                onClick={toggleSmartActionsCollapsed}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95 ${
-                  isSmartActionsCollapsed
-                    ? 'bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300'
-                    : 'bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-400/60 text-cyan-200'
-                }`}
-                title={isSmartActionsCollapsed ? "Expand Smart Actions" : "Minimize Smart Actions"}
-              >
-                <Sparkles size={12} className="text-cyan-400 animate-pulse" />
-                <span>Smart Actions</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-cyan-400/20 text-cyan-300 font-mono">
-                  {allClinicalActions.length}
-                </span>
-                <ChevronDown size={11} className={`transform transition-transform ${isSmartActionsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
-              </button>
-
-              {/* Expanded Compact Actions Strip */}
-              {!isSmartActionsCollapsed && (
-                <>
-                  {/* Live Vitals Telemetry Chip */}
-                  <button
-                    type="button"
-                    onClick={handleVitalsAction}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 hover:border-rose-400 text-rose-200 text-[11px] font-mono font-bold transition-all shrink-0 shadow-xs cursor-pointer active:scale-95 group"
-                    title="Evaluate Live Biometric Telemetry"
-                  >
-                    <Heart size={12} className="text-rose-400 animate-pulse group-hover:scale-110 transition-transform" />
-                    <span>{arduino?.heartRate || 72} bpm</span>
-                    <span className="text-rose-400/70 hidden sm:inline">• {arduino?.spo2 || 98}% SpO2</span>
-                  </button>
-
-                  {/* Contextual Smart Pill: Fever / Malaria */}
-                  {conversationContext.hasFever && (
-                    <button
-                      type="button"
-                      onClick={() => handleSendMessage("Given the fever and chills, what is the recommended clinical workup for malaria RDT, CBC, and antipyretic dosing according to Uganda Clinical Guidelines?")}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/60 text-amber-200 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                      title="Fever & Malaria Workup"
-                    >
-                      <Thermometer size={12} className="text-amber-400" />
-                      <span>Fever Workup</span>
-                    </button>
-                  )}
-
-                  {/* Contextual Smart Pill: Medication Safety */}
-                  {conversationContext.hasMeds && (
-                    <button
-                      type="button"
-                      onClick={() => handleSendMessage("Please verify the drug safety profile, renal/hepatic considerations, and interaction risks for the medications mentioned.")}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/60 text-indigo-200 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                      title="Check Drug Interactions & Safety"
-                    >
-                      <Pill size={12} className="text-indigo-400" />
-                      <span>Drug Safety</span>
-                    </button>
-                  )}
-
-                  {/* 1. Medication Reminder */}
-                  <button
-                    type="button"
-                    onClick={() => onNavigate ? onNavigate('meds') : showTemporaryNotice("Medication Reminders opened")}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-600/20 hover:bg-blue-600/35 border border-blue-400/50 hover:border-blue-300 text-blue-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Set Medication Reminder"
-                  >
-                    <Calendar size={12} className="text-blue-300" />
-                    <span>Reminder</span>
-                  </button>
-
-                  {/* 2. Book Doctor Voice Call */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCallMode('voice');
-                      setShowVoiceCallModal(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-600/20 hover:bg-purple-600/35 border border-purple-400/50 hover:border-purple-300 text-purple-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Start Telehealth Voice Call"
-                  >
-                    <UserCheck size={12} className="text-purple-300" />
-                    <span>Book Doctor</span>
-                  </button>
-
-                  {/* 3. Clinical Advice */}
-                  <button
-                    type="button"
-                    onClick={() => handleSendMessage("Can you provide evidence-based clinical precautions, dosage details, and differential diagnoses?")}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-600/20 hover:bg-amber-600/35 border border-amber-400/50 hover:border-amber-300 text-amber-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Evidence-based Clinical Advice"
-                  >
-                    <Lightbulb size={12} className="text-amber-300" />
-                    <span>Advice</span>
-                  </button>
-
-                  {/* 4. Lab Tests */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveToolTab('lab');
-                      setShowToolHub(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-400/50 hover:border-emerald-300 text-emerald-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Diagnostic Lab Tests"
-                  >
-                    <Activity size={12} className="text-emerald-300" />
-                    <span>Lab Tests</span>
-                  </button>
-
-                  {/* 5. SOAP Note Generator */}
-                  <button
-                    type="button"
-                    onClick={handleGenerateSoapNote}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/35 border border-cyan-400/50 hover:border-cyan-300 text-cyan-100 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Generate Clinical SOAP Note"
-                  >
-                    <FileText size={12} className="text-cyan-300" />
-                    <span>SOAP Note</span>
-                  </button>
-
-                  {/* 6. Export Report */}
-                  <button
-                    type="button"
-                    onClick={handleExportConsultationSummary}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-700/50 hover:bg-slate-700/80 border border-slate-500/50 hover:border-slate-400 text-slate-200 text-[11px] font-semibold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Export Clinical Summary"
-                  >
-                    <Copy size={12} className="text-slate-300" />
-                    <span className="hidden sm:inline">Export</span>
-                  </button>
-
-                  {/* 7. Emergency SOS */}
-                  <button
-                    type="button"
-                    onClick={() => handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!")}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-600/25 hover:bg-rose-600/45 border border-rose-400/60 hover:border-rose-300 text-rose-200 text-[11px] font-bold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-                    title="Emergency SOS Dispatch"
-                  >
-                    <AlertCircle size={12} className="text-rose-400" />
-                    <span>SOS</span>
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Right: "All Tools" Launcher Button */}
-            <div className="flex items-center gap-1.5 shrink-0 pl-1">
-              <button
-                type="button"
-                id="chatbot-smart-actions-btn"
-                onClick={() => setShowSmartActions(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400/60 hover:border-blue-300 text-cyan-200 hover:text-white text-[11px] font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
-                title="All Smart Clinical Actions & Utilities"
-              >
-                <MoreHorizontal size={13} className="text-cyan-300" />
-                <span className="text-[10px]">All ({allClinicalActions.length})</span>
-              </button>
-            </div>
-          </div>
+          {/* DEDICATED SMART ACTION CARD (Compact, Non-blocking, Intelligent) */}
+          <SmartActionCard
+            arduino={arduino}
+            messages={messages}
+            onSendMessage={(msg) => handleSendMessage(msg)}
+            onNavigate={onNavigate}
+            onOpenVoiceCall={() => {
+              setCallMode('voice');
+              setShowVoiceCallModal(true);
+            }}
+            onOpenToolHub={(tab) => {
+              if (tab) setActiveToolTab(tab);
+              setShowToolHub(true);
+            }}
+            onExportSummary={handleExportConsultationSummary}
+            onShowNotice={showTemporaryNotice}
+            isUgandaMOHActive={isUgandaMOHActive}
+            onToggleUgandaMOH={() => setIsUgandaMOHActive(!isUgandaMOHActive)}
+          />
 
           {/* RAISED ILLUMINATED CHATBOT TEXT CARD (Clean, Compact, Ergonomic) */}
           <div className="relative bg-[#071333] sm:bg-[#081842]/98 backdrop-blur-2xl border-2 border-cyan-400/60 hover:border-cyan-300 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)] focus-within:border-cyan-300 focus-within:ring-4 focus-within:ring-cyan-400/30 transition-all overflow-visible">

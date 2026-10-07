@@ -31,6 +31,7 @@ import {
   Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
 
 export type ClinicalCategory = 'all' | 'triage' | 'telemetry' | 'diagnostics' | 'records';
 
@@ -805,7 +806,7 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
               const isActive = currentView === btn.id;
               const IconComp = btn.icon;
 
-              return (
+              const moduleCard = (
                 <div
                   key={`module-${btn.id}`}
                   role="button"
@@ -910,6 +911,21 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                   </div>
                 </div>
               );
+
+              if (btn.id === 'monitor') {
+                return (
+                  <BioTelemetryRangeTooltip
+                    key={`module-tip-${btn.id}`}
+                    position="top"
+                    align="center"
+                    triggerClassName="w-full block"
+                  >
+                    {moduleCard}
+                  </BioTelemetryRangeTooltip>
+                );
+              }
+
+              return moduleCard;
             })}
           </div>
         )}

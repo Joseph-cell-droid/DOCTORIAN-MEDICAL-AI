@@ -305,6 +305,14 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
   // Secondary clinical nodes for comprehensive access
   const secondaryNodes: LauncherNode[] = [
     {
+      id: 'ambient_scribe',
+      title: "AMBIENT SCRIBE",
+      subtitle: 'SOAP & MESH SYNC',
+      icon: <Mic size={20} />,
+      color: 'text-blue-600 dark:text-blue-400',
+      badge: 'NEW'
+    },
+    {
       id: 'doctors_dashboard',
       title: "PHYSICIANS",
       subtitle: 'WORKSTATION',

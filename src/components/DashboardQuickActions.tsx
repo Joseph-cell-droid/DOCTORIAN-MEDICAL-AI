@@ -19,7 +19,8 @@ import {
   Sliders,
   ChevronDown,
   ChevronUp,
-  AlertCircle
+  AlertCircle,
+  Mic
 } from 'lucide-react';
 import { VitalsSonifier } from '../utils/vitalsSonifier';
 import {
@@ -497,6 +498,46 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
                       : 'Standard contrast for daytime clinical viewing'}
                   </p>
                 </div>
+              </div>
+
+              {/* 5. AMBIENT MULTILINGUAL SOAP SCRIBE */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (onNavigate) onNavigate('ambient_scribe');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (onNavigate) onNavigate('ambient_scribe');
+                  }
+                }}
+                className="p-4 rounded-2xl border transition-all duration-200 cursor-pointer select-none flex flex-col justify-between text-left group bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-purple-500/10 border-blue-500/30 hover:border-blue-500/60 hover:shadow-md hover:shadow-blue-500/10 col-span-1 sm:col-span-2 lg:col-span-4"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-600 text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                      <Mic size={16} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                        Ambient Clinical SOAP Scribe
+                      </span>
+                      <span className="ml-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                        Offline & Mesh Ready
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform">
+                    Launch Scribe →
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                  Real-time bedside consultation listening, multilingual speech-to-SOAP structuring (English, Oluganda, Kiswahili), ICD-10 coding, and peer mesh sync for clinic tablets.
+                </p>
               </div>
             </div>
 

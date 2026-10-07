@@ -167,6 +167,35 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
           );
         })}
       </motion.div>
+
+      {/* Rapid One-Tap Clinical Chips */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mt-4 sm:mt-5 w-full flex flex-wrap items-center justify-center gap-2"
+      >
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <Zap size={12} className="text-cyan-400" />
+          <span>Quick Clinical Inquiries:</span>
+        </span>
+        {[
+          { label: '🌡️ Malaria RDT & AL Regimen', prompt: 'What is the Uganda MoH first-line protocol for confirmed uncomplicated malaria with Artemether-Lumefantrine?' },
+          { label: '💊 Paracetamol Dosing (Pediatric)', prompt: 'Calculate the weight-based oral paracetamol dose schedule for an 18kg child with fever.' },
+          { label: '💓 Bio-Telemetry Interpretation', prompt: `Interpret my live telemetry snapshot: HR is ${hr} bpm, SpO2 is ${spo2}%, Temp is ${temp}°C.` },
+          { label: '👶 Pre-eclampsia Danger Signs', prompt: 'What are the red flag danger signs of pre-eclampsia in the third trimester?' },
+          { label: '📝 Formulate Clinical SOAP Note', prompt: 'Please formulate a structured clinical SOAP Note (Subjective, Objective, Assessment, Plan) based on our consultation.' },
+        ].map((chip, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => onSelectPrompt(chip.prompt)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0a1636]/90 hover:bg-[#12285e] border border-cyan-500/30 hover:border-cyan-400/70 text-cyan-200 hover:text-white transition-all shadow-xs active:scale-95 cursor-pointer"
+          >
+            <span>{chip.label}</span>
+          </button>
+        ))}
+      </motion.div>
     </div>
   );
 };

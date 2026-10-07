@@ -22,6 +22,7 @@ import {
   ArrowRightLeft,
   HardDrive,
   LayoutGrid,
+  Mic,
 } from 'lucide-react';
 import { AndroidAppButtons, CLINICAL_MODULES_REGISTRY } from './AndroidAppButtons';
 
@@ -119,6 +120,15 @@ export const ALL_APP_PAGES: PageItem[] = [
   },
 
   // Diagnostics & Pathology
+  {
+    id: 'ambient_scribe',
+    label: 'Ambient SOAP Scribe',
+    subtitle: 'Multilingual speech-to-SOAP notes & mesh sync',
+    category: 'diag',
+    icon: <Mic size={20} className="text-blue-600" />,
+    badge: 'NEW',
+    badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  },
   {
     id: 'diagnostic_lab',
     label: 'Laboratory Analyser',

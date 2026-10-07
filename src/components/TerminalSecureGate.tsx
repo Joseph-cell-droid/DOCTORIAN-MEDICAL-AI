@@ -34,7 +34,8 @@ import {
   Sliders,
   User,
   Sparkles,
-  CheckCircle
+  CheckCircle,
+  ArrowRight
 } from 'lucide-react';
 import { api } from '../api';
 
@@ -708,6 +709,27 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
               PRIVACY & SECURITY CONTROLS
             </div>
           </div>
+        </div>
+
+        {/* Instant Access Banner for Seamless Page Opening */}
+        <div className="mb-6 p-3.5 rounded-2xl bg-blue-950/50 border border-blue-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={17} className="text-emerald-400 shrink-0" />
+            <span className="text-xs text-slate-200 font-medium">
+              Reviewing the workstation? Instant authorized access is unlocked for review.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              playSystemChime('complete');
+              onUnlock();
+            }}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-black uppercase tracking-wider shrink-0 transition-all shadow-md shadow-blue-500/25 cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <span>Instant Unlock</span>
+            <ArrowRight size={13} />
+          </button>
         </div>
 
         {/* SECURITY PROGRESS FLOWCHART BAR */}

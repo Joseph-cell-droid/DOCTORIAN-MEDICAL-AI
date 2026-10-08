@@ -635,7 +635,8 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                     <button
                       type="button"
                       onClick={() => openSignInWithRole('user')}
-                      className="p-3 rounded-xl bg-slate-900/70 border border-slate-700/70 hover:border-cyan-500/60 hover:bg-slate-800/80 transition-all text-left group cursor-pointer"
+                      className="p-3 rounded-xl border border-slate-700/70 hover:border-cyan-500/60 transition-all text-left group cursor-pointer shadow-sm hover:brightness-110"
+                      style={{ backgroundColor: '#bc48b5' }}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded font-mono">

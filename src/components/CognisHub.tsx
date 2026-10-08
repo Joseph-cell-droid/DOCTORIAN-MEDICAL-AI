@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '../api';
+import { CognitiveJournal } from './CognitiveJournal';
 
 export const CognisHub: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +49,7 @@ export const CognisHub: React.FC = () => {
   const [isMeditating, setIsMeditating] = useState(false);
   const [timer, setTimer] = useState(300); // 5 minutes standard
   const [customDuration, setCustomDuration] = useState(5);
-  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'analysis'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'journal' | 'analysis'>('overview');
   const [showTrainingLab, setShowTrainingLab] = useState(false);
   const [trainingStep, setTrainingStep] = useState(0);
   const [testScore, setTestScore] = useState<number | null>(null);
@@ -237,17 +238,17 @@ export const CognisHub: React.FC = () => {
         </motion.div>
         
         <div className="flex p-2 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-x-auto no-scrollbar whitespace-nowrap flex-nowrap shrink-0 max-w-full">
-          {(['overview', 'sessions', 'analysis'] as const).map((tab, mapIdx_239) => (
+          {(['overview', 'sessions', 'journal', 'analysis'] as const).map((tab, mapIdx_239) => (
             <button
               key={`cognishub-l242-${mapIdx_239}`}
               onClick={() => setActiveTab(tab)}
-              className={`relative z-10 px-8 sm:px-10 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
+              className={`relative z-10 px-6 sm:px-8 py-3.5 sm:py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
                 activeTab === tab 
                 ? 'text-white' 
                 : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {tab}
+              {tab === 'journal' ? 'Cognitive Journal' : tab}
               {activeTab === tab && (
                 <motion.div 
                   layoutId="activeTab"
@@ -625,6 +626,18 @@ export const CognisHub: React.FC = () => {
               <PlusCircle className="text-slate-300 group-hover:text-purple-600 mb-4 transition-colors" size={40} />
               <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Create Custom Protocol</p>
             </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'journal' && (
+          <motion.div 
+            key="journal"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="w-full"
+          >
+            <CognitiveJournal />
           </motion.div>
         )}
 

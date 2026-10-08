@@ -1034,6 +1034,29 @@ export default function App() {
       window.dispatchEvent(new Event('resize'));
     }, 150);
   };
+
+  const [expandedSidebarGroups, setExpandedSidebarGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_expanded_groups');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      "Core Clinical Care": true,
+      "Diagnostics & Pathology": true,
+      "Specialized Care & Longevity": true,
+      "Platform & Governance": false
+    };
+  });
+
+  const toggleSidebarGroup = (groupTitle: string) => {
+    setExpandedSidebarGroups((prev) => {
+      const next = { ...prev, [groupTitle]: !prev[groupTitle] };
+      try {
+        localStorage.setItem('sidebar_expanded_groups', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
   const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
   const [isBMIModalOpen, setIsBMIModalOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -2162,6 +2185,7 @@ export default function App() {
   const sidebarSections = [
     {
       title: "Core Clinical Care",
+      icon: <Stethoscope size={14} className="text-blue-500" />,
       items: [
         { id: 'home', label: 'Clinical Dashboard', icon: <Home size={18} /> },
         { id: 'ai_nexus', label: 'AI Consultation', icon: <Bot size={18} />, badgeDot: 'purple' },
@@ -2181,6 +2205,7 @@ export default function App() {
     },
     {
       title: "Diagnostics & Pathology",
+      icon: <Activity size={14} className="text-emerald-500" />,
       items: [
         { id: 'diagnostic_lab', label: 'Laboratory Analyser', icon: <Stethoscope size={18} /> },
         { id: 'health_trace', label: 'Longitudinal Timeline', icon: <TrendingUp size={18} /> },
@@ -2189,6 +2214,7 @@ export default function App() {
     },
     {
       title: "Specialized Care & Longevity",
+      icon: <Brain size={14} className="text-purple-500" />,
       items: [
         { id: 'doctors_dashboard', label: 'Physician Workstation', icon: <UserCheck size={18} /> },
         { id: 'specialist', label: 'Specialist Directory', icon: <UserPlus size={18} /> },
@@ -2200,6 +2226,7 @@ export default function App() {
     },
     {
       title: "Platform & Governance",
+      icon: <Shield size={14} className="text-slate-400" />,
       items: [
         { id: 'features', label: 'Platform Features & Suite', icon: <Sparkles size={18} /> },
         { id: 'about', label: 'Platform & Systems', icon: <Info size={18} /> },
@@ -2774,194 +2801,6 @@ export default function App() {
                   <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
                   <span className="text-xs font-black text-high-visibility truncate uppercase tracking-widest hidden lg:block">Search System...</span>
                 </motion.button>
-                
-
-
-                {/* App Operations Settings Quick Button */}
-                <motion.button
-                  onClick={() => setIsOperationsSettingsOpen(true)}
-                  className="rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800"
-                  aria-label="Application Settings & Feature Operations"
-                  title="App Operations & Feature Toggles"
-                >
-                  <Sliders size={16} className="text-cyan-500 shrink-0" />
-                </motion.button>
-
-                {/* Language Quick Dropdown */}
-                <div className="hidden sm:block relative shrink-0">
-                  <motion.button
-                    onClick={() => {
-                      setIsLanguageMenuOpen(!isLanguageMenuOpen);
-                      setIsWindowsMenuOpen(false);
-                      setIsProfileOpen(false);
-                    }}
-                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer ${
-                      isLanguageMenuOpen 
-                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
-                        : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
-                    }`}
-                    aria-label="Change UI Language"
-                    title={translate("Change UI Language", currentLanguage)}
-                  >
-                    <Globe size={16} className="shrink-0" />
-                  </motion.button>
-
-                  <AnimatePresence>
-                    {isLanguageMenuOpen && (
-                      <>
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="fixed inset-0 z-40 bg-transparent"
-                          onClick={() => setIsLanguageMenuOpen(false)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: 12, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 12, scale: 0.95 }}
-                          className="absolute right-0 mt-3 w-64 sm:w-72 max-h-[340px] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-200/60 dark:border-slate-800/80 p-3 z-50 scrollbar-none"
-                        >
-                          <div className="flex flex-col gap-1.5">
-                            {/* MarianMT Local Translation Status Panel */}
-                            <div className="px-2.5 py-2.5 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-850 mb-1 flex flex-col gap-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">
-                                  MarianMT Offline Core
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="relative flex h-2 w-2">
-                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isMarianMTModeActive() ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
-                                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isMarianMTModeActive() ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
-                                  </span>
-                                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                    {isMarianMTModeActive() ? 'Active' : 'Cloud'}
-                                  </span>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setIsLanguageMenuOpen(false);
-                                  setIsMarianConsoleOpen(true);
-                                }}
-                                className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
-                              >
-                                <Cpu size={8} />
-                                Open Neural Console
-                              </button>
-                            </div>
-
-                            <div className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/60 mb-1 flex items-center justify-between">
-                              <span>Interface Dialect</span>
-                              <span>Offline Caching</span>
-                            </div>
-                            {[
-                              { code: 'en-US', name: 'English (US)', flag: '🇺🇸', native: 'English' },
-                              { code: 'en-GB', name: 'English (UK)', flag: '🇬🇧', native: 'English' },
-                              { code: 'lg', name: 'Luganda', flag: '🇺🇬', native: 'Luganda' },
-                              { code: 'nyn', name: 'Runyankole-Rukiga', flag: '🇺🇬', native: 'Runyankore-Rukiga' },
-                              { code: 'ach', name: 'Acholi-Luo', flag: '🇺🇬', native: 'Lwo / Acholi' },
-                              { code: 'laj', name: 'Langi', flag: '🇺🇬', native: 'Leb Lango' },
-                              { code: 'teo', name: 'Iteso', flag: '🇺🇬', native: 'Ateso' },
-                              { code: 'xog', name: 'Lusoga', flag: '🇺🇬', native: 'Olusoga' },
-                              { code: 'lgg', name: 'Lugbara', flag: '🇺🇬', native: 'Lugbarati' },
-                              { code: 'nyr', name: 'Runyoro-Rutooro', flag: '🇺🇬', native: 'Runyoro-Rutooro' },
-                              { code: 'koo', name: 'Rukonjo', flag: '🇺🇬', native: 'Olukonjo' },
-                              { code: 'samia', name: 'Samia', flag: '🇺🇬', native: 'Lusamia' },
-                              { code: 'kdj', name: 'Karamojong', flag: '🇺🇬', native: 'Ngakarimojong' },
-                              { code: 'sw-KE', name: 'Swahili', flag: '🇰🇪', native: 'Kiswahili' },
-                              { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
-                              { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
-                              { code: 'de', name: 'German', flag: '🇩🇪', native: 'Deutsch' },
-                              { code: 'zh', name: 'Chinese', flag: '🇨🇳', native: '中文' },
-                              { code: 'hi', name: 'Hindi', flag: '🇮🇳', native: 'हिन्दी' },
-                                         { code: 'ru', name: 'Russian', flag: '🇷🇺', native: 'Русский' },
-                              { code: 'ja', name: 'Japanese', flag: '🇯🇵', native: '日本語' },
-                              { code: 'ko', name: 'Korean', flag: '🇰🇷', native: '한국어' },
-                              { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
-                              { code: 'tr', name: 'Turkish', flag: '🇹🇷', native: 'Türkçe' }
-                            ].map((lang, lIdx) => {
-                              const isDownloaded = downloadedLanguages.includes(lang.name);
-                              const isDownloading = downloadingLang === lang.name;
-
-                              return (
-                                <div
-                                  key={`lang-opt-${lang.code}-${lIdx}`}
-                                  className={`flex items-center justify-between p-1 rounded-2xl transition-all ${
-                                    currentLanguage === lang.name
-                                      ? 'bg-blue-500/5 dark:bg-blue-500/12 ring-1 ring-blue-500/10'
-                                      : ''
-                                  }`}
-                                >
-                                  <button
-                                    onClick={() => {
-                                      setCurrentLanguage(lang.name);
-                                      localStorage.setItem("app_lang", lang.name);
-                                      setIsLanguageMenuOpen(false);
-
-                                      if (!isDownloaded && lang.name !== 'English (US)' && lang.name !== 'English (UK)') {
-                                        handleDownloadLanguage(lang.name);
-                                        setToast({
-                                          message: `🌐 Language switched to ${lang.name}. Initializing offline MarianMT background downloader...`,
-                                          type: 'info'
-                                        });
-                                      } else {
-                                        setToast({
-                                          message: `🌐 Language updated to ${lang.name}. Re-indexing clinical interface lexicon...`,
-                                          type: 'success'
-                                        });
-                                      }
-                                    }}
-                                    className={`flex items-center gap-2.5 px-2.5 py-2 flex-1 min-w-0 text-left transition-all rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 ${
-                                      currentLanguage === lang.name
-                                        ? 'text-blue-600 dark:text-blue-400 font-bold'
-                                        : 'text-slate-700 dark:text-slate-300'
-                                    }`}
-                                  >
-                                    <span className="text-lg shrink-0">{lang.flag}</span>
-                                    <div className="min-w-0 flex-1 leading-none">
-                                      <div className="text-[10px] font-black uppercase tracking-tight truncate">{lang.name}</div>
-                                      <div className="text-[8px] opacity-60 uppercase tracking-widest truncate mt-0.5">{lang.native}</div>
-                                    </div>
-                                  </button>
-
-                                  <div className="shrink-0 px-2 flex items-center justify-center">
-                                    {isDownloaded ? (
-                                      <span 
-                                        className="text-[8px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-1 rounded-md flex items-center gap-0.5 font-sans font-bold"
-                                        title="MarianMT Local Pipeline Ready"
-                                      >
-                                        ✓ MarianMT
-                                      </span>
-                                    ) : isDownloading ? (
-                                      <span className="text-[8px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 flex items-center gap-1 font-mono font-bold">
-                                        <RefreshCw size={8} className="animate-spin shrink-0" />
-                                        {downloadProgress}%
-                                      </span>
-                                    ) : (
-                                      <button 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDownloadLanguage(lang.name);
-                                        }}
-                                        className="text-[8px] font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-250 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-md cursor-pointer flex items-center gap-0.5 transition-all border border-slate-200/40 dark:border-slate-700/50"
-                                        title="Download MarianMT model pack"
-                                      >
-                                        <Download size={8} className="shrink-0" />
-                                        GET
-                                      </button>
-                                    )}
-                                  </div>
-                                 </div>
-                              );
-                            })}
-                           </div>
-                         </motion.div>
-                       </>
-                     )}
-                   </AnimatePresence>
-                 </div>
-
                  {/* Clinical Auditory & Sonification Hub (Moved to Systems Hub) */}
                  <div className="hidden">
                    <motion.button
@@ -3136,22 +2975,23 @@ export default function App() {
 
 
 
-                {/* Doctorian Systems Menu Launchpad - Always Fixed in Top Header */}
+                {/* Doctorian Systems Menu Launchpad - Icon Only to Save Space */}
                 <div className="relative overflow-visible shrink-0">
                   <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
-                    className={`rounded-xl transition-all flex items-center justify-center gap-1.5 px-2.5 sm:px-3 border shadow-xs shrink-0 h-10 md:h-10.5 lg:h-11 cursor-pointer ${
+                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer relative ${
                       isWindowsMenuOpen 
-                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
+                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20 shadow-md' 
                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
                     }`}
-                    aria-label="Doctorian Systems Menu"
-                    title="Doctorian Systems Menu Launchpad"
+                    aria-label="Doctorian Systems Menu (Settings, Languages & Launchpad)"
+                    title="Doctorian Systems Menu (Access Settings, Languages & Clinical Launchpad)"
                   >
-                    <LayoutGrid size={16} className="shrink-0 text-blue-500" />
-                    <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Doctorian Menu</span>
+                    <LayoutGrid size={18} className="shrink-0 text-blue-500 stroke-[2.2]" />
                     {hasNotification && (
-                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
+                      <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
                     )}
                   </motion.button>
                 </div>
@@ -4045,6 +3885,14 @@ export default function App() {
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  onClick={() => setIsOperationsSettingsOpen(true)}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
+                >
+                  <Sliders size={14} className="text-cyan-500" />
+                  <span>App Settings</span>
+                </button>
+                <button
                   onClick={() => setIsWindowsMenuOpen(true)}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                 >
@@ -4865,6 +4713,17 @@ export default function App() {
                   hasInstalledApp={hasInstalledApp}
                   isStandalone={isStandalone}
                   installApp={installApp}
+                  onOpenSettings={() => setIsOperationsSettingsOpen(true)}
+                  currentLanguage={currentLanguage}
+                  onChangeLanguage={(lang) => {
+                    setCurrentLanguage(lang);
+                    localStorage.setItem("app_lang", lang);
+                  }}
+                  downloadedLanguages={downloadedLanguages}
+                  downloadingLang={downloadingLang}
+                  downloadProgress={downloadProgress}
+                  handleDownloadLanguage={handleDownloadLanguage}
+                  onOpenMarianConsole={() => setIsMarianConsoleOpen(true)}
                 />
               )}
               {isBackupModalOpen && (

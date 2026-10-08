@@ -44,13 +44,49 @@ export default defineConfig(({mode}) => {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
     },
     resolve: {
-      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+      dedupe: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'motion',
+        'motion/react',
+        'framer-motion',
+      ],
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    server: {
+      hmr: process.env.DISABLE_HMR !== 'true',
+      warmup: {
+        clientFiles: ['./src/main.tsx', './src/App.tsx'],
+      },
+    },
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+      include: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'motion/react',
+        'framer-motion',
+        'lucide-react',
+        'recharts',
+        'canvas-confetti',
+        'qrcode.react',
+        'react-markdown',
+        'remark-gfm',
+        'jspdf',
+        'jsqr',
+        'd3',
+        '@simplewebauthn/browser',
+        'firebase/app',
+        'firebase/auth',
+        'firebase/firestore',
+      ],
     },
     build: {
       outDir: 'dist',
@@ -91,9 +127,6 @@ export default defineConfig(({mode}) => {
           },
         },
       },
-    },
-    server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
     },
   };
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   Phone, 
   User, 
@@ -14,9 +14,12 @@ import {
   RefreshCw,
   Zap,
   Activity,
-  Trash2
+  Trash2,
+  MessageSquare,
+  Radio
 } from 'lucide-react';
 import { api, User as UserType } from '../api';
+import { EmergencySmsChat } from './EmergencySmsChat';
 
 interface EmergencyRegistryProps {
   user: UserType | null;
@@ -31,6 +34,7 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
   isAdmin = false,
   setIsAdmin
 }) => {
+  const [activeEmergencyTab, setActiveEmergencyTab] = useState<'sms_chat' | 'protocol'>('sms_chat');
   const [doctorPhone, setDoctorPhone] = useState(user?.doctorPhone || '');
   const [doctorEmail, setDoctorEmail] = useState(user?.doctorEmail || '');
   const [mentorPhone, setMentorPhone] = useState(user?.mentorPhone || '');
@@ -205,7 +209,47 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 pb-24">
+    <div className="max-w-6xl mx-auto space-y-8 pb-24">
+      {/* Top Level Emergency Mode Selector */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-2 sm:p-2.5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setActiveEmergencyTab('sms_chat')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              activeEmergencyTab === 'sms_chat'
+                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Radio size={16} className={activeEmergencyTab === 'sms_chat' ? 'animate-pulse' : ''} />
+            <span>Emergency SMS Chat (Faster Help)</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/20 text-white">Live</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveEmergencyTab('protocol')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              activeEmergencyTab === 'protocol'
+                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <AlertCircle size={16} />
+            <span>Emergency Protocol & Registry</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-3">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          <span>Cellular/GSM SMS Relay: 0787674140</span>
+        </div>
+      </div>
+
+      {activeEmergencyTab === 'sms_chat' ? (
+        <EmergencySmsChat user={user} addToast={(msg, type) => addNotification(msg, type || 'info')} />
+      ) : (
       <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-3xl relative overflow-hidden p-8 sm:p-14">
         {/* Decorative Background */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/[0.03] blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
@@ -731,6 +775,7 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Professional Bio-Shield Status Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

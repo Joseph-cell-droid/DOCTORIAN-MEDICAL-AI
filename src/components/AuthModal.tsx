@@ -4,7 +4,7 @@ import {
   Mail, Lock, User, LogIn, UserPlus, X, Loader2, Stethoscope, 
   Fingerprint, ShieldCheck, ArrowLeft, CheckCircle2, 
   AlertCircle, Eye, EyeOff, KeyRound, Shield,
-  Check, ChevronRight, Sparkles, RefreshCw
+  Check, ChevronRight, Sparkles, RefreshCw, Phone
 } from 'lucide-react';
 import { api, User as UserType } from '../api';
 import { startAuthentication } from '@simplewebauthn/browser';
@@ -42,6 +42,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [signupRole, setSignupRole] = useState<'user' | 'doctor' | 'admin'>('user');
+  const [signupSpecialty, setSignupSpecialty] = useState('Cardiology');
+  const [signupPhone, setSignupPhone] = useState('+256 700 123 456');
+  const [signupLicense, setSignupLicense] = useState('UG-MED-2026');
   const [isLoading, setIsLoading] = useState(false);
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isResetLockedOut, setIsResetLockedOut] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showTermsOverlay, setShowTermsOverlay] = useState<'terms' | 'privacy' | null>(null);
+
+  const fillDemo = (type: 'doctor-gloria' | 'doctor-aaron' | 'doctor-sarah' | 'patient-sarah' | 'admin' | 'admin-gloria') => {
+    if (type === 'doctor-gloria') {
+      setEmail('gloria.doctor@doctorian.org');
+      setPassword('Doctorian@2026!');
+      setPortalType('doctor');
+    } else if (type === 'doctor-aaron') {
+      setEmail('aaron.neuro@doctorian.org');
+      setPassword('Doctorian@2026!');
+      setPortalType('doctor');
+    } else if (type === 'doctor-sarah') {
+      setEmail('doctor@doctorian.org');
+      setPassword('Doctor@Doctorian2026!');
+      setPortalType('doctor');
+    } else if (type === 'patient-sarah') {
+      setEmail('sarah.patient@doctorian.org');
+      setPassword('User@Doctorian2026!');
+      setPortalType('user');
+    } else if (type === 'admin') {
+      setEmail('admin@doctorian.org');
+      setPassword('Admin@Doctorian2026!');
+      setPortalType('admin');
+    } else if (type === 'admin-gloria') {
+      setEmail('gloriajayakullo@gmail.com');
+      setPassword('Doctorian@2026!');
+      setPortalType('admin');
+    }
+    setError(null);
+  };
 
   useEffect(() => {
     if (isOpen && initialView) {
@@ -239,12 +272,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onSuccess(user);
         onClose();
       } else if (view === 'signup') {
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match. Please verify both passwords.");
+        }
         const evalRes = validatePasswordStrength(password);
         if (!evalRes.isStrong) {
           throw new Error(`Password must meet all security requirements: ${evalRes.missingRequirements.join(', ')}.`);
         }
-        const user = await api.auth.signup(email, password, displayName);
-        setSuccessMessage("Account created successfully! Welcome to Doctorian.");
+        if (!agreedToTerms) {
+          throw new Error("Please accept the Terms of Service & HIPAA Security Agreement to proceed.");
+        }
+        const formattedName = signupRole === 'doctor' && !displayName.toLowerCase().startsWith('dr.')
+          ? `Dr. ${displayName}`
+          : displayName;
+        const user = await api.auth.signup(email, password, formattedName, signupRole, signupPhone);
+        setSuccessMessage(`Account provisioned successfully as ${signupRole === 'doctor' ? 'Verified Clinician' : signupRole.toUpperCase()}! Welcome to Doctorian.`);
         await new Promise(resolve => setTimeout(resolve, 800));
         onSuccess(user, true);
         onClose();
@@ -506,61 +548,119 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </p>
               </div>
 
-              {/* Portal Selector (Only in Login) */}
+              {/* Quick 1-Click Demo Accounts Bar (Login Mode) */}
               {view === 'login' && (
+                <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/30 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 text-left">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black uppercase text-blue-700 dark:text-cyan-400 tracking-wider flex items-center gap-1">
+                      <Sparkles size={11} className="text-amber-500 animate-pulse" />
+                      1-Click Realistic Accounts (Instant Access)
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">Verified Credentials</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('doctor-gloria')}
+                      className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-emerald-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
+                    >
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-500">Dr. Gloria J.</div>
+                      <div className="text-[8px] text-emerald-600 dark:text-emerald-400 font-medium">Cardiologist</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('doctor-aaron')}
+                      className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-blue-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
+                    >
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500">Prof. Aaron S.</div>
+                      <div className="text-[8px] text-blue-600 dark:text-blue-400 font-medium">Neurosurgeon</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('patient-sarah')}
+                      className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-indigo-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
+                    >
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-500">Sarah N.</div>
+                      <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-medium">Patient Node</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('admin-gloria')}
+                      className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-purple-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
+                    >
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-500">Gloria (Admin)</div>
+                      <div className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">Lead Director</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemo('admin')}
+                      className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-purple-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
+                    >
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-500">System Admin</div>
+                      <div className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">Core Director</div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Portal Selector (In Login and In Signup) */}
+              {(view === 'login' || view === 'signup') && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1.5 px-0.5">
                     <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                      Select Portal
+                      {view === 'signup' ? 'Select Account Node Type' : 'Select Portal'}
                     </span>
                     <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                      {portalType === 'doctor' ? 'Clinician Node' : portalType === 'admin' ? 'Admin Node' : 'Patient Node'}
+                      {(view === 'signup' ? signupRole : portalType) === 'doctor' ? 'Clinician Node' : (view === 'signup' ? signupRole : portalType) === 'admin' ? 'Admin Node' : 'Patient Node'}
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-850 rounded-xl border border-slate-200/70 dark:border-slate-800">
                     <button
                       type="button"
                       onClick={() => {
-                        setPortalType('user');
+                        if (view === 'signup') setSignupRole('user');
+                        else setPortalType('user');
                         setError(null);
                       }}
                       className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        portalType === 'user'
+                        (view === 'signup' ? signupRole : portalType) === 'user'
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      <User size={13} className={portalType === 'user' ? 'text-blue-600 dark:text-blue-400' : ''} />
+                      <User size={13} className={(view === 'signup' ? signupRole : portalType) === 'user' ? 'text-blue-600 dark:text-blue-400' : ''} />
                       <span>Patient</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setPortalType('doctor');
+                        if (view === 'signup') setSignupRole('doctor');
+                        else setPortalType('doctor');
                         setError(null);
                       }}
                       className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        portalType === 'doctor'
+                        (view === 'signup' ? signupRole : portalType) === 'doctor'
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      <Stethoscope size={13} className={portalType === 'doctor' ? 'text-emerald-600 dark:text-emerald-400' : ''} />
+                      <Stethoscope size={13} className={(view === 'signup' ? signupRole : portalType) === 'doctor' ? 'text-emerald-600 dark:text-emerald-400' : ''} />
                       <span>Clinician</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setPortalType('admin');
+                        if (view === 'signup') setSignupRole('admin');
+                        else setPortalType('admin');
                         setError(null);
                       }}
                       className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        portalType === 'admin'
+                        (view === 'signup' ? signupRole : portalType) === 'admin'
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      <ShieldCheck size={13} className={portalType === 'admin' ? 'text-indigo-600 dark:text-indigo-400' : ''} />
+                      <ShieldCheck size={13} className={(view === 'signup' ? signupRole : portalType) === 'admin' ? 'text-indigo-600 dark:text-indigo-400' : ''} />
                       <span>Admin</span>
                     </button>
                   </div>
@@ -815,6 +915,64 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
                   )}
 
+                  {/* Phone & Clinician Details (Sign Up Only) */}
+                  {view === 'signup' && (
+                    <>
+                      <div className="space-y-1.5 text-left">
+                        <label htmlFor="auth-phone" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                          Emergency Contact / Mobile Phone
+                        </label>
+                        <div className="relative">
+                          <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            id="auth-phone"
+                            type="tel"
+                            required
+                            value={signupPhone}
+                            onChange={(e) => setSignupPhone(e.target.value)}
+                            placeholder="+256 700 123 456"
+                            className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {signupRole === 'doctor' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Clinical Specialization
+                            </label>
+                            <select
+                              value={signupSpecialty}
+                              onChange={(e) => setSignupSpecialty(e.target.value)}
+                              className="w-full p-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            >
+                              <option value="Cardiology">Cardiology</option>
+                              <option value="Neurology & Neurosurgery">Neurology & Neurosurgery</option>
+                              <option value="Emergency & Trauma">Emergency & Trauma</option>
+                              <option value="Internal Medicine">Internal Medicine</option>
+                              <option value="Pediatrics">Pediatrics</option>
+                              <option value="Obstetrics & Gynecology">Obstetrics & Gynecology</option>
+                              <option value="General Practice">General Practice</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Medical License / Reg No.
+                            </label>
+                            <input
+                              type="text"
+                              value={signupLicense}
+                              onChange={(e) => setSignupLicense(e.target.value)}
+                              placeholder="UG-MD-2026"
+                              className="w-full p-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-750 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   {/* 2FA VERIFY CODE FORM */}
                   {view === 'verify-code' && (
                     <div className="space-y-3.5 text-left">
@@ -922,11 +1080,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
                   )}
 
-                  {/* Confirm Password (Reset Password view) */}
-                  {view === 'reset-password' && (
+                  {/* Confirm Password (Sign Up & Reset Password views) */}
+                  {(view === 'signup' || view === 'reset-password') && (
                     <div className="space-y-1.5 text-left">
                       <label htmlFor="auth-confirm-password" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                        Confirm New Password
+                        {view === 'reset-password' ? 'Confirm New Password' : 'Confirm Password'}
                       </label>
                       <div className="relative">
                         <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

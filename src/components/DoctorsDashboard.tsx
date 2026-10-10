@@ -18,6 +18,7 @@ import { AlarmHubView } from './AlarmHubView';
 import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
 import { ClinicalPatientRegistry } from './ClinicalPatientRegistry';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
+import { AppServerNetwork } from './AppServerNetwork';
 import {
   initOfflineDatabase,
   isNetworkOnline,
@@ -46,7 +47,7 @@ import { validateMoHClinicalDosage, validateDrugForDisease, validateDrugDrugInte
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
-  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms' | 'emergency_logs' | 'genomics' | 'emergency' | 'alarms' | 'ambulance' | 'registry' | 'simulator'>('clinical_network');
+  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'server_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms' | 'emergency_logs' | 'genomics' | 'emergency' | 'alarms' | 'ambulance' | 'registry' | 'simulator'>('clinical_network');
   
   // Emergency Logs State (2x Duplicated Patient Data Logs for Doctor Portal Monitoring)
   const [emergencyLogs, setEmergencyLogs] = useState<{
@@ -1091,6 +1092,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
         <div className="flex bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-inner gap-1 overflow-x-auto no-scrollbar whitespace-nowrap self-stretch lg:self-auto shrink-0">
           {[
             { id: 'clinical_network', label: 'Network Matrix', icon: <Radio size={12} /> },
+            { id: 'server_network', label: '📡 Server Messenger', icon: <Radio size={12} /> },
             { id: 'emergency_logs', label: 'Emergency Monitoring (2x Logs)', icon: <AlertTriangle size={12} />, badge: emergencyLogs.primaryLogs.length + emergencyLogs.backupLogs.length },
             { id: 'genomics', label: '🧬 Genomic Matrix', icon: <Dna size={12} /> },
             { id: 'emergency', label: '📋 Emergency Registry', icon: <ClipboardList size={12} /> },
@@ -1512,6 +1514,28 @@ Provide a professional, direct, academic, and clinical response assisting the ph
                 );
               })()}
             </div>
+          </motion.div>
+        )}
+
+        {/* VIEW: DOCTORIAN SERVER NETWORK MESSENGER */}
+        {activeSubTab === 'server_network' && (
+          <motion.div
+            key="server_network"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="w-full"
+          >
+            <AppServerNetwork 
+              currentUser={(() => {
+                try {
+                  return JSON.parse(localStorage.getItem('medical_user') || 'null');
+                } catch (e) {
+                  return null;
+                }
+              })()} 
+              onShowToast={addToast} 
+            />
           </motion.div>
         )}
 

@@ -56,6 +56,9 @@ export default defineConfig(({mode}) => {
       ],
       alias: {
         '@': path.resolve(__dirname, '.'),
+        'react': path.resolve(__dirname, 'node_modules/react'),
+        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+        'framer-motion': path.resolve(__dirname, 'node_modules/framer-motion'),
       },
     },
     server: {

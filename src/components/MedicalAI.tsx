@@ -19,9 +19,10 @@ interface MedicalAIProps {
   onUpgradeRequested?: () => void;
   currentLanguage?: string;
   onChangeLanguage?: (lang: string) => void;
+  isDarkMode?: boolean;
 }
 
-export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, onUpgradeRequested, currentLanguage, onChangeLanguage }: MedicalAIProps) {
+export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, onUpgradeRequested, currentLanguage, onChangeLanguage, isDarkMode }: MedicalAIProps) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
   const [operationalIdea, setOperationalIdea] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
               onNavigate={onNavigate}
               onShowNeuralVisualizer={() => setShowVisualizer(true)}
               onSwitchToMatrix={() => setChatMode('matrix')}
+              isDarkMode={isDarkMode}
             />
           ) : (
             <div className="relative h-full w-full">

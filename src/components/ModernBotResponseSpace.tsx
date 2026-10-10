@@ -314,7 +314,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                       // Diagnostic Question line
                       if (trimmed.startsWith('❓') || (trimmed.endsWith('?') && sec.type === 'questions')) {
                         return (
-                          <div key={lIdx} className="flex items-start gap-2.5 my-2 text-cyan-200 text-sm font-medium">
+                          <div key={lIdx} className="flex items-start gap-2.5 my-2 text-blue-700 dark:text-cyan-200 text-sm font-medium">
                             <span className="shrink-0 text-base">❓</span>
                             <span className="leading-relaxed">{trimmed.replace(/^❓\s*/, '')}</span>
                           </div>
@@ -325,17 +325,17 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                       if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
                         const cleanItem = trimmed.replace(/^[•\-]\s*/, '');
                         return (
-                          <div key={lIdx} className="flex items-start gap-2.5 text-slate-200 pl-0.5">
+                          <div key={lIdx} className="flex items-start gap-2.5 text-slate-800 dark:text-slate-200 pl-0.5">
                             <div className="mt-1.5 shrink-0">
                               {sec.type === 'actions' ? (
-                                <CheckCircle2 size={13} className="text-emerald-400" />
+                                <CheckCircle2 size={13} className="text-emerald-500 dark:text-emerald-400" />
                               ) : sec.type === 'warning' ? (
-                                <AlertTriangle size={13} className="text-rose-400" />
+                                <AlertTriangle size={13} className="text-rose-500 dark:text-rose-400" />
                               ) : (
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-cyan-400 inline-block" />
                               )}
                             </div>
-                            <span className="text-[14px] sm:text-[14.5px] leading-relaxed text-slate-200">
+                            <span className="text-[14px] sm:text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-200">
                               {cleanItem}
                             </span>
                           </div>
@@ -345,7 +345,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                       // Red-flag warning section callout (minimalist border-left rule, not a card)
                       if (sec.type === 'warning') {
                         return (
-                          <div key={lIdx} className="border-l-2 border-rose-500/80 pl-3 py-1 my-1.5 text-rose-200/95 leading-relaxed font-normal">
+                          <div key={lIdx} className="border-l-2 border-rose-500/80 pl-3 py-1 my-1.5 text-rose-800 dark:text-rose-200/95 leading-relaxed font-normal">
                             {trimmed}
                           </div>
                         );
@@ -353,7 +353,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
                       // Regular Paragraph
                       return (
-                        <p key={lIdx} className="text-slate-200 leading-relaxed font-normal">
+                        <p key={lIdx} className="text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
                           {trimmed}
                         </p>
                       );
@@ -363,13 +363,13 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                   {/* Warning Red-Flag Action Prompt if in warning section */}
                   {sec.type === 'warning' && (
                     <div className="pt-1 flex items-center justify-between flex-wrap gap-2 text-xs">
-                      <span className="text-[11px] text-rose-300/80">
+                      <span className="text-[11px] text-rose-600 dark:text-rose-300/80">
                         If warning symptoms persist, visit the nearest medical facility immediately.
                       </span>
                       <button
                         type="button"
                         onClick={() => onSendPrompt("🚨 I am experiencing severe warning symptoms. What emergency facility steps should I take immediately?")}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white font-medium text-xs transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs transition-colors cursor-pointer"
                       >
                         <AlertTriangle size={12} />
                         <span>Emergency Triage Steps</span>
@@ -383,7 +383,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
           </div>
         ) : (
           /* Plain Unboxed Text (Open-Web Style) */
-          <div className="space-y-2.5 text-[14.5px] sm:text-[15px] leading-relaxed text-slate-200">
+          <div className="space-y-2.5 text-[14.5px] sm:text-[15px] leading-relaxed text-slate-800 dark:text-slate-200">
             {cleanedText.split('\n').map((line, idx) => {
               const trimmed = line.trim();
               if (!trimmed) return <div key={idx} className="h-1.5" />;
@@ -399,7 +399,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               if (isHeader) {
                 return (
-                  <div key={idx} className="mt-3 pt-1 font-bold text-cyan-200 flex items-center gap-2 text-sm sm:text-base tracking-wide">
+                  <div key={idx} className="mt-3 pt-1 font-bold text-blue-700 dark:text-cyan-200 flex items-center gap-2 text-sm sm:text-base tracking-wide">
                     <span>{trimmed}</span>
                   </div>
                 );
@@ -407,8 +407,8 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
                 return (
-                  <div key={idx} className="flex items-start gap-2.5 text-slate-200 pl-1">
-                    <span className="text-cyan-400 mt-1 shrink-0 text-xs">●</span>
+                  <div key={idx} className="flex items-start gap-2.5 text-slate-800 dark:text-slate-200 pl-1">
+                    <span className="text-blue-600 dark:text-cyan-400 mt-1 shrink-0 text-xs">●</span>
                     <span className="font-normal text-[14px] sm:text-[14.5px] leading-relaxed">
                       {trimmed.replace(/^[•\-]\s*/, '')}
                     </span>
@@ -418,7 +418,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               if (trimmed.startsWith('❓') || (trimmed.endsWith('?') && (trimmed.toLowerCase().includes('how') || trimmed.toLowerCase().includes('have you') || trimmed.toLowerCase().includes('do you')))) {
                 return (
-                  <div key={idx} className="flex items-start gap-2 my-2 text-cyan-200 font-medium text-sm">
+                  <div key={idx} className="flex items-start gap-2 my-2 text-blue-700 dark:text-cyan-200 font-medium text-sm">
                     <span className="shrink-0 text-base">❓</span>
                     <span>{trimmed.replace(/^❓\s*/, '')}</span>
                   </div>
@@ -426,7 +426,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               }
 
               return (
-                <p key={idx} className="text-slate-200 font-normal leading-relaxed">
+                <p key={idx} className="text-slate-800 dark:text-slate-200 font-normal leading-relaxed">
                   {trimmed}
                 </p>
               );

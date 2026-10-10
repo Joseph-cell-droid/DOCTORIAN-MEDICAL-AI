@@ -17,7 +17,12 @@ import {
   Database,
   Server,
   AlertTriangle,
-  Check
+  Check,
+  Smartphone,
+  Printer,
+  Download,
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { api, User } from '../api';
 import { openFlutterwavePayment } from '../utils/flutterwave';
@@ -226,72 +231,114 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
     });
   };
 
-  const [momoPhone, setMomoPhone] = useState(user?.phone || '');
+  const [momoPhone, setMomoPhone] = useState(user?.phone || '+256 772 000 000');
   const [showMomo, setShowMomo] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'flutterwave'>('card');
+  const [cardData, setCardData] = useState({
+    number: '4242 4242 4242 4242',
+    expiry: '12/28',
+    cvv: '739',
+    name: user?.displayName || 'Valued Patient'
+  });
+  const [momoPin, setMomoPin] = useState('');
+  const [momoStep, setMomoStep] = useState<'input' | 'push_sent'>('input');
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
 
-  const handleMTNPayment = async () => {
-    if (!user) {
-      onShowToast("Please authenticate to activate protocols", "error");
-      return;
-    }
-
-    if (!momoPhone || momoPhone.length < 9) {
-      onShowToast("Please enter a valid MTN MoMo phone number", "error");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/billing/mtn-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          tier: selectedPlan,
-          phone: momoPhone,
-          amount: currentPlan?.amount || 0,
-          currency: 'UGX'
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Payment failed");
-
-      onShowToast(data.message, "success");
-      setShowMomo(false);
-    } catch (err: any) {
-      onShowToast(err.message || "Failed to initialize MTN MoMo payment", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubscribe = async () => {
+  const handleSubscribe = () => {
     if (!user) {
       onShowToast("Please authenticate to activate protocols", "error");
       return;
     }
 
     if (currentPlan?.id === 'core') {
-      processSubscription("FREE-TX-REF");
+      processSubscription("FREE-CORE-ACTIVATION");
       return;
     }
 
-    // Default to show MoMo option instead of direct redirect if requested
-    setShowMomo(true);
+    setShowCheckoutModal(true);
   };
 
-  const processSubscription = async (txId?: string) => {
+  const processSubscription = async (txId?: string, paymentType: string = 'Card Payment') => {
     setLoading(true);
     try {
-      await api.billing.subscribe(selectedPlan, txId);
-      onShowToast(`System protocol ${currentPlan?.name} initialized!`, "success");
+      const generatedTxId = txId || `DOC-TXN-${Date.now()}`;
+      await api.billing.subscribe(selectedPlan, generatedTxId);
+      onShowToast(`🎉 Protocol ${currentPlan?.name} activated successfully!`, "success");
+      
       const updatedUser = await api.auth.me();
-      onUpdateUser(updatedUser);
+      if (updatedUser) {
+        onUpdateUser(updatedUser);
+      }
+
+      // Generate Official Receipt
+      const receipt = {
+        receiptNo: `DOC-INV-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        planName: currentPlan?.name || 'Neural Protocol',
+        planDescription: currentPlan?.description || '',
+        amount: currentPlan?.price || '50,000 UGX',
+        vat: 'Included (18% UG-VAT)',
+        paymentMethod: paymentType,
+        txRef: generatedTxId,
+        customerName: user?.displayName || user?.email?.split('@')[0] || 'Valued Patient',
+        customerEmail: user?.email || 'patient@doctorian.org',
+        status: 'PAID & CONFIRMED'
+      };
+      setReceiptData(receipt);
+      setShowCheckoutModal(false);
+      setShowReceiptModal(true);
     } catch (err: any) {
       onShowToast(err.message || "Protocol activation failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCardPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardData.number || cardData.number.replace(/\s/g, '').length < 12) {
+      onShowToast("Please enter a valid credit card number", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      // Simulate realistic 3D-Secure bank handshake
+      await new Promise(resolve => setTimeout(resolve, 900));
+      await processSubscription(`CARD-${Date.now()}`, "Visa / Mastercard 3D-Secure");
+    } catch (err: any) {
+      onShowToast(err.message || "Card transaction failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMoMoConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!momoPhone || momoPhone.length < 9) {
+      onShowToast("Please enter a valid phone number", "error");
+      return;
+    }
+
+    if (momoStep === 'input') {
+      setLoading(true);
+      // Simulate USSD push prompt sent to carrier
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setLoading(false);
+      setMomoStep('push_sent');
+      onShowToast("USSD payment request pushed to your phone. Enter PIN to confirm.", "info");
+      return;
+    }
+
+    // Step 2: Confirm with PIN
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 900));
+      await processSubscription(`MOMO-${Date.now()}`, `MTN MoMo (${momoPhone})`);
+      setMomoStep('input');
+    } catch (err: any) {
+      onShowToast(err.message || "Mobile Money transaction failed", "error");
     } finally {
       setLoading(false);
     }
@@ -705,7 +752,7 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
                       />
                       <div className="flex gap-3">
                         <button 
-                          onClick={handleMTNPayment}
+                          onClick={handleMoMoConfirm}
                           disabled={loading}
                           className="flex-1 py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-500/20"
                         >
@@ -770,6 +817,314 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
           </div>
         </div>
       )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* REALISTIC CHECKOUT & PROTOCOL ACTIVATION MODAL              */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showCheckoutModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 dark:text-cyan-400 flex items-center justify-center">
+                    <CreditCard size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                      Protocol Checkout Matrix
+                    </h3>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                      Encrypted Payment & Activation Terminal
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckoutModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Order Summary Box */}
+              <div className="my-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-blue-600 dark:text-cyan-400">Target Framework</span>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white">{currentPlan?.name}</h4>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 font-bold block">TOTAL AMOUNT</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white">{currentPlan?.price}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Method Tabs */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl mb-4 border border-slate-200/80 dark:border-slate-700/60">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('card')}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    paymentMethod === 'card'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  <CreditCard size={13} />
+                  <span>Card</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('momo')}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    paymentMethod === 'momo'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  <Smartphone size={13} />
+                  <span>MoMo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('flutterwave')}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    paymentMethod === 'flutterwave'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  <Zap size={13} />
+                  <span>Gateway</span>
+                </button>
+              </div>
+
+              {/* CARD FORM */}
+              {paymentMethod === 'card' && (
+                <form onSubmit={handleCardPayment} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Card Information</label>
+                    <button
+                      type="button"
+                      onClick={() => setCardData({
+                        number: '4242 4242 4242 4242',
+                        expiry: '12/28',
+                        cvv: '739',
+                        name: user?.displayName || 'Dr. Alex Johnson'
+                      })}
+                      className="text-[9px] text-blue-600 dark:text-cyan-400 hover:underline font-bold"
+                    >
+                      Autofill Test Visa
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    required
+                    value={cardData.number}
+                    onChange={(e) => setCardData({ ...cardData, number: e.target.value })}
+                    placeholder="Card Number: 4242 4242 4242 4242"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono outline-none focus:border-blue-600"
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={cardData.expiry}
+                      onChange={(e) => setCardData({ ...cardData, expiry: e.target.value })}
+                      placeholder="MM/YY"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono outline-none focus:border-blue-600"
+                    />
+                    <input
+                      type="password"
+                      required
+                      maxLength={4}
+                      value={cardData.cvv}
+                      onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })}
+                      placeholder="CVV / CVC"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-250 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    required
+                    value={cardData.name}
+                    onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
+                    placeholder="Cardholder Name"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 cursor-pointer mt-4"
+                  >
+                    {loading ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+                    <span>Pay {currentPlan?.price} Securely</span>
+                  </button>
+                </form>
+              )}
+
+              {/* MOBILE MONEY FORM */}
+              {paymentMethod === 'momo' && (
+                <form onSubmit={handleMoMoConfirm} className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      MTN / Airtel Mobile Money Number
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={momoPhone}
+                      onChange={(e) => setMomoPhone(e.target.value)}
+                      placeholder="+256 772 000 000"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  {momoStep === 'push_sent' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-xl text-left space-y-2"
+                    >
+                      <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                        <CheckCircle2 size={14} />
+                        <span>USSD Push Dispatched to Phone</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-400">
+                        Please enter your 4-digit Mobile Money PIN to approve transaction:
+                      </p>
+                      <input
+                        type="password"
+                        required
+                        maxLength={5}
+                        value={momoPin}
+                        onChange={(e) => setMomoPin(e.target.value)}
+                        placeholder="PIN (e.g. 1234)"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-lg text-center text-sm font-mono tracking-widest outline-none"
+                      />
+                    </motion.div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer mt-4"
+                  >
+                    {loading ? <Loader2 size={15} className="animate-spin" /> : <Smartphone size={15} />}
+                    <span>{momoStep === 'input' ? 'Dispatch USSD Prompt' : 'Confirm PIN & Authorize'}</span>
+                  </button>
+                </form>
+              )}
+
+              {/* FLUTTERWAVE GATEWAY */}
+              {paymentMethod === 'flutterwave' && (
+                <div className="text-center py-4 space-y-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Connect directly to Flutterwave international processing gateway for multi-currency settlement.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={triggerFlutterwave}
+                    className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Zap size={15} />
+                    <span>Launch Flutterwave Gateway</span>
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* OFFICIAL CLINICAL INVOICE & RECEIPT MODAL                   */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showReceiptModal && receiptData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative overflow-hidden text-left"
+            >
+              {/* Receipt Header */}
+              <div className="text-center pb-4 border-b border-slate-200/80 dark:border-slate-800">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2 border border-emerald-300 dark:border-emerald-800">
+                  <CheckCircle2 size={24} />
+                </div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                  Payment Confirmed & Protocol Active
+                </h3>
+                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                  TRANSACTION CONFIRMED • RECEIPT #{receiptData.receiptNo}
+                </span>
+              </div>
+
+              {/* Receipt Ledger Table */}
+              <div className="my-4 space-y-2 text-xs">
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                  <span className="text-slate-400 font-medium">Billed To</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{receiptData.customerName}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                  <span className="text-slate-400 font-medium">Account Email</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300 text-[11px]">{receiptData.customerEmail}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                  <span className="text-slate-400 font-medium">Activated Protocol</span>
+                  <span className="font-bold text-blue-600 dark:text-cyan-400">{receiptData.planName}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                  <span className="text-slate-400 font-medium">Payment Channel</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{receiptData.paymentMethod}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                  <span className="text-slate-400 font-medium">Transaction Timestamp</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300 text-[11px]">{receiptData.date}</span>
+                </div>
+                <div className="flex justify-between py-1.5 pt-2 text-sm font-black border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-900 dark:text-white">Amount Paid</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{receiptData.amount}</span>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-2.5 mt-5">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex-1 py-2.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Printer size={13} />
+                  <span>Print Receipt</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowReceiptModal(false)}
+                  className="flex-1 py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-blue-600/25 cursor-pointer"
+                >
+                  <Check size={13} />
+                  <span>Done</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

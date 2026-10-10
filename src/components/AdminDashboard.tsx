@@ -1330,15 +1330,28 @@ export const AdminDashboard: React.FC<{ addToast?: (msg: string, type: 'success'
                 </div>
               </div>
               
-              <button 
-                onClick={() => {
-                  setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active', isMainDoctor: 0, useMode: 'personal' });
-                  setIsAddingUser(true);
-                }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
-              >
-                <Plus size={16} /> Add User
-              </button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => {
+                    setUserForm({ id: '', email: '', password: '', displayName: '', role: 'admin', credits: 5000, phone: '', institutionId: 'DIRECTORATE-HQ', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active', isMainDoctor: 0, useMode: 'hospital' });
+                    setIsAddingUser(true);
+                  }}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-purple-500/20 active:scale-95 transition-all cursor-pointer"
+                  title="Create a new system administrator with full platform control"
+                >
+                  <Shield size={16} /> New Admin
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setUserForm({ id: '', email: '', password: '', displayName: '', role: 'user', credits: 400, phone: '', institutionId: '', allergies: '', conditions: '', bloodGroup: '', hospitalPreference: '', status: 'active', isMainDoctor: 0, useMode: 'personal' });
+                    setIsAddingUser(true);
+                  }}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Plus size={16} /> Add User
+                </button>
+              </div>
             </div>
 
             <div aria-live="polite" className="space-y-4">

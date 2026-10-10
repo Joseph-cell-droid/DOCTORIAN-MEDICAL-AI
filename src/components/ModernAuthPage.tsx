@@ -506,6 +506,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
         <AnimatePresence>
           {error && (
             <motion.div
+              key="auth-error-banner"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -517,6 +518,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
           )}
           {successMessage && (
             <motion.div
+              key="auth-success-banner"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}

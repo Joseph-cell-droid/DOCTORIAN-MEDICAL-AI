@@ -445,9 +445,9 @@ const generateOfflineMedicalResponse = (msg: string, targetLanguage?: string): s
 🚨 **Warning**: If you experience severe difficulty breathing, shortness of breath at rest, or if your oxygen saturation (SPO2) falls below 92%, seek immediate clinical care.`;
   }
 
-  // 4. GENERAL QUESTIONS ABOUT THE APP, DEVELOPER, OR SYSTEM
-  if (norm.includes("akora") || norm.includes("joseph") || norm.includes("ebro") || norm.includes("creator") || norm.includes("developer") || norm.includes("built")) {
-    return `👨‍💻 **Developer Metadata Profile** 🩺\n\nI am **Doctorian**, a specialized AI Clinical Co-pilot engineered by **Akora Joseph** from **EBRO company**.\n\nAkora Joseph developed me to serve as a high-fidelity, real-time medical decision support core for clinicians, medical students, and patients, enabling both live cloud inference and fully hardware-accelerated local offline operations (via TensorFlow.js in the browser).\n\nLet me know if you would like to run diagnostic simulations or sync new knowledge nodes!`;
+  // 4. GENERAL QUESTIONS ABOUT THE APP, DEVELOPER, DESIGNER, OR BRAIN
+  if (norm.includes("akora") || norm.includes("joseph") || norm.includes("ebro") || norm.includes("creator") || norm.includes("developer") || norm.includes("designer") || norm.includes("built") || norm.includes("designed") || norm.includes("brain") || norm.includes("who made")) {
+    return `👨‍💻 **Designer & Creator Metadata** 🩺\n\nI am **Doctorian Medical AI**. **Akora Joseph from EBRO Company. ltd designed this app and the AI brain**.\n\nAkora Joseph from EBRO Company. ltd engineered both the Doctorian clinical health platform, interface systems, and its entire neural AI brain architecture to serve as a high-fidelity medical decision support intelligence for clinicians, medical students, and patients worldwide.\n\nHow may I assist your medical diagnosis, vitals monitoring, or healthcare questions today?`;
   }
 
   // 5. UNKOWN / GENERAL USER INQUIRY DYNAMIC SYNTHESIS
@@ -4023,8 +4023,88 @@ export const api = {
       if (!res.ok) throw new Error(data.error || "Failed to delete scribe record");
       return data;
     }
+  },
+  network: {
+    async getUsers(): Promise<{ users: any[]; total: number }> {
+      try {
+        const res = await fetch(`${API_BASE}/network/users`, { credentials: "include" });
+        if (!res.ok) throw new Error("Failed to fetch server network users");
+        return await res.json();
+      } catch (err: any) {
+        console.warn("[API NETWORK] Fallback for getUsers:", err);
+        return { users: [], total: 0 };
+      }
+    },
+    async getMessages(params?: { channel?: string; peerId?: string }): Promise<{ messages: NetworkMessage[]; count: number }> {
+      try {
+        const query = new URLSearchParams();
+        if (params?.channel) query.set("channel", params.channel);
+        if (params?.peerId) query.set("peerId", params.peerId);
+        const res = await fetch(`${API_BASE}/network/messages?${query.toString()}`, { credentials: "include" });
+        if (!res.ok) throw new Error("Failed to load network messages");
+        return await res.json();
+      } catch (err: any) {
+        console.warn("[API NETWORK] Fallback for getMessages:", err);
+        return { messages: [], count: 0 };
+      }
+    },
+    async sendMessage(data: {
+      recipientId: string;
+      recipientName?: string;
+      channel: 'direct' | 'doctor_colleagues' | 'consultation';
+      content: string;
+      subject?: string;
+      messageType?: 'text' | 'clinical_note' | 'prescription' | 'vitals_alert' | 'referral' | 'lab_order';
+      attachments?: any;
+      priority?: 'normal' | 'urgent' | 'stat_emergency';
+    }): Promise<{ success: boolean; message: NetworkMessage; serverDeliveryStatus?: string }> {
+      const res = await fetch(`${API_BASE}/network/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include"
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to transmit message over server network");
+      return json;
+    },
+    async markAsRead(id: string): Promise<void> {
+      try {
+        await fetch(`${API_BASE}/network/messages/${id}/read`, {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch (e) {}
+    },
+    async getStats(): Promise<any> {
+      try {
+        const res = await fetch(`${API_BASE}/network/stats`, { credentials: "include" });
+        return await res.json();
+      } catch (e) {
+        return { totalMessages: 0, totalUsers: 0, totalDoctors: 0, unreadCount: 0, networkStatus: "OFFLINE" };
+      }
+    }
   }
 };
+
+export interface NetworkMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  senderSpecialty?: string;
+  recipientId: string;
+  recipientName?: string;
+  recipientRole?: string;
+  channel: 'direct' | 'doctor_colleagues' | 'consultation';
+  subject?: string;
+  content: string;
+  messageType?: 'text' | 'clinical_note' | 'prescription' | 'vitals_alert' | 'referral' | 'lab_order';
+  attachments?: any;
+  priority?: 'normal' | 'urgent' | 'stat_emergency';
+  isRead?: number;
+  createdAt: string;
+}
 
 export interface AmbientSoapPrescription {
   medication: string;

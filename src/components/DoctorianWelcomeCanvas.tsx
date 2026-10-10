@@ -74,45 +74,45 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-3 mb-6 sm:mb-8"
       >
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-cyan-950/80 via-blue-950/80 to-purple-950/80 border border-cyan-400/50 text-cyan-300 text-xs font-bold shadow-lg shadow-cyan-950/40">
-          <Sparkles size={14} className="text-cyan-400 animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-gradient-to-r dark:from-cyan-950/80 dark:via-blue-950/80 dark:to-purple-950/80 border border-blue-200 dark:border-cyan-400/50 text-blue-700 dark:text-cyan-300 text-xs font-bold shadow-md">
+          <Sparkles size={14} className="text-blue-600 dark:text-cyan-400 animate-pulse" />
           <span>Doctorian Clinical Intelligence</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-          <span className="text-[10px] text-emerald-400 font-mono font-normal hidden sm:inline">Active Online</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-normal hidden sm:inline">Active Online</span>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
           How can I assist your clinical consultation today?
         </h2>
 
-        <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
           Empathetic, evidence-based diagnostic co-pilot incorporating WHO protocols and Uganda Clinical Guidelines (UCG).
         </p>
 
         {/* Live Telemetry Status Bar */}
-        <div className="inline-flex items-center gap-3 sm:gap-4 px-4 py-2 rounded-2xl bg-[#091738]/90 border border-blue-500/30 text-xs text-slate-300 shadow-md backdrop-blur-md flex-wrap justify-center mt-2">
+        <div className="inline-flex items-center gap-3 sm:gap-4 px-4 py-2 rounded-2xl bg-white/95 dark:bg-[#091738]/90 border border-slate-200 dark:border-blue-500/30 text-xs text-slate-700 dark:text-slate-300 shadow-md backdrop-blur-md flex-wrap justify-center mt-2">
           <div className="flex items-center gap-1.5">
-            <Heart size={14} className="text-rose-400 animate-pulse" />
-            <span className="text-slate-400">Heart Rate:</span>
-            <span className="font-bold text-white font-mono">{hr} bpm</span>
+            <Heart size={14} className="text-rose-500 dark:text-rose-400 animate-pulse" />
+            <span className="text-slate-500 dark:text-slate-400">Heart Rate:</span>
+            <span className="font-bold text-slate-900 dark:text-white font-mono">{hr} bpm</span>
           </div>
-          <div className="h-3 w-px bg-slate-700 hidden sm:block" />
+          <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
           <div className="flex items-center gap-1.5">
-            <Activity size={14} className="text-cyan-400" />
-            <span className="text-slate-400">SpO2:</span>
-            <span className="font-bold text-white font-mono">{spo2}%</span>
+            <Activity size={14} className="text-blue-600 dark:text-cyan-400" />
+            <span className="text-slate-500 dark:text-slate-400">SpO2:</span>
+            <span className="font-bold text-slate-900 dark:text-white font-mono">{spo2}%</span>
           </div>
-          <div className="h-3 w-px bg-slate-700 hidden sm:block" />
+          <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
           <div className="flex items-center gap-1.5">
-            <Thermometer size={14} className="text-amber-400" />
-            <span className="text-slate-400">Temp:</span>
-            <span className="font-bold text-white font-mono">{temp}°C</span>
+            <Thermometer size={14} className="text-amber-500 dark:text-amber-400" />
+            <span className="text-slate-500 dark:text-slate-400">Temp:</span>
+            <span className="font-bold text-slate-900 dark:text-white font-mono">{temp}°C</span>
           </div>
           {isUgandaMOHActive && (
             <>
-              <div className="h-3 w-px bg-slate-700 hidden sm:block" />
-              <div className="flex items-center gap-1.5 text-emerald-300">
-                <BookOpen size={13} className="text-emerald-400" />
+              <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-300">
+                <BookOpen size={13} className="text-emerald-600 dark:text-emerald-400" />
                 <span className="font-semibold text-[11px]">UCG Protocols Active</span>
               </div>
             </>
@@ -134,32 +134,32 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
               key={card.id}
               type="button"
               onClick={() => onSelectPrompt(card.prompt)}
-              className={`p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-[#0c1f4c]/70 via-[#071330]/80 to-[#040c20]/90 border ${card.borderColor} hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-950/30 transition-all text-left group cursor-pointer flex flex-col justify-between space-y-2.5 backdrop-blur-md`}
+              className={`p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#0c1f4c]/70 dark:via-[#071330]/80 dark:to-[#040c20]/90 border border-slate-200/90 dark:${card.borderColor} shadow-xs hover:shadow-lg dark:hover:shadow-cyan-950/30 hover:scale-[1.01] transition-all text-left group cursor-pointer flex flex-col justify-between space-y-2.5 backdrop-blur-md`}
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">
                   <div className={`w-8 h-8 rounded-xl bg-gradient-to-tr ${card.color} flex items-center justify-center text-white shadow-md`}>
                     <Icon size={16} />
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300/90 font-mono px-2 py-0.5 rounded-md bg-cyan-950/60 border border-cyan-500/30">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-cyan-300/90 font-mono px-2 py-0.5 rounded-md bg-blue-50 dark:bg-cyan-950/60 border border-blue-200 dark:border-cyan-500/30">
                     {card.badge}
                   </span>
                 </div>
-                <div className="w-6 h-6 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-400 group-hover:text-cyan-300 group-hover:bg-cyan-500/20 transition-colors">
+                <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-cyan-300 group-hover:bg-blue-50 dark:group-hover:bg-cyan-500/20 transition-colors">
                   <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
 
               <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-cyan-200 transition-colors">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-cyan-200 transition-colors">
                   {card.title}
                 </h4>
-                <p className="text-xs text-slate-300/90 mt-1 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300/90 mt-1 leading-relaxed">
                   {card.description}
                 </p>
               </div>
 
-              <div className="pt-1 text-[11px] text-cyan-400/90 font-medium flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="pt-1 text-[11px] text-blue-600 dark:text-cyan-400/90 font-semibold flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                 <span>Start consultation</span>
                 <ChevronRight size={12} />
               </div>
@@ -175,8 +175,8 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
         transition={{ delay: 0.2 }}
         className="mt-4 sm:mt-5 w-full flex flex-wrap items-center justify-center gap-2"
       >
-        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-          <Zap size={12} className="text-cyan-400" />
+        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <Zap size={12} className="text-blue-600 dark:text-cyan-400" />
           <span>Quick Clinical Inquiries:</span>
         </span>
         {[
@@ -190,7 +190,7 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
             key={idx}
             type="button"
             onClick={() => onSelectPrompt(chip.prompt)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0a1636]/90 hover:bg-[#12285e] border border-cyan-500/30 hover:border-cyan-400/70 text-cyan-200 hover:text-white transition-all shadow-xs active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#0a1636]/90 hover:bg-slate-100 dark:hover:bg-[#12285e] border border-slate-200 dark:border-cyan-500/30 hover:border-blue-400 dark:hover:border-cyan-400/70 text-slate-800 dark:text-cyan-200 hover:text-blue-600 dark:hover:text-white transition-all shadow-xs active:scale-95 cursor-pointer"
           >
             <span>{chip.label}</span>
           </button>

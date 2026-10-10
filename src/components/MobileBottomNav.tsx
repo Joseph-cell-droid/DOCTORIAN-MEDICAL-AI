@@ -356,22 +356,22 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* 1. Floating App Buttons in Transparent Background (No Enclosing Card) */}
       <AnimatePresence>
         {isSwitcherOpen && (
-          <>
-            {/* Transparent Frosted Backdrop - Clicking anywhere dismisses */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsSwitcherOpen(false);
-                setSearchQuery('');
-              }}
-              className="fixed inset-0 z-[135] bg-slate-950/50 dark:bg-slate-950/75 backdrop-blur-xl cursor-pointer"
-            />
-
-            {/* Pure Floating App Buttons - No background card, floating directly on transparent space */}
-            <motion.div
-              initial={{ opacity: 0, y: 35 }}
+          <motion.div
+            key="switcher-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setIsSwitcherOpen(false);
+              setSearchQuery('');
+            }}
+            className="fixed inset-0 z-[135] bg-slate-950/50 dark:bg-slate-950/75 backdrop-blur-xl cursor-pointer"
+          />
+        )}
+        {isSwitcherOpen && (
+          <motion.div
+            key="switcher-floating-content"
+            initial={{ opacity: 0, y: 35 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 25, transition: { duration: 0.15 } }}
               transition={{ type: 'spring', damping: 24, stiffness: 320 }}
@@ -496,7 +496,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 </div>
               </div>
             </motion.div>
-          </>
         )}
       </AnimatePresence>
 

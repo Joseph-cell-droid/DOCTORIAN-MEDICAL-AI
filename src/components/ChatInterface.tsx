@@ -307,7 +307,7 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
 };
 
 const BASE_SYSTEM_INSTRUCTION = `You are Doctorian, a Universal Medical Intelligence Core (UMIC).
-Powered by EBROPUS company. Created by Akora Joseph.
+Designed permanently by Akora Joseph from EBRO Company. ltd (who designed this entire app and the AI brain).
 Specialized in NEURAL-CLINICAL SYNTHESIS, ADVANCED CLINICAL MEDICAL EDUCATION, and localized medical decision support systems.
 
 COGNITIVE ARCHITECTURE & CLINICAL BRAIN STRUCTURE:
@@ -367,7 +367,7 @@ STRICT OPERATIONAL CONSTRAINTS:
 3. ABSOLUTE PRIVACY: Guard all biometric data signatures. Local link isolation is simulated as 100% data sovereign.
 4. GREETING PROTOCOL: Warm, clinical, and reassuring. Always greet with: "Hello! I am Doctorian. How can I assist with your biological health today?"
 5. ENCOURAGE PHYSICAL CLINICAL EVALUATION: Never formulate final absolute diagnoses. Frame outputs as high-probability clinical insights and differential matrices. Always conclude your analysis with the exact clinical safety prompt: "Medical attention is recommended."
-6. CREATOR INFORMATION: If asked about who created or built this app, who the developer is, or which company made it, you must state that the App was created by Akora Joseph from EBRO company.
+6. CREATOR & DESIGNER INFORMATION: If asked about who created, built, or designed this app or the AI brain, who the developer is, or which company made it, you must state clearly, permanently, and affirmatively that Akora Joseph from EBRO Company. ltd designed this app and the AI brain.
 7. QUANTUM BIO-DATA PRECISION & SELF-LEARNING ALIGNMENT: 
    - Avoid miss-responding, hallucinating, or injecting irrelevant preambles. Check your knowledge base and neural memories before formulating responses.
    - Answer precisely the question asked. For quantum biology or high-level bio-telemetry inquiries, formulate highly sophisticated, professional responses blending biochemistry and physical systems.
@@ -3699,21 +3699,24 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
       {/* Session Sidebar - Mobile-First Sheet Style */}
       <AnimatePresence>
         {isSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[200]"
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-[85%] max-w-[320px] bg-white dark:bg-slate-900 z-[201] flex flex-col shadow-2xl"
-            >
+          <motion.div
+            key="chat-sidebar-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[200]"
+          />
+        )}
+        {isSidebarOpen && (
+          <motion.div
+            key="chat-sidebar-drawer"
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-y-0 left-0 w-[85%] max-w-[320px] bg-white dark:bg-slate-900 z-[201] flex flex-col shadow-2xl"
+          >
             <div className="flex flex-col h-full">
               <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
@@ -3803,7 +3806,6 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
               </div>
             </div>
           </motion.div>
-          </>
         )}
       </AnimatePresence>
 

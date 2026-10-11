@@ -35,31 +35,55 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', className = '', showTex
       >
         {!imgError ? (
           <img 
-            src="/logo.svg" 
+            src="/logo.png" 
             alt="Doctorian Medical AI Logo"
             className="w-full h-full object-contain z-10 transition-transform duration-500 group-hover/logo:scale-105"
             referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
           />
         ) : (
-          /* HD High-Tech Neural Cross Fallback SVG */
+          /* HD Rainbow Petal Neural Cross Fallback SVG */
           <svg className="w-full h-full z-10 p-0.5" viewBox="0 0 100 100" fill="none">
             <rect width="100" height="100" rx="20" fill="#ffffff" />
-            {/* Cross Body */}
-            <path d="M 40 12 h 20 a 4 4 0 0 1 4 4 v 20 a 4 4 0 0 0 4 4 h 20 a 4 4 0 0 1 4 4 v 20 a 4 4 0 0 1 -4 4 h -20 a 4 4 0 0 0 -4 4 v 20 a 4 4 0 0 1 -4 4 h -20 a 4 4 0 0 1 -4 -4 v -20 a 4 4 0 0 0 -4 -4 h -20 a 4 4 0 0 1 -4 -4 v -20 a 4 4 0 0 1 4 -4 h 20 a 4 4 0 0 0 4 -4 v -20 a 4 4 0 0 1 4 -4 z" fill="#081730" stroke="#00f0ff" strokeWidth="2" />
-            {/* Neural Lines */}
-            <line x1="50" y1="50" x2="50" y2="24" stroke="#00ffff" strokeWidth="1.5" />
-            <line x1="50" y1="50" x2="50" y2="76" stroke="#00ffff" strokeWidth="1.5" />
-            <line x1="50" y1="50" x2="24" y2="50" stroke="#00ffff" strokeWidth="1.5" />
-            <line x1="50" y1="50" x2="76" y2="50" stroke="#00ffff" strokeWidth="1.5" />
-            {/* Corner Nodes */}
-            <circle cx="50" cy="24" r="3" fill="#00ffff" />
-            <circle cx="50" cy="76" r="3" fill="#00ffff" />
-            <circle cx="24" cy="50" r="3" fill="#00ffff" />
-            <circle cx="76" cy="50" r="3" fill="#00ffff" />
-            {/* Core Circle */}
-            <circle cx="50" cy="50" r="10" fill="#020e21" stroke="#00f0ff" strokeWidth="2" />
-            <circle cx="50" cy="50" r="4" fill="#ffffff" />
+            <defs>
+              <filter id="fallbackGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#00f0ff" floodOpacity="0.4" />
+              </filter>
+            </defs>
+            {/* 8 Rainbow Pinwheel Petals */}
+            <g transform="translate(50, 50)">
+              {/* Petal 1 - Magenta */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#e91e63" opacity="0.95" />
+              {/* Petal 2 - Crimson Red */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#f44336" transform="rotate(45)" opacity="0.95" />
+              {/* Petal 3 - Orange */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#ff9800" transform="rotate(90)" opacity="0.95" />
+              {/* Petal 4 - Yellow */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#ffc107" transform="rotate(135)" opacity="0.95" />
+              {/* Petal 5 - Lime Green */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#8bc34a" transform="rotate(180)" opacity="0.95" />
+              {/* Petal 6 - Cyan */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#00e5ff" transform="rotate(225)" opacity="0.95" />
+              {/* Petal 7 - Royal Blue */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#2979ff" transform="rotate(270)" opacity="0.95" />
+              {/* Petal 8 - Purple */}
+              <path d="M 0,-15 C -22,-36 -32,-8 -12,0 Z" fill="#9c27b0" transform="rotate(315)" opacity="0.95" />
+            </g>
+            {/* High-Tech Central Neural Cross */}
+            <path d="M 43 28 h 14 a 3 3 0 0 1 3 3 v 12 a 3 3 0 0 0 3 3 h 12 a 3 3 0 0 1 3 3 v 14 a 3 3 0 0 1 -3 3 h -12 a 3 3 0 0 0 -3 3 v 12 a 3 3 0 0 1 -3 3 h -14 a 3 3 0 0 1 -3 -3 v -12 a 3 3 0 0 0 -3 -3 h -12 a 3 3 0 0 1 -3 -3 v -14 a 3 3 0 0 1 3 -3 h 12 a 3 3 0 0 0 3 -3 v -12 a 3 3 0 0 1 3 -3 z" fill="#07152d" stroke="#00e5ff" strokeWidth="2" filter="url(#fallbackGlow)" />
+            {/* Neural Traces */}
+            <line x1="50" y1="50" x2="50" y2="36" stroke="#00f0ff" strokeWidth="1.5" />
+            <line x1="50" y1="50" x2="50" y2="64" stroke="#00f0ff" strokeWidth="1.5" />
+            <line x1="50" y1="50" x2="36" y2="50" stroke="#00f0ff" strokeWidth="1.5" />
+            <line x1="50" y1="50" x2="64" y2="50" stroke="#00f0ff" strokeWidth="1.5" />
+            {/* Circuit Nodes */}
+            <circle cx="50" cy="36" r="2" fill="#00f0ff" />
+            <circle cx="50" cy="64" r="2" fill="#00f0ff" />
+            <circle cx="36" cy="50" r="2" fill="#00f0ff" />
+            <circle cx="64" cy="50" r="2" fill="#00f0ff" />
+            {/* Central Energy Core */}
+            <circle cx="50" cy="50" r="7" fill="#031126" stroke="#00f0ff" strokeWidth="1.8" />
+            <circle cx="50" cy="50" r="3.5" fill="#ffffff" />
           </svg>
         )}
 

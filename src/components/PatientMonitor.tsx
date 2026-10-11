@@ -24,6 +24,7 @@ import { MachineNexusPanel } from './MachineNexusPanel';
 import { NeuralHealthSummary } from './NeuralHealthSummary';
 import { VitalWaveform } from './VitalWaveform';
 import { LiveECGMonitor } from './LiveECGMonitor';
+import { LiveECGVisualizer } from './LiveECGVisualizer';
 import { AnomalyDetector } from './AnomalyDetector';
 import { ClinicalCoPilotPanel } from './ClinicalCoPilotPanel';
 import { EmergencyRegistry } from './EmergencyRegistry';
@@ -35,6 +36,7 @@ import { TelemetryCastManager } from './TelemetryCastManager';
 import { WatchVitalsMonitor } from './WatchVitalsMonitor';
 import { ClinicalStationsNav } from './ClinicalStationsNav';
 import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
+import { HeartRateAlertToast, HeartRateThresholds } from './HeartRateAlertToast';
 import { cacheTelemetryFrame } from '../utils/waveformCache';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -1234,6 +1236,19 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
     }
   };
 
+  const handleUpdateHRThresholds = (newHR: HeartRateThresholds) => {
+    setThresholds((prev: any) => {
+      const updated = {
+        ...prev,
+        heartRate: newHR,
+      };
+      try {
+        localStorage.setItem('doctorian_alert_thresholds', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
   const handleConnectBluetooth = async () => {
     setIsConnecting('bluetooth');
     await connectBluetooth();
@@ -1901,6 +1916,20 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   if (monitorLayout === 'modern') {
     return (
       <div className="w-full relative min-h-screen">
+        {/* Heart Rate Threshold Breach Toast Alert */}
+        <HeartRateAlertToast 
+          heartRate={vitals?.heartRate}
+          thresholds={thresholds.heartRate}
+          onUpdateThresholds={handleUpdateHRThresholds}
+          onInspectECG={() => {
+            const ecgElem = document.querySelector('.cursor-crosshair') || document.querySelector('[title*="Sweep Speed"]');
+            if (ecgElem) {
+              ecgElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }}
+          onEmergencyDispatch={simulateEmergency}
+        />
+
         <ModernizedPatientMonitorView
           user={user}
           vitals={vitals}
@@ -1915,6 +1944,20 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      {/* Heart Rate Threshold Breach Toast Alert */}
+      <HeartRateAlertToast 
+        heartRate={vitals?.heartRate}
+        thresholds={thresholds.heartRate}
+        onUpdateThresholds={handleUpdateHRThresholds}
+        onInspectECG={() => {
+          const ecgElem = document.querySelector('.cursor-crosshair') || document.querySelector('[title*="Sweep Speed"]');
+          if (ecgElem) {
+            ecgElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }}
+        onEmergencyDispatch={simulateEmergency}
+      />
+
       {/* Non-intrusive Floating Emergency Audio Dispatch Panel */}
       <AnimatePresence>
         {isEmergencyCalling && (
@@ -3529,7 +3572,12 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
               </div>
             </div>
 
-            {/* Real-time ECG Waveform Monitor */}
+            {/* Real-time D3 & Recharts Animated ECG Heart Rhythm Oscilloscope */}
+            <div className="mb-8">
+              <LiveECGVisualizer vitals={vitals} />
+            </div>
+
+            {/* Multichannel Telemetry Stream & Waveform Engine */}
             <div className="mb-8">
               <LiveECGMonitor vitals={vitals} addAlarmLog={addAlarmLog} />
             </div>

@@ -464,15 +464,15 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
             </span>
           </div>
 
-          {/* Logo with Cyan Heart + ECG Pulse */}
-          <div className="flex items-center gap-3 justify-center mb-1">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 p-[1.5px] shadow-[0_0_20px_rgba(6,182,212,0.6)]">
-              <div className="w-full h-full bg-[#030d22] rounded-[14px] flex items-center justify-center">
-                <svg className="w-6 h-6 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                  <path d="M3.22 12H9.5l1.5-3 2 6 1.5-3h6.28" />
-                </svg>
-              </div>
+          {/* Logo with Rainbow Petal Neural Cross */}
+          <div className="flex items-center gap-3.5 justify-center mb-1">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 dark:bg-slate-900/60 p-1 border border-white/20 dark:border-cyan-500/30 shadow-[0_0_25px_rgba(6,182,212,0.4)] backdrop-blur-md flex items-center justify-center shrink-0">
+              <img 
+                src="/logo.png" 
+                alt="Doctorian Medical AI Logo" 
+                className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)]" 
+                referrerPolicy="no-referrer"
+              />
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white flex items-center gap-2">

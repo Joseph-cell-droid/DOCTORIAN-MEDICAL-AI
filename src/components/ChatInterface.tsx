@@ -3868,12 +3868,14 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                   <ChevronDown size={11} className={`transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
+                {showNewChatDropdown && (
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNewChatDropdown(false)} />
+                )}
                 <AnimatePresence>
                   {showNewChatDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowNewChatDropdown(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    <motion.div
+                      key="chat-new-dropdown-panel"
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
@@ -3977,7 +3979,6 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           </div>
                         </button>
                       </motion.div>
-                    </>
                   )}
                 </AnimatePresence>
               </div>

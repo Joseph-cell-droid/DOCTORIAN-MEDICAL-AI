@@ -8,6 +8,7 @@ import {
   Clock, Gauge, Cpu, CheckCircle2, RefreshCw
 } from 'lucide-react';
 import { HumanBodyVitalsModel } from './HumanBodyVitalsModel';
+import { LiveECGVisualizer } from './LiveECGVisualizer';
 
 interface ModernizedPatientMonitorViewProps {
   user: any;
@@ -713,6 +714,14 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* 2.5 Live Animated Electrocardiogram (ECG) Heart Rhythm Monitor (D3 & Recharts) */}
+      <div className="w-full">
+        <LiveECGVisualizer 
+          vitals={vitals} 
+          onOpenDetailedTelemetry={onSwitchToDetailed}
+        />
       </div>
 
       {/* 3. Four Quick Action Tiles (2x2 Grid) -> Every button linked to relevant health data */}

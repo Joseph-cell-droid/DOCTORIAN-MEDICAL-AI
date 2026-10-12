@@ -324,7 +324,7 @@ const MISTRAL_ENGINE = "gemini-3.8-flash";
 const DEFAULT_GEMINI_ENGINE = "gemini-3.8-flash";
 const DEFAULT_LLAMA_ENGINE = "gemini-3.8-flash";
 const DEFAULT_GEMMA_ENGINE = "gemini-3.8-flash";
-const BACKUP_ENGINE = "gemini-2.5-flash";
+const BACKUP_ENGINE = "gemini-3.8-flash";
 
 const OLLAMA_URL = IS_LM_STUDIO
   ? (process.env.LM_STUDIO_URL || "http://localhost:1234")
@@ -473,13 +473,16 @@ function mapModelForProvider(modelId: string, apiKey: string): string {
   }
 
   // Native Google Gemini key
+  if (m.includes('2.5') || m.includes('2.0') || m.includes('1.5')) {
+    return "gemini-3.8-flash";
+  }
   if (m.includes('lite') || m.includes('flash-lite')) {
     return "gemini-3.1-flash-lite";
   }
   if (m.includes('pro')) {
     return "gemini-3.1-pro-preview";
   }
-  return "gemini-3.7-flash";
+  return "gemini-3.8-flash";
 }
 
 function getGenAI(apiKey?: string): GoogleGenAI | null {
@@ -1296,12 +1299,12 @@ async function* callAIStream(options: {
                       streamAttempts = maxStreamAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && streamAttempts < maxStreamAttempts) {
-                      if (currentModelId === "gemini-3.7-flash") {
+                      if (currentModelId === "gemini-3.8-flash" || currentModelId === "gemini-3.7-flash") {
                         currentModelId = "gemini-3.1-flash-lite";
                       } else if (currentModelId === "gemini-3.1-flash-lite") {
                         currentModelId = "gemini-flash-latest";
                       } else {
-                        currentModelId = "gemini-3.7-flash";
+                        currentModelId = "gemini-3.8-flash";
                       }
                       console.log(`[AI-STREAM] Temporary API busy status (${streamInitErr.message || "503/429"}) on attempt ${streamAttempts}. Rotating to ${currentModelId} and retrying in ${streamAttempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, streamAttempts * 1000));
@@ -1315,7 +1318,7 @@ async function* callAIStream(options: {
                         cleanErrMessage = cleanErrMessage.substring(0, 150) + "...";
                       }
                       console.log("[AI-STREAM] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
-                      const modelsToTry = ["gemini-3.7-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.1-pro-preview"];
+                      const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.1-pro-preview"];
                       for (const modelId of modelsToTry) {
                         let retryAttempts = 0;
                         const maxRetryAttempts = 2;
@@ -1767,7 +1770,10 @@ async function callAIWorkflow(options: {
                 return response.data.choices[0].message.content;
               }
             } else if (!isSkKey) {
-              const effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.8-flash";
+              let effectiveModel = providerModel && providerModel.startsWith('gemini-') ? providerModel : "gemini-3.8-flash";
+              if (effectiveModel.includes("2.5") || effectiveModel.includes("2.0") || effectiveModel.includes("1.5")) {
+                effectiveModel = "gemini-3.8-flash";
+              }
               try {
                 const modernClient = new GoogleGenAI({
                   apiKey: apiKey.trim(),
@@ -1784,7 +1790,7 @@ async function callAIWorkflow(options: {
                 let result;
                 let attempts = 0;
                 const maxAttempts = 3;
-                let currentModelId = effectiveModel === "gemini-3.7-flash" ? "gemini-3.8-flash" : effectiveModel;
+                let currentModelId = (effectiveModel === "gemini-3.7-flash" || effectiveModel === "gemini-2.5-flash") ? "gemini-3.8-flash" : effectiveModel;
                 while (attempts < maxAttempts) {
                   try {
                     result = await modernClient.models.generateContent({
@@ -1825,12 +1831,12 @@ async function callAIWorkflow(options: {
                       attempts = maxAttempts; // force breakout
                     }
                     if (isRetriable && !isDailyQuota && attempts < maxAttempts) {
-                      if (currentModelId === "gemini-3.8-flash") {
-                        currentModelId = "gemini-2.5-flash";
-                      } else if (currentModelId === "gemini-2.5-flash") {
+                      if (currentModelId === "gemini-3.8-flash" || currentModelId === "gemini-3.7-flash") {
+                        currentModelId = "gemini-3.1-flash-lite";
+                      } else if (currentModelId === "gemini-3.1-flash-lite") {
                         currentModelId = "gemini-flash-latest";
                       } else {
-                        currentModelId = "gemini-3.1-flash-lite";
+                        currentModelId = "gemini-3.8-flash";
                       }
                       console.log(`[AI-BRAIN] Temporary API busy status (${genErr.message || "503/429"}) on attempt ${attempts}. Rotating to ${currentModelId} and retrying in ${attempts * 1000}ms...`);
                       await new Promise(resolve => setTimeout(resolve, attempts * 1000));
@@ -1854,7 +1860,7 @@ async function callAIWorkflow(options: {
                 console.log("[AI-BRAIN] Primary neural lane busy, shifting to alternate model cascade:", cleanErrMessage);
                 const aiClient = getGenAI(apiKey);
                 if (aiClient) {
-                  const modelsToTry = ["gemini-3.7-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.1-pro-preview"];
+                  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.1-pro-preview"];
                   for (const modelId of modelsToTry) {
                     let retryAttempts = 0;
                     const maxRetryAttempts = 2;
@@ -11947,7 +11953,7 @@ function detectSpecificDiseaseMapping(prompt: string): string {
           }
         } catch (ftErr) { }
 
-        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR PROTOCOL - MODERN STRUCTURED INTERACTIVE MODE]:
+        const CLINICAL_BRAIN_TRAINING = `\n\n[CRITICAL CLINICAL DOMAIN AND BEHAVIOR PROTOCOL - MODERN STREAMLINED MODE]:
 1. STRICT MEDICAL DOMAIN & CREATOR CONSTRAINT: You are Doctorian Clinical AI, trained and programmed to ONLY answer inquiries directly related to clinical medicine, public health, healthcare, pharmacotherapy, bio-telemetry, diagnostic triage, fitness, human biology, or the Doctorian application and its creators.
    - PERMANENT DESIGNER & BRAIN IDENTITY: Akora Joseph from EBRO Company. ltd designed this app and the AI brain. Whenever asked who designed, developed, created, or built this app or its AI brain, you must state permanently, clearly, and proudly that Akora Joseph from EBRO Company. ltd designed this app and the AI brain. If a query is outside medicine or its creator, politely and clearly decline, explaining your specialized medical boundaries.
 
@@ -11956,28 +11962,22 @@ function detectSpecificDiseaseMapping(prompt: string): string {
    - Recognize regional health realities: endemic conditions (Malaria, tuberculosis, cholera, Mpox, viral hemorrhagic fevers), Village Health Team (VHT) community protocols, maternal health standards (IPTp SP, obstetric danger signs), and health center tiers (Health Centre II, III, IV, District and Regional Referral Hospitals like Mulago, Kiruddu, or Mbarara).
    - Seamlessly comprehend recognized regional clinical and health terminology (e.g., Luganda 'Musujja' for fever, Swahili 'Homa', Runyankole, Acholi, and Ateso terms) with professional cultural competence.
 
-3. MODERN CLINICAL SECTION DIRECTIVES:
-   - Structure every clinical consultation into clear, visually distinct sections using consistent emoji badges:
-     🩺 Clinical Assessment & Triage
-     💡 Recommended Actions & Care Plan
-     💊 Medication & Treatment Guidance
-     ⚠️ Warning Signs & Emergency Red Flags
-     ❓ Interactive Follow-Up Questions
-   - Use clean, modern formatting with clear bullet points (•) and concise, high-yield clinical paragraphs. Avoid unneeded clutter.
+3. STRICT ZERO-HEADER FORMATTING & SINGLE PARAGRAPH DEFAULT:
+   - DO NOT USE ANY HEADERS: Absolutely NO markdown headers (#, ##, ###), NO bold title prefixes, and NO emoji section headers (do NOT output '🩺 Clinical Assessment:', '💡 Recommended Actions:', '💊 Medication:', '⚠️ Warning Signs:', or any other headings).
+   - SINGLE PARAGRAPH RULE: If the conversation is conversational, a direct question, greeting, symptom inquiry, or does not need a complex multi-point clinical breakdown, reply strictly in ONE single cohesive, well-written paragraph without any headers.
+   - MULTI-POINT CLINICAL ACTIONS: Only when distinct clinical actions or medication steps are genuinely necessary, supply them as clean bullet points (•) directly beneath the initial text, with zero section titles.
 
-4. CLINICAL SAFETY & PRECAUTIONS:
-   - Clearly delineate differential possibilities without premature or unsubstantiated diagnostic claims.
-   - For all medications and supportive therapies, specify standard precautions, contraindications, and age/pregnancy considerations.
-   - For any acute danger signs (respiratory distress, severe chest pain, sudden numbness, convulsions, rigid abdomen), immediately emphasize urgent hospital escalation.
+4. ULTRA-FAST HIGH-YIELD CLINICAL SPEED:
+   - Formulate concise, high-yield clinical reasoning immediately so the entire response generates in at most 3-5 seconds. Avoid redundant filler text or conversational fluff.
 
-5. EMPATHETIC ACTIVE PARTNERSHIP & INTERACTIVE FOLLOW-UP:
-   - Always conclude with 1 to 2 warm, specific diagnostic follow-up questions with emojis (e.g., "❓ How many hours or days have you noticed this?", "🌡️ Have you been able to check your temperature?") to encourage patient dialogue.
-   - Conclude with clear guidance: "Medical attention is recommended."`;
+5. CLINICAL SAFETY & CLOSING:
+   - For acute danger signs (respiratory distress, severe chest pain, altered mentation, convulsions), immediately advise urgent facility escalation.
+   - Conclude medical advice with: 'Medical attention is recommended.'`;
 
-        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL FORMATTING & INTERACTIVE DIRECTIVE]:
-- ALWAYS structure your response with clear emoji-badged sections (🩺 Clinical Assessment, 💡 Recommended Actions, 💊 Medication & Care Guidance, ⚠️ Warning Signs & Safety, ❓ Interactive Follow-Up Questions).
-- Ensure high readability with clear bullet points and warm, empathetic phrasing.
-- Conclude with 1-2 interactive questions with emojis (❓) asking the patient about their symptoms to maintain a caring, co-piloted consultation.`;
+        const EMOJI_CHUNKS_DIRECTIVE = `\n\n[CRITICAL FORMATTING DIRECTIVE]:
+- NEVER use section headers or markdown titles.
+- If the conversation is standard, conversational, or focused, keep your entire response in ONE cohesive paragraph.
+- Be concise, direct, and fast.`;
         const diseaseSpecificOverlay = detectSpecificDiseaseMapping(rawUserMessage);
         const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${diseaseSpecificOverlay}${EMOJI_CHUNKS_DIRECTIVE}`;
 

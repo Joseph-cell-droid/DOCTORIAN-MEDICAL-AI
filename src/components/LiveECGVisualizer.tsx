@@ -10,6 +10,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ReferenceLine, ReferenceArea 
 } from 'recharts';
+import { AnimatedVitalNumber } from './AnimatedVitalNumber';
 
 export type ECGLead = 'Lead II' | 'Lead I' | 'Lead III' | 'V1' | 'V5';
 export type ECGRhythmType = 'normal' | 'tachycardia' | 'bradycardia' | 'pvc' | 'afib';
@@ -550,7 +551,7 @@ export const LiveECGVisualizer: React.FC<LiveECGVisualizerProps> = ({
             />
             <div className="flex items-baseline gap-1">
               <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
-                {currentBPM}
+                <AnimatedVitalNumber value={currentBPM} duration={450} />
               </span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 BPM

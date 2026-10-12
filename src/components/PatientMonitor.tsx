@@ -5,7 +5,7 @@ import {
   CheckCircle, Info, Radio, Signal, XCircle, Monitor, Stethoscope, WifiOff,
   Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3, Sliders,
   Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2, LayoutGrid,
-  Cloud, Volume2, VolumeX
+  Cloud, Volume2, VolumeX, Siren
 } from 'lucide-react';
 import { HumanBodyVitalsModel } from './HumanBodyVitalsModel';
 import { ModernizedPatientMonitorView } from './ModernizedPatientMonitorView';
@@ -37,6 +37,7 @@ import { WatchVitalsMonitor } from './WatchVitalsMonitor';
 import { ClinicalStationsNav } from './ClinicalStationsNav';
 import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
 import { HeartRateAlertToast, HeartRateThresholds } from './HeartRateAlertToast';
+import { AnimatedVitalNumber } from './AnimatedVitalNumber';
 import { cacheTelemetryFrame } from '../utils/waveformCache';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -221,7 +222,11 @@ const VitalCard: React.FC<{
                 ease: "easeInOut"
               } : {}}
             >
-              {value}
+              {label === "Heart Rate" || label.includes("SpO2") || label.includes("Oxygen") ? (
+                <AnimatedVitalNumber value={value} duration={500} showDirectionIndicator={false} />
+              ) : (
+                value
+              )}
             </motion.span>
             <span className={`text-xs sm:text-sm font-black uppercase tracking-widest ${highlight ? 'text-white/40' : 'text-slate-400'}`}>{unit}</span>
           </div>
@@ -2392,14 +2397,49 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             )}
             {shouldShowAlarm && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center justify-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl shadow-sm col-span-2 text-center"
+                className="col-span-1 sm:col-span-2 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-red-600/20 via-rose-600/15 to-red-600/20 border-2 border-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.3)] flex flex-col sm:flex-row items-center justify-between gap-3 text-left"
               >
-                <AlertTriangle size={14} className="text-red-600 dark:text-red-400 animate-bounce shrink-0" />
-                <span className="text-[10px] sm:text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">
-                  Active Alarm Triggered
-                </span>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-600/40 animate-pulse">
+                    <AlertTriangle size={20} className="animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-950/80 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-800">
+                        CRITICAL ALARM ACTIVE
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-400">IEC 60601-1-8</span>
+                    </div>
+                    <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-white mt-0.5 leading-tight">
+                      Vitals Exceeded Limit • Immediate Clinical Attention Advised
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={acknowledgeAlarm}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer border border-slate-700 shadow-xs"
+                    title="Acknowledge and silence alarm for 2 minutes"
+                  >
+                    Silence (2m)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      acknowledgeAlarm();
+                      setShowSosConfirmModal(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-md shadow-red-600/30 flex items-center gap-1.5"
+                    title="Dispatch Emergency SOS"
+                  >
+                    <Siren size={12} className="animate-pulse" />
+                    <span>Dispatch SOS</span>
+                  </button>
+                </div>
               </motion.div>
             )}
           </div>
@@ -2590,7 +2630,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   <div className="space-y-1.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
                     <div className="flex justify-between text-[11px] font-bold">
                       <span className="text-purple-300">Heart Rate</span>
-                      <span className="text-white font-mono">{simulatedVitals.heartRate} BPM</span>
+                      <span className="text-white font-mono"><AnimatedVitalNumber value={simulatedVitals.heartRate} duration={400} /> BPM</span>
                     </div>
                     <input 
                       type="range"
@@ -2638,7 +2678,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                   <div className="space-y-1.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
                     <div className="flex justify-between text-[11px] font-bold">
                       <span className="text-emerald-300">SpO2 Level</span>
-                      <span className="text-white font-mono">{simulatedVitals.spo2}%</span>
+                      <span className="text-white font-mono"><AnimatedVitalNumber value={simulatedVitals.spo2} duration={400} />%</span>
                     </div>
                     <input 
                       type="range"

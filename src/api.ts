@@ -2815,7 +2815,7 @@ export const api = {
               parts: [{ text: m.text }]
             }));
 
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${geminiApiKey}`, {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?key=${geminiApiKey}`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json"
@@ -3625,7 +3625,7 @@ export const api = {
         try {
           const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
           if (geminiApiKey) {
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${geminiApiKey}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

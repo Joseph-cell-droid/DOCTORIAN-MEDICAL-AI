@@ -4,7 +4,7 @@ import {
   Send, Plus, Menu, Search, Calendar, UserCheck, 
   Lightbulb, Activity, Check, CheckCheck, Loader2,
   Pill, Thermometer, AlertTriangle, Heart, RefreshCw, X,
-  ArrowLeft, History, PlusCircle, ChevronDown, ChevronUp, ChevronRight, Phone, Video,
+  ArrowLeft, History, PlusCircle, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, Phone, Video,
   BrainCircuit, BookOpen, Volume2, VolumeX, Trash2, Mic, MicOff,
   Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope, Baby,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
@@ -17,6 +17,142 @@ import { cleanAiResponse, ensureModernEmojiInteractivity, extractInteractiveSugg
 import { ModernBotResponseSpace } from './ModernBotResponseSpace';
 import { DoctorianWelcomeCanvas } from './DoctorianWelcomeCanvas';
 import { SmartActionCard } from './SmartActionCard';
+
+export interface ChatbotAgent {
+  id: 'primary' | 'emergency' | 'cardiology' | 'pediatric' | 'pharmacology' | 'lab' | 'maternal' | 'neurology' | 'preventive' | 'soap';
+  name: string;
+  shortName: string;
+  role: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  color: string;
+  activeBorder: string;
+  activeGlow: string;
+  badge: string;
+  instruction: string;
+}
+
+export const CHATBOT_AGENTS: ChatbotAgent[] = [
+  {
+    id: 'primary',
+    name: 'Doctorian Primary Care',
+    shortName: 'Primary Care',
+    role: 'Clinical Triage & Medicine',
+    icon: Stethoscope,
+    color: 'from-blue-600 to-cyan-600',
+    activeBorder: 'border-cyan-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(6,182,212,0.4)]',
+    badge: 'CORE',
+    instruction: 'Primary Care Specialist: Formulate evidence-based diagnostic triage, general clinical advice, and wellness synthesis.'
+  },
+  {
+    id: 'emergency',
+    name: 'Emergency Crisis Node',
+    shortName: 'Emergency Triage',
+    role: 'Critical Signs & Protocol',
+    icon: AlertTriangle,
+    color: 'from-rose-600 to-red-600',
+    activeBorder: 'border-rose-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(244,63,94,0.4)]',
+    badge: 'STAT',
+    instruction: 'Emergency Triage Specialist: Immediately detect life-threatening danger signs, resuscitation priorities, and emergency referral actions.'
+  },
+  {
+    id: 'cardiology',
+    name: 'Cardio Telemetry AI',
+    shortName: 'Cardio AI',
+    role: 'ECG, Rhythm & Pressure',
+    icon: Heart,
+    color: 'from-pink-600 to-rose-600',
+    activeBorder: 'border-pink-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(236,72,153,0.4)]',
+    badge: 'CARDIAC',
+    instruction: 'Cardiology Specialist: Analyze electrocardiogram patterns, arrhythmias, blood pressure spikes, and cardiovascular risk.'
+  },
+  {
+    id: 'pediatric',
+    name: 'Pediatric Care Specialist',
+    shortName: 'Pediatrics',
+    role: 'Infant Health & Childhood',
+    icon: Baby,
+    color: 'from-purple-600 to-violet-600',
+    activeBorder: 'border-violet-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(139,92,246,0.4)]',
+    badge: 'CHILD',
+    instruction: 'Pediatric Specialist: Focus on neonatal guidelines, immunization, hydration in children, and pediatric dosage safety.'
+  },
+  {
+    id: 'pharmacology',
+    name: 'Clinical Pharmacotherapy',
+    shortName: 'Pharmacology',
+    role: 'Prescriptions & Dosages',
+    icon: Pill,
+    color: 'from-amber-600 to-orange-600',
+    activeBorder: 'border-amber-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(245,158,11,0.4)]',
+    badge: 'RX',
+    instruction: 'Pharmacotherapy Specialist: Screen drug interactions, renal adjustments, dosage regimens, and antibiotic stewardship.'
+  },
+  {
+    id: 'lab',
+    name: 'Diagnostic Pathology Core',
+    shortName: 'Lab Diagnostics',
+    role: 'Biomarkers, CBC & RDT',
+    icon: Activity,
+    color: 'from-emerald-600 to-teal-600',
+    activeBorder: 'border-emerald-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(16,185,129,0.4)]',
+    badge: 'LABS',
+    instruction: 'Pathology Specialist: Interpret laboratory biomarkers, hemoglobin levels, white cell counts, malaria blood tests, and urinalysis.'
+  },
+  {
+    id: 'maternal',
+    name: 'Obstetric & Maternal Triage',
+    shortName: 'Maternal Care',
+    role: 'Antenatal & Danger Signs',
+    icon: ShieldCheck,
+    color: 'from-fuchsia-600 to-pink-600',
+    activeBorder: 'border-fuchsia-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(217,70,239,0.4)]',
+    badge: 'OB-GYN',
+    instruction: 'Maternal Health Specialist: Assess obstetric danger signs, gestational hypertension, antenatal care protocols, and fetal well-being.'
+  },
+  {
+    id: 'neurology',
+    name: 'Neural Nexus Intelligence',
+    shortName: 'Neurology',
+    role: 'Cognitive & Reflexes',
+    icon: BrainCircuit,
+    color: 'from-indigo-600 to-blue-600',
+    activeBorder: 'border-indigo-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(99,102,241,0.4)]',
+    badge: 'NEURO',
+    instruction: 'Neurology Specialist: Specialize in neurological deficits, headache classification, cranial nerve triage, and autonomic regulation.'
+  },
+  {
+    id: 'preventive',
+    name: 'Preventive Wellness Core',
+    shortName: 'Wellness AI',
+    role: 'Lifestyle & Immunity',
+    icon: Sparkles,
+    color: 'from-cyan-600 to-teal-600',
+    activeBorder: 'border-cyan-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(6,182,212,0.4)]',
+    badge: 'WELL',
+    instruction: 'Preventive Care Specialist: Provide lifestyle modifications, nutritional counseling, immunizations, and preventive screening.'
+  },
+  {
+    id: 'soap',
+    name: 'Clinical SOAP Intake Scribe',
+    shortName: 'SOAP Scribe',
+    role: 'EHR Note Formulation',
+    icon: FileText,
+    color: 'from-slate-700 to-slate-900',
+    activeBorder: 'border-blue-400',
+    activeGlow: 'shadow-[0_0_12px_rgba(59,130,246,0.4)]',
+    badge: 'EHR',
+    instruction: 'Clinical Scribe Specialist: Structure patient intake notes cleanly following SOAP (Subjective, Objective, Assessment, Plan) format.'
+  }
+];
 
 export interface ModernizedChatViewProps {
   user: any;
@@ -100,7 +236,7 @@ const ModernBotMessageBubble: React.FC<{
           const trimmed = line.trim();
           if (!trimmed) return <div key={idx} className="h-1.5" />;
 
-          // Check if line is an emoji header
+          // Strip legacy emoji headers so responses have no headers per user request
           const isEmojiHeader = /^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]/.test(trimmed) && (
             trimmed.endsWith(':') || 
             trimmed.length < 55 || 
@@ -113,14 +249,15 @@ const ModernBotMessageBubble: React.FC<{
           );
 
           if (isEmojiHeader) {
-            return (
-              <div
-                key={idx}
-                className="mt-3.5 pt-1.5 pb-0.5 font-semibold text-cyan-200 flex items-center gap-2 text-[14.5px] sm:text-base tracking-wide"
-              >
-                <span>{trimmed}</span>
-              </div>
-            );
+            const cleanContent = trimmed.replace(/^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]\s*/, '').replace(/:$/, '').trim();
+            if (cleanContent && cleanContent.length > 30) {
+              return (
+                <p key={idx} className="text-slate-200 font-normal leading-relaxed">
+                  {cleanContent}
+                </p>
+              );
+            }
+            return null;
           }
 
           // Bullet point
@@ -402,8 +539,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNewChatDropdown, setShowNewChatDropdown] = useState(false);
   const [showVoiceCallModal, setShowVoiceCallModal] = useState(false);
-  const [showToolHub, setShowToolHub] = useState(false);
-  const [activeToolTab, setActiveToolTab] = useState<'lab' | 'obstetric' | 'fluid' | 'soap'>('lab');
+  const [showChatbotsBar, setShowChatbotsBar] = useState(false);
   const [isUgandaMOHActive, setIsUgandaMOHActive] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -417,10 +553,28 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<'chat' | 'records' | 'meds' | 'tools' | 'profile'>('chat');
   
-  // Clinical Consultation Specialization Mode
-  const [consultationMode, setConsultationMode] = useState<'primary' | 'pediatric' | 'emergency' | 'pharmacology' | 'cardiology'>('primary');
+  // Clinical Consultation Specialization Mode & Chatbot Agents
+  const [consultationMode, setConsultationMode] = useState<ChatbotAgent['id']>('primary');
+  const activeAgent = CHATBOT_AGENTS.find(a => a.id === consultationMode) || CHATBOT_AGENTS[0];
+  const ActiveAgentIcon = activeAgent.icon;
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const chatbotScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollChatbots = (direction: 'left' | 'right') => {
+    if (chatbotScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -220 : 220;
+      chatbotScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const handleSelectAgent = (agentId: ChatbotAgent['id']) => {
+    setConsultationMode(agentId);
+    const agent = CHATBOT_AGENTS.find(a => a.id === agentId);
+    if (agent) {
+      showTemporaryNotice(`Active AI Specialist: ${agent.name} (${agent.role})`);
+    }
+  };
 
   // Dedicated Non-Blocking Smart Actions State
   const [isSmartActionsCollapsed, setIsSmartActionsCollapsed] = useState<boolean>(() => {
@@ -544,8 +698,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       badge: 'Lab Panel',
       color: 'from-emerald-600 to-teal-600',
       action: () => {
-        setActiveToolTab('lab');
-        setShowToolHub(true);
+        handleSelectAgent('lab');
+        handleSendMessage("Please help me analyze and interpret my clinical laboratory tests (e.g. CBC, malaria test, urinalysis, biomarkers).");
       },
     },
     {
@@ -590,8 +744,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       badge: 'Infusion',
       color: 'from-amber-600 to-red-600',
       action: () => {
-        setActiveToolTab('fluid');
-        setShowToolHub(true);
+        handleSelectAgent('emergency');
+        handleSendMessage("Calculate the clinical IV fluid resuscitation protocol and rehydration regimen for dehydration severity.");
       },
     },
     {
@@ -659,23 +813,6 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       (a) => a.title.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
     );
   }, [allClinicalActions, smartActionsSearch]);
-
-  // Interactive Tools state
-  const [labHb, setLabHb] = useState('11.8');
-  const [labWbc, setLabWbc] = useState('9.4');
-  const [labPlt, setLabPlt] = useState('220');
-  const [labMalaria, setLabMalaria] = useState('Negative');
-  const [labResult, setLabResult] = useState<string | null>(null);
-
-  const [obGestation, setObGestation] = useState('28');
-  const [obBpSys, setObBpSys] = useState('130');
-  const [obBpDia, setObBpDia] = useState('85');
-  const [obProtein, setObProtein] = useState('+1');
-  const [obResult, setObResult] = useState<string | null>(null);
-
-  const [fluidWeight, setFluidWeight] = useState('65');
-  const [fluidDegree, setFluidDegree] = useState<'mild' | 'moderate' | 'severe'>('moderate');
-  const [fluidResult, setFluidResult] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -885,34 +1022,32 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         chatPayload[lastIdx].text = `${chatPayload[lastIdx].text}\n[Clinical Context: ${contextNote.trim()}]`;
       }
       
+      const activeAgent = CHATBOT_AGENTS.find(a => a.id === consultationMode) || CHATBOT_AGENTS[0];
       const clinicalSystemInstruction = 
-        "You are Doctorian Clinical AI, an advanced evidence-based clinical intelligence co-pilot.\n\n" +
+        `You are Doctorian Clinical AI, specialized in ${activeAgent.name} (${activeAgent.role}).\n\n` +
         "PERMANENT CREATOR & SYSTEM IDENTITY:\n" +
         "Akora Joseph from EBRO Company. ltd designed this app and the AI brain. Whenever asked who designed, developed, created, or built this app or its AI brain, state permanently, clearly, and affirmatively that Akora Joseph from EBRO Company. ltd designed this app and the AI brain.\n\n" +
         "MANDATORY CLINICAL DIRECTIVES:\n" +
         "1. EVIDENCE-BASED GROUNDING: Adhere to WHO standards and Uganda Clinical Guidelines (UCG 2023/2026). Address endemic diseases (Malaria, tuberculosis, cholera) with clinical precision.\n" +
-        "2. STRUCTURED CLINICAL SECTIONS: Format your consultation with distinct emoji-badged sections:\n" +
-        "   🩺 Clinical Assessment\n" +
-        "   💡 Recommended Actions\n" +
-        "   💊 Medication & Care Guidance\n" +
-        "   ⚠️ Warning Signs & Safety\n" +
-        "   ❓ Interactive Follow-Up Questions\n" +
-        "3. FORMATTING: Clean readable lines with bullet points (•). Keep explanations concise, clear, and reassuring.\n" +
-        "4. INTERACTIVE CO-PILOT: At the conclusion of your response, always ask 1 to 2 warm diagnostic questions (with ❓) regarding duration, fever, or symptom changes to support ongoing clinical triage.\n" +
-        "5. CLOSING: Conclude all medical guidance with: 'Medical attention is recommended.'";
+        "2. STRICT ZERO-HEADER DIRECTIVE: DO NOT use any markdown headers (#, ##, ###) or bold title headers (do NOT write 'Clinical Assessment:', 'Recommended Actions:', 'Medication:', 'Warning Signs:', or any other headers). Never output headers.\n" +
+        "3. SINGLE PARAGRAPH DEFAULT: If the conversation is standard, conversational, a greeting, or does not require a multi-step clinical action list, reply strictly in ONE cohesive, well-written paragraph without any headers.\n" +
+        "4. MULTI-STEP CLINICAL QUERIES: If the inquiry requires actionable clinical steps, provide them as clean bullet points (•) directly under the opening text, with zero section titles.\n" +
+        "5. FAST HIGH-YIELD SPEED: Provide a high-yield, concise clinical assessment that generates in at most 3-5 seconds.\n" +
+        "6. CLOSING: Conclude all medical guidance with: 'Medical attention is recommended.'\n" +
+        `SPECIALIZED AGENT FOCUS: ${activeAgent.instruction}`;
 
       const response = await api.ai.aiChat(
         chatPayload,
         clinicalSystemInstruction,
         "gemini-3.8-flash",
-        0.6
+        0.5
       );
 
-      const rawBotText = response?.text || "🩺 Thank you for sharing your symptoms. 💧 Please ensure you remain well-hydrated and rest in a cool space. ⚠️ If your symptoms worsen or persist, please visit your nearest clinic. ❓ How long have you been experiencing this?";
+      const rawBotText = response?.text || "Thank you for sharing your symptoms. Please ensure you remain well-hydrated with clean fluids and rest in a cool space. If your symptoms worsen or persist, please visit your nearest clinic for hands-on evaluation. Medical attention is recommended.";
       const botText = ensureModernEmojiInteractivity(cleanAiResponse(rawBotText));
       const structured = parseClinicalResponse(botText);
 
-      const thoughtDuration = `${Math.max(1.2, reasoningElapsed).toFixed(1)}s`;
+      const thoughtDuration = `${Math.max(0.8, reasoningElapsed).toFixed(1)}s`;
       const recordedSteps = reasoningStepsExecutedRef.current.length > 0
         ? [...reasoningStepsExecutedRef.current]
         : ['Thinking...', 'Configuring neural clinical weights...', 'Mapping physiological pathways...'];
@@ -933,14 +1068,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       setMessages(finalMsgs);
       setIsLoading(false);
 
-      // Stream the response smoothly from the background (open-web progressive token reveal)
+      // Stream the response smoothly from the background (fast progressive reveal in < 500ms)
       if (streamingTimerRef.current) {
         clearInterval(streamingTimerRef.current);
       }
 
       const words = botText.split(' ');
       let wordIdx = 0;
-      const wordsPerTick = 2; // Stream 2 words per tick for smooth natural reveal
+      const wordsPerTick = 6; // Fast 6 words per tick for rapid ≤ 5s overall interaction
 
       streamingTimerRef.current = setInterval(() => {
         wordIdx += wordsPerTick;
@@ -969,7 +1104,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )
           );
 
-          speakText(botText);
+          // Audio speech is NOT auto-played; user can choose to click "Listen" on demand
         } else {
           setMessages((prev) =>
             prev.map((m) =>
@@ -977,11 +1112,11 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )
           );
         }
-      }, 25);
+      }, 15);
     } catch (err) {
       console.warn("Error getting AI response:", err);
-      const fallbackText = "🩺 I have recorded your symptom profile. 💧 Please rest, drink oral rehydration fluids, and visit a health center if your fever or pain intensifies. ❓ Can you let me know if you are having any other symptoms?";
-      const thoughtDuration = `${Math.max(1.2, reasoningElapsed).toFixed(1)}s`;
+      const fallbackText = "I have recorded your symptom profile. Please rest, drink oral rehydration fluids, and visit a health center if your fever or pain intensifies. Medical attention is recommended.";
+      const thoughtDuration = `${Math.max(0.8, reasoningElapsed).toFixed(1)}s`;
       const botMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
         id: botMsgId,
@@ -1004,7 +1139,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       const fbWords = fallbackText.split(' ');
       let fbIdx = 0;
       streamingTimerRef.current = setInterval(() => {
-        fbIdx += 2;
+        fbIdx += 6;
         const currentSlice = fbWords.slice(0, fbIdx).join(' ');
         if (fbIdx >= fbWords.length) {
           clearInterval(streamingTimerRef.current);
@@ -1026,7 +1161,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 : s
             )
           );
-          speakText(fallbackText);
+          // Audio speech is NOT auto-played
         } else {
           setMessages((prev) =>
             prev.map((m) =>
@@ -1034,7 +1169,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )
           );
         }
-      }, 25);
+      }, 15);
     }
   };
 
@@ -1105,9 +1240,12 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       <div className="h-[2.5px] w-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500 opacity-90 shrink-0 z-30" />
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 1. COMPREHENSIVE UPPER BAR (Clean, Spacious & Uncrowded)    */}
+      {/* 1. SCROLLABLE DOCTORIAN AI CONSULTATION UPPER BAR (Smart, Fast) */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <header className={`px-3 sm:px-5 py-2.5 sm:py-3 border-b ${effectiveDarkMode ? 'border-slate-800/80 bg-[#070e24]/95 text-slate-100' : 'border-slate-200/90 bg-white/95 text-slate-900'} backdrop-blur-xl flex items-center justify-between sticky top-0 z-30 shrink-0 gap-2`}>
+      <header 
+        className={`px-2.5 sm:px-4 py-2 sm:py-2.5 border-b ${effectiveDarkMode ? 'border-slate-800/80 bg-[#070e24]/95 text-slate-100' : 'border-slate-200/90 bg-white/95 text-slate-900'} backdrop-blur-xl flex items-center justify-between sticky top-0 z-30 shrink-0 gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x`}
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {/* Left Group: Exit, Menu, Doctorian Brand */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           {/* Exit Button */}
@@ -1219,8 +1357,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       type="button"
                       onClick={() => {
                         createNewSession('Lab Assessment', 'Lab Diagnostics');
-                        setActiveToolTab('lab');
-                        setShowToolHub(true);
+                        handleSelectAgent('lab');
+                        handleSendMessage("Please help interpret my clinical laboratory tests (Hb, WBC, Platelets, Malaria tests) according to clinical guidelines.");
                       }}
                       className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-emerald-950/60 text-emerald-300' : 'hover:bg-emerald-50 text-emerald-700'} rounded-xl transition-all flex items-start gap-2.5`}
                     >
@@ -1237,8 +1375,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       type="button"
                       onClick={() => {
                         createNewSession('Obstetric Assessment', 'Maternal Triage');
-                        setActiveToolTab('obstetric');
-                        setShowToolHub(true);
+                        handleSelectAgent('maternal');
+                        handleSendMessage("Please perform a clinical maternal triage and pre-eclampsia risk assessment.");
                       }}
                       className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-rose-950/60 text-rose-300' : 'hover:bg-rose-50 text-rose-700'} rounded-xl transition-all flex items-start gap-2.5`}
                     >
@@ -1255,8 +1393,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       type="button"
                       onClick={() => {
                         createNewSession('Fluid Infusion Resus', 'Emergency Care');
-                        setActiveToolTab('fluid');
-                        setShowToolHub(true);
+                        handleSelectAgent('emergency');
+                        handleSendMessage("Please compute the emergency IV fluid resuscitation protocol and dehydration regimen.");
                       }}
                       className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-amber-950/60 text-amber-300' : 'hover:bg-amber-50 text-amber-700'} rounded-xl transition-all flex items-start gap-2.5`}
                     >
@@ -1280,29 +1418,52 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               setCallMode('voice');
               setShowVoiceCallModal(true);
             }}
-            className="px-3 sm:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black rounded-xl border border-emerald-400/60 shadow-lg shadow-emerald-950/40 flex items-center gap-1.5 sm:gap-2 cursor-pointer text-[10px] sm:text-xs uppercase tracking-wider shrink-0 transition-all"
+            className="px-2.5 sm:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black rounded-xl border border-emerald-400/60 shadow-lg shadow-emerald-950/40 flex items-center gap-1.5 sm:gap-2 cursor-pointer text-[10px] sm:text-xs uppercase tracking-wider shrink-0 transition-all"
             title="Start Doctorian Voice Call"
           >
             <div className="w-5 h-5 rounded-full bg-emerald-800/80 flex items-center justify-center shrink-0">
               <Phone size={12} className="text-emerald-200 animate-pulse" />
             </div>
-            <span className="whitespace-nowrap font-black">Voice Call</span>
+            <span className="whitespace-nowrap font-black hidden sm:inline">Voice Call</span>
+            <span className="whitespace-nowrap font-black sm:hidden">Call</span>
           </button>
 
-          {/* Clinical Tools Hub Button */}
+          {/* On-Demand Voice Reading Status indicator */}
+          <span 
+            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[9px] font-bold border border-slate-700/60 text-slate-300 bg-slate-900/60 shrink-0" 
+            title="Audio responses are available on demand (tap Listen on any response). Auto reading is disabled."
+          >
+            <Volume2 size={12} className="text-cyan-400" />
+            <span>Audio: On-Demand</span>
+          </span>
+
+          {/* Single Chatbot Specialist Button (Fixed in Tool Hub position) */}
           <button
             type="button"
-            onClick={() => setShowToolHub(!showToolHub)}
-            className={`px-2.5 py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 shadow-xs ${
-              showToolHub 
-                ? 'bg-purple-600 border-purple-500 text-white shadow-md' 
-                : (effectiveDarkMode ? 'bg-slate-900/80 border-slate-700/80 text-slate-300 hover:border-purple-500' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200')
+            onClick={() => setShowChatbotsBar(!showChatbotsBar)}
+            className={`px-2.5 sm:px-3 py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 shadow-xs active:scale-95 ${
+              showChatbotsBar 
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-400 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/40' 
+                : (effectiveDarkMode 
+                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-200 hover:border-cyan-500/60 hover:text-white hover:bg-slate-800' 
+                    : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200 hover:border-blue-400')
             }`}
-            title="Clinical Utilities & Calculators Hub"
+            title="Toggle Doctorian AI Chatbot Personas & Specialists"
           >
-            <BrainCircuit size={13} className="text-purple-500" />
-            <span className="hidden md:inline">Tools Hub</span>
-            <ChevronDown size={11} className={`transform transition-transform ${showToolHub ? 'rotate-180' : ''}`} />
+            <div className={`w-4 h-4 rounded-md bg-gradient-to-tr ${activeAgent.color} flex items-center justify-center text-white shrink-0`}>
+              <ActiveAgentIcon size={10} />
+            </div>
+            <span className="font-black whitespace-nowrap">
+              {activeAgent.shortName}
+            </span>
+            <span className={`text-[7.5px] font-mono px-1 py-0.2 rounded font-bold uppercase ${
+              showChatbotsBar
+                ? 'bg-white/20 text-white'
+                : (effectiveDarkMode ? 'bg-cyan-500/20 text-cyan-300' : 'bg-blue-100 text-blue-800')
+            }`}>
+              {activeAgent.badge}
+            </span>
+            <ChevronDown size={11} className={`transform transition-transform duration-200 ${showChatbotsBar ? 'rotate-180 text-cyan-300' : 'text-slate-400'}`} />
           </button>
 
           {/* Search Button */}
@@ -1366,6 +1527,113 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           </button>
         </div>
       </header>
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* CHATBOT BUTTONS UNDER THE FIRST UPPER BAR (Toggled via the Single Button) */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showChatbotsBar && (
+          <motion.div
+            key="chatbots-under-first-upper-bar"
+            initial={{ height: 0, opacity: 0, y: -4 }}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            exit={{ height: 0, opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={`overflow-hidden border-b ${
+              effectiveDarkMode ? 'border-slate-800/80 bg-[#060c20]/98' : 'border-slate-200/90 bg-white/98'
+            } backdrop-blur-md sticky top-[53px] sm:top-[57px] z-20 shadow-md shrink-0`}
+          >
+            <div className="px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2">
+              {/* Left Indicator & Scroll Arrow */}
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600/10 border border-blue-500/20 text-cyan-400">
+                  <Bot size={13} className="text-cyan-400 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Specialists</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => scrollChatbots('left')}
+                  className={`p-1 rounded-lg ${effectiveDarkMode ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'} transition-colors cursor-pointer hidden md:flex`}
+                  title="Scroll Chatbot Icons Left"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+              </div>
+
+              {/* Scrollable Track - Android & Mobile Touch-Friendly */}
+              <div
+                ref={chatbotScrollRef}
+                className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth py-0.5 px-0.5 touch-pan-x flex-1 min-w-0"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
+                {CHATBOT_AGENTS.map((agent) => {
+                  const isActive = consultationMode === agent.id;
+                  const AgentIcon = agent.icon;
+                  return (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => {
+                        handleSelectAgent(agent.id);
+                      }}
+                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer select-none active:scale-95 ${
+                        isActive
+                          ? `${effectiveDarkMode ? 'bg-[#0b1739] text-white' : 'bg-blue-50 text-blue-950'} ${agent.activeBorder} ${agent.activeGlow} border-2`
+                          : `${effectiveDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700' : 'bg-slate-100/90 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300'}`
+                      }`}
+                      title={`${agent.name} - ${agent.role}`}
+                    >
+                      <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr ${agent.color} flex items-center justify-center text-white shrink-0 shadow-xs relative`}>
+                        <AgentIcon size={13} />
+                        {isActive && (
+                          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 border border-slate-950 animate-ping" />
+                        )}
+                      </div>
+                      <div className="text-left min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className={`text-[11px] font-bold leading-none whitespace-nowrap ${isActive ? (effectiveDarkMode ? 'text-white' : 'text-slate-900') : ''}`}>
+                            {agent.shortName}
+                          </span>
+                          <span className={`text-[7.5px] font-mono px-1 py-0.2 rounded font-bold uppercase ${
+                            isActive 
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' 
+                              : 'bg-slate-800/40 text-slate-400'
+                          }`}>
+                            {agent.badge}
+                          </span>
+                        </div>
+                        <p className="text-[8.5px] text-slate-400 dark:text-slate-500 truncate max-w-[100px] hidden lg:block leading-tight mt-0.5">
+                          {agent.role}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right Scroll Arrow & Dismiss Button */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => scrollChatbots('right')}
+                  className={`p-1 rounded-lg ${effectiveDarkMode ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'} transition-colors cursor-pointer hidden md:flex`}
+                  title="Scroll Chatbot Icons Right"
+                >
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowChatbotsBar(false)}
+                  className={`p-1 rounded-lg ${effectiveDarkMode ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'} transition-colors cursor-pointer`}
+                  title="Close Specialists Bar"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Expandable Search Input Row */}
       <AnimatePresence>
@@ -1548,8 +1816,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               setShowVoiceCallModal(true);
             }}
             onOpenToolHub={(tab) => {
-              if (tab) setActiveToolTab(tab);
-              setShowToolHub(true);
+              if (tab === 'lab') handleSelectAgent('lab');
+              else if (tab === 'obstetric') handleSelectAgent('maternal');
+              else if (tab === 'fluid') handleSelectAgent('emergency');
+              setShowChatbotsBar(true);
             }}
             onExportSummary={handleExportConsultationSummary}
             onShowNotice={showTemporaryNotice}
@@ -1929,7 +2199,6 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  speakText("Consultation note generated. Please follow the hydration and fever management protocols outlined in your session.");
                   setShowVoiceCallModal(false);
                 }}
                 className="px-6 py-3 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-rose-600/30 cursor-pointer transition-all"
@@ -1942,342 +2211,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         )}
       </AnimatePresence>
 
-      {/* ─────────────────────────────────────────────────────────── */}
-      {/* 8. CLINICAL TOOLS HUB MODAL (Old One Feature) */}
-      {/* ─────────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showToolHub && (
-          <motion.div
-            key="tool-hub-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowToolHub(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50"
-          />
-        )}
-        {showToolHub && (
-          <motion.div
-            key="tool-hub-panel"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className={`fixed inset-x-0 bottom-0 max-h-[85vh] ${effectiveDarkMode ? 'bg-[#070e24] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'} border-t rounded-t-3xl z-50 flex flex-col shadow-2xl overflow-hidden max-w-2xl mx-auto`}
-          >
-              {/* Modal Header */}
-              <div className={`p-4 border-b ${effectiveDarkMode ? 'border-slate-800 text-white' : 'border-slate-200 text-slate-900'} flex items-center justify-between`}>
-                <div className="flex items-center gap-2">
-                  <BrainCircuit size={20} className="text-purple-500" />
-                  <div>
-                    <h3 className={`text-sm font-black uppercase tracking-wider ${effectiveDarkMode ? 'text-white' : 'text-slate-900'}`}>Clinical Tools & Calculators</h3>
-                    <p className={`text-[10px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Evidence-Based Clinical Diagnostic Suite</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowToolHub(false)}
-                  className={`p-1.5 rounded-lg ${effectiveDarkMode ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}
-                >
-                  <X size={18} />
-                </button>
-              </div>
 
-              {/* Tabs */}
-              <div className={`flex items-center gap-2 p-3 ${effectiveDarkMode ? 'bg-slate-900/60 border-slate-800/80' : 'bg-slate-50 border-slate-200'} border-b overflow-x-auto no-scrollbar`}>
-                <button
-                  type="button"
-                  onClick={() => setActiveToolTab('lab')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                    activeToolTab === 'lab' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  Lab Interpreter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveToolTab('obstetric')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                    activeToolTab === 'obstetric' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  Obstetric Risk
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveToolTab('fluid')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                    activeToolTab === 'fluid' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  Fluid Resus
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveToolTab('soap')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                    activeToolTab === 'soap' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  SOAP Note
-                </button>
-              </div>
-
-              {/* Tool Body */}
-              <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
-                {activeToolTab === 'lab' && (
-                  <div className="space-y-4 text-xs">
-                    <h4 className={`font-bold ${effectiveDarkMode ? 'text-white' : 'text-slate-900'} text-sm`}>Automated Lab Interpreter (CBC & Malaria RDT)</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={`block text-[10px] uppercase font-bold ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Hemoglobin (Hb g/dL)</label>
-                        <input
-                          type="text"
-                          value={labHb}
-                          onChange={(e) => setLabHb(e.target.value)}
-                          className={`w-full ${effectiveDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'} border rounded-xl p-2`}
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-[10px] uppercase font-bold ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} mb-1`}>WBC Count (x10^9/L)</label>
-                        <input
-                          type="text"
-                          value={labWbc}
-                          onChange={(e) => setLabWbc(e.target.value)}
-                          className={`w-full ${effectiveDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'} border rounded-xl p-2`}
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-[10px] uppercase font-bold ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Platelets (x10^9/L)</label>
-                        <input
-                          type="text"
-                          value={labPlt}
-                          onChange={(e) => setLabPlt(e.target.value)}
-                          className={`w-full ${effectiveDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'} border rounded-xl p-2`}
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-[10px] uppercase font-bold ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Malaria RDT</label>
-                        <select
-                          value={labMalaria}
-                          onChange={(e) => setLabMalaria(e.target.value)}
-                          className={`w-full ${effectiveDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'} border rounded-xl p-2`}
-                        >
-                          <option value="Negative">Negative</option>
-                          <option value="Positive (P. falciparum)">Positive (P. falciparum)</option>
-                          <option value="Positive (Mixed)">Positive (Mixed)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const hbNum = parseFloat(labHb);
-                        let analysis = `Lab Report: Hb is ${labHb} g/dL (${hbNum < 11 ? 'Mild Anemia' : 'Normal range'}). WBC ${labWbc}, Platelets ${labPlt}. Malaria RDT: ${labMalaria}.`;
-                        if (labMalaria.includes('Positive')) {
-                          analysis += " Immediate Artemether-Lumefantrine (AL) protocol indicated under Uganda MOH Guidelines.";
-                        }
-                        setLabResult(analysis);
-                      }}
-                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-colors"
-                    >
-                      Interpret Lab Results
-                    </button>
-
-                    {labResult && (
-                      <div className="p-3 bg-blue-950/40 border border-blue-600/40 rounded-xl text-blue-200">
-                        <p>{labResult}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowToolHub(false);
-                            handleSendMessage(labResult);
-                          }}
-                          className="mt-2 text-cyan-400 font-bold underline"
-                        >
-                          Insert into chat consultation →
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeToolTab === 'obstetric' && (
-                  <div className="space-y-4 text-xs">
-                    <h4 className="font-bold text-white text-sm">Obstetric & Pre-eclampsia Risk Engine</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Gestation (Weeks)</label>
-                        <input
-                          type="text"
-                          value={obGestation}
-                          onChange={(e) => setObGestation(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Urine Protein</label>
-                        <select
-                          value={obProtein}
-                          onChange={(e) => setObProtein(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white"
-                        >
-                          <option value="Nil">Nil</option>
-                          <option value="Trace">Trace</option>
-                          <option value="+1">+1</option>
-                          <option value="+2">+2 (High)</option>
-                          <option value="+3">+3 (Severe)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Systolic BP (mmHg)</label>
-                        <input
-                          type="text"
-                          value={obBpSys}
-                          onChange={(e) => setObBpSys(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Diastolic BP (mmHg)</label>
-                        <input
-                          type="text"
-                          value={obBpDia}
-                          onChange={(e) => setObBpDia(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sys = parseInt(obBpSys, 10);
-                        const dia = parseInt(obBpDia, 10);
-                        const isSevere = sys >= 160 || dia >= 110;
-                        const isHigh = sys >= 140 || dia >= 90;
-                        let outcome = `Maternal Assessment at ${obGestation} weeks: BP ${sys}/${dia} mmHg with ${obProtein} proteinuria.`;
-                        if (isSevere) {
-                          outcome += " ⚠️ SEVERE PRE-ECLAMPSIA RISK. Immediate referral, Magnesium Sulfate loading protocol advised.";
-                        } else if (isHigh) {
-                          outcome += " ⚠️ Moderate Gestational Hypertension / Pre-eclampsia alert. Close monitoring required.";
-                        } else {
-                          outcome += " Normotensive obstetric parameters. Standard ANC follow-up.";
-                        }
-                        setObResult(outcome);
-                      }}
-                      className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 rounded-xl font-bold text-white transition-colors"
-                    >
-                      Calculate Pre-eclampsia Risk
-                    </button>
-
-                    {obResult && (
-                      <div className="p-3 bg-rose-950/40 border border-rose-600/40 rounded-xl text-rose-200">
-                        <p>{obResult}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowToolHub(false);
-                            handleSendMessage(obResult);
-                          }}
-                          className="mt-2 text-cyan-400 font-bold underline"
-                        >
-                          Insert into chat consultation →
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeToolTab === 'fluid' && (
-                  <div className="space-y-4 text-xs">
-                    <h4 className="font-bold text-white text-sm">Fluid Infusion Resuscitation Calculator</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Patient Weight (kg)</label>
-                        <input
-                          type="text"
-                          value={fluidWeight}
-                          onChange={(e) => setFluidWeight(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Dehydration Level</label>
-                        <select
-                          value={fluidDegree}
-                          onChange={(e) => setFluidDegree(e.target.value as any)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white"
-                        >
-                          <option value="mild">Plan A: Mild / No Dehydration (Home ORS)</option>
-                          <option value="moderate">Plan B: Some Dehydration (Clinic ORS)</option>
-                          <option value="severe">Plan C: Severe Dehydration (IV Ringer's)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const wt = parseFloat(fluidWeight) || 60;
-                        let text = '';
-                        if (fluidDegree === 'mild') {
-                          text = `Plan A Rehydration for ${wt}kg patient: 100-200ml ORS after each loose stool + maintenance clean water.`;
-                        } else if (fluidDegree === 'moderate') {
-                          const ors = Math.round(wt * 75);
-                          text = `Plan B Rehydration for ${wt}kg patient: Administer ${ors}ml ORS over 4 hours under clinical observation.`;
-                        } else {
-                          const ivTotal = Math.round(wt * 100);
-                          text = `Plan C IV Resuscitation for ${wt}kg patient: Total ${ivTotal}ml IV Ringer's Lactate (30ml/kg in first 30min, then 70ml/kg over 2.5 hours).`;
-                        }
-                        setFluidResult(text);
-                      }}
-                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 rounded-xl font-bold text-white transition-colors"
-                    >
-                      Compute Infusion Regimen
-                    </button>
-
-                    {fluidResult && (
-                      <div className="p-3 bg-amber-950/40 border border-amber-600/40 rounded-xl text-amber-200">
-                        <p>{fluidResult}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowToolHub(false);
-                            handleSendMessage(fluidResult);
-                          }}
-                          className="mt-2 text-cyan-400 font-bold underline"
-                        >
-                          Insert into chat consultation →
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeToolTab === 'soap' && (
-                  <div className="space-y-3 text-xs">
-                    <h4 className="font-bold text-white text-sm">Interactive EHR SOAP Generator</h4>
-                    <p className="text-slate-400">
-                      Click below to generate a standardized clinical SOAP note based on the ongoing consultation messages.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowToolHub(false);
-                        handleSendMessage("Please formulate a complete clinical SOAP Note (Subjective, Objective, Assessment, Plan) based on our discussion.");
-                      }}
-                      className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-white transition-colors"
-                    >
-                      Generate SOAP Note from Chat
-                    </button>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 9. ALL SMART ACTIONS MODAL (Searchable, Categorized, Non-Blocking) */}

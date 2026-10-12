@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { HumanBodyVitalsModel } from './HumanBodyVitalsModel';
 import { LiveECGVisualizer } from './LiveECGVisualizer';
+import { AnimatedVitalNumber } from './AnimatedVitalNumber';
 
 interface ModernizedPatientMonitorViewProps {
   user: any;
@@ -527,7 +528,7 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-semibold text-slate-300">
-                        Live: <strong className={currentHR < hrMin || currentHR > hrMax ? 'text-rose-400 font-bold' : 'text-emerald-400'}>{currentHR} BPM</strong>
+                        Live: <strong className={currentHR < hrMin || currentHR > hrMax ? 'text-rose-400 font-bold' : 'text-emerald-400'}><AnimatedVitalNumber value={currentHR} duration={450} /> BPM</strong>
                       </span>
                       <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
                         {hrMin} – {hrMax} BPM
@@ -612,7 +613,7 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-semibold text-slate-300">
-                        Live: <strong className={currentSpo2 < spo2Min ? 'text-rose-400 font-bold' : 'text-cyan-400'}>{currentSpo2}%</strong>
+                        Live: <strong className={currentSpo2 < spo2Min ? 'text-rose-400 font-bold' : 'text-cyan-400'}><AnimatedVitalNumber value={currentSpo2} duration={450} />%</strong>
                       </span>
                       <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
                         &lt; {spo2Min}% Alert
@@ -1231,7 +1232,7 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
                 </div>
                 <div className="p-3 rounded-2xl bg-[#061024] border border-slate-800">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">Real-time Pulse</span>
-                  <div className="text-lg font-black text-rose-400 mt-0.5">{currentHR} BPM</div>
+                  <div className="text-lg font-black text-rose-400 mt-0.5"><AnimatedVitalNumber value={currentHR} duration={450} /> BPM</div>
                   <span className="text-[9px] text-slate-400">Sinus Rhythm Normal</span>
                 </div>
               </div>

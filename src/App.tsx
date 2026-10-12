@@ -2024,7 +2024,7 @@ export default function App() {
         const response = await api.ai.aiChat(
           [{ role: "user", text: prompt }], 
           systemInstruction, 
-          "gemini-2.5-flash",
+          "gemini-3.8-flash",
           0.7
         );
         responseText = response.text;
@@ -2044,7 +2044,7 @@ export default function App() {
 
           try {
             const bodyPayload = {
-              model: "gemini-2.5-flash",
+              model: "gemini-3.8-flash",
               messages: [
                 { role: "system", content: systemInstruction },
                 { role: "user", content: prompt }

@@ -157,10 +157,11 @@ export const ClinicalStationsNav: React.FC<ClinicalStationsNavProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('realtime')}
+            style={{ backgroundColor: '#f7ebf5' }}
             className={`p-5 rounded-2xl text-left transition-all relative overflow-hidden flex flex-col justify-between min-h-[160px] gap-3.5 border cursor-pointer group ${
               activeTab === 'realtime'
                 ? 'bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500 dark:border-emerald-400 shadow-md ring-2 ring-emerald-500/30'
-                : 'bg-white dark:bg-slate-900/90 border-slate-200/80 dark:border-slate-800 hover:border-emerald-400/60 dark:hover:border-emerald-500/60 hover:shadow-xs'
+                : 'border-slate-200/80 dark:border-slate-800 hover:border-emerald-400/60 dark:hover:border-emerald-500/60 hover:shadow-xs'
             }`}
           >
             <div className="flex items-center justify-between gap-2">

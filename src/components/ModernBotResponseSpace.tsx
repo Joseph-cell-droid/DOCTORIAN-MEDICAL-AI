@@ -295,17 +295,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               return (
                 <div key={sIdx} className="space-y-2">
-                  {/* Clean Plain Section Header */}
-                  {sec.title && (
-                    <div className="flex items-center gap-2 pt-1 pb-0.5">
-                      <div className={`flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider ${sec.titleColor}`}>
-                        <Icon size={14} />
-                        <span>{sec.title}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Plain Content Lines */}
+                  {/* Content Lines without Headers */}
                   <div className="space-y-2 text-[14.5px] sm:text-[15px] leading-relaxed">
                     {sec.lines.map((line, lIdx) => {
                       const trimmed = line.trim();
@@ -388,7 +378,8 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               const trimmed = line.trim();
               if (!trimmed) return <div key={idx} className="h-1.5" />;
 
-              const isHeader = /^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]/.test(trimmed) && (
+              // If line looks like a legacy header line, skip it or render as standard paragraph
+              const isLegacyHeader = /^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]/.test(trimmed) && (
                 trimmed.endsWith(':') || 
                 trimmed.length < 55 || 
                 trimmed.includes('Assessment') || 
@@ -397,12 +388,17 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                 trimmed.includes('Signs')
               );
 
-              if (isHeader) {
-                return (
-                  <div key={idx} className="mt-3 pt-1 font-bold text-blue-700 dark:text-cyan-200 flex items-center gap-2 text-sm sm:text-base tracking-wide">
-                    <span>{trimmed}</span>
-                  </div>
-                );
+              if (isLegacyHeader) {
+                // Strip the header prefix and only render if it has actual sentence content
+                const cleanContent = trimmed.replace(/^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]\s*/, '').replace(/:$/, '').trim();
+                if (cleanContent && cleanContent.length > 30) {
+                  return (
+                    <p key={idx} className="text-slate-800 dark:text-slate-200 font-normal leading-relaxed">
+                      {cleanContent}
+                    </p>
+                  );
+                }
+                return null;
               }
 
               if (trimmed.startsWith('•') || trimmed.startsWith('-')) {

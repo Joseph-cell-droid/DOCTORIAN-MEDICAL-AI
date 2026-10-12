@@ -1,7 +1,9 @@
 /**
  * cleanAiResponse.ts
- * Ensures AI chat responses are modern, completely free of '**' bolding artifacts,
- * and richly styled with interactive emojis.
+ * Ensures AI chat responses are modern, fast, completely free of '**' bolding artifacts,
+ * and contain NO headers or section titles per user instructions.
+ * If the conversation does not need complex multi-point formatting, it formats as
+ * one cohesive paragraph.
  */
 
 export function cleanAiResponse(text: string): string {
@@ -17,45 +19,37 @@ export function cleanAiResponse(text: string): string {
     // Strip lone single asterisks that are not bullets
     .replace(/(^|\s)\*(?!\s)/g, '$1')
     .replace(/\*(?=\s|$)/g, '')
+    // Convert markdown headers like ### Title into clean text or strip
+    .replace(/^#{1,6}\s+/gm, '')
+    // Strip known clinical section header lines (both with and without emojis)
+    .replace(/^(?:[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]\s*)?(?:Clinical Assessment|Clinical Overview|Clinical Impression|Assessment|Overview|Recommended Actions|Recommendations|Action Plan|Management|Next Steps|Medication & Care Guidance|Medication Guidance|Medication|Medications|Prescriptions|Supportive Care|Warning Signs & Safety|Warning Signs & Emergency Red Flags|Warning Signs|Emergency Red Flags|Danger Signs|Red Flags|Hydration & Nutrition|Hydration|Follow-up Questions|Interactive Follow-Up Questions|Interactive Questions|Key Takeaways):?\s*$/gim, '')
     // Convert markdown bullet asterisks or dashes into clean round bullets
     .replace(/^\s*[\*\-]\s+/gm, '• ')
-    // Convert markdown headers like ### Title into clean Title
-    .replace(/^#{1,6}\s+/gm, '')
     // Clean up excessive blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  // If text consists of multiple brief lines that don't have bullet points or questions,
+  // collapse into a single cohesive paragraph if it's a simple conversational response
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
+  const hasBullets = lines.some(l => l.startsWith('•') || l.startsWith('-'));
+  const hasNumberedList = lines.some(l => /^\d+[\.\)]/.test(l));
+
+  if (!hasBullets && !hasNumberedList && lines.length > 1 && lines.length <= 4) {
+    // If none are questions or separate dialogs, combine into a single cohesive paragraph
+    const combined = lines.join(' ');
+    // Keep clean spacing around sentences
+    cleaned = combined.replace(/\s+/g, ' ').trim();
+  }
 
   return cleaned;
 }
 
 /**
- * Ensures the response has rich, friendly emojis to make it modern and interactive.
- * If the response lacks emojis or has very few, this injects appropriate medical emojis
- * into key headings and bullet points.
+ * Ensures clean emoji presentation without adding any headers.
  */
 export function ensureModernEmojiInteractivity(text: string): string {
-  let cleaned = cleanAiResponse(text);
-  if (!cleaned) return cleaned;
-
-  // Check if text already has a good amount of emojis
-  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
-  const emojiCount = (cleaned.match(new RegExp(emojiRegex.source, 'gu')) || []).length;
-
-  if (emojiCount >= 3) {
-    return cleaned;
-  }
-
-  // Inject emojis into common clinical section headers if missing
-  cleaned = cleaned
-    .replace(/^(Clinical Overview|Clinical Impression|Assessment|Overview):/gim, '🩺 $1:')
-    .replace(/^(Recommended Actions|Recommendations|Management|Next Steps):/gim, '💡 $1:')
-    .replace(/^(Medication|Medications|Prescriptions|Supportive Care):/gim, '💊 $1:')
-    .replace(/^(Warning Signs|Emergency Signs|Red Flags|Precautions):/gim, '⚠️ $1:')
-    .replace(/^(Hydration|Fluids|Nutrition|Diet):/gim, '💧 $1:')
-    .replace(/^(Monitoring|Vitals|Tracking):/gim, '📊 $1:')
-    .replace(/^(Follow-up|Next Consultation|Questions):/gim, '❓ $1:');
-
-  return cleaned;
+  return cleanAiResponse(text);
 }
 
 /**

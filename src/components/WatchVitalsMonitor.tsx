@@ -5,6 +5,7 @@ import {
   Zap, Radio, Wifi, WifiOff, Bell, BellOff, Lock, Unlock, Database, RefreshCw,
   Send, AlertTriangle, CheckCircle2, Globe, Volume2, VolumeX, Sparkles, AlertCircle
 } from 'lucide-react';
+import { AnimatedVitalNumber } from './AnimatedVitalNumber';
 
 export interface WatchVitalsData {
   deviceId: string;
@@ -489,7 +490,9 @@ export const WatchVitalsMonitor: React.FC<WatchVitalsMonitorProps> = ({
             </div>
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black tracking-tight tabular-nums">{heartRate}</span>
+                <span className="text-5xl font-black tracking-tight tabular-nums">
+                  <AnimatedVitalNumber value={heartRate} duration={550} showDirectionIndicator={true} />
+                </span>
                 <span className="text-sm font-bold text-slate-400">bpm</span>
               </div>
               <p className="text-xs text-slate-400 mt-2 font-medium">
@@ -512,7 +515,9 @@ export const WatchVitalsMonitor: React.FC<WatchVitalsMonitorProps> = ({
             </div>
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black tracking-tight tabular-nums">{spo2}</span>
+                <span className="text-5xl font-black tracking-tight tabular-nums">
+                  <AnimatedVitalNumber value={spo2} duration={550} showDirectionIndicator={true} />
+                </span>
                 <span className="text-sm font-bold text-slate-400">%</span>
               </div>
               <p className="text-xs text-slate-400 mt-2 font-medium">

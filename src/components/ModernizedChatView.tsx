@@ -17,6 +17,8 @@ import { cleanAiResponse, ensureModernEmojiInteractivity, extractInteractiveSugg
 import { ModernBotResponseSpace } from './ModernBotResponseSpace';
 import { DoctorianWelcomeCanvas } from './DoctorianWelcomeCanvas';
 import { SmartActionCard } from './SmartActionCard';
+import { IntelligentSOAPReferralModal } from './IntelligentSOAPReferralModal';
+import { computePredictiveTriage, VitalsInput } from '../services/predictiveTriageService';
 
 export interface ChatbotAgent {
   id: 'primary' | 'emergency' | 'cardiology' | 'pediatric' | 'pharmacology' | 'lab' | 'maternal' | 'neurology' | 'preventive' | 'soap';
@@ -394,6 +396,193 @@ const REASONING_STAGES = [
   { stage: 'Formulating clinical consultation...', detail: 'Composing structured open response' },
 ];
 
+/**
+ * Alternating Thinking & Reasoning Visualizer
+ * Alternates on a timed cycle (every 3.5s) between:
+ * 1. Spinning Windows Icon: 4-quadrant luminous glass panes (Red, Green, Blue, Amber) with 3D rotation, glossy highlights & aura.
+ * 2. Spinning Bead / Milky Way Galaxy: Pulsing central celestial nucleus bead with 3D tilted concentric elliptical orbit rings and stardust beads.
+ */
+export const AlternatingThinkingVisual: React.FC<{
+  size?: 'sm' | 'md' | 'lg';
+  showLabel?: boolean;
+}> = ({ size = 'md', showLabel = true }) => {
+  const [currentMode, setCurrentMode] = useState<'windows' | 'galaxy'>('windows');
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentMode((prev) => (prev === 'windows' ? 'galaxy' : 'windows'));
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isSmall = size === 'sm';
+  const isLarge = size === 'lg';
+
+  return (
+    <div className="flex items-center gap-2.5">
+      {/* Visual Rotating Stage Box */}
+      <div 
+        className={`relative flex items-center justify-center shrink-0 ${
+          isSmall ? 'w-8 h-8 rounded-xl' : isLarge ? 'w-13 h-13 rounded-2xl' : 'w-10 h-10 rounded-xl'
+        } bg-gradient-to-br from-slate-900/90 via-[#070e24] to-slate-950 border border-slate-700/70 shadow-lg shadow-cyan-950/40 backdrop-blur-md overflow-hidden`}
+      >
+        {/* Ambient cosmic / matrix glow ring */}
+        <div 
+          className={`absolute inset-0 transition-opacity duration-700 pointer-events-none ${
+            currentMode === 'windows' 
+              ? 'bg-radial from-blue-500/20 via-cyan-500/10 to-transparent' 
+              : 'bg-radial from-fuchsia-500/25 via-purple-600/15 to-transparent'
+          }`} 
+        />
+
+        <AnimatePresence mode="wait">
+          {currentMode === 'windows' ? (
+            /* 1. NICE SPINNING WINDOWS ICON */
+            <motion.div
+              key="windows-icon"
+              initial={{ opacity: 0, scale: 0.6, rotate: -45 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.6, rotate: 45 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center"
+            >
+              {/* Continuous 3D/Planar Spinning Windows 4-Quadrant Matrix */}
+              <motion.div
+                animate={{ 
+                  rotate: 360,
+                  rotateY: [0, 25, 0, -25, 0],
+                  scale: [1, 1.05, 1]
+                }}
+                transition={{ 
+                  rotate: { duration: 4.5, repeat: Infinity, ease: 'linear' },
+                  rotateY: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' },
+                  scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+                }}
+                className={`grid grid-cols-2 ${isSmall ? 'gap-0.5 w-4.5 h-4.5' : isLarge ? 'gap-1.5 w-7 h-7' : 'gap-1 w-5.5 h-5.5'} p-0.5`}
+                style={{ perspective: 600 }}
+              >
+                {/* Quadrant 1: Top-Left Crimson / Coral Red */}
+                <div className="relative rounded-[2.5px] bg-gradient-to-br from-rose-500 to-red-600 border border-rose-300/50 shadow-xs shadow-rose-500/50 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
+                </div>
+
+                {/* Quadrant 2: Top-Right Emerald / Vivid Green */}
+                <div className="relative rounded-[2.5px] bg-gradient-to-br from-emerald-400 to-green-600 border border-emerald-300/50 shadow-xs shadow-emerald-500/50 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
+                </div>
+
+                {/* Quadrant 3: Bottom-Left Azure / Deep Cyan Blue */}
+                <div className="relative rounded-[2.5px] bg-gradient-to-br from-sky-400 to-blue-600 border border-sky-300/50 shadow-xs shadow-sky-500/50 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
+                </div>
+
+                {/* Quadrant 4: Bottom-Right Amber / Golden Sun */}
+                <div className="relative rounded-[2.5px] bg-gradient-to-br from-amber-400 to-yellow-500 border border-amber-200/50 shadow-xs shadow-amber-500/50 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : (
+            /* 2. SPINNING BEAD / MILKY WAY GALAXY */
+            <motion.div
+              key="galaxy-icon"
+              initial={{ opacity: 0, scale: 0.6, rotate: 45 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.6, rotate: -45 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center"
+            >
+              <div className={`relative flex items-center justify-center ${isSmall ? 'w-5.5 h-5.5' : isLarge ? 'w-8.5 h-8.5' : 'w-7 h-7'}`}>
+                
+                {/* Outer Milky Way Galaxy Elliptical Orbit Ring (Tilted in 3D) */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 3.2, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0 border border-purple-400/40 rounded-full"
+                  style={{ transform: 'rotateX(62deg) rotateY(20deg)' }}
+                >
+                  {/* Orbiting Stardust Bead (Magenta-Purple) */}
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-fuchsia-300 shadow-[0_0_8px_rgba(232,121,249,1)]" />
+                </motion.div>
+
+                {/* Inner Counter-Spinning Orbit Ring (Tilted opposite) */}
+                <motion.div
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0.5 border border-cyan-400/50 rounded-full"
+                  style={{ transform: 'rotateX(55deg) rotateY(-35deg)' }}
+                >
+                  {/* Orbiting Stardust Bead (Cyan-Aquamarine) */}
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-200 shadow-[0_0_8px_rgba(103,232,249,1)]" />
+                </motion.div>
+
+                {/* Core Galactic Nucleus Bead (Pulsing Cosmic Luminous Bead) */}
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.25, 1],
+                    boxShadow: [
+                      '0 0 8px rgba(168,85,247,0.7)',
+                      '0 0 16px rgba(56,189,248,0.9)',
+                      '0 0 8px rgba(168,85,247,0.7)'
+                    ]
+                  }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  className={`${isSmall ? 'w-2.5 h-2.5' : isLarge ? 'w-3.5 h-3.5' : 'w-3 h-3'} rounded-full bg-gradient-to-tr from-cyan-300 via-fuchsia-400 to-amber-200 shadow-md flex items-center justify-center`}
+                >
+                  <div className="w-1 h-1 rounded-full bg-white opacity-95 shadow-[0_0_4px_white]" />
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Mode Tag and Status Indicator */}
+      {showLabel && (
+        <div className="flex flex-col">
+          <AnimatePresence mode="wait">
+            {currentMode === 'windows' ? (
+              <motion.div
+                key="label-windows"
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 4 }}
+                transition={{ duration: 0.25 }}
+                className="flex items-center gap-1.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-400">
+                  Windows Logic Engine
+                </span>
+                <span className="text-[8.5px] font-mono text-cyan-300 bg-blue-950/70 px-1.5 py-0.2 rounded border border-blue-700/60">
+                  Spinning Core
+                </span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="label-galaxy"
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 4 }}
+                transition={{ duration: 0.25 }}
+                className="flex items-center gap-1.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-ping" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-purple-300 to-cyan-300">
+                  Milky Way Galaxy Nexus
+                </span>
+                <span className="text-[8.5px] font-mono text-fuchsia-300 bg-purple-950/70 px-1.5 py-0.2 rounded border border-purple-700/60">
+                  Cosmic Bead
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   user,
   onNavigate,
@@ -538,7 +727,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   // Upper Bar Toggles
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNewChatDropdown, setShowNewChatDropdown] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showVoiceCallModal, setShowVoiceCallModal] = useState(false);
+  const [showSOAPModal, setShowSOAPModal] = useState(false);
   const [showChatbotsBar, setShowChatbotsBar] = useState(false);
   const [isUgandaMOHActive, setIsUgandaMOHActive] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -552,6 +743,34 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [callDuration, setCallDuration] = useState(0);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<'chat' | 'records' | 'meds' | 'tools' | 'profile'>('chat');
+
+  // Real-Time Bio-Telemetry Fusion & Anomaly Auditing
+  const liveVitals: VitalsInput = useMemo(() => ({
+    heartRate: arduino?.heartRate ?? 74,
+    spO2: arduino?.spo2 ?? 98,
+    temperature: arduino?.temperature ?? 36.8,
+    systolicBP: arduino?.systolicBP ?? 120,
+    diastolicBP: arduino?.diastolicBP ?? 80,
+    respiratoryRate: arduino?.respiratoryRate ?? 16,
+    consciousness: 'alert'
+  }), [arduino?.heartRate, arduino?.spo2, arduino?.temperature, arduino?.systolicBP, arduino?.diastolicBP, arduino?.respiratoryRate]);
+
+  const liveTriage = useMemo(() => {
+    return computePredictiveTriage(liveVitals);
+  }, [liveVitals]);
+
+  const hasVitalAnomaly = useMemo(() => {
+    return (
+      (liveVitals.heartRate ?? 74) > 105 || 
+      (liveVitals.heartRate ?? 74) < 52 || 
+      (liveVitals.spO2 ?? 98) < 94 || 
+      (liveVitals.temperature ?? 36.8) >= 38.0 || 
+      (liveVitals.temperature ?? 36.8) <= 35.5 || 
+      (liveVitals.systolicBP ?? 120) > 140 || 
+      (liveVitals.systolicBP ?? 120) < 90 ||
+      liveTriage.news2.score >= 3
+    );
+  }, [liveVitals, liveTriage]);
   
   // Clinical Consultation Specialization Mode & Chatbot Agents
   const [consultationMode, setConsultationMode] = useState<ChatbotAgent['id']>('primary');
@@ -1428,15 +1647,6 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             <span className="whitespace-nowrap font-black sm:hidden">Call</span>
           </button>
 
-          {/* On-Demand Voice Reading Status indicator */}
-          <span 
-            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[9px] font-bold border border-slate-700/60 text-slate-300 bg-slate-900/60 shrink-0" 
-            title="Audio responses are available on demand (tap Listen on any response). Auto reading is disabled."
-          >
-            <Volume2 size={12} className="text-cyan-400" />
-            <span>Audio: On-Demand</span>
-          </span>
-
           {/* Single Chatbot Specialist Button (Fixed in Tool Hub position) */}
           <button
             type="button"
@@ -1466,49 +1676,120 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             <ChevronDown size={11} className={`transform transition-transform duration-200 ${showChatbotsBar ? 'rotate-180 text-cyan-300' : 'text-slate-400'}`} />
           </button>
 
-          {/* Search Button */}
-          <button
-            type="button"
-            onClick={() => setSearchOpen(!searchOpen)}
-            className={`p-2 rounded-xl ${effectiveDarkMode ? 'text-slate-400 hover:text-white hover:bg-slate-800 border-slate-700/60' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200'} border transition-colors cursor-pointer`}
-            title="Search conversation messages"
-          >
-            <Search size={15} />
-          </button>
-
-          {/* Clear / Reset Chat */}
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm("Are you sure you want to clear this consultation?")) {
-                setMessages([
-                  {
-                    id: `bot-${Date.now()}`,
-                    sender: 'bot',
-                    text: "Conversation cleared. How can I help you today?",
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  },
-                ]);
-              }
-            }}
-            className={`p-2 rounded-xl ${effectiveDarkMode ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 border-slate-700/60' : 'text-slate-600 hover:text-rose-600 hover:bg-rose-50 border-slate-200'} border transition-colors cursor-pointer hidden sm:flex`}
-            title="Clear current chat"
-          >
-            <Trash2 size={15} />
-          </button>
-
-          {/* Optional Switcher to Matrix/Console View if requested */}
-          {onSwitchToMatrix && (
+          {/* Sleek Consolidated More Actions Menu (Reduces clutter on upper bar) */}
+          <div className="relative shrink-0">
             <button
               type="button"
-              onClick={onSwitchToMatrix}
-              className={`hidden xl:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border ${effectiveDarkMode ? 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white' : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'} text-[9px] font-black uppercase tracking-wider cursor-pointer`}
-              title="Switch to Neural Matrix View"
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className={`p-1.5 sm:p-2 rounded-xl ${
+                showMoreMenu
+                  ? 'bg-blue-600 text-white border-blue-400'
+                  : effectiveDarkMode
+                    ? 'text-slate-400 hover:text-white hover:bg-slate-800 border-slate-700/60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200'
+              } border transition-all cursor-pointer active:scale-95`}
+              title="More Consultation Options"
             >
-              <Monitor size={12} className={effectiveDarkMode ? 'text-cyan-400' : 'text-blue-600'} />
-              <span>Matrix</span>
+              <MoreHorizontal size={15} />
             </button>
-          )}
+
+            {showMoreMenu && (
+              <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+            )}
+
+            <AnimatePresence>
+              {showMoreMenu && (
+                <motion.div
+                  key="more-menu-dropdown"
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute right-0 mt-2 w-56 ${
+                    effectiveDarkMode ? 'bg-[#0a1532] border-slate-700/80 text-white' : 'bg-white border-slate-200 shadow-xl text-slate-900'
+                  } border rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-left`}
+                >
+                  <div className={`px-2.5 py-1.5 border-b ${effectiveDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Consultation Tools</span>
+                  </div>
+
+                  {/* Search in Messages */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchOpen(!searchOpen);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <Search size={14} className="text-cyan-400" />
+                    <span>Search Chat</span>
+                  </button>
+
+                  {/* EHR SOAP & Referral Slip */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSOAPModal(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-emerald-950/60 text-emerald-300' : 'hover:bg-emerald-50 text-emerald-700'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <FileText size={14} className="text-emerald-400" />
+                    <span>EHR SOAP & MOH Referral</span>
+                  </button>
+
+                  {/* Audio Status / Setting */}
+                  <div className={`px-2.5 py-1.5 flex items-center justify-between rounded-xl ${effectiveDarkMode ? 'bg-slate-900/60' : 'bg-slate-50'}`}>
+                    <div className="flex items-center gap-2">
+                      <Volume2 size={13} className="text-cyan-400" />
+                      <span className="text-[11px] font-medium text-slate-300">Voice Audio</span>
+                    </div>
+                    <span className="text-[9px] font-mono font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-800/60">
+                      On-Demand
+                    </span>
+                  </div>
+
+                  {/* Neural Matrix View (if available) */}
+                  {onSwitchToMatrix && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSwitchToMatrix();
+                        setShowMoreMenu(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                    >
+                      <Monitor size={14} className="text-blue-400" />
+                      <span>Matrix Console</span>
+                    </button>
+                  )}
+
+                  {/* Clear / Reset Chat */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      if (confirm("Are you sure you want to clear this consultation?")) {
+                        setMessages([
+                          {
+                            id: `bot-${Date.now()}`,
+                            sender: 'bot',
+                            text: "Conversation cleared. How can I help you today?",
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          },
+                        ]);
+                      }
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-rose-950/40 text-rose-300' : 'hover:bg-rose-50 text-rose-700'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <Trash2 size={14} className="text-rose-400" />
+                    <span>Clear Conversation</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* User Profile Avatar */}
           <button
@@ -1727,24 +2008,27 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           ))
         )}
 
-        {/* Open-Web AI Thinking State with Dynamically Changing Reasoning Texts */}
+        {/* Open-Web AI Thinking State with Alternating Spinning Windows Icon and Milky Way Galaxy Bead */}
         {isLoading && (
           <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl py-2.5">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25 border border-cyan-400/40 shrink-0 mt-0.5">
-              <Sparkles size={16} className="text-cyan-200 animate-spin" />
-            </div>
-            <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+            {/* Alternating Visual Icon: Spinning Windows Prism ⟷ Milky Way Galaxy Nucleus */}
+            <AlternatingThinkingVisual size="md" showLabel={false} />
+
+            <div className="flex-1 min-w-0 space-y-2 py-0.5">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                {/* Dynamic Mode Pill & Reasoning Status */}
+                <AlternatingThinkingVisual size="sm" showLabel={true} />
+
                 <motion.span 
                   key={reasoningIndex}
                   initial={{ opacity: 0, y: 2 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-cyan-300 font-semibold text-sm tracking-wide"
+                  className="text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide"
                 >
                   {REASONING_STAGES[reasoningIndex]?.stage || 'Thinking...'}
                 </motion.span>
-                <span className="text-[11px] font-mono text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-full border border-slate-800">
+
+                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-800/60 shadow-xs">
                   {reasoningElapsed.toFixed(1)}s
                 </span>
               </div>
@@ -1753,29 +2037,32 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 key={`desc-${reasoningIndex}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-xs text-slate-400 font-normal pl-4.5"
+                className="text-xs text-slate-400 font-normal pl-0.5"
               >
                 {REASONING_STAGES[reasoningIndex]?.detail}
               </motion.p>
               
               {/* Subtle animated neural reasoning wave */}
-              <div className="flex items-center gap-1 pl-4.5 pt-0.5">
-                {[0, 1, 2, 3, 4, 5].map((idx) => (
+              <div className="flex items-center gap-1.5 pl-0.5 pt-1">
+                {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
                   <motion.div
                     key={idx}
                     animate={{
                       scaleY: [0.3, 1, 0.3],
-                      opacity: [0.4, 1, 0.4]
+                      opacity: [0.35, 1, 0.35]
                     }}
                     transition={{
-                      duration: 0.9,
+                      duration: 0.85,
                       repeat: Infinity,
-                      delay: idx * 0.12,
+                      delay: idx * 0.1,
                       ease: 'easeInOut'
                     }}
-                    className="w-1 h-3 rounded-full bg-cyan-400/70"
+                    className="w-1.5 h-3.5 rounded-full bg-gradient-to-t from-blue-600 via-cyan-400 to-fuchsia-400"
                   />
                 ))}
+                <span className="text-[9px] font-mono text-slate-500 ml-2 tracking-wider uppercase">
+                  Fast Inference Stream Active
+                </span>
               </div>
             </div>
           </div>

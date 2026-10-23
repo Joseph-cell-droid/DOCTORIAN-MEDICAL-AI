@@ -1285,7 +1285,8 @@ async function* callAIStream(options: {
                       config: {
                         systemInstruction: effectiveSystemInstruction,
                         temperature: temperature || 0.7,
-                        tools: useSearch ? [{ googleSearch: {} }] : undefined
+                        tools: useSearch ? [{ googleSearch: {} }] : undefined,
+                        thinkingConfig: { thinkingBudget: 0 }
                       }
                     });
                     success = true;
@@ -1330,7 +1331,8 @@ async function* callAIStream(options: {
                               contents: formattedContents,
                               config: {
                                 systemInstruction: effectiveSystemInstruction,
-                                temperature: temperature || 0.7
+                                temperature: temperature || 0.7,
+                                thinkingConfig: { thinkingBudget: 0 }
                               }
                             });
                             success = true;
@@ -11885,44 +11887,12 @@ function detectSpecificDiseaseMapping(prompt: string): string {
           activeTargetLang = 'English';
         }
 
-        // Auto Language Detection
-        if (activeTargetLang === 'Auto Detect') {
-          try {
-            const detectedRaw = await callAI({
-              messages: [{ role: 'user', text: `Identify the language of: "${rawUserMessage}"` }],
-              systemInstruction: "Identify the language of the query and return ONLY the capitalized name of the language (e.g. 'Luganda', 'Swahili', 'English', 'Spanish', 'French', 'German'). Do not include any explanations, periods, or extra text."
-            });
-            const cleanDetected = detectedRaw ? detectedRaw.trim().replace(/[\.\,\:\n\r]/g, "") : "English";
-            const match = cleanDetected.match(/(Luganda|Swahili|Kiswahili|English|Spanish|French|German|Ateso|Acholi|Luo|Runyankole|Lugbara|Lusoga|Portuguese|Russian|Japanese|Korean|Italian|Turkish|Hindi|Arabic)/i);
-            activeTargetLang = match ? match[0] : "English";
-            if (activeTargetLang.toLowerCase() === 'kiswahili') activeTargetLang = 'Swahili';
-          } catch (e) { activeTargetLang = 'English'; }
-        }
-
-        if (activeTargetLang.startsWith('English')) {
-          activeTargetLang = 'English';
-        }
-
-        // Forward Translation
-        if (activeTargetLang !== "English") {
-          try {
-            const translation = await callAI({
-              messages: [{ role: 'user', text: `Translate to English: "${rawUserMessage}"` }],
-              systemInstruction: "Translate the medical query to English."
-            });
-            if (translation) finalMessages[finalMessages.length - 1].text = translation;
-          } catch (e) { }
-        }
-
-        // knowledgeContext is already retrieved and populated above. We can update it here if translation changed finalMessages, or keep the existing resolved value.
-        if (activeTargetLang !== "English" && finalMessages[finalMessages.length - 1].text !== rawUserMessage) {
-          try {
-            const matchedKB = retrieveKnowledgeContext(userId, finalMessages[finalMessages.length - 1].text);
-            if (matchedKB) {
-              knowledgeContext = `\n\nINTERNAL MEDICAL RECORDS & CLINICAL GUIDELINES (LEARNED QUANTUM DATA):\n${matchedKB}`;
-            }
-          } catch (e) { }
-        }
+        // Direct Multilingual Fast-Path:
+        // Avoid blocking serial LLM round-trips for language detection or translation (which added 4-8s latency).
+        // High-speed Gemini / Gemma neural pathways natively comprehend and stream in all global and regional languages.
+        const MULTILINGUAL_DIRECTIVE = activeTargetLang !== 'English' && activeTargetLang !== 'Auto Detect'
+          ? `\n\n[STRICT LANGUAGE DIRECTIVE]: The user has chosen ${activeTargetLang}. Formulate and stream your response strictly, fluently, and naturally in standard ${activeTargetLang} with accurate clinical terminology.`
+          : `\n\n[MULTILINGUAL ADAPTIVE DIRECTIVE]: Detect the user's query language automatically (including Luganda, Swahili, Spanish, French, German, Arabic, Ateso, Acholi, Runyankole, or English) and reply directly, fluently, and warmly in that exact same language. No translation delays.`;
 
         // Model Selection & Tier-based Performance Mapping
         const tier = (user?.subscriptionTier || 'free').toLowerCase();
@@ -11979,7 +11949,7 @@ function detectSpecificDiseaseMapping(prompt: string): string {
 - If the conversation is standard, conversational, or focused, keep your entire response in ONE cohesive paragraph.
 - Be concise, direct, and fast.`;
         const diseaseSpecificOverlay = detectSpecificDiseaseMapping(rawUserMessage);
-        const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${diseaseSpecificOverlay}${EMOJI_CHUNKS_DIRECTIVE}`;
+        const enrichedSystemInstruction = `${systemInstruction}\n\n${knowledgeContext}${patientDataContext}${fineTunedModelInfo}${CLINICAL_BRAIN_TRAINING}${MULTILINGUAL_DIRECTIVE}${diseaseSpecificOverlay}${EMOJI_CHUNKS_DIRECTIVE}`;
 
         if (wantsStream) {
           res.setHeader('Content-Type', 'text/event-stream');
@@ -12002,21 +11972,8 @@ function detectSpecificDiseaseMapping(prompt: string): string {
             let success = false;
             for await (const chunk of stream) {
               success = true;
-              if (activeTargetLang !== "English") {
-                fullResponse += chunk;
-              } else {
-                const chunkObj = { text: chunk, credits: credits - 1 };
-                const encryptedChunk = encryptText(JSON.stringify(chunkObj));
-                res.write(`data: ${JSON.stringify({ encryptedChunk })}\n\n`);
-              }
-            }
-
-            if (success && activeTargetLang !== "English") {
-              const translated = await callAI({
-                messages: [{ role: 'user', text: `Translate the following medical advice into ${activeTargetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style: ${fullResponse}` }],
-                systemInstruction: `You are an elite clinical translator. Translate the medical advice accurately into ${activeTargetLang}. Ensure that medical terms are translated into standard ${activeTargetLang} terminology (e.g. use standard medical terms in Luganda, Swahili, French, German, Spanish, etc.), keeping the tone professional, comforting, precise, and completely faithful to the clinical content. STRICT RULE: Do not use any double asterisks (**) or single asterisks (*) anywhere in the translation.`
-              });
-              const chunkObj = { text: cleanAiResponseText(translated), credits: credits - 1 };
+              fullResponse += chunk;
+              const chunkObj = { text: chunk, credits: credits - 1 };
               const encryptedChunk = encryptText(JSON.stringify(chunkObj));
               res.write(`data: ${JSON.stringify({ encryptedChunk })}\n\n`);
             }

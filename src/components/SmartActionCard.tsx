@@ -14,6 +14,7 @@ export interface SmartActionCardProps {
   onNavigate?: (view: any) => void;
   onOpenVoiceCall: () => void;
   onOpenToolHub: (tab?: 'lab' | 'obstetric' | 'fluid' | 'soap') => void;
+  onOpenSOAPReferral?: () => void;
   onExportSummary: () => void;
   onShowNotice: (msg: string) => void;
   isUgandaMOHActive: boolean;
@@ -39,6 +40,7 @@ export const SmartActionCard: React.FC<SmartActionCardProps> = ({
   onNavigate,
   onOpenVoiceCall,
   onOpenToolHub,
+  onOpenSOAPReferral,
   onExportSummary,
   onShowNotice,
   isUgandaMOHActive,
@@ -245,14 +247,35 @@ export const SmartActionCard: React.FC<SmartActionCardProps> = ({
     {
       id: 'soap-note',
       category: 'clinical',
-      title: 'Generate SOAP Note',
-      desc: 'Full clinical Subjective, Objective, Assessment & Plan documentation',
+      title: 'EHR SOAP Note & Referral',
+      desc: 'Interactive Subjective, Objective, Assessment, Plan & MOH Referral Slip',
       icon: FileText,
-      badge: 'EHR Export',
+      badge: 'EHR & MOH',
       badgeColor: 'text-cyan-300 bg-cyan-500/20 border-cyan-500/40',
       action: () => {
-        onSendMessage(`Please generate a standardized clinical SOAP Note (Subjective, Objective, Assessment, Plan) summarizing our consultation for patient EHR medical records.`);
-        onShowNotice("Generating structured clinical SOAP note...");
+        if (onOpenSOAPReferral) {
+          onOpenSOAPReferral();
+        } else {
+          onSendMessage(`Please generate a standardized clinical SOAP Note (Subjective, Objective, Assessment, Plan) summarizing our consultation for patient EHR medical records.`);
+        }
+        onShowNotice("Opening Intelligent EHR SOAP Note & Referral Generator...");
+      }
+    },
+    {
+      id: 'predictive-triage',
+      category: 'triage',
+      title: 'Predictive Triage & Risk Forecast',
+      desc: 'Calculate NEWS2, qSOFA sepsis indicators & trajectory prediction',
+      icon: Activity,
+      badge: 'Predictive AI',
+      badgeColor: 'text-rose-300 bg-rose-500/20 border-rose-500/40',
+      action: () => {
+        if (onOpenSOAPReferral) {
+          onOpenSOAPReferral();
+        } else {
+          onSendMessage(`Please compute my predictive early warning scores (NEWS2, qSOFA sepsis criteria) and early warning forecast.`);
+        }
+        onShowNotice("Auditing early warning clinical scores...");
       }
     },
     {

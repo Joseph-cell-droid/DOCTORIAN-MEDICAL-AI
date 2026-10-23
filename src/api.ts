@@ -3435,6 +3435,78 @@ export const api = {
         timestamp: string;
       };
     },
+    async getMapsFacilities(options: {
+      query?: string;
+      latitude?: number;
+      longitude?: number;
+      specialty?: string;
+    }) {
+      if (isOffline()) {
+        const queryStr = options.query || options.specialty || "Emergency Hospital";
+        const fallbackUri = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryStr)}`;
+        return {
+          success: true,
+          isFallback: true,
+          summary: `Offline local directory: emergency care routes for "${queryStr}".`,
+          groundingChunks: [
+            {
+              maps: {
+                title: `${queryStr} on Google Maps`,
+                uri: fallbackUri
+              }
+            }
+          ],
+          facilities: [
+            {
+              title: "Mulago National Specialized Hospital",
+              address: "Mulago Hill Road, Kampala, Uganda",
+              specialty: "Level 1 Emergency & Trauma",
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Mulago National Specialized Hospital")}`
+            },
+            {
+              title: "Nakasero Hospital Emergency Care",
+              address: "14 Akii Bua Rd, Kampala",
+              specialty: "Critical Care & ICU",
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Nakasero Hospital Kampala")}`
+            }
+          ]
+        };
+      }
+
+      const res = await fetch(`${API_BASE}/ai/maps-facilities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(options),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to retrieve grounded facility records");
+      return data as {
+        success: boolean;
+        summary: string;
+        isFallback?: boolean;
+        groundingChunks: Array<{
+          maps?: {
+            title?: string;
+            uri?: string;
+            address?: string;
+          };
+          web?: {
+            title?: string;
+            uri?: string;
+          };
+        }>;
+        facilities?: Array<{
+          title: string;
+          uri: string;
+          address?: string;
+          specialty?: string;
+          phone?: string;
+          rating?: number;
+          distanceKm?: number;
+        }>;
+      };
+    },
     async deleteKnowledge(id: string) {
       return handleDeleteEndpoint(
         `${API_BASE}/ai/knowledge/${id}`,

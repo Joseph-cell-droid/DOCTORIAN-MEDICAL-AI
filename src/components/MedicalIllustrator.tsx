@@ -6,6 +6,7 @@ import {
   Video, Film, Volume2, VolumeX, Maximize2, Sliders, Radio, Clock, Compass, BookOpen, Clapperboard, Flame, Heart, Cpu
 } from 'lucide-react';
 import { api, User } from '../api';
+import { ThreeAnatomyViewer } from './ThreeAnatomyViewer';
 
 interface MedicalIllustratorProps {
   user: User | null;
@@ -27,8 +28,8 @@ export interface VideoData {
 }
 
 export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorProps) {
-  // Mode: Image vs Video
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  // Mode: Image vs Video vs Real-time Three.js 3D Model
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'threejs'>('image');
 
   // Common Prompt State
   const [prompt, setPrompt] = useState('');
@@ -459,7 +460,7 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
                   setMediaType('image');
                   stopNarration();
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
                   mediaType === 'image'
                     ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -474,15 +475,31 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
                   setMediaType('video');
                   stopNarration();
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
                   mediaType === 'video'
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Video size={14} />
-                <span>4K Video Animation</span>
-                <span className="px-1.5 py-0.5 text-[8px] bg-teal-400 text-slate-950 font-black rounded-md uppercase">New</span>
+                <span>4K Video</span>
+                <span className="px-1.5 py-0.5 text-[8px] bg-teal-400 text-slate-950 font-black rounded-md uppercase">4K</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMediaType('threejs');
+                  stopNarration();
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                  mediaType === 'threejs'
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-500/20'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Cpu size={14} />
+                <span>Interactive 3D</span>
+                <span className="px-1.5 py-0.5 text-[8px] bg-cyan-400 text-slate-950 font-black rounded-md uppercase">Three.js</span>
               </button>
             </div>
 
@@ -835,6 +852,21 @@ export function MedicalIllustrator({ user, onRefreshUser }: MedicalIllustratorPr
                       )}
                     </div>
                   </div>
+                </motion.div>
+              ) : mediaType === 'threejs' ? (
+                /* THREE.JS REAL-TIME 3D ANATOMICAL STUDIO */
+                <motion.div 
+                  key="threejs-studio"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-4"
+                >
+                  <ThreeAnatomyViewer 
+                    initialOrgan={
+                      interestCategory === 'Neurology' ? 'brain' : 
+                      interestCategory === 'Orthopedics' ? 'spine' : 'heart'
+                    } 
+                  />
                 </motion.div>
               ) : mediaType === 'video' && generatedVideo ? (
                 /* VIDEO RENDER STAGE */

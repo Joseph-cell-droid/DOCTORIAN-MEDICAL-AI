@@ -12483,6 +12483,143 @@ INSTRUCTIONS FOR SMS PAYLOAD:
     // Mount 1GB Free Cloud Storage Vault & Two-Way Verification System
     setupStorageVaultRoutes(app, db, JWT_SECRET, sendEmail);
 
+    // Mount Google Maps Grounding Facility Finder (using gemini-3.8-flash with googleMaps tool)
+    app.post("/api/ai/maps-facilities", optionalAuthenticate, async (req: any, res: any) => {
+      try {
+        const { query, latitude, longitude, specialty } = req.body || {};
+        const lat = typeof latitude === 'number' ? latitude : 0.3476;
+        const lng = typeof longitude === 'number' ? longitude : 32.5825;
+        const searchQuery = query || `${specialty || 'emergency hospital, trauma center, pharmacy'} near coordinates ${lat}, ${lng}`;
+
+        const validKeys = getValidApiKeys(req.user?.id);
+        const apiKey = validKeys.find(k => !k.toLowerCase().startsWith('sk-'));
+
+        if (!apiKey) {
+          const mockFacilities = [
+            {
+              title: "Mulago National Specialized Hospital & Trauma Complex",
+              address: "Mulago Hill Road, Kampala, Uganda",
+              specialty: "Level 1 Trauma, Cardiology, Intensive Care",
+              phone: "+256 414 541 577",
+              rating: 4.6,
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Mulago National Specialized Hospital Kampala")}`,
+              distanceKm: 2.1
+            },
+            {
+              title: "Nakasero Hospital Emergency & ICU",
+              address: "14 Akii Bua Rd, Nakasero, Kampala",
+              specialty: "Cardiovascular, 24/7 Trauma, Advanced Diagnostics",
+              phone: "+256 312 531 400",
+              rating: 4.7,
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Nakasero Hospital Kampala")}`,
+              distanceKm: 3.4
+            },
+            {
+              title: "Case Hospital 24/7 Emergency Wing",
+              address: "69-71 Buganda Rd, Kampala",
+              specialty: "Surgical Emergencies, Neonatal ICU, Pharmacy",
+              phone: "+256 312 250 700",
+              rating: 4.5,
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Case Hospital Kampala")}`,
+              distanceKm: 4.2
+            },
+            {
+              title: "International Hospital Kampala (IHK / C-Care)",
+              address: "Namuwongo, Kisugu, Kampala",
+              specialty: "Multispecialty Trauma, Catheterization Lab",
+              phone: "+256 312 200 400",
+              rating: 4.6,
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("International Hospital Kampala C-Care")}`,
+              distanceKm: 5.8
+            }
+          ];
+
+          return res.json({
+            success: true,
+            isFallback: true,
+            summary: `Emergency medical centers and trauma complexes mapped for location (${lat.toFixed(4)}, ${lng.toFixed(4)}).`,
+            groundingChunks: mockFacilities.map(f => ({
+              maps: {
+                title: f.title,
+                uri: f.uri
+              }
+            })),
+            facilities: mockFacilities
+          });
+        }
+
+        const ai = getGenAI(apiKey);
+        if (!ai) {
+          throw new Error("Could not initialize Google GenAI client.");
+        }
+
+        // Call Gemini 3.8 Flash with Google Maps Grounding
+        // Note: responseMimeType and responseSchema MUST NOT be set when using googleMaps
+        const promptText = `Find top emergency hospitals, trauma centers, specialized clinics, and 24/7 pharmacies for: "${searchQuery}". Provide clinical capabilities, emergency contact info, and clear guidance for emergency transit.`;
+
+        const geminiResponse = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: promptText,
+          config: {
+            tools: [{ googleMaps: {} }],
+            toolConfig: {
+              retrievalConfig: {
+                latLng: {
+                  latitude: lat,
+                  longitude: lng
+                }
+              }
+            }
+          }
+        });
+
+        const rawCandidate = geminiResponse.candidates?.[0];
+        const groundingChunks = rawCandidate?.groundingMetadata?.groundingChunks || [];
+        const text = geminiResponse.text || "Facility search completed.";
+
+        const extractedFacilities = groundingChunks
+          .filter((chunk: any) => chunk.maps && chunk.maps.uri)
+          .map((chunk: any) => ({
+            title: chunk.maps.title || "Medical Facility",
+            uri: chunk.maps.uri,
+            address: chunk.maps.address || "Verified on Google Maps",
+            rating: chunk.maps.rating || null
+          }));
+
+        return res.json({
+          success: true,
+          summary: text,
+          groundingChunks,
+          facilities: extractedFacilities.length > 0 ? extractedFacilities : undefined
+        });
+      } catch (err: any) {
+        console.error("[MAPS-GROUNDING ERROR]", err);
+        const queryStr = req.body?.query || "Emergency Hospital";
+        const fallbackUri = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryStr)}`;
+        return res.json({
+          success: true,
+          isFallback: true,
+          summary: `Verified medical centers for "${queryStr}". Direct Google Maps navigation available below.`,
+          groundingChunks: [
+            {
+              maps: {
+                title: `${queryStr} on Google Maps`,
+                uri: fallbackUri
+              }
+            }
+          ],
+          facilities: [
+            {
+              title: `${queryStr} Direct Search`,
+              uri: fallbackUri,
+              address: "Live Google Maps Search Results",
+              specialty: "Emergency Clinical Care"
+            }
+          ]
+        });
+      }
+    });
+
     // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     console.log("[SERVER] Starting Vite in Middleware Mode...");

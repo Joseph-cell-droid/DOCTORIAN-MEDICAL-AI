@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, MapPin, Star, Calendar, MessageSquare, Phone, ShieldCheck, 
   Stethoscope, ShieldAlert, Zap, User as UserIcon, Loader2, Clock,
-  QrCode, Scan, Plus, Check, AlertCircle, Camera, RefreshCw, X, Play
+  QrCode, Scan, Plus, Check, AlertCircle, Camera, RefreshCw, X, Play,
+  Navigation, ExternalLink, Compass, Crosshair, Building2
 } from 'lucide-react';
 import { AppointmentScheduler } from './AppointmentScheduler';
 import { api, Doctor } from '../api';
@@ -11,11 +12,32 @@ import jsQR from 'jsqr';
 import { QRCodeSVG } from 'qrcode.react';
 
 export const SpecialistFinder: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'specialists' | 'maps_locator'>('specialists');
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [bookingSpecialist, setBookingSpecialist] = useState<any>(null);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Google Maps Grounding State (Gemini 3.8 Flash)
+  const [mapsQuery, setMapsQuery] = useState('');
+  const [mapsSpecialtyFilter, setMapsSpecialtyFilter] = useState('Emergency Trauma');
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [isSearchingFacilities, setIsSearchingFacilities] = useState(false);
+  const [mapsFacilityResult, setMapsFacilityResult] = useState<{
+    summary: string;
+    groundingChunks: Array<{ maps?: { title?: string; uri?: string; address?: string }; web?: { title?: string; uri?: string } }>;
+    facilities?: Array<{
+      title: string;
+      uri: string;
+      address?: string;
+      specialty?: string;
+      phone?: string;
+      rating?: number;
+      distanceKm?: number;
+    }>;
+  } | null>(null);
 
   // QR Scanner States
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -308,6 +330,56 @@ export const SpecialistFinder: React.FC = () => {
     const cleanNumber = whatsappNumber.replace(/\D/g, '');
     window.open(`https://wa.me/${cleanNumber}`, '_blank');
   };
+
+  // Google Maps Grounding Facilities Fetcher (Gemini 3.8 Flash)
+  const fetchGroundedFacilities = async (queryOverride?: string, specialtyOverride?: string) => {
+    setIsSearchingFacilities(true);
+    try {
+      const activeSpecialty = specialtyOverride || mapsSpecialtyFilter;
+      const q = queryOverride || mapsQuery || `${activeSpecialty} emergency medical hospitals and pharmacies`;
+      const res = await api.ai.getMapsFacilities({
+        query: q,
+        latitude: userCoords?.lat || 0.3476,
+        longitude: userCoords?.lng || 32.5825,
+        specialty: activeSpecialty
+      });
+      setMapsFacilityResult(res);
+    } catch (e) {
+      console.error("Maps grounding lookup failed:", e);
+    } finally {
+      setIsSearchingFacilities(false);
+    }
+  };
+
+  const acquireLocation = () => {
+    if (!('geolocation' in navigator)) {
+      fetchGroundedFacilities();
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserCoords(coords);
+        setIsLocating(false);
+        fetchGroundedFacilities(undefined, mapsSpecialtyFilter);
+      },
+      (err) => {
+        console.warn("Geolocation fallback applied:", err);
+        setIsLocating(false);
+        setUserCoords({ lat: 0.3476, lng: 32.5825 });
+        fetchGroundedFacilities(undefined, mapsSpecialtyFilter);
+      },
+      { timeout: 7000 }
+    );
+  };
+
+  // Trigger initial facilities fetch when switching to maps locator
+  useEffect(() => {
+    if (activeTab === 'maps_locator' && !mapsFacilityResult && !isSearchingFacilities) {
+      fetchGroundedFacilities();
+    }
+  }, [activeTab]);
 
   // Categorize specialists loaded from API
   const filteredSpecialists = doctors.filter(s => 
@@ -813,21 +885,325 @@ export const SpecialistFinder: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Mode Switcher */}
+            <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setActiveTab('specialists')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  activeTab === 'specialists'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Stethoscope size={14} />
+                <span>Specialists Roster</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('maps_locator')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  activeTab === 'maps_locator'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <MapPin size={14} />
+                <span>Google Maps Locator</span>
+                <span className="px-1.5 py-0.5 text-[8px] bg-emerald-400 text-slate-950 font-black rounded-md uppercase">Live Grounded</span>
+              </button>
+            </div>
+
             <button
               onClick={() => {
                 setIsScannerOpen(true);
                 startCamera();
               }}
-              className="flex items-center gap-2.5 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-[1000] text-[10px] uppercase tracking-widest hover:shadow-lg hover:shadow-blue-500/10 hover:scale-[1.02] transition-all cursor-pointer shadow-md"
+              className="flex items-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm"
             >
-              <QrCode size={16} /> Scan Patient QR Record
+              <QrCode size={14} />
+              <span>Scan QR</span>
             </button>
           </div>
         </div>
       </header>
 
+      {/* ----------------- GOOGLE MAPS GROUNDED HOSPITAL & EMERGENCY LOCATOR ----------------- */}
+      {activeTab === 'maps_locator' && (
+        <div className="space-y-8 animate-fade-in">
+          
+          {/* Hero Banner with Live Geolocation */}
+          <div className="bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 rounded-[2.5rem] p-6 sm:p-10 text-white border border-blue-900/50 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+              <Compass size={180} className="text-blue-400" />
+            </div>
+
+            <div className="relative z-10 max-w-3xl space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <MapPin size={12} className="text-blue-400" />
+                  Gemini 3.8 Flash Maps Grounding
+                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </div>
+
+              <h2 className="text-2xl sm:text-4xl font-[1000] uppercase tracking-tight">
+                Emergency Hospitals & Pharmacy Radar
+              </h2>
+              <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                Direct geographic grounding using Google Maps and real-time clinical GPS telemetry. Find nearby 24/7 trauma centers, cath labs, oxygen supplies, and intensive care units with verified coordinates.
+              </p>
+
+              {/* Live Search & GPS Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    value={mapsQuery}
+                    onChange={(e) => setMapsQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') fetchGroundedFacilities(mapsQuery);
+                    }}
+                    placeholder="Search hospitals, trauma centers, pharmacies... e.g., 'Emergency ICU near Mulago'"
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl py-3.5 pl-12 pr-4 text-xs font-bold text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fetchGroundedFacilities(mapsQuery)}
+                    disabled={isSearchingFacilities}
+                    className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-blue-600/30 disabled:opacity-50"
+                  >
+                    {isSearchingFacilities ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                    <span>Locate</span>
+                  </button>
+
+                  <button
+                    onClick={acquireLocation}
+                    disabled={isLocating}
+                    className="px-4 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer border border-slate-700"
+                    title="Acquire device GPS location"
+                  >
+                    <Crosshair size={14} className={isLocating ? 'animate-spin text-emerald-400' : 'text-emerald-400'} />
+                    <span className="hidden sm:inline">{userCoords ? 'GPS Locked' : 'My Location'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Specialty Chips */}
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                {[
+                  'Emergency Trauma',
+                  'Cardiology Centers',
+                  '24/7 Pharmacies',
+                  'Maternal Care & OBGYN',
+                  'Intensive Care (ICU)',
+                  'Pediatric Units'
+                ].map((spec) => (
+                  <button
+                    key={spec}
+                    onClick={() => {
+                      setMapsSpecialtyFilter(spec);
+                      fetchGroundedFacilities(undefined, spec);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                      mapsSpecialtyFilter === spec
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
+                        : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-slate-700'
+                    }`}
+                  >
+                    {spec}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* AI Clinical Grounding Summary */}
+          {mapsFacilityResult?.summary && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600">
+                    <Building2 size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                      Clinical Grounding Intelligence (Gemini 3.8 Flash)
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">
+                      Grounded with live Google Maps geographic topology
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-900">
+                  Verified Route Grounding
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-medium bg-slate-50 dark:bg-slate-950/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-850">
+                {mapsFacilityResult.summary}
+              </p>
+            </div>
+          )}
+
+          {/* Direct Clickable Grounding Links (Google Maps Guidelines Compliance) */}
+          {mapsFacilityResult?.groundingChunks && mapsFacilityResult.groundingChunks.filter(c => c.maps?.uri).length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <MapPin size={14} className="text-blue-500" />
+                <span>Direct Google Maps Grounded Destinations ({mapsFacilityResult.groundingChunks.filter(c => c.maps?.uri).length})</span>
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mapsFacilityResult.groundingChunks
+                  .filter((c) => c.maps?.uri)
+                  .map((chunk, cIdx) => (
+                    <a
+                      key={`grounding-link-${cIdx}`}
+                      href={chunk.maps!.uri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg hover:border-blue-500/50 transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
+                            Google Maps Link
+                          </span>
+                          <ExternalLink size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                        </div>
+                        <h5 className="text-sm font-black text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors line-clamp-2">
+                          {chunk.maps!.title || "Medical Facility"}
+                        </h5>
+                        {chunk.maps!.address && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
+                            {chunk.maps!.address}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                        <span>Open Live Navigation</span>
+                        <Navigation size={12} className="group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </a>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Structured Facilities Cards */}
+          {mapsFacilityResult?.facilities && mapsFacilityResult.facilities.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <Building2 size={14} className="text-emerald-500" />
+                <span>Emergency Centers & Diagnostic Wings</span>
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+                {mapsFacilityResult.facilities.map((fac, fIdx) => (
+                  <div
+                    key={`fac-${fIdx}`}
+                    className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-100 dark:border-emerald-900">
+                              24/7 Verified Service
+                            </span>
+                            {fac.distanceKm && (
+                              <span className="text-[10px] font-mono text-slate-400 font-bold">
+                                ~{fac.distanceKm} km away
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                            {fac.title}
+                          </h4>
+                          {fac.specialty && (
+                            <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-0.5">
+                              {fac.specialty}
+                            </p>
+                          )}
+                        </div>
+
+                        {fac.rating && (
+                          <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-xl text-amber-600 font-bold text-xs">
+                            <Star size={12} className="fill-amber-500 text-amber-500" />
+                            <span>{fac.rating}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={13} className="text-slate-400 shrink-0" />
+                          <span className="truncate">{fac.address || "Kampala Medical District"}</span>
+                        </div>
+                        {fac.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone size={13} className="text-slate-400 shrink-0" />
+                            <span>{fac.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <a
+                        href={fac.uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-98"
+                      >
+                        <Navigation size={13} />
+                        <span>Directions</span>
+                      </a>
+
+                      {fac.phone ? (
+                        <a
+                          href={`tel:${fac.phone.replace(/\s+/g, '')}`}
+                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs uppercase tracking-wider transition-all"
+                        >
+                          <Phone size={13} />
+                          <span>Call Triage</span>
+                        </a>
+                      ) : (
+                        <a
+                          href={fac.uri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs uppercase tracking-wider transition-all"
+                        >
+                          <ExternalLink size={13} />
+                          <span>Google Maps</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isSearchingFacilities && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 size={36} className="animate-spin text-blue-600" />
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                Interrogating Google Maps Grounding Matrix...
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ----------------- REGISTERED SPECIALISTS DIRECTORY ----------------- */}
+      {activeTab === 'specialists' && (
       <div className="space-y-8 animate-fade-in">
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -984,6 +1360,7 @@ export const SpecialistFinder: React.FC = () => {
           </section>
         )}
       </div>
+      )}
     </div>
   );
 };

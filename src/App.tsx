@@ -111,6 +111,7 @@ import { AdminOnboardingPortal } from './components/AdminOnboardingPortal';
 import { EmergencySmsChat } from './components/EmergencySmsChat';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
+import { trustDevice, untrustDevice, detectDeviceName } from './utils/deviceRecognition';
 
 function safeLazy<P extends object = any>(
   importFn: () => Promise<any>,
@@ -939,7 +940,17 @@ export default function App() {
     } catch (e) {}
     return null;
   });
-  const [hasEnteredApp, setHasEnteredApp] = useState<boolean>(false);
+  const [hasEnteredApp, setHasEnteredApp] = useState<boolean>(() => {
+    try {
+      const isTrusted = localStorage.getItem('doctorian_trusted_device') === 'true';
+      const saved = localStorage.getItem('medical_user');
+      if (isTrusted && saved && saved !== 'undefined' && saved !== 'null') {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.email || parsed.id)) return true;
+      }
+    } catch (e) {}
+    return false;
+  });
   const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
   const [isScanLoading, setIsScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -1980,6 +1991,7 @@ export default function App() {
       console.error("Logout failed:", err);
     }
     localStorage.removeItem('medical_user');
+    untrustDevice();
     setUser(null);
     setHasEnteredApp(false);
     setCurrentView('home');
@@ -2522,9 +2534,26 @@ export default function App() {
           isDarkMode={isDarkMode}
           onToggleTheme={() => setIsDarkMode(!isDarkMode)}
           initialMode="none"
+          onContinueAsGuest={() => {
+            const guestUser: any = {
+              id: `guest-${Date.now()}`,
+              email: 'guest.clinical@doctorian.org',
+              displayName: 'Guest Clinical Officer',
+              role: 'user',
+              isGuest: true,
+              isDoctor: false
+            };
+            setUser(guestUser);
+            localStorage.setItem('medical_user', JSON.stringify(guestUser));
+            trustDevice(true);
+            setHasEnteredApp(true);
+            setIsAuthModalOpen(false);
+            addToast("Guest Clinical Mode active. Diagnostic and consultation tools enabled.", "info");
+          }}
           onSuccess={(authenticatedUser, isSignUp) => {
             setUser(authenticatedUser);
             localStorage.setItem('medical_user', JSON.stringify(authenticatedUser));
+            trustDevice(true);
             setHasEnteredApp(true);
             setIsAuthModalOpen(false);
             if (authenticatedUser.role === 'doctor' || (authenticatedUser as any).isDoctor) {
@@ -3079,6 +3108,27 @@ export default function App() {
                 </div>
 
 
+
+                {/* Restructured Executive Settings Icon Button with Feature Matrix */}
+                <div className="relative overflow-visible shrink-0">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsOperationsSettingsOpen(!isOperationsSettingsOpen)}
+                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer relative group ${
+                      isOperationsSettingsOpen 
+                        ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 border-cyan-400 text-white shadow-[0_0_18px_rgba(6,182,212,0.5)] ring-2 ring-cyan-400/40' 
+                        : 'bg-slate-100 border-slate-300 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-900/90 dark:hover:bg-slate-800'
+                    }`}
+                    aria-label="Executive Operations Settings & Feature Buttons Matrix"
+                    title="Executive Operations Settings & Feature Buttons Matrix"
+                  >
+                    <Settings size={18} className={`shrink-0 stroke-[2.2] transition-transform duration-500 ${
+                      isOperationsSettingsOpen ? 'text-white rotate-90' : 'text-cyan-500 group-hover:rotate-90'
+                    }`} />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 border-white dark:border-slate-950 shadow-[0_0_8px_rgba(6,182,212,1)] animate-pulse" />
+                  </motion.button>
+                </div>
 
                 {/* Doctorian Systems Menu Launchpad - Icon Only to Save Space */}
                 <div className="relative overflow-visible shrink-0">

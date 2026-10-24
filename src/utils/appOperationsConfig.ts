@@ -9,9 +9,13 @@ export interface AppOperationsConfig {
     offlineVaultSync: boolean;
     strict2FA: boolean;
     hapticFeedback: boolean;
+    ugandaMOHGuidelines: boolean;
+    deviceAutoRecognition: boolean;
+    heavyIntelligenceSuiteCached: boolean;
   };
   telemetryRate: '100Hz' | '1Hz' | '0.1Hz';
   sessionTimeout: '15m' | '1h' | '8h' | '30d';
+  themeMode: 'dark' | 'light' | 'eyecare';
   lastUpdated: string;
 }
 
@@ -26,9 +30,13 @@ export const DEFAULT_OPERATIONS_CONFIG: AppOperationsConfig = {
     offlineVaultSync: true,
     strict2FA: false,
     hapticFeedback: true,
+    ugandaMOHGuidelines: true,
+    deviceAutoRecognition: true,
+    heavyIntelligenceSuiteCached: true,
   },
   telemetryRate: '1Hz',
   sessionTimeout: '8h',
+  themeMode: 'dark',
   lastUpdated: new Date().toISOString()
 };
 

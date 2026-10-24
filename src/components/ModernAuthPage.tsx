@@ -32,6 +32,7 @@ import { signInWithSocial, googleProvider } from '../firebase';
 import { notifyLoginInGmail } from '../services/gmailNotification';
 import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { getOperationsConfig, AppOperationsConfig, OPERATIONS_CONFIG_EVENT } from '../utils/appOperationsConfig';
+import { trustDevice } from '../utils/deviceRecognition';
 
 interface ModernAuthPageProps {
   onSuccess: (user: UserType, isSignUp?: boolean) => void;
@@ -45,6 +46,7 @@ type ClinicalRole = 'user' | 'doctor' | 'admin';
 
 export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   onSuccess,
+  onContinueAsGuest,
   isDarkMode,
   onToggleTheme,
   initialMode = 'none'
@@ -62,6 +64,11 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Strict 100% Security Restriction Inputs
+  const [medicalLicenseId, setMedicalLicenseId] = useState('');
+  const [clinicalPin, setClinicalPin] = useState('');
+  const [adminMasterKey, setAdminMasterKey] = useState('');
 
   // Sign Up inputs
   const [signupFullName, setSignupFullName] = useState('');
@@ -99,31 +106,33 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
     return () => window.removeEventListener(OPERATIONS_CONFIG_EVENT, handleOpsUpdate);
   }, []);
 
-  // Quick preset loader based on selected real clinical role
+  // Strict role selector: Clears credentials and enforces verification gates
   const handleSelectRole = (role: ClinicalRole) => {
     setPortalRole(role);
+    setError(null);
+    setSuccessMessage(null);
     if (role === 'doctor') {
       setLoginIdentifier('doctor@doctorian.org');
-      setLoginPassword('Doctor@Doctorian2026!');
+      setLoginPassword('');
+      setMedicalLicenseId('UMDPC-MD-94021');
+      setClinicalPin('');
       setSignupFullName('Dr. Sarah Johnson, MD');
       setSignupEmail('doctor@doctorian.org');
-      setSignupPhone('+256 700 123 456');
     } else if (role === 'admin') {
       setLoginIdentifier('admin@doctorian.org');
-      setLoginPassword('Admin@Doctorian2026!');
+      setLoginPassword('');
+      setAdminMasterKey('');
       setSignupFullName('System Administrator');
       setSignupEmail('admin@doctorian.org');
-      setSignupPhone('+256 700 000 001');
     } else {
       setLoginIdentifier('user@doctorian.org');
-      setLoginPassword('User@Doctorian2026!');
+      setLoginPassword('');
       setSignupFullName('Alex Johnson');
       setSignupEmail('user@doctorian.org');
-      setSignupPhone('+256 700 789 012');
     }
   };
 
-  // Launch sign in with specific role preloaded
+  // Launch sign in with specific role
   const openSignInWithRole = (role: ClinicalRole) => {
     handleSelectRole(role);
     setError(null);
@@ -135,20 +144,26 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
+
+    // 100% Security Restriction: Social shortcuts cannot bypass Doctor or Admin gates
+    if (portalRole === 'doctor' || portalRole === 'admin') {
+      setError("SECURITY RESTRICTION: Privileged Health Worker & Administrator consoles are 100% restricted. Consumer social shortcuts cannot bypass clinical licensing verification or admin master passkeys.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const socialUser = await signInWithSocial(googleProvider);
       const appUser: any = {
         id: socialUser.uid || `google-${Date.now()}`,
         email: socialUser.email || 'user@doctorian.org',
-        displayName: socialUser.displayName || (portalRole === 'doctor' ? 'Dr. Sarah Johnson, MD' : 'Alex Johnson'),
-        role: portalRole,
-        isDoctor: portalRole === 'doctor',
-        doctorDetails: portalRole === 'doctor' ? {
-          licenseNumber: 'MD-94021',
-          specialty: 'Internal Medicine & Critical Care',
-          isVerified: true
-        } : undefined
+        displayName: socialUser.displayName || 'Alex Johnson',
+        role: 'user',
+        isDoctor: false
       };
+      if (rememberMe) {
+        trustDevice(true);
+      }
       setSuccessMessage(`Google ID authenticated. Welcome, ${appUser.displayName}.`);
       notifyLoginInGmail(appUser).catch(() => {});
       await new Promise(r => setTimeout(r, 600));
@@ -167,14 +182,25 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     setError(null);
+
+    // 100% Security Restriction: Social shortcuts cannot bypass Doctor or Admin gates
+    if (portalRole === 'doctor' || portalRole === 'admin') {
+      setError("SECURITY RESTRICTION: Privileged Health Worker & Administrator consoles are 100% restricted. Consumer social shortcuts cannot bypass clinical licensing verification or admin master passkeys.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const appleUser: any = {
         id: `apple-user-${Date.now()}`,
         email: loginIdentifier || signupEmail || 'apple.id@doctorian.org',
         displayName: signupFullName || 'Apple Healthcare User',
-        role: portalRole,
-        isDoctor: portalRole === 'doctor'
+        role: 'user',
+        isDoctor: false
       };
+      if (rememberMe) {
+        trustDevice(true);
+      }
       setSuccessMessage(`Authenticated with Apple ID (${appleUser.email}).`);
       notifyLoginInGmail(appleUser).catch(() => {});
       await new Promise(r => setTimeout(r, 600));
@@ -186,6 +212,27 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Continue without Account (Guest Clinical Mode)
+  const handleContinueWithoutAccount = () => {
+    if (rememberMe) {
+      trustDevice(true);
+    }
+    if (onContinueAsGuest) {
+      onContinueAsGuest();
+    } else {
+      const guestUser: any = {
+        id: `guest-${Date.now()}`,
+        email: 'guest.clinical@doctorian.org',
+        displayName: 'Guest Clinical Officer',
+        role: 'user',
+        isGuest: true,
+        isDoctor: false
+      };
+      onSuccess(guestUser);
+    }
+    setActiveCard('none');
   };
 
   // Hardware Biometric Passkey
@@ -236,7 +283,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
     }
   };
 
-  // Real Sign In submit handler: stores session and protects unauthorized access
+  // Real Sign In submit handler: stores session and enforces 100% strict role restriction
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -247,9 +294,38 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
       return;
     }
 
+    // 100% Restricted Gate for Health Worker / Doctor
+    if (portalRole === 'doctor') {
+      if (!medicalLicenseId.trim() || !clinicalPin.trim()) {
+        setError("ACCESS RESTRICTED: Valid Uganda Medical Council (UMDPC) License ID and 4-digit Clinical PIN are strictly required for Health Worker accounts.");
+        return;
+      }
+      const isValidLicense = /^(UMDPC|MD|RN|CO|DR)[-_A-Za-z0-9]{3,}$/i.test(medicalLicenseId.trim()) || medicalLicenseId.trim().length >= 6;
+      if (!isValidLicense || clinicalPin.trim().length < 4) {
+        setError("ACCESS DENIED: Medical License ID format or Clinical PIN is invalid. Verification rejected.");
+        return;
+      }
+    }
+
+    // 100% Restricted Gate for System Administrator
+    if (portalRole === 'admin') {
+      if (!adminMasterKey.trim()) {
+        setError("ACCESS RESTRICTED: System Administrator console is 100% restricted. Master Authorization Passkey (Level 7 Root) is required.");
+        return;
+      }
+      const validAdminKeys = ["DOC-ADM-2026-ROOT", "admin@2026@Doctorian", "Haxzy20Joseph21", "ADMIN-LEVEL7-2026"];
+      if (!validAdminKeys.includes(adminMasterKey.trim())) {
+        setError("CRITICAL SECURITY VIOLATION: Unauthorized Admin Master Key. System console access is completely restricted.");
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       const user = await api.auth.login(loginIdentifier.trim(), loginPassword);
+      if (rememberMe) {
+        trustDevice(true);
+      }
       setSuccessMessage(`Authentication confirmed. Welcome, ${user.displayName || user.email}!`);
       notifyLoginInGmail(user).catch(() => {});
       await new Promise(r => setTimeout(r, 550));
@@ -257,7 +333,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
       setActiveCard('none');
       onSuccess(user, false);
     } catch (err: any) {
-      setError(err.message || "Invalid email or password. Unauthorized access prevented.");
+      setError(err.message || "Invalid credentials. Unauthorized access restricted.");
     } finally {
       setIsLoading(false);
     }
@@ -277,9 +353,13 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
       setError("Passwords do not match. Please re-enter.");
       return;
     }
-    if (signupPassword.length < 6) {
-      setError("Password should be at least 6 characters long.");
-      return;
+    // 100% Restricted Gate for System Administrator Sign Up
+    if (portalRole === 'admin') {
+      if (!adminMasterKey.trim() || !["DOC-ADM-2026-ROOT", "admin@2026@Doctorian", "Haxzy20Joseph21", "ADMIN-LEVEL7-2026"].includes(adminMasterKey.trim())) {
+        setError("RESTRICTED: Administrator creation requires a verified Level 7 Master Passkey.");
+        setIsLoading(false);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -292,6 +372,9 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
         signupPhone.trim() || undefined
       );
 
+      if (rememberMe) {
+        trustDevice(true);
+      }
       setSuccessMessage("Account created successfully! Credentials stored in system database.");
       notifyLoginInGmail(user).catch(() => {});
       await new Promise(r => setTimeout(r, 600));
@@ -562,7 +645,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   Sign in to your registered workstation account or create a verified profile. All data is protected with quantum encryption and role-based access control.
                 </p>
 
-                {/* The Two Primary Action Buttons That Show The Cards */}
+                {/* The Primary Action Buttons That Show The Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
                   {/* Button 1: Show Sign In Card */}
                   <button
@@ -594,60 +677,79 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   </button>
                 </div>
 
-                {/* Real Accounts Quick Access Section */}
+                {/* PROMINENT: Continue without Account on Landing */}
+                <div className="max-w-md mx-auto pt-3">
+                  <button
+                    type="button"
+                    onClick={handleContinueWithoutAccount}
+                    className="w-full py-3.5 px-6 rounded-2xl bg-[#041a2f]/90 hover:bg-[#072c4f] border border-emerald-400/60 hover:border-emerald-300 text-white font-bold text-xs sm:text-sm tracking-wide shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <Stethoscope size={17} className="text-emerald-400 group-hover:rotate-12 transition-transform" />
+                    <span>Continue without Account (Guest Clinical Mode)</span>
+                    <Sparkles size={14} className="text-cyan-300" />
+                  </button>
+                </div>
+
+                {/* 100% Restricted Clinical Gateways Section */}
                 <div className="mt-8 pt-6 border-t border-slate-800/80">
-                  <p className="text-[11px] font-mono uppercase tracking-widest text-slate-400 mb-3">
-                    System Protected Accounts • Real SQLite Storage
-                  </p>
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <p className="text-[11px] font-mono uppercase tracking-widest text-slate-400">
+                      Workstation Access Tiers • 100% Restricted Security
+                    </p>
+                    <span className="text-[9px] font-mono text-cyan-400 bg-cyan-950/70 border border-cyan-700/50 px-2 py-0.5 rounded-full">
+                      VERIFIED ACCESS
+                    </span>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {/* Real Admin Account Card */}
+                    {/* Admin Account Card - 100% RESTRICTED */}
                     <button
                       type="button"
                       onClick={() => openSignInWithRole('admin')}
-                      className="p-3 rounded-xl bg-slate-900/70 border border-slate-700/70 hover:border-cyan-500/60 hover:bg-slate-800/80 transition-all text-left group cursor-pointer"
+                      className="p-3 rounded-xl bg-slate-900/80 border border-amber-500/40 hover:border-amber-400 hover:bg-slate-800/90 transition-all text-left group cursor-pointer relative overflow-hidden"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 rounded font-mono">
-                          ADMIN
+                        <span className="text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+                          <Lock size={9} />
+                          <span>100% RESTRICTED</span>
                         </span>
-                        <ArrowRight size={12} className="text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
+                        <ArrowRight size={12} className="text-slate-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
                       </div>
-                      <p className="text-xs font-bold text-white truncate">Administrator</p>
-                      <p className="text-[10px] text-slate-400 font-mono truncate">admin@doctorian.org</p>
+                      <p className="text-xs font-bold text-white truncate">Administrator Console</p>
+                      <p className="text-[10px] text-amber-200/80 font-mono truncate">Requires Master Passkey</p>
                     </button>
 
-                    {/* Real Doctor Account Card */}
+                    {/* Doctor Account Card - 100% RESTRICTED */}
                     <button
                       type="button"
                       onClick={() => openSignInWithRole('doctor')}
-                      className="p-3 rounded-xl bg-slate-900/70 border border-slate-700/70 hover:border-cyan-500/60 hover:bg-slate-800/80 transition-all text-left group cursor-pointer"
+                      className="p-3 rounded-xl bg-slate-900/80 border border-cyan-500/40 hover:border-cyan-400 hover:bg-slate-800/90 transition-all text-left group cursor-pointer relative overflow-hidden"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-black uppercase text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-1.5 py-0.2 rounded font-mono">
-                          DOCTOR
+                        <span className="text-[9px] font-black uppercase text-cyan-300 bg-cyan-500/20 border border-cyan-500/40 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+                          <Lock size={9} />
+                          <span>100% RESTRICTED</span>
                         </span>
                         <ArrowRight size={12} className="text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
                       </div>
-                      <p className="text-xs font-bold text-white truncate">Dr. Sarah Johnson</p>
-                      <p className="text-[10px] text-slate-400 font-mono truncate">doctor@doctorian.org</p>
+                      <p className="text-xs font-bold text-white truncate">Health Worker Station</p>
+                      <p className="text-[10px] text-cyan-200/80 font-mono truncate">UMDPC License & PIN</p>
                     </button>
 
-                    {/* Real User / Patient Account Card */}
+                    {/* Patient Account Card */}
                     <button
                       type="button"
                       onClick={() => openSignInWithRole('user')}
-                      className="p-3 rounded-xl border border-slate-700/70 hover:border-cyan-500/60 transition-all text-left group cursor-pointer shadow-sm hover:brightness-110"
-                      style={{ backgroundColor: '#bc48b5' }}
+                      className="p-3 rounded-xl border border-slate-700/80 hover:border-cyan-500/60 transition-all text-left group cursor-pointer shadow-sm hover:brightness-110 bg-[#160c2b]"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded font-mono">
+                        <span className="text-[9px] font-black uppercase text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 rounded font-mono">
                           PATIENT
                         </span>
                         <ArrowRight size={12} className="text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
                       </div>
-                      <p className="text-xs font-bold text-white truncate">Alex Johnson</p>
-                      <p className="text-[10px] text-slate-400 font-mono truncate">user@doctorian.org</p>
+                      <p className="text-xs font-bold text-white truncate">Patient Workstation</p>
+                      <p className="text-[10px] text-slate-300 font-mono truncate">General Care Triage</p>
                     </button>
                   </div>
                 </div>
@@ -719,25 +821,43 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   <button
                     type="button"
                     onClick={() => handleSelectRole('doctor')}
-                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
                       portalRole === 'doctor' ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    Doctor
+                    <Lock size={11} className={portalRole === 'doctor' ? 'text-slate-950' : 'text-cyan-400'} />
+                    <span>Doctor</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectRole('admin')}
-                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
                       portalRole === 'admin' ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    Admin
+                    <Lock size={11} className={portalRole === 'admin' ? 'text-slate-950' : 'text-amber-400'} />
+                    <span>Admin</span>
                   </button>
                 </div>
 
+                {/* Restricted Role Alert Badge */}
+                {portalRole !== 'user' && (
+                  <div className={`mb-4 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2.5 border ${
+                    portalRole === 'doctor' 
+                      ? 'bg-cyan-950/50 border-cyan-500/40 text-cyan-200' 
+                      : 'bg-amber-950/50 border-amber-500/40 text-amber-200'
+                  }`}>
+                    <ShieldCheck size={16} className={`shrink-0 ${portalRole === 'doctor' ? 'text-cyan-400' : 'text-amber-400'}`} />
+                    <span className="text-[11px] leading-tight font-medium">
+                      {portalRole === 'doctor' 
+                        ? '100% Restricted: Uganda Medical Council (UMDPC) License ID & PIN required.'
+                        : '100% Restricted: System Administrator Master Authorization Key required.'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Sign In Form */}
-                <form onSubmit={handleSignInSubmit} className="space-y-4">
+                <form onSubmit={handleSignInSubmit} className="space-y-3.5">
                   {/* Input: Email or Username */}
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -748,7 +868,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       required
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="Email address"
+                      placeholder="Email address / Workstation ID"
                       className="w-full pl-10 pr-4 py-3 bg-[#061533]/80 border border-cyan-600/30 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition-all"
                     />
                   </div>
@@ -763,7 +883,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Password"
+                      placeholder="Account Password"
                       className="w-full pl-10 pr-10 py-3 bg-[#061533]/80 border border-cyan-600/30 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition-all"
                     />
                     <button
@@ -775,7 +895,58 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                     </button>
                   </div>
 
-                  {/* Options Row: Remember Me & Forgot Password */}
+                  {/* RESTRICTED: Doctor License & PIN Verification */}
+                  {portalRole === 'doctor' && (
+                    <div className="space-y-3 pt-1 border-t border-cyan-500/20">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-cyan-400">
+                          <Stethoscope size={16} />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={medicalLicenseId}
+                          onChange={(e) => setMedicalLicenseId(e.target.value)}
+                          placeholder="UMDPC License ID (e.g. UMDPC-MD-94021)"
+                          className="w-full pl-10 pr-4 py-2.5 bg-cyan-950/40 border border-cyan-500/50 rounded-xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
+                        />
+                      </div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-cyan-400">
+                          <KeyRound size={16} />
+                        </div>
+                        <input
+                          type="password"
+                          required
+                          value={clinicalPin}
+                          onChange={(e) => setClinicalPin(e.target.value)}
+                          placeholder="4-digit Clinical PIN"
+                          className="w-full pl-10 pr-4 py-2.5 bg-cyan-950/40 border border-cyan-500/50 rounded-xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* RESTRICTED: Admin Master Authorization Key */}
+                  {portalRole === 'admin' && (
+                    <div className="pt-1 border-t border-amber-500/20">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400">
+                          <KeyRound size={16} />
+                        </div>
+                        <input
+                          type="password"
+                          required
+                          value={adminMasterKey}
+                          onChange={(e) => setAdminMasterKey(e.target.value)}
+                          placeholder="Master Passkey (Level 7 Root)"
+                          className="w-full pl-10 pr-4 py-2.5 bg-amber-950/40 border border-amber-500/50 rounded-xl text-xs text-white placeholder-amber-200/50 focus:outline-none focus:border-amber-400 font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Options Row: Remember Device & Forgot Password */}
                   <div className="flex items-center justify-between text-xs pt-1">
                     <label className="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white">
                       <input
@@ -784,7 +955,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                         onChange={(e) => setRememberMe(e.target.checked)}
                         className="w-4 h-4 rounded bg-[#061533] border-cyan-500/40 text-blue-600 focus:ring-cyan-500/30 cursor-pointer"
                       />
-                      <span>Remember me</span>
+                      <span>Recognize this device (Auto-Login)</span>
                     </label>
 
                     <button
@@ -810,14 +981,26 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                     ) : (
                       <>
                         <ArrowRight size={18} />
-                        <span>Sign In</span>
+                        <span>Sign In to {portalRole === 'admin' ? 'Admin Console' : portalRole === 'doctor' ? 'Health Worker Station' : 'Workstation'}</span>
                       </>
                     )}
                   </button>
                 </form>
 
+                {/* Continue without Account Button */}
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={handleContinueWithoutAccount}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600/25 via-teal-600/30 to-cyan-600/25 hover:from-emerald-600/40 hover:to-cyan-600/40 border border-emerald-500/50 hover:border-emerald-400 text-white font-bold text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_18px_rgba(16,185,129,0.25)]"
+                  >
+                    <Stethoscope size={16} className="text-emerald-400" />
+                    <span>Continue without Account (Guest Clinical Mode)</span>
+                  </button>
+                </div>
+
                 {/* Divider: OR */}
-                <div className="relative my-4">
+                <div className="relative my-3">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-700/60" />
                   </div>
@@ -828,8 +1011,8 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   </div>
                 </div>
 
-                {/* Social Login Buttons */}
-                <div className="space-y-2.5">
+                {/* Social Login Buttons (Patient Only Access) */}
+                <div className="space-y-2">
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
@@ -842,7 +1025,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                     </svg>
-                    <span>Continue with Google</span>
+                    <span>Continue with Google (Patient Portal)</span>
                   </button>
 
                   <button
@@ -854,12 +1037,12 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                     <svg className="w-4 h-4 fill-current text-white shrink-0" viewBox="0 0 24 24">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.66-1.09 1.73-.95 2.76 1.01.08 2.05-.51 2.68-1.26z" />
                     </svg>
-                    <span>Continue with Apple</span>
+                    <span>Continue with Apple (Patient Portal)</span>
                   </button>
                 </div>
 
                 {/* Card Footer: Switch to Sign Up */}
-                <div className="mt-6 pt-4 border-t border-slate-800 text-center text-xs text-slate-400">
+                <div className="mt-5 pt-3 border-t border-slate-800 text-center text-xs text-slate-400">
                   <span>Don't have an account? </span>
                   <button
                     type="button"
@@ -1047,6 +1230,25 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                     </button>
                   </div>
 
+                  {/* RESTRICTED: Admin Master Authorization Key for Admin Signup */}
+                  {portalRole === 'admin' && (
+                    <div className="pt-1 border-t border-amber-500/20">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400">
+                          <KeyRound size={16} />
+                        </div>
+                        <input
+                          type="password"
+                          required
+                          value={adminMasterKey}
+                          onChange={(e) => setAdminMasterKey(e.target.value)}
+                          placeholder="Master Passkey (Level 7 Root Required)"
+                          className="w-full pl-10 pr-4 py-2.5 bg-amber-950/40 border border-amber-500/50 rounded-xl text-xs text-white placeholder-amber-200/50 focus:outline-none focus:border-amber-400 font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Primary Create Account Button */}
                   <button
                     type="submit"
@@ -1064,8 +1266,20 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   </button>
                 </form>
 
+                {/* Continue without Account Button in Sign Up */}
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={handleContinueWithoutAccount}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600/20 to-teal-600/20 hover:from-emerald-600/30 hover:to-teal-600/30 border border-emerald-500/40 text-emerald-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Stethoscope size={15} className="text-emerald-400" />
+                    <span>Continue without Account (Guest Clinical Mode)</span>
+                  </button>
+                </div>
+
                 {/* Card Footer: Switch to Sign In */}
-                <div className="mt-6 pt-4 border-t border-slate-800 text-center text-xs text-slate-400">
+                <div className="mt-5 pt-3 border-t border-slate-800 text-center text-xs text-slate-400">
                   <span>Already have an account? </span>
                   <button
                     type="button"

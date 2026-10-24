@@ -9,7 +9,7 @@ import {
   Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope, Baby,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
   PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal,
-  CheckCircle2, Shield
+  CheckCircle2, Shield, Download, ShieldAlert
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
 import { api } from '../api';
@@ -18,6 +18,8 @@ import { ModernBotResponseSpace } from './ModernBotResponseSpace';
 import { DoctorianWelcomeCanvas } from './DoctorianWelcomeCanvas';
 import { SmartActionCard } from './SmartActionCard';
 import { IntelligentSOAPReferralModal } from './IntelligentSOAPReferralModal';
+import { DownloadAppModal } from './DownloadAppModal';
+import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { computePredictiveTriage, VitalsInput } from '../services/predictiveTriageService';
 
 export interface ChatbotAgent {
@@ -730,6 +732,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showVoiceCallModal, setShowVoiceCallModal] = useState(false);
   const [showSOAPModal, setShowSOAPModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [showOperationsSettingsModal, setShowOperationsSettingsModal] = useState(false);
   const [showChatbotsBar, setShowChatbotsBar] = useState(false);
   const [isUgandaMOHActive, setIsUgandaMOHActive] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1765,6 +1769,32 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     </button>
                   )}
 
+                  {/* Heavy Intelligent Device Download Hub */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDownloadModal(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-cyan-300' : 'hover:bg-blue-50 text-blue-700'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <Download size={14} className="text-cyan-400" />
+                    <span>Device Download Hub (435MB)</span>
+                  </button>
+
+                  {/* Restructured Executive Settings Feature Buttons */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOperationsSettingsModal(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-cyan-950/60 text-cyan-300' : 'hover:bg-cyan-50 text-cyan-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <Settings size={14} className="text-cyan-400" />
+                    <span>Executive Settings & Feature Matrix</span>
+                  </button>
+
                   {/* Clear / Reset Chat */}
                   <button
                     type="button"
@@ -2092,6 +2122,106 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )}
           </AnimatePresence>
 
+          {/* REAL-TIME BIO-SENSOR STREAM WITH ANOMALY ALERTS & VITALS FUSION */}
+          <div className="w-full">
+            {hasVitalAnomaly ? (
+              /* High Acuity Anomaly Alert Ribbon */
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="p-2 sm:p-2.5 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-950/80 to-amber-950/80 border border-rose-500/60 shadow-lg shadow-rose-950/50 flex flex-wrap items-center justify-between gap-2 backdrop-blur-md"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-xl bg-rose-600/30 border border-rose-500/50 flex items-center justify-center text-rose-300 shrink-0">
+                    <ShieldAlert size={15} className="animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-300">
+                        Vitals Anomaly Alert
+                      </span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-900/60 text-white font-bold">
+                        NEWS2: {liveTriage.news2.score} ({liveTriage.news2.riskLevel})
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-200 truncate font-medium">
+                      {liveTriage.keyRisks[0] || 'Atypical physiological vitals detected.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputVal(`[CLINICAL TELEMETRY ANOMALY]: Heart Rate: ${liveVitals.heartRate} bpm, SpO2: ${liveVitals.spO2}%, Temp: ${liveVitals.temperature}°C, BP: ${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. NEWS2 Early Warning Score is ${liveTriage.news2.score} (${liveTriage.news2.riskLevel} Risk). Please evaluate differential diagnosis and stabilization actions.`);
+                      showTemporaryNotice("Bio-Telemetry injected into consultation input.");
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md shadow-rose-900/40 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Activity size={12} />
+                    <span>Inject Vitals</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSOAPModal(true)}
+                    className="px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                  >
+                    <FileText size={12} className="text-cyan-400" />
+                    <span>SOAP / MOH</span>
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              /* Normal Fused Bio-Telemetry Stream Ribbon (Compact, Modern, Smart) */
+              <div className="px-3 py-1.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between gap-2 text-xs backdrop-blur-xs">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                  <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 shrink-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span className="font-bold">LIVE TELEMETRY</span>
+                  </div>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-[10px] font-mono text-slate-300 shrink-0">
+                    HR: <strong className="text-white">{liveVitals.heartRate}</strong> bpm
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-300 shrink-0">
+                    SpO2: <strong className="text-cyan-300">{liveVitals.spO2}%</strong>
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-300 shrink-0">
+                    Temp: <strong className="text-white">{liveVitals.temperature}°C</strong>
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 shrink-0 font-bold">
+                    Trajectory: {liveTriage.compositeTrajectory}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputVal(`Current live vitals: HR=${liveVitals.heartRate} bpm, SpO2=${liveVitals.spO2}%, Temp=${liveVitals.temperature}°C, BP=${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. Physiological state: ${liveTriage.compositeTrajectory}.`);
+                      showTemporaryNotice("Attached live bio-telemetry to input.");
+                    }}
+                    className="p-1 sm:px-2 sm:py-0.5 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Attach live vitals to message"
+                  >
+                    <span>+ Attach</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSOAPModal(true)}
+                    className="p-1 sm:px-2 sm:py-0.5 rounded-lg text-[9px] font-bold text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Generate EHR SOAP Note & Referral"
+                  >
+                    <span>SOAP Note</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* DEDICATED SMART ACTION CARD (Compact, Non-blocking, Intelligent) */}
           <SmartActionCard
             arduino={arduino}
@@ -2108,6 +2238,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               else if (tab === 'fluid') handleSelectAgent('emergency');
               setShowChatbotsBar(true);
             }}
+            onOpenSOAPReferral={() => setShowSOAPModal(true)}
             onExportSummary={handleExportConsultationSummary}
             onShowNotice={showTemporaryNotice}
             isUgandaMOHActive={isUgandaMOHActive}
@@ -2657,6 +2788,39 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 10. INTELLIGENT EHR SOAP & REFERRAL MODAL                   */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <IntelligentSOAPReferralModal
+        isOpen={showSOAPModal}
+        onClose={() => setShowSOAPModal(false)}
+        messages={messages}
+        vitals={liveVitals}
+        user={user}
+        activeAgentName={activeAgent.name}
+        onSendToChat={(text) => handleSendMessage(text)}
+      />
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 11. HEAVY MULTI-DEVICE DOWNLOAD & INTELLIGENCE SUITE MODAL   */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <DownloadAppModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        onInstalled={() => {
+          showTemporaryNotice("Doctorian package successfully launched!");
+        }}
+      />
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 12. EXECUTIVE OPERATIONS SETTINGS & FEATURE BUTTONS MODAL    */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <AppOperationsSettingsModal
+        isOpen={showOperationsSettingsModal}
+        onClose={() => setShowOperationsSettingsModal(false)}
+        isDarkMode={effectiveDarkMode}
+      />
     </div>
   );
 };

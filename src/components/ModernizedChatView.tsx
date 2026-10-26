@@ -20,6 +20,7 @@ import { SmartActionCard } from './SmartActionCard';
 import { IntelligentSOAPReferralModal } from './IntelligentSOAPReferralModal';
 import { DownloadAppModal } from './DownloadAppModal';
 import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
+import { TelehealthScribeHub } from './TelehealthScribeHub';
 import { computePredictiveTriage, VitalsInput } from '../services/predictiveTriageService';
 
 export interface ChatbotAgent {
@@ -2512,120 +2513,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showVoiceCallModal && (
-          <div className="fixed inset-0 z-[200] w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden text-white">
-            {/* Header */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                  <Stethoscope size={20} className="text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-black tracking-wide text-white">DOCTORIAN TELEHEALTH SUITE</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> CONNECTED
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-cyan-300 font-medium">Dr. Joseph EBRO • Senior Clinical Consultant</p>
-                </div>
-              </div>
-
-              {/* Mode Selector */}
-              <div className="flex items-center bg-slate-900 p-1 rounded-2xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setCallMode('video')}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    callMode === 'video'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Video size={13} />
-                  <span>HD Video</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCallMode('voice')}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    callMode === 'voice'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Phone size={13} />
-                  <span>Voice Only</span>
-                </button>
-              </div>
-
-              {/* Close / End Call */}
-              <button
-                type="button"
-                onClick={() => setShowVoiceCallModal(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Main Stage */}
-            <div className="flex-1 flex flex-col items-center justify-center relative p-6 bg-gradient-to-b from-slate-950 via-[#06122d] to-slate-950">
-              {/* Doctor Avatar / Video */}
-              <div className="relative flex flex-col items-center">
-                <div className="w-40 h-40 sm:w-52 sm:h-52 rounded-full border-4 border-cyan-400/50 p-2 shadow-[0_0_50px_rgba(6,182,212,0.35)] relative overflow-hidden bg-gradient-to-b from-blue-900 to-slate-900 flex items-center justify-center">
-                  <Doctorian3DRobot size="lg" isAvatar={false} />
-                  {/* Waveform Pulse ring */}
-                  <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-25 pointer-events-none" />
-                </div>
-
-                <div className="text-center mt-6 space-y-1">
-                  <h3 className="text-xl font-black text-white tracking-wide">Doctorian Tele-Clinical Specialist</h3>
-                  <p className="text-xs text-cyan-300 font-mono">Real-Time Audio Consultation • Call Duration: {formatCallTime(callDuration)}</p>
-                  <p className="text-xs text-slate-400 max-w-md pt-2">
-                    "I am listening to your breathing and symptom reports. Speak freely, and I will analyze clinical risk parameters in real-time."
-                  </p>
-                </div>
-
-                {/* Animated Audio Frequency Bars */}
-                <div className="flex items-center gap-1.5 mt-6 h-8">
-                  {[12, 28, 16, 32, 24, 18, 36, 20, 14, 26, 30, 16].map((h, i) => (
-                    <motion.span
-                      key={i}
-                      animate={{ height: [h * 0.4, h, h * 0.4] }}
-                      transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.08 }}
-                      className="w-1.5 bg-gradient-to-t from-cyan-500 to-blue-500 rounded-full"
-                      style={{ height: h }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Call Control Dock */}
-            <div className="p-6 bg-slate-950 border-t border-slate-800 flex items-center justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => setIsCallMuted(!isCallMuted)}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                  isCallMuted ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                }`}
-                title={isCallMuted ? 'Unmute microphone' : 'Mute microphone'}
-              >
-                {isCallMuted ? <MicOff size={20} /> : <Mic size={20} />}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowVoiceCallModal(false);
-                }}
-                className="px-6 py-3 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-rose-600/30 cursor-pointer transition-all"
-              >
-                <PhoneOff size={18} />
-                <span>End Consultation</span>
-              </button>
-            </div>
-          </div>
+          <TelehealthScribeHub
+            key="chatview-telehealth-hub"
+            isOpen={showVoiceCallModal}
+            onClose={() => setShowVoiceCallModal(false)}
+            initialMode={callMode}
+            doctorName="Dr. Gloria Jayakullo"
+            patientName={user?.displayName || 'Joseph A. (Patient)'}
+          />
         )}
       </AnimatePresence>
 

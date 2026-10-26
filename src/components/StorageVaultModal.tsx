@@ -34,6 +34,7 @@ import {
   Layers,
   Clock,
   Globe,
+  HelpCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -635,6 +636,22 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                  window.dispatchEvent(new CustomEvent('doctorian_open_page_tutorial', { detail: { view: 'storage' } }));
+                }
+                if (onShowToast) {
+                  onShowToast('1GB Free Cloud Vault Guide: 1,024 MB allocated for DICOM scans, lab PDFs & EHR with AES-256 encryption.', 'info');
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-colors cursor-pointer"
+              title="Learn about 1GB Free Storage Vault"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">1GB Vault Guide</span>
+            </button>
             {authStep === 'unlocked' && (
               <button
                 type="button"

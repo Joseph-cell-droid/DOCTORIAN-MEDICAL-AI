@@ -22,6 +22,7 @@ interface AppOperationsSettingsModalProps {
   onConfigSaved?: (config: AppOperationsConfig) => void;
   isDarkMode?: boolean;
   onToggleTheme?: () => void;
+  onOpenTutorial?: () => void;
 }
 
 export const AppOperationsSettingsModal: React.FC<AppOperationsSettingsModalProps> = ({
@@ -29,7 +30,8 @@ export const AppOperationsSettingsModal: React.FC<AppOperationsSettingsModalProp
   onClose,
   onConfigSaved,
   isDarkMode,
-  onToggleTheme
+  onToggleTheme,
+  onOpenTutorial
 }) => {
   const [config, setConfig] = useState<AppOperationsConfig>(() => getOperationsConfig());
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -259,6 +261,36 @@ export const AppOperationsSettingsModal: React.FC<AppOperationsSettingsModalProp
 
         {/* Modal Body - Scrollable Content */}
         <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-left no-scrollbar">
+
+          {/* Interactive Guided Page Tutorial Launcher */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-teal-900/30 border border-blue-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <BookOpen size={20} />
+              </div>
+              <div>
+                <h5 className="text-xs font-black uppercase text-white tracking-wide flex items-center gap-2">
+                  Interactive Page Tutorials & User Guide
+                  <span className="text-[9px] bg-blue-500/20 text-blue-300 border border-blue-400/40 px-2 py-0.2 rounded-full">
+                    English • Luganda • Swahili
+                  </span>
+                </h5>
+                <p className="text-[11px] text-slate-300">
+                  Step-by-step interactive walkthroughs explaining clinical dashboards, AI consultations, 1GB vault, and bio-telemetry.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenTutorial?.();
+              }}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+            >
+              <span>Launch Tutorial</span>
+            </button>
+          </div>
 
           {/* 1. VISUAL INTERFACE THEME FEATURE BUTTONS */}
           <div className="space-y-2.5">

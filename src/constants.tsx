@@ -28,6 +28,7 @@ import { HealthTip } from './components/HealthTipModal';
 export const SEARCHABLE_ITEMS = [
   { label: 'Clinical Features & Platform Capabilities', view: 'features', icon: <Compass size={18} />, category: 'Platform Suite', description: 'Explore all active clinical tools, bio-telemetry monitors, AI diagnostic suites, and health services.' },
   { label: 'Clinical Health Dashboard', view: 'home', icon: <LayoutGrid size={18} />, category: 'Clinical Core', description: 'Real-time patient health summary, vital signs telemetry, and AI clinical insights.' },
+  { label: 'Next-Generation Clinical AI Suite (Stethoscope & rPPG Pulse)', view: 'nextgen_tech', icon: <Zap size={18} />, category: 'Next-Gen Intelligence', description: 'Contactless camera rPPG pulse scanner, digital acoustic stethoscope, AI tumor board consensus matrix, vocal biomarkers, offline mesh sync, and 4D organ twin.' },
   { label: 'AI Diagnostic Consultation', view: 'ai_nexus', icon: <Zap size={18} />, category: 'AI Intelligence', description: 'Multimodal AI-driven clinical triage, differential diagnoses, and medical queries.' },
   { label: 'Real-Time Bio-Telemetry Monitor', view: 'monitor', icon: <Activity size={18} />, category: 'Diagnostics & Labs', description: 'Continuous electrocardiogram (ECG), heart rate, and physiological sensor telemetry.' },
   { label: 'Diagnostic Laboratory Analyser', view: 'diagnostic_lab', icon: <Stethoscope size={18} />, category: 'Diagnostics & Labs', description: 'Analyze blood chemistry panels, pathology reports, and biomarker values.' },

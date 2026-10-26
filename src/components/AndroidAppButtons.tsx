@@ -323,6 +323,34 @@ export const CLINICAL_MODULES_REGISTRY: IntelligentAppButtonItem[] = [
     },
   },
 
+  // 9b. Next-Gen Intelligence Suite - Stethoscope & Camera Pulse
+  {
+    id: 'nextgen_tech',
+    label: 'NextGen Intelligence Suite',
+    subtitle: 'Optical pulse & acoustic stethoscope',
+    category: 'diagnostics',
+    categoryLabel: 'Next-Gen AI',
+    icon: Sparkles,
+    badge: 'NEXT-GEN AI',
+    intelligenceTag: 'Multi-Agent Consensus & rPPG',
+    guidelineCompliance: 'Acoustic Phonocardiogram & Biometric Standard',
+    clinicalCapabilities: ['Contactless Camera Pulse (rPPG)', 'Acoustic Stethoscope (PCG)', 'Multi-Specialist AI Consensus', 'Vocal Neurological Biomarkers', 'Offline Mesh Sync', '4D Organ Digital Twin'],
+    priorityLevel: 'critical',
+    theme: {
+      borderColor: 'border-purple-300/80',
+      darkBorderColor: 'dark:border-purple-900/50',
+      hoverBorderColor: 'hover:border-purple-500/80 dark:hover:border-purple-400',
+      hoverBg: 'hover:bg-purple-500/[0.05] dark:hover:bg-purple-400/[0.06]',
+      iconGradient: 'from-purple-600 via-indigo-600 to-rose-600',
+      iconShadow: 'shadow-purple-500/25',
+      accentColor: 'purple',
+      badgeColor: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-300/80 dark:border-purple-800/60',
+      activeBg: 'bg-purple-600/[0.12] dark:bg-purple-500/[0.18]',
+      activeBorder: 'border-purple-500 dark:border-purple-400',
+      activeRing: 'ring-1 ring-purple-500/30',
+    },
+  },
+
   // 10. Genomic Matrix - Deep Jade / Teal
   {
     id: 'health_trace',

@@ -85,7 +85,8 @@ import { Compass,
   Calendar as CalendarIcon,
   AlertTriangle,
   Layers,
-  HardDrive
+  HardDrive,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -106,6 +107,7 @@ import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
 import { TargetedDoseAlarmModal } from './components/TargetedDoseAlarmModal';
 import { ModernAuthPage } from './components/ModernAuthPage';
 import { AppOperationsSettingsModal } from './components/AppOperationsSettingsModal';
+import { PageTutorialModal } from './components/PageTutorialModal';
 import { BioTelemetryRangeTooltip } from './components/BioTelemetryRangeTooltip';
 import { AdminOnboardingPortal } from './components/AdminOnboardingPortal';
 import { EmergencySmsChat } from './components/EmergencySmsChat';
@@ -237,6 +239,7 @@ import { MarianConsole } from "./components/MarianConsole";
 import { DownloadAppModal } from "./components/DownloadAppModal";
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
 import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
+import { NextGenTechSuiteModal, NextGenTechTab } from './components/NextGenTechSuiteModal';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -460,7 +463,8 @@ const viewNamesMap: Record<string, string> = {
   privacy: 'HIPAA & Privacy Data Policy',
   terms: 'Clinical Terms of Service',
   feedback: 'Clinical Intelligence Feedback',
-  protocols: 'Standardized Medical Protocols'
+  protocols: 'Standardized Medical Protocols',
+  nextgen_tech: 'Next-Generation AI Intelligence Suite (Biometrics & Stethoscope)'
 };
 
 export default function App() {
@@ -482,6 +486,8 @@ export default function App() {
   const [downloadingLang, setDownloadingLang] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isMarianConsoleOpen, setIsMarianConsoleOpen] = useState(false);
+  const [isNextGenSuiteOpen, setIsNextGenSuiteOpen] = useState(false);
+  const [nextGenInitialTab, setNextGenInitialTab] = useState<NextGenTechTab>('optical_pulse');
   const [isEhrExportOpen, setIsEhrExportOpen] = useState(false);
   const [isTelehealthOpen, setIsTelehealthOpen] = useState(false);
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
@@ -521,12 +527,18 @@ export default function App() {
       }
     };
 
+    const handleTutorialEvent = () => {
+      setIsTutorialOpen(true);
+    };
+
     window.addEventListener('doctorian:vitals_sound_setting_update', handleVitalsSoundSync);
     window.addEventListener('doctorian:soundscape_setting_update', handleSoundscapeSync);
+    window.addEventListener('doctorian_open_page_tutorial', handleTutorialEvent);
 
     return () => {
       window.removeEventListener('doctorian:vitals_sound_setting_update', handleVitalsSoundSync);
       window.removeEventListener('doctorian:soundscape_setting_update', handleSoundscapeSync);
+      window.removeEventListener('doctorian_open_page_tutorial', handleTutorialEvent);
     };
   }, []);
 
@@ -834,7 +846,7 @@ export default function App() {
     };
   }, [currentLanguage]);
 
-  const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | 'nextgen_tech' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -843,6 +855,14 @@ export default function App() {
 
   const setCurrentView = (view: any) => {
     let target = view;
+    if (view === 'nextgen_tech' || view === 'stethoscope' || view === 'rppg' || view === 'optical_pulse' || view === 'consensus' || view === 'vocal') {
+      if (view === 'stethoscope') setNextGenInitialTab('stethoscope');
+      else if (view === 'consensus') setNextGenInitialTab('consensus_matrix');
+      else if (view === 'vocal') setNextGenInitialTab('vocal_biomarker');
+      else setNextGenInitialTab('optical_pulse');
+      setIsNextGenSuiteOpen(true);
+      return;
+    }
     if (view === 'doctors') {
       target = 'doctors_dashboard';
     } else if (view === 'scribe' || view === 'ambient' || view === 'soap' || view === 'ambient_scribe') {
@@ -1353,6 +1373,23 @@ export default function App() {
       localStorage.removeItem('medical_user');
     }
   }, [user, isAuthReady]);
+
+  // First-time automatic interactive page tutorial launch - runs only once per specific account
+  useEffect(() => {
+    if (!hasEnteredApp || !user) return;
+    const accountIdentifier = user.email || user.id || ((user as any)?.isGuest ? 'guest' : 'default_account');
+    const tutorialKey = `doctorian_tutorial_done_${accountIdentifier}`;
+    const alreadyCompleted = localStorage.getItem(tutorialKey);
+
+    if (!alreadyCompleted) {
+      // Mark as completed immediately to guarantee it NEVER repeats or triggers frequently
+      localStorage.setItem(tutorialKey, 'true');
+      const timer = setTimeout(() => {
+        setIsTutorialOpen(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [hasEnteredApp, user]);
 
   // All Effects
   useEffect(() => {
@@ -3130,6 +3167,21 @@ export default function App() {
                   </motion.button>
                 </div>
 
+                {/* Next-Generation Clinical Intelligence Suite Button */}
+                <div className="relative overflow-visible shrink-0">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsNextGenSuiteOpen(true)}
+                    className="rounded-xl transition-all flex items-center gap-1.5 px-2.5 sm:px-3 h-10 md:h-10.5 lg:h-11 bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider border border-purple-400/80 shadow-md shadow-purple-500/20 cursor-pointer shrink-0"
+                    aria-label="Next-Gen AI Intelligence Suite"
+                    title="Open Next-Gen AI Intelligence Suite (Camera rPPG Pulse, Acoustic Stethoscope, Consensus Matrix, Vocal Biomarkers, Mesh Sync, 4D Organ Twin)"
+                  >
+                    <Sparkles size={16} className="stroke-[2.4] text-yellow-300 animate-pulse shrink-0" />
+                    <span className="hidden sm:inline">NextGen Tech</span>
+                  </motion.button>
+                </div>
+
                 {/* Doctorian Systems Menu Launchpad - Icon Only to Save Space */}
                 <div className="relative overflow-visible shrink-0">
                   <motion.button
@@ -4792,6 +4844,22 @@ export default function App() {
             {/* Single clean install modal when triggered from upper bar or sidebar */}
 
             <AnimatePresence>
+              {isNextGenSuiteOpen && (
+                <NextGenTechSuiteModal
+                  key="modal-nextgen-suite"
+                  isOpen={isNextGenSuiteOpen}
+                  onClose={() => {
+                    setIsNextGenSuiteOpen(false);
+                    if (currentView === 'nextgen_tech') {
+                      setCurrentView('home');
+                    }
+                  }}
+                  initialTab={nextGenInitialTab}
+                  onShowToast={(msg, type) => addToast(msg, type)}
+                  currentLanguage={currentLanguage}
+                />
+              )}
+
               {isMarianConsoleOpen && (
                 <MarianConsole
                   key="modal-marian-console"
@@ -4927,6 +4995,28 @@ export default function App() {
                   key="modal-operations-settings"
                   isOpen={isOperationsSettingsOpen}
                   onClose={() => setIsOperationsSettingsOpen(false)}
+                  onOpenTutorial={() => setIsTutorialOpen(true)}
+                />
+              )}
+              {isTutorialOpen && (
+                <PageTutorialModal
+                  key="modal-page-tutorial"
+                  isOpen={isTutorialOpen}
+                  onClose={() => {
+                    setIsTutorialOpen(false);
+                    if (user) {
+                      const accountIdentifier = user.email || user.id || ((user as any)?.isGuest ? 'guest' : 'default_account');
+                      localStorage.setItem(`doctorian_tutorial_done_${accountIdentifier}`, 'true');
+                    }
+                  }}
+                  currentView={currentView}
+                  currentLanguage={currentLanguage}
+                  onNavigate={(v) => setCurrentView(v as any)}
+                  onTriggerAction={(actionKey) => {
+                    if (actionKey === 'open_telehealth') {
+                      setIsTelehealthOpen(true);
+                    }
+                  }}
                 />
               )}
             </AnimatePresence>

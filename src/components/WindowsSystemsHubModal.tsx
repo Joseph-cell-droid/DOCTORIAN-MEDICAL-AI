@@ -286,6 +286,7 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
   ];
 
   const diagnosticNodes: LauncherNode[] = [
+    { id: 'nextgen_tech', title: 'NEXT-GEN AI SUITE', subtitle: 'STETHOSCOPE & PULSE', icon: <Sparkles size={20} />, color: 'text-purple-500', badge: 'NEXT-GEN' },
     { id: 'diagnostic_lab', title: 'LAB ANALYSER', subtitle: 'PATHOLOGY TESTS', icon: <Stethoscope size={20} />, color: 'text-emerald-500' },
     { id: 'health_trace', title: 'TIMELINE', subtitle: 'LONGITUDINAL TRACK', icon: <TrendingUp size={20} />, color: 'text-teal-500' },
     { id: 'illustrator', title: 'ILLUSTRATOR', subtitle: '3D ANATOMY', icon: <Palette size={20} />, color: 'text-indigo-500' },

@@ -10,10 +10,16 @@ import {
   Trash2, 
   Globe, 
   Play, 
-  AlertCircle 
+  AlertCircle,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { 
-  MarianMTRegistry, 
+  MarianMTRegistry,
+  SunbirdAIRegistry,
+  getTranslationEngine,
+  setTranslationEngine,
+  TranslationEngine,
   subscribeMarianLogs, 
   clearMarianLogs, 
   isMarianMTModeActive, 
@@ -42,6 +48,7 @@ export function MarianConsole({
   const [playgroundResult, setPlaygroundResult] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [backend, setBackend] = useState<'WebGPU' | 'WebAssembly' | 'WebGL'>('WebGPU');
+  const [engine, setEngine] = useState<TranslationEngine>(() => getTranslationEngine());
   const [isOfflineActive, setIsOfflineActive] = useState(() => isMarianMTModeActive());
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +72,11 @@ export function MarianConsole({
     setMarianMTModeActive(nextState);
   };
 
+  const handleEngineChange = (newEngine: TranslationEngine) => {
+    setEngine(newEngine);
+    setTranslationEngine(newEngine);
+  };
+
   const handleRunPlayground = async () => {
     if (!playgroundText.trim()) return;
     setIsTranslating(true);
@@ -72,7 +84,7 @@ export function MarianConsole({
     
     try {
       const { runMarianInference } = await import('../utils/marianMT');
-      const result = await runMarianInference(playgroundText, playgroundTarget);
+      const result = await runMarianInference(playgroundText, playgroundTarget, engine);
       setPlaygroundResult(result);
     } catch (err) {
       setPlaygroundResult('Translation pipeline error.');
@@ -82,6 +94,9 @@ export function MarianConsole({
   };
 
   if (!isOpen) return null;
+
+  const currentSunbirdModel = SunbirdAIRegistry[playgroundTarget];
+  const currentMarianModel = MarianMTRegistry[playgroundTarget];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -99,7 +114,7 @@ export function MarianConsole({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col h-[90vh] max-h-[800px] text-slate-100"
+        className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col h-[90vh] max-h-[840px] text-slate-100"
       >
         {/* Glow Decors */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -108,25 +123,77 @@ export function MarianConsole({
         {/* Header */}
         <div className="p-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/40 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
               <Cpu size={20} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
-                MarianMT Neural Sandbox
-                <span className="text-[9px] font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  Helsinki-NLP Core
+              <h2 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 flex-wrap">
+                Neural Translation Matrix
+                <span className="text-[9px] font-bold bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20">
+                  Marian MT
+                </span>
+                <span className="text-[9px] font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                  <Sparkles size={9} /> Sunbird AI (Uganda)
                 </span>
               </h2>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-0.5">Local Translation & Model Compilation Engine</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-0.5">
+                Helsinki-NLP + Makerere AI Lab African Vernacular Intelligence
+              </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer"
+            className="p-2 rounded-xl hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer text-slate-400 hover:text-white"
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Engine Switcher Ribbon */}
+        <div className="px-6 py-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Engine:</span>
+            <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl gap-1">
+              <button
+                onClick={() => handleEngineChange('hybrid')}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                  engine === 'hybrid'
+                    ? 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Hybrid Auto-Route
+              </button>
+              <button
+                onClick={() => handleEngineChange('sunbird_ai')}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1 ${
+                  engine === 'sunbird_ai'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Sparkles size={10} /> Sunbird AI (Makerere)
+              </button>
+              <button
+                onClick={() => handleEngineChange('marian_mt')}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                  engine === 'marian_mt'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Marian MT (Helsinki)
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-slate-400">
+              {engine === 'hybrid' ? '⚡ Auto: Sunbird AI for African vernaculars, Marian for global' :
+               engine === 'sunbird_ai' ? '🇺🇬 Sunbird AI: Specialized for Ugandan languages' :
+               '🌐 Marian MT: Helsinki-NLP multilingual models'}
+            </span>
+          </div>
         </div>
 
         {/* Inner Content Grid */}
@@ -143,10 +210,10 @@ export function MarianConsole({
                 </div>
                 <div>
                   <div className="text-xs font-black uppercase tracking-wider">
-                    {isOfflineActive ? 'MarianMT Offline Mode: ACTIVE' : 'MarianMT Offline Mode: DISABLED'}
+                    {isOfflineActive ? 'Offline Neural Mode: ACTIVE' : 'Offline Neural Mode: DISABLED'}
                   </div>
                   <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-                    {isOfflineActive ? 'All text translations computed browser-side' : 'Falling back to dynamic cloud APIs'}
+                    {isOfflineActive ? 'All text translated browser-side using Marian MT & Sunbird AI' : 'Falling back to dynamic cloud APIs'}
                   </div>
                 </div>
               </div>
@@ -158,7 +225,7 @@ export function MarianConsole({
                     : 'bg-slate-800 hover:bg-slate-750 text-slate-300'
                 }`}
               >
-                {isOfflineActive ? 'Toggle Hybrid Cloud' : 'Enable Offline Engine'}
+                {isOfflineActive ? 'Active (Browser-Side)' : 'Enable Offline Engine'}
               </button>
             </div>
 
@@ -171,7 +238,7 @@ export function MarianConsole({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
-                    onClick={() => setLogs([])}
+                    onClick={() => clearMarianLogs()}
                     title="Clear Terminal Logs"
                     className="p-1 rounded hover:bg-slate-900 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
                   >
@@ -226,16 +293,28 @@ export function MarianConsole({
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Target Pipeline</span>
-                  <span className="font-mono text-[10px] font-bold text-blue-400">Helsinki-NLP/opus-mt</span>
+                  <span className="text-slate-400">Sunbird AI Core</span>
+                  <span className="font-mono text-[10px] font-bold text-emerald-400">
+                    {currentSunbirdModel ? currentSunbirdModel.repo : 'Makerere AI Lab / Multi'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Total Layers</span>
-                  <span className="font-mono text-xs font-bold text-slate-200">12 (6 enc / 6 dec)</span>
+                  <span className="text-slate-400">Marian MT Core</span>
+                  <span className="font-mono text-[10px] font-bold text-blue-400">
+                    {currentMarianModel ? currentMarianModel.repo : 'Helsinki-NLP/opus-mt'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Params Size</span>
-                  <span className="font-mono text-xs font-bold text-slate-200">~74.4M fp16 weights</span>
+                  <span className="text-slate-400">Sunbird BLEU Score</span>
+                  <span className="font-mono text-xs font-bold text-emerald-300">
+                    {currentSunbirdModel ? `${currentSunbirdModel.bleuScore} (Ugandan SOTA)` : '34.8 (Avg)'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">African Vocab Size</span>
+                  <span className="font-mono text-xs font-bold text-slate-200">
+                    {currentSunbirdModel ? `${currentSunbirdModel.vocabSize.toLocaleString()} tokens` : '64,000 tokens'}
+                  </span>
                 </div>
 
                 {/* Provider select */}
@@ -280,7 +359,9 @@ export function MarianConsole({
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-200 focus:outline-none focus:border-blue-500 uppercase"
                   >
                     {Object.keys(MarianMTRegistry).map((lang, mapIdx_281) => (
-                      <option key={`marianconsole-l283-${mapIdx_281}`} value={lang}>{lang}</option>
+                      <option key={`marianconsole-l283-${mapIdx_281}`} value={lang}>
+                        {lang} {SunbirdAIRegistry[lang] ? '(Sunbird AI + Marian)' : '(Marian MT)'}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -299,7 +380,12 @@ export function MarianConsole({
                 {/* Result output */}
                 {playgroundResult && (
                   <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl">
-                    <div className="text-[8px] font-black uppercase tracking-widest text-blue-400">Translated Result</div>
+                    <div className="text-[8px] font-black uppercase tracking-widest text-blue-400 flex items-center justify-between">
+                      <span>Translated Result</span>
+                      <span className="text-emerald-400">
+                        {SunbirdAIRegistry[playgroundTarget] && engine !== 'marian_mt' ? 'Sunbird AI Engine' : 'Marian MT Engine'}
+                      </span>
+                    </div>
                     <div className="text-xs font-bold text-slate-100 mt-1">{playgroundResult}</div>
                   </div>
                 )}
@@ -307,7 +393,7 @@ export function MarianConsole({
                 <button
                   onClick={handleRunPlayground}
                   disabled={isTranslating}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-500/15"
+                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 disabled:opacity-50 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-500/15"
                 >
                   {isTranslating ? (
                     <>
@@ -330,3 +416,4 @@ export function MarianConsole({
     </div>
   );
 }
+

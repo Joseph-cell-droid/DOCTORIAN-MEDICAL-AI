@@ -28,40 +28,52 @@ export interface ClinicianPersona {
 
 export const UGANDAN_CLINICIAN_PERSONAS: ClinicianPersona[] = [
   {
-    id: 'dr_gloria',
-    name: 'Dr. Gloria Jayakullo',
-    title: 'Senior Consultant Physician',
-    institution: 'Mulago National Referral Hospital, Kampala',
-    specialty: 'Internal Medicine & Infectious Disease Triage',
-    languages: ['English', 'Luganda', 'Swahili', 'Acholi-Luo'],
-    avatar: '/african_doctor_videocall.png',
-    greetingLuganda: 'Oli otya? Nze Dr. Gloria Jayakullo okuva e Mulago. Mbulira engeri gy\'owuliramu olwaleero.',
-    greetingSwahili: 'Habari yako? Mimi ni Dkt. Gloria Jayakullo kutoka Mulago. Niambie unavyojisikia leo.',
-    greetingEnglish: 'Hello, I am Dr. Gloria Jayakullo from Mulago National Referral Hospital. How are you feeling today?'
+    id: "dr_gloria",
+    name: "Dr. Gloria Jayakullo",
+    title: "Senior Consultant Cardiologist",
+    institution: "Mulago National Referral Hospital, Kampala",
+    specialty: "Tele-Cardiology & Acute Internal Medicine",
+    languages: ["English", "Luganda", "Swahili", "Acholi-Luo"],
+    avatar: "/src/assets/images/dr_gloria_jayakullo_1793111742464.jpg",
+    greetingLuganda: "Oli otya? Nze Dr. Gloria Jayakullo okuva e Mulago. Mbulira engeri gy'owuliramu olwaleero.",
+    greetingSwahili: "Habari yako? Mimi ni Dkt. Gloria Jayakullo kutoka Mulago. Niambie unavyojisikia leo.",
+    greetingEnglish: "Hello, I am Dr. Gloria Jayakullo from Mulago National Referral Hospital. How are you feeling today?"
   },
   {
-    id: 'dr_kato',
-    name: 'Dr. Emmanuel Kato',
-    title: 'Chief Medical Officer',
-    institution: 'Kampala City Health Directorate / MoH Uganda',
-    specialty: 'Tropical Medicine, Malaria & Acute Bio-Telemetry',
-    languages: ['English', 'Luganda', 'Runyankole-Rukiga', 'Lusoga'],
-    avatar: '/african_doctor_male.png',
-    greetingLuganda: 'Kulika olunaku! Nze Dr. Kato Emmanuel. Ndi wano okukola ku bujjanjabi bwo n\'okusoma ebyuma byo.',
-    greetingSwahili: 'Jambo! Mimi ni Dkt. Emmanuel Kato. Nipo hapa kukusaidia kwa matibabu na uchunguzi wa vipimo vyako.',
-    greetingEnglish: 'Good day! I am Dr. Emmanuel Kato. I am analyzing your real-time clinical telemetry. What symptoms do you have?'
+    id: "dr_kato",
+    name: "Dr. Emmanuel Kato",
+    title: "Chief Trauma & Critical Care Specialist",
+    institution: "Kampala City Health Directorate / MoH Uganda",
+    specialty: "Emergency Resuscitation & Bio-Telemetry",
+    languages: ["English", "Luganda", "Runyankole-Rukiga", "Lusoga"],
+    avatar: "/src/assets/images/dr_emmanuel_kato_1793111742363.jpg",
+    greetingLuganda: "Kulika olunaku! Nze Dr. Kato Emmanuel. Ndi wano okukola ku bujjanjabi bwo n'okusoma ebyuma byo.",
+    greetingSwahili: "Jambo! Mimi ni Dkt. Emmanuel Kato. Nipo hapa kukusaidia kwa matibabu na uchunguzi wa vipimo vyako.",
+    greetingEnglish: "Good day! I am Dr. Emmanuel Kato. I am analyzing your real-time clinical telemetry. What symptoms do you have?"
   },
   {
-    id: 'sr_nalubega',
-    name: 'Sr. Harriet Nalubega',
-    title: 'Senior Clinical Nursing Officer',
-    institution: 'Kawempe National Maternal & Child Referral Hospital',
-    specialty: 'Maternal-Fetal Health, Antenatal Triage & Child Nutrition',
-    languages: ['English', 'Luganda', 'Swahili', 'Iteso'],
-    avatar: '/african_doctor_videocall.png',
-    greetingLuganda: 'Tusanyuse okukulaba maama/taata. Nze Sr. Nalubega Harriet. Weeyanze obulamu bw\'omwana n\'obulamu bwo.',
-    greetingSwahili: 'Karibu sana. Mimi ni Sr. Harriet Nalubega. Niko hapa kuhakikisha afya ya mama na mtoto iko salama.',
-    greetingEnglish: 'Welcome. I am Sr. Harriet Nalubega, focusing on maternal and family wellness. How can I support your care today?'
+    id: "dr_achan",
+    name: "Dr. Achan Grace",
+    title: "Lead Pediatrician & Maternal Health Specialist",
+    institution: "Kawempe National Maternal & Child Referral Hospital",
+    specialty: "Pediatrics, Neonatal Care & Antenatal Triage",
+    languages: ["English", "Luganda", "Swahili", "Acholi-Luo"],
+    avatar: "/src/assets/images/dr_achan_grace_1793111743452.jpg",
+    greetingLuganda: "Tusanyuse okukulaba maama/taata. Nze Dr. Achan Grace. Weeyanze obulamu bw'omwana n'obulamu bwo.",
+    greetingSwahili: "Karibu sana. Mimi ni Dkt. Achan Grace. Niko hapa kuhakikisha afya ya mama na mtoto iko salama.",
+    greetingEnglish: "Welcome. I am Dr. Achan Grace, specialized in maternal and pediatric wellness. How can I assist you today?"
+  },
+  {
+    id: "dr_mukasa",
+    name: "Dr. Joseph Mukasa",
+    title: "Consultant Neurologist & Clinical Director",
+    institution: "Makerere University College of Health Sciences",
+    specialty: "Neurology, Neuro-Vascular & Stroke Triage",
+    languages: ["English", "Luganda", "Runyankole-Rukiga", "Swahili"],
+    avatar: "/src/assets/images/dr_joseph_mukasa_1793111743218.jpg",
+    greetingLuganda: "Oli otya nnyabo/ssebo? Nze Dr. Joseph Mukasa. Ndi wano okwekenneenya obusimu n'obulamu bw'omutwe.",
+    greetingSwahili: "Habari za leo. Mimi ni Dkt. Joseph Mukasa. Niko tayari kuchunguza mfumo wa fahamu na afya yako.",
+    greetingEnglish: "Greetings. I am Dr. Joseph Mukasa, Consultant Neurologist. Let us review your neuro-vital markers and symptoms."
   }
 ];
 

@@ -389,32 +389,76 @@ const ModernBotMessageBubble: React.FC<{
   );
 };
 
-const REASONING_STAGES = [
-  { stage: 'Thinking...', detail: 'Initializing clinical inquiry synthesis' },
-  { stage: 'Configuring neural clinical weights...', detail: 'Calibrating multi-system diagnostic models' },
-  { stage: 'Mapping physiological pathways...', detail: 'Correlating presentation with WHO & Uganda protocols' },
-  { stage: 'Analyzing symptom correlation matrix...', detail: 'Auditing vital telemetry and acuity factors' },
-  { stage: 'Synthesizing evidence-based guidelines...', detail: 'Structuring targeted clinical recommendations' },
-  { stage: 'Evaluating safety contraindications...', detail: 'Auditing red flag indicators & emergency signs' },
-  { stage: 'Formulating clinical consultation...', detail: 'Composing structured open response' },
+export const PROFESSIONAL_REASONING_STAGES = [
+  {
+    badge: 'Clinical Reasoning Active',
+    badgeGradient: 'from-blue-600 via-cyan-500 to-indigo-600',
+    badgeGlow: 'shadow-cyan-500/30 text-cyan-300',
+    stage: 'Synthesizing Multi-Modal Clinical Evidence...',
+    detail: 'Calibrating multi-system diagnostic models against patient presentation & live telemetry'
+  },
+  {
+    badge: 'Neural Biomarker Matrix',
+    badgeGradient: 'from-emerald-500 via-teal-500 to-cyan-500',
+    badgeGlow: 'shadow-emerald-500/30 text-emerald-300',
+    stage: 'Correlating Vital Streams & Autonomic Acuity...',
+    detail: 'Analyzing real-time hemodynamic vectors, HRV patterns, and oxygen saturation'
+  },
+  {
+    badge: 'Differential Diagnostic Engine',
+    badgeGradient: 'from-indigo-600 via-purple-600 to-pink-500',
+    badgeGlow: 'shadow-purple-500/30 text-purple-300',
+    stage: 'Formulating Multi-Agent Diagnostic Differentials...',
+    detail: 'Screening primary and secondary clinical hypotheses across ICD-11 classifications'
+  },
+  {
+    badge: 'Guideline & Protocol Alignment',
+    badgeGradient: 'from-amber-500 via-orange-500 to-rose-500',
+    badgeGlow: 'shadow-amber-500/30 text-amber-300',
+    stage: 'Cross-Referencing WHO & Uganda MoH Protocols...',
+    detail: 'Validating clinical recommendations with Uganda Clinical Guidelines (UCG 2023)'
+  },
+  {
+    badge: 'Safety & Contraindication Audit',
+    badgeGradient: 'from-rose-500 via-pink-600 to-red-500',
+    badgeGlow: 'shadow-rose-500/30 text-rose-300',
+    stage: 'Evaluating Clinical Contraindications & Safety Gates...',
+    detail: 'Auditing adverse interaction risks, pediatric/maternal thresholds, and emergency signs'
+  },
+  {
+    badge: 'Evidence-Based Formulation',
+    badgeGradient: 'from-cyan-400 via-blue-500 to-emerald-400',
+    badgeGlow: 'shadow-cyan-500/30 text-cyan-300',
+    stage: 'Composing Structured Clinical Consultation & Plan...',
+    detail: 'Structuring concise SOAP assessment, therapeutic advice, and diagnostic next steps'
+  }
 ];
 
+export const REASONING_STAGES = PROFESSIONAL_REASONING_STAGES;
+
 /**
- * Alternating Thinking & Reasoning Visualizer
- * Alternates on a timed cycle (every 3.5s) between:
- * 1. Spinning Windows Icon: 4-quadrant luminous glass panes (Red, Green, Blue, Amber) with 3D rotation, glossy highlights & aura.
- * 2. Spinning Bead / Milky Way Galaxy: Pulsing central celestial nucleus bead with 3D tilted concentric elliptical orbit rings and stardust beads.
+ * Doctorian Chained Thinking & Multi-Shape Visualizer
+ * Cascades smoothly through:
+ * 1. Doctorian App Logo spinning in 3D with luminous radiant aura & specular glints.
+ * 2. Chained 3D Gyroscope Concentric Rings (Cyan, Emerald, Violet metallic orbital rings).
+ * 3. Chained Sacred Prismatic Octahedron / Diamond facet crystal.
+ * 4. Chained Molecular Bio-Helix / DNA Twin rotating with radiant nucleotides.
+ * 5. Chained Cybernetic Neural Hexagon with pulsing corner synaptic vertices.
+ * 6. Chained Celestial Cosmic Pulsar Core with orbiting diamond stardust beads.
+ * 
+ * Note: Never displays internal shape names per user specification;
+ * only the colorful professional reasoning formats are presented.
  */
-export const AlternatingThinkingVisual: React.FC<{
+export const DoctorianChainedThinkingVisual: React.FC<{
   size?: 'sm' | 'md' | 'lg';
-  showLabel?: boolean;
-}> = ({ size = 'md', showLabel = true }) => {
-  const [currentMode, setCurrentMode] = useState<'windows' | 'galaxy'>('windows');
+}> = ({ size = 'md' }) => {
+  const [chainIndex, setChainIndex] = useState(0);
+  const totalShapes = 6;
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentMode((prev) => (prev === 'windows' ? 'galaxy' : 'windows'));
-    }, 3500);
+      setChainIndex((prev) => (prev + 1) % totalShapes);
+    }, 2800);
     return () => clearInterval(timer);
   }, []);
 
@@ -426,107 +470,262 @@ export const AlternatingThinkingVisual: React.FC<{
       {/* Visual Rotating Stage Box */}
       <div 
         className={`relative flex items-center justify-center shrink-0 ${
-          isSmall ? 'w-8 h-8 rounded-xl' : isLarge ? 'w-13 h-13 rounded-2xl' : 'w-10 h-10 rounded-xl'
-        } bg-gradient-to-br from-slate-900/90 via-[#070e24] to-slate-950 border border-slate-700/70 shadow-lg shadow-cyan-950/40 backdrop-blur-md overflow-hidden`}
+          isSmall ? 'w-8 h-8 rounded-xl' : isLarge ? 'w-14 h-14 rounded-2xl' : 'w-11 h-11 rounded-2xl'
+        } bg-gradient-to-br from-slate-900/95 via-[#06102b] to-slate-950 border border-slate-700/80 shadow-xl shadow-cyan-950/60 backdrop-blur-md overflow-hidden`}
       >
-        {/* Ambient cosmic / matrix glow ring */}
-        <div 
-          className={`absolute inset-0 transition-opacity duration-700 pointer-events-none ${
-            currentMode === 'windows' 
-              ? 'bg-radial from-blue-500/20 via-cyan-500/10 to-transparent' 
-              : 'bg-radial from-fuchsia-500/25 via-purple-600/15 to-transparent'
-          }`} 
+        {/* Ambient iridescent rotating backdrop aura */}
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+          className="absolute -inset-1 opacity-40 bg-[conic-gradient(from_0deg,#3b82f6,#06b6d4,#10b981,#eab308,#f43f5e,#a855f7,#3b82f6)] blur-sm pointer-events-none"
+        />
+        <div className="absolute inset-[1px] bg-slate-950/90 rounded-[inherit] pointer-events-none" />
+
+        {/* Chained rotating orbit ring perimeter */}
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+          className="absolute inset-1 rounded-full border border-dashed border-cyan-400/30 pointer-events-none"
         />
 
         <AnimatePresence mode="wait">
-          {currentMode === 'windows' ? (
-            /* 1. NICE SPINNING WINDOWS ICON */
+          {/* SHAPE 1: DOCTORIAN APP LOGO SPINNING */}
+          {chainIndex === 0 && (
             <motion.div
-              key="windows-icon"
-              initial={{ opacity: 0, scale: 0.6, rotate: -45 }}
+              key="chain-app-logo"
+              initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
               animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 0.6, rotate: 45 }}
-              transition={{ duration: 0.4, ease: 'easeInOut' }}
-              className="relative flex items-center justify-center"
+              exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center z-10"
             >
-              {/* Continuous 3D/Planar Spinning Windows 4-Quadrant Matrix */}
               <motion.div
                 animate={{ 
                   rotate: 360,
-                  rotateY: [0, 25, 0, -25, 0],
-                  scale: [1, 1.05, 1]
+                  rotateY: [0, 30, 0, -30, 0],
+                  scale: [0.95, 1.08, 0.95]
                 }}
                 transition={{ 
-                  rotate: { duration: 4.5, repeat: Infinity, ease: 'linear' },
+                  rotate: { duration: 5, repeat: Infinity, ease: 'linear' },
                   rotateY: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' },
                   scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
                 }}
-                className={`grid grid-cols-2 ${isSmall ? 'gap-0.5 w-4.5 h-4.5' : isLarge ? 'gap-1.5 w-7 h-7' : 'gap-1 w-5.5 h-5.5'} p-0.5`}
+                className={`relative flex items-center justify-center ${
+                  isSmall ? 'w-5 h-5' : isLarge ? 'w-8 h-8' : 'w-6.5 h-6.5'
+                }`}
                 style={{ perspective: 600 }}
               >
-                {/* Quadrant 1: Top-Left Crimson / Coral Red */}
-                <div className="relative rounded-[2.5px] bg-gradient-to-br from-rose-500 to-red-600 border border-rose-300/50 shadow-xs shadow-rose-500/50 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
-                </div>
-
-                {/* Quadrant 2: Top-Right Emerald / Vivid Green */}
-                <div className="relative rounded-[2.5px] bg-gradient-to-br from-emerald-400 to-green-600 border border-emerald-300/50 shadow-xs shadow-emerald-500/50 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
-                </div>
-
-                {/* Quadrant 3: Bottom-Left Azure / Deep Cyan Blue */}
-                <div className="relative rounded-[2.5px] bg-gradient-to-br from-sky-400 to-blue-600 border border-sky-300/50 shadow-xs shadow-sky-500/50 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
-                </div>
-
-                {/* Quadrant 4: Bottom-Right Amber / Golden Sun */}
-                <div className="relative rounded-[2.5px] bg-gradient-to-br from-amber-400 to-yellow-500 border border-amber-200/50 shadow-xs shadow-amber-500/50 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent opacity-70" />
-                </div>
+                <img 
+                  src="/logo.png" 
+                  alt="Doctorian App Logo"
+                  className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
               </motion.div>
             </motion.div>
-          ) : (
-            /* 2. SPINNING BEAD / MILKY WAY GALAXY */
+          )}
+
+          {/* SHAPE 2: CHAINED 3D GYROSCOPE CONCENTRIC RINGS */}
+          {chainIndex === 1 && (
             <motion.div
-              key="galaxy-icon"
-              initial={{ opacity: 0, scale: 0.6, rotate: 45 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 0.6, rotate: -45 }}
-              transition={{ duration: 0.4, ease: 'easeInOut' }}
-              className="relative flex items-center justify-center"
+              key="chain-gyroscope"
+              initial={{ opacity: 0, scale: 0.5, rotateY: 90 }}
+              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotateY: -90 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center z-10"
             >
-              <div className={`relative flex items-center justify-center ${isSmall ? 'w-5.5 h-5.5' : isLarge ? 'w-8.5 h-8.5' : 'w-7 h-7'}`}>
-                
-                {/* Outer Milky Way Galaxy Elliptical Orbit Ring (Tilted in 3D) */}
+              <div className={`relative flex items-center justify-center ${isSmall ? 'w-5 h-5' : isLarge ? 'w-8 h-8' : 'w-6.5 h-6.5'}`}>
+                {/* Ring 1 - Cyan Outer */}
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 3.2, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-0 border border-purple-400/40 rounded-full"
-                  style={{ transform: 'rotateX(62deg) rotateY(20deg)' }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0 rounded-full border-2 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                  style={{ transform: 'rotateX(65deg) rotateY(15deg)' }}
                 >
-                  {/* Orbiting Stardust Bead (Magenta-Purple) */}
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-fuchsia-300 shadow-[0_0_8px_rgba(232,121,249,1)]" />
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-200 shadow-[0_0_6px_#38bdf8]" />
                 </motion.div>
 
-                {/* Inner Counter-Spinning Orbit Ring (Tilted opposite) */}
+                {/* Ring 2 - Emerald Middle */}
                 <motion.div
                   animate={{ rotate: -360 }}
                   transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-0.5 border border-cyan-400/50 rounded-full"
-                  style={{ transform: 'rotateX(55deg) rotateY(-35deg)' }}
+                  className="absolute inset-1 rounded-full border-2 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                  style={{ transform: 'rotateX(50deg) rotateY(-40deg)' }}
                 >
-                  {/* Orbiting Stardust Bead (Cyan-Aquamarine) */}
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-200 shadow-[0_0_8px_rgba(103,232,249,1)]" />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-200 shadow-[0_0_6px_#34d399]" />
                 </motion.div>
 
-                {/* Core Galactic Nucleus Bead (Pulsing Cosmic Luminous Bead) */}
+                {/* Ring 3 - Violet Core Ring */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-2 rounded-full border border-purple-400 shadow-[0_0_6px_rgba(168,85,247,0.8)]"
+                  style={{ transform: 'rotateX(-60deg) rotateY(30deg)' }}
+                >
+                  <div className="absolute top-0 right-0 w-1 h-1 rounded-full bg-fuchsia-300" />
+                </motion.div>
+                
+                {/* Central Micro Spark */}
+                <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white] animate-ping" />
+              </div>
+            </motion.div>
+          )}
+
+          {/* SHAPE 3: CHAINED PRISMATIC OCTAHEDRON / DIAMOND CRYSTAL */}
+          {chainIndex === 2 && (
+            <motion.div
+              key="chain-octahedron"
+              initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotate: 45 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center z-10"
+            >
+              <motion.div
+                animate={{ 
+                  rotate: 360,
+                  rotateX: [0, 45, 0, -45, 0],
+                  scale: [0.95, 1.12, 0.95]
+                }}
+                transition={{ 
+                  rotate: { duration: 4, repeat: Infinity, ease: 'linear' },
+                  rotateX: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+                  scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+                }}
+                className={`relative flex items-center justify-center ${isSmall ? 'w-5 h-5' : isLarge ? 'w-8 h-8' : 'w-6.5 h-6.5'}`}
+                style={{ perspective: 600 }}
+              >
+                {/* Prismatic Rotating Diamond Crystal Facets */}
+                <div className="w-full h-full relative rotate-45 rounded-md bg-gradient-to-tr from-cyan-400 via-indigo-500 to-rose-400 border border-white/60 shadow-[0_0_14px_rgba(99,102,241,0.9)] overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-black/40" />
+                  <div className="absolute inset-1 rounded-sm border border-cyan-200/50" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_white] animate-pulse" />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* SHAPE 4: CHAINED MOLECULAR BIO-HELIX / DNA TWIN */}
+          {chainIndex === 3 && (
+            <motion.div
+              key="chain-helix"
+              initial={{ opacity: 0, scale: 0.5, y: -8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.5, y: 8 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center z-10"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
+                className={`relative flex items-center justify-center ${isSmall ? 'w-5 h-5' : isLarge ? 'w-8 h-8' : 'w-6.5 h-6.5'}`}
+              >
+                <div className="absolute inset-0 flex items-center justify-between">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
+                  <div className="flex-1 h-0.5 bg-gradient-to-r from-cyan-400 to-emerald-400" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-between rotate-90">
+                  <div className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_#c084fc] animate-pulse" />
+                  <div className="flex-1 h-0.5 bg-gradient-to-r from-purple-400 to-rose-400" />
+                  <div className="w-2 h-2 rounded-full bg-rose-400 shadow-[0_0_8px_#fb7185] animate-pulse" />
+                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_6px_white] z-10" />
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* SHAPE 5: CHAINED CYBERNETIC NEURAL HEXAGON */}
+          {chainIndex === 4 && (
+            <motion.div
+              key="chain-hexagon"
+              initial={{ opacity: 0, scale: 0.5, rotate: 60 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotate: -60 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center z-10"
+            >
+              <motion.div
+                animate={{ 
+                  rotate: -360,
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ 
+                  rotate: { duration: 4.5, repeat: Infinity, ease: 'linear' },
+                  scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+                }}
+                className={`relative flex items-center justify-center ${isSmall ? 'w-5 h-5' : isLarge ? 'w-8 h-8' : 'w-6.5 h-6.5'}`}
+              >
+                {/* Hexagon SVG with radiant corner nodes */}
+                <svg viewBox="0 0 100 100" className="w-full h-full filter drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]">
+                  <polygon 
+                    points="50,5 90,25 90,75 50,95 10,75 10,25" 
+                    fill="none" 
+                    stroke="url(#hexGrad)" 
+                    strokeWidth="5" 
+                  />
+                  <defs>
+                    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#38bdf8" />
+                      <stop offset="50%" stopColor="#818cf8" />
+                      <stop offset="100%" stopColor="#34d399" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="50" cy="5" r="5" fill="#38bdf8" />
+                  <circle cx="90" cy="25" r="5" fill="#818cf8" />
+                  <circle cx="90" cy="75" r="5" fill="#34d399" />
+                  <circle cx="50" cy="95" r="5" fill="#f43f5e" />
+                  <circle cx="10" cy="75" r="5" fill="#eab308" />
+                  <circle cx="10" cy="25" r="5" fill="#a855f7" />
+                  <circle cx="50" cy="50" r="10" fill="#0284c7" />
+                  <circle cx="50" cy="50" r="5" fill="#ffffff" />
+                </svg>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* SHAPE 6: CHAINED CELESTIAL COSMIC PULSAR BEAD */}
+          {chainIndex === 5 && (
+            <motion.div
+              key="chain-pulsar"
+              initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotate: -45 }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className="relative flex items-center justify-center z-10"
+            >
+              <div className={`relative flex items-center justify-center ${isSmall ? 'w-5 h-5' : isLarge ? 'w-8 h-8' : 'w-6.5 h-6.5'}`}>
+                {/* 3D Tilted Orbit Ring */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2.8, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0 rounded-full border border-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.9)]"
+                  style={{ transform: 'rotateX(68deg) rotateY(25deg)' }}
+                >
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-fuchsia-200 shadow-[0_0_6px_#f5d0fe]" />
+                </motion.div>
+
+                {/* Counter Ring */}
+                <motion.div
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0.5 rounded-full border border-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.8)]"
+                  style={{ transform: 'rotateX(55deg) rotateY(-35deg)' }}
+                >
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-100 shadow-[0_0_6px_#fef08a]" />
+                </motion.div>
+
+                {/* Pulsing Luminous Cosmic Nucleus */}
                 <motion.div
                   animate={{ 
                     scale: [1, 1.25, 1],
                     boxShadow: [
-                      '0 0 8px rgba(168,85,247,0.7)',
-                      '0 0 16px rgba(56,189,248,0.9)',
-                      '0 0 8px rgba(168,85,247,0.7)'
+                      '0 0 8px rgba(168,85,247,0.8)',
+                      '0 0 16px rgba(56,189,248,1)',
+                      '0 0 8px rgba(168,85,247,0.8)'
                     ]
                   }}
                   transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
@@ -539,49 +738,6 @@ export const AlternatingThinkingVisual: React.FC<{
           )}
         </AnimatePresence>
       </div>
-
-      {/* Mode Tag and Status Indicator */}
-      {showLabel && (
-        <div className="flex flex-col">
-          <AnimatePresence mode="wait">
-            {currentMode === 'windows' ? (
-              <motion.div
-                key="label-windows"
-                initial={{ opacity: 0, x: -4 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 4 }}
-                transition={{ duration: 0.25 }}
-                className="flex items-center gap-1.5"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-400">
-                  Windows Logic Engine
-                </span>
-                <span className="text-[8.5px] font-mono text-cyan-300 bg-blue-950/70 px-1.5 py-0.2 rounded border border-blue-700/60">
-                  Spinning Core
-                </span>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="label-galaxy"
-                initial={{ opacity: 0, x: -4 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 4 }}
-                transition={{ duration: 0.25 }}
-                className="flex items-center gap-1.5"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-ping" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-purple-300 to-cyan-300">
-                  Milky Way Galaxy Nexus
-                </span>
-                <span className="text-[8.5px] font-mono text-fuchsia-300 bg-purple-950/70 px-1.5 py-0.2 rounded border border-purple-700/60">
-                  Cosmic Bead
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
     </div>
   );
 };
@@ -1252,12 +1408,28 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         "PERMANENT CREATOR & SYSTEM IDENTITY:\n" +
         "Akora Joseph from EBRO Company. ltd designed this app and the AI brain. Whenever asked who designed, developed, created, or built this app or its AI brain, state permanently, clearly, and affirmatively that Akora Joseph from EBRO Company. ltd designed this app and the AI brain.\n\n" +
         "MANDATORY CLINICAL DIRECTIVES:\n" +
-        "1. EVIDENCE-BASED GROUNDING: Adhere to WHO standards and Uganda Clinical Guidelines (UCG 2023/2026). Address endemic diseases (Malaria, tuberculosis, cholera) with clinical precision.\n" +
-        "2. STRICT ZERO-HEADER DIRECTIVE: DO NOT use any markdown headers (#, ##, ###) or bold title headers (do NOT write 'Clinical Assessment:', 'Recommended Actions:', 'Medication:', 'Warning Signs:', or any other headers). Never output headers.\n" +
-        "3. SINGLE PARAGRAPH DEFAULT: If the conversation is standard, conversational, a greeting, or does not require a multi-step clinical action list, reply strictly in ONE cohesive, well-written paragraph without any headers.\n" +
-        "4. MULTI-STEP CLINICAL QUERIES: If the inquiry requires actionable clinical steps, provide them as clean bullet points (•) directly under the opening text, with zero section titles.\n" +
-        "5. FAST HIGH-YIELD SPEED: Provide a high-yield, concise clinical assessment that generates in at most 3-5 seconds.\n" +
-        "6. CLOSING: Conclude all medical guidance with: 'Medical attention is recommended.'\n" +
+        "1. ACCURATE SIGN & SYMPTOM ANALYSIS: Accurately examine and analyze all signs and symptoms described by the patient, including duration, fever spikes, and physiological severity.\n" +
+        "2. STRICT SINGLE SUSPECTED DISEASE ISOLATION: When evaluating symptoms, YOUR RESPONSE MUST BE GENERATED ON STRICTLY ONLY ONE SUSPECTED DISEASE (the primary condition with highest clinical probability supported by the evidence). Never provide an overwhelming multi-disease differential list. Clearly announce the single primary diagnosis as:\n" +
+        "   🩺 PRIMARY SUSPECTED DISEASE: [Exact Formal Medical Name of Disease]\n" +
+        "3. EXPLANATIONS & EVIDENCE OF THE CAUSE:\n" +
+        "   🧬 EVIDENCE & CAUSE:\n" +
+        "   Provide a clear clinical explanation of the pathophysiology, etiology, and direct evidence of why the reported symptoms point to this single condition.\n" +
+        "4. ACCURATE DRUG PRESCRIPTIONS:\n" +
+        "   💊 ACCURATE DRUG PRESCRIPTIONS:\n" +
+        "   List the exact medications for this condition adhering strictly to WHO and Uganda Clinical Guidelines (UCG 2023/2026). For each medication, specify:\n" +
+        "   • [Drug Generic Name] (Brand: [Common Brand if applicable, e.g., Coartem]): [Exact Dosage & Strength] | Route: [Oral / IV / Topical] | Frequency: [Exact frequency & timing with meals] | Duration: [Treatment course duration] | Precautions: [Key safety contraindications]\n" +
+        "5. ACCURATE NON-PHARMACOLOGICAL ADVICE & CARE:\n" +
+        "   💡 CLINICAL ADVICE & CARE:\n" +
+        "   Provide clear supportive home care (exact hydration volume, bed rest, nutrition).\n" +
+        "6. EMERGENCY RED FLAGS:\n" +
+        "   ⚠️ EMERGENCY RED FLAGS:\n" +
+        "   List critical danger signs requiring immediate hospital presentation.\n" +
+        "7. DIAGNOSTIC FOLLOW-UP:\n" +
+        "   ❓ DIAGNOSTIC FOLLOW-UP:\n" +
+        "   Ask 1-2 interactive diagnostic questions to clarify progress.\n" +
+        "8. FORMATTING CONSTRAINTS:\n" +
+        "   - NEVER use double asterisks (**) or single asterisks (*) anywhere in the text.\n" +
+        "   - If the user query is purely conversational (greeting, thanks, creator query), reply conversationally without diagnostic sections.\n" +
         `SPECIALIZED AGENT FOCUS: ${activeAgent.instruction}`;
 
       const response = await api.ai.aiChat(
@@ -2039,61 +2211,69 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           ))
         )}
 
-        {/* Open-Web AI Thinking State with Alternating Spinning Windows Icon and Milky Way Galaxy Bead */}
+        {/* Doctorian AI Chained Thinking Visual & Professional Reasoning */}
         {isLoading && (
-          <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl py-2.5">
-            {/* Alternating Visual Icon: Spinning Windows Prism ⟷ Milky Way Galaxy Nucleus */}
-            <AlternatingThinkingVisual size="md" showLabel={false} />
+          <div className="flex items-start gap-3.5 sm:gap-4.5 w-full max-w-3xl py-3 px-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 via-cyan-950/30 to-blue-950/20 border border-cyan-500/25 shadow-2xl shadow-cyan-950/50 backdrop-blur-xl">
+            {/* Spinning App Logo & Sequential Chained Geometric Shapes (No shape names displayed) */}
+            <DoctorianChainedThinkingVisual size="md" />
 
-            <div className="flex-1 min-w-0 space-y-2 py-0.5">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                {/* Dynamic Mode Pill & Reasoning Status */}
-                <AlternatingThinkingVisual size="sm" showLabel={true} />
+            <div className="flex-1 min-w-0 space-y-2.5">
+              {/* Colorful, professional reasoning badge & dynamic stage format */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-indigo-500/20 text-cyan-300 border border-cyan-400/35 shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.stage || 'Clinical Reasoning'}
+                </span>
 
-                <motion.span 
-                  key={reasoningIndex}
-                  initial={{ opacity: 0, y: 2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide"
-                >
-                  {REASONING_STAGES[reasoningIndex]?.stage || 'Thinking...'}
-                </motion.span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.badge || 'WHO & MoH Uganda Guidelines'}
+                </span>
 
-                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-800/60 shadow-xs">
-                  {reasoningElapsed.toFixed(1)}s
+                <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-500/40 ml-auto shadow-xs">
+                  {reasoningElapsed.toFixed(1)}s elapsed
                 </span>
               </div>
-              
-              <motion.p 
+
+              {/* Professional Clinical Reasoning Text Detail */}
+              <motion.div
                 key={`desc-${reasoningIndex}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-xs text-slate-400 font-normal pl-0.5"
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-xs sm:text-[13px] text-slate-200/95 font-medium leading-relaxed pl-0.5"
               >
-                {REASONING_STAGES[reasoningIndex]?.detail}
-              </motion.p>
-              
-              {/* Subtle animated neural reasoning wave */}
-              <div className="flex items-center gap-1.5 pl-0.5 pt-1">
-                {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
-                  <motion.div
-                    key={idx}
-                    animate={{
-                      scaleY: [0.3, 1, 0.3],
-                      opacity: [0.35, 1, 0.35]
-                    }}
-                    transition={{
-                      duration: 0.85,
-                      repeat: Infinity,
-                      delay: idx * 0.1,
-                      ease: 'easeInOut'
-                    }}
-                    className="w-1.5 h-3.5 rounded-full bg-gradient-to-t from-blue-600 via-cyan-400 to-fuchsia-400"
-                  />
-                ))}
-                <span className="text-[9px] font-mono text-slate-500 ml-2 tracking-wider uppercase">
-                  Fast Inference Stream Active
-                </span>
+                {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.detail}
+              </motion.div>
+
+              {/* Colorful multi-spectral inference synthesis wave (No shape names) */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => (
+                    <motion.div
+                      key={idx}
+                      animate={{
+                        scaleY: [0.25, 1.2, 0.25],
+                        opacity: [0.4, 1, 0.4]
+                      }}
+                      transition={{
+                        duration: 0.9,
+                        repeat: Infinity,
+                        delay: idx * 0.1,
+                        ease: 'easeInOut'
+                      }}
+                      className="w-1.5 h-3 rounded-full bg-gradient-to-t from-cyan-500 via-blue-400 to-fuchsia-400"
+                    />
+                  ))}
+                  <span className="text-[10px] font-semibold text-cyan-400/90 ml-2 tracking-wide">
+                    Live Synthesis Stream
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Clinical Engine Active</span>
+                </div>
               </div>
             </div>
           </div>

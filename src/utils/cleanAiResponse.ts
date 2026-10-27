@@ -19,28 +19,13 @@ export function cleanAiResponse(text: string): string {
     // Strip lone single asterisks that are not bullets
     .replace(/(^|\s)\*(?!\s)/g, '$1')
     .replace(/\*(?=\s|$)/g, '')
-    // Convert markdown headers like ### Title into clean text or strip
+    // Convert markdown headers like ### Title into clean text
     .replace(/^#{1,6}\s+/gm, '')
-    // Strip known clinical section header lines (both with and without emojis)
-    .replace(/^(?:[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]\s*)?(?:Clinical Assessment|Clinical Overview|Clinical Impression|Assessment|Overview|Recommended Actions|Recommendations|Action Plan|Management|Next Steps|Medication & Care Guidance|Medication Guidance|Medication|Medications|Prescriptions|Supportive Care|Warning Signs & Safety|Warning Signs & Emergency Red Flags|Warning Signs|Emergency Red Flags|Danger Signs|Red Flags|Hydration & Nutrition|Hydration|Follow-up Questions|Interactive Follow-Up Questions|Interactive Questions|Key Takeaways):?\s*$/gim, '')
     // Convert markdown bullet asterisks or dashes into clean round bullets
     .replace(/^\s*[\*\-]\s+/gm, '• ')
     // Clean up excessive blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-
-  // If text consists of multiple brief lines that don't have bullet points or questions,
-  // collapse into a single cohesive paragraph if it's a simple conversational response
-  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
-  const hasBullets = lines.some(l => l.startsWith('•') || l.startsWith('-'));
-  const hasNumberedList = lines.some(l => /^\d+[\.\)]/.test(l));
-
-  if (!hasBullets && !hasNumberedList && lines.length > 1 && lines.length <= 4) {
-    // If none are questions or separate dialogs, combine into a single cohesive paragraph
-    const combined = lines.join(' ');
-    // Keep clean spacing around sentences
-    cleaned = combined.replace(/\s+/g, ' ').trim();
-  }
 
   return cleaned;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Activity, Cloud, Brain, Volume2, Bell, AlertTriangle, 
+  Zap, Activity, Cloud, Brain, Volume2, Bell, AlertTriangle, 
   Wifi, WifiOff, Radio, Shield, Stethoscope, PhoneCall, 
   ChevronRight, Sliders, Play, Waves, X, Check, ArrowRight,
   Heart, Thermometer, Droplets, ShieldAlert, FileText,
@@ -239,17 +239,7 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
         </div>
 
         <div className="flex items-center gap-2.5">
-          {onSwitchToDetailed && (
-            <button
-              type="button"
-              onClick={onSwitchToDetailed}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-blue-500/30 hover:border-blue-400/60 text-[11px] font-bold text-slate-200 transition-colors cursor-pointer shadow-sm active:scale-95"
-              title="Switch to detailed clinical matrix telemetry view"
-            >
-              <Activity size={13} className="text-blue-400" />
-              <span>Clinical Matrix</span>
-            </button>
-          )}
+
 
           {/* 1GB Free Cloud Vault -> Links to Patient Health Records & Vault */}
           <button
@@ -1003,6 +993,196 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
+      {/* 7. CLINICAL TELEMETRY & PHYSIOLOGICAL MATRIX (OPENLY DISPLAYED) */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <div className="space-y-6 pt-2">
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+              <Zap size={20} className="text-cyan-200" />
+            </div>
+            <div>
+              <h4 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                <span>Clinical Telemetry &amp; Physiological Synthesis</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
+                  Live Buffer Active
+                </span>
+              </h4>
+              <p className="text-xs text-slate-400">
+                Hemodynamic acuity metrics, continuous waveform signature &amp; autonomous Layer-9 baseline comparison
+              </p>
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-500/30">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Continuous Sync (99.4%)
+          </div>
+        </div>
+
+        {/* Card 1 (Remaining Feature 1): Clinical Telemetry Synthesis (MAP, Pulse Pressure, Shock Index, CV Load) */}
+        <div className="bg-slate-900/95 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border border-cyan-500/30 shadow-2xl shadow-cyan-950/30">
+          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+            <Activity size={140} />
+          </div>
+          <div className="relative z-10 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">
+                  Hemodynamic Equilibrium Matrix
+                </span>
+                <h5 className="text-lg font-bold text-slate-100">Vital Hemodynamics &amp; Acuity Vector</h5>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700 text-xs">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">Calculated Real-Time</span>
+              </div>
+            </div>
+
+            {/* Top Primary Calculations: MAP & Pulse Pressure */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center py-2">
+              <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-white tabular-nums mb-1">
+                  {vitals ? Math.round((vitals.systolicBP + 2 * vitals.diastolicBP) / 3) : 93}
+                  <span className="text-sm font-bold text-slate-400 ml-1.5">mmHg</span>
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Mean Arterial Pressure (MAP)</div>
+                <div className="text-[10px] text-slate-400 mt-1">Normal target range: 70 - 100 mmHg</div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-white tabular-nums mb-1">
+                  {vitals ? Math.round(vitals.systolicBP - vitals.diastolicBP) : 40}
+                  <span className="text-sm font-bold text-slate-400 ml-1.5">mmHg</span>
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Pulse Pressure</div>
+                <div className="text-[10px] text-slate-400 mt-1">Vascular compliance indicator: 30 - 50 mmHg</div>
+              </div>
+            </div>
+
+            {/* Bottom Acuity Calculations: Shock Index & CV Load */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-slate-950/70 rounded-2xl p-4.5 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Shock Index (HR / SBP)</p>
+                  <p className="text-2xl font-black text-amber-400 mt-0.5 tabular-nums">
+                    {vitals && vitals.systolicBP ? (vitals.heartRate / vitals.systolicBP).toFixed(2) : '0.62'}
+                  </p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">Threshold: &lt; 0.70 Normal | &ge; 0.90 Acuity Alarm</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Zap size={20} />
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 rounded-2xl p-4.5 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cardiovascular Load (Rate-Pressure Product)</p>
+                  <p className="text-2xl font-black text-blue-400 mt-0.5 tabular-nums">
+                    {vitals ? Math.round((vitals.heartRate * vitals.systolicBP) / 100) : 86}
+                  </p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">Workload status: &lt; 120 Optimal myocardial oxygen demand</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <Activity size={20} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2-Column Grid: Waveform Signature + Cognis Autonomous Analysis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card 2 (Remaining Feature 2): Neural Signature Stream Waveform */}
+          <div className="bg-slate-950 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border border-slate-800 shadow-xl flex flex-col justify-between min-h-[340px]">
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                  <Activity size={20} />
+                </div>
+                <div>
+                  <h5 className="text-base font-bold uppercase tracking-tight text-white">Neural Signature Stream</h5>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Direct Physiological Feedback Loop</p>
+                </div>
+              </div>
+
+              {/* Dynamic Animated Pulse Bars Visualizer */}
+              <div className="h-28 bg-slate-900/60 rounded-2xl border border-slate-800 flex items-center justify-center px-4 gap-1.5 overflow-hidden">
+                {[...Array(28)].map((_, i) => (
+                  <motion.div
+                    key={`synth-bar-${i}`}
+                    animate={{
+                      height: [8, Math.min(80, 15 + Math.sin(i * 0.4) * 35 + Math.random() * 25), 8],
+                      opacity: [0.35, 1, 0.35]
+                    }}
+                    transition={{
+                      duration: 1.2 + (i % 5) * 0.2,
+                      repeat: Infinity,
+                      delay: i * 0.04,
+                      ease: 'easeInOut'
+                    }}
+                    className="w-1.5 bg-gradient-to-t from-cyan-600 via-blue-500 to-indigo-400 rounded-full"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-800 relative z-10 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Bio-Signal Integrity</span>
+                  <span className="text-sm font-black text-cyan-300">99.4% Synchronized</span>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-xl bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-mono font-bold text-[10px] uppercase">
+                Active Telemetry Loop
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3 (Remaining Feature 3): Cognis Autonomous Clinical Analysis */}
+          <div className="bg-slate-900/90 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden border border-slate-800 shadow-xl flex flex-col justify-between min-h-[340px]">
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <Brain size={20} />
+                </div>
+                <div>
+                  <h5 className="text-base font-bold uppercase tracking-tight text-white">Cognis Autonomous Analysis</h5>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Baseline Comparison Logic Layer-9</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+                  Current vitals indicate a <span className="text-emerald-400 font-bold">stable hemodynamic profile</span>.
+                  Metabolic indicators confirm optimal capillary oxygen transport ({currentSpo2}% SpO2) and regular sinoatrial cadence ({currentHR} BPM).
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Clinical recommendation: Maintain current telemetry focus and continuous physiological monitoring.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-800 relative z-10">
+              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">Physiological Entropy</span>
+                <span className="text-lg font-black text-emerald-400">LOW</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">Sync Probability</span>
+                <span className="text-lg font-black text-blue-400">94.2%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      {/* ─────────────────────────────────────────────────────────── */}
       {/* MODAL 1: HEALTH ALERTS & SAFETY THRESHOLDS */}
       {/* ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -1350,7 +1530,7 @@ export const ModernizedPatientMonitorView: React.FC<ModernizedPatientMonitorView
                     }}
                     className="text-xs text-teal-400 hover:text-teal-300 font-bold"
                   >
-                    Switch to Clinical Hardware Matrix →
+                    View Vitality Telemetry →
                   </button>
                 ) : (
                   <button

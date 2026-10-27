@@ -3167,20 +3167,7 @@ export default function App() {
                   </motion.button>
                 </div>
 
-                {/* Next-Generation Clinical Intelligence Suite Button */}
-                <div className="relative overflow-visible shrink-0">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsNextGenSuiteOpen(true)}
-                    className="rounded-xl transition-all flex items-center gap-1.5 px-2.5 sm:px-3 h-10 md:h-10.5 lg:h-11 bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider border border-purple-400/80 shadow-md shadow-purple-500/20 cursor-pointer shrink-0"
-                    aria-label="Next-Gen AI Intelligence Suite"
-                    title="Open Next-Gen AI Intelligence Suite (Camera rPPG Pulse, Acoustic Stethoscope, Consensus Matrix, Vocal Biomarkers, Mesh Sync, 4D Organ Twin)"
-                  >
-                    <Sparkles size={16} className="stroke-[2.4] text-yellow-300 animate-pulse shrink-0" />
-                    <span className="hidden sm:inline">NextGen Tech</span>
-                  </motion.button>
-                </div>
+
 
                 {/* Doctorian Systems Menu Launchpad - Icon Only to Save Space */}
                 <div className="relative overflow-visible shrink-0">
@@ -4879,11 +4866,15 @@ export default function App() {
                 />
               )}
 
-              {isTelehealthOpen && (
+              {(isTelehealthOpen || isVoiceCallOpen) && (
                 <TelehealthScribeHub
                   key="modal-telehealth"
-                  isOpen={isTelehealthOpen}
-                  onClose={() => setIsTelehealthOpen(false)}
+                  isOpen={isTelehealthOpen || isVoiceCallOpen}
+                  initialMode={isVoiceCallOpen ? "voice" : "video"}
+                  onClose={() => {
+                    setIsTelehealthOpen(false);
+                    setIsVoiceCallOpen(false);
+                  }}
                 />
               )}
 

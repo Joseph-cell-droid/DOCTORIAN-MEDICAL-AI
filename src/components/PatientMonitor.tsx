@@ -417,35 +417,8 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
   return (
     <div className="space-y-8 animate-in fade-in zoom-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Radar Matrix */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
-           <div className="relative z-10">
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Homeostasis Radar</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">System-Wide Cross-Correlation Matrix</p>
-              
-              <div className="h-[300px] w-full">
-                <SafeResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} />
-                    <Radar
-                      name="System Health"
-                      dataKey="A"
-                      stroke="#2563eb"
-                      fill="#2563eb"
-                      fillOpacity={0.4}
-                    />
-                  </RadarChart>
-                </SafeResponsiveContainer>
-              </div>
-           </div>
-           <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
-              <Database size={120} />
-           </div>
-        </div>
-
         {/* Clinical Matrix */}
-        <div className="lg:col-span-7 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden group border border-white/5 shadow-2xl">
+        <div className="lg:col-span-12 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden group border border-white/5 shadow-2xl">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Zap size={120} />
           </div>

@@ -489,6 +489,20 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
 
             {/* Quick Access Action Buttons in Header */}
             <div className="flex items-center gap-2">
+              {/* NextGen Intelligence Suite Quick Launch */}
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('nextgen_tech');
+                  onClose();
+                  addToast('Opening Next-Gen Clinical Intelligence Suite', 'success');
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white border-purple-400/80 shadow-purple-500/20"
+                title="Next-Gen Clinical Intelligence Suite (rPPG Pulse, Stethoscope, Organ Twin, Consensus Matrix)"
+              >
+                <Sparkles size={14} className="text-yellow-300 animate-pulse shrink-0" />
+                <span className="text-[10px] uppercase tracking-wider font-black">NextGen Tech</span>
+              </button>
               {/* Settings Action Button (Moved from upper bar) */}
               <button
                 type="button"

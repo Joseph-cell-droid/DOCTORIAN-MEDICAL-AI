@@ -4,7 +4,8 @@ import {
   Stethoscope, Lightbulb, Pill, AlertTriangle, HelpCircle, 
   Copy, Check, Volume2, VolumeX, ThumbsUp, ThumbsDown, 
   RotateCcw, Sparkles, Activity, ShieldAlert, ChevronRight,
-  CheckCircle2, ArrowRight, ChevronDown, ChevronUp, BrainCircuit
+  CheckCircle2, ArrowRight, ChevronDown, ChevronUp, BrainCircuit,
+  Dna, Clock, ShieldCheck, HeartPulse, Info, FileText
 } from 'lucide-react';
 import { cleanAiResponse, extractInteractiveSuggestions } from '../utils/cleanAiResponse';
 
@@ -31,17 +32,97 @@ export interface ChatMessage {
   thoughtContent?: string;
 }
 
-interface ParsedClinicalSection {
-  type: 'assessment' | 'actions' | 'medication' | 'warning' | 'questions' | 'general';
+export interface ParsedPrescriptionItem {
+  raw: string;
+  name: string;
+  brand?: string;
+  dosage?: string;
+  route?: string;
+  frequency?: string;
+  duration?: string;
+  precautions?: string;
+}
+
+export interface ParsedClinicalSection {
+  type: 'disease' | 'evidence' | 'prescription' | 'actions' | 'warning' | 'questions' | 'general';
   title: string;
   icon: any;
   titleColor: string;
   textColor: string;
   lines: string[];
+  prescriptions?: ParsedPrescriptionItem[];
 }
 
 /**
- * Parses raw AI clinical text into clean open-web medical sections without cards.
+ * Parses individual drug prescription lines into structured medication attributes
+ */
+function parsePrescriptionLine(line: string): ParsedPrescriptionItem {
+  const clean = line.replace(/^[•\-\*]\s*/, '').trim();
+  if (!clean) return { raw: '', name: '' };
+
+  const pipeParts = clean.split('|').map(p => p.trim());
+  if (pipeParts.length >= 2) {
+    const firstPart = pipeParts[0];
+    let name = firstPart;
+    let brand: string | undefined;
+    let dosage: string | undefined;
+
+    const brandMatch = firstPart.match(/\(Brand:\s*([^)]+)\)/i) || firstPart.match(/\(([^)]+)\)/);
+    if (brandMatch) {
+      brand = brandMatch[1].replace(/^Brand:\s*/i, '').trim();
+      name = firstPart.replace(/\([^)]+\)/, '').trim();
+    }
+
+    if (name.includes(':')) {
+      const colonSplit = name.split(':');
+      name = colonSplit[0].trim();
+      dosage = colonSplit.slice(1).join(':').trim();
+    }
+
+    let route: string | undefined;
+    let frequency: string | undefined;
+    let duration: string | undefined;
+    let precautions: string | undefined;
+
+    for (let i = 1; i < pipeParts.length; i++) {
+      const part = pipeParts[i];
+      const lower = part.toLowerCase();
+      if (lower.startsWith('route:')) route = part.replace(/^route:\s*/i, '').trim();
+      else if (lower.startsWith('frequency:')) frequency = part.replace(/^frequency:\s*/i, '').trim();
+      else if (lower.startsWith('duration:')) duration = part.replace(/^duration:\s*/i, '').trim();
+      else if (lower.startsWith('precautions:') || lower.startsWith('precaution:')) precautions = part.replace(/^precautions?:\s*/i, '').trim();
+      else if (!dosage && (lower.includes('mg') || lower.includes('tablet') || lower.includes('dose') || lower.includes('capsule'))) dosage = part;
+      else if (!frequency && (lower.includes('daily') || lower.includes('hourly') || lower.includes('times') || lower.includes('bd') || lower.includes('tds'))) frequency = part;
+      else if (!duration && (lower.includes('day') || lower.includes('week') || lower.includes('month'))) duration = part;
+      else if (!precautions) precautions = part;
+    }
+
+    return { raw: clean, name, brand, dosage, route, frequency, duration, precautions };
+  }
+
+  // Fallback colon format: Drug Name: Dosage, Frequency, Duration
+  if (clean.includes(':')) {
+    const [namePart, ...rest] = clean.split(':');
+    let brand: string | undefined;
+    let name = namePart.trim();
+    const brandMatch = name.match(/\(Brand:\s*([^)]+)\)/i) || name.match(/\(([^)]+)\)/);
+    if (brandMatch) {
+      brand = brandMatch[1].replace(/^Brand:\s*/i, '').trim();
+      name = name.replace(/\([^)]+\)/, '').trim();
+    }
+    return {
+      raw: clean,
+      name,
+      brand,
+      dosage: rest.join(':').trim()
+    };
+  }
+
+  return { raw: clean, name: clean };
+}
+
+/**
+ * Parses raw AI clinical text into structured sections with single suspected disease and drug matrices
  */
 function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[] {
   const cleaned = cleanAiResponse(rawText);
@@ -71,36 +152,75 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
 
     const lower = trimmed.toLowerCase();
 
-    // 1. Clinical Assessment / Impression Header
+    // 1. PRIMARY SUSPECTED DISEASE HEADER
     if (
-      (trimmed.startsWith('🩺') || lower.includes('clinical assessment') || lower.includes('clinical overview') || lower.includes('impression:')) &&
-      (trimmed.length < 65 || trimmed.endsWith(':'))
+      (trimmed.startsWith('🩺') || lower.includes('primary suspected disease') || lower.includes('suspected disease') || lower.includes('primary diagnosis') || lower.includes('clinical impression')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
       }
       currentSection = {
-        type: 'assessment',
-        title: trimmed.replace(/^#*\s*🩺?\s*/, '').replace(/:$/, ''),
+        type: 'disease',
+        title: trimmed.replace(/^#*\s*🩺?\s*/, '').replace(/:$/, '').trim(),
         icon: Stethoscope,
         titleColor: 'text-cyan-300',
+        textColor: 'text-slate-100',
+        lines: []
+      };
+      continue;
+    }
+
+    // 2. EVIDENCE & CAUSE HEADER
+    if (
+      (trimmed.startsWith('🧬') || lower.includes('evidence & cause') || lower.includes('evidence of the cause') || lower.includes('pathophysiology & cause') || lower.includes('etiology & evidence')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
+    ) {
+      if (currentSection.lines.length > 0) {
+        sections.push(currentSection);
+      }
+      currentSection = {
+        type: 'evidence',
+        title: trimmed.replace(/^#*\s*🧬?\s*/, '').replace(/:$/, '').trim(),
+        icon: Dna,
+        titleColor: 'text-indigo-300',
         textColor: 'text-slate-200',
         lines: []
       };
       continue;
     }
 
-    // 2. Recommended Actions & Care Plan Header
+    // 3. ACCURATE DRUG PRESCRIPTIONS HEADER
     if (
-      (trimmed.startsWith('💡') || trimmed.startsWith('📋') || lower.includes('recommended actions') || lower.includes('action plan') || lower.includes('management:') || lower.includes('self-care')) &&
-      (trimmed.length < 65 || trimmed.endsWith(':'))
+      (trimmed.startsWith('💊') || lower.includes('accurate drug prescriptions') || lower.includes('drug prescriptions') || lower.includes('prescription list') || lower.includes('pharmacotherapy & medications') || lower.includes('medication prescriptions')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
+    ) {
+      if (currentSection.lines.length > 0) {
+        sections.push(currentSection);
+      }
+      currentSection = {
+        type: 'prescription',
+        title: trimmed.replace(/^#*\s*💊?\s*/, '').replace(/:$/, '').trim(),
+        icon: Pill,
+        titleColor: 'text-blue-300',
+        textColor: 'text-slate-200',
+        lines: [],
+        prescriptions: []
+      };
+      continue;
+    }
+
+    // 4. RECOMMENDED ACTIONS & CLINICAL ADVICE HEADER
+    if (
+      (trimmed.startsWith('💡') || trimmed.startsWith('📋') || lower.includes('clinical advice & care') || lower.includes('clinical advice') || lower.includes('recommended actions') || lower.includes('action plan') || lower.includes('self-care & supportive care')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
       }
       currentSection = {
         type: 'actions',
-        title: trimmed.replace(/^#*\s*[💡📋]?\s*/, '').replace(/:$/, ''),
+        title: trimmed.replace(/^#*\s*[💡📋]?\s*/, '').replace(/:$/, '').trim(),
         icon: Lightbulb,
         titleColor: 'text-emerald-300',
         textColor: 'text-slate-200',
@@ -109,36 +229,17 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
       continue;
     }
 
-    // 3. Medication & Treatment Guidance Header
+    // 5. WARNING SIGNS & EMERGENCY RED FLAGS HEADER
     if (
-      (trimmed.startsWith('💊') || lower.includes('medication & care') || lower.includes('medication guidance') || lower.includes('pharmacotherapy') || lower.includes('prescription')) &&
-      (trimmed.length < 65 || trimmed.endsWith(':'))
-    ) {
-      if (currentSection.lines.length > 0) {
-        sections.push(currentSection);
-      }
-      currentSection = {
-        type: 'medication',
-        title: trimmed.replace(/^#*\s*💊?\s*/, '').replace(/:$/, ''),
-        icon: Pill,
-        titleColor: 'text-indigo-300',
-        textColor: 'text-slate-200',
-        lines: []
-      };
-      continue;
-    }
-
-    // 4. Warning Signs & Red Flags Header
-    if (
-      (trimmed.startsWith('⚠️') || trimmed.startsWith('🚨') || lower.includes('warning signs') || lower.includes('emergency red flags') || lower.includes('danger signs') || lower.includes('red flags')) &&
-      (trimmed.length < 65 || trimmed.endsWith(':'))
+      (trimmed.startsWith('⚠️') || trimmed.startsWith('🚨') || lower.includes('emergency red flags') || lower.includes('warning signs & emergency') || lower.includes('danger signs') || lower.includes('red flags')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
       }
       currentSection = {
         type: 'warning',
-        title: trimmed.replace(/^#*\s*[⚠️🚨]?\s*/, '').replace(/:$/, ''),
+        title: trimmed.replace(/^#*\s*[⚠️🚨]?\s*/, '').replace(/:$/, '').trim(),
         icon: AlertTriangle,
         titleColor: 'text-rose-400',
         textColor: 'text-rose-100',
@@ -147,23 +248,32 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
       continue;
     }
 
-    // 5. Follow-Up Diagnostic Questions Header
+    // 6. FOLLOW-UP DIAGNOSTIC QUESTIONS HEADER
     if (
-      (trimmed.startsWith('❓') || lower.includes('follow-up questions') || lower.includes('diagnostic questions') || lower.includes('interactive follow-up')) &&
-      (trimmed.length < 65 || trimmed.endsWith(':'))
+      (trimmed.startsWith('❓') || lower.includes('diagnostic follow-up') || lower.includes('follow-up questions') || lower.includes('interactive follow-up')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
       }
       currentSection = {
         type: 'questions',
-        title: trimmed.replace(/^#*\s*❓?\s*/, '').replace(/:$/, ''),
+        title: trimmed.replace(/^#*\s*❓?\s*/, '').replace(/:$/, '').trim(),
         icon: HelpCircle,
         titleColor: 'text-purple-300',
         textColor: 'text-slate-200',
         lines: []
       };
       continue;
+    }
+
+    // Process lines in prescription section
+    if (currentSection.type === 'prescription' && (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.includes('|') || trimmed.includes('mg'))) {
+      const parsedMed = parsePrescriptionLine(trimmed);
+      if (parsedMed && parsedMed.name) {
+        if (!currentSection.prescriptions) currentSection.prescriptions = [];
+        currentSection.prescriptions.push(parsedMed);
+      }
     }
 
     // Add line to current section
@@ -230,7 +340,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
             <span>Doctorian AI</span>
           </div>
           <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-            Clinical Co-Pilot • Gemini 3.8-Flash
+            Clinical Diagnostic Intelligence • Gemini 3.8-Flash
           </span>
           {isEmergency && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold animate-pulse">
@@ -269,10 +379,10 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               >
                 <div className="mt-1.5 ml-2 pl-3 border-l-2 border-cyan-500/30 py-1.5 space-y-1.5 text-xs text-slate-400 bg-slate-900/20 rounded-r-lg">
                   {(msg.reasoningSteps && msg.reasoningSteps.length > 0 ? msg.reasoningSteps : [
-                    'Thinking & evaluating symptom inquiry',
-                    'Configured neural clinical weights and telemetry',
-                    'Mapped diagnostic pathways against WHO & Uganda protocols',
-                    'Synthesized evidence-based clinical guidance'
+                    'Evaluating reported signs, symptoms, onset and fever cycle',
+                    'Correlating physiological pathways against Uganda Clinical Guidelines (UCG) & WHO protocols',
+                    'Isolating strictly single primary suspected disease with highest evidence probability',
+                    'Formulating accurate guideline-directed drug prescription matrix & supportive care'
                   ]).map((step, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-slate-300">
                       <CheckCircle2 size={12} className="text-cyan-400 shrink-0" />
@@ -286,79 +396,208 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
         </div>
       )}
 
-      {/* 3. Plain Open-Web Response Content (NO CARDS HOLDING THE TEXT) */}
-      <div className={`space-y-3 relative transition-all ${msg.isStreaming ? 'text-slate-100' : ''}`}>
+      {/* 3. Clinical Response Content with Structured Single Suspected Disease & Drug Matrix */}
+      <div className={`space-y-3.5 relative transition-all ${msg.isStreaming ? 'text-slate-100' : ''}`}>
         {parsedSections.length > 1 ? (
           <div className="space-y-4">
             {parsedSections.map((sec, sIdx) => {
-              const Icon = sec.icon;
+              // 3.1 PRIMARY SUSPECTED DISEASE HERO DISPLAY (STRICT SINGLE DISEASE REQUIREMENT)
+              if (sec.type === 'disease') {
+                const diseaseTitle = sec.title.replace(/^PRIMARY SUSPECTED DISEASE:?\s*/i, '').trim();
+                return (
+                  <div key={sIdx} className="rounded-xl p-3.5 sm:p-4 bg-linear-to-br from-cyan-950/40 via-slate-900/60 to-slate-900/80 border border-cyan-500/30 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-semibold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>PRIMARY SUSPECTED DISEASE</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
+                        <ShieldCheck size={12} className="text-emerald-400" />
+                        WHO & UCG Guideline Protocol
+                      </span>
+                    </div>
 
-              return (
-                <div key={sIdx} className="space-y-2">
-                  {/* Content Lines without Headers */}
-                  <div className="space-y-2 text-[14.5px] sm:text-[15px] leading-relaxed">
-                    {sec.lines.map((line, lIdx) => {
-                      const trimmed = line.trim();
-                      if (!trimmed) return <div key={lIdx} className="h-1" />;
+                    {diseaseTitle && (
+                      <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2 mt-1">
+                        <Stethoscope size={18} className="text-cyan-400 shrink-0" />
+                        <span>{diseaseTitle}</span>
+                      </h3>
+                    )}
 
-                      // Diagnostic Question line
-                      if (trimmed.startsWith('❓') || (trimmed.endsWith('?') && sec.type === 'questions')) {
-                        return (
-                          <div key={lIdx} className="flex items-start gap-2.5 my-2 text-blue-700 dark:text-cyan-200 text-sm font-medium">
-                            <span className="shrink-0 text-base">❓</span>
-                            <span className="leading-relaxed">{trimmed.replace(/^❓\s*/, '')}</span>
-                          </div>
-                        );
-                      }
-
-                      // Bulleted Item
-                      if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
-                        const cleanItem = trimmed.replace(/^[•\-]\s*/, '');
-                        return (
-                          <div key={lIdx} className="flex items-start gap-2.5 text-slate-800 dark:text-slate-200 pl-0.5">
-                            <div className="mt-1.5 shrink-0">
-                              {sec.type === 'actions' ? (
-                                <CheckCircle2 size={13} className="text-emerald-500 dark:text-emerald-400" />
-                              ) : sec.type === 'warning' ? (
-                                <AlertTriangle size={13} className="text-rose-500 dark:text-rose-400" />
-                              ) : (
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-cyan-400 inline-block" />
-                              )}
-                            </div>
-                            <span className="text-[14px] sm:text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-200">
-                              {cleanItem}
-                            </span>
-                          </div>
-                        );
-                      }
-
-                      // Red-flag warning section callout (minimalist border-left rule, not a card)
-                      if (sec.type === 'warning') {
-                        return (
-                          <div key={lIdx} className="border-l-2 border-rose-500/80 pl-3 py-1 my-1.5 text-rose-800 dark:text-rose-200/95 leading-relaxed font-normal">
-                            {trimmed}
-                          </div>
-                        );
-                      }
-
-                      // Regular Paragraph
-                      return (
-                        <p key={lIdx} className="text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
-                          {trimmed}
-                        </p>
-                      );
-                    })}
+                    {sec.lines.length > 0 && (
+                      <div className="mt-2 text-sm text-slate-300 leading-relaxed space-y-1">
+                        {sec.lines.map((l, lIdx) => {
+                          const t = l.trim();
+                          if (!t) return null;
+                          return <p key={lIdx}>{t}</p>;
+                        })}
+                      </div>
+                    )}
                   </div>
+                );
+              }
 
-                  {/* Warning Red-Flag Action Prompt if in warning section */}
-                  {sec.type === 'warning' && (
+              // 3.2 EVIDENCE & CAUSE CALLOUT
+              if (sec.type === 'evidence') {
+                return (
+                  <div key={sIdx} className="rounded-xl p-3.5 bg-slate-900/40 border-l-4 border-l-indigo-500 border border-slate-800/80 space-y-2">
+                    <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold tracking-wide uppercase">
+                      <Dna size={14} className="text-indigo-400" />
+                      <span>{sec.title || "Evidence & Pathophysiological Cause"}</span>
+                    </div>
+                    <div className="text-[14px] leading-relaxed text-slate-300 space-y-1.5">
+                      {sec.lines.map((l, lIdx) => {
+                        const t = l.trim();
+                        if (!t) return null;
+                        if (t.startsWith('•') || t.startsWith('-')) {
+                          return (
+                            <div key={lIdx} className="flex items-start gap-2 pl-1">
+                              <span className="text-indigo-400 mt-1 shrink-0 text-xs">●</span>
+                              <span>{t.replace(/^[•\-]\s*/, '')}</span>
+                            </div>
+                          );
+                        }
+                        return <p key={lIdx}>{t}</p>;
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3.3 ACCURATE DRUG PRESCRIPTIONS MATRIX
+              if (sec.type === 'prescription') {
+                const prescriptionsList = sec.prescriptions && sec.prescriptions.length > 0 
+                  ? sec.prescriptions 
+                  : sec.lines.map(l => parsePrescriptionLine(l)).filter(p => p && p.name);
+
+                return (
+                  <div key={sIdx} className="rounded-xl p-3.5 sm:p-4 bg-slate-900/60 border border-blue-500/30 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-800/60 pb-2">
+                      <div className="flex items-center gap-2 text-blue-300 text-xs font-bold tracking-wide uppercase">
+                        <Pill size={15} className="text-blue-400" />
+                        <span>{sec.title || "Accurate Drug Prescriptions"}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 text-[11px] font-mono">
+                        {prescriptionsList.length} Guideline Medication{prescriptionsList.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {prescriptionsList.map((med, mIdx) => (
+                        <div key={mIdx} className="p-3 rounded-lg bg-slate-950/70 border border-slate-800/80 hover:border-blue-500/40 transition-colors space-y-2">
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="p-1.5 rounded-md bg-blue-500/20 text-blue-300 shrink-0">
+                                <Pill size={14} />
+                              </span>
+                              <div>
+                                <span className="font-semibold text-white text-sm">
+                                  {med.name}
+                                </span>
+                                {med.brand && (
+                                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono">
+                                    Brand: {med.brand}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Prescribed details badges */}
+                          <div className="flex flex-wrap gap-1.5 text-xs">
+                            {med.dosage && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40 text-cyan-200 text-[11px]">
+                                <Activity size={10} className="text-cyan-400" />
+                                <span>{med.dosage}</span>
+                              </span>
+                            )}
+                            {med.route && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800/40 text-purple-200 text-[11px]">
+                                <span>Route: {med.route}</span>
+                              </span>
+                            )}
+                            {med.frequency && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40 text-emerald-200 text-[11px]">
+                                <Clock size={10} className="text-emerald-400" />
+                                <span>{med.frequency}</span>
+                              </span>
+                            )}
+                            {med.duration && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/40 text-amber-200 text-[11px]">
+                                <span>Course: {med.duration}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {med.precautions && (
+                            <div className="pt-1 text-[11px] text-amber-300/90 flex items-start gap-1.5 bg-amber-950/20 p-1.5 rounded border border-amber-500/20">
+                              <Info size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                              <span>{med.precautions}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3.4 CLINICAL ADVICE & CARE
+              if (sec.type === 'actions') {
+                return (
+                  <div key={sIdx} className="rounded-xl p-3.5 bg-slate-900/50 border border-emerald-500/25 space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold tracking-wide uppercase">
+                      <Lightbulb size={14} className="text-emerald-400" />
+                      <span>{sec.title || "Clinical Advice & Supportive Care"}</span>
+                    </div>
+                    <div className="space-y-1.5 text-[14px] text-slate-200 leading-relaxed">
+                      {sec.lines.map((l, lIdx) => {
+                        const t = l.trim();
+                        if (!t) return null;
+                        return (
+                          <div key={lIdx} className="flex items-start gap-2.5 pl-0.5">
+                            <CheckCircle2 size={14} className="text-emerald-400 mt-1 shrink-0" />
+                            <span>{t.replace(/^[•\-]\s*/, '')}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3.5 EMERGENCY RED FLAGS
+              if (sec.type === 'warning') {
+                return (
+                  <div key={sIdx} className="rounded-xl p-3.5 bg-rose-950/30 border border-rose-500/40 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 text-rose-300 text-xs font-bold tracking-wide uppercase">
+                        <AlertTriangle size={15} className="text-rose-400 animate-pulse" />
+                        <span>{sec.title || "Emergency Red Flags"}</span>
+                      </div>
+                      <span className="text-[10px] text-rose-300 bg-rose-900/40 px-2 py-0.5 rounded font-mono">
+                        Immediate Hospital Escalation
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 text-[14px] text-rose-100/90 leading-relaxed">
+                      {sec.lines.map((l, lIdx) => {
+                        const t = l.trim();
+                        if (!t) return null;
+                        return (
+                          <div key={lIdx} className="flex items-start gap-2 pl-0.5">
+                            <span className="text-rose-400 font-bold shrink-0">⚠️</span>
+                            <span>{t.replace(/^[•\-⚠️🚨]\s*/, '')}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                     <div className="pt-1 flex items-center justify-between flex-wrap gap-2 text-xs">
-                      <span className="text-[11px] text-rose-600 dark:text-rose-300/80">
-                        If warning symptoms persist, visit the nearest medical facility immediately.
+                      <span className="text-[11px] text-rose-300/80">
+                        If danger signs persist, present to the nearest Regional Referral Hospital.
                       </span>
                       <button
                         type="button"
-                        onClick={() => onSendPrompt("🚨 I am experiencing severe warning symptoms. What emergency facility steps should I take immediately?")}
+                        onClick={() => onSendPrompt("🚨 I am experiencing emergency warning symptoms. What triage steps should I take immediately?")}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs transition-colors cursor-pointer"
                       >
                         <AlertTriangle size={12} />
@@ -366,39 +605,68 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                         <ArrowRight size={12} />
                       </button>
                     </div>
-                  )}
+                  </div>
+                );
+              }
+
+              // 3.6 DIAGNOSTIC FOLLOW-UP QUESTIONS
+              if (sec.type === 'questions') {
+                return (
+                  <div key={sIdx} className="p-3 rounded-lg bg-slate-900/30 border border-purple-500/20 space-y-1.5">
+                    <div className="flex items-center gap-2 text-purple-300 text-xs font-bold uppercase">
+                      <HelpCircle size={13} className="text-purple-400" />
+                      <span>{sec.title || "Diagnostic Follow-Up"}</span>
+                    </div>
+                    <div className="space-y-1 text-sm text-cyan-200 font-medium">
+                      {sec.lines.map((l, lIdx) => {
+                        const t = l.trim();
+                        if (!t) return null;
+                        return (
+                          <div key={lIdx} className="flex items-start gap-2">
+                            <span className="text-purple-400">❓</span>
+                            <span>{t.replace(/^❓\s*/, '')}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3.7 GENERAL SECTION
+              return (
+                <div key={sIdx} className="space-y-2 text-[14.5px] leading-relaxed text-slate-200">
+                  {sec.lines.map((line, lIdx) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return <div key={lIdx} className="h-1" />;
+                    if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                      return (
+                        <div key={lIdx} className="flex items-start gap-2.5 pl-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-2 shrink-0 inline-block" />
+                          <span>{trimmed.replace(/^[•\-]\s*/, '')}</span>
+                        </div>
+                      );
+                    }
+                    return <p key={lIdx}>{trimmed}</p>;
+                  })}
                 </div>
               );
             })}
           </div>
         ) : (
-          /* Plain Unboxed Text (Open-Web Style) */
+          /* Plain Open-Web Text Style */
           <div className="space-y-2.5 text-[14.5px] sm:text-[15px] leading-relaxed text-slate-800 dark:text-slate-200">
             {cleanedText.split('\n').map((line, idx) => {
               const trimmed = line.trim();
               if (!trimmed) return <div key={idx} className="h-1.5" />;
 
-              // If line looks like a legacy header line, skip it or render as standard paragraph
-              const isLegacyHeader = /^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]/.test(trimmed) && (
-                trimmed.endsWith(':') || 
-                trimmed.length < 55 || 
-                trimmed.includes('Assessment') || 
-                trimmed.includes('Actions') || 
-                trimmed.includes('Guidance') || 
-                trimmed.includes('Signs')
-              );
-
-              if (isLegacyHeader) {
-                // Strip the header prefix and only render if it has actual sentence content
-                const cleanContent = trimmed.replace(/^[🩺💊💧🌡️🏥💡⚠️✨📋❓📌🚨🧠🫀🔬]\s*/, '').replace(/:$/, '').trim();
-                if (cleanContent && cleanContent.length > 30) {
-                  return (
-                    <p key={idx} className="text-slate-800 dark:text-slate-200 font-normal leading-relaxed">
-                      {cleanContent}
-                    </p>
-                  );
-                }
-                return null;
+              // Clinical section header line
+              if (/^[🩺🧬💊💡⚠️❓🚨📋📌]/.test(trimmed)) {
+                return (
+                  <div key={idx} className="pt-2 font-bold text-cyan-300 dark:text-cyan-300 text-sm flex items-center gap-1.5">
+                    <span>{trimmed}</span>
+                  </div>
+                );
               }
 
               if (trimmed.startsWith('•') || trimmed.startsWith('-')) {

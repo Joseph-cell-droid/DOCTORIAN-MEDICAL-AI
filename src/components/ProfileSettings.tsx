@@ -1357,7 +1357,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <Database size={18} className="text-cyan-400" />
-                    <span>Encrypted SQLite Database Vault & Offline Sync</span>
+                    <span>PostgreSQL Enterprise Database System & Restricted Security Vault</span>
                   </h3>
                   <button
                     type="button"

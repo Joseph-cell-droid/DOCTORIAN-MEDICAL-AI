@@ -35,6 +35,13 @@ import {
   Clock,
   Globe,
   HelpCircle,
+  LayoutGrid,
+  List,
+  Calculator,
+  Sliders,
+  UserPlus,
+  LogIn,
+  ShieldAlert,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -68,6 +75,7 @@ interface StorageVaultModalProps {
   user: any;
   onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
   onNavigateToBilling?: (tab?: 'storage' | 'plans') => void;
+  onOpenAuth?: (mode?: 'login' | 'signup') => void;
 }
 
 export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
@@ -76,7 +84,18 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
   user,
   onShowToast,
   onNavigateToBilling,
+  onOpenAuth,
 }) => {
+  // Check registration status: only registered users can claim/access the 1GB Free Cloud Vault
+  const isUserRegistered = Boolean(
+    user &&
+    user.email &&
+    user.email !== 'guest@doctorian.com' &&
+    user.email.includes('@') &&
+    !user.isGuest &&
+    (user.id || user.uid)
+  );
+
   // Authentication & 2FA State
   const [authStep, setAuthStep] = useState<'password' | '2fa' | 'unlocked'>('password');
   const [password, setPassword] = useState('');
@@ -106,6 +125,16 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [previewFileItem, setPreviewFileItem] = useState<VaultFile | null>(null);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
+
+  // Modern UI & Reactive Features State
+  const [fileViewMode, setFileViewMode] = useState<'grid' | 'list'>('grid');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [calcSimSizeMb, setCalcSimSizeMb] = useState<number>(35); // Hypothetical reactive storage calculator
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [hashToVerify, setHashToVerify] = useState('');
+  const [hashVerifyResult, setHashVerifyResult] = useState<{ status: 'match' | 'mismatch'; fileName?: string } | null>(null);
+  const [showHashVerifier, setShowHashVerifier] = useState(false);
+  const [sessionTimeRemaining, setSessionTimeRemaining] = useState<number>(600); // 10 min session auto-lock
 
   // Clinical Actions State
   const [isGeneratingSample, setIsGeneratingSample] = useState(false);
@@ -435,9 +464,29 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
     }
   };
 
-  // Handle file upload
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  // Session Auto-Lock Countdown (10 min session)
+  useEffect(() => {
+    if (authStep !== 'unlocked') return;
+    const interval = setInterval(() => {
+      setSessionTimeRemaining((prev) => {
+        if (prev <= 1) {
+          handleLockVault();
+          if (onShowToast) onShowToast('Session expired. 1GB Vault locked automatically for security.', 'info');
+          return 600;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [authStep]);
+
+  const handleExtendSession = () => {
+    setSessionTimeRemaining(600);
+    if (onShowToast) onShowToast('Vault session extended by 10 minutes.', 'success');
+  };
+
+  // Reusable file processing for input and reactive drag-and-drop
+  const processFile = async (file: File) => {
     if (!file) return;
 
     // Dangerous extension check on frontend
@@ -492,6 +541,48 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
       setIsUploading(false);
       setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle file upload from standard file input
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      await processFile(file);
+    }
+  };
+
+  // Reactive Drag and Drop Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      await processFile(file);
+    }
+  };
+
+  // Reactive Hash Verification
+  const handleVerifyHash = () => {
+    if (!hashToVerify.trim()) {
+      setHashVerifyResult(null);
+      return;
+    }
+    const cleanHash = hashToVerify.trim().toLowerCase();
+    const matched = files.find(f => f.sha256 && f.sha256.toLowerCase() === cleanHash);
+    if (matched) {
+      setHashVerifyResult({ status: 'match', fileName: matched.name });
+    } else {
+      setHashVerifyResult({ status: 'mismatch' });
     }
   };
 
@@ -628,6 +719,17 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Real 1GB Free Quota
                 </span>
+                {isUserRegistered ? (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    <ShieldCheck className="w-3 h-3" />
+                    Verified Account
+                  </span>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    <ShieldAlert className="w-3 h-3" />
+                    Registration Required
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 SHA-256 Bit-Level Verification • AES-256-GCM Military Encryption • Isolated Tenant Namespace
@@ -636,6 +738,22 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {authStep === 'unlocked' && isUserRegistered && (
+              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-mono border border-slate-200 dark:border-slate-700">
+                <span className="text-slate-400">Lock:</span>
+                <span className={sessionTimeRemaining < 120 ? 'text-rose-500 font-bold animate-pulse' : 'text-slate-600 dark:text-slate-300 font-semibold'}>
+                  {Math.floor(sessionTimeRemaining / 60)}:{('0' + (sessionTimeRemaining % 60)).slice(-2)}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleExtendSession}
+                  className="ml-1 text-[10px] font-sans font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  title="Extend session by 10 minutes"
+                >
+                  Extend
+                </button>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -656,7 +774,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
               <button
                 type="button"
                 onClick={handleLockVault}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-colors cursor-pointer"
                 title="Lock Vault"
               >
                 <Lock className="w-3.5 h-3.5" />
@@ -679,9 +797,110 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           <AnimatePresence mode="wait">
             {/* ---------------------------------------------------- */}
-            {/* STEP 1: PASSWORD & QUICK UNLOCK GATEWAY */}
+            {/* STEP 0: REGISTRATION BARRIER (WHEN NOT REGISTERED) */}
             {/* ---------------------------------------------------- */}
-            {authStep === 'password' && (
+            {!isUserRegistered ? (
+              <motion.div
+                key="registration_barrier"
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.98 }}
+                className="max-w-xl mx-auto py-4 sm:py-6 space-y-6"
+              >
+                {/* Modern Security Shield & Badge */}
+                <div className="text-center space-y-3">
+                  <div className="relative inline-flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-amber-500/20 border-2 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-xl">
+                      <ShieldAlert className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <span className="absolute -bottom-1 -right-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider shadow-md">
+                      Locked
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                      Account Registration Required
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+                      Doctorian Cloud Vault provisions an isolated, zero-knowledge <strong className="text-indigo-600 dark:text-indigo-400 font-bold">1.00 GB (1,024 MB) free storage partition</strong> exclusively for verified registered accounts.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4 Cryptographic Architecture Pillars */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                      <HardDrive className="w-4 h-4" />
+                      <span className="text-xs font-bold">1,024 MB Free Quota</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Dedicated high-availability storage allocated on account creation for DICOM scans, lab PDFs, and EHR notes.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                      <Lock className="w-4 h-4" />
+                      <span className="text-xs font-bold">Zero-Knowledge AES-256</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Client-side encryption keys derived from your verified credentials prevent unauthorized remote surveillance.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                      <Fingerprint className="w-4 h-4" />
+                      <span className="text-xs font-bold">Biometric & 2FA Gate</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Two-factor verification and auto-locking safeguards protect diagnostic data across sessions.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span className="text-xs font-bold">SHA-256 Audit Trail</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Every diagnostic file receives an immutable cryptographic hash ledger for bit-level tamper resistance.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Call To Action Buttons */}
+                <div className="space-y-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenAuth ? onOpenAuth('signup') : null}
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Register Free Account & Claim 1GB Vault</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onOpenAuth ? onOpenAuth('login') : null}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-200 dark:border-slate-700"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Already have an account? Sign In</span>
+                  </button>
+                </div>
+
+                <div className="text-center text-[11px] text-slate-400 flex items-center justify-center gap-2 pt-1">
+                  <span>Free Forever</span>
+                  <span>•</span>
+                  <span>No Payment Card Needed</span>
+                  <span>•</span>
+                  <span>Instant 1,024 MB Provisioning</span>
+                </div>
+              </motion.div>
+            ) : authStep === 'password' ? (
               <motion.div
                 key="password_step"
                 initial={{ opacity: 0, y: 10 }}
@@ -706,11 +925,16 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                       <Fingerprint className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        Active Verified Session
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {user?.email || 'Logged in user'}
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          Active Verified Session
+                        </p>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">
+                          Verified
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        {user?.email}
                       </p>
                     </div>
                   </div>
@@ -781,12 +1005,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                   </button>
                 </form>
               </motion.div>
-            )}
-
-            {/* ---------------------------------------------------- */}
-            {/* STEP 2: TWO-WAY VERIFICATION CODE */}
-            {/* ---------------------------------------------------- */}
-            {authStep === '2fa' && (
+            ) : authStep === '2fa' ? (
               <motion.div
                 key="2fa_step"
                 initial={{ opacity: 0, y: 10 }}
@@ -884,12 +1103,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                   </div>
                 </form>
               </motion.div>
-            )}
-
-            {/* ---------------------------------------------------- */}
-            {/* STEP 3: UNLOCKED 1GB CLOUD STORAGE VAULT */}
-            {/* ---------------------------------------------------- */}
-            {authStep === 'unlocked' && (
+            ) : (
               <motion.div
                 key="unlocked_vault"
                 initial={{ opacity: 0 }}
@@ -951,7 +1165,35 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                     </div>
 
                     {/* Quick Utility Controls */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowCalculator((prev) => !prev)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          showCalculator
+                            ? 'border-indigo-500/60 bg-indigo-950/60 text-indigo-300 ring-2 ring-indigo-500/20'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-750'
+                        }`}
+                        title="Simulate adding files and test remaining space"
+                      >
+                        <Calculator className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>{showCalculator ? 'Hide Sim' : 'Space Sim'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowHashVerifier((prev) => !prev)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          showHashVerifier
+                            ? 'border-purple-500/60 bg-purple-950/60 text-purple-300 ring-2 ring-purple-500/20'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-750'
+                        }`}
+                        title="Verify SHA-256 bit-level integrity"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                        <span>{showHashVerifier ? 'Close Hash' : 'Verify Hash'}</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={handleSimulateFullToggle}
@@ -970,7 +1212,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                         ) : (
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
                         )}
-                        <span>{quota.isFull || quota.percentUsed >= 100 ? 'Reset Quota' : 'Test Full Quota'}</span>
+                        <span>{quota.isFull || quota.percentUsed >= 100 ? 'Reset Quota' : 'Test Full'}</span>
                       </button>
 
                       <button
@@ -986,7 +1228,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                         }`}
                       >
                         <ShoppingCart className="w-3.5 h-3.5" />
-                        <span>{showStorageBilling ? 'Close Billing' : 'Expand Storage'}</span>
+                        <span>{showStorageBilling ? 'Close Billing' : 'Expand Quota'}</span>
                       </button>
                     </div>
                   </div>
@@ -1026,7 +1268,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                       )}
                     </div>
 
-                    {/* Categorical Breakdown Pills */}
+                    {/* Categorical Breakdown Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                       <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0 shadow-[0_0_6px_rgba(129,140,248,0.8)]" />
@@ -1061,6 +1303,87 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* REAL-TIME REACTIVE STORAGE CALCULATOR & PROJECTOR */}
+                  {showCalculator && (
+                    <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/80 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Sliders className="w-4 h-4 text-indigo-400" />
+                          <h6 className="text-xs font-bold text-white uppercase tracking-wider">
+                            Interactive Quota Simulator & Capacity Projector
+                          </h6>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-indigo-300">
+                          Simulating: +{calcSimSizeMb} MB ({formatBytes(calcSimSizeMb * 1024 * 1024)})
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <input
+                          type="range"
+                          min={5}
+                          max={500}
+                          step={5}
+                          value={calcSimSizeMb}
+                          onChange={(e) => setCalcSimSizeMb(Number(e.target.value))}
+                          className="w-full accent-indigo-500 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                          <span>5 MB (Lab Panel)</span>
+                          <span>150 MB (CT Scan)</span>
+                          <span>300 MB (Full MRI)</span>
+                          <span>500 MB (Bulk Telemetry)</span>
+                        </div>
+                      </div>
+
+                      {/* Real-time reactive calculation outcome */}
+                      {(() => {
+                        const simBytes = calcSimSizeMb * 1024 * 1024;
+                        const projectedUsed = quota.usedBytes + simBytes;
+                        const projectedFree = Math.max(0, quota.totalQuotaBytes - projectedUsed);
+                        const projectedPercent = Math.min(100, Math.round((projectedUsed / quota.totalQuotaBytes) * 100));
+                        const willOverflow = simBytes > quota.freeBytes;
+
+                        return (
+                          <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                            <div className="space-y-0.5">
+                              <p className="text-slate-300">
+                                Projected Post-Upload Consumption:{' '}
+                                <strong className="text-white font-mono">{formatBytes(projectedUsed)}</strong> ({projectedPercent}%)
+                              </p>
+                              <p className="text-[11px] text-slate-400">
+                                Remaining Available Storage:{' '}
+                                <strong className={`font-mono ${willOverflow ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}`}>
+                                  {formatBytes(projectedFree)}
+                                </strong>
+                              </p>
+                            </div>
+
+                            <span
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider self-start sm:self-center flex items-center gap-1 ${
+                                willOverflow
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              }`}
+                            >
+                              {willOverflow ? (
+                                <>
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Exceeds Quota (+{formatBytes(simBytes - quota.freeBytes)})
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-3 h-3" />
+                                  Safe: Fits In Quota
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
 
                   {/* Real Hardware & Device Storage Sub-Card */}
                   <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-slate-950/80 via-blue-950/20 to-slate-950/80 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -1099,6 +1422,114 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                       <RefreshCw size={11} />
                       <span>Sync Hardware DB</span>
                     </button>
+                  </div>
+                </div>
+
+                {/* REACTIVE CRYPTOGRAPHIC SHA-256 HASH VERIFIER TOOL */}
+                {showHashVerifier && (
+                  <div className="p-4 rounded-3xl border border-purple-200 dark:border-purple-900/60 bg-gradient-to-br from-purple-50/50 via-white to-indigo-50/30 dark:from-purple-950/30 dark:via-slate-900 dark:to-indigo-950/20 shadow-md space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <h6 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                          Cryptographic SHA-256 Bit-Level Hash Verifier
+                        </h6>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowHashVerifier(false);
+                          setHashVerifyResult(null);
+                        }}
+                        className="text-slate-400 hover:text-slate-600 p-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Paste any 64-character SHA-256 hash below to verify bit-level integrity against your encrypted clinical vault records.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={hashToVerify}
+                        onChange={(e) => setHashToVerify(e.target.value)}
+                        placeholder="Paste SHA-256 hash (e.g. e3b0c44298fc1c149afbf4c8996fb92427ae41e4...)"
+                        className="flex-1 px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyHash}
+                        className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-colors cursor-pointer shrink-0"
+                      >
+                        Verify Hash
+                      </button>
+                    </div>
+
+                    {hashVerifyResult && (
+                      <div
+                        className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                          hashVerifyResult.status === 'match'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                            : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300'
+                        }`}
+                      >
+                        {hashVerifyResult.status === 'match' ? (
+                          <>
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <div>
+                              <p className="font-bold">Cryptographic Bit-Level Match Confirmed!</p>
+                              <p className="text-[11px]">
+                                Matches stored record: <strong>{hashVerifyResult.fileName}</strong>
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span>No vault record matches this checksum. Ensure the full 64-character hash was provided.</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* REACTIVE DRAG-AND-DROP DROPZONE */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`group relative p-6 sm:p-7 rounded-3xl border-2 border-dashed transition-all text-center cursor-pointer ${
+                    isDragOver
+                      ? 'border-indigo-500 bg-indigo-500/10 dark:bg-indigo-400/10 ring-4 ring-indigo-500/20 shadow-xl scale-[1.01]'
+                      : 'border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50/70 dark:bg-slate-850/60'
+                  }`}
+                >
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        {isDragOver ? 'Release to Encrypt & Upload to Vault' : 'Drag & drop clinical files here, or click to browse'}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Supports DICOM (.dcm), EHR PDFs, high-res scans, telemetry JSON, CSV, and lab reports
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                        AES-256 Client-Side
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+                        SHA-256 Checksum
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                        1GB Free Partition
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1482,40 +1913,47 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
 
                 {/* FILE SEARCH & CATEGORY FILTER */}
                 <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-                  {/* Category Filter Chips */}
+                  {/* Category Filter Chips with Live Badges */}
                   <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
                     {[
-                      { id: 'all', label: 'All Files' },
-                      { id: 'document', label: 'Documents' },
-                      { id: 'scan', label: 'Scans' },
-                      { id: 'lab_report', label: 'Lab Reports' },
-                      { id: 'user_data', label: 'Telemetry & Data' },
+                      { id: 'all', label: 'All Files', count: files.length },
+                      { id: 'document', label: 'Documents', count: files.filter(f => f.category === 'document').length },
+                      { id: 'scan', label: 'Scans', count: files.filter(f => f.category === 'scan').length },
+                      { id: 'lab_report', label: 'Lab Reports', count: files.filter(f => f.category === 'lab_report').length },
+                      { id: 'user_data', label: 'Telemetry', count: files.filter(f => f.category === 'user_data').length },
                     ].map((tab) => (
                       <button
                         key={tab.id}
                         onClick={() => setSelectedCategory(tab.id)}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap transition-colors ${
+                        className={`px-3 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer ${
                           selectedCategory === tab.id
                             ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
-                        {tab.label}
+                        <span>{tab.label}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                          selectedCategory === tab.id
+                            ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {tab.count}
+                        </span>
                       </button>
                     ))}
                   </div>
 
-                  {/* Search Bar & Upload Category Selector */}
+                  {/* Search Bar, Category Selector & View Switcher */}
                   <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-52">
+                    <div className="relative flex-1 sm:w-48">
                       <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search files by name..."
+                        placeholder="Search files..."
                         className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                     </div>
 
                     <select
@@ -1528,6 +1966,34 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                       <option value="lab_report">Lab Panel</option>
                       <option value="user_data">Telemetry Data</option>
                     </select>
+
+                    {/* View Switcher: Grid vs List */}
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => setFileViewMode('grid')}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          fileViewMode === 'grid'
+                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}
+                        title="Grid View"
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFileViewMode('list')}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          fileViewMode === 'list'
+                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}
+                        title="List View"
+                      >
+                        <List className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1549,15 +2015,15 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                   </div>
                 )}
 
-                {/* FILE LIST VIEW */}
-                <div className="border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden bg-white dark:bg-slate-900/60 shadow-sm">
+                {/* FILE STORAGE MATRIX: GRID OR LIST VIEW */}
+                <div className="space-y-3">
                   {isLoadingFiles ? (
-                    <div className="py-16 text-center space-y-2">
+                    <div className="py-16 text-center space-y-2 border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900/60">
                       <RefreshCw className="w-6 h-6 animate-spin text-indigo-500 mx-auto" />
                       <p className="text-xs text-slate-500">Retrieving encrypted cloud records...</p>
                     </div>
                   ) : filteredFiles.length === 0 ? (
-                    <div className="py-16 px-4 text-center space-y-3">
+                    <div className="py-16 px-4 text-center space-y-3 border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900/60">
                       <div className="w-14 h-14 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center mx-auto">
                         <FilePlus className="w-7 h-7" />
                       </div>
@@ -1566,12 +2032,99 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                           {searchQuery ? 'No matching files found' : 'Your 1GB Cloud Vault is ready'}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
-                          1.00 GB (1,073,741,824 bytes) free storage allocated. Use the square action buttons above to upload files or deploy sample diagnostics.
+                          1.00 GB (1,073,741,824 bytes) free storage allocated. Use the drag & drop area or quick action buttons above to store records.
                         </p>
                       </div>
                     </div>
+                  ) : fileViewMode === 'grid' ? (
+                    /* MODERN CARD GRID VIEW */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {filteredFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-3"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                                {file.category === 'scan' ? (
+                                  <Eye className="w-4 h-4 text-purple-500" />
+                                ) : file.category === 'lab_report' ? (
+                                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                                ) : file.category === 'user_data' ? (
+                                  <Database className="w-4 h-4 text-amber-500" />
+                                ) : (
+                                  <FileText className="w-4 h-4 text-blue-500" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                  {file.category.replace('_', ' ')}
+                                </span>
+                                <span className="text-[10px] font-mono font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                                  {formatBytes(file.size)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-2.5">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1" title={file.name}>
+                                {file.name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                {new Date(file.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            {file.sha256 && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyHash(file.sha256!)}
+                                className="w-full text-left p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between text-[10px] font-mono text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
+                                title="Click to copy SHA-256 hash"
+                              >
+                                <span className="truncate">SHA: {file.sha256.slice(0, 14)}...</span>
+                                <Copy className="w-3 h-3 shrink-0 ml-1" />
+                              </button>
+                            )}
+
+                            <div className="flex items-center justify-between gap-1 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewFileItem(file)}
+                                className="flex-1 py-1.5 px-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Preview</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => downloadVaultFile(vaultToken, file)}
+                                className="flex-1 py-1.5 px-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Download</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteFile(file.id, file.name)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    /* DETAILED LIST VIEW */
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden bg-white dark:bg-slate-900/60 shadow-sm divide-y divide-slate-100 dark:divide-slate-800/80">
                       {filteredFiles.map((file) => (
                         <div
                           key={file.id}

@@ -550,6 +550,45 @@ const DiagnosticAnalysisView: React.FC<{ vitals: Vitals | null; history: Vitals[
                </div>
             </div>
          </div>
+
+         {/* Feature 4: Autonomic Tone & Baroreceptor Balance */}
+         <div className="lg:col-span-2 bg-slate-900 rounded-[3rem] p-8 text-white relative overflow-hidden border border-white/5 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+               <div>
+                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest block mb-1">
+                     Clinical Matrix Feature 4 of 4
+                  </span>
+                  <h4 className="text-xl font-black uppercase tracking-tight">Autonomic Homeostasis &amp; Baroreceptor Balance</h4>
+               </div>
+               <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">
+                  Sympathovagal Equilibrium: 52/48%
+               </span>
+            </div>
+
+            <div className="space-y-2">
+               <div className="flex justify-between text-xs font-mono text-slate-400">
+                  <span className="text-blue-400 font-bold">Sympathetic Tone: 52%</span>
+                  <span className="text-emerald-400 font-bold">Parasympathetic (Vagal): 48%</span>
+               </div>
+               <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden flex">
+                  <div className="bg-blue-500 h-full" style={{ width: '52%' }} title="Sympathetic Tone: 52%" />
+                  <div className="bg-emerald-500 h-full" style={{ width: '48%' }} title="Parasympathetic Tone: 48%" />
+               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2">
+               <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                  <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Baroreflex Sensitivity</p>
+                  <p className="text-2xl font-black text-cyan-400 mt-1">18.4 <span className="text-xs text-slate-400">ms/mmHg</span></p>
+                  <p className="text-[10px] text-emerald-400 mt-1">Optimal Autonomic Modulation</p>
+               </div>
+               <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                  <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Vascular Compliance</p>
+                  <p className="text-2xl font-black text-emerald-400 mt-1">NORMAL <span className="text-xs text-slate-400">(Grade A)</span></p>
+                  <p className="text-[10px] text-slate-400 mt-1">Arterial Elasticity Preserved</p>
+               </div>
+            </div>
+         </div>
       </div>
     </div>
   );

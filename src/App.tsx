@@ -4967,6 +4967,11 @@ export default function App() {
                     setCurrentView('billing');
                     addToast('Storage quota reached — redirected to Billing to purchase extra storage.', 'info');
                   }}
+                  onOpenAuth={(mode) => {
+                    setIsStorageVaultOpen(false);
+                    setAuthModalView(mode || 'signup');
+                    setIsAuthModalOpen(true);
+                  }}
                 />
               )}
               {isThemeSchedulerOpen && (

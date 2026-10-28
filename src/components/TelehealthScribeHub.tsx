@@ -32,7 +32,12 @@ import {
   Pause,
   MessageSquare,
   Settings,
-  ChevronDown
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+  Subtitles,
+  Stethoscope,
+  BadgeCheck
 } from 'lucide-react';
 import { api } from '../api';
 import { speechEngine } from '../utils/speechEngine';
@@ -71,6 +76,15 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
   const [showNotesDrawer, setShowNotesDrawer] = useState(false);
   const [showChatDrawer, setShowChatDrawer] = useState(false);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+
+  // Modernized Video Call Advanced Clinical Tools State
+  const [isAuscultationActive, setIsAuscultationActive] = useState(false);
+  const [auscultationType, setAuscultationType] = useState<'cardiac' | 'pulmonary'>('cardiac');
+  const [showSubtitles, setShowSubtitles] = useState(true);
+  const [isPiPSwapped, setIsPiPSwapped] = useState(false);
+  const [isCinemaMode, setIsCinemaMode] = useState(false);
+  const [doctorSpeechText, setDoctorSpeechText] = useState(selectedClinician.greetingEnglish);
+  const [doctorTranslatedText, setDoctorTranslatedText] = useState(selectedClinician.greetingLuganda);
 
   // Camera & Video
   const [hasCameraStream, setHasCameraStream] = useState(false);
@@ -202,8 +216,7 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
     try {
       await appendSoapNoteToSheets({
         timestamp: new Date().toISOString(),
-        patientName,
-        doctorName: selectedClinician.name,
+        patientCode: `${patientName} (${selectedClinician.name})`,
         subjective: soapNote.subjective,
         objective: soapNote.objective,
         assessment: soapNote.assessment,
@@ -245,6 +258,8 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
         translated = `Nsomye ebyuma byo, empewo (SpO2) eri bulungi nnyo. Tuula wansi owummule.`;
       }
 
+      setDoctorSpeechText(reply);
+      setDoctorTranslatedText(translated || reply);
       setTranscript((prev) => [
         ...prev,
         {
@@ -260,6 +275,31 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
         speechEngine.speak(reply, { rate: 0.95 });
       }
     }, 1200);
+  };
+
+  const handleSelectClinician = (doc: ClinicianPersona) => {
+    setSelectedClinician(doc);
+    const greeting =
+      activeLanguage === 'Luganda'
+        ? doc.greetingLuganda
+        : activeLanguage === 'Swahili'
+        ? doc.greetingSwahili
+        : doc.greetingEnglish;
+    const translated = activeLanguage === 'Luganda' ? doc.greetingEnglish : doc.greetingLuganda;
+    setDoctorSpeechText(greeting);
+    setDoctorTranslatedText(translated);
+    setTranscript((prev) => [
+      ...prev,
+      {
+        speaker: 'Doctor',
+        text: greeting,
+        translatedText: translated,
+        time: formatCallTime(callDuration)
+      }
+    ]);
+    if (isTtsEnabled) {
+      speechEngine.speak(greeting, { rate: 0.95 });
+    }
   };
 
   if (!isOpen) return null;
@@ -369,35 +409,46 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
         </div>
 
         {/* ───────────────────────────────────────────────────────── */}
-        {/* 2. AFRICAN DOCTORS CAROUSEL STRIP (Men & Women Specialists) */}
+        {/* 2. AFRICAN DOCTORS SELECTOR STRIP (Men & Women Specialists) */}
         {/* ───────────────────────────────────────────────────────── */}
-        <div className="px-4 sm:px-6 py-2 bg-slate-900/40 border-b border-slate-800/80 flex items-center gap-2.5 overflow-x-auto no-scrollbar shrink-0">
-          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider shrink-0 flex items-center gap-1">
-            <UserCheck size={11} className="text-blue-400" /> Switch Clinician:
+        <div className="px-3 sm:px-6 py-2.5 bg-slate-900/60 border-b border-slate-800/80 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+          <span className="text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
+            <UserCheck size={12} className="text-cyan-400" /> Consult Clinician:
           </span>
           {UGANDAN_CLINICIAN_PERSONAS.map((doc) => {
             const isSelected = selectedClinician.id === doc.id;
+            const isWoman = doc.id === 'dr_gloria' || doc.id === 'dr_achan';
             return (
               <button
                 key={doc.id}
                 type="button"
-                onClick={() => setSelectedClinician(doc)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                onClick={() => handleSelectClinician(doc)}
+                className={`px-3 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 shrink-0 cursor-pointer shadow-sm ${
                   isSelected
-                    ? 'bg-blue-600/30 text-cyan-300 border border-cyan-400/50 shadow-sm'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                    ? 'bg-gradient-to-r from-blue-600/40 via-cyan-600/30 to-blue-600/40 text-cyan-200 border border-cyan-400/60 ring-1 ring-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                    : 'bg-slate-900/90 hover:bg-slate-800/90 text-slate-400 hover:text-slate-100 border border-slate-800'
                 }`}
               >
-                <img
-                  src={doc.avatar}
-                  alt={doc.name}
-                  className="w-5 h-5 rounded-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <span className="truncate">{doc.name}</span>
-                <span className="text-[9px] text-slate-500 hidden sm:inline">
-                  {doc.title.split(' ')[0]}
-                </span>
+                <div className="relative">
+                  <img
+                    src={doc.avatar}
+                    alt={doc.name}
+                    className="w-7 h-7 rounded-xl object-cover border border-white/10"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500'}`} />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-xs font-bold">{doc.name}</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-white/5 text-slate-400 font-mono">
+                      {isWoman ? '👩🏾‍⚕️ Woman' : '👨🏾‍⚕️ Man'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block truncate font-normal">
+                    {doc.institution.split(',')[0]}
+                  </span>
+                </div>
               </button>
             );
           })}
@@ -406,78 +457,303 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
         {/* ───────────────────────────────────────────────────────── */}
         {/* 3. MAIN TELEHEALTH STAGE (Video & Voice Architectural Views) */}
         {/* ───────────────────────────────────────────────────────── */}
-        <div className="flex-1 p-4 sm:p-6 overflow-y-auto flex flex-col justify-center items-center">
+        <div className={`flex-1 p-3 sm:p-5 overflow-y-auto flex flex-col justify-center items-center ${isCinemaMode ? 'p-1' : ''}`}>
           
           {/* VIDEO CALL MODE */}
           {callMode === 'video' && isVideoOn ? (
-            <div className="relative w-full max-w-4xl aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center group">
-              {/* Interactive Realistic HD Doctor Feed */}
+            <div className={`relative w-full ${isCinemaMode ? 'max-w-full h-full' : 'max-w-5xl aspect-video'} bg-slate-950 rounded-3xl overflow-hidden border border-slate-800/90 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-center group transition-all duration-300`}>
+              
+              {/* PRIMARY FEED (Swappable between Doctor and Patient) */}
               <motion.div
                 animate={
                   isVideoStreamPlaying
                     ? {
-                        scale: [1, 1.015, 1],
-                        x: [-1.5, 1.5, -1.5],
-                        y: [-1, 1, -1]
+                        scale: [1, 1.012, 1],
+                        x: [-1, 1, -1],
+                        y: [-0.8, 0.8, -0.8]
                       }
                     : { scale: 1, x: 0, y: 0 }
                 }
                 transition={{
-                  duration: 6,
+                  duration: 7,
                   repeat: Infinity,
                   ease: 'easeInOut'
                 }}
                 className="w-full h-full relative"
               >
-                <img
-                  src={selectedClinician.avatar}
-                  alt={selectedClinician.name}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40 pointer-events-none" />
+                {!isPiPSwapped ? (
+                  <>
+                    <img
+                      src={selectedClinician.avatar}
+                      alt={selectedClinician.name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/60 pointer-events-none" />
+                  </>
+                ) : hasCameraStream ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center text-slate-400">
+                    <UserCheck size={48} className="text-slate-600 mb-2" />
+                    <p className="text-sm font-bold">Local Patient Camera Active</p>
+                  </div>
+                )}
               </motion.div>
 
-              {/* Play/Pause Video Simulation Button Overlay */}
-              <button
-                type="button"
-                onClick={() => setIsVideoStreamPlaying(!isVideoStreamPlaying)}
-                className="absolute top-4 right-4 p-2 rounded-xl bg-slate-950/70 hover:bg-slate-900 text-white border border-white/10 transition-all cursor-pointer backdrop-blur-md opacity-80 hover:opacity-100 flex items-center gap-1.5 text-xs font-mono"
-                title={isVideoStreamPlaying ? 'Pause video feed simulation' : 'Play video feed simulation'}
-              >
-                {isVideoStreamPlaying ? <Pause size={13} /> : <Play size={13} className="text-emerald-400" />}
-                <span className="text-[10px] font-bold">1080p 60fps HD</span>
-              </button>
-
-              {/* Top-Left Telemetry HUD */}
-              <div className="absolute top-4 left-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2.5 text-xs font-mono text-slate-300 shadow-lg">
-                <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  Live Sync
-                </span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span>HR: <strong className="text-white">{liveVitals.hr}</strong> bpm</span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span>SpO2: <strong className="text-cyan-400">{liveVitals.spo2}</strong>%</span>
-              </div>
-
-              {/* Bottom-Left Doctor Label & Live Audio Bars */}
-              <div className="absolute bottom-4 left-4 bg-slate-950/85 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-left max-w-sm">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-white">
-                    {selectedClinician.name}
-                  </h4>
-                  <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 text-[9px] font-bold">
-                    Consultant
+              {/* TOP HUD: Live Telemetry, Stream Quality & Telemetry Badges */}
+              <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 z-20 pointer-events-none">
+                {/* Left Telemetry Pill */}
+                <div className="pointer-events-auto bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10 flex items-center gap-2.5 text-xs font-mono text-slate-300 shadow-xl">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    UltraHD Live
+                  </span>
+                  <span aria-hidden="true" className="text-slate-700">·</span>
+                  <span>HR: <strong className="text-white">{liveVitals.hr}</strong> bpm</span>
+                  <span aria-hidden="true" className="text-slate-700">·</span>
+                  <span>SpO2: <strong className="text-cyan-400">{liveVitals.spo2}</strong>%</span>
+                  <span aria-hidden="true" className="text-slate-700 hidden md:inline">·</span>
+                  <span className="hidden md:inline text-slate-400">BP: <strong className="text-white">{liveVitals.bpSys}/{liveVitals.bpDia}</strong></span>
+                  <span aria-hidden="true" className="text-slate-700 hidden lg:inline">·</span>
+                  <span className="hidden lg:inline text-emerald-400 font-bold flex items-center gap-1">
+                    <Shield size={11} /> 256-bit AES WebRTC
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {selectedClinician.institution}
-                </p>
+
+                {/* Right Quick Toggles */}
+                <div className="pointer-events-auto flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoStreamPlaying(!isVideoStreamPlaying)}
+                    className="p-2 rounded-xl bg-slate-950/80 hover:bg-slate-900 text-white border border-white/10 transition-all cursor-pointer backdrop-blur-md flex items-center gap-1.5 text-xs font-mono shadow-lg"
+                    title={isVideoStreamPlaying ? 'Pause video feed simulation' : 'Play video feed simulation'}
+                  >
+                    {isVideoStreamPlaying ? <Pause size={13} /> : <Play size={13} className="text-emerald-400" />}
+                    <span className="text-[10px] font-bold hidden sm:inline">1080p 60fps</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCinemaMode(!isCinemaMode)}
+                    className={`p-2 rounded-xl border transition-all cursor-pointer backdrop-blur-md shadow-lg ${
+                      isCinemaMode 
+                        ? 'bg-blue-600 text-white border-blue-400' 
+                        : 'bg-slate-950/80 hover:bg-slate-900 text-slate-300 border-white/10'
+                    }`}
+                    title={isCinemaMode ? 'Exit Cinema View' : 'Cinematic Theater View'}
+                  >
+                    {isCinemaMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* IN-VIDEO FLOATING CLINICAL TOOL DOCK (Top-Center) */}
+              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-950/85 backdrop-blur-lg px-2.5 py-1.5 rounded-2xl border border-cyan-500/30 shadow-2xl">
+                {/* 1. Auscultation Simulator Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsAuscultationActive(!isAuscultationActive)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isAuscultationActive
+                      ? 'bg-cyan-500 text-slate-950 shadow-md ring-1 ring-cyan-300'
+                      : 'text-cyan-300 hover:bg-cyan-950/60'
+                  }`}
+                  title="Toggle Digital Stethoscope & Auscultation Sound Simulation"
+                >
+                  <Stethoscope size={13} />
+                  <span>Auscultation</span>
+                </button>
+
+                {/* 2. Closed Captions (Subtitles) Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowSubtitles(!showSubtitles)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    showSubtitles
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800'
+                  }`}
+                  title="Toggle Live Subtitles Overlay"
+                >
+                  <Subtitles size={13} />
+                  <span>CC Subtitles</span>
+                </button>
+
+                {/* 3. Instant Prescription Voucher */}
+                <button
+                  type="button"
+                  onClick={() => setShowPrescriptionModal(true)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-bold text-emerald-300 hover:bg-emerald-950/60 transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="View Official Verified Rx Voucher"
+                >
+                  <FileText size={13} />
+                  <span>Instant Rx</span>
+                </button>
+
+                {/* 4. Swap Feeds */}
+                <button
+                  type="button"
+                  onClick={() => setIsPiPSwapped(!isPiPSwapped)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Swap Doctor and Patient Camera Views"
+                >
+                  <Layers size={13} />
+                  <span className="hidden sm:inline">Swap PiP</span>
+                </button>
+              </div>
+
+              {/* AUSCULTATION SOUND SIMULATOR OVERLAY */}
+              <AnimatePresence>
+                {isAuscultationActive && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute top-26 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-25 bg-slate-950/92 backdrop-blur-xl border border-cyan-400/50 rounded-2xl p-4 shadow-2xl space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-cyan-500/20 pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
+                          <Stethoscope size={15} />
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-bold text-white">Digital Stethoscope Telemetry</h5>
+                          <p className="text-[10px] text-cyan-400 font-mono">Live Acoustic Frequency Stream</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAuscultationActive(false)}
+                        className="text-slate-400 hover:text-white p-1"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    {/* Mode Toggle: Heart vs Lungs */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAuscultationType('cardiac')}
+                        className={`flex-1 py-1 px-2 rounded-xl text-[11px] font-bold cursor-pointer transition-all ${
+                          auscultationType === 'cardiac'
+                            ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                            : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Heart Sounds (S1 / S2)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAuscultationType('pulmonary')}
+                        className={`flex-1 py-1 px-2 rounded-xl text-[11px] font-bold cursor-pointer transition-all ${
+                          auscultationType === 'pulmonary'
+                            ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                            : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Breath Sounds (Vesicular)
+                      </button>
+                    </div>
+
+                    {/* Animated Phonocardiogram Audio Waveform */}
+                    <div className="h-16 bg-slate-900/80 rounded-xl border border-slate-800 p-2 flex items-center justify-center gap-1 overflow-hidden relative">
+                      {[14, 28, 42, 22, 50, 18, 36, 44, 20, 52, 26, 40, 16, 48, 30, 24, 46, 20].map((h, idx) => (
+                        <motion.div
+                          key={idx}
+                          animate={{
+                            height: [h * 0.2, h, h * 0.2],
+                            opacity: [0.3, 1, 0.3]
+                          }}
+                          transition={{
+                            duration: auscultationType === 'cardiac' ? 0.75 : 1.3,
+                            repeat: Infinity,
+                            delay: idx * 0.04
+                          }}
+                          className="w-1.5 bg-gradient-to-t from-cyan-400 via-blue-500 to-indigo-400 rounded-full"
+                          style={{ height: h }}
+                        />
+                      ))}
+                      <div className="absolute bottom-1 right-2 text-[9px] font-mono text-cyan-300">
+                        {auscultationType === 'cardiac' ? '74 BPM • Regular Cadence' : '16 RPM • Clear Vesicular'}
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-300 leading-relaxed font-mono">
+                      {auscultationType === 'cardiac'
+                        ? '✅ S1 and S2 heart sounds physiologic and clear. No pathological systolic murmur or gallop detected.'
+                        : '✅ Bilateral vesicular breath sounds clear to auscultation. No wheezing, crackles, or stridor present.'}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* LIVE CC SUBTITLES OVERLAY BAR (Bottom Center) */}
+              <AnimatePresence>
+                {showSubtitles && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 15 }}
+                    className="absolute bottom-20 left-4 right-4 sm:left-12 sm:right-12 z-20 flex justify-center pointer-events-none"
+                  >
+                    <div className="bg-slate-950/90 backdrop-blur-xl border border-cyan-400/40 px-4 py-2.5 rounded-2xl max-w-2xl w-full shadow-2xl text-center space-y-1">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                          LIVE CAPTIONS
+                        </span>
+                        <span className="text-[11px] font-bold text-white">
+                          {selectedClinician.name}
+                        </span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-100 font-medium leading-relaxed">
+                        "{doctorSpeechText}"
+                      </p>
+                      {doctorTranslatedText && activeLanguage !== 'English' && (
+                        <p className="text-[11px] text-cyan-300 font-mono italic">
+                          ({activeLanguage}): {doctorTranslatedText}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Bottom-Left Doctor Profile Card & Acoustic Bars */}
+              <div className="absolute bottom-4 left-4 bg-slate-950/90 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 text-left max-w-sm z-10 shadow-2xl">
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={selectedClinician.avatar}
+                    alt={selectedClinician.name}
+                    className="w-8 h-8 rounded-full object-cover border border-cyan-400/60"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-white">
+                        {selectedClinician.name}
+                      </h4>
+                      <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 text-[9px] font-bold">
+                        Verified Consultant
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {selectedClinician.institution}
+                    </p>
+                  </div>
+                </div>
 
                 {/* Animated Audio Equalizer Waveform */}
-                <div className="flex items-center gap-1 mt-2 h-3.5">
-                  {[8, 14, 18, 12, 22, 16, 24, 10, 18, 14].map((h, i) => (
+                <div className="flex items-center gap-1 mt-2.5 h-3.5">
+                  {[8, 14, 18, 12, 22, 16, 24, 10, 18, 14, 20, 12, 16, 8].map((h, i) => (
                     <motion.div
                       key={i}
                       animate={
@@ -493,13 +769,25 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
                       className="w-1 bg-gradient-to-t from-cyan-400 to-blue-500 rounded-full"
                     />
                   ))}
-                  <span className="text-[9px] font-mono text-slate-400 ml-2">Opus 48kHz HD</span>
+                  <span className="text-[9px] font-mono text-cyan-400 ml-2">Opus 48kHz HD Audio</span>
                 </div>
               </div>
 
-              {/* Bottom-Right Patient PiP Window */}
-              <div className="absolute bottom-4 right-4 w-32 h-24 sm:w-40 sm:h-28 bg-slate-950 rounded-2xl border-2 border-white/20 overflow-hidden shadow-2xl flex items-center justify-center">
-                {hasCameraStream ? (
+              {/* Bottom-Right Patient PiP Window (Interactive Click to Swap) */}
+              <button
+                type="button"
+                onClick={() => setIsPiPSwapped(!isPiPSwapped)}
+                className="absolute bottom-4 right-4 w-32 h-24 sm:w-44 sm:h-32 bg-slate-950 rounded-2xl border-2 border-cyan-400/50 hover:border-cyan-300 overflow-hidden shadow-2xl flex items-center justify-center z-15 cursor-pointer group/pip transition-all hover:scale-105"
+                title="Click to Swap Feeds (Patient / Doctor)"
+              >
+                {isPiPSwapped ? (
+                  <img
+                    src={selectedClinician.avatar}
+                    alt={selectedClinician.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : hasCameraStream ? (
                   <video
                     ref={videoRef}
                     autoPlay
@@ -513,10 +801,11 @@ export const TelehealthScribeHub: React.FC<TelehealthScribeHubProps> = ({
                     <span>You (Patient)</span>
                   </div>
                 )}
-                <div className="absolute bottom-1 left-1.5 text-[8px] font-bold text-white uppercase bg-slate-950/80 px-1.5 py-0.5 rounded backdrop-blur">
-                  Local Camera
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between text-[8px] font-bold text-white uppercase bg-slate-950/85 px-1.5 py-0.5 rounded backdrop-blur">
+                  <span>{isPiPSwapped ? selectedClinician.name.split(' ')[1] : 'Patient (You)'}</span>
+                  <span className="text-cyan-300 group-hover/pip:underline">Swap ⇄</span>
                 </div>
-              </div>
+              </button>
             </div>
           ) : (
             /* VOICE CALL MODE: THE ROUND CARD WITH SLOWLY SPINNING APP LOGO & REACTIVE ANIMATION */

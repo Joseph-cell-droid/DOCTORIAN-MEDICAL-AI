@@ -1286,7 +1286,7 @@ async function* callAIStream(options: {
                         systemInstruction: effectiveSystemInstruction,
                         temperature: temperature || 0.7,
                         tools: useSearch ? [{ googleSearch: {} }] : undefined,
-                        thinkingConfig: { thinkingBudget: 0 }
+                        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
                       }
                     });
                     success = true;
@@ -1332,7 +1332,7 @@ async function* callAIStream(options: {
                               config: {
                                 systemInstruction: effectiveSystemInstruction,
                                 temperature: temperature || 0.7,
-                                thinkingConfig: { thinkingBudget: 0 }
+                                thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
                               }
                             });
                             success = true;
@@ -1819,6 +1819,7 @@ async function callAIWorkflow(options: {
                         };
                       }),
                       config: { 
+                        systemInstruction: effectiveSystemInstruction,
                         temperature: temperature || 0.7,
                         tools: useSearch ? [{ googleSearch: {} }] : undefined
                       }
@@ -10048,7 +10049,7 @@ Output ONLY the plain spoken text itself. Do NOT include markdown formatting, he
     return clean || originalText;
   }
 
-  app.post("/api/ai/translate", authenticate, async (req: any, res) => {
+  app.post("/api/ai/translate", optionalAuthenticate, async (req: any, res) => {
     const { text, targetLang } = req.body;
     if (!text || !targetLang) return res.status(400).json({ error: "Text and target language required" });
 
@@ -11012,27 +11013,34 @@ Every statement must be grounded in the live Google Search data.`;
       }
     });
 
-    app.post("/api/ai/voice/start", authenticate, (req: any, res) => {
-      const creditStatus = deductCredits(req.user.id, CREDIT_COSTS.VOICE_CALL);
-      if (!creditStatus.success) {
-        return res.status(402).json({ 
-          error: "Insufficient Neural Energy", 
-          details: `Voice consultation requires ${CREDIT_COSTS.VOICE_CALL} credits. Balance: ${creditStatus.remaining}.` 
-        });
+    app.post("/api/ai/voice/start", optionalAuthenticate, (req: any, res) => {
+      if (req.user?.id) {
+        const creditStatus = deductCredits(req.user.id, CREDIT_COSTS.VOICE_CALL);
+        if (!creditStatus.success) {
+          return res.status(402).json({ 
+            error: "Insufficient Neural Energy", 
+            details: `Voice consultation requires ${CREDIT_COSTS.VOICE_CALL} credits. Balance: ${creditStatus.remaining}.` 
+          });
+        }
+        return res.json({ success: true, remaining: creditStatus.remaining });
       }
-      res.json({ success: true, remaining: creditStatus.remaining });
+      res.json({ success: true, remaining: 100 });
     });
 
-    app.post("/api/ai/voice", authenticate, async (req: any, res) => {
+    app.post("/api/ai/voice", optionalAuthenticate, async (req: any, res) => {
       const { text, voiceName, language } = req.body;
-      const userId = req.user.id;
+      const userId = req.user?.id || 'guest_user';
+      let creditRemaining: number | string = 100;
 
-      const creditStatus = deductCredits(userId, CREDIT_COSTS.VOICE_CALL);
-      if (!creditStatus.success) {
-        return res.status(402).json({ 
-          error: "Insufficient Neural Energy", 
-          details: `Voice consultation requires ${CREDIT_COSTS.VOICE_CALL} credits. Balance: ${creditStatus.remaining}.` 
-        });
+      if (req.user?.id) {
+        const creditStatus = deductCredits(userId, CREDIT_COSTS.VOICE_CALL);
+        if (!creditStatus.success) {
+          return res.status(402).json({ 
+            error: "Insufficient Neural Energy", 
+            details: `Voice consultation requires ${CREDIT_COSTS.VOICE_CALL} credits. Balance: ${creditStatus.remaining}.` 
+          });
+        }
+        creditRemaining = creditStatus.remaining;
       }
 
       try {
@@ -11185,7 +11193,7 @@ Direct the user to seek professional clinical care if needed, and conclude with 
         res.json({
           text: responseText,
           audioBase64,
-          creditsRemaining: creditStatus.remaining,
+          creditsRemaining: creditRemaining,
           engine: "Gemini 3.6-Flash + Gemini TTS Model",
           voiceName: voiceName || "Joseph",
           status: "synthesized"
@@ -13089,62 +13097,140 @@ INSTRUCTIONS FOR SMS PAYLOAD:
     });
   });
 
-  wss.on('connection', (ws, req) => {
-    console.log("[WS] Neural Voice Connection established under Meta Llama 3.1...");
+  wss.on('connection', async (ws, req) => {
+    console.log("[WS-LIVE] Neural Voice connection established...");
     
-    // Auth Check via Cookie
+    // Auth Check via Cookie (Optional - permits guest access)
     const cookies = req.headers.cookie ? Object.fromEntries(req.headers.cookie.split('; ').map(c => c.split('='))) : {};
     const token = cookies.token;
 
-    if (!token) {
-      console.warn("[WS] Connection rejected: No auth token.");
-      ws.close(4001, "Unauthorized");
-      return;
+    let userEmail = "guest@doctorian.com";
+    if (token) {
+      try {
+        let decoded: any;
+        try {
+          decoded = jwt.verify(token, JWT_SECRET);
+        } catch (wsVerifyErr: any) {
+          if (wsVerifyErr && wsVerifyErr.name === "TokenExpiredError") {
+            decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+          }
+        }
+        if (decoded?.email) {
+          userEmail = decoded.email;
+        }
+      } catch (err: any) {
+        console.log("[WS-LIVE] Auth notice: connecting as guest session.");
+      }
     }
 
-    try {
-      let decoded: any;
-      try {
-        decoded = jwt.verify(token, JWT_SECRET);
-      } catch (wsVerifyErr: any) {
-        if (wsVerifyErr && wsVerifyErr.name === "TokenExpiredError") {
-          decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
-          console.log(`[WS] Authorized expired token (authentic signature) for user: ${decoded.email}`);
-        } else {
-          throw wsVerifyErr;
-        }
-      }
-      console.log(`[WS] Neural Voice established for user: ${decoded.email}`);
-      arduinoClients.add(ws);
+    console.log(`[WS-LIVE] Neural Live established for user: ${userEmail}`);
+    arduinoClients.add(ws);
 
-      // Instantly greet the user with the exact response shape expected by the frontend hook
+    let clientConfig: any = null;
+    let liveSession: any = null;
+
+    // Instantly greet the user with the exact response shape expected by the frontend hook
+    if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         serverContent: {
           modelTurn: {
             parts: [{
-              text: "Hello! I am Doctorian, powered by the Llama 3.1 Diagnostic Core. How can I assist with your biological health or vitals today?"
+              text: "Hello! I am Doctorian, powered by the Gemini 3.8 Diagnostic Core. How can I assist with your biological health or vitals today?"
             }]
           }
         }
       }));
+    }
 
-      ws.on('message', async (data) => {
-        try {
-          const message = JSON.parse(data.toString());
-          if (message.type === 'ping') {
-            ws.send(JSON.stringify({ type: 'pong' }));
-            return;
+    // Attempt Gemini Live connect on server if available
+    const aiClient = getGenAI();
+    if (aiClient && (aiClient as any).live?.connect) {
+      try {
+        liveSession = await (aiClient as any).live.connect({
+          model: "gemini-3.8-live",
+          config: {
+            responseModalities: [Modality.TEXT],
+            systemInstruction: "You are Doctorian, an automated clinical voice assistant. Keep answers warm, extremely brief (under 25 words total) for high voice stream fluidity. NEVER diagnose clinical conditions or label diseases. Encourage seeking professional support and conclude with: 'Medical attention is recommended.'",
+          },
+          callbacks: {
+            onmessage: (message: any) => {
+              if (ws.readyState === WebSocket.OPEN) {
+                const textPart = message.serverContent?.modelTurn?.parts?.[0]?.text;
+                if (textPart) {
+                  ws.send(JSON.stringify({
+                    serverContent: {
+                      modelTurn: {
+                        parts: [{ text: textPart }]
+                      }
+                    }
+                  }));
+                } else if (message.serverContent) {
+                  ws.send(JSON.stringify({ serverContent: message.serverContent }));
+                }
+              }
+            },
+            onerror: (err: any) => {
+              console.warn("[WS-LIVE] Live session notice:", err?.message || err);
+            },
+            onclose: () => {
+              console.log("[WS-LIVE] Gemini Live session ended.");
+            }
           }
-          if (message.type === 'setup') {
-            console.log("[WS] Meta Llama 3.1 Neural Live session configured.");
-          } else if (message.text) {
-            console.log(`[WS] Processing text command via Llama: "${message.text}"`);
-            const responseText = await callAI({
-              messages: [{ role: 'user', text: message.text }],
-              systemInstruction: "You are Doctorian, an automated clinical voice assistant. Keep answers warm, extremely brief (under 25 words total) for high voice stream fluidity. NEVER diagnose clinical conditions or label diseases. NEVER guarantee outcomes or suggest status outcomes. Encourage seeking professional support and conclude with: 'Medical attention is recommended.'",
-              modelName: PRIMARY_ENGINE
-            });
-            
+        }).catch((connectErr: any) => {
+          console.log("[WS-LIVE] Gemini Live connect fallback to fast server generation:", connectErr?.message || connectErr);
+          return null;
+        });
+      } catch (err) {
+        console.log("[WS-LIVE] Gemini Live init notice, standard server-side generation active:", err);
+      }
+    }
+
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.type === 'ping') {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'pong' }));
+          }
+          return;
+        }
+
+        if (message.type === 'setup') {
+          clientConfig = message.config;
+          console.log("[WS-LIVE] Live session configured with parameters.");
+          return;
+        }
+
+        if (message.text) {
+          console.log(`[WS-LIVE] Processing voice command: "${message.text}"`);
+
+          if (liveSession && typeof liveSession.send === 'function') {
+            try {
+              await liveSession.send({
+                clientContent: {
+                  turns: [{
+                    role: "user",
+                    parts: [{ text: message.text }]
+                  }],
+                  turnComplete: true
+                }
+              });
+              return;
+            } catch (liveSendErr) {
+              console.warn("[WS-LIVE] Live session send failed, cascading to server callAI:", liveSendErr);
+            }
+          }
+
+          const systemPrompt = clientConfig?.systemInstruction ||
+            "You are Doctorian, an automated clinical voice assistant. Keep answers warm, extremely brief (under 25 words total) for high voice stream fluidity. NEVER diagnose clinical conditions or label diseases. NEVER guarantee outcomes or suggest status outcomes. Encourage seeking professional support and conclude with: 'Medical attention is recommended.'";
+
+          const responseText = await callAI({
+            messages: [{ role: 'user', text: message.text }],
+            systemInstruction: systemPrompt,
+            modelName: PRIMARY_ENGINE
+          });
+          
+          if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
               serverContent: {
                 modelTurn: {
@@ -13153,20 +13239,23 @@ INSTRUCTIONS FOR SMS PAYLOAD:
               }
             }));
           }
-        } catch (err) {
-          console.error("[WS] Message processing error:", err);
         }
-      });
+      } catch (err) {
+        console.error("[WS-LIVE] Message processing error:", err);
+      }
+    });
 
-      ws.on('close', () => {
-        console.log(`[WS] Neural Voice disconnected for ${decoded.email}`);
-        arduinoClients.delete(ws);
-      });
+    ws.on('close', () => {
+      console.log(`[WS-LIVE] Neural Voice disconnected for ${userEmail}`);
+      arduinoClients.delete(ws);
+      if (liveSession && typeof liveSession.close === 'function') {
+        try { liveSession.close(); } catch (e) {}
+      }
+    });
 
-    } catch (err: any) {
-      console.error("[WS] Auth Failed:", err.message);
-      ws.close(4001, "Invalid Token");
-    }
+    ws.on('error', (err) => {
+      console.error("[WS-LIVE] Live connection error:", err);
+    });
   });
 
   server.listen(PORT, "0.0.0.0", () => {

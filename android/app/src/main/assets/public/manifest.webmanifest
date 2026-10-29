@@ -1,0 +1,88 @@
+{
+  "id": "/",
+  "scope": "/",
+  "name": "Doctorian Medical AI",
+  "short_name": "Doctorian AI",
+  "description": "Autonomous Neural Healthcare & Diagnostic Interface. Live telemetry analysis, AI diagnostics, offline core, and emergency dispatch.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "categories": ["medical", "health", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS Call & SMS",
+      "short_name": "Emergency SOS",
+      "description": "Trigger instant emergency live call and preformatted SMS to dispatch team",
+      "url": "/?shortcut=sos",
+      "icons": [{ "src": "/logo-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Live Telemetry Analysis",
+      "short_name": "Live Analysis",
+      "description": "Start live cardiac, SpO2, and respiratory biometric monitoring",
+      "url": "/?shortcut=live",
+      "icons": [{ "src": "/logo-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "AI Diagnostics & Large Data",
+      "short_name": "Diagnostics",
+      "description": "Run AI clinical lab diagnosis and big data batch record analysis",
+      "url": "/?shortcut=diagnostics",
+      "icons": [{ "src": "/logo-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

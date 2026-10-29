@@ -2,18 +2,56 @@
   "name": "medical-ai",
   "private": true,
   "version": "0.0.0",
-  "main": "dist/server.cjs",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "node scripts/generate_clinical_assets.js && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "electron": "electron .",
+    "electron:dev": "NODE_ENV=development electron electron/main.cjs",
+    "build:win": "vite build && electron-builder --win nsis",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:apk": "cd android && ./gradlew assembleDebug",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "clean": "rm -rf dist build",
+    "clean": "rm -rf dist build dist-electron",
     "lint": "tsc --noEmit"
+  },
+  "build": {
+    "appId": "com.doctorian.ai",
+    "productName": "Doctorian AI",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/logo-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Doctorian AI"
+    },
+    "compression": "maximum"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
@@ -91,6 +129,8 @@
     "@types/node": "^22.14.0",
     "@types/pg": "^8.20.0",
     "@types/three": "^0.186.0",
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
     "sharp": "^0.35.3"
   }
 }

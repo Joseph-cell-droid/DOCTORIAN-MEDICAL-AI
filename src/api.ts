@@ -2396,50 +2396,7 @@ export const api = {
         }
         return data as { text: string; imageData?: string; creditsRemaining?: number | string };
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend cloud synapse failed or offline. Securing Gemini AI / Hugging Face / Local PC failover...");
-
-        // 0. Direct Client-side Gemini AI (Works on Vercel, static PWA, and direct web clients)
-        try {
-          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
-          if (geminiApiKey) {
-            console.log(`[Neural Link] Executing direct Client Gemini Synapse for Vercel/Web...`);
-            
-            const contents = payloadMessages.map(m => ({
-              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.text }]
-            }));
-            
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${geminiApiKey}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                contents,
-                systemInstruction: {
-                  parts: [{ text: systemInstruction }]
-                },
-                generationConfig: {
-                  temperature: temperature || 0.7,
-                  maxOutputTokens: 2048
-                }
-              })
-            });
-
-            if (geminiRes.ok) {
-              const geminiData = await geminiRes.json();
-              const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text && text.trim()) {
-                return { text: text.trim(), creditsRemaining: "Unlimited (Google AI Studio Client Synapse)" };
-              }
-            } else {
-              const errData = await geminiRes.json().catch(() => ({}));
-              console.warn("[Neural Link] Client Gemini direct call returned error status:", geminiRes.status, errData);
-            }
-          }
-        } catch (geminiErr) {
-          console.warn("[Neural Link] Client Gemini direct invocation failed, trying Hugging Face as failover backup:", geminiErr);
-        }
+        console.warn("[Neural Link] Backend cloud synapse failed or offline. Cascading to local PC / offline intelligent matrix...");
 
         // 1. Direct Client-side Hugging Face Inference (Works on Vercel, static PWA, and direct web clients)
         try {
@@ -2802,85 +2759,7 @@ export const api = {
           }
         }
       } catch (backendErr: any) {
-        console.warn("[Neural Link] Backend stream failed or offline. Securing Gemini AI / Hugging Face / Local PC stream failover...");
-
-        // 0. Direct Client-side Gemini Streaming (for Vercel and web clients)
-        try {
-          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
-          if (geminiApiKey) {
-            console.log(`[Neural Link] Executing direct Client Gemini Stream Synapse for Vercel/Web...`);
-            
-            const contents = messages.map(m => ({
-              role: m.role === 'bot' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.text }]
-            }));
-
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?key=${geminiApiKey}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                contents,
-                systemInstruction: {
-                  parts: [{ text: systemInstruction }]
-                },
-                generationConfig: {
-                  temperature: temperature || 0.7,
-                  maxOutputTokens: 2048
-                }
-              }),
-              signal
-            });
-
-            if (geminiRes.ok && geminiRes.body) {
-              const reader = geminiRes.body.getReader();
-              const decoder = new TextDecoder();
-              let streamBuf = "";
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                streamBuf += decoder.decode(value, { stream: true });
-                
-                let braceCount = 0;
-                let startIdx = -1;
-                for (let i = 0; i < streamBuf.length; i++) {
-                  if (streamBuf[i] === '{') {
-                    if (braceCount === 0) startIdx = i;
-                    braceCount++;
-                  } else if (streamBuf[i] === '}') {
-                    braceCount--;
-                    if (braceCount === 0 && startIdx !== -1) {
-                      const jsonStr = streamBuf.slice(startIdx, i + 1);
-                      try {
-                        const parsed = JSON.parse(jsonStr);
-                        const txt = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (txt) {
-                          yield txt;
-                        }
-                      } catch (e) {
-                        const match = jsonStr.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-                        if (match && match[1]) {
-                          try {
-                            yield JSON.parse(`"${match[1]}"`);
-                          } catch (_) {
-                            yield match[1];
-                          }
-                        }
-                      }
-                      streamBuf = streamBuf.slice(i + 1);
-                      i = -1;
-                    }
-                  }
-                }
-              }
-              onMetadata?.({ credits: "Unlimited (Google AI Studio Client Synapse)" });
-              return;
-            }
-          }
-        } catch (geminiErr) {
-          console.warn("[Neural Link] Client Gemini stream failed, cascading to Hugging Face:", geminiErr);
-        }
+        console.warn("[Neural Link] Backend stream failed or offline. Cascading to local PC / offline intelligent matrix...");
 
         // 1. Direct Client-side Hugging Face Streaming (for Vercel and web clients)
         try {
@@ -3693,35 +3572,6 @@ export const api = {
         if (!res.ok) throw new Error(data.error || "Translation failed");
         return data.text as string;
       } catch (err) {
-        // Direct Client-side Gemini fallback if backend is offline/unavailable (e.g. Vercel static)
-        try {
-          const geminiApiKey = (localStorage.getItem('doctorian_gemini_api_key') || (import.meta as any).env.VITE_GEMINI_API_KEY || '').trim();
-          if (geminiApiKey) {
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${geminiApiKey}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{
-                  role: "user",
-                  parts: [{ text: `Translate the following medical text into ${targetLang}, maintaining all formatting, bullet points, clinical terms, and standard medical style. Return ONLY the translated output without any conversational conversational preamble or explanation:\n\n${text}` }]
-                }],
-                generationConfig: {
-                  temperature: 0.3,
-                  maxOutputTokens: 2048
-                }
-              })
-            });
-            if (geminiRes.ok) {
-              const geminiData = await geminiRes.json();
-              const textOutput = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (textOutput && textOutput.trim()) {
-                return textOutput.trim();
-              }
-            }
-          }
-        } catch (geminiErr) {
-          console.warn("[Neural Link] Direct Client-side Gemini translation fallback failed:", geminiErr);
-        }
         return `[Offline Sync Translation]: ${text}`;
       }
     },

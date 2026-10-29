@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.doctorian.ai",
+  "productName": "Doctorian Medical AI",
+  "copyright": "Copyright © 2026 Doctorian AI Team. Lead Designer Akora Joseph from EBRO Company. ltd.",
+  "directories": {
+    "output": "dist-electron",
+    "buildResources": "public"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "electron/main.cjs"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/favicon.png",
+    "artifactName": "Doctorian-AI-Windows-Setup.${ext}",
+    "requestedExecutionLevel": "asInvoker"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Doctorian Medical AI",
+    "installerLanguages": ["en_US"],
+    "deleteAppDataOnUninstall": false,
+    "displayLanguageSelector": false
+  },
+  "compression": "maximum"
+}

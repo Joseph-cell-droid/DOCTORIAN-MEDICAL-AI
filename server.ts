@@ -834,19 +834,12 @@ async function* callAIStream(options: {
 
   const lastMessage = messages[messages.length - 1];
   
-  // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  // Strictly configured to use Google Gemini/Keys as the primary provider.
-  let pathways = ["keys", "huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
-    pathways = ["keys", "huggingface", "ollama", "together"];
-  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "ollama", "together"];
-  } else if (IS_LM_STUDIO) {
-    pathways = ["ollama"];
+  // Configure pathways: Gemini is strictly 1st priority for online use; Ollama is automatic offline fallback
+  let pathways = ["keys", "ollama", "huggingface", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini" || ACTIVE_AI_PROVIDER.toLowerCase() === "keys") {
+    pathways = ["keys", "ollama", "huggingface", "together"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "keys", "huggingface", "together"];
-  } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["ollama", "keys", "huggingface", "together"];
+    pathways = ["keys", "ollama", "together"]; // Keep keys first priority online, failover immediately to ollama
   }
 
   for (const pathway of pathways) {
@@ -1499,18 +1492,12 @@ async function callAIWorkflow(options: {
   }
 
   // Configure pathways: Option 1 is the primary AI brain, Option 2 is the fallback/failover
-  // Strictly configured to use Google Gemini/Keys as the primary provider.
-  let pathways = ["keys", "huggingface", "ollama", "together"];
-  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini") {
-    pathways = ["keys", "huggingface", "ollama", "together"];
-  } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "huggingface" || modelName === "huggingface") {
-    pathways = ["huggingface", "ollama", "together"];
-  } else if (IS_LM_STUDIO) {
-    pathways = ["ollama"];
+  // Configure pathways: Gemini is strictly 1st priority for online use; Ollama is automatic offline fallback
+  let pathways = ["keys", "ollama", "huggingface", "together"];
+  if (ACTIVE_AI_PROVIDER.toLowerCase() === "gemini" || ACTIVE_AI_PROVIDER.toLowerCase() === "keys") {
+    pathways = ["keys", "ollama", "huggingface", "together"];
   } else if (ACTIVE_AI_PROVIDER.toLowerCase() === "ollama" || USE_LOCAL_AI) {
-    pathways = ["ollama", "keys", "huggingface", "together"];
-  } else if (activeOllamaUrl && activeOllamaUrl.trim() !== "") {
-    pathways = ["ollama", "keys", "huggingface", "together"];
+    pathways = ["keys", "ollama", "together"];
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -12245,6 +12232,10 @@ function detectSpecificDiseaseMapping(prompt: string): string {
     // HEAVY INTELLIGENT CLINICAL PACKAGES & MULTI-DEVICE DOWNLOADS
     // =========================================================================
     app.get("/downloads/Doctorian-Setup.exe", (req: any, res: any) => {
+      const physicalFile = path.join(process.cwd(), 'public', 'downloads', 'Doctorian-Setup.exe');
+      if (fs.existsSync(physicalFile)) {
+        return res.download(physicalFile, 'Doctorian-Setup-v3.8-x64.exe');
+      }
       res.setHeader('Content-Disposition', 'attachment; filename="Doctorian-Setup-v3.8-x64.exe"');
       res.setHeader('Content-Type', 'application/x-msdownload');
       const installerPayload = Buffer.from("MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00Doctorian Medical AI Windows Workstation Suite v3.8\nEBRO Company Ltd. All rights reserved.\nDirect serial Arduino drivers & multi-monitor ICU telemetry engine bundled.\n");
@@ -12252,6 +12243,10 @@ function detectSpecificDiseaseMapping(prompt: string): string {
     });
 
     app.get("/downloads/Doctorian-MedicalAI-Android.apk", (req: any, res: any) => {
+      const physicalFile = path.join(process.cwd(), 'public', 'downloads', 'Doctorian-MedicalAI-Android.apk');
+      if (fs.existsSync(physicalFile)) {
+        return res.download(physicalFile, 'Doctorian-MedicalAI-v3.8-universal.apk');
+      }
       res.setHeader('Content-Disposition', 'attachment; filename="Doctorian-MedicalAI-v3.8-universal.apk"');
       res.setHeader('Content-Type', 'application/vnd.android.package-archive');
       const apkPayload = Buffer.from("PK\x03\x04\x14\x00\x08\x00\x08\x00Doctorian Medical AI Android Universal Suite v3.8\nOffline Uganda Clinical Guidelines, local drug formulary & bio-sensor fusion engine.\n");

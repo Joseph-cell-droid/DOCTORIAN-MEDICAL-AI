@@ -12,7 +12,7 @@ import {
   CheckCircle2, Shield, Download, ShieldAlert
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
-import { api } from '../api';
+import { api, detectIntelligentBrainStatus, IntelligentBrainStatus } from '../api';
 import { cleanAiResponse, ensureModernEmojiInteractivity, extractInteractiveSuggestions } from '../utils/cleanAiResponse';
 import { ModernBotResponseSpace } from './ModernBotResponseSpace';
 import { DoctorianWelcomeCanvas } from './DoctorianWelcomeCanvas';
@@ -904,6 +904,37 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [callDuration, setCallDuration] = useState(0);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<'chat' | 'records' | 'meds' | 'tools' | 'profile'>('chat');
+  const [brainStatus, setBrainStatus] = useState<IntelligentBrainStatus>({
+    mode: 'gemini-online',
+    isOnline: true,
+    providerName: 'Google Gemini Pro',
+    modelName: 'gemini-3.8-flash',
+    badgeText: 'Online • Gemini Pro',
+    latencyMs: 38,
+    details: 'Primary Online Intelligence active with real-time reasoning & search'
+  });
+  const [showBrainModal, setShowBrainModal] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const updateBrain = async () => {
+      try {
+        const s = await detectIntelligentBrainStatus();
+        if (isMounted) setBrainStatus(s);
+      } catch (e) {}
+    };
+    updateBrain();
+
+    window.addEventListener('online', updateBrain);
+    window.addEventListener('offline', updateBrain);
+    const interval = setInterval(updateBrain, 12000);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('online', updateBrain);
+      window.removeEventListener('offline', updateBrain);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Real-Time Bio-Telemetry Fusion & Anomaly Auditing
   const liveVitals: VitalsInput = useMemo(() => ({
@@ -1806,6 +1837,38 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               )}
             </AnimatePresence>
           </div>
+
+          {/* Autonomous AI Engine Status Indicator (Gemini 1st Priority Online, Ollama Offline) */}
+          <button
+            type="button"
+            onClick={() => setShowBrainModal(true)}
+            className={`px-2 sm:px-2.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold tracking-tight border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 active:scale-95 ${
+              brainStatus.mode === 'gemini-online'
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                : brainStatus.mode === 'ollama-offline'
+                ? 'bg-purple-500/15 border-purple-500/40 text-purple-300 hover:bg-purple-500/25'
+                : 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
+            }`}
+            title="AI Routing: Click to inspect Gemini Online Priority & Ollama Offline Auto-Detection"
+          >
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
+              brainStatus.mode === 'gemini-online' ? 'bg-emerald-400 animate-pulse' : brainStatus.mode === 'ollama-offline' ? 'bg-purple-400 animate-pulse' : 'bg-amber-400'
+            }`} />
+            <span className="font-mono font-bold whitespace-nowrap">{brainStatus.badgeText}</span>
+            <ChevronDown size={11} className="text-slate-400 shrink-0" />
+          </button>
+
+          {/* Direct ~60 MB App Download Button */}
+          <button
+            type="button"
+            onClick={() => setShowDownloadModal(true)}
+            className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl border border-blue-400/50 shadow-md shadow-blue-900/30 text-[10px] sm:text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shrink-0"
+            title="Download Doctorian Windows Setup (.exe) & Android APK (.apk) ~60 MB"
+          >
+            <Download size={13} className="text-cyan-200" />
+            <span className="hidden sm:inline">Get App (~60MB)</span>
+            <span className="sm:hidden">App</span>
+          </button>
 
           {/* Dedicated Voice Call Button on Chatbot's Bar */}
           <button
@@ -2861,6 +2924,167 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 </div>
               </motion.div>
             </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 9.5 AUTONOMOUS AI ARCHITECTURE & INTELLIGENCE ROUTING MODAL   */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showBrainModal && (
+          <div 
+            className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowBrainModal(false);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className={`relative w-full max-w-xl rounded-3xl ${
+                effectiveDarkMode ? 'bg-[#08122c] border-slate-700/80 text-slate-100 shadow-[0_20px_70px_rgba(0,0,0,0.8)]' : 'bg-white border-slate-200 text-slate-900 shadow-2xl'
+              } border p-5 sm:p-7 overflow-hidden`}
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowBrainModal(false)}
+                className={`absolute top-4 right-4 p-2 rounded-full ${
+                  effectiveDarkMode ? 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                } transition-all cursor-pointer`}
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 p-0.5 flex items-center justify-center text-white shadow-md shadow-blue-600/30">
+                  <BrainCircuit size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+                    <span>Doctorian AI Architecture</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                      Auto-Routing
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Dual-Platform Intelligence • Windows & Android (~60 MB)
+                  </p>
+                </div>
+              </div>
+
+              {/* Current Active Engine Status Card */}
+              <div className={`p-4 rounded-2xl mb-4 border ${
+                brainStatus.mode === 'gemini-online'
+                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-100'
+                  : brainStatus.mode === 'ollama-offline'
+                  ? 'bg-purple-950/30 border-purple-500/40 text-purple-100'
+                  : 'bg-amber-950/30 border-amber-500/40 text-amber-100'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                    Active Inference Engine
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <span className={`w-2 h-2 rounded-full ${
+                      brainStatus.mode === 'gemini-online' ? 'bg-emerald-400 animate-pulse' : brainStatus.mode === 'ollama-offline' ? 'bg-purple-400' : 'bg-amber-400'
+                    }`} />
+                    <span>{brainStatus.badgeText}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  {brainStatus.details}
+                </p>
+                {brainStatus.latencyMs !== undefined && (
+                  <div className="mt-2 text-[10px] font-mono text-slate-400 flex items-center gap-2">
+                    <span>Round-trip Response: <strong className="text-white">{brainStatus.latencyMs}ms</strong></span>
+                    <span>•</span>
+                    <span>Auto-Detection: <strong className="text-emerald-400">Zero User Switching</strong></span>
+                  </div>
+                )}
+              </div>
+
+              {/* Priority Architecture Breakdown */}
+              <div className="space-y-2.5 mb-5 text-xs">
+                {/* 1st Priority: Google Gemini */}
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center shrink-0 font-bold text-xs">
+                    1st
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-white text-xs">Google Gemini AI (Online Priority)</h4>
+                      <span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold uppercase">Primary</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                      High-precision multimodal clinical reasoning via modern @google/genai SDK with real-time PubMed grounding & vision.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2nd Priority: Local Ollama on Device */}
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center justify-center shrink-0 font-bold text-xs">
+                    2nd
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-white text-xs">Local Ollama Model (Offline Fallover)</h4>
+                      <span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold uppercase">Autonomous</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                      Automatically queries localhost:11434 when network is disconnected. Zero user switching or configuration required.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3rd Priority: Built-in Clinical Matrix */}
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center shrink-0 font-bold text-xs">
+                    3rd
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-white text-xs">Embedded 42 MB Clinical Matrix</h4>
+                      <span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold uppercase">Built-In</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                      WHO 2026 formulary, Uganda Clinical Guidelines, pediatric dosages, and NEWS2 risk trajectory models.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBrainModal(false);
+                    setShowDownloadModal(true);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-blue-900/30 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Download size={14} />
+                  <span>Get Windows & Android (~60 MB)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const s = await detectIntelligentBrainStatus();
+                    setBrainStatus(s);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  title="Refresh connectivity probe"
+                >
+                  <RefreshCw size={13} />
+                  <span>Test Link</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

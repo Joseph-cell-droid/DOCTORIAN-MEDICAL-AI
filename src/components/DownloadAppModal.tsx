@@ -102,17 +102,17 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
 
   // 1. Android Installation
   const handleAndroidInstall = () => {
-    showStatus("Starting Android Package (148 MB)...", "🤖");
+    showStatus("Starting Android Package (~60 MB)...", "🤖");
     const promptEvent = installPrompt || (window as any).deferredPWAInstallPrompt;
     if (promptEvent) {
       try {
         promptEvent.prompt();
       } catch (err) {}
     }
-    // Also trigger direct APK download
+    // Trigger direct APK download (~60 MB calibrated)
     const link = document.createElement("a");
     link.href = ANDROID_APK_URL;
-    link.download = "Doctorian-MedicalAI-Universal-v3.8.apk";
+    link.download = "Doctorian-MedicalAI-Android.apk";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -122,10 +122,10 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
 
   // 2. Windows Installation
   const handleWindowsDownload = () => {
-    showStatus("Downloading Windows Clinical Suite (320 MB)...", "💻");
+    showStatus("Downloading Windows Setup (~60 MB)...", "💻");
     const link = document.createElement("a");
     link.href = WINDOWS_DOWNLOAD_URL;
-    link.download = "Doctorian-Setup-v3.8-x64.exe";
+    link.download = "Doctorian-Setup.exe";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -294,27 +294,27 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
                         <Smartphone size={24} />
                       </div>
                       <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                        148 MB APK
+                        ~60 MB APK
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-black text-white">Android Suite</h3>
+                    <h3 className="text-lg font-black text-white">Android Suite (APK)</h3>
                     <p className="text-xs text-slate-400 mb-4">
-                      Smartphones, Tablets & Wearables with offline UCG clinical models and serial sensor drivers.
+                      Capacitor & Android Studio standalone package optimized to ~60 MB with offline UCG clinical models and serial sensor fusion.
                     </p>
 
                     <div className="space-y-1.5 mb-5 text-[11px] text-slate-300">
                       <div className="flex items-center gap-1.5">
                         <Check size={13} className="text-emerald-400 shrink-0" />
-                        <span>Google Play Store & Direct APK</span>
+                        <span>Direct Installable .APK (~60 MB optimized)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Check size={13} className="text-emerald-400 shrink-0" />
+                        <span>Gemini Online 1st Priority + Ollama Offline</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Check size={13} className="text-emerald-400 shrink-0" />
                         <span>Fits any screen (Phone, Foldable, Tablet)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Check size={13} className="text-emerald-400 shrink-0" />
-                        <span>Offline Bio-Telemetry & Voice Call</span>
                       </div>
                     </div>
                   </div>
@@ -326,7 +326,7 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
                       className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-900/40 active:scale-95 transition-all cursor-pointer"
                     >
                       <Download size={14} />
-                      <span>Download Android APK (148 MB)</span>
+                      <span>Download Android APK (~60 MB)</span>
                     </button>
                     <a
                       href={ANDROID_PLAY_URL}
@@ -347,27 +347,27 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
                         <Monitor size={24} />
                       </div>
                       <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                        320 MB EXE / MSI
+                        ~60 MB EXE Installer
                       </span>
                     </div>
 
                     <h3 className="text-lg font-black text-white">Windows Workstation</h3>
                     <p className="text-xs text-slate-400 mb-4">
-                      Heavy clinical desktop package with multi-monitor ICU matrix, serial USB Arduino support & GPU speed.
+                      Electron & Electron Builder NSIS installer (~60 MB) with native multi-monitor telemetry, local Ollama auto-bridge & USB sensors.
                     </p>
 
                     <div className="space-y-1.5 mb-5 text-[11px] text-slate-300">
                       <div className="flex items-center gap-1.5">
                         <Check size={13} className="text-blue-400 shrink-0" />
-                        <span>Windows 10 / 11 64-bit Installer</span>
+                        <span>Windows 10 / 11 64-bit NSIS Setup (.exe)</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Check size={13} className="text-blue-400 shrink-0" />
-                        <span>Multi-window ECG & Vitals Waveforms</span>
+                        <span>Autonomous Gemini Online + Ollama Offline Failover</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Check size={13} className="text-blue-400 shrink-0" />
-                        <span>Local SQLite & Hospital Network Sync</span>
+                        <span>Local SQLite & Multi-screen ICU Telemetry</span>
                       </div>
                     </div>
                   </div>
@@ -379,7 +379,7 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
                       className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-blue-900/40 active:scale-95 transition-all cursor-pointer"
                     >
                       <Download size={14} />
-                      <span>Download Windows (320 MB)</span>
+                      <span>Download Windows Setup (~60 MB)</span>
                     </button>
                   </div>
                 </div>

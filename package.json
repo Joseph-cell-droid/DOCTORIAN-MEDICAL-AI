@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "node scripts/generate_clinical_assets.js && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "node scripts/generate_clinical_assets.js && node scripts/prepare_download_packages.js && ./node_modules/.bin/vite build && ./node_modules/.bin/esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "electron": "electron .",
     "electron:dev": "NODE_ENV=development electron electron/main.cjs",
     "build:win": "vite build && electron-builder --win nsis",

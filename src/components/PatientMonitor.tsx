@@ -3,7 +3,7 @@ import {
   Wifi, Bluetooth, Play, Square, Thermometer,
   Heart, Droplets, Wind, Activity, AlertTriangle,
   CheckCircle, Info, Radio, Signal, XCircle, Monitor, Stethoscope, WifiOff,
-  Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, TrendingUp, TrendingDown, Clock3, Sliders,
+  Smartphone, MessageSquare, Phone, Cpu, Loader2, Zap, Settings, Brain, Sparkles, X, PhoneCall, User as UserIcon, Users, TrendingUp, TrendingDown, Clock3, Sliders,
   Database, Waves, Dna, Microscope, Layers, Fingerprint, ChevronRight, ShieldAlert, ShieldCheck, RefreshCw, Clock, Download, Share2, AlertCircle, Save, Undo, Folder, Plus, Trash2, LayoutGrid,
   Cloud, Volume2, VolumeX, Siren
 } from 'lucide-react';
@@ -661,7 +661,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showNeuralSummary, setShowNeuralSummary] = useState(false);
-  const [activeTab, setActiveTab] = useState<'realtime' | 'patients_dashboard' | 'watch_vitals' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator' | 'ambulance'>('watch_vitals');
+  const [activeTab, setActiveTab] = useState<'realtime' | 'patients_dashboard' | 'watch_vitals' | 'neural' | 'analytics' | 'emergency' | 'genomics' | 'alarms' | 'registry' | 'simulator' | 'ambulance'>('patients_dashboard');
   
   const getCategoryForTab = (tab: string) => {
     if (['watch_vitals', 'patients_dashboard', 'registry'].includes(tab)) return 'ward';
@@ -2995,6 +2995,62 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* High-Visibility Quick Station Switcher */}
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('patients_dashboard')}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shrink-0 ${
+                        activeTab === 'patients_dashboard'
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-400/30'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <Users size={15} />
+                      <span>🏥 Hospital Patients Dashboard (All Beds)</span>
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-white/20 font-mono font-bold">LIVE</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('realtime')}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shrink-0 ${
+                        activeTab === 'realtime'
+                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400/30'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <Activity size={15} />
+                      <span>🩺 Real-Time Multi-Sensor Station</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('watch_vitals')}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shrink-0 ${
+                        activeTab === 'watch_vitals'
+                          ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400/30'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <Zap size={15} />
+                      <span>⌚ Watch Wearable Triage</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('alarms')}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shrink-0 ${
+                        activeTab === 'alarms'
+                          ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/25 ring-2 ring-rose-400/30'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <ShieldAlert size={15} />
+                      <span>🚨 Clinical Alarms</span>
+                    </button>
                   </div>
 
                   {/* Bio Monitor Navigation Cards: 11 Distinct Clinical Modules */}

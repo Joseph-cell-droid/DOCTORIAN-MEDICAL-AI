@@ -18,6 +18,7 @@ import { AlarmHubView } from './AlarmHubView';
 import { AmbulanceDispatchPanel } from './AmbulanceDispatchPanel';
 import { ClinicalPatientRegistry } from './ClinicalPatientRegistry';
 import { BiomedicalSimulator } from './BiomedicalSimulator';
+import { PatientsDashboardView } from './PatientsDashboardView';
 import { AppServerNetwork } from './AppServerNetwork';
 import {
   initOfflineDatabase,
@@ -47,7 +48,7 @@ import { validateMoHClinicalDosage, validateDrugForDisease, validateDrugDrugInte
 
 export const DoctorsDashboard: React.FC<{ addToast?: (msg: string, type: 'success' | 'error' | 'info') => void }> = ({ addToast }) => {
   const arduino = useArduinoContext();
-  const [activeSubTab, setActiveSubTab] = useState<'clinical_network' | 'server_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms' | 'emergency_logs' | 'genomics' | 'emergency' | 'alarms' | 'ambulance' | 'registry' | 'simulator'>('clinical_network');
+  const [activeSubTab, setActiveSubTab] = useState<'patients_dashboard' | 'clinical_network' | 'server_network' | 'referrals' | 'prescriptions' | 'connection' | 'decision_support' | 'clinician_alarms' | 'emergency_logs' | 'genomics' | 'emergency' | 'alarms' | 'ambulance' | 'registry' | 'simulator'>('patients_dashboard');
   
   // Emergency Logs State (2x Duplicated Patient Data Logs for Doctor Portal Monitoring)
   const [emergencyLogs, setEmergencyLogs] = useState<{
@@ -1091,6 +1092,7 @@ Provide a professional, direct, academic, and clinical response assisting the ph
         {/* Dashboard sub tabs selector */}
         <div className="flex bg-slate-50 dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-inner gap-1 overflow-x-auto no-scrollbar whitespace-nowrap self-stretch lg:self-auto shrink-0">
           {[
+            { id: 'patients_dashboard', label: '🏥 Patients Dashboard', icon: <Activity size={12} />, badge: 6 },
             { id: 'clinical_network', label: 'Network Matrix', icon: <Radio size={12} /> },
             { id: 'server_network', label: '📡 Server Messenger', icon: <Radio size={12} /> },
             { id: 'emergency_logs', label: 'Emergency Monitoring (2x Logs)', icon: <AlertTriangle size={12} />, badge: emergencyLogs.primaryLogs.length + emergencyLogs.backupLogs.length },
@@ -1129,6 +1131,43 @@ Provide a professional, direct, academic, and clinical response assisting the ph
 
       {/* SUB TAB CONTROLS RENDERING */}
       <AnimatePresence mode="wait">
+
+        {/* VIEW: HOSPITAL PATIENTS DASHBOARD (All Patients Linked with Live Telemetry) */}
+        {activeSubTab === 'patients_dashboard' && (
+          <motion.div
+            key="patients_dashboard"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-6"
+          >
+            <div className="bg-gradient-to-r from-blue-900/60 via-indigo-900/40 to-slate-900/80 p-5 rounded-3xl border border-blue-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 shrink-0">
+                  <Activity size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">Hospital Inpatient Telemetry Matrix</h3>
+                  <p className="text-xs text-blue-200 font-medium">Live hospital ward telemetry linked across all beds with real-time stability indices (HIPI & SPI).</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  All Wards Synchronized
+                </span>
+              </div>
+            </div>
+
+            <PatientsDashboardView
+              arduino={arduino}
+              vitals={arduino?.vitals}
+              onSelectPatient={(id) => {
+                if (addToast) addToast(`Coupled patient #${id} to Doctorian clinical telemetry`, 'info');
+              }}
+            />
+          </motion.div>
+        )}
 
         {/* VIEW: EMERGENCY MONITORING & 2X DUPLICATE LOGS */}
         {activeSubTab === 'emergency_logs' && (

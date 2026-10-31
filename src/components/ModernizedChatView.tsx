@@ -914,6 +914,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
     details: 'Primary Online Intelligence active with real-time reasoning & search'
   });
   const [showBrainModal, setShowBrainModal] = useState(false);
+  const [showQuickClinicalTools, setShowQuickClinicalTools] = useState(false);
+  const [showTelemetryBanner, setShowTelemetryBanner] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -1842,7 +1844,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           <button
             type="button"
             onClick={() => setShowBrainModal(true)}
-            className={`px-2 sm:px-2.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold tracking-tight border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 active:scale-95 ${
+            className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold tracking-tight border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 active:scale-95 ${
               brainStatus.mode === 'gemini-online'
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
                 : brainStatus.mode === 'ollama-offline'
@@ -1858,40 +1860,25 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             <ChevronDown size={11} className="text-slate-400 shrink-0" />
           </button>
 
-          {/* Direct ~60 MB App Download Button */}
-          <button
-            type="button"
-            onClick={() => setShowDownloadModal(true)}
-            className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl border border-blue-400/50 shadow-md shadow-blue-900/30 text-[10px] sm:text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shrink-0"
-            title="Download Doctorian Windows Setup (.exe) & Android APK (.apk) ~60 MB"
-          >
-            <Download size={13} className="text-cyan-200" />
-            <span className="hidden sm:inline">Get App (~60MB)</span>
-            <span className="sm:hidden">App</span>
-          </button>
-
-          {/* Dedicated Voice Call Button on Chatbot's Bar */}
+          {/* Voice Call Button (Clean, Compact) */}
           <button
             type="button"
             onClick={() => {
               setCallMode('voice');
               setShowVoiceCallModal(true);
             }}
-            className="px-2.5 sm:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black rounded-xl border border-emerald-400/60 shadow-lg shadow-emerald-950/40 flex items-center gap-1.5 sm:gap-2 cursor-pointer text-[10px] sm:text-xs uppercase tracking-wider shrink-0 transition-all"
+            className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold rounded-xl border border-emerald-400/60 shadow-xs flex items-center gap-1.5 cursor-pointer text-[10px] sm:text-xs uppercase tracking-wider shrink-0 transition-all"
             title="Start Doctorian Voice Call"
           >
-            <div className="w-5 h-5 rounded-full bg-emerald-800/80 flex items-center justify-center shrink-0">
-              <Phone size={12} className="text-emerald-200 animate-pulse" />
-            </div>
-            <span className="whitespace-nowrap font-black hidden sm:inline">Voice Call</span>
-            <span className="whitespace-nowrap font-black sm:hidden">Call</span>
+            <Phone size={12} className="text-emerald-200 animate-pulse" />
+            <span className="whitespace-nowrap font-bold hidden md:inline">Call</span>
           </button>
 
-          {/* Single Chatbot Specialist Button (Fixed in Tool Hub position) */}
+          {/* Single Chatbot Specialist Button */}
           <button
             type="button"
             onClick={() => setShowChatbotsBar(!showChatbotsBar)}
-            className={`px-2.5 sm:px-3 py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 shadow-xs active:scale-95 ${
+            className={`px-2 sm:px-2.5 py-1 sm:py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-bold uppercase tracking-wider cursor-pointer shrink-0 shadow-xs active:scale-95 ${
               showChatbotsBar 
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-400 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/40' 
                 : (effectiveDarkMode 
@@ -1900,23 +1887,16 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             }`}
             title="Toggle Doctorian AI Chatbot Personas & Specialists"
           >
-            <div className={`w-4 h-4 rounded-md bg-gradient-to-tr ${activeAgent.color} flex items-center justify-center text-white shrink-0`}>
-              <ActiveAgentIcon size={10} />
+            <div className={`w-3.5 h-3.5 rounded-md bg-gradient-to-tr ${activeAgent.color} flex items-center justify-center text-white shrink-0`}>
+              <ActiveAgentIcon size={9} />
             </div>
-            <span className="font-black whitespace-nowrap">
+            <span className="font-bold whitespace-nowrap hidden sm:inline">
               {activeAgent.shortName}
-            </span>
-            <span className={`text-[7.5px] font-mono px-1 py-0.2 rounded font-bold uppercase ${
-              showChatbotsBar
-                ? 'bg-white/20 text-white'
-                : (effectiveDarkMode ? 'bg-cyan-500/20 text-cyan-300' : 'bg-blue-100 text-blue-800')
-            }`}>
-              {activeAgent.badge}
             </span>
             <ChevronDown size={11} className={`transform transition-transform duration-200 ${showChatbotsBar ? 'rotate-180 text-cyan-300' : 'text-slate-400'}`} />
           </button>
 
-          {/* Sleek Consolidated More Actions Menu (Reduces clutter on upper bar) */}
+          {/* Sleek Consolidated More Actions Menu */}
           <div className="relative shrink-0">
             <button
               type="button"
@@ -1953,6 +1933,22 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     <span className="text-[9px] font-black uppercase tracking-widest">Consultation Tools</span>
                   </div>
 
+                  {/* Get App (~60MB) Direct Link */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDownloadModal(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2.5 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 hover:from-blue-600/30 hover:to-cyan-600/30 text-cyan-300 rounded-xl transition-all flex items-center justify-between text-xs font-bold cursor-pointer border border-cyan-500/30 mb-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Download size={14} className="text-cyan-400" />
+                      <span>Get App (.exe & .apk)</span>
+                    </div>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/30 text-cyan-200 font-bold border border-cyan-400/40">~60MB</span>
+                  </button>
+
                   {/* Search in Messages */}
                   <button
                     type="button"
@@ -1964,6 +1960,32 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   >
                     <Search size={14} className="text-cyan-400" />
                     <span>Search Chat</span>
+                  </button>
+
+                  {/* Toggle Live Bio-Telemetry */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTelemetryBanner(!showTelemetryBanner);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <Activity size={14} className="text-emerald-400" />
+                    <span>{showTelemetryBanner ? 'Hide Bio-Telemetry' : 'Show Bio-Telemetry'}</span>
+                  </button>
+
+                  {/* Toggle Clinical Actions */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowQuickClinicalTools(!showQuickClinicalTools);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                  >
+                    <Sparkles size={14} className="text-amber-400" />
+                    <span>{showQuickClinicalTools ? 'Hide Clinical Actions' : 'Clinical Actions & Tools'}</span>
                   </button>
 
                   {/* EHR SOAP & Referral Slip */}
@@ -2004,19 +2026,6 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       <span>Matrix Console</span>
                     </button>
                   )}
-
-                  {/* Heavy Intelligent Device Download Hub */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDownloadModal(true);
-                      setShowMoreMenu(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-cyan-300' : 'hover:bg-blue-50 text-blue-700'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
-                  >
-                    <Download size={14} className="text-cyan-400" />
-                    <span>Device Download Hub (435MB)</span>
-                  </button>
 
                   {/* Restructured Executive Settings Feature Buttons */}
                   <button
@@ -2366,136 +2375,225 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )}
           </AnimatePresence>
 
-          {/* REAL-TIME BIO-SENSOR STREAM WITH ANOMALY ALERTS & VITALS FUSION */}
-          <div className="w-full">
-            {hasVitalAnomaly ? (
-              /* High Acuity Anomaly Alert Ribbon */
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="p-2 sm:p-2.5 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-950/80 to-amber-950/80 border border-rose-500/60 shadow-lg shadow-rose-950/50 flex flex-wrap items-center justify-between gap-2 backdrop-blur-md"
+          {/* SMART ON-DEMAND QUICK ACCESS TOOLBAR (Reduces chat clutter, keeps tools 1-click away) */}
+          <div className="w-full flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Pill 1: Bio-Telemetry Live Stream Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowTelemetryBanner(!showTelemetryBanner)}
+                className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0 ${
+                  showTelemetryBanner
+                    ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    : hasVitalAnomaly
+                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-300 animate-pulse'
+                    : effectiveDarkMode
+                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white hover:border-cyan-400'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+                }`}
+                title="Toggle Real-time Bio-Telemetry Vitals & Anomaly Stream"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-xl bg-rose-600/30 border border-rose-500/50 flex items-center justify-center text-rose-300 shrink-0">
-                    <ShieldAlert size={15} className="animate-pulse" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-300">
-                        Vitals Anomaly Alert
-                      </span>
-                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-900/60 text-white font-bold">
-                        NEWS2: {liveTriage.news2.score} ({liveTriage.news2.riskLevel})
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-200 truncate font-medium">
-                      {liveTriage.keyRisks[0] || 'Atypical physiological vitals detected.'}
-                    </p>
-                  </div>
-                </div>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${hasVitalAnomaly ? 'bg-rose-500 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+                <Activity size={12} className={hasVitalAnomaly ? 'text-rose-400' : 'text-cyan-400'} />
+                <span className="whitespace-nowrap">
+                  {hasVitalAnomaly
+                    ? `⚠️ Vital Alert (NEWS2: ${liveTriage.news2.score})`
+                    : `Bio-Telemetry (${liveVitals.heartRate} bpm • ${liveVitals.spO2}%)`}
+                </span>
+                <ChevronDown size={11} className={`transform transition-transform duration-200 ${showTelemetryBanner ? 'rotate-180' : ''}`} />
+              </button>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInputVal(`[CLINICAL TELEMETRY ANOMALY]: Heart Rate: ${liveVitals.heartRate} bpm, SpO2: ${liveVitals.spO2}%, Temp: ${liveVitals.temperature}°C, BP: ${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. NEWS2 Early Warning Score is ${liveTriage.news2.score} (${liveTriage.news2.riskLevel} Risk). Please evaluate differential diagnosis and stabilization actions.`);
-                      showTemporaryNotice("Bio-Telemetry injected into consultation input.");
-                    }}
-                    className="px-2.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md shadow-rose-900/40 cursor-pointer transition-all active:scale-95"
-                  >
-                    <Activity size={12} />
-                    <span>Inject Vitals</span>
-                  </button>
+              {/* Pill 2: Smart Clinical Actions Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowQuickClinicalTools(!showQuickClinicalTools)}
+                className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0 ${
+                  showQuickClinicalTools
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400 shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    : effectiveDarkMode
+                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white hover:border-blue-400'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+                }`}
+                title="Toggle Clinical Decision Support Actions & Formularies"
+              >
+                <Sparkles size={12} className="text-amber-400" />
+                <span className="whitespace-nowrap">Clinical Actions</span>
+                <ChevronDown size={11} className={`transform transition-transform duration-200 ${showQuickClinicalTools ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowSOAPModal(true)}
-                    className="px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all active:scale-95"
-                  >
-                    <FileText size={12} className="text-cyan-400" />
-                    <span>SOAP / MOH</span>
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              /* Normal Fused Bio-Telemetry Stream Ribbon (Compact, Modern, Smart) */
-              <div className="px-3 py-1.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between gap-2 text-xs backdrop-blur-xs">
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 shrink-0">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span className="font-bold">LIVE TELEMETRY</span>
-                  </div>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-[10px] font-mono text-slate-300 shrink-0">
-                    HR: <strong className="text-white">{liveVitals.heartRate}</strong> bpm
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-300 shrink-0">
-                    SpO2: <strong className="text-cyan-300">{liveVitals.spO2}%</strong>
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-300 shrink-0">
-                    Temp: <strong className="text-white">{liveVitals.temperature}°C</strong>
-                  </span>
-                  <span className="text-[10px] font-mono text-emerald-400 shrink-0 font-bold">
-                    Trajectory: {liveTriage.compositeTrajectory}
-                  </span>
-                </div>
+            {/* Quick Helper Actions */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setInputVal(`Current live vitals: HR=${liveVitals.heartRate} bpm, SpO2=${liveVitals.spO2}%, Temp=${liveVitals.temperature}°C, BP=${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. Trajectory: ${liveTriage.compositeTrajectory}.`);
+                  showTemporaryNotice("Attached live bio-telemetry to input.");
+                }}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                  effectiveDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                }`}
+                title="Quickly inject current vitals into question"
+              >
+                <span>+ Vitals</span>
+              </button>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInputVal(`Current live vitals: HR=${liveVitals.heartRate} bpm, SpO2=${liveVitals.spO2}%, Temp=${liveVitals.temperature}°C, BP=${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. Physiological state: ${liveTriage.compositeTrajectory}.`);
-                      showTemporaryNotice("Attached live bio-telemetry to input.");
-                    }}
-                    className="p-1 sm:px-2 sm:py-0.5 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                    title="Attach live vitals to message"
-                  >
-                    <span>+ Attach</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowSOAPModal(true)}
-                    className="p-1 sm:px-2 sm:py-0.5 rounded-lg text-[9px] font-bold text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors cursor-pointer"
-                    title="Generate EHR SOAP Note & Referral"
-                  >
-                    <span>SOAP Note</span>
-                  </button>
-                </div>
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setShowSOAPModal(true)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                  effectiveDarkMode ? 'bg-slate-900/80 border-slate-800 text-cyan-300 hover:text-white' : 'bg-slate-100 border-slate-200 text-blue-700 hover:bg-slate-200'
+                }`}
+                title="Open EHR SOAP & MOH Referral Form"
+              >
+                <FileText size={11} className="text-cyan-400" />
+                <span className="hidden sm:inline">SOAP</span>
+              </button>
+            </div>
           </div>
 
-          {/* DEDICATED SMART ACTION CARD (Compact, Non-blocking, Intelligent) */}
-          <SmartActionCard
-            arduino={arduino}
-            messages={messages}
-            onSendMessage={(msg) => handleSendMessage(msg)}
-            onNavigate={onNavigate}
-            onOpenVoiceCall={() => {
-              setCallMode('voice');
-              setShowVoiceCallModal(true);
-            }}
-            onOpenToolHub={(tab) => {
-              if (tab === 'lab') handleSelectAgent('lab');
-              else if (tab === 'obstetric') handleSelectAgent('maternal');
-              else if (tab === 'fluid') handleSelectAgent('emergency');
-              setShowChatbotsBar(true);
-            }}
-            onOpenSOAPReferral={() => setShowSOAPModal(true)}
-            onExportSummary={handleExportConsultationSummary}
-            onShowNotice={showTemporaryNotice}
-            isUgandaMOHActive={isUgandaMOHActive}
-            onToggleUgandaMOH={() => setIsUgandaMOHActive(!isUgandaMOHActive)}
-          />
+          {/* COLLAPSIBLE DRAWER 1: REAL-TIME BIO-SENSOR STREAM & ANOMALY ALERTS */}
+          <AnimatePresence>
+            {showTelemetryBanner && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -6 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="w-full overflow-hidden"
+              >
+                {hasVitalAnomaly ? (
+                  /* High Acuity Anomaly Alert Ribbon */
+                  <div className="p-2 sm:p-2.5 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-950/80 to-amber-950/80 border border-rose-500/60 shadow-lg shadow-rose-950/50 flex flex-wrap items-center justify-between gap-2 backdrop-blur-md">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-xl bg-rose-600/30 border border-rose-500/50 flex items-center justify-center text-rose-300 shrink-0">
+                        <ShieldAlert size={15} className="animate-pulse" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-300">
+                            Vitals Anomaly Alert
+                          </span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-900/60 text-white font-bold">
+                            NEWS2: {liveTriage.news2.score} ({liveTriage.news2.riskLevel})
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-200 truncate font-medium">
+                          {liveTriage.keyRisks[0] || 'Atypical physiological vitals detected.'}
+                        </p>
+                      </div>
+                    </div>
 
-          {/* RAISED ILLUMINATED CHATBOT TEXT CARD (Clean, Compact, Ergonomic) */}
-          <div className={`relative ${effectiveDarkMode ? 'bg-[#071333] sm:bg-[#081842]/98 border-cyan-400/60 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)]' : 'bg-white/98 sm:bg-white border-blue-400/80 shadow-xl shadow-blue-500/10'} backdrop-blur-2xl border-2 hover:border-cyan-400 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 focus-within:border-cyan-400 focus-within:ring-4 focus-within:ring-cyan-400/30 transition-all overflow-visible`}>
-            
-            {/* Top Cyan Neon Accent Line */}
-            <div className={`absolute -top-[2px] left-6 right-6 h-[2px] ${effectiveDarkMode ? 'bg-gradient-to-r from-transparent via-cyan-300 to-transparent shadow-[0_0_12px_rgba(6,182,212,0.8)]' : 'bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-[0_0_8px_rgba(59,130,246,0.6)]'} pointer-events-none opacity-100`} />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInputVal(`[CLINICAL TELEMETRY ANOMALY]: Heart Rate: ${liveVitals.heartRate} bpm, SpO2: ${liveVitals.spO2}%, Temp: ${liveVitals.temperature}°C, BP: ${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. NEWS2 Early Warning Score is ${liveTriage.news2.score} (${liveTriage.news2.riskLevel} Risk). Please evaluate differential diagnosis and stabilization actions.`);
+                          showTemporaryNotice("Bio-Telemetry injected into consultation input.");
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md shadow-rose-900/40 cursor-pointer transition-all active:scale-95"
+                      >
+                        <Activity size={12} />
+                        <span>Inject Vitals</span>
+                      </button>
 
-            {/* Plus Action Popup Menu (opens cleanly above the raised text card) */}
+                      <button
+                        type="button"
+                        onClick={() => setShowTelemetryBanner(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        title="Close Bio-Telemetry Drawer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Normal Fused Bio-Telemetry Stream Ribbon */
+                  <div className="px-3 py-2 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md flex items-center justify-between gap-2 text-xs backdrop-blur-md">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                      <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span className="font-bold">LIVE TELEMETRY</span>
+                      </div>
+                      <span className="text-slate-600">|</span>
+                      <span className="text-[10px] font-mono text-slate-300 shrink-0">
+                        HR: <strong className="text-white">{liveVitals.heartRate}</strong> bpm
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-300 shrink-0">
+                        SpO2: <strong className="text-cyan-300">{liveVitals.spO2}%</strong>
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-300 shrink-0">
+                        Temp: <strong className="text-white">{liveVitals.temperature}°C</strong>
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-400 shrink-0 font-bold">
+                        Trajectory: {liveTriage.compositeTrajectory}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowTelemetryBanner(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                        title="Close Bio-Telemetry Drawer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* COLLAPSIBLE DRAWER 2: SMART CLINICAL ACTIONS CARD */}
+          <AnimatePresence>
+            {showQuickClinicalTools && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -6 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="w-full overflow-hidden relative"
+              >
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickClinicalTools(false)}
+                    className="absolute top-2 right-2 z-20 p-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-colors"
+                    title="Close Clinical Actions"
+                  >
+                    <X size={13} />
+                  </button>
+                  <SmartActionCard
+                    arduino={arduino}
+                    messages={messages}
+                    onSendMessage={(msg) => handleSendMessage(msg)}
+                    onNavigate={onNavigate}
+                    onOpenVoiceCall={() => {
+                      setCallMode('voice');
+                      setShowVoiceCallModal(true);
+                    }}
+                    onOpenToolHub={(tab) => {
+                      if (tab === 'lab') handleSelectAgent('lab');
+                      else if (tab === 'obstetric') handleSelectAgent('maternal');
+                      else if (tab === 'fluid') handleSelectAgent('emergency');
+                      setShowChatbotsBar(true);
+                    }}
+                    onOpenSOAPReferral={() => setShowSOAPModal(true)}
+                    onExportSummary={handleExportConsultationSummary}
+                    onShowNotice={showTemporaryNotice}
+                    isUgandaMOHActive={isUgandaMOHActive}
+                    onToggleUgandaMOH={() => setIsUgandaMOHActive(!isUgandaMOHActive)}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* MODERN SLEEK CAPSULE INPUT BAR (ChatGPT / Gemini Open Web Standard) */}
+          <div className="w-full relative">
+            {/* Plus Action Popup Menu */}
             {showPlusMenu && (
               <div className="fixed inset-0 z-30" onClick={() => setShowPlusMenu(false)} />
             )}
@@ -2503,13 +2601,16 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               {showPlusMenu && (
                 <motion.div
                   key="plus-action-menu-modal"
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className={`absolute left-2 sm:left-4 bottom-full mb-3 w-72 ${effectiveDarkMode ? 'bg-[#09142f] border-slate-700/90 text-slate-200' : 'bg-white border-slate-200 text-slate-800 shadow-2xl'} border rounded-2xl shadow-2xl z-40 p-2 space-y-1 text-left backdrop-blur-xl`}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute left-0 bottom-full mb-2 w-72 ${
+                    effectiveDarkMode ? 'bg-[#09142f] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800 shadow-2xl'
+                  } border rounded-2xl shadow-2xl z-40 p-2 space-y-1 text-left backdrop-blur-xl`}
                 >
                   <div className={`px-2.5 py-1.5 border-b ${effectiveDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'} text-[10px] font-bold uppercase tracking-wider`}>
-                    Attach & Diagnostic Tools
+                    Attach & Diagnostics
                   </div>
                   <button
                     type="button"
@@ -2517,9 +2618,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       setShowPlusMenu(false);
                       fileInputRef.current?.click();
                     }}
-                    className={`w-full text-left p-2.5 ${effectiveDarkMode ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-slate-100 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-slate-100 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
                   >
-                    <Camera size={16} className="text-blue-500 shrink-0" />
+                    <Camera size={15} className="text-blue-500 shrink-0" />
                     <span>Upload Lab Report / Medical Photo</span>
                   </button>
 
@@ -2529,9 +2630,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       setShowPlusMenu(false);
                       toggleSpeechRecognition();
                     }}
-                    className={`w-full text-left p-2.5 ${effectiveDarkMode ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-slate-100 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-slate-100 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
                   >
-                    <Mic size={16} className="text-emerald-500 shrink-0" />
+                    <Mic size={15} className="text-emerald-500 shrink-0" />
                     <span>Voice Dictation Mode</span>
                   </button>
 
@@ -2545,9 +2646,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                         setInputVal("Vitals snapshot: HR=72 bpm, SpO2=99%, Temp=36.8°C");
                       }
                     }}
-                    className={`w-full text-left p-2.5 ${effectiveDarkMode ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-slate-100 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-slate-100 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
                   >
-                    <Activity size={16} className="text-cyan-500 shrink-0" />
+                    <Activity size={15} className="text-cyan-500 shrink-0" />
                     <span>Attach Current Bio-Telemetry</span>
                   </button>
 
@@ -2557,9 +2658,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       setShowPlusMenu(false);
                       handleSendMessage("🚨 EMERGENCY SOS: The patient has severe difficulty breathing and chest pain. Triage emergency protocols immediately!");
                     }}
-                    className="w-full text-left p-2.5 hover:bg-rose-950/60 rounded-xl transition-all flex items-center gap-2.5 text-rose-500 text-xs font-semibold cursor-pointer"
+                    className="w-full text-left p-2 hover:bg-rose-950/60 rounded-xl transition-all flex items-center gap-2.5 text-rose-500 text-xs font-semibold cursor-pointer"
                   >
-                    <AlertCircle size={16} className="text-rose-500 shrink-0" />
+                    <AlertCircle size={15} className="text-rose-500 shrink-0" />
                     <span>Emergency SOS Dispatch</span>
                   </button>
                 </motion.div>
@@ -2579,62 +2680,76 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               }}
             />
 
-            {/* Input Form with Plus Button, High-Contrast Text Input Pill, Mic & Glowing Send Button */}
+            {/* Standard Modern Capsule Input Form */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="flex items-center gap-2 sm:gap-3"
+              className={`flex items-center gap-2 rounded-2xl sm:rounded-full border transition-all p-1.5 sm:p-2 ${
+                effectiveDarkMode
+                  ? 'bg-slate-900/95 border-slate-700/80 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/20 shadow-lg shadow-black/40'
+                  : 'bg-white border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 shadow-md shadow-slate-200/50'
+              }`}
             >
-              {/* Circular Plus Button */}
+              {/* Plus Attachment Button */}
               <button
                 type="button"
                 onClick={() => setShowPlusMenu(!showPlusMenu)}
-                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full ${effectiveDarkMode ? 'bg-[#0c1c47] hover:bg-[#142c6e] border-cyan-400/60 text-cyan-300' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-blue-600'} border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-lg active:scale-95`}
-                title="Attach clinical photo, document or vitals"
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                  showPlusMenu
+                    ? 'bg-blue-600 text-white'
+                    : effectiveDarkMode
+                    ? 'bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                title="Attach document, photo, or clinical telemetry"
               >
-                <Plus size={20} className={showPlusMenu ? 'rotate-45 transition-transform' : 'transition-transform'} />
+                <Plus size={18} className={`transition-transform duration-200 ${showPlusMenu ? 'rotate-45' : ''}`} />
               </button>
 
-              {/* High-Contrast Pill Input Container */}
-              <div className={`flex-1 relative flex items-center ${effectiveDarkMode ? 'bg-[#040c24] border-cyan-400/60 hover:border-cyan-300' : 'bg-slate-100 border-slate-300 hover:border-blue-400'} rounded-full border-2 focus-within:border-cyan-400 px-4 sm:px-5 py-1.5 sm:py-2 transition-all shadow-inner`}>
-                <input
-                  type="text"
-                  value={inputVal}
-                  onChange={(e) => setInputVal(e.target.value)}
-                  placeholder="Type your clinical question or symptom..."
-                  className={`w-full bg-transparent text-sm sm:text-base ${effectiveDarkMode ? 'text-white placeholder-slate-300' : 'text-slate-900 placeholder-slate-400'} font-medium focus:outline-hidden py-1`}
-                />
+              {/* Text Input */}
+              <input
+                type="text"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                placeholder="Ask Doctorian AI a clinical question or symptom..."
+                className={`flex-1 bg-transparent text-sm sm:text-base font-normal px-2 py-1 focus:outline-hidden ${
+                  effectiveDarkMode ? 'text-white placeholder-slate-400' : 'text-slate-900 placeholder-slate-400'
+                }`}
+              />
 
-                {/* Voice Dictation Mic inside Pill */}
-                <button
-                  type="button"
-                  onClick={toggleSpeechRecognition}
-                  className={`p-2 rounded-full transition-colors cursor-pointer mr-0.5 ${
-                    isRecording ? 'text-rose-500 animate-pulse bg-rose-500/20' : (effectiveDarkMode ? 'text-slate-300 hover:text-cyan-300 hover:bg-white/10' : 'text-slate-500 hover:text-blue-600 hover:bg-black/5')
-                  }`}
-                  title={isRecording ? 'Listening... click to stop' : 'Click to speak'}
-                >
-                  {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
-                </button>
-              </div>
+              {/* Dictation Mic Button */}
+              <button
+                type="button"
+                onClick={toggleSpeechRecognition}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                  isRecording
+                    ? 'text-rose-500 bg-rose-500/20 animate-pulse'
+                    : effectiveDarkMode
+                    ? 'text-slate-400 hover:text-cyan-300 hover:bg-white/5'
+                    : 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
+                }`}
+                title={isRecording ? 'Listening... click to stop' : 'Click for speech dictation'}
+              >
+                {isRecording ? <MicOff size={17} /> : <Mic size={17} />}
+              </button>
 
-              {/* Royal Blue / Cyan Gradient Send Button */}
+              {/* Modern Send Button */}
               <button
                 type="submit"
                 disabled={!inputVal.trim() || isLoading}
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 hover:from-blue-500 hover:via-cyan-400 hover:to-teal-300 disabled:from-slate-400 disabled:via-slate-400 disabled:to-slate-400 dark:disabled:from-slate-800 dark:disabled:via-slate-800 dark:disabled:to-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-400/50 active:scale-95 transition-all cursor-pointer border border-cyan-300/60"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white flex items-center justify-center shrink-0 shadow-md transition-all cursor-pointer active:scale-95"
                 title="Send Message"
               >
-                <Send size={18} className="translate-x-0.5" />
+                <Send size={16} className="translate-x-0.5" />
               </button>
             </form>
           </div>
 
-          {/* High-Legibility Medical Disclaimer */}
-          <p className={`text-[10px] sm:text-[11px] text-center ${effectiveDarkMode ? 'text-slate-400/90' : 'text-slate-500'} font-medium tracking-wide`}>
-            Doctorian AI provides clinical decision support • In an emergency, call your local medical facility immediately.
+          {/* Clean Medical Disclaimer */}
+          <p className={`text-[10px] text-center ${effectiveDarkMode ? 'text-slate-500' : 'text-slate-400'} font-medium`}>
+            Doctorian AI provides clinical decision support • In an emergency, contact your nearest medical facility.
           </p>
         </div>
       </div>

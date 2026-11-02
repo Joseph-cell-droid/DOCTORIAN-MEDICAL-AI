@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "node scripts/generate_clinical_assets.js && node scripts/prepare_download_packages.js && ./node_modules/.bin/vite build && ./node_modules/.bin/esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build",
     "electron": "electron .",
     "electron:dev": "NODE_ENV=development electron electron/main.cjs",
     "build:win": "vite build && electron-builder --win nsis",
@@ -16,7 +16,7 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "start": "node dist/server.cjs",
+    "start": "tsx server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist build dist-electron",
     "lint": "tsc --noEmit"
@@ -57,7 +57,7 @@
     "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.5.0",
     "@capacitor/ios": "^8.5.0",
-    "@google/genai": "^1.29.0",
+    "@google/genai": "^2.32.0",
     "@google/generative-ai": "^0.24.1",
     "@simplewebauthn/browser": "^13.1.0",
     "@simplewebauthn/server": "^13.1.1",
@@ -80,7 +80,6 @@
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
-    "esbuild": "^0.28.0",
     "express": "^4.21.2",
     "firebase": "^12.11.0",
     "firebase-admin": "^14.0.0",
@@ -131,6 +130,7 @@
     "@types/three": "^0.186.0",
     "electron": "^45.1.0",
     "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
     "sharp": "^0.35.3"
   }
 }

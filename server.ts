@@ -3174,16 +3174,42 @@ async function startServer() {
   app.get("/health", (req, res) => res.json({ status: "ok" }));
   app.get("/healthz", (req, res) => res.json({ status: "ok" }));
 
-  app.use(express.json());
-  app.use(cookieParser());
-  app.use(cors({
-    origin: true,
-    credentials: true
-  }));
+  // Dedicated high-priority PWA service worker and manifest delivery
+  app.get(['/sw.js', '/service-worker.js'], (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    const swPath = path.resolve(process.cwd(), 'public', 'sw.js');
+    if (fs.existsSync(swPath)) {
+      return res.sendFile(swPath);
+    }
+    return res.status(200).send('self.addEventListener("install", () => self.skipWaiting()); self.addEventListener("activate", () => self.clients.claim());');
+  });
 
-  // Robust Global IP Rate Limiter
+  app.get('/manifest.webmanifest', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    const mPath = path.resolve(process.cwd(), 'public', 'manifest.webmanifest');
+    if (fs.existsSync(mPath)) {
+      return res.sendFile(mPath);
+    }
+    return res.status(404).send('Not found');
+  });
+
+  // Robust Global IP Rate Limiter - strictly for API routes
   app.use((req: any, res: any, next: any) => {
-    if (req.path.includes('__aistudio_internal_control_plane') || req.path === '/api/health' || req.path === '/health' || req.path === '/healthz') {
+    // Never rate-limit static files, assets, service workers, or health checks
+    if (
+      !req.path.startsWith('/api') ||
+      req.path === '/api/health' ||
+      req.path === '/health' ||
+      req.path === '/healthz' ||
+      req.path.includes('__aistudio_internal_control_plane') ||
+      req.path.endsWith('.js') ||
+      req.path.endsWith('.css') ||
+      req.path.endsWith('.png') ||
+      req.path.endsWith('.ico')
+    ) {
       return next();
     }
     const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';

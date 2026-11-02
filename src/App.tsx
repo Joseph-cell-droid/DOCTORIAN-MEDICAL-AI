@@ -202,6 +202,7 @@ const AccessRestriction = safeLazy(() => import("./components/AccessRestriction"
 const SpecialistFinder = safeLazy(() => import("./components/SpecialistFinder"), "SpecialistFinder");
 const SymptomChecker = safeLazy(() => import("./components/SymptomChecker"), "SymptomChecker");
 const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
+const AppMedics = safeLazy(() => import("./components/AppMedics"), "AppMedics");
 const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
 const Billing = safeLazy(() => import("./components/Billing"), "Billing");
 const MedicationTracker = safeLazy(() => import("./components/MedicationTracker"), "MedicationTracker");
@@ -846,7 +847,7 @@ export default function App() {
     };
   }, [currentLanguage]);
 
-  const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | 'nextgen_tech' | ResourceType>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | 'nextgen_tech' | 'app_medics' | ResourceType>('home');
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -2296,8 +2297,7 @@ export default function App() {
         { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={18} /> },
         { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={18} /> },
         { id: 'clinical_roadmap', label: 'Appointments & Visits', icon: <CalendarIcon size={18} /> },
-        { id: 'emergency', label: 'Emergency SOS 911', icon: <AlertTriangle size={18} />, badgeDot: 'rose', isUrgent: true },
-        { id: 'emergency_sms', label: 'Emergency SMS Chat', icon: <Radio size={18} />, badgeDot: 'rose', isUrgent: true },
+        { id: 'app_medics', label: 'App Medics (Uganda)', icon: <Pill size={18} />, badgeDot: 'emerald' },
       ]
     },
     {
@@ -2342,7 +2342,7 @@ export default function App() {
     { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={16} />, badge: undefined, color: 'amber' },
     { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
     { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} />, badge: undefined, color: 'sky' },
-    { id: 'emergency', label: 'Emergency SOS 911', icon: <AlertTriangle size={16} />, badge: '24/7 Rapid', color: 'rose', isUrgent: true },
+    { id: 'app_medics', label: 'App Medics (Uganda)', icon: <Pill size={16} />, badge: 'Uganda Rx', color: 'emerald' },
   ];
 
   const subPagesCategories = [
@@ -2356,7 +2356,7 @@ export default function App() {
         { id: 'meds', label: 'Precision Pharmacy & Prescriptions', icon: <Pill size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
         { id: 'vitality', label: 'Vitality & Biomarker Matrix', icon: <Activity size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
         { id: 'clinical_roadmap', label: 'Appointments & Scheduling', icon: <CalendarIcon size={14} />, color: 'text-sky-500 hover:bg-sky-500/10' },
-        { id: 'emergency', label: 'Emergency SOS 911 Dispatch', icon: <AlertTriangle size={14} />, color: 'text-rose-600 hover:bg-rose-500/10' },
+        { id: 'app_medics', label: 'App Medics (Uganda Pharmacy)', icon: <Pill size={14} />, color: 'text-emerald-600 hover:bg-emerald-500/10' },
       ]
     },
     {
@@ -3970,15 +3970,15 @@ export default function App() {
               <BiomaticSandbox />
             </Suspense>
           </motion.div>
-        ) : currentView === 'emergency' ? (
+        ) : currentView === 'app_medics' || currentView === 'emergency' ? (
           <motion.div
-            key="emergency"
-            initial={{ opacity: 0, scale: 0.95 }}
+            key="app_medics"
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            className="w-full max-w-7xl mx-auto py-6 sm:py-10"
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="w-full"
           >
-            <EmergencyRegistry user={user} onUpdate={setUser} isAdmin={isAdmin} />
+            <AppMedics onNavigate={setCurrentView} />
           </motion.div>
         ) : currentView === 'biosecurity' ? (
           <motion.div

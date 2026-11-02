@@ -419,6 +419,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
     setIsLoading(true);
     try {
       const res = await api.auth.verifyResetCode(forgotEmail.trim(), resetCode.trim());
+      if (!res?.token) throw new Error("Invalid recovery token received.");
       setResetToken(res.token);
       setSuccessMessage("Code verified. Please set your new secure password.");
       setForgotStep('reset');

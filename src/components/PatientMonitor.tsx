@@ -95,7 +95,7 @@ const VitalCard: React.FC<{
   customIndicator?: React.ReactNode;
 }> = ({ icon, label, value, unit, color, bgColor, status, isLive, history = [], maxVal, highlight, customIndicator }) => {
   const numVal = parseFloat(value);
-  const isGlowActive = label === "Heart Rate" && !isNaN(numVal) && (numVal > 140 || numVal < 45);
+  const isGlowActive = label === "Heart Rate" && !isNaN(numVal) && (numVal > 120 || numVal < 45);
 
   const getHeartRateTrend = () => {
     if (label !== "Heart Rate") return null;
@@ -178,25 +178,22 @@ const VitalCard: React.FC<{
         </div>
         <div className="flex items-center gap-2">
           {(label === "Heart Rate" || label.includes("SpO2") || label.includes("Temp")) && (
-            <BioTelemetryRangeTooltip position="bottom" align="end">
-              <span
-                className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold cursor-help transition-all flex items-center gap-1 ${
-                  highlight 
-                    ? 'bg-white/20 text-white hover:bg-white/30' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-                title="Acceptable range reference"
-              >
-                <Info size={10} />
-                <span>
-                  {label === "Heart Rate"
-                    ? "Normal: 60–100 BPM"
-                    : label.includes("SpO2")
-                    ? "Normal: 95–100%"
-                    : "Normal: 36.5–37.5°C"}
-                </span>
+            <span
+              className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold transition-all flex items-center gap-1 ${
+                highlight 
+                  ? 'bg-white/20 text-white' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <Info size={10} />
+              <span>
+                {label === "Heart Rate"
+                  ? "Normal: 60–100 BPM"
+                  : label.includes("SpO2")
+                  ? "Normal: 95–100%"
+                  : "Normal: 36.5–37.5°C"}
               </span>
-            </BioTelemetryRangeTooltip>
+            </span>
           )}
           {status === 'warning' && <AlertTriangle className={`w-5 h-5 ${highlight ? 'text-white' : 'text-amber-500'}`} aria-label="Warning status" />}
           {status === 'critical' && <XCircle className={`w-5 h-5 ${highlight ? 'text-white' : 'text-red-500'}`} aria-label="Critical status" />}

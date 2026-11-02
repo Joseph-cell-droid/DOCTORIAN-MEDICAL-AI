@@ -1615,7 +1615,7 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid or expired code");
-      return data as { success: boolean; token: string };
+      return { success: true, token: data?.token || '' };
     },
     async resetPassword(token: string, password: string) {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {

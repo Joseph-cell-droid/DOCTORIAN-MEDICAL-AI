@@ -309,6 +309,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         try {
           const res = await api.auth.verifyResetCode(email, resetCode);
+          if (!res?.token) throw new Error("Invalid recovery token received.");
           setResetToken(res.token);
           setSuccessMessage("Two-factor verification confirmed!");
           setTimeout(() => setView('reset-password'), 800);

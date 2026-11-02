@@ -110,13 +110,13 @@ export const ALL_APP_PAGES: PageItem[] = [
     badgeColor: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
   },
   {
-    id: 'emergency',
-    label: 'Emergency SOS 911',
-    subtitle: 'Get immediate help',
+    id: 'app_medics',
+    label: 'App Medics (Uganda)',
+    subtitle: 'Drugs & pharmacy prices in Uganda',
     category: 'core',
-    icon: <AlertTriangle size={20} className="text-red-500" />,
-    badge: 'SOS',
-    badgeColor: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    icon: <Pill size={20} className="text-emerald-500" />,
+    badge: 'UG RX',
+    badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   },
 
   // Diagnostics & Pathology
@@ -544,28 +544,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
           </motion.div>
         ) : (
-          /* The Curved Floating Navigation Bar (Image 2) */
+          /* Flat Rectangular Navigation Bar for Android & Mobile (No Bent Edges) */
           <motion.nav
-            key="bottom-floating-nav"
+            key="bottom-flat-nav"
             role="navigation"
             aria-label="Mobile Navigation"
-            initial={{ opacity: 0, y: 30, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.96 }}
-            transition={{ type: 'spring', damping: 24, stiffness: 340 }}
-            className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-[140] w-auto max-w-lg sm:max-w-xl select-none"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-0 left-0 right-0 z-[140] w-full select-none"
           >
-            {/* The Main Curved Capsule */}
-            <div className="bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800/80 rounded-full shadow-[0_16px_40px_-10px_rgba(0,0,0,0.16)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-2xl h-17 sm:h-19 px-2 sm:px-4 flex items-center justify-between gap-1">
-              {/* Sleek Mini Left Slide Trigger */}
-              <button
-                type="button"
-                onClick={() => toggleCornerDock('left')}
-                title="Slide to left corner (<<)"
-                className="w-6 h-9 rounded-full bg-slate-100/60 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-all cursor-pointer shrink-0"
-              >
-                <ChevronsLeft size={15} className="stroke-[2.5]" />
-              </button>
+            {/* Flat Rectangular Bar: Edge-to-edge, smart, high-contrast, no curved or bent corners */}
+            <div className="bg-white/95 dark:bg-slate-950/95 text-slate-900 dark:text-slate-100 border-t border-slate-200/90 dark:border-slate-800/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_30px_rgba(0,0,0,0.5)] backdrop-blur-2xl h-16 sm:h-17 px-3 sm:px-8 flex items-center justify-around rounded-none">
 
               {/* 1. Home Button - Latest Capsule Squircle Look */}
               <button
@@ -824,15 +815,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 )}
               </button>
 
-              {/* Sleek Mini Right Slide Trigger */}
-              <button
-                type="button"
-                onClick={() => toggleCornerDock('right')}
-                title="Slide to right corner (>>)"
-                className="w-6 h-9 rounded-full bg-slate-100/60 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 flex items-center justify-center transition-all cursor-pointer shrink-0"
-              >
-                <ChevronsRight size={15} className="stroke-[2.5]" />
-              </button>
             </div>
           </motion.nav>
         )}

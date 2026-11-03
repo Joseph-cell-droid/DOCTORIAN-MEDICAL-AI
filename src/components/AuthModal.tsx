@@ -358,7 +358,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (origin !== currentHost && !origin.includes('localhost') && !origin.includes('127.0.0.1')) return;
 
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        if (event.data.token) {
+        if (event.data?.token) {
           localStorage.setItem("doctorian_token", event.data.token);
         }
         const checkUser = async () => {

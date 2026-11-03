@@ -3166,6 +3166,9 @@ async function startServer() {
   console.log("[SERVER] Initializing Express Application...");
   const app = express();
   app.set('trust proxy', 1);
+  app.use(cookieParser());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // High-priority handler for AI Studio internal control plane and health checks
   app.all("/__aistudio_internal_control_plane/*", (req, res) => {
@@ -3371,7 +3374,7 @@ async function startServer() {
   };
 
   const authenticate = (req: any, res: any, next: any) => {
-    let token = req.cookies.token;
+    let token = req.cookies?.token;
     if (!token && req.headers.authorization) {
       const parts = req.headers.authorization.split(" ");
       if (parts.length === 2 && parts[0] === "Bearer") {
@@ -6395,7 +6398,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     
     // Attempt authentication if token exists, otherwise fall back to body or default email
     try {
-      let token = req.cookies.token;
+      let token = req.cookies?.token;
       if (!token && req.headers.authorization) {
         const parts = req.headers.authorization.split(" ");
         if (parts.length === 2 && parts[0] === "Bearer") {
@@ -6559,7 +6562,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
     const codeInput = req.body.code ? req.body.code.replace(/\s+/g, '') : '';
 
     try {
-      let token = req.cookies.token;
+      let token = req.cookies?.token;
       if (!token && req.headers.authorization) {
         const parts = req.headers.authorization.split(" ");
         if (parts.length === 2 && parts[0] === "Bearer") {
@@ -6830,7 +6833,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
         return res.status(400).json({ error: "Invalid or expired code" });
       }
 
-      res.json({ success: true, token: resetToken.token });
+      res.json({ success: true, token: resetToken?.token || '' });
     } catch (err) {
       console.error("Verify code error:", err);
       res.status(500).json({ error: "Internal server error" });
@@ -7309,7 +7312,7 @@ Focus on providing high-fidelity clinical and technical insights related to medi
   });
 
   app.get("/api/auth/me", (req, res) => {
-    let token = req.cookies.token;
+    let token = req.cookies?.token;
     if (!token && req.headers.authorization) {
       const parts = req.headers.authorization.split(" ");
       if (parts.length === 2 && parts[0] === "Bearer") {
@@ -13122,8 +13125,8 @@ INSTRUCTIONS FOR SMS PAYLOAD:
     console.log("[WS-LIVE] Neural Voice connection established...");
     
     // Auth Check via Cookie (Optional - permits guest access)
-    const cookies = req.headers.cookie ? Object.fromEntries(req.headers.cookie.split('; ').map(c => c.split('='))) : {};
-    const token = cookies.token;
+    const cookies: any = req.headers.cookie ? Object.fromEntries(req.headers.cookie.split('; ').map(c => c.split('='))) : {};
+    const token = cookies?.token;
 
     let userEmail = "guest@doctorian.com";
     if (token) {

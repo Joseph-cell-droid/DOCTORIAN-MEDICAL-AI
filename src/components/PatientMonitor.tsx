@@ -38,6 +38,7 @@ import { ClinicalStationsNav } from './ClinicalStationsNav';
 import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
 import { HeartRateAlertToast, HeartRateThresholds } from './HeartRateAlertToast';
 import { AnimatedVitalNumber } from './AnimatedVitalNumber';
+import { BioMonitorCommandCenter } from './BioMonitorCommandCenter';
 import { cacheTelemetryFrame } from '../utils/waveformCache';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -4313,6 +4314,7 @@ export const PatientMonitor: React.FC<{ arduino: any; user?: User | null; onUpda
             </div>
           </>
         )}
+        <BioMonitorCommandCenter onOpenLiveStatus={() => setIsSimulatorOpen(true)} />
       </motion.div>
         ) : (
           /* Not Connected State */

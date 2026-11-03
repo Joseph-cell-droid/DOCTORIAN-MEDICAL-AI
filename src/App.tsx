@@ -111,6 +111,8 @@ import { PageTutorialModal } from './components/PageTutorialModal';
 import { BioTelemetryRangeTooltip } from './components/BioTelemetryRangeTooltip';
 import { AdminOnboardingPortal } from './components/AdminOnboardingPortal';
 import { EmergencySmsChat } from './components/EmergencySmsChat';
+import { DoctorianVoiceCallModal } from './components/DoctorianVoiceCallModal';
+import { DoctorianVideoConsultationModal } from './components/DoctorianVideoConsultationModal';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
 import { trustDevice, untrustDevice, detectDeviceName } from './utils/deviceRecognition';
@@ -4866,14 +4868,26 @@ export default function App() {
                 />
               )}
 
-              {(isTelehealthOpen || isVoiceCallOpen) && (
-                <TelehealthScribeHub
-                  key="modal-telehealth"
-                  isOpen={isTelehealthOpen || isVoiceCallOpen}
-                  initialMode={isVoiceCallOpen ? "voice" : "video"}
-                  onClose={() => {
-                    setIsTelehealthOpen(false);
+              {isVoiceCallOpen && (
+                <DoctorianVoiceCallModal
+                  key="modal-doctorian-voice-call"
+                  isOpen={isVoiceCallOpen}
+                  onClose={() => setIsVoiceCallOpen(false)}
+                  onSwitchToVideo={() => {
                     setIsVoiceCallOpen(false);
+                    setIsTelehealthOpen(true);
+                  }}
+                />
+              )}
+
+              {isTelehealthOpen && (
+                <DoctorianVideoConsultationModal
+                  key="modal-doctorian-video-consultation"
+                  isOpen={isTelehealthOpen}
+                  onClose={() => setIsTelehealthOpen(false)}
+                  onSwitchToVoice={() => {
+                    setIsTelehealthOpen(false);
+                    setIsVoiceCallOpen(true);
                   }}
                 />
               )}

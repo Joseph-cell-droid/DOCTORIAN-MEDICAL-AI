@@ -157,8 +157,8 @@ export const CLINICAL_MODULES_REGISTRY: IntelligentAppButtonItem[] = [
   // 4. Precision Pharmacy - Electric Cyan / Turquoise
   {
     id: 'meds',
-    label: 'Precision Pharmacy',
-    subtitle: 'Dosage & interactions',
+    label: 'Medication & Prescriptions',
+    subtitle: 'Prescriptions & adherence studio',
     category: 'triage',
     categoryLabel: 'Pharmacology',
     icon: Pill,

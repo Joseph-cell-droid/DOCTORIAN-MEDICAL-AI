@@ -63,6 +63,7 @@ import { Compass,
   PhoneCall,
   Waves,
   Github,
+  Bug,
   Palette,
   Database,
   Dna,
@@ -221,6 +222,7 @@ const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"),
 
 const josephPortrait = "/african_doctor_male.png";
 import { AppServerNetwork } from "./components/AppServerNetwork";
+import { AppDebugSystem } from "./components/AppDebugSystem";
 import { AuthModal } from "./components/AuthModal";
 import { AdminInfoModal } from "./components/AdminInfoModal";
 import { Footer } from "./components/Footer";
@@ -850,6 +852,19 @@ export default function App() {
   }, [currentLanguage]);
 
   const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | 'nextgen_tech' | 'app_medics' | ResourceType>('home');
+  const [showDebugSystem, setShowDebugSystem] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) || e.key === 'F2') {
+        e.preventDefault();
+        setShowDebugSystem(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -2296,7 +2311,7 @@ export default function App() {
           badgeDot: isArduinoCritical ? 'critical-red' : 'blue',
           isCritical: isArduinoCritical
         },
-        { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={18} /> },
+        { id: 'meds', label: 'Medication & Prescriptions', icon: <Pill size={18} /> },
         { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={18} /> },
         { id: 'clinical_roadmap', label: 'Appointments & Visits', icon: <CalendarIcon size={18} /> },
         { id: 'app_medics', label: 'App Medics (Uganda)', icon: <Pill size={18} />, badgeDot: 'emerald' },
@@ -2341,7 +2356,7 @@ export default function App() {
     { id: 'server_network', label: 'Server Network', icon: <Radio size={16} />, badge: 'Mesh Chat', color: 'teal' },
     { id: 'symptoms', label: 'Symptom Triage', icon: <Sparkles size={16} />, badge: 'Differential', color: 'amber' },
     { id: 'monitor', label: 'Bio-Telemetry', icon: <Monitor size={16} />, badge: 'Live Telemetry', color: 'cyan' },
-    { id: 'meds', label: 'Precision Pharmacy', icon: <Pill size={16} />, badge: undefined, color: 'amber' },
+    { id: 'meds', label: 'Medication & Rx', icon: <Pill size={16} />, badge: 'Rx Studio', color: 'blue' },
     { id: 'vitality', label: 'Vitality Matrix', icon: <Activity size={16} />, badge: 'Vitals', color: 'emerald' },
     { id: 'clinical_roadmap', label: 'Appointments', icon: <CalendarIcon size={16} />, badge: undefined, color: 'sky' },
     { id: 'app_medics', label: 'App Medics (Uganda)', icon: <Pill size={16} />, badge: 'Uganda Rx', color: 'emerald' },
@@ -2355,7 +2370,7 @@ export default function App() {
         { id: 'ai_nexus', label: 'AI Medical Consultation', icon: <Bot size={14} />, color: 'text-purple-500 hover:bg-purple-500/10' },
         { id: 'symptoms', label: 'Symptom Triage & Differential', icon: <Sparkles size={14} />, color: 'text-amber-500 hover:bg-amber-500/10' },
         { id: 'monitor', label: 'Real-Time Bio-Telemetry', icon: <Monitor size={14} />, color: 'text-cyan-500 hover:bg-cyan-500/10' },
-        { id: 'meds', label: 'Precision Pharmacy & Prescriptions', icon: <Pill size={14} />, color: 'text-rose-500 hover:bg-rose-500/10' },
+        { id: 'meds', label: 'Medication & Prescription Hub', icon: <Pill size={14} />, color: 'text-blue-600 hover:bg-blue-500/10' },
         { id: 'vitality', label: 'Vitality & Biomarker Matrix', icon: <Activity size={14} />, color: 'text-emerald-500 hover:bg-emerald-500/10' },
         { id: 'clinical_roadmap', label: 'Appointments & Scheduling', icon: <CalendarIcon size={14} />, color: 'text-sky-500 hover:bg-sky-500/10' },
         { id: 'app_medics', label: 'App Medics (Uganda Pharmacy)', icon: <Pill size={14} />, color: 'text-emerald-600 hover:bg-emerald-500/10' },
@@ -3804,9 +3819,9 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
-            className="w-full"
+            className="w-full max-w-[1720px] mx-auto py-2 sm:py-4 px-2"
           >
-            <MedicationTracker addToast={addToast} />
+            <MedicationTracker user={user} onNavigate={setCurrentView} addToast={addToast} />
           </motion.div>
         ) : currentView === 'fitness' ? (
           <motion.div
@@ -3881,9 +3896,9 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-7xl mx-auto py-8 sm:py-12"
+              className="w-full max-w-[1720px] mx-auto py-2 sm:py-4 px-2"
             >
-              <AdminDashboard addToast={addToast} />
+              <AdminDashboard addToast={addToast} onNavigate={(view: any) => setCurrentView(view)} />
             </motion.div>
           ) : (
             <motion.div
@@ -4300,7 +4315,7 @@ export default function App() {
           >
             <TermsAndData user={user} onNavigate={setCurrentView} vitals={arduino.vitals} />
           </motion.div>
-        ) : currentView === 'clinical_roadmap' ? (
+        ) : currentView === 'clinical_roadmap' || (currentView as string) === 'appointments' ? (
           <motion.div
             key="clinical_roadmap"
             initial={{ opacity: 0, scale: 0.98 }}
@@ -5045,6 +5060,22 @@ export default function App() {
         />
       </SafeNavErrorBoundary>
     )}
+    {/* Floating Full App Debug Trigger */}
+    <button
+      type="button"
+      onClick={() => setShowDebugSystem(true)}
+      title="Doctorian Full App Debug & Self-Healing Suite (Ctrl+Shift+D or F2)"
+      className="fixed bottom-24 right-4 z-[90] p-2.5 rounded-full bg-[#0a1838]/90 hover:bg-blue-600 border border-blue-500/40 text-cyan-300 hover:text-white shadow-xl backdrop-blur-md transition-all cursor-pointer group flex items-center gap-1.5"
+    >
+      <Bug size={16} className="group-hover:rotate-12 transition-transform text-cyan-400 group-hover:text-white" />
+      <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Debug OS</span>
+    </button>
+
+    <AppDebugSystem 
+      isOpen={showDebugSystem} 
+      onClose={() => setShowDebugSystem(false)} 
+      addToast={addToast} 
+    />
 
   </div>
 </ErrorBoundary>

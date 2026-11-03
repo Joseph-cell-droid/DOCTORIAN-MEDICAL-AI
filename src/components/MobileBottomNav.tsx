@@ -81,8 +81,8 @@ export const ALL_APP_PAGES: PageItem[] = [
   },
   {
     id: 'meds',
-    label: 'Precision Pharmacy',
-    subtitle: 'AI-powered medication guidance',
+    label: 'Medication & Prescriptions',
+    subtitle: 'Prescription studio & adherence tracker',
     category: 'core',
     icon: <Pill size={20} className="text-blue-600" />,
   },

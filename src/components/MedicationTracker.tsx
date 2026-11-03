@@ -1,70 +1,44 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from 'react';
 import { 
   Pill, 
-  Clock, 
+  Search, 
   Plus, 
   Trash2, 
-  AlertCircle, 
+  Calendar, 
+  Clock, 
   CheckCircle2, 
-  ShieldCheck,
-  Calendar,
-  ChevronRight,
-  Info,
-  Search,
-  Loader2,
-  Bell,
-  BellOff,
-  Camera,
-  FileSearch,
-  Sparkles,
-  RefreshCw,
-  Zap,
-  Upload,
-  Video,
-  QrCode,
-  ShieldAlert,
-  AlertTriangle,
+  AlertCircle, 
+  Share2, 
+  Printer, 
+  Send, 
+  User, 
+  Phone, 
+  MapPin, 
+  TrendingUp, 
+  FileText, 
+  Check, 
+  ChevronRight, 
+  ChevronDown, 
+  Bell, 
+  Maximize2, 
+  X, 
+  Layers, 
+  Activity, 
+  Edit3, 
+  Sparkles, 
+  Eye, 
+  ShieldCheck, 
+  BookmarkCheck,
   CheckSquare,
-  Eye,
-  Shield
+  Home,
+  Users,
+  Folder,
+  Video,
+  Heart,
+  BarChart3,
+  Settings,
+  HelpCircle
 } from 'lucide-react';
-import { api } from '../api';
-import { ClinicalProtocols } from './Tasks';
-import { MedicationAdherenceChart } from './MedicationAdherenceChart';
-import { 
-  initOfflineDatabase,
-  getPatients,
-  getDoctors,
-  getPrescriptions,
-  getMedicines,
-  getMedicationLogs,
-  getReminders,
-  getNotifications,
-  getSyncRecords,
-  createPrescription,
-  updateMedicationIntakeStatus,
-  syncOfflineRecords,
-  isNetworkOnline,
-  setNetworkOnline,
-  getMedicinesForPrescription,
-  verifyAndLogMedicationIntake,
-  caregiverVerifyIntake
-} from '../utils/offlineDb';
-
-interface Medicine {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-  time: string;
-  category: 'prescription' | 'supplement';
-  takenToday: boolean;
-  remindersEnabled?: boolean;
-}
-
-import { useArduinoContext } from '../ArduinoContext';
-import { validateMoHClinicalDosage, validateDrugForDisease, validateOverdoseFromLogs, getOptimalReminderTimes } from '../utils/clinicalValidation';
 
 interface MedicationTrackerProps {
   user?: any;
@@ -72,1790 +46,1767 @@ interface MedicationTrackerProps {
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
+interface MedicineItem {
+  id: string;
+  medicine: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+interface PrescriptionDraft {
+  taskId: string;
+  taskTitle: string;
+  patientId: string;
+  diagnosis: string;
+  medicines: MedicineItem[];
+  setReminder: boolean;
+  allowRefill: boolean;
+  note: string;
+}
+
+interface Patient {
+  id: string;
+  pid: string;
+  name: string;
+  age: number;
+  gender: 'F' | 'M';
+  phone: string;
+  location: string;
+  lastVisit: string;
+  nextAppointment: string;
+  status: 'Active' | 'Follow-up';
+  avatar: string;
+  adherenceRate: number;
+  activePrescriptionsCount: number;
+}
+
+const DR_AKORA_AVATAR = "/src/assets/images/doctorian_admin_avatar_1793707337172.jpg";
+const PATIENT_SARAH = "/src/assets/images/patient_sarah_nakato_1793707974129.jpg";
+const PATIENT_JOHN = "/src/assets/images/patient_john_ochieng_1793707975950.jpg";
+const PATIENT_MARY = "/src/assets/images/patient_mary_nakitende_1793707974702.jpg";
+
 export const MedicationTracker: React.FC<MedicationTrackerProps> = ({ user, onNavigate, addToast }) => {
-  const arduino = useArduinoContext();
-  const [notificationState, setNotificationState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+  // Navigation View Selection
+  const [activeTab, setActiveTab] = useState<'new_rx' | 'my_prescriptions' | 'tracker' | 'templates'>('new_rx');
 
-  useEffect(() => {
-    if (!('Notification' in window)) {
-      setNotificationState('unsupported');
-    } else {
-      setNotificationState(Notification.permission as any);
+  // Patients Roster
+  const [patients, setPatients] = useState<Patient[]>([
+    {
+      id: 'p-1',
+      pid: 'PT-00124',
+      name: 'Sarah Nakato',
+      age: 28,
+      gender: 'F',
+      phone: '+256 772 123456',
+      location: 'Kampala, Uganda',
+      lastVisit: 'Today, 10:30 AM',
+      nextAppointment: 'Nov 6, 2026 • 9:00 AM',
+      status: 'Active',
+      avatar: PATIENT_SARAH,
+      adherenceRate: 92,
+      activePrescriptionsCount: 5
+    },
+    {
+      id: 'p-2',
+      pid: 'PT-00123',
+      name: 'John Ochieng',
+      age: 45,
+      gender: 'M',
+      phone: '+256 782 998877',
+      location: 'Entebbe, Uganda',
+      lastVisit: 'Today, 09:20 AM',
+      nextAppointment: 'Nov 8, 2026 • 11:30 AM',
+      status: 'Active',
+      avatar: PATIENT_JOHN,
+      adherenceRate: 88,
+      activePrescriptionsCount: 3
+    },
+    {
+      id: 'p-3',
+      pid: 'PT-00122',
+      name: 'Mary Nakitende',
+      age: 32,
+      gender: 'F',
+      phone: '+256 701 445566',
+      location: 'Jinja, Uganda',
+      lastVisit: 'Yesterday',
+      nextAppointment: 'Nov 12, 2026 • 02:00 PM',
+      status: 'Follow-up',
+      avatar: PATIENT_MARY,
+      adherenceRate: 95,
+      activePrescriptionsCount: 2
+    },
+    {
+      id: 'p-4',
+      pid: 'PT-00121',
+      name: 'David Kato',
+      age: 50,
+      gender: 'M',
+      phone: '+256 754 112233',
+      location: 'Mukono, Uganda',
+      lastVisit: '2 days ago',
+      nextAppointment: 'Nov 15, 2026 • 10:00 AM',
+      status: 'Active',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      adherenceRate: 91,
+      activePrescriptionsCount: 4
+    },
+    {
+      id: 'p-5',
+      pid: 'PT-00120',
+      name: 'Grace Auma',
+      age: 27,
+      gender: 'F',
+      phone: '+256 777 665544',
+      location: 'Gulu, Uganda',
+      lastVisit: '2 days ago',
+      nextAppointment: 'Nov 20, 2026 • 03:00 PM',
+      status: 'Active',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      adherenceRate: 97,
+      activePrescriptionsCount: 1
     }
-  }, []);
+  ]);
 
-  const handleEnableNotifications = async () => {
-    if (!('Notification' in window)) return;
-    
-    try {
-      const permission = await Notification.requestPermission();
-      setNotificationState(permission as any);
-      
-      if (permission === 'granted') {
-        const title = '💊 Doctorian Push Engine';
-        const options = {
-          body: 'Local push reminders and clinical alerts successfully active!',
-          icon: '/logo.png',
-          badge: '/logo.png',
-          tag: 'doctorian-registration'
-        };
-        
-        if ('serviceWorker' in navigator) {
-          const registration = await navigator.serviceWorker.ready;
-          if (registration && 'showNotification' in registration) {
-            await registration.showNotification(title, options);
-            return;
-          }
+  // Selected Patient
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('p-1');
+  const selectedPatient = patients.find(p => p.id === selectedPatientId) || patients[0];
+
+  // Patients Filter
+  const [patientFilter, setPatientFilter] = useState<'all' | 'active' | 'followup'>('all');
+  const [patientSearch, setPatientSearch] = useState('');
+
+  // Multi-Tasking Prescription Drafts Scratchpad
+  const [activeTaskId, setActiveTaskId] = useState<string>('task-1');
+  const [drafts, setDrafts] = useState<PrescriptionDraft[]>([
+    {
+      taskId: 'task-1',
+      taskTitle: 'Sarah Nakato',
+      patientId: 'p-1',
+      diagnosis: 'Malaria',
+      medicines: [
+        {
+          id: 'med-1',
+          medicine: 'Artemether + Lumefantrine',
+          dosage: '2 Tablets',
+          frequency: 'Twice Daily',
+          duration: '3 Days',
+          instructions: 'After Meals'
         }
-        new Notification(title, options);
-      }
-    } catch (err) {
-      console.error('[NOTIFICATIONS] Request failed:', err);
+      ],
+      setReminder: true,
+      allowRefill: true,
+      note: 'Ensure full 3-day course completion even if fever subsides.'
     }
+  ]);
+
+  const currentDraft = drafts.find(d => d.taskId === activeTaskId) || drafts[0];
+
+  // Active Prescriptions List
+  const [activePrescriptions, setActivePrescriptions] = useState<Array<{
+    id: string;
+    medicine: string;
+    dose: string;
+    duration: string;
+    status: 'Active' | 'Completed' | 'Pending Refill';
+  }>>([
+    { id: 'rx-1', medicine: 'Artemether + Lumefantrine', dose: '2 Tabs', duration: '3 Days', status: 'Active' },
+    { id: 'rx-2', medicine: 'Paracetamol 500mg', dose: '1 Tab', duration: '5 Days', status: 'Active' },
+    { id: 'rx-3', medicine: 'Oral Rehydration Salts', dose: '1 Sachet', duration: '3 Days', status: 'Active' },
+    { id: 'rx-4', medicine: 'Multivitamin Complex', dose: '1 Capsule', duration: '30 Days', status: 'Active' },
+    { id: 'rx-5', medicine: 'Zinc Sulfate 20mg', dose: '1 Tab', duration: '14 Days', status: 'Active' },
+  ]);
+
+  // Medication Doses Timeline
+  const [doses, setDoses] = useState([
+    { id: 'd-1', time: '8:00 AM', status: 'Taken' },
+    { id: 'd-2', time: '2:00 PM', status: 'Taken' },
+    { id: 'd-3', time: '8:00 PM', status: 'Pending' },
+  ]);
+
+  // Printable Rx Modal
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  // New Patient Modal
+  const [showNewPatientModal, setShowNewPatientModal] = useState(false);
+  const [newPatientForm, setNewPatientForm] = useState({
+    name: '',
+    age: 30,
+    gender: 'F' as 'F' | 'M',
+    phone: '+256 ',
+    location: 'Kampala, Uganda'
+  });
+
+  // Top Search state
+  const [topSearch, setTopSearch] = useState('');
+
+  // Drug Interaction Warnings
+  const [interactionWarning, setInteractionWarning] = useState<string | null>(null);
+
+  // Sync draft patient changes
+  const updateCurrentDraft = (updater: (prev: PrescriptionDraft) => PrescriptionDraft) => {
+    setDrafts(prev => prev.map(d => d.taskId === activeTaskId ? updater(d) : d));
   };
 
-  const handleTriggerTestNotification = async () => {
-    if (notificationState !== 'granted') {
-      alert('Please authorize local push permissions first.');
+  // Add another medicine row to current prescription
+  const handleAddMedicineRow = () => {
+    const newMed: MedicineItem = {
+      id: `med-${Date.now()}`,
+      medicine: 'Paracetamol 500mg',
+      dosage: '1 Tablet',
+      frequency: 'Three Times Daily',
+      duration: '3 Days',
+      instructions: 'After Meals'
+    };
+    updateCurrentDraft(draft => ({
+      ...draft,
+      medicines: [...draft.medicines, newMed]
+    }));
+    addToast?.('Additional medicine item added to prescription.', 'info');
+  };
+
+  // Remove medicine row
+  const handleRemoveMedicineRow = (id: string) => {
+    if (currentDraft.medicines.length <= 1) {
+      addToast?.('A prescription must contain at least one medicine item.', 'error');
       return;
     }
-    const title = '🧪 Local Notification Test';
-    const options = {
-      body: 'This is a simulator test. Your local push reminders are fully functional background & offline.',
-      icon: '/logo.png',
-      badge: '/logo.png',
-    };
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      if (registration && 'showNotification' in registration) {
-        await registration.showNotification(title, options);
-        return;
-      }
-    }
-    new Notification(title, options);
+    updateCurrentDraft(draft => ({
+      ...draft,
+      medicines: draft.medicines.filter(m => m.id !== id)
+    }));
   };
 
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [activePatientId, setActivePatientId] = useState('PAT-001');
-  
-  // Offline-first collections
-  const [offlinePatients, setOfflinePatients] = useState<any[]>([]);
-  const [offlinePrescriptions, setOfflinePrescriptions] = useState<any[]>([]);
-  const [offlineMedicines, setOfflineMedicines] = useState<any[]>([]);
-  const [offlineLogs, setOfflineLogs] = useState<any[]>([]);
-  const [offlineReminders, setOfflineReminders] = useState<any[]>([]);
-  const [offlineNotifications, setOfflineNotifications] = useState<any[]>([]);
-  const [offlineSyncRecords, setOfflineSyncRecords] = useState<any[]>([]);
-  const [isOnlineMode, setIsOnlineMode] = useState<boolean>(true);
-  const [isSyncingData, setIsSyncingData] = useState<boolean>(false);
-
-  // Medication Verification System States
-  const [activeVerifyLog, setActiveVerifyLog] = useState<any | null>(null);
-  const [verifyMethod, setVerifyMethod] = useState<'photo' | 'video' | 'scan'>('photo');
-  const [verifyStep, setVerifyStep] = useState<'method' | 'action' | 'ai-question' | 'result'>('method');
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [recordedVideo, setRecordedVideo] = useState<string | null>(null);
-  const [scannedCode, setScannedCode] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
-  const [aiQuestion, setAiQuestion] = useState<string>('');
-  const [aiQuestionOptions, setAiQuestionOptions] = useState<string[]>([]);
-  const [selectedAiAnswer, setSelectedAiAnswer] = useState<string>('');
-  const [customAiAnswer, setCustomAiAnswer] = useState<string>('');
-  const [verificationResult, setVerificationResult] = useState<{
-    score: number;
-    anomaly: boolean;
-    reason: string;
-  } | null>(null);
-
-  // High-precision dosage verification inputs
-  const [intakeQuantity, setIntakeQuantity] = useState<number>(1);
-  const [simulatedDrugMatch, setSimulatedDrugMatch] = useState<'match' | 'wrong_drug' | 'wrong_dosage' | 'expired'>('match');
-  const [ingestionStatus, setIngestionStatus] = useState<'swallowed' | 'not_swallowed'>('swallowed');
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  const [isAdding, setIsAdding] = useState(false);
-  const [registerMode, setRegisterMode] = useState<'manual' | 'library' | 'scan'>('manual');
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [activeTab, setActiveTab] = useState<'meds' | 'protocols'>('meds');
-  const [newMed, setNewMed] = useState({ 
-    name: '', 
-    dosage: '', 
-    frequency: 'Daily', 
-    time: '08:00', 
-    category: 'prescription' as 'prescription' | 'supplement',
-    remindersEnabled: true 
-  });
-  const [isReadingPrescription, setIsReadingPrescription] = useState(false);
-  const [prescriptionImage, setPrescriptionImage] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [extractionResults, setExtractionResults] = useState<any[] | null>(null);
-
-
-  const processPrescriptionFile = async (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setPrescriptionImage(base64);
-      setIsReadingPrescription(true);
-      setExtractionResults(null);
-      
-      try {
-        const prompt = `Act as a Clinical Pharmacologist. Read this prescription image and extract the medication data.
-        Return ONLY a JSON array of objects with these keys: name, dosage, frequency, time (24h format), category ('prescription' or 'supplement').
-        Do not include markdown tags other than the JSON container. If you write markdown code block, ensure it is standard JSON inside.
-        
-        Example: [{"name": "Amoxicillin", "dosage": "500mg", "frequency": "3 times daily", "time": "08:00", "category": "prescription"}]`;
-
-        const response = await api.ai.aiChat(
-          [{ role: 'user', text: prompt, images: [base64] }],
-          "You are a Clinical Extraction Engine. You must return only a JSON array."
-        );
-
-        const text = response.text.replace(/```json|```/g, '').trim();
-        const extractedMeds = JSON.parse(text);
-        
-        if (Array.isArray(extractedMeds)) {
-          const formattedMeds = extractedMeds.map((m, mapIdx_217) => ({
-            name: m.name,
-            dosage: m.dosage || '500mg',
-            frequency: m.frequency || 'Daily',
-            duration: '30 Days',
-            reminderTimes: [m.time || '08:00']
-          }));
-
-          // Validate against Uganda MOH guidelines
-          formattedMeds.forEach(m => {
-            const validation = validateMoHClinicalDosage(m.name, m.dosage, m.frequency);
-            if (!validation.isValid && validation.warning) {
-              if (addToast) {
-                addToast(validation.warning, "error");
-              } else {
-                alert(validation.warning);
-              }
-            }
-          });
-
-          createPrescription(
-            activePatientId,
-            'DOC-002',
-            'OCR Neural Synthesized Diagnosis',
-            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            formattedMeds
-          );
-          setExtractionResults(extractedMeds);
-          refreshAllLocalData();
-        }
-      } catch (err) {
-        console.error("Prescription reading failed:", err);
-        alert("Neural extraction failed. Please ensure the prescription photo is clear and contains readable prescriptions.");
-      } finally {
-        setIsReadingPrescription(false);
-      }
-    };
-    reader.readAsDataURL(file);
+  // Update specific medicine row
+  const handleUpdateMedicine = (id: string, field: keyof MedicineItem, val: string) => {
+    updateCurrentDraft(draft => ({
+      ...draft,
+      medicines: draft.medicines.map(m => m.id === id ? { ...m, [field]: val } : m)
+    }));
   };
 
-  const handlePrescriptionRead = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await processPrescriptionFile(file);
-  };
-
-  const commonMeds = [
-    { name: 'Paracetamol', dosage: '500mg', frequency: 'Every 6 hours', category: 'supplement' },
-    { name: 'Amoxicillin', dosage: '500mg', frequency: '3 times daily', category: 'prescription' },
-    { name: 'Metformin', dosage: '500mg', frequency: 'Twice daily', category: 'prescription' },
-    { name: 'Atorvastatin', dosage: '20mg', frequency: 'Nightly', category: 'prescription' },
-    { name: 'Ibuprofen', dosage: '400mg', frequency: 'Every 8 hours', category: 'supplement' },
-    { name: 'Omeprazole', dosage: '20mg', frequency: 'Daily (Morning)', category: 'prescription' },
-    { name: 'Amlodipine', dosage: '5mg', frequency: 'Daily', category: 'prescription' },
-  ];
-
-  const refreshAllLocalData = () => {
-    initOfflineDatabase();
-    setOfflinePatients(getPatients());
-    setOfflinePrescriptions(getPrescriptions());
-    setOfflineMedicines(getMedicines());
-    setOfflineLogs(getMedicationLogs());
-    setOfflineReminders(getReminders());
-    setOfflineNotifications(getNotifications());
-    setOfflineSyncRecords(getSyncRecords());
-    setIsOnlineMode(isNetworkOnline());
-  };
-
-  const handleToggleOnlineChannel = () => {
-    const newStatus = !isOnlineMode;
-    setNetworkOnline(newStatus);
-    setIsOnlineMode(newStatus);
-    refreshAllLocalData();
-  };
-
-  const handleForceManualSync = async () => {
-    setIsSyncingData(true);
-    try {
-      await syncOfflineRecords();
-      refreshAllLocalData();
-    } catch (err) {
-      console.error("Manual replication sync failed:", err);
-    } finally {
-      setIsSyncingData(false);
-    }
-  };
-
-  useEffect(() => {
-    refreshAllLocalData();
-  }, []);
-
-  const handleAddMed = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMed.name) return;
-
-    // Validate against Uganda MOH guidelines
-    const validation = validateMoHClinicalDosage(newMed.name, newMed.dosage || '1 tablet', newMed.frequency);
-    if (!validation.isValid && validation.warning) {
-      if (addToast) {
-        addToast(validation.warning, "error");
-      } else {
-        alert(validation.warning);
-      }
-    }
-
-    try {
-      createPrescription(
-        activePatientId,
-        'DOC-002', // Default pharmacologist
-        'Self-Registered Supplementation',
-        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        [{
-          name: newMed.name,
-          dosage: newMed.dosage || '1 tablet',
-          frequency: newMed.frequency,
+  // Create New Multi-Task Scratchpad Tab
+  const handleCreateNewTask = () => {
+    const newId = `task-${Date.now()}`;
+    const newDraft: PrescriptionDraft = {
+      taskId: newId,
+      taskTitle: `Draft #${drafts.length + 1}`,
+      patientId: selectedPatientId,
+      diagnosis: 'Hypertension',
+      medicines: [
+        {
+          id: `med-${Date.now()}`,
+          medicine: 'Amlodipine 5mg',
+          dosage: '1 Tablet',
+          frequency: 'Once Daily',
           duration: '30 Days',
-          reminderTimes: [newMed.time]
-        }]
-      );
-      setIsAdding(false);
-      setShowLibrary(false);
-      setNewMed({ name: '', dosage: '', frequency: 'Daily', time: '08:00', category: 'prescription', remindersEnabled: true });
-      refreshAllLocalData();
-    } catch (err) {
-      console.error("Failed to register molecule:", err);
-    }
-  };
-
-  const handleTakeStatus = async (logId: string, status: 'taken' | 'missed') => {
-    if (status === 'taken') {
-      const log = offlineLogs.find(l => l.id === logId);
-      if (log) {
-        setActiveVerifyLog(log);
-        setVerifyMethod('photo');
-        setVerifyStep('method');
-        setCapturedPhoto(null);
-        setRecordedVideo(null);
-        setScannedCode(null);
-        setIsRecording(false);
-        setRecordTime(0);
-        setIntakeQuantity(1);
-        setSimulatedDrugMatch('match');
-
-        // Standard questions list to assess consistency
-        const questions = [
-          {
-            q: "How did you ingest this verified dose of your compound?",
-            options: [
-              "Swallowed with a full glass of water (>250ml)",
-              "Took with a light snack or food as recommended",
-              "Took with a hot beverage / juice",
-              "Swallowed dry without any fluids"
-            ]
-          },
-          {
-            q: "What is the formulation/appearance of the medication?",
-            options: [
-              "A small white circular solid tablet",
-              "A capsules with clear or pink-colored casing",
-              "A liquid suspension / dissolved powder",
-              "I did not inspect the shape/appearance"
-            ]
-          },
-          {
-            q: "Are you currently feeling any side effects (such as dry mouth, dizziness, or flushing)?",
-            options: [
-              "No side effects, feeling completely standard",
-              "Slight dry mouth, drinking plenty of water",
-              "Mild flushing or headache, resting now",
-              "Experiencing severe nausea or vomiting"
-            ]
-          },
-          {
-            q: "Is this dose being taken within your prescribed window?",
-            options: [
-              "Yes, taken exactly on schedule",
-              "A bit delayed, but within the safety margin",
-              "Significantly delayed past the scheduled alarm",
-              "Taking an extra dose because I missed a previous one"
-            ]
-          }
-        ];
-        const randomQ = questions[Math.floor(Math.random() * questions.length)];
-        setAiQuestion(randomQ.q);
-        setAiQuestionOptions(randomQ.options);
-        setSelectedAiAnswer('');
-        setCustomAiAnswer('');
-        setVerificationResult(null);
-      }
-    } else {
-      try {
-        updateMedicationIntakeStatus(logId, 'missed');
-        refreshAllLocalData();
-      } catch (err) {
-        console.error("Failed to update missed dose status:", err);
-      }
-    }
-  };
-
-  const startLiveCamera = async () => {
-    try {
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-      setVideoStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.warn("Camera hardware access unavailable, using animated neural scanner fallback:", err);
-    }
-  };
-
-  const stopLiveCamera = () => {
-    if (videoStream) {
-      videoStream.getTracks().forEach(track => track.stop());
-      setVideoStream(null);
-    }
-  };
-
-  const handleCancelVerification = () => {
-    stopLiveCamera();
-    setActiveVerifyLog(null);
-  };
-
-  const handleSimulatePhoto = () => {
-    setIsRecording(true);
-    setTimeout(() => {
-      setIsRecording(false);
-      setCapturedPhoto("https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400");
-      setVerifyStep('ai-question');
-      stopLiveCamera();
-    }, 1500);
-  };
-
-  const handleSimulateVideo = () => {
-    setIsRecording(true);
-    setRecordTime(0);
-    const interval = setInterval(() => {
-      setRecordTime(prev => {
-        if (prev >= 2) {
-          clearInterval(interval);
-          setIsRecording(false);
-          setRecordedVideo("verified_ingestion_video.mp4");
-          setVerifyStep('ai-question');
-          stopLiveCamera();
-          return 3;
+          instructions: 'Morning'
         }
-        return prev + 1;
-      });
-    }, 1000);
+      ],
+      setReminder: true,
+      allowRefill: true,
+      note: 'Monitor blood pressure weekly.'
+    };
+    setDrafts(prev => [...prev, newDraft]);
+    setActiveTaskId(newId);
+    addToast?.('New multi-task prescription scratchpad created.', 'success');
   };
 
-  const handleSimulateScan = () => {
-    setIsRecording(true);
-    setTimeout(() => {
-      setIsRecording(false);
-      const barcode = "GTIN-" + Math.floor(10000000 + Math.random() * 90000000);
-      setScannedCode(barcode);
-      setVerifyStep('ai-question');
-    }, 1800);
-  };
-
-  const handleCalculateVerification = () => {
-    let score = 40; // baseline
-    let anomaly = false;
-    let reasons: string[] = [];
-
-    // Critical Swallowing Verification check
-    if (ingestionStatus === 'not_swallowed') {
-      score = 15;
-      anomaly = true;
-      reasons.push("🚨 CLINICAL TELEMETRY ALERT: Ingestion verify process shows the patient did NOT swallow the pill (it was spit out, rejected, or skipped). This triggers an immediate pager dispatch to the prescribing doctor.");
+  // Close Multi-Task Tab
+  const handleCloseTask = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (drafts.length <= 1) {
+      addToast?.('Cannot close the last open prescription tab.', 'info');
+      return;
     }
+    const remaining = drafts.filter(d => d.taskId !== id);
+    setDrafts(remaining);
+    if (activeTaskId === id) {
+      setActiveTaskId(remaining[0].taskId);
+    }
+  };
 
-    // Method weight
-    if (verifyMethod === 'photo') score += 35;
-    if (verifyMethod === 'video') score += 45;
-    if (verifyMethod === 'scan') score += 45;
+  // Apply Quick Template
+  const handleApplyTemplate = (templateName: string) => {
+    if (templateName === 'malaria') {
+      updateCurrentDraft(draft => ({
+        ...draft,
+        diagnosis: 'Malaria',
+        medicines: [
+          {
+            id: `med-m1`,
+            medicine: 'Artemether + Lumefantrine',
+            dosage: '2 Tablets',
+            frequency: 'Twice Daily',
+            duration: '3 Days',
+            instructions: 'After Meals with fatty meal/milk'
+          },
+          {
+            id: `med-m2`,
+            medicine: 'Paracetamol 500mg',
+            dosage: '2 Tablets',
+            frequency: 'Three Times Daily',
+            duration: '3 Days',
+            instructions: 'For fever & body aches'
+          }
+        ]
+      }));
+      addToast?.('Applied MoH Uncomplicated Malaria Clinical Template', 'success');
+    } else if (templateName === 'hypertension') {
+      updateCurrentDraft(draft => ({
+        ...draft,
+        diagnosis: 'Hypertension',
+        medicines: [
+          {
+            id: `med-h1`,
+            medicine: 'Amlodipine 5mg',
+            dosage: '1 Tablet',
+            frequency: 'Once Daily',
+            duration: '30 Days',
+            instructions: 'In the morning'
+          }
+        ]
+      }));
+      addToast?.('Applied Essential Hypertension Protocol', 'success');
+    } else if (templateName === 'respiratory') {
+      updateCurrentDraft(draft => ({
+        ...draft,
+        diagnosis: 'Respiratory Infection',
+        medicines: [
+          {
+            id: `med-r1`,
+            medicine: 'Amoxicillin + Clavulanate 625mg',
+            dosage: '1 Tablet',
+            frequency: 'Twice Daily',
+            duration: '7 Days',
+            instructions: 'Take at start of a meal'
+          }
+        ]
+      }));
+      addToast?.('Applied Bacterial RTI Clinical Protocol', 'success');
+    }
+  };
 
-    // AI Consistency check
-    const isGoodAnswer = 
-      selectedAiAnswer.includes("glass of water") || 
-      selectedAiAnswer.includes("light snack") || 
-      selectedAiAnswer.includes("white circular") || 
-      selectedAiAnswer.includes("capsules with") || 
-      selectedAiAnswer.includes("No side effects") || 
-      selectedAiAnswer.includes("dry mouth") || 
-      selectedAiAnswer.includes("exactly on schedule") || 
-      selectedAiAnswer.includes("safety margin");
-    
-    if (isGoodAnswer) {
-      score += 15;
+  // Check for drug interactions
+  useEffect(() => {
+    const medNames = currentDraft.medicines.map(m => m.medicine.toLowerCase());
+    if (medNames.some(m => m.includes('ciprofloxacin')) && medNames.some(m => m.includes('artemether'))) {
+      setInteractionWarning('Potential QT prolongation warning between Quinolones and Artemisinin derivatives. Monitor ECG.');
     } else {
-      score -= 15;
-      reasons.push("Inconsistent AI Follow-up response: suspicious ingestion habit reported.");
+      setInteractionWarning(null);
     }
+  }, [currentDraft.medicines]);
 
-    // 1. Fetch clinical context
-    const medicineItem = offlineMedicines.find(m => m.id === activeVerifyLog.medicineId);
-    const prescriptionItem = medicineItem ? offlinePrescriptions.find(p => p.id === medicineItem.prescriptionId) : null;
-    const patientItem = offlinePatients.find(p => p.id === activePatientId);
-    const conditionsStr = patientItem ? patientItem.conditions : '';
-    const diagnosisStr = prescriptionItem ? prescriptionItem.diagnosis : '';
-
-    // 2. Validate Overdose (today's cumulative intake checking)
-    const currentDosage = activeVerifyLog.dosage || (medicineItem ? medicineItem.dosage : '500mg');
-    const overdoseCheck = validateOverdoseFromLogs(
-      activeVerifyLog.medicineName,
-      currentDosage,
-      activePatientId,
-      offlineLogs,
-      offlineMedicines
-    );
-    if (!overdoseCheck.isValid && overdoseCheck.warning) {
-      score -= 40;
-      anomaly = true;
-      reasons.push(overdoseCheck.warning);
-    }
-
-    // 3. Validate Wrong Drug for Specific Disease
-    const diseaseCheck = validateDrugForDisease(
-      activeVerifyLog.medicineName,
-      conditionsStr,
-      diagnosisStr
-    );
-    if (!diseaseCheck.isValid && diseaseCheck.warning) {
-      score -= 45;
-      anomaly = true;
-      reasons.push(diseaseCheck.warning);
-    }
-
-    // 4. Simulated Smart Scanner Integrity checks (Right Medication & Strength)
-    if (simulatedDrugMatch === 'wrong_drug') {
-      score -= 60;
-      anomaly = true;
-      reasons.push(`CRITICAL MISMATCH: AI packaging scanner detected a substance matching Sildenafil (100mg) instead of prescribed ${activeVerifyLog.medicineName}. ADMIN ABORTED.`);
-    } else if (simulatedDrugMatch === 'wrong_dosage') {
-      score -= 35;
-      anomaly = true;
-      reasons.push(`STRENGTH MISMATCH: AI scanner identified a 1000mg pack formulation, but prescription calls for a 500mg tablet. High risk of accidental OVER-DOSING.`);
-    } else if (simulatedDrugMatch === 'expired') {
-      score -= 40;
-      anomaly = true;
-      reasons.push(`EXPIRED MOLECULE: Scanned lot has passed its safe shelf-life. Expired compounds suffer potency loss (risking under-dose) and can trigger renal toxicity.`);
-    }
-
-    // 5. Ingestion Quantity Accuracy checking (Preventing over/under dosing)
-    if (intakeQuantity > 1) {
-      score -= 40;
-      anomaly = true;
-      reasons.push(`ACCURACY DEVIATION (OVER-DOSE): Prescribed amount is exactly 1 tablet. Intake of ${intakeQuantity} tablets is an intentional or accidental double dose.`);
-    } else if (intakeQuantity < 1 && intakeQuantity > 0) {
-      score -= 25;
-      anomaly = true;
-      reasons.push(`ACCURACY DEVIATION (UNDER-DOSE): Prescribed amount is 1 tablet. Intake of ${intakeQuantity} tablets represents an under-dose, reducing clinical efficacy.`);
-    } else if (intakeQuantity === 0) {
-      score -= 45;
-      anomaly = true;
-      reasons.push(`UNDER-DOSE (SKIPPED DOSE): A value of 0 tablets means this critical scheduled intake has been omitted. Drug serum levels will decay below therapeutic bounds.`);
-    }
-
-    // 6. Right Time/Interval Checking
-    const recentLogs = offlineLogs.filter(l => 
-      l.patientId === activePatientId && 
-      l.medicineId === activeVerifyLog.medicineId && 
-      l.status === 'taken' &&
-      l.takenAt && 
-      (Date.now() - new Date(l.takenAt).getTime() < 14400000) // 4 hours
-    );
-    if (recentLogs.length > 0) {
-      score -= 35;
-      anomaly = true;
-      reasons.push(`TIMING WARNING (INTERVAL OVERLAP): Less than 4 hours has elapsed since your last recorded intake. Taking doses too close together causes cumulative concentration spikes, leading to hepatic/renal overloads.`);
-    }
-
-    // Late intake (>4 hours delayed)
-    const [schedHr, schedMin] = activeVerifyLog.scheduledTime.split(':').map(Number);
-    const now = new Date();
-    const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), schedHr, schedMin);
-    const diffHours = (now.getTime() - scheduledDateTime.getTime()) / 3600000;
-    if (diffHours > 4) {
-      score -= 15;
-      reasons.push(`TIMING ANOMALY (LATE DOSE): Logged ${Math.round(diffHours)} hours late. Minimum therapeutic blood concentration is compromised.`);
-    }
-
-    // 7. Extra dose warning
-    if (selectedAiAnswer.includes("extra dose")) {
-      score -= 25;
-      anomaly = true;
-      reasons.push("CLINICAL MISSTEP: Swallowing duplicate extra doses to compensate for missed intakes violates core clinical pharmacology guidelines.");
-    }
-
-    // Clamp score
-    score = Math.max(15, Math.min(100, score));
-
-    setVerificationResult({
-      score,
-      anomaly: anomaly || score < 70,
-      reason: reasons.length > 0 ? reasons.join(" • ") : "All verification vectors verified. Perfect consistency."
-    });
-    setVerifyStep('result');
+  // Save Prescription
+  const handleSavePrescription = () => {
+    const primaryMed = currentDraft.medicines[0];
+    const newEntry = {
+      id: `rx-${Date.now()}`,
+      medicine: primaryMed.medicine,
+      dose: primaryMed.dosage,
+      duration: primaryMed.duration,
+      status: 'Active' as const
+    };
+    setActivePrescriptions(prev => [newEntry, ...prev]);
+    addToast?.(`Prescription saved to EHR record for ${selectedPatient.name}.`, 'success');
   };
 
-  const handleSaveVerifiedDose = () => {
-    if (!activeVerifyLog || !verificationResult) return;
-    try {
-      // Find prescribing doctor ID from the prescription list
-      const rxList = JSON.parse(localStorage.getItem('rx_offline_prescriptions') || '[]');
-      const prescription = rxList.find((p: any) => p.id === activeVerifyLog.prescriptionId);
-      const doctorId = prescription ? prescription.doctorId : 'DOC-002'; // Default to DOC-002 if unspecified
-
-      // Find patient name
-      const patientItem = offlinePatients.find(p => p.id === activePatientId);
-      const patientName = patientItem ? patientItem.name : 'Unknown Patient';
-
-      verifyAndLogMedicationIntake(
-        activeVerifyLog.id,
-        verifyMethod,
-        capturedPhoto || (recordedVideo ? 'verified_ingestion_video.mp4' : scannedCode ? 'barcode_read.jpg' : 'self_report.jpg'),
-        scannedCode || recordedVideo || 'Camera Intake Media Asset Verified',
-        aiQuestion,
-        selectedAiAnswer || customAiAnswer || 'No answer',
-        verificationResult.score,
-        verificationResult.anomaly,
-        verificationResult.reason
-      );
-      
-      // Save alarm payload targeting ONLY the prescribing doctor
-      const activeAlarms = JSON.parse(localStorage.getItem('doctorian_active_doctor_alarms') || '[]');
-      activeAlarms.push({
-        id: 'ALARM-' + Date.now(),
-        doctorId: doctorId,
-        patientName: patientName,
-        medicineName: activeVerifyLog.medicineName,
-        dosage: activeVerifyLog.dosage || '500mg',
-        swallowed: ingestionStatus === 'swallowed',
-        timestamp: new Date().toISOString(),
-        anomalyDetected: verificationResult.anomaly,
-        confidenceScore: verificationResult.score,
-        reason: verificationResult.reason
-      });
-      localStorage.setItem('doctorian_active_doctor_alarms', JSON.stringify(activeAlarms));
-
-      // Dispatch event to allow same-session real-time notifications in Doctor's Dashboard
-      window.dispatchEvent(new Event('doctorian_alarms_updated'));
-
-      // Clean up states
-      stopLiveCamera();
-      setActiveVerifyLog(null);
-      refreshAllLocalData();
-    } catch (err) {
-      console.error("Failed to log verified dose:", err);
-    }
+  // Send to Patient
+  const handleSendToPatient = () => {
+    addToast?.(`Encrypted digital Rx and reminder dispatched to ${selectedPatient.phone} via GSM relay.`, 'success');
   };
 
-  const handleDeleteMed = async (id: string) => {
-    try {
-      const remainingMeds = offlineMedicines.filter(m => m.id !== id);
-      localStorage.setItem('rx_offline_medicines', JSON.stringify(remainingMeds));
-      
-      const remainingReminders = offlineReminders.filter(r => r.medicineId !== id);
-      localStorage.setItem('rx_offline_reminders', JSON.stringify(remainingReminders));
-      
-      refreshAllLocalData();
-    } catch (err) {
-      console.error("Failed to delete local molecule:", err);
-    }
+  // Add New Patient
+  const handleAddNewPatient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPatientForm.name.trim()) return;
+    const newP: Patient = {
+      id: `p-${Date.now()}`,
+      pid: `PT-00${patients.length + 125}`,
+      name: newPatientForm.name,
+      age: Number(newPatientForm.age),
+      gender: newPatientForm.gender,
+      phone: newPatientForm.phone,
+      location: newPatientForm.location,
+      lastVisit: 'Just Registered',
+      nextAppointment: 'Not Scheduled',
+      status: 'Active',
+      avatar: newPatientForm.gender === 'F' ? PATIENT_MARY : PATIENT_JOHN,
+      adherenceRate: 100,
+      activePrescriptionsCount: 0
+    };
+    setPatients(prev => [newP, ...prev]);
+    setSelectedPatientId(newP.id);
+    setShowNewPatientModal(false);
+    addToast?.(`Patient ${newP.name} successfully registered.`, 'success');
   };
 
-  const toggleReminders = async (id: string, currentStatus: boolean) => {
-    try {
-      const updated = offlineMedicines.map((m, mapIdx_690) => m.id === id ? { ...m, remindersEnabled: !currentStatus } : m);
-      localStorage.setItem('rx_offline_medicines', JSON.stringify(updated));
-      refreshAllLocalData();
-    } catch (err) {
-      console.error("Failed to toggle reminders:", err);
-    }
+  // Toggle dose taken
+  const handleToggleDose = (id: string) => {
+    setDoses(prev => prev.map(d => {
+      if (d.id === id) {
+        const nextStatus = d.status === 'Taken' ? 'Pending' : 'Taken';
+        addToast?.(`Dose at ${d.time} marked as ${nextStatus}.`, 'info');
+        return { ...d, status: nextStatus };
+      }
+      return d;
+    }));
   };
 
-  if (isLoading) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-20 min-h-screen flex flex-col items-center justify-center space-y-8 animate-pulse text-center">
-        <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center">
-          <Pill className="text-rose-600 animate-pulse" size={40} />
-        </div>
-        <div className="space-y-4">
-          <div className="h-10 w-64 bg-slate-100 dark:bg-slate-900 rounded-full mx-auto" />
-          <div className="h-4 w-48 bg-slate-50 dark:bg-slate-950 rounded-full mx-auto" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl mt-12">
-          {[1, 2, 3].map((i, mapIdx_709) => (
-            <div key={`medicationtracker-l711-i-${i}-${mapIdx_709}`} className="h-48 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Filtered Patients
+  const filteredPatients = patients.filter(p => {
+    const matchesFilter = 
+      patientFilter === 'all' ? true :
+      patientFilter === 'active' ? p.status === 'Active' :
+      p.status === 'Follow-up';
+    const matchesSearch = p.name.toLowerCase().includes(patientSearch.toLowerCase()) || 
+                          p.pid.toLowerCase().includes(patientSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      {/* Clinician Online/Offline Sync Indicator Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 text-white p-5 rounded-[2rem] mb-8 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${isOnlineMode ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-pulse'}`} />
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Clinical Sync Status</p>
-            <p className="text-xs font-bold">{isOnlineMode ? 'Dual-Write Live Replication Channel Active' : 'Clinical Safe-Mode Local Queueing Enabled'}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={handleToggleOnlineChannel}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isOnlineMode ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}
+    <div className="min-h-screen bg-[#071026] text-slate-800 font-sans flex flex-col xl:flex-row rounded-3xl overflow-hidden shadow-2xl border border-blue-950/40">
+      
+      {/* ========================================================= */}
+      {/* SLEEK NAVY CLINICAL SIDEBAR (Matching Image 025f9c26)     */}
+      {/* ========================================================= */}
+      <aside className="w-full xl:w-64 bg-[#0a1532] text-white p-5 flex flex-col justify-between shrink-0 border-r border-blue-900/40 select-none">
+        <div className="space-y-6">
+          {/* Brand Logo & Subtitle */}
+          <div 
+            className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity" 
+            onClick={() => onNavigate?.('home')}
+            title="Return to Clinical Dashboard"
           >
-            Switch to {isOnlineMode ? 'Offline Mode' : 'Online Mode'}
-          </button>
-          <button
-            onClick={handleForceManualSync}
-            disabled={isSyncingData}
-            className="flex items-center gap-2 bg-white text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-          >
-            <RefreshCw size={12} className={isSyncingData ? 'animate-spin' : ''} />
-            Replicate
-          </button>
-        </div>
-      </div>
-
-      <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-8 sm:mb-12">
-        <div>
-          <div className="flex items-center gap-3 mb-3 sm:mb-4">
-            <div className="bg-rose-600 p-2 rounded-xl text-white">
-              <Pill size={20} className="sm:w-6 sm:h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <div className="w-full h-full bg-[#08122c] rounded-[14px] flex items-center justify-center">
+                <span className="text-cyan-400 font-black text-2xl leading-none">+</span>
+              </div>
             </div>
-            <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Patient Clinical Portal</p>
-          </div>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none">
-            Cognis <span className="text-rose-600 font-serif italic normal-case">Potions</span>
-          </h1>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-4">
-            <p className="text-slate-500 dark:text-slate-400 font-bold text-xs sm:text-base">Precision dosage tracking and interaction risk assessment.</p>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest w-fit ${arduino.connection.connected ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${arduino.connection.connected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-              {arduino.connection.connected ? `Arduino Connected` : 'Arduino Link Offline'}
+            <div>
+              <h2 className="text-base font-black tracking-tight text-white flex items-center gap-1.5">
+                Doctorian <span className="text-cyan-400">AI</span>
+              </h2>
+              <p className="text-[10px] font-bold text-cyan-300/80 tracking-tight">Better Health, Brighter Life</p>
             </div>
           </div>
+
+          {/* Navigation Links with Active Pill for Prescriptions */}
+          <nav className="space-y-1.5">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: Home, view: 'home' },
+              { id: 'patients', label: 'Patients', icon: Users, view: 'records' },
+              { id: 'prescriptions', label: 'Prescriptions', icon: Pill, active: true },
+              { id: 'appointments', label: 'Appointments', icon: Calendar, view: 'clinical_roadmap' },
+              { id: 'records', label: 'Medical Records', icon: Folder, view: 'records' },
+              { id: 'telemedicine', label: 'Telemedicine', icon: Video, view: 'server_network' },
+              { id: 'monitor', label: 'Health Monitoring', icon: Heart, view: 'monitor' },
+              { id: 'analytics', label: 'Analytics & Reports', icon: BarChart3, view: 'health_trace' },
+              { id: 'notifications', label: 'Notifications', icon: Bell, badge: '5' },
+              { id: 'settings', label: 'Settings', icon: Settings, view: 'profile' },
+              { id: 'help', label: 'Help & Support', icon: HelpCircle, view: 'help' },
+            ].map(item => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    if (item.view) onNavigate?.(item.view);
+                    else if (item.badge) addToast?.('Prescription queue: 5 pending refills ready for review.', 'info');
+                    else addToast?.(`Navigated to ${item.label}`, 'info');
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                    item.active
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 font-black'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <Icon size={16} className={item.active ? 'text-white' : 'text-slate-400'} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="w-4 h-4 rounded-full bg-rose-500 text-[10px] font-black text-white flex items-center justify-center">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Patient Switcher Dropdown */}
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-sm">
-          <span className="text-[10px] font-black uppercase text-slate-400">Patient Terminal:</span>
-          <select
-            value={activePatientId}
-            onChange={(e) => {
-              setActivePatientId(e.target.value);
-              refreshAllLocalData();
-            }}
-            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-xs font-black uppercase text-slate-800 dark:text-white focus:outline-none"
+        {/* System Online Badge at Bottom of Sidebar */}
+        <div className="mt-8 pt-4 border-t border-blue-900/40">
+          <div 
+            onClick={() => addToast?.('Doctorian clinical node engine status: Optimal & fully operational.', 'success')}
+            className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/70 to-blue-950/80 border border-emerald-500/30 cursor-pointer hover:border-emerald-400/60 transition-all shadow-md"
           >
-            {offlinePatients.map((p, mapIdx_777) => (
-              <option key={`medicationtracker-l779-${mapIdx_777}`} value={p.id}>{p.name} ({p.id})</option>
-            ))}
-          </select>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-black text-emerald-300">System Online</span>
+            </div>
+            <p className="text-[10px] text-slate-300 font-medium">All Systems Operational</p>
+            <div className="mt-2.5 h-5 w-full">
+              <svg className="w-full h-full" viewBox="0 0 100 20">
+                <path d="M 0,14 Q 25,2 50,12 T 100,6" fill="none" stroke="#10b981" strokeWidth="2" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400 text-center mt-3 font-semibold tracking-wide">
+            v3.0.0 • Powered by Doctorian AI
+          </p>
+        </div>
+      </aside>
+
+      {/* Main Workstation Container (Header + KPI Cards + Workstation Panels) */}
+      <div className="flex-1 min-w-0 bg-[#f1f5f9] p-3 sm:p-5 lg:p-6 space-y-5 overflow-y-auto">
+      
+        {/* ========================================================= */}
+        {/* TOP HEADER BAR CONTRACT (Matching Screenshot Exactly)     */}
+        {/* ========================================================= */}
+        <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+        
+        {/* Left: Search Patients & Prescriptions */}
+        <div className="relative flex-1 max-w-xl">
+          <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input 
+            type="text" 
+            value={topSearch}
+            onChange={(e) => setTopSearch(e.target.value)}
+            placeholder="Search patients, prescriptions...(Ctrl + K)"
+            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+          />
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner w-full sm:w-auto overflow-x-auto no-scrollbar">
+        {/* Right Status, Notifications, and Dr. Joseph Akora Profile */}
+        <div className="flex items-center flex-wrap gap-3 sm:gap-4 shrink-0">
+          
+          {/* Online Status Pill */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Online</span>
+            <ChevronDown size={13} className="text-emerald-600" />
+          </div>
+
+          {/* Notifications with Red Badge */}
           <button 
-            onClick={() => setActiveTab('meds')}
-            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'meds' ? 'bg-white dark:bg-slate-900 text-rose-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+            type="button" 
+            onClick={() => addToast?.('Prescription queue: 5 pending refills ready for validation.', 'info')}
+            title="Prescription Notifications"
+            className="relative p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition-all cursor-pointer shadow-xs"
           >
-            Intake & Smart Logs
+            <Bell size={17} />
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-[10px] font-black text-white flex items-center justify-center shadow-xs">
+              5
+            </span>
           </button>
-          <button 
-            onClick={() => setActiveTab('protocols')}
-            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'protocols' ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            Clinical Protocols
-          </button>
-        </div>
 
-        <div className="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          {/* Full Screen */}
           <button 
+            type="button"
             onClick={() => {
-              setRegisterMode('scan');
-              setExtractionResults(null);
-              setPrescriptionImage(null);
-              setIsAdding(true);
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              } else {
+                document.exitFullscreen().catch(() => {});
+              }
             }}
-            className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 hover:bg-emerald-700 active:scale-95 transition-all shadow-xl"
+            title="Toggle Fullscreen"
+            className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition-all cursor-pointer shadow-xs"
           >
-            <Camera size={16} />
-            Scan Prescriptions
+            <Maximize2 size={17} />
           </button>
-          <button 
-            onClick={() => {
-              setRegisterMode('manual');
-              setIsAdding(true);
-            }}
-            className="flex-1 sm:flex-none bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
-          >
-            <Plus size={16} />
-            Add Molecule
-          </button>
+
+          {/* User Profile Card: Dr. Joseph Akora (Administrator) */}
+          <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
+            <img 
+              src={DR_AKORA_AVATAR} 
+              alt="Dr. Joseph Akora" 
+              className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-500/30 shadow-xs"
+            />
+            <div className="text-left">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-black text-slate-900 leading-tight">Dr. Joseph Akora</span>
+                <ChevronDown size={13} className="text-slate-400" />
+              </div>
+              <span className="text-[10px] font-bold text-slate-500 block">Administrator</span>
+            </div>
+          </div>
+
         </div>
+
       </header>
 
-      {/* Calculate active stats */}
-      {(() => {
-        const activeMeds = offlineMedicines.filter(m => {
-          const rx = offlinePrescriptions.find(p => p.id === m.prescriptionId);
-          return rx && rx.patientId === activePatientId;
-        });
+      {/* ========================================================= */}
+      {/* TOP 4 STAT CARDS ROW WITH SPARKLINE CURVES                */}
+      {/* ========================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Card 1: Total Patients */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-500">Total Patients</p>
+              <p className="text-2xl font-black text-slate-900 font-mono tabular-nums">2,487</p>
+              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <span>↑ +12%</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <User size={24} />
+            </div>
+          </div>
+          <div className="mt-3 h-8 w-full">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 160 30">
+              <path d="M 0,25 Q 30,5 60,18 T 120,4 T 160,10" fill="none" stroke="#3b82f6" strokeWidth="2.5" />
+            </svg>
+          </div>
+        </div>
 
-        const activeLogsForToday = offlineLogs.filter(l => 
-          l.patientId === activePatientId && 
-          l.logDate === new Date().toISOString().split('T')[0]
-        );
+        {/* Card 2: Active Prescriptions */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-500">Active Prescriptions</p>
+              <p className="text-2xl font-black text-slate-900 font-mono tabular-nums">1,256</p>
+              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <span>↑ +8%</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <Pill size={24} />
+            </div>
+          </div>
+          <div className="mt-3 h-8 w-full">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 160 30">
+              <path d="M 0,22 Q 40,28 80,10 T 130,16 T 160,4" fill="none" stroke="#10b981" strokeWidth="2.5" />
+            </svg>
+          </div>
+        </div>
 
-        const activePatientLogs = offlineLogs.filter(l => l.patientId === activePatientId);
-        const totalLogsCount = activePatientLogs.length;
-        const takenLogsCount = activePatientLogs.filter(l => l.status === 'taken').length;
-        const adherencePct = totalLogsCount > 0 ? Math.round((takenLogsCount / totalLogsCount) * 100) : 100;
+        {/* Card 3: Today's Prescriptions */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-500">Today's Prescriptions</p>
+              <p className="text-2xl font-black text-slate-900 font-mono tabular-nums">243</p>
+              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <span>↑ +5%</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <Calendar size={24} />
+            </div>
+          </div>
+          <div className="mt-3 h-8 w-full">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 160 30">
+              <path d="M 0,24 Q 35,5 70,18 T 130,8 T 160,2" fill="none" stroke="#8b5cf6" strokeWidth="2.5" />
+            </svg>
+          </div>
+        </div>
 
-        const transformedMeds = activeMeds.map((m, mapIdx_841) => {
-          const logToday = activeLogsForToday.find(l => l.medicineId === m.id);
-          return {
-            id: m.id,
-            name: m.name,
-            dosage: m.dosage,
-            frequency: m.frequency,
-            time: m.reminderTimes?.[0] || '08:00',
-            category: (m.category === 'supplement' ? 'supplement' : 'prescription') as 'supplement' | 'prescription',
-            takenToday: logToday ? logToday.status === 'taken' : false
-          };
-        });
+        {/* Card 4: Medication Adherence */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-500">Medication Adherence</p>
+              <p className="text-2xl font-black text-slate-900 font-mono tabular-nums">94.6%</p>
+              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <span>↑ +1.3%</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={24} />
+            </div>
+          </div>
+          <div className="mt-3 h-8 w-full">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 160 30">
+              <path d="M 0,18 Q 40,8 80,18 T 125,5 T 160,10" fill="none" stroke="#f59e0b" strokeWidth="2.5" />
+            </svg>
+          </div>
+        </div>
 
-        const transformedHistory = offlineLogs
-          .filter(l => l.patientId === activePatientId)
-          .map((l, mapIdx_856) => ({
-            id: l.id,
-            medicationId: l.medicineId,
-            takenAt: l.logDate + 'T' + (l.reminderTime || '08:00') + ':00.000Z',
-            name: l.medicineName,
-            category: 'prescription' as const
-          }));
+      </div>
 
-        return (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {activeTab === 'meds' ? (
-              <>
-                <div className="lg:col-span-8 space-y-6">
-                  {/* Today's Smart Intake Timeline Checklist */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[3rem] shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">Smart Intake Timeline</h3>
-                        <p className="text-xs font-bold text-slate-400 uppercase">Interactive daily doses & cellular push cues</p>
-                      </div>
-                      <span className="text-[10px] font-black uppercase px-3 py-1 bg-rose-50 text-rose-600 rounded-xl">Today's Dose Schedule</span>
+      {/* ========================================================= */}
+      {/* MAIN WORKSPACE 3-COLUMN LAYOUT                            */}
+      {/* ========================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        {/* ======================================================= */}
+        {/* COLUMN 1: PATIENTS ROSTER LIST (Left Panel)             */}
+        {/* ======================================================= */}
+        <div className="lg:col-span-3 rounded-2xl bg-white border border-slate-200 shadow-sm p-4 space-y-3.5">
+          
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+              <span>Patients (All)</span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowNewPatientModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>New Patient</span>
+            </button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              value={patientSearch}
+              onChange={(e) => setPatientSearch(e.target.value)}
+              placeholder="Search patient..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100">
+            <button
+              type="button"
+              onClick={() => setPatientFilter('all')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center ${
+                patientFilter === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All (2,487)
+            </button>
+            <button
+              type="button"
+              onClick={() => setPatientFilter('active')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center ${
+                patientFilter === 'active' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Active (1,923)
+            </button>
+            <button
+              type="button"
+              onClick={() => setPatientFilter('followup')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center ${
+                patientFilter === 'followup' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Follow-up (564)
+            </button>
+          </div>
+
+          {/* Patients List Items */}
+          <div className="space-y-2 max-h-[500px] overflow-y-auto no-scrollbar pr-0.5">
+            {filteredPatients.map(p => {
+              const isSelected = p.id === selectedPatientId;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => {
+                    setSelectedPatientId(p.id);
+                    updateCurrentDraft(draft => ({ ...draft, patientId: p.id, taskTitle: p.name }));
+                    addToast?.(`Loaded profile for ${p.name}`, 'info');
+                  }}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3 ${
+                    isSelected 
+                      ? 'bg-blue-50/70 border-blue-400 ring-1 ring-blue-400/40 shadow-xs' 
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <img 
+                    src={p.avatar} 
+                    alt={p.name} 
+                    className="w-11 h-11 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-extrabold text-slate-900 truncate">{p.name}</p>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        p.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'
+                      }`}>
+                        ● {p.status}
+                      </span>
                     </div>
-
-                    {activeLogsForToday.length === 0 ? (
-                      <div className="text-center py-12 border border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
-                        <Pill className="mx-auto text-slate-300 animate-pulse mb-4" size={32} />
-                        <p className="text-xs font-bold text-slate-400 uppercase">No scheduled logs registered for today.</p>
-                        <p className="text-[10px] text-slate-400 uppercase mt-1">Molecules preloaded by clinician or manually registered will map here.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {activeLogsForToday.map((log, mapIdx_887) => {
-                          const isTaken = log.status === 'taken';
-                          const isMissed = log.status === 'missed';
-                          return (
-                            <div key={`medicationtracker-l892-${mapIdx_887}`} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isTaken ? 'bg-emerald-500/5 border-emerald-500/10' : isMissed ? 'bg-rose-500/5 border-rose-500/10' : 'bg-slate-50/50 border-slate-150 dark:bg-slate-800/40 dark:border-slate-700'}`}>
-                              <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-xl ${isTaken ? 'bg-emerald-500 text-white shadow-lg' : isMissed ? 'bg-rose-500 text-white' : 'bg-blue-600 text-white animate-pulse'}`}>
-                                  <Clock size={18} />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-black uppercase text-slate-400 tracking-wider">{log.reminderTime}</span>
-                                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${isTaken ? 'bg-emerald-50 text-emerald-700' : isMissed ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'}`}>
-                                      {log.status.toUpperCase()}
-                                    </span>
-                                  </div>
-                                  <h4 className="text-base font-black uppercase text-slate-900 dark:text-white mt-1">{log.medicineName}</h4>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase">Dosage: {log.dosage}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleTakeStatus(log.id, 'taken')}
-                                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isTaken ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-                                >
-                                  Mark Taken
-                                </button>
-                                <button
-                                  onClick={() => handleTakeStatus(log.id, 'missed')}
-                                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isMissed ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-                                >
-                                  Mark Missed
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                      {p.gender}/{p.age} • PID: {p.pid}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Last visit: {p.lastVisit}
+                    </p>
                   </div>
+                </div>
+              );
+            })}
+          </div>
 
-                  {/* Registered Active Molecules Grid */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-black uppercase text-slate-400 tracking-[0.25em] pl-1">Clinical Active Molecules ({activeMeds.length})</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {activeMeds.map((med, mapIdx_932) => {
-                        const logToday = activeLogsForToday.find(l => l.medicineId === med.id);
-                        const isTaken = logToday ? logToday.status === 'taken' : false;
-                        return (
-                          <div 
-                            key={`medicationtracker-l938-${mapIdx_932}`}
-                            className="group relative bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all h-full flex flex-col justify-between"
-                          >
-                            <div>
-                              <div className="flex justify-between items-start mb-6">
-                                <div className={`p-3 rounded-2xl ${med.category === 'prescription' ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600'}`}>
-                                  <Pill size={24} />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button 
-                                    onClick={() => toggleReminders(med.id, !!med.remindersEnabled)} 
-                                    className={`p-2 rounded-lg transition-colors ${med.remindersEnabled ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-300 hover:text-slate-500'}`}
-                                    title={med.remindersEnabled ? 'Reminders On' : 'Reminders Off'}
-                                  >
-                                    {med.remindersEnabled ? <Bell size={14} /> : <BellOff size={14} />}
-                                  </button>
-                                  <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md tracking-tighter ${isTaken ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                                    {isTaken ? 'TAKEN TODAY' : 'PENDING'}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">{med.name}</h3>
-                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{med.dosage} • {med.frequency}</p>
-                            </div>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('records')}
+            className="w-full text-center text-xs font-bold text-blue-600 hover:text-blue-500 pt-2 block cursor-pointer"
+          >
+            View All Patients →
+          </button>
 
-                            <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800 mt-4">
-                              <div className="flex items-center gap-2 text-slate-400">
-                                <Clock size={14} />
-                                <span className="text-[10px] font-black uppercase">{med.reminderTimes?.join(', ') || '08:00'}</span>
-                              </div>
-                              <span className="text-[10px] font-black uppercase text-slate-400">
-                                {med.duration || '30 Days'} Left
-                              </span>
-                            </div>
+        </div>
 
-                            <button 
-                              onClick={() => handleDeleteMed(med.id)}
-                              className="absolute top-4 right-4 p-2 text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+        {/* ======================================================= */}
+        {/* COLUMN 2: PRESCRIPTION STUDIO & MULTI-TASKING HUB       */}
+        {/* ======================================================= */}
+        <div className="lg:col-span-6 space-y-4">
+          
+          {/* Sub Navigation Tabs */}
+          <div className="flex items-center justify-between flex-wrap gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('new_rx')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'new_rx' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Edit3 size={14} />
+                <span>New Prescription</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('my_prescriptions')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'my_prescriptions' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <FileText size={14} />
+                <span>My Prescriptions</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('tracker')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'tracker' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Clock size={14} />
+                <span>Medication Tracker</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('templates')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'templates' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Layers size={14} />
+                <span>Templates</span>
+              </button>
+            </div>
+
+            {/* Multi-Task Scratchpad Adder */}
+            <button
+              type="button"
+              onClick={handleCreateNewTask}
+              title="Create another concurrent prescription draft"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-blue-600 border border-slate-200 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+            >
+              <Plus size={13} />
+              <span>+ Task</span>
+            </button>
+          </div>
+
+          {/* Multi-Tasking Scratchpad Tab Strip */}
+          {drafts.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              {drafts.map((d, idx) => {
+                const isSelectedTask = d.taskId === activeTaskId;
+                return (
+                  <div
+                    key={d.taskId}
+                    onClick={() => setActiveTaskId(d.taskId)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shrink-0 ${
+                      isSelectedTask 
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <span>{d.taskTitle || `Task #${idx + 1}`}</span>
+                    <button 
+                      type="button"
+                      onClick={(e) => handleCloseTask(d.taskId, e)}
+                      className="p-0.5 hover:bg-black/20 rounded-full"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
 
-                <div className="lg:col-span-4 space-y-6">
-                  {/* Circular Bio-Compliance Score Widget */}
-                  <section className="bg-slate-900 text-white rounded-[3rem] p-8 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-10">
-                      <ShieldCheck size={80} />
-                    </div>
-                    <h3 className="text-lg font-black uppercase tracking-tight mb-4 relative z-10">Adherence Ratio</h3>
-                    
-                    <div className="flex items-center gap-6 my-6 relative z-10">
-                      <div className="relative flex items-center justify-center">
-                        {/* Circular progress track */}
-                        <svg className="w-24 h-24 transform -rotate-90">
-                          <circle cx="48" cy="48" r="40" className="stroke-slate-800 fill-none" strokeWidth="8" />
-                          <circle cx="48" cy="48" r="40" className="stroke-rose-500 fill-none transition-all duration-500" strokeWidth="8" strokeDasharray={`${2 * Math.PI * 40}`} strokeDashoffset={`${2 * Math.PI * 40 * (1 - adherencePct / 100)}`} />
-                        </svg>
-                        <span className="absolute text-xl font-black">{adherencePct}%</span>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Score Range</p>
-                        <p className={`text-base font-black uppercase ${adherencePct >= 85 ? 'text-emerald-400' : adherencePct >= 65 ? 'text-amber-400' : 'text-rose-400'}`}>
-                          {adherencePct >= 85 ? 'Clinical Optimal' : adherencePct >= 65 ? 'Intermediate' : 'Low Compliance'}
-                        </p>
-                        <p className="text-[10px] text-slate-500 uppercase mt-1">Based on {totalLogsCount} total dose logs</p>
-                      </div>
-                    </div>
+          {/* Quick Clinical Templates Pill Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Fast Protocol:</span>
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate('malaria')}
+              className="px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-[11px] font-bold shrink-0 transition-all cursor-pointer"
+            >
+              Malaria Protocol (AL)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate('hypertension')}
+              className="px-3 py-1 rounded-full bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-[11px] font-bold shrink-0 transition-all cursor-pointer"
+            >
+              Hypertension (Amlodipine)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate('respiratory')}
+              className="px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[11px] font-bold shrink-0 transition-all cursor-pointer"
+            >
+              Bacterial RTI (Augmentin)
+            </button>
+          </div>
 
-                    <p className="text-sm text-slate-400 font-bold mb-4 relative z-10 font-serif">No biochemical signature overlaps or interaction conflicts detected.</p>
-                    <div className="flex items-center gap-3 bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/30 relative z-10">
-                      <div className="p-2 bg-emerald-500 rounded-xl">
-                        <CheckCircle2 size={16} className="text-white" />
-                      </div>
-                      <div>
-                         <p className="text-[10px] font-black uppercase">Safety Status</p>
-                         <p className="text-xs font-bold text-emerald-500">BIO-OPTIMAL</p>
-                      </div>
-                    </div>
-                  </section>
+          {/* Patient Information Card */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-3.5">
+              <img 
+                src={selectedPatient.avatar} 
+                alt={selectedPatient.name} 
+                className="w-13 h-13 rounded-full object-cover ring-2 ring-slate-100 shrink-0"
+              />
+              <div>
+                <h4 className="text-base font-black text-slate-900">{selectedPatient.name}</h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  PID: {selectedPatient.pid} • Age: {selectedPatient.age} • {selectedPatient.gender}
+                </p>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
+                  ● Active Patient
+                </span>
+              </div>
+            </div>
 
-                  {/* Local Push Notifications Control Panel */}
-                  <section className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-                     <div className="flex items-center justify-between mb-4">
-                       <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                         <Bell size={18} className="text-blue-500" />
-                         Push Core
-                       </h3>
-                       <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
-                         notificationState === 'granted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                         notificationState === 'denied' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
-                         notificationState === 'unsupported' ? 'bg-amber-50 text-amber-500 border border-amber-100' :
-                         'bg-slate-50 text-slate-500 border border-slate-100'
-                       }`}>
-                         {notificationState === 'granted' ? 'Active' : notificationState === 'denied' ? 'Blocked' : notificationState === 'unsupported' ? 'Unsupported' : 'Pending'}
-                       </span>
-                     </div>
-                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-6 leading-relaxed">
-                       Receive ambient, offline, and background dosage reminders on your device terminal instantly.
-                     </p>
-                     
-                     {notificationState === 'default' && (
-                       <button
-                         onClick={handleEnableNotifications}
-                         className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-600/10 active:scale-[0.98] flex items-center justify-center gap-2"
-                       >
-                         <Sparkles size={14} />
-                         Authorize Notifications
-                       </button>
-                     )}
-                     
-                     {notificationState === 'granted' && (
-                       <div className="space-y-3">
-                         <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/5 border border-emerald-500/10 text-emerald-600 rounded-2xl">
-                           <CheckCircle2 size={16} />
-                           <span className="text-[10px] font-black uppercase tracking-wider">Device Synced & Ready</span>
-                         </div>
-                         <button
-                           onClick={handleTriggerTestNotification}
-                           className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-705 text-slate-700 dark:text-slate-300 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95"
-                         >
-                           <Zap size={12} className="text-amber-500 fill-amber-500" />
-                           Send Test Push Alert
-                         </button>
-                       </div>
-                     )}
-                     
-                     {notificationState === 'denied' && (
-                       <div className="p-4 bg-rose-50 dark:bg-rose-950/10 border border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-center">
-                         <p className="text-[11px] font-bold leading-relaxed">
-                           Notification access is blocked. Please reset your browser site settings to enable offline dosage alerts.
-                         </p>
-                       </div>
-                     )}
-                     
-                     {notificationState === 'unsupported' && (
-                       <div className="p-4 bg-amber-50 dark:bg-amber-950/10 border border-amber-500/20 rounded-2xl text-amber-600 dark:text-amber-400 text-center">
-                         <p className="text-[11px] font-bold leading-relaxed">
-                           This browser environment does not support background push alerts.
-                         </p>
-                       </div>
-                     )}
-                  </section>
+            <button
+              type="button"
+              onClick={() => addToast?.(`Displaying comprehensive clinical EHR for ${selectedPatient.name}`, 'info')}
+              className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>View Profile</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
 
-                  {/* Next Refill Calendar List */}
-                  <section className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-                     <h3 className="text-lg font-black uppercase tracking-tight mb-6 flex items-center gap-2">
-                       <Calendar size={18} className="text-rose-600" />
-                       Next Supply Cycle
-                     </h3>
-                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                          <div className="flex items-center gap-3">
-                            <Pill size={16} className="text-slate-400" />
-                            <div>
-                              <p className="text-xs font-black uppercase text-slate-900 dark:text-white">Active Molecules Refill</p>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">Automated dispatch active</p>
-                            </div>
-                          </div>
-                          <ChevronRight size={16} className="text-slate-300" />
-                        </div>
-                     </div>
-                  </section>
-                </div>
+          {/* Rx Prescription Details Form */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <span className="text-blue-600 font-serif font-black text-lg">Rx</span>
+                <span>Prescription Details</span>
+              </h3>
+              <span className="text-[11px] text-slate-400 font-mono">
+                Prescribing Physician: <strong className="text-slate-700">Dr. Joseph Akora</strong>
+              </span>
+            </div>
 
-                <div className="lg:col-span-12">
-                  <MedicationAdherenceChart medications={transformedMeds} history={transformedHistory} onRefresh={refreshAllLocalData} />
-                </div>
-              </>
-            ) : (
-              <div className="lg:col-span-12">
-                <ClinicalProtocols />
+            {/* Drug Interaction Warning Banner */}
+            {interactionWarning && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2 shadow-xs">
+                <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <span>{interactionWarning}</span>
               </div>
             )}
-          </div>
-        );
-      })()}
 
-      <AnimatePresence>
-        {isAdding && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
-            >
-               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-black uppercase tracking-tighter">Register <span className="text-rose-600">Molecule</span></h2>
-                <button 
-                  onClick={() => {
-                    setIsAdding(false);
-                    setExtractionResults(null);
-                    setPrescriptionImage(null);
-                  }}
-                  className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
-                >
-                  Close
-                </button>
-               </div>
+            {/* Diagnosis / Condition Selector */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Diagnosis / Condition <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={currentDraft.diagnosis}
+                onChange={(e) => updateCurrentDraft(draft => ({ ...draft, diagnosis: e.target.value }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
+              >
+                <option value="Malaria">Malaria (Uncomplicated Plasmodium Falciparum)</option>
+                <option value="Hypertension">Essential Hypertension (Stage 1/2)</option>
+                <option value="Type 2 Diabetes">Type 2 Diabetes Mellitus</option>
+                <option value="Respiratory Infection">Acute Upper/Lower Respiratory Infection</option>
+                <option value="Peptic Ulcer">Peptic Ulcer Disease / Gastritis</option>
+                <option value="Bacterial Enteritis">Bacterial Enteritis / Dysentery</option>
+                <option value="Asthma">Bronchial Asthma Maintenance</option>
+                <option value="General Pain">Acute Musculoskeletal Pain & Inflammation</option>
+              </select>
+            </div>
 
-               {/* Mode Switch Tabs */}
-               <div className="flex border-b border-slate-100 dark:border-slate-800 mb-6 font-black uppercase text-[10px] tracking-wider gap-2">
-                 <button
-                   onClick={() => {
-                     setRegisterMode('manual');
-                     setExtractionResults(null);
-                   }}
-                   className={`flex-1 pb-3 border-b-2 text-center transition-all ${registerMode === 'manual' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                 >
-                   Manual Entry
-                 </button>
-                 <button
-                   onClick={() => {
-                     setRegisterMode('library');
-                     setExtractionResults(null);
-                   }}
-                   className={`flex-1 pb-3 border-b-2 text-center transition-all ${registerMode === 'library' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                 >
-                   Library
-                 </button>
-                 <button
-                   onClick={() => setRegisterMode('scan')}
-                   className={`flex-1 pb-3 border-b-2 text-center transition-all ${registerMode === 'scan' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                 >
-                   Prescription OCR
-                 </button>
-               </div>
+            {/* Multi-Medicine Items Stacking */}
+            <div className="space-y-3 pt-1">
+              {currentDraft.medicines.map((item, idx) => (
+                <div key={item.id} className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3 relative group">
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-blue-700 uppercase tracking-wide">
+                      Medication #{idx + 1}
+                    </span>
+                    {currentDraft.medicines.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMedicineRow(item.id)}
+                        className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Remove medication"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
 
-               {registerMode === 'library' && (
-                 <div className="space-y-3 mb-8">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Select from common molecules</p>
-                    <div className="grid grid-cols-1 gap-2">
-                       {commonMeds.map((m, idx) => (
-                         <button
-                          key={`medicationtracker-l1179-idx-${idx}`}
-                          onClick={() => {
-                            setNewMed({...newMed, name: m.name, dosage: m.dosage, frequency: m.frequency, category: m.category as any});
-                            setRegisterMode('manual');
-                          }}
-                          className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl transition-all text-left"
-                         >
-                           <div>
-                             <p className="text-sm font-black text-slate-900 dark:text-white uppercase">{m.name}</p>
-                             <p className="text-[10px] font-bold text-slate-400 uppercase">{m.dosage} • {m.frequency}</p>
-                           </div>
-                           <Plus size={16} className="text-slate-300" />
-                         </button>
-                       ))}
-                    </div>
-                 </div>
-               )}
-
-               {registerMode === 'manual' && (
-                 <form onSubmit={handleAddMed} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Medicine Name */}
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Molecular Name</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Medicine <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={item.medicine}
+                        onChange={(e) => handleUpdateMedicine(item.id, 'medicine', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="Artemether + Lumefantrine">Artemether 20mg + Lumefantrine 120mg</option>
+                        <option value="Amoxicillin + Clavulanate 625mg">Amoxicillin + Clavulanate 625mg</option>
+                        <option value="Metformin 500mg">Metformin Hydrochloride 500mg</option>
+                        <option value="Amlodipine 5mg">Amlodipine Besylate 5mg</option>
+                        <option value="Losartan 50mg">Losartan Potassium 50mg</option>
+                        <option value="Omeprazole 20mg">Omeprazole Delayed-Release 20mg</option>
+                        <option value="Paracetamol 500mg">Paracetamol 500mg</option>
+                        <option value="Ibuprofen 400mg">Ibuprofen 400mg</option>
+                        <option value="Ciprofloxacin 500mg">Ciprofloxacin 500mg</option>
+                        <option value="Azithromycin 500mg">Azithromycin 500mg</option>
+                        <option value="Oral Rehydration Salts">Oral Rehydration Salts (ORS) Sachets</option>
+                        <option value="Zinc Sulfate 20mg">Zinc Sulfate Dispersible 20mg</option>
+                      </select>
+                    </div>
+
+                    {/* Dosage */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Dosage <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={item.dosage}
+                        onChange={(e) => handleUpdateMedicine(item.id, 'dosage', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="2 Tablets">2 Tablets</option>
+                        <option value="1 Tablet">1 Tablet</option>
+                        <option value="1 Capsule">1 Capsule</option>
+                        <option value="2 Capsules">2 Capsules</option>
+                        <option value="5ml Suspension">5ml Suspension</option>
+                        <option value="10ml Suspension">10ml Suspension</option>
+                        <option value="1 Sachet">1 Sachet (200ml)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Frequency */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Frequency <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={item.frequency}
+                        onChange={(e) => handleUpdateMedicine(item.id, 'frequency', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="Twice Daily">Twice Daily (q12h)</option>
+                        <option value="Once Daily">Once Daily (OD)</option>
+                        <option value="Three Times Daily">Three Times Daily (TDS)</option>
+                        <option value="Four Times Daily">Four Times Daily (QDS)</option>
+                        <option value="Every 8 Hours">Every 8 Hours</option>
+                        <option value="As Needed">As Needed (PRN)</option>
+                      </select>
+                    </div>
+
+                    {/* Duration */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Duration <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={item.duration}
+                        onChange={(e) => handleUpdateMedicine(item.id, 'duration', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="3 Days">3 Days</option>
+                        <option value="5 Days">5 Days</option>
+                        <option value="7 Days">7 Days</option>
+                        <option value="10 Days">10 Days</option>
+                        <option value="14 Days">14 Days</option>
+                        <option value="30 Days">30 Days</option>
+                        <option value="60 Days">60 Days</option>
+                      </select>
+                    </div>
+
+                    {/* Instructions */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Instructions
+                      </label>
                       <input 
                         type="text" 
-                        required
-                        placeholder="e.g. Lipitor 20mg"
-                        className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold"
-                        value={newMed.name}
-                        onChange={(e) => setNewMed({...newMed, name: e.target.value})}
+                        value={item.instructions}
+                        onChange={(e) => handleUpdateMedicine(item.id, 'instructions', e.target.value)}
+                        placeholder="e.g. After Meals"
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dosage</label>
-                        <input 
-                           type="text" 
-                           placeholder="e.g. 500mg"
-                           className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold"
-                           value={newMed.dosage}
-                           onChange={(e) => setNewMed({...newMed, dosage: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Frequency</label>
-                        <select 
-                          className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold appearance-none"
-                          value={newMed.frequency}
-                          onChange={(e) => {
-                            const freq = e.target.value;
-                            const optimalTimes = getOptimalReminderTimes(freq);
-                            setNewMed({
-                              ...newMed,
-                              frequency: freq,
-                              time: optimalTimes[0] || '08:00'
-                            });
-                          }}
-                        >
-                          <option>Daily</option>
-                          <option>Twice Daily</option>
-                          <option>3 Times Daily</option>
-                          <option>Every 8 Hours</option>
-                          <option>Weekly</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Time</label>
-                      <input 
-                        type="time" 
-                        className="w-full mt-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-rose-500 font-bold"
-                        value={newMed.time}
-                        onChange={(e) => setNewMed({...newMed, time: e.target.value})}
-                      />
-                    </div>
-                    <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                      <button 
-                        type="button"
-                        onClick={() => setNewMed({...newMed, remindersEnabled: !newMed.remindersEnabled})}
-                        className={`w-10 h-6 rounded-full p-1 transition-all ${newMed.remindersEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}
-                      >
-                        <div className={`w-4 h-4 bg-white rounded-full transition-all ${newMed.remindersEnabled ? 'ml-4' : 'ml-0'}`} />
-                      </button>
-                      <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Enable Cellular Alerts</span>
-                    </div>
-                    <div className="flex gap-3 pt-6">
-                      <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-4 font-black uppercase text-xs tracking-widest text-slate-400 hover:text-slate-600">Cancel</button>
-                      <button type="submit" className="flex-2 bg-rose-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Complete Registration</button>
-                    </div>
-                 </form>
-               )}
-
-               {registerMode === 'scan' && (
-                 <div className="space-y-6">
-                   {!isReadingPrescription && !extractionResults && (
-                     <div 
-                       className={`relative border-2 border-dashed rounded-[2rem] p-10 text-center transition-all duration-350 cursor-pointer ${
-                         isDragging 
-                         ? 'border-emerald-500 bg-emerald-500/15' 
-                         : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-605 bg-slate-50/50 dark:bg-slate-800/40'
-                       }`}
-                       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                       onDragLeave={() => setIsDragging(false)}
-                       onDrop={async (e) => {
-                         e.preventDefault();
-                         setIsDragging(false);
-                         const file = e.dataTransfer.files?.[0];
-                         if (file) {
-                           await processPrescriptionFile(file);
-                         }
-                       }}
-                       onClick={() => document.getElementById('prescription-file-elem')?.click()}
-                     >
-                       <input 
-                         type="file" 
-                         id="prescription-file-elem" 
-                         className="hidden" 
-                         accept="image/*" 
-                         onChange={handlePrescriptionRead} 
-                       />
-                       <div className="flex flex-col items-center">
-                         <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl mb-4">
-                           <Upload size={32} />
-                         </div>
-                         <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2">Drag & Drop prescription</h3>
-                         <p className="text-[10px] text-slate-400 font-bold uppercase mb-4">or click to browse local files</p>
-                         <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase leading-relaxed max-w-xs px-4">
-                           The clinical vision engine reads standard diagnostic certificates, automatically logs dosage matrices, and cross-checks allergen vectors.
-                         </p>
-                       </div>
-                     </div>
-                   )}
-
-                   {isReadingPrescription && (
-                     <div className="relative mt-4 flex flex-col items-center p-8 bg-slate-950 rounded-[2rem] border border-white/10 text-white overflow-hidden shadow-xl text-center">
-                       {prescriptionImage && (
-                         <div className="relative w-full max-w-[280px] h-[180px] bg-black/60 rounded-xl overflow-hidden mb-6 border border-white/5">
-                           <img src={prescriptionImage} alt="Prescription draft" className="w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
-                           {/* Dynamic scan line effect */}
-                           <div className="absolute left-0 right-0 h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-[bounce_2s_infinite]" />
-                         </div>
-                       )}
-                       <Loader2 className="animate-spin text-emerald-500 mb-4" size={32} />
-                       <h3 className="text-xs font-black uppercase tracking-[0.15em] text-emerald-400 mb-1">OCR Analysis Stream Active</h3>
-                       <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Parsing clinical chemical signatures...</p>
-                     </div>
-                   )}
-
-                   {extractionResults && !isReadingPrescription && (
-                     <div className="space-y-6">
-                       <div className="p-5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/20 rounded-[2rem] flex items-center gap-4">
-                         <div className="p-3 bg-emerald-500 text-white rounded-xl">
-                           <CheckCircle2 size={20} />
-                         </div>
-                         <div>
-                           <h4 className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400">Chemical Matrix Synthesized</h4>
-                           <p className="text-[10px] uppercase text-slate-400 font-bold mt-0.5">{extractionResults.length} molecules digitized from prescription image.</p>
-                         </div>
-                       </div>
-                       
-                       <div className="space-y-2">
-                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Registered Bio-Molecules</p>
-                         {extractionResults.map((r, i) => (
-                           <div key={`medicationtracker-l1341-i-${i}`} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                             <div>
-                               <p className="text-sm font-black uppercase text-slate-900 dark:text-white">{r.name}</p>
-                               <p className="text-[10px] text-slate-400 font-bold uppercase">{r.dosage} • {r.frequency}</p>
-                             </div>
-                             <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-xl">Success</span>
-                           </div>
-                         ))}
-                       </div>
-                       
-                       <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                         <button 
-                           type="button" 
-                           onClick={() => {
-                             setExtractionResults(null);
-                             setPrescriptionImage(null);
-                           }}
-                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                         >
-                           Scan Another
-                         </button>
-                         <button 
-                           type="button" 
-                           onClick={() => {
-                             setIsAdding(false);
-                             setExtractionResults(null);
-                             setPrescriptionImage(null);
-                           }}
-                           className="flex-1 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg"
-                         >
-                           Finished
-                         </button>
-                       </div>
-                     </div>
-                   )}
-                 </div>
-               )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Medication Verification System Modal */}
-      <AnimatePresence>
-        {activeVerifyLog && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={handleCancelVerification}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
-            />
-
-            {/* Modal Body */}
-            <motion.div
-              initial={{ scale: 0.9, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 20, opacity: 0 }}
-              className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] shadow-2xl p-6 sm:p-8 overflow-hidden"
-            >
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-rose-50 dark:bg-rose-950/25 text-rose-600 rounded-xl">
-                    <ShieldCheck size={24} />
                   </div>
-                  <div>
-                    <span className="text-[9px] font-black uppercase text-rose-600 tracking-widest block">Double-Verification Portal</span>
-                    <h2 className="text-xl font-black uppercase text-slate-900 dark:text-white tracking-tight mt-0.5">Verify Ingestion Dose</h2>
-                  </div>
+
                 </div>
-                <button
-                  onClick={handleCancelVerification}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl transition-all"
-                >
-                  Cancel
-                </button>
+              ))}
+            </div>
+
+            {/* Add Another Medicine Button */}
+            <button
+              type="button"
+              onClick={handleAddMedicineRow}
+              className="w-full py-2.5 rounded-xl border-2 border-dashed border-blue-300 hover:border-blue-500 text-blue-600 hover:text-blue-700 bg-blue-50/50 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>+ Add Another Medicine</span>
+            </button>
+
+            {/* 3 Option / Toggle Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              {/* Set Reminder */}
+              <div 
+                onClick={() => updateCurrentDraft(d => ({ ...d, setReminder: !d.setReminder }))}
+                className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all ${
+                  currentDraft.setReminder ? 'bg-purple-50/70 border-purple-300' : 'bg-slate-50 border-slate-200 opacity-60'
+                }`}
+              >
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                  <Calendar size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-slate-900">Set Reminder</p>
+                  <p className="text-[10px] font-bold text-purple-700">{currentDraft.setReminder ? '✓ Enabled' : 'Disabled'}</p>
+                </div>
               </div>
 
-              {/* Step 1: Choose Ingestion Verification Method */}
-              {verifyStep === 'method' && (
-                <div className="space-y-6">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-2xl">
-                    <p className="text-[10px] font-black uppercase text-slate-400">Target Bio-Molecule</p>
-                    <p className="text-lg font-black uppercase text-slate-900 dark:text-white mt-1">
-                      {activeVerifyLog.medicineName} <span className="text-sm font-bold text-slate-500">({activeVerifyLog.dosage})</span>
-                    </p>
-                    <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wide mt-1">
-                      Scheduled time: {activeVerifyLog.reminderTime || '08:00'}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Ingestion Verification Protocol</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { id: 'photo', label: 'Photo Confirm', icon: Camera, desc: 'Pill snap verification' },
-                        { id: 'video', label: 'Video Confirm', icon: Video, desc: 'Ingestion video stream' },
-                        { id: 'scan', label: 'Barcode Pack', icon: QrCode, desc: 'Pack QR verification' },
-                      ].map((method, mapIdx_1440) => {
-                        const Icon = method.icon;
-                        const isSelected = verifyMethod === method.id;
-                        return (
-                          <button
-                            key={`medicationtracker-l1446-${mapIdx_1440}`}
-                            type="button"
-                            onClick={() => setVerifyMethod(method.id as any)}
-                            className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                          >
-                            <Icon size={24} className="mb-2" />
-                            <span className="text-xs font-black uppercase tracking-wide block">{method.label}</span>
-                            <span className="text-[8px] font-bold uppercase text-slate-400 mt-1 block">{method.desc}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <p className="text-[10px] text-slate-400 uppercase font-bold text-center leading-relaxed max-w-sm mx-auto">
-                    Clinical high-integrity verification prevents placebo logging errors and guarantees adherence pattern consistency.
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setVerifyStep('action');
-                      if (verifyMethod === 'photo' || verifyMethod === 'video') {
-                        await startLiveCamera();
-                      }
-                    }}
-                    className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
-                  >
-                    Launch Ingestion Scanner
-                    <ChevronRight size={14} />
-                  </button>
+              {/* Allow Refill */}
+              <div 
+                onClick={() => updateCurrentDraft(d => ({ ...d, allowRefill: !d.allowRefill }))}
+                className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all ${
+                  currentDraft.allowRefill ? 'bg-emerald-50/70 border-emerald-300' : 'bg-slate-50 border-slate-200 opacity-60'
+                }`}
+              >
+                <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+                  <Activity size={16} />
                 </div>
-              )}
-
-              {/* Step 2: Action Phase */}
-              {verifyStep === 'action' && (
-                <div className="space-y-6">
-                  <div className="relative h-[220px] bg-slate-950 rounded-[2rem] border border-white/5 overflow-hidden flex flex-col items-center justify-center text-white">
-                    {videoStream ? (
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="absolute inset-0 w-full h-full object-cover z-0"
-                      />
-                    ) : (
-                      <>
-                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] z-0" />
-                        <div className="absolute w-40 h-40 border border-white/10 rounded-full animate-[spin_20s_linear_infinite] z-0" />
-                        <div className="absolute w-48 h-48 border border-dashed border-rose-500/20 rounded-full z-0" />
-                      </>
-                    )}
-                    
-                    <div className="absolute top-4 left-4 flex items-center gap-2 z-10 bg-slate-900/80 px-2 py-1 rounded-md border border-white/10">
-                      <div className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-500'}`} />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-200">
-                        {verifyMethod === 'photo' && 'PHOTO VIEW'}
-                        {verifyMethod === 'video' && `VIDEO REC ${recordTime}s`}
-                        {verifyMethod === 'scan' && 'BARCODE RETICLE'}
-                      </span>
-                    </div>
-
-                    <div className="absolute top-4 right-4 bg-slate-900/80 px-2 py-1 rounded-md border border-white/10 z-10">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">
-                        {activeVerifyLog.id}
-                      </span>
-                    </div>
-
-                    {isRecording ? (
-                      <div className="flex flex-col items-center z-10 bg-slate-950/70 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
-                        <Loader2 className="animate-spin text-rose-500 mb-3" size={32} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
-                          {verifyMethod === 'photo' && 'Capturing Pill Morphology...'}
-                          {verifyMethod === 'video' && 'Streaming Ingestion Record...'}
-                          {verifyMethod === 'scan' && 'Aligning High-Resolution Matrix...'}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center z-10 p-6 text-center bg-slate-950/70 m-4 rounded-2xl border border-white/5 backdrop-blur-sm">
-                        {verifyMethod === 'photo' && (
-                          <>
-                            <Camera size={36} className="text-slate-400 mb-3" />
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-300">Align Medicine Pack / Tablet</h4>
-                            <p className="text-[9px] text-slate-500 uppercase mt-1">Ensure chemical identification markings are clearly visible.</p>
-                          </>
-                        )}
-                        {verifyMethod === 'video' && (
-                          <>
-                            <Video size={36} className="text-slate-400 mb-3" />
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-300">Record 3-Sec Swallowing Ingestion</h4>
-                            <p className="text-[9px] text-slate-500 uppercase mt-1">Keep camera steady as dose ingestion is completed.</p>
-                          </>
-                        )}
-                        {verifyMethod === 'scan' && (
-                          <>
-                            <QrCode size={36} className="text-slate-400 mb-3" />
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-300">Scan Carton Matrix Code</h4>
-                            <p className="text-[9px] text-slate-500 uppercase mt-1">Hold pack flat within alignment bounds.</p>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* High-Precision Dose and Product Verification controls */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-[1.5rem] border border-slate-150 dark:border-slate-800 text-left space-y-4">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Precision Ingestion Scanner Controls</span>
-                    
-                    {/* 1. Ingestion Dosage Quantity Selection */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200">Intended Intake Quantity</span>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded ${intakeQuantity === 1 ? 'bg-emerald-550/10 text-emerald-600' : intakeQuantity > 1 ? 'bg-rose-550/10 text-rose-600 animate-pulse' : 'bg-amber-550/10 text-amber-600'}`}>
-                          {intakeQuantity === 1 ? 'Correct Dose' : intakeQuantity > 1 ? '🚨 Overdose Warning!' : '⚠️ Underdose Alert!'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setIntakeQuantity(q => Math.max(0, q - 0.5))}
-                          className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-all text-sm"
-                        >
-                          -0.5
-                        </button>
-                        <div className="flex-1 text-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl h-10 flex flex-col justify-center">
-                          <span className="text-sm font-black text-slate-850 dark:text-white uppercase">
-                            {intakeQuantity} {intakeQuantity === 1 ? 'Tablet' : 'Tablets'}
-                          </span>
-                          <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-0.5">
-                            Prescribed: 1 Tablet ({activeVerifyLog.dosage})
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIntakeQuantity(q => q + 0.5)}
-                          className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-all text-sm"
-                        >
-                          +0.5
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 2. Simulated Smart Vision & Barcode Scanning results */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 block">Simulate Pack Integrity & Bio-Match Detector</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'match', label: '✅ Authentic Match', desc: 'Verified batch' },
-                          { id: 'wrong_drug', label: '❌ Wrong Drug', desc: 'E.g., Sildenafil' },
-                          { id: 'wrong_dosage', label: '⚠️ Strength Mismatch', desc: '1000mg vs 500mg' },
-                          { id: 'expired', label: '📅 Expired Batch', desc: 'Potency degraded' },
-                        ].map((item, mapIdx_1597) => {
-                          const isSelected = simulatedDrugMatch === item.id;
-                          return (
-                            <button
-                              key={`medicationtracker-l1602-${mapIdx_1597}`}
-                              type="button"
-                              onClick={() => setSimulatedDrugMatch(item.id as any)}
-                              className={`p-2.5 rounded-xl border text-left transition-all ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-850'}`}
-                            >
-                              <span className="text-[9.5px] font-black uppercase block leading-none">{item.label}</span>
-                              <span className="text-[8px] text-slate-400 font-semibold uppercase block mt-0.5">{item.desc}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 3. Ingestion Swallow Confirmation (Triggers custom clinician alerts) */}
-                    <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200">Patient Ingestion Integrity Affirmation</span>
-                        <span className={`text-[8.5px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${ingestionStatus === 'swallowed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 animate-pulse'}`}>
-                          {ingestionStatus === 'swallowed' ? 'Confirm Swallowed' : '🚨 Not Swallowed Alert'}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIngestionStatus('swallowed')}
-                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${ingestionStatus === 'swallowed' ? 'bg-emerald-50/50 dark:bg-emerald-950/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:text-slate-600'}`}
-                        >
-                          <span className="text-xs font-black uppercase tracking-wide">💊 SWALLOWED</span>
-                          <span className="text-[8px] font-bold uppercase text-slate-400 mt-1">Ingested and swallowed</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIngestionStatus('not_swallowed')}
-                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${ingestionStatus === 'not_swallowed' ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400 shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-450 hover:text-slate-650'}`}
-                        >
-                          <span className="text-xs font-black uppercase tracking-wide text-rose-650 dark:text-rose-450">❌ SPIT OUT / HELD</span>
-                          <span className="text-[8px] font-bold uppercase text-slate-400 mt-1">Spit out or not swallowed</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Timing Regulation Card */}
-                  {(() => {
-                    const timing = (() => {
-                      if (!activeVerifyLog) return { text: 'N/A', status: 'unknown', desc: '', timeInfo: '' };
-                      const [schedHr, schedMin] = activeVerifyLog.scheduledTime.split(':').map(Number);
-                      const now = new Date();
-                      const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), schedHr, schedMin);
-                      const diffMin = Math.round((now.getTime() - scheduledDateTime.getTime()) / 60000);
-                      const diffHours = Math.abs(diffMin / 60);
-
-                      if (Math.abs(diffMin) <= 120) {
-                        return {
-                          text: `TIMING COMPLIANT`,
-                          status: 'compliant',
-                          timeInfo: `Prescribed: ${activeVerifyLog.scheduledTime} | Intake: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
-                          desc: 'Within the safe therapeutic timing window (±2 hours).'
-                        };
-                      } else {
-                        const direction = diffMin > 0 ? 'LATE' : 'EARLY';
-                        return {
-                          text: `TIMING DEVIATION DETECTED (${direction})`,
-                          status: 'mismatched',
-                          timeInfo: `Prescribed: ${activeVerifyLog.scheduledTime} | Intake: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
-                          desc: `Intake is ${Math.round(diffHours * 10) / 10} hours ${direction.toLowerCase()}. This timing anomaly is automatically flagged for your physician.`
-                        };
-                      }
-                    })();
-
-                    return (
-                      <div className={`p-4 rounded-2xl border text-left ${timing.status === 'compliant' ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-amber-500/5 border-amber-500/10'}`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Prescription Regulation Check</span>
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${timing.status === 'compliant' ? 'bg-emerald-550/10 text-emerald-600' : 'bg-amber-550/10 text-amber-600'}`}>
-                            {timing.text}
-                          </span>
-                        </div>
-                        <p className="text-xs font-black uppercase text-slate-800 dark:text-slate-100 mt-1">{timing.timeInfo}</p>
-                        <p className="text-[10px] font-bold uppercase text-slate-400 leading-relaxed mt-0.5">{timing.desc}</p>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setVerifyStep('method')}
-                      className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={
-                        verifyMethod === 'photo' ? handleSimulatePhoto :
-                        verifyMethod === 'video' ? handleSimulateVideo :
-                        handleSimulateScan
-                      }
-                      disabled={isRecording}
-                      className="flex-[2] py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {isRecording ? 'Calibrating Capture...' : 'Trigger Verification Device'}
-                    </button>
-                  </div>
+                <div>
+                  <p className="text-xs font-black text-slate-900">Allow Refill</p>
+                  <p className="text-[10px] font-bold text-emerald-700">{currentDraft.allowRefill ? '✓ Enabled' : 'Disabled'}</p>
                 </div>
-              )}
+              </div>
 
-              {/* Step 3: AI Consistency Question */}
-              {verifyStep === 'ai-question' && (
-                <div className="space-y-6">
-                  <div className="p-4 bg-slate-900 text-white rounded-[2rem] border border-white/5 relative overflow-hidden">
-                    <div className="absolute right-4 top-4 text-emerald-400">
-                      <Sparkles size={20} />
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">AI Clinical Auditor</span>
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Consistency Audit</span>
-                    </div>
-                    <p className="text-sm font-black uppercase tracking-wide leading-snug">
-                      "{aiQuestion}"
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Provide Clinical Response</p>
-                    {aiQuestionOptions.map((opt, i) => {
-                      const isSelected = selectedAiAnswer === opt;
-                      return (
-                        <button
-                          key={`medicationtracker-l1732-i-${i}`}
-                          type="button"
-                          onClick={() => setSelectedAiAnswer(opt)}
-                          className={`w-full text-left p-4 rounded-2xl border transition-all text-xs font-bold uppercase leading-normal flex items-start gap-3 ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/15 border-rose-500 text-rose-600 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-850 border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                        >
-                          <span className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-rose-500 font-sans' : 'border-slate-300 font-sans'}`}>
-                            {isSelected && <span className="w-2 h-2 rounded-full bg-rose-500" />}
-                          </span>
-                          <span>{opt}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setVerifyStep('action')}
-                      className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                    >
-                      Rescan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCalculateVerification}
-                      disabled={!selectedAiAnswer}
-                      className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg disabled:opacity-50"
-                    >
-                      Assess Ingestion Integrity
-                    </button>
-                  </div>
+              {/* Add Note */}
+              <div 
+                className="p-3 rounded-xl border bg-blue-50/70 border-blue-300 flex items-center gap-2.5 cursor-pointer"
+              >
+                <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                  <FileText size={16} />
                 </div>
-              )}
-
-              {/* Step 4: Verification Result */}
-              {verifyStep === 'result' && verificationResult && (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4 p-5 bg-slate-50 dark:bg-slate-850 rounded-[2rem] border border-slate-100 dark:border-slate-800">
-                    <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="#e2e8f0" strokeWidth="4" fill="transparent" className="dark:stroke-slate-700" />
-                        <circle cx="32" cy="32" r="28" stroke={verificationResult.score >= 70 ? '#10b981' : '#f59e0b'} strokeWidth="4" fill="transparent"
-                          strokeDasharray={175}
-                          strokeDashoffset={175 - (175 * verificationResult.score) / 100}
-                        />
-                      </svg>
-                      <span className="absolute text-sm font-black text-slate-800 dark:text-white">{verificationResult.score}%</span>
-                    </div>
-
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wide text-slate-400">Adherence Confidence Rating</h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-sm sm:text-base font-black uppercase tracking-tight ${verificationResult.score >= 70 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                          {verificationResult.score >= 70 ? 'HIGH CONFIDENCE INTAKE' : 'LOW CONFIDENCE DETECTED'}
-                        </span>
-                        {verificationResult.score >= 70 ? <CheckCircle2 size={16} className="text-emerald-500" /> : <AlertTriangle size={16} className="text-amber-500" />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {verificationResult.anomaly ? (
-                    <div className="p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/20 rounded-[2rem] space-y-3">
-                      <div className="flex items-center gap-2.5 text-amber-700 dark:text-amber-400">
-                        <ShieldAlert size={20} className="flex-shrink-0" />
-                        <h4 className="text-xs font-black uppercase tracking-wider">Clinical Adherence Exception Flagged</h4>
-                      </div>
-                      <p className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400/80 leading-relaxed">
-                        Reason: {verificationResult.reason}
-                      </p>
-                      
-                      <div className="text-[9px] text-slate-500 bg-white dark:bg-slate-900 border border-amber-100 dark:border-slate-800/60 p-3 rounded-2xl space-y-2 font-bold uppercase">
-                        <span className="text-rose-600 dark:text-rose-400 font-black text-[10px] block">⚠️ Ministry of Health Safety Directives:</span>
-                        <p className="leading-relaxed"><strong className="text-slate-800 dark:text-white">1. TO PREVENT OVER-DOSE:</strong> Never double-dose or swallow extra tablets to make up for a missed schedule. If an interval is missed, wait and take the next scheduled dose as programmed.</p>
-                        <p className="leading-relaxed"><strong className="text-slate-800 dark:text-white">2. TO AVOID UNDER-DOSE:</strong> Strictly align ingestions within the ±2 hour therapeutic window. If delayed past 4 hours, verify matching blood serum guidance or contact your clinician.</p>
-                      </div>
-
-                      <p className="text-[9px] text-slate-400 uppercase font-bold leading-relaxed pt-1 border-t border-amber-500/10">
-                        Note: An alert dispatch has been scheduled for your doctor. Supervision and caregiver verification has been initialized.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/20 rounded-[2rem] flex items-start gap-3">
-                      <CheckCircle2 size={20} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h4 className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Compliant Pattern Confirmed</h4>
-                        <p className="text-[9px] uppercase font-bold text-slate-400 mt-1">
-                          The ingestion proof matched scheduled criteria. No suspicious intake behavior has been flagged.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl text-[10px] font-bold text-slate-400 uppercase leading-relaxed space-y-1">
-                    <p className="font-black text-slate-500 mb-1">AUDIT SUMMARY LOG:</p>
-                    <p>• Verification: {verifyMethod.toUpperCase()}</p>
-                    <p className="truncate">• Proof: {scannedCode || recordedVideo || 'Camera Capture Stream Approved'}</p>
-                    <p>• Consistency Check: COHERENT ASSESSMENT RECORDED</p>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleCancelVerification();
-                        refreshAllLocalData();
-                      }}
-                      className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                    >
-                      Dismiss Portal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveVerifiedDose}
-                      className="flex-[2] py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <ShieldCheck size={14} />
-                      Log Verified Dose
-                    </button>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-slate-900">Add Note</p>
+                  <input 
+                    type="text" 
+                    value={currentDraft.note}
+                    onChange={(e) => updateCurrentDraft(d => ({ ...d, note: e.target.value }))}
+                    placeholder="Optional note"
+                    className="w-full text-[10px] text-blue-700 bg-transparent outline-none truncate"
+                  />
                 </div>
-              )}
-            </motion.div>
+              </div>
+            </div>
+
+            {/* Action Buttons Bar */}
+            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  updateCurrentDraft(draft => ({
+                    ...draft,
+                    medicines: [draft.medicines[0]],
+                    note: ''
+                  }));
+                  addToast?.('Prescription scratchpad cleared.', 'info');
+                }}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              >
+                Clear
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSavePrescription}
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                Save Prescription
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Printer size={14} />
+                <span>Print / Share</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendToPatient}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Send size={14} />
+                <span>Send to Patient</span>
+              </button>
+            </div>
+
           </div>
-        )}
-      </AnimatePresence>
+
+        </div>
+
+        {/* ======================================================= */}
+        {/* COLUMN 3: PATIENT SUMMARY & MEDICATION TRACKER (Right)  */}
+        {/* ======================================================= */}
+        <div className="lg:col-span-3 space-y-4">
+          
+          {/* Card 1: Patient Summary */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900">Patient Summary</h3>
+              <button 
+                type="button"
+                onClick={() => addToast?.(`Navigating to full records of ${selectedPatient.name}`, 'info')}
+                className="text-xs font-bold text-blue-600 hover:text-blue-500"
+              >
+                More →
+              </button>
+            </div>
+
+            {/* Profile Row */}
+            <div className="flex items-center gap-3">
+              <img 
+                src={selectedPatient.avatar} 
+                alt={selectedPatient.name} 
+                className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100"
+              />
+              <div>
+                <h4 className="text-sm font-black text-slate-900">{selectedPatient.name}</h4>
+                <p className="text-xs text-slate-500">
+                  {selectedPatient.gender}/{selectedPatient.age} • PID: {selectedPatient.pid}
+                </p>
+                <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+                  ● Active
+                </span>
+              </div>
+            </div>
+
+            {/* Contact details */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <Phone size={13} className="text-slate-400" />
+                <span className="font-semibold text-slate-800">{selectedPatient.phone}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin size={13} className="text-slate-400" />
+                <span>{selectedPatient.location}</span>
+              </div>
+            </div>
+
+            {/* Visits & Appointments */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px]">
+              <div className="p-2 rounded-xl bg-slate-50">
+                <p className="text-slate-400 font-bold">Last Visit</p>
+                <p className="font-bold text-slate-800 mt-0.5">{selectedPatient.lastVisit}</p>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-50">
+                <p className="text-slate-400 font-bold">Next Appointment</p>
+                <p className="font-bold text-slate-800 mt-0.5">{selectedPatient.nextAppointment}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Medication Tracker (Radial Adherence + Checklist) */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900">Medication Tracker</h3>
+              <button 
+                type="button"
+                onClick={() => addToast?.('Medication adherence detail report opened.', 'info')}
+                className="text-xs font-bold text-blue-600 hover:text-blue-500"
+              >
+                View Details →
+              </button>
+            </div>
+
+            {/* Radial Adherence Progress Ring */}
+            <div className="flex items-center justify-center py-2">
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+                  <circle 
+                    cx="18" 
+                    cy="18" 
+                    r="14" 
+                    fill="none" 
+                    stroke="#10b981" 
+                    strokeWidth="3" 
+                    strokeDasharray="88" 
+                    strokeDashoffset={88 - (88 * selectedPatient.adherenceRate) / 100}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute text-center">
+                  <span className="text-lg font-black font-mono text-slate-900">{selectedPatient.adherenceRate}%</span>
+                  <span className="text-[9px] font-bold text-slate-500 block">On Time</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Next Dose Indicator */}
+            <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200 text-center">
+              <p className="text-xs text-slate-600 font-medium">Next Dose</p>
+              <p className="text-sm font-black text-blue-700">Today, 8:00 PM</p>
+            </div>
+
+            {/* Send Reminder Button */}
+            <button
+              type="button"
+              onClick={() => addToast?.(`Dose alarm notification dispatched to ${selectedPatient.name}'s phone.`, 'success')}
+              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+            >
+              <Bell size={14} />
+              <span>Send Reminder</span>
+            </button>
+
+            {/* Dose Timeline Checklist */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              {doses.map(d => (
+                <div 
+                  key={d.id}
+                  onClick={() => handleToggleDose(d.id)}
+                  className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    {d.status === 'Taken' ? (
+                      <CheckCircle2 size={16} className="text-emerald-500" />
+                    ) : (
+                      <span className="w-4 h-4 rounded-full border-2 border-slate-300" />
+                    )}
+                    <span className="font-semibold text-slate-700">{d.time}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold ${
+                    d.status === 'Taken' ? 'text-emerald-600' : 'text-slate-400'
+                  }`}>
+                    {d.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ========================================================= */}
+      {/* BOTTOM 3 PANELS: ACTIVE PRESCRIPTIONS, INTAKE, ACTIONS    */}
+      {/* ========================================================= */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 items-stretch">
+        
+        {/* PANEL 1: Active Prescriptions (5) Table */}
+        <div className="lg:col-span-5 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Active Prescriptions ({activePrescriptions.length})
+              </h4>
+              <button 
+                type="button" 
+                onClick={() => addToast?.('Viewing all master prescription logs.', 'info')}
+                className="text-xs font-bold text-blue-600 hover:text-blue-500"
+              >
+                View All →
+              </button>
+            </div>
+
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-2">
+                    <th className="py-2">Medicine</th>
+                    <th className="py-2">Dose</th>
+                    <th className="py-2">Duration</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {activePrescriptions.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 font-bold text-slate-800 flex items-center gap-2">
+                        <Pill size={13} className="text-blue-600" />
+                        <span className="truncate max-w-[130px]">{item.medicine}</span>
+                      </td>
+                      <td className="py-2.5 text-slate-600 font-medium">{item.dose}</td>
+                      <td className="py-2.5 text-slate-600">{item.duration}</td>
+                      <td className="py-2.5">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                          ● {item.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5 text-slate-400">
+                          <button 
+                            type="button"
+                            onClick={() => addToast?.(`Rx details: ${item.medicine}`, 'info')}
+                            className="hover:text-blue-600 p-1"
+                          >
+                            <Eye size={13} />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActivePrescriptions(prev => prev.filter(r => r.id !== item.id));
+                              addToast?.(`Removed prescription: ${item.medicine}`, 'info');
+                            }}
+                            className="hover:text-rose-600 p-1"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* PANEL 2: Medication Intake Overview (7-Day Bar Chart) */}
+        <div className="lg:col-span-4 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Activity size={14} className="text-blue-600" />
+                <span>Medication Intake Overview</span>
+              </h4>
+              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                Last 7 Days ⌵
+              </span>
+            </div>
+
+            {/* 7-Day Emerald Bar Chart */}
+            <div className="grid grid-cols-7 gap-2 items-end h-36 pt-4 pb-2">
+              {[
+                { day: 'Mon', val: 100 },
+                { day: 'Tue', val: 95 },
+                { day: 'Wed', val: 90 },
+                { day: 'Thu', val: 100 },
+                { day: 'Fri', val: 92 },
+                { day: 'Sat', val: 96 },
+                { day: 'Sun', val: 100 },
+              ].map((b, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[9px] font-black text-emerald-700">{b.val}%</span>
+                  <div 
+                    className="w-full rounded-md bg-emerald-500 hover:bg-emerald-400 transition-all shadow-xs"
+                    style={{ height: `${(b.val / 100) * 85}px` }}
+                  />
+                  <span className="text-[10px] font-bold text-slate-500">{b.day}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-400 text-center font-medium">
+            Overall 7-Day Compliance Score: <strong className="text-emerald-600">96.1%</strong>
+          </p>
+        </div>
+
+        {/* PANEL 3: Quick Actions Tiles */}
+        <div className="lg:col-span-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-amber-500">⚡</span>
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Quick Actions</h4>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 my-auto">
+            {/* Add Prescription */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('new_rx');
+                addToast?.('Prescription studio activated.', 'info');
+              }}
+              className="p-3 rounded-2xl bg-blue-50/80 hover:bg-blue-100 border border-blue-200 text-blue-700 flex flex-col items-center justify-center text-center transition-all cursor-pointer shadow-xs group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-1.5 shadow-sm group-hover:scale-110 transition-transform">
+                <span className="font-serif font-black text-xs">Rx</span>
+              </div>
+              <span className="text-[11px] font-black leading-tight">Add Prescription</span>
+            </button>
+
+            {/* View Reports */}
+            <button
+              type="button"
+              onClick={() => onNavigate?.('diagnostic_lab')}
+              className="p-3 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 flex flex-col items-center justify-center text-center transition-all cursor-pointer shadow-xs group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-1.5 shadow-sm group-hover:scale-110 transition-transform">
+                <TrendingUp size={15} />
+              </div>
+              <span className="text-[11px] font-black leading-tight">View Reports</span>
+            </button>
+
+            {/* Manage Reminders */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('tracker');
+                addToast?.('Medication alarm manager open.', 'info');
+              }}
+              className="p-3 rounded-2xl bg-purple-50/80 hover:bg-purple-100 border border-purple-200 text-purple-700 flex flex-col items-center justify-center text-center transition-all cursor-pointer shadow-xs group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-1.5 shadow-sm group-hover:scale-110 transition-transform">
+                <Bell size={15} />
+              </div>
+              <span className="text-[11px] font-black leading-tight">Manage Reminders</span>
+            </button>
+
+            {/* Patient Records */}
+            <button
+              type="button"
+              onClick={() => onNavigate?.('records')}
+              className="p-3 rounded-2xl bg-teal-50/80 hover:bg-teal-100 border border-teal-200 text-teal-700 flex flex-col items-center justify-center text-center transition-all cursor-pointer shadow-xs group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center mb-1.5 shadow-sm group-hover:scale-110 transition-transform">
+                <FileText size={15} />
+              </div>
+              <span className="text-[11px] font-black leading-tight">Patient Records</span>
+            </button>
+          </div>
+
+          <p className="text-[10px] text-slate-400 text-center font-mono mt-2">
+            Integrated with MoH Uganda Clinical Guidelines
+          </p>
+        </div>
+
+      </div>
+
+      {/* ========================================================= */}
+      {/* PRINTABLE / SHARE RX MODAL                                */}
+      {/* ========================================================= */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-serif font-black">
+                  Rx
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Doctorian Medical Prescription</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Official Clinical Dispense Order</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowPrintModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Prescribing Doctor Header */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
+              <div>
+                <p className="font-extrabold text-slate-900">Prescribing Physician: Dr. Joseph Akora</p>
+                <p className="text-[10px] text-slate-500">Ministry of Health Registered Medical Practitioner</p>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-slate-700 font-bold">{new Date().toLocaleDateString()}</p>
+                <p className="text-[10px] text-emerald-600 font-bold">Encrypted & Verified</p>
+              </div>
+            </div>
+
+            {/* Patient Info */}
+            <div className="text-xs space-y-1">
+              <p className="text-slate-600">Patient: <strong className="text-slate-900">{selectedPatient.name}</strong> ({selectedPatient.gender}/{selectedPatient.age})</p>
+              <p className="text-slate-600">Patient ID: <strong className="text-slate-900">{selectedPatient.pid}</strong> · Diagnosis: <strong className="text-blue-700">{currentDraft.diagnosis}</strong></p>
+            </div>
+
+            {/* Medication Schedule List */}
+            <div className="space-y-2 border-t border-b border-slate-200 py-3">
+              {currentDraft.medicines.map((m, i) => (
+                <div key={m.id} className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 text-xs flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-slate-900">{i + 1}. {m.medicine}</p>
+                    <p className="text-[10px] text-slate-500">{m.dosage} · {m.frequency} for {m.duration}</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                    {m.instructions}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {currentDraft.note && (
+              <p className="text-[11px] text-slate-600 italic">
+                Special Note: "{currentDraft.note}"
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.print();
+                  setShowPrintModal(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Printer size={14} />
+                <span>Print Document</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  addToast?.(`Prescription download generated for ${selectedPatient.name}`, 'success');
+                  setShowPrintModal(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Share2 size={14} />
+                <span>Share PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* NEW PATIENT REGISTRATION MODAL                            */}
+      {/* ========================================================= */}
+      {showNewPatientModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form 
+            onSubmit={handleAddNewPatient}
+            className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-black text-slate-900">Register New Patient</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowNewPatientModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Full Patient Name</label>
+              <input 
+                type="text" 
+                required
+                value={newPatientForm.name}
+                onChange={(e) => setNewPatientForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Florence Namusisi"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Age</label>
+                <input 
+                  type="number" 
+                  required
+                  value={newPatientForm.age}
+                  onChange={(e) => setNewPatientForm(prev => ({ ...prev, age: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Gender</label>
+                <select
+                  value={newPatientForm.gender}
+                  onChange={(e) => setNewPatientForm(prev => ({ ...prev, gender: e.target.value as any }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                >
+                  <option value="F">Female (F)</option>
+                  <option value="M">Male (M)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Telephone / WhatsApp Contact</label>
+              <input 
+                type="text" 
+                required
+                value={newPatientForm.phone}
+                onChange={(e) => setNewPatientForm(prev => ({ ...prev, phone: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">District / Region</label>
+              <input 
+                type="text" 
+                value={newPatientForm.location}
+                onChange={(e) => setNewPatientForm(prev => ({ ...prev, location: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowNewPatientModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-sm"
+              >
+                Register Patient
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      </div>
     </div>
   );
 };
+
+export default MedicationTracker;

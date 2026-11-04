@@ -94,7 +94,7 @@ import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { MedicalAI } from './components/MedicalAI';
 import { ChatInterface } from './components/ChatInterface';
-import PatientMonitor from './components/PatientMonitor';
+import { PatientsDashboard } from './components/PatientsDashboard';
 import VitalityMatrix from './components/VitalityMatrix';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
 import { BiomaticSandbox } from './components/BiomaticSandbox';
@@ -203,7 +203,8 @@ const PatientProfileViewer = safeLazy(() => import("./components/PatientProfileV
 const AdminDashboard = safeLazy(() => import("./components/AdminDashboard"), "AdminDashboard");
 const AccessRestriction = safeLazy(() => import("./components/AccessRestriction"), "AccessRestriction");
 const SpecialistFinder = safeLazy(() => import("./components/SpecialistFinder"), "SpecialistFinder");
-const SymptomChecker = safeLazy(() => import("./components/SymptomChecker"), "SymptomChecker");
+const UgandaPatientTriage = safeLazy(() => import("./components/UgandaPatientTriage"), "UgandaPatientTriage");
+const SymptomChecker = safeLazy(() => import("./components/UgandaPatientTriage"), "UgandaPatientTriage");
 const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
 const AppMedics = safeLazy(() => import("./components/AppMedics"), "AppMedics");
 const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
@@ -222,7 +223,6 @@ const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"),
 
 const josephPortrait = "/african_doctor_male.png";
 import { AppServerNetwork } from "./components/AppServerNetwork";
-import { AppDebugSystem } from "./components/AppDebugSystem";
 import { AuthModal } from "./components/AuthModal";
 import { AdminInfoModal } from "./components/AdminInfoModal";
 import { Footer } from "./components/Footer";
@@ -430,7 +430,7 @@ import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 const viewNamesMap: Record<string, string> = {
   home: 'Clinical Health Dashboard',
   ambient_scribe: 'Ambient Multilingual SOAP Scribe & Mesh Sync',
-  monitor: 'Real-Time Bio-Telemetry Monitor',
+  monitor: 'Patients Dashboard & Remote Bio-Telemetry',
   features: 'Clinical Modules & Intelligence',
   about: 'System Architecture & Platform Info',
   learn_more: 'Clinical Documentation & Guidance',
@@ -442,7 +442,7 @@ const viewNamesMap: Record<string, string> = {
   vitality: 'Vitality & Metabolic Index',
   meds: 'Precision Clinical Pharmacy',
   fitness: 'Physiological Longevity Protocols',
-  symptoms: 'Clinical Symptom Triage',
+  symptoms: 'Uganda National Patient Triage & Clinical Registry',
   biosecurity: 'Biometric Security & 2FA Vault',
   ai_nexus: 'AI Diagnostic Consultation',
   illustrator: '3D Anatomical & Surgical Illustrator',
@@ -852,19 +852,6 @@ export default function App() {
   }, [currentLanguage]);
 
   const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | 'nextgen_tech' | 'app_medics' | ResourceType>('home');
-  const [showDebugSystem, setShowDebugSystem] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) || e.key === 'F2') {
-        e.preventDefault();
-        setShowDebugSystem(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -3752,7 +3739,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="w-full"
             >
-              <PatientMonitor arduino={arduino} user={user} onUpdateUser={setUser} onNavigate={(v) => setCurrentView(v)} />
+              <PatientsDashboard />
             </motion.div>
           ) : currentView === 'features' ? (
           <motion.div
@@ -3811,7 +3798,7 @@ export default function App() {
             exit={{ opacity: 0, scale: 1.05 }}
             className="w-full"
           >
-            <SymptomChecker user={user} onUpdateUser={setUser} onNavigate={setCurrentView} />
+            <UgandaPatientTriage user={user} onNavigate={setCurrentView} />
           </motion.div>
         ) : currentView === 'meds' ? (
           <motion.div
@@ -5060,22 +5047,6 @@ export default function App() {
         />
       </SafeNavErrorBoundary>
     )}
-    {/* Floating Full App Debug Trigger */}
-    <button
-      type="button"
-      onClick={() => setShowDebugSystem(true)}
-      title="Doctorian Full App Debug & Self-Healing Suite (Ctrl+Shift+D or F2)"
-      className="fixed bottom-24 right-4 z-[90] p-2.5 rounded-full bg-[#0a1838]/90 hover:bg-blue-600 border border-blue-500/40 text-cyan-300 hover:text-white shadow-xl backdrop-blur-md transition-all cursor-pointer group flex items-center gap-1.5"
-    >
-      <Bug size={16} className="group-hover:rotate-12 transition-transform text-cyan-400 group-hover:text-white" />
-      <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Debug OS</span>
-    </button>
-
-    <AppDebugSystem 
-      isOpen={showDebugSystem} 
-      onClose={() => setShowDebugSystem(false)} 
-      addToast={addToast} 
-    />
 
   </div>
 </ErrorBoundary>

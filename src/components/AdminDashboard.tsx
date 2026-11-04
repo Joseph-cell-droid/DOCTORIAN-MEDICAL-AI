@@ -37,11 +37,9 @@ import {
   Check, 
   Rocket,
   ShieldCheck,
-  Server,
-  Bug
+  Server
 } from 'lucide-react';
 import { api, User } from '../api';
-import { AppDebugSystem } from './AppDebugSystem';
 
 interface AdminDashboardProps {
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
@@ -156,7 +154,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
     { id: 'alt-3', title: 'New security update available', type: 'security', severity: 'info' }
   ]);
   const [showAlertModal, setShowAlertModal] = useState(false);
-  const [showDebugModal, setShowDebugModal] = useState(false);
 
   // AI Assistant Chat State
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'ai' | 'user'; text: string; time: string }>>([
@@ -452,9 +449,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
           <div className="flex items-center flex-wrap gap-3 sm:gap-4 shrink-0">
             {/* Operational Pill */}
             <div 
-              onClick={() => setShowDebugModal(true)}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.2)] cursor-pointer hover:border-emerald-400 transition-all"
-              title="Launch Doctorian Full App Debug & Self-Healing Suite"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+              title="All Doctorian services healthy"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-xs font-bold text-emerald-300 whitespace-nowrap">
@@ -488,16 +484,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
                 className="p-2.5 rounded-xl bg-[#070e24]/90 hover:bg-blue-600/20 border border-blue-500/30 text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
               >
                 <Headphones size={16} />
-              </button>
-
-              <button 
-                type="button" 
-                onClick={() => setShowDebugModal(true)}
-                title="Doctorian Full App Debug & Diagnostics Suite"
-                className="p-2.5 rounded-xl bg-[#070e24]/90 hover:bg-blue-600/20 border border-blue-500/30 text-cyan-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5"
-              >
-                <Bug size={16} />
-                <span className="text-[10px] font-black uppercase tracking-wider hidden md:inline">Debug OS</span>
               </button>
 
               <button 
@@ -581,7 +567,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
                         'Help & Support': 'help',
                       };
                       if (item.name === 'System Settings') {
-                        setShowDebugModal(true);
+                        onNavigate?.('systems_hub');
                       } else if (item.name === 'Dashboard') {
                         setActiveNav('Dashboard');
                       } else if (routeMap[item.name]) {
@@ -1442,13 +1428,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
           </div>
         </div>
       )}
-
-      {/* App Debug System Modal */}
-      <AppDebugSystem 
-        isOpen={showDebugModal} 
-        onClose={() => setShowDebugModal(false)} 
-        addToast={addToast} 
-      />
 
     </div>
   );

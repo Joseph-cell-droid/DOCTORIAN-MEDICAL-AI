@@ -87,7 +87,10 @@ import { Compass,
   AlertTriangle,
   Layers,
   HardDrive,
-  HelpCircle
+  HelpCircle,
+  Users,
+  FlaskConical,
+  Maximize2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -215,6 +218,7 @@ const BioSecurity = safeLazy(() => import("./components/BioSecurity"), "BioSecur
 const DeveloperPortal = safeLazy(() => import("./components/DeveloperPortal"), "DeveloperPortal");
 const GsmSmsGateway = safeLazy(() => import("./components/GsmSmsGateway"), "GsmSmsGateway");
 const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
+const AppSettingsPage = safeLazy(() => import("./components/AppSettingsPage"), "AppSettingsPage");
 import { BMICalculator } from "./components/BMICalculator";
 const AmbientClinicalScribe = safeLazy(() => import("./components/AmbientClinicalScribe"), "AmbientClinicalScribe");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
@@ -1037,6 +1041,9 @@ export default function App() {
   const [billingInitialTab, setBillingInitialTab] = useState<'protocols' | 'storage'>('protocols');
   const [isThemeSchedulerOpen, setIsThemeSchedulerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isUpperBarAlertsOpen, setIsUpperBarAlertsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
@@ -1378,6 +1385,16 @@ export default function App() {
       localStorage.removeItem('medical_user');
     }
   }, [user, isAuthReady]);
+
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+      }
+    }
+  };
 
   // First-time automatic interactive page tutorial launch - runs only once per specific account
   useEffect(() => {
@@ -2657,270 +2674,231 @@ export default function App() {
         Skip to main content
       </a>
       
-      {/* Sidebar - Desktop/Tablet Landscape */}
+      {/* ========================================================================= */}
+      {/* CANONICAL MODERN DARK NAVY SIDEBAR (Matching Image a33b3901 & Image 9ca8ccdf) */}
+      {/* ========================================================================= */}
       {user && (
         <aside 
-          className={`hidden md:flex flex-col bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 shrink-0 transition-all duration-300 ease-in-out z-[110] relative ${
-            isSidebarCollapsed ? 'w-[78px]' : 'w-[210px] xl:w-[230px]'
-          }`}
-          aria-label="Sidebar navigation"
+          className="hidden md:flex flex-col w-64 bg-[#081530] border-r border-blue-900/50 shrink-0 h-full select-none z-30 relative overflow-hidden"
+          aria-label="Doctorian Main Navigation"
         >
-          <div className="flex flex-col h-full py-6">
-            <div className={`w-full mb-6 ${isSidebarCollapsed ? 'px-2 justify-center flex-col gap-4' : 'px-4 justify-between'} flex items-center shrink-0 border-b border-slate-50 dark:border-slate-900 pb-5`}>
-              <div className="flex items-center gap-3 min-w-0">
-                <Logo size="sm" showText={false} className="shrink-0" />
-                {!isSidebarCollapsed && (
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-black uppercase text-slate-800 dark:text-white tracking-[0.12em] leading-none">CLINICAL CORE</span>
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                      <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest leading-none">SYS ONLINE</span>
-                    </div>
-                  </div>
-                )}
+          {/* Top Logo & Branding */}
+          <div 
+            onClick={() => setCurrentView('home')}
+            className="p-5 flex items-center gap-3 cursor-pointer hover:opacity-95 transition-opacity shrink-0 border-b border-blue-900/40"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg">
+              <div className="w-full h-full bg-[#061127] rounded-[14px] flex items-center justify-center text-cyan-400 font-black">
+                <Heart size={20} className="fill-cyan-400 text-cyan-400" />
               </div>
-              
-              <button 
-                onClick={toggleSidebar}
-                className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-250 transition-all cursor-pointer active:scale-95 shadow-sm shrink-0`}
-                title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              >
-                {isSidebarCollapsed ? <ChevronRight size={14} className="w-3.5 h-3.5" /> : <ChevronLeft size={14} className="w-3.5 h-3.5" />}
-              </button>
             </div>
+            <div>
+              <h2 className="text-base font-black tracking-tight text-white leading-tight">Doctorian AI</h2>
+              <p className="text-[9px] text-cyan-300 font-medium">Smarter Healthcare, Better Life</p>
+            </div>
+          </div>
 
-            <nav className="flex-1 w-full px-2.5 flex flex-col gap-2 overflow-y-auto no-scrollbar smooth-scroll pr-1 pb-4" aria-label="Main navigation">
-              {sidebarSections.map((sec, sIdx) => {
-                const isExpanded = !!expandedSectionTitles[sec.title];
-                const hasActiveChild = sec.items.some(item => isSubViewActive(item.id, currentView));
-                const hasCriticalChild = sec.items.some(item => item.id === 'monitor' && isArduinoCritical);
+          {/* Scrollable Navigation List (13 Modern Buttons) */}
+          <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 text-xs font-bold" aria-label="Primary Navigation">
+            {[
+              { id: 'home', label: 'Dashboard', icon: Home },
+              { id: 'records', label: 'Patients', icon: Users, badge: '24' },
+              { id: 'doctors_dashboard', label: 'Doctors', icon: Stethoscope },
+              { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
+              { id: 'meds', label: 'Prescriptions', icon: Pill },
+              { id: 'diagnostic_lab', label: 'Laboratory', icon: FlaskConical },
+              { id: 'pharmacy', label: 'Pharmacy', icon: Pill, targetView: 'meds' },
+              { id: 'telemedicine', label: 'Telemedicine', icon: Video, action: () => setIsTelehealthOpen(true) },
+              { id: 'ai_nexus', label: 'AI Assistant', icon: Bot },
+              { id: 'analytics', label: 'Analytics', icon: TrendingUp, targetView: 'vitality' },
+              { id: 'vitality', label: 'Vitality Matrix', icon: Activity },
+              { id: 'settings', label: 'Settings', icon: Settings },
+              { id: 'about', label: 'Help & Support', icon: HelpCircle }
+            ].map((item) => {
+              const target = item.targetView || item.id;
+              const isActive = (item.id === 'pharmacy' && currentView === 'meds')
+                ? false
+                : (item.id === 'analytics' && currentView === 'vitality')
+                ? false
+                : currentView === target;
 
-                return (
-                  <div key={`sidebar-sec-${sec.title}-${sIdx}`} className="flex flex-col shrink-0">
-                    {/* Systematic Main Category Header Button */}
-                    {!isSidebarCollapsed ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExpandedSectionTitles(prev => ({
-                            ...prev,
-                            [sec.title]: !prev[sec.title]
-                          }));
-                        }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-all text-left cursor-pointer group mb-1 ${
-                          hasActiveChild 
-                            ? 'bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 font-extrabold shadow-2xs' 
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-900/80 text-slate-700 dark:text-slate-300 font-bold border border-transparent'
-                        }`}
-                        title={`${isExpanded ? 'Collapse' : 'Expand'} ${translate(sec.title, currentLanguage)}`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                            hasActiveChild ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                          }`}>
-                            {sec.icon}
-                          </div>
-                          <span className="text-[11px] uppercase tracking-wider truncate">
-                            {translate(sec.title, currentLanguage)}
-                          </span>
-                        </div>
+              const Icon = item.icon;
 
-                        <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                          {hasCriticalChild && (
-                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" title="Critical Telemetry Active" />
-                          )}
-                          {hasActiveChild && !isExpanded && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                          )}
-                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-slate-200/60 dark:bg-slate-800 text-slate-500">
-                            {sec.items.length}
-                          </span>
-                          {isExpanded ? (
-                            <ChevronDown size={13} className="text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform" />
-                          ) : (
-                            <ChevronRight size={13} className="text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform" />
-                          )}
-                        </div>
-                      </button>
-                    ) : (
-                      <div className="px-2 py-1 flex items-center justify-center text-[10px] text-slate-400 font-bold">
-                        •
-                      </div>
-                    )}
-
-                    {/* Sub-items (Hidden when collapsed inside main button name) */}
-                    {(isExpanded || isSidebarCollapsed) && (
-                      <div
-                        className={`flex flex-col gap-1 overflow-hidden transition-all duration-200 ${
-                          !isSidebarCollapsed ? 'pl-2 border-l-2 border-slate-200/60 dark:border-slate-800/80 ml-3 mb-2' : ''
-                        }`}
-                      >
-                        {sec.items.map((item, iIdx) => {
-                          const isActive = isSubViewActive(item.id, currentView);
-                          const isItemCritical = item.id === 'monitor' && isArduinoCritical;
-
-                          const sidebarButton = (
-                            <button
-                              key={`sidebar-item-${item.id}-${iIdx}`}
-                              onClick={() => {
-                                if ((item as any).action) {
-                                  (item as any).action();
-                                } else {
-                                  setCurrentView(item.id as any);
-                                }
-                              }}
-                              className={`w-full flex items-center ${
-                                isSidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-2'
-                              } rounded-xl transition-all duration-200 group relative text-left outline-none cursor-pointer ${
-                                isActive
-                                  ? 'bg-blue-600 dark:bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25'
-                                  : isItemCritical
-                                  ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-950/30 border border-rose-500/40 hover:bg-rose-500/20'
-                                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-transparent hover:bg-slate-100/80 dark:hover:bg-slate-900/60'
-                              }`}
-                              title={isSidebarCollapsed ? `${translate(item.label, currentLanguage)}${isItemCritical ? ' - CRITICAL VITAL STATUS' : ''}` : undefined}
-                            >
-                              <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all relative ${
-                                isActive
-                                  ? 'bg-white/20 text-white shadow-xs'
-                                  : isItemCritical
-                                  ? 'bg-rose-500/20 text-rose-500 border border-rose-500/40'
-                                  : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 group-hover:text-slate-800 dark:group-hover:text-slate-100'
-                              }`}>
-                                {React.cloneElement(item.icon as any, {
-                                  size: 16,
-                                  className: isItemCritical ? "text-rose-500 animate-pulse stroke-[2.4]" : "transition-colors"
-                                })}
-
-                                {isItemCritical ? (
-                                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 z-10" title="Critical Telemetry Alert">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-85" />
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 border-2 border-white dark:border-slate-900" />
-                                  </span>
-                                ) : item.badgeDot === 'purple' ? (
-                                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500 shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              {!isSidebarCollapsed && (
-                                <span className={`text-[12.5px] font-bold truncate flex-1 leading-none tracking-tight ${isItemCritical && !isActive ? 'text-rose-600 dark:text-rose-400 font-black' : ''}`}>
-                                  {translate(item.label, currentLanguage)}
-                                </span>
-                              )}
-
-                              {isItemCritical && !isSidebarCollapsed && (
-                                <span className="ml-auto px-1.5 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-widest bg-rose-500 text-white shadow-xs animate-pulse shrink-0">
-                                  CRITICAL
-                                </span>
-                              )}
-
-                              {isActive && !isSidebarCollapsed && !isItemCritical && (
-                                <motion.span
-                                  layoutId="sidebar-active-dot"
-                                  className="w-1.5 h-1.5 rounded-full bg-white ml-auto shrink-0 shadow-xs"
-                                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                                />
-                              )}
-                            </button>
-                          );
-
-                          if (item.id === 'monitor') {
-                            return (
-                              <BioTelemetryRangeTooltip
-                                key={`sidebar-tip-${item.id}-${iIdx}`}
-                                position={isSidebarCollapsed ? "right" : "bottom"}
-                                align={isSidebarCollapsed ? "center" : "start"}
-                                triggerClassName="w-full block"
-                              >
-                                {sidebarButton}
-                              </BioTelemetryRangeTooltip>
-                            );
-                          }
-
-                          return sidebarButton;
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Systems Hub Launchpad Section */}
-              <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/80 w-full shrink-0">
+              return (
                 <button
-                  onClick={() => setCurrentView('systems_hub')}
-                  className={`w-full flex items-center ${
-                    isSidebarCollapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2.5'
-                  } rounded-2xl transition-all duration-200 group text-left outline-none cursor-pointer ${
-                    currentView === 'systems_hub'
-                      ? 'bg-blue-600 dark:bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25'
-                      : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-transparent hover:bg-slate-100/80 dark:hover:bg-slate-900/60'
+                  key={`main-nav-${item.id}`}
+                  type="button"
+                  onClick={() => {
+                    if (item.action) {
+                      item.action();
+                    } else {
+                      setCurrentView(target as any);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 font-black'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
                   }`}
-                  title={isSidebarCollapsed ? translate("Systems Hub", currentLanguage) : undefined}
                 >
-                  <div className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
-                    currentView === 'systems_hub'
-                      ? 'bg-white/20 text-white shadow-xs'
-                      : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 group-hover:text-slate-800 dark:group-hover:text-slate-100 group-hover:scale-105'
-                  }`}>
-                    <LayoutGrid size={18} />
+                  <div className="flex items-center gap-3">
+                    <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                    <span>{item.label}</span>
                   </div>
-
-                  {!isSidebarCollapsed && (
-                    <span className="text-[13.5px] font-bold truncate flex-1 leading-none tracking-tight">
-                      {translate("Systems Hub", currentLanguage)}
+                  {item.badge && (
+                    <span className="w-5 h-5 rounded-full bg-rose-500 text-[10px] font-black text-white flex items-center justify-center shadow-sm">
+                      {item.badge}
                     </span>
                   )}
-
-                  {currentView === 'systems_hub' && !isSidebarCollapsed && (
-                    <motion.span
-                      layoutId="sidebar-active-dot"
-                      className="w-2 h-2 rounded-full bg-white ml-auto shrink-0 shadow-xs"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
+                  {isActive && !item.badge && (
+                    <ChevronRight size={14} className="text-white/80" />
                   )}
                 </button>
-              </div>
-            </nav>
+              );
+            })}
+          </nav>
 
-            <div className="mt-auto w-full px-3 py-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col gap-2 shrink-0">
-              {/* Operations Settings Button */}
-              <button
-                type="button"
-                onClick={() => setIsOperationsSettingsOpen(true)}
-                className={`w-full flex items-center ${
-                  isSidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'
-                } rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer shadow-xs`}
-                title={isSidebarCollapsed ? "App Operations Settings" : undefined}
-              >
-                <Sliders size={14} className="text-cyan-500 shrink-0" />
-                {!isSidebarCollapsed && <span>App Settings</span>}
-              </button>
-
-              <div className={`flex items-center ${
-                isSidebarCollapsed ? 'justify-center p-2' : 'justify-between px-3.5 py-2.5'
-              } bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100/80 dark:border-slate-800/80`} title="Secure Core System Status: Active">
-                {!isSidebarCollapsed && (
-                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none">
-                    SECURE CORE
+          {/* Bottom System Status Box (Exact Match to Image a33b3901) */}
+          <div className="p-3 border-t border-blue-900/40 shrink-0">
+            <div className="p-3 rounded-2xl bg-[#0a1b38] border border-blue-800/60 space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-emerald-400" />
+                <div>
+                  <span className="text-[11px] font-black text-white block leading-tight">System Online</span>
+                  <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    All Services Active
                   </span>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
-                  {!isSidebarCollapsed && (
-                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                      ACTIVE
-                    </span>
-                  )}
                 </div>
               </div>
+              {/* Animated ECG Waveform */}
+              <div className="h-5 w-full">
+                <svg className="w-full h-full" viewBox="0 0 100 20" preserveAspectRatio="none">
+                  <path
+                    d="M 0,10 L 25,10 L 32,2 L 38,18 L 44,6 L 50,14 L 56,10 L 100,10"
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
             </div>
+            <p className="text-[9px] text-slate-500 text-center font-mono mt-2">v2.0.0 | Doctorian AI</p>
           </div>
         </aside>
       )}
+
+      {/* Mobile Slide-out Drawer for Navigation */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <div className="fixed inset-0 z-[120] md:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-[#081530] border-r border-blue-900/50 flex flex-col z-10 shadow-2xl"
+            >
+              <div className="p-4 flex items-center justify-between border-b border-blue-900/40">
+                <div 
+                  onClick={() => {
+                    setCurrentView('home');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className="flex items-center gap-2.5 cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 flex items-center justify-center">
+                    <div className="w-full h-full bg-[#061127] rounded-[10px] flex items-center justify-center text-cyan-400 font-black">
+                      <Heart size={18} className="fill-cyan-400 text-cyan-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black tracking-tight text-white leading-tight">Doctorian AI</h2>
+                    <p className="text-[9px] text-cyan-300 font-medium">Smarter Healthcare, Better Life</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 text-xs font-bold">
+                {[
+                  { id: 'home', label: 'Dashboard', icon: Home },
+                  { id: 'records', label: 'Patients', icon: Users, badge: '24' },
+                  { id: 'doctors_dashboard', label: 'Doctors', icon: Stethoscope },
+                  { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
+                  { id: 'meds', label: 'Prescriptions', icon: Pill },
+                  { id: 'diagnostic_lab', label: 'Laboratory', icon: FlaskConical },
+                  { id: 'pharmacy', label: 'Pharmacy', icon: Pill, targetView: 'meds' },
+                  { id: 'telemedicine', label: 'Telemedicine', icon: Video, action: () => { setIsTelehealthOpen(true); setIsMobileSidebarOpen(false); } },
+                  { id: 'ai_nexus', label: 'AI Assistant', icon: Bot },
+                  { id: 'analytics', label: 'Analytics', icon: TrendingUp, targetView: 'vitality' },
+                  { id: 'vitality', label: 'Vitality Matrix', icon: Activity },
+                  { id: 'settings', label: 'Settings', icon: Settings },
+                  { id: 'about', label: 'Help & Support', icon: HelpCircle }
+                ].map((item) => {
+                  const target = item.targetView || item.id;
+                  const isActive = currentView === target;
+                  const Icon = item.icon;
+
+                  return (
+                    <button
+                      key={`mob-nav-${item.id}`}
+                      type="button"
+                      onClick={() => {
+                        if (item.action) {
+                          item.action();
+                        } else {
+                          setCurrentView(target as any);
+                          setIsMobileSidebarOpen(false);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 font-black'
+                          : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge && (
+                        <span className="w-5 h-5 rounded-full bg-rose-500 text-[10px] font-black text-white flex items-center justify-center shadow-sm">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              <div className="p-3 border-t border-blue-900/40">
+                <div className="p-2.5 rounded-xl bg-[#0a1b38] border border-blue-800/60 flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
+                  <div className="text-[10px] text-white font-bold leading-tight">
+                    System Online
+                    <span className="block text-[9px] text-emerald-400 font-medium">All Services Active</span>
+                  </div>
+                </div>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile/Tablet Header & Bottom Nav */}
       <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-md overflow-hidden z-10">
@@ -2950,289 +2928,212 @@ export default function App() {
           }}
           className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible pt-[env(safe-area-inset-top,0px)]"
         >
-          <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 md:px-6 lg:px-8">
-            <div className="flex items-center justify-between py-2 sm:py-3 gap-2.5 sm:gap-3.5 md:gap-4 lg:gap-6 w-full">
-              {/* Upper Bar Brand Identity & App Name */}
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setCurrentView('home')}
-                  className="flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-teal-500/10 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-teal-950/30 border border-blue-200/80 dark:border-blue-800/60 hover:border-blue-400/80 transition-all cursor-pointer shadow-sm hover:shadow-md shrink-0 group/brand"
-                  title="Doctorian AI Medical Platform"
-                  aria-label="Doctorian AI Home"
+          <div className="w-full px-3 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-2.5 sm:py-3 gap-3 w-full">
+              
+              {/* Left Side: Mobile Menu Toggle & Brand (on mobile) or Search Bar (on desktop) */}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Mobile hamburger menu */}
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="md:hidden p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs shrink-0"
+                  aria-label="Open Navigation Menu"
                 >
-                  <Logo size="sm" showText={true} />
-                </motion.button>
+                  <Menu size={20} />
+                </button>
 
-                {/* Brand Logo Identity */}
+                {/* Mobile Brand Logo */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('home')}
+                  className="md:hidden flex items-center gap-2 shrink-0 cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-sm">
+                    <div className="w-full h-full bg-[#061127] rounded-[10px] flex items-center justify-center text-cyan-400">
+                      <Heart size={16} className="fill-cyan-400 text-cyan-400" />
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-slate-900 dark:text-white">Doctorian</span>
+                </button>
+
+                {/* Modern Search Capsule Input (Matching Screenshots image_9ca8ccdf & image_a33b3901) */}
+                <div className="flex-1 max-w-xl relative hidden sm:block">
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    onClick={() => setIsSearchOpen(true)}
+                    readOnly
+                    placeholder="Search patients, doctors, or health records... (Ctrl + K)"
+                    className="w-full pl-11 pr-4 py-2 sm:py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-200 font-medium placeholder:text-slate-400 hover:border-blue-400 transition-all cursor-pointer shadow-2xs focus:outline-none"
+                  />
+                </div>
               </div>
 
-              {/* Middle Toolbar Controls - Professionally Spaced */}
-              <div className="flex flex-1 justify-end sm:justify-center px-1 sm:px-2 md:px-3 items-center gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 overflow-visible min-w-0">
-                <motion.button 
+              {/* Right Side: Search Icon (mobile), Notification Bell (3), Fullscreen Toggle, User Profile */}
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                {/* Mobile Search Button */}
+                <button
+                  type="button"
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex items-center justify-center h-10 md:h-10.5 lg:h-11 rounded-xl text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800/90 border border-slate-300/80 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer w-10 md:w-10 lg:w-auto lg:max-w-md lg:flex-1 lg:gap-3 px-2.5 lg:px-4 shadow-xs shrink-0 lg:shrink"
-                  aria-label="Open search"
+                  className="sm:hidden w-9 h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs cursor-pointer"
+                  title="Search"
                 >
-                  <Search aria-hidden="true" size={16} className="text-slate-800 dark:text-slate-100 shrink-0 font-bold" />
-                  <span className="text-xs font-black text-high-visibility truncate uppercase tracking-widest hidden lg:block">Search System...</span>
-                </motion.button>
-                 {/* Clinical Auditory & Sonification Hub (Moved to Systems Hub) */}
-                 <div className="hidden">
-                   <motion.button
-                     onClick={() => {
-                       setIsAudioMenuOpen(!isAudioMenuOpen);
-                       setIsLanguageMenuOpen(false);
-                       setIsWindowsMenuOpen(false);
-                       setIsProfileOpen(false);
-                     }}
-                     className={`p-1.5 md:p-2 lg:p-2.5 rounded-xl transition-all flex items-center justify-center border shadow-sm shrink-0 w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 cursor-pointer relative ${
-                       isAudioMenuOpen 
-                         ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20' 
-                         : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
-                     }`}
-                     aria-label="Clinical Audio Settings"
-                     title="Clinical Audio & Sonification Hub"
-                   >
-                    {vitalsAudioEnabled || soundscapeEnabled ? (
-                      <div className="relative flex items-center justify-center">
-                        <Headphones size={16} className={`shrink-0 ${vitalsAudioEnabled ? 'text-rose-500 animate-bounce' : 'text-blue-500 animate-pulse'}`} />
-                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                      </div>
-                    ) : (
-                      <VolumeX size={16} className="shrink-0 text-slate-400" />
-                    )}
-                  </motion.button>
+                  <Search size={16} />
+                </button>
 
-                  {isAudioMenuOpen && (
-                    <div 
-                      className="fixed inset-0 z-40 bg-transparent"
-                      onClick={() => setIsAudioMenuOpen(false)}
-                    />
-                  )}
+                {/* 1. Notification Bell with "3" Red Badge & Popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUpperBarAlertsOpen(!isUpperBarAlertsOpen);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative"
+                    title="3 Urgent Clinical Notifications"
+                    aria-label="Clinical Notifications"
+                  >
+                    <Bell size={18} className="text-slate-700 dark:text-slate-200" />
+                    <span className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 text-white font-black text-[10px] flex items-center justify-center shadow-md shadow-red-500/40">
+                      3
+                    </span>
+                  </button>
+
+                  {/* 3 Alerts Notification Popover */}
                   <AnimatePresence>
-                    {isAudioMenuOpen && (
-                      <motion.div
-                        key="audio-menu-modal"
-                        initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                    {isUpperBarAlertsOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40"
+                          onClick={() => setIsUpperBarAlertsOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 12, scale: 0.95 }}
-                          className="absolute right-0 mt-3 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-200/60 dark:border-slate-800/80 p-5 z-50 overflow-visible z-50"
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 z-50 overflow-hidden"
                         >
-                          <div className="flex flex-col gap-4">
-                            <div className="pb-2 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-left">
-                              <span className="text-[10px] font-black uppercase tracking-tight text-slate-400 dark:text-slate-500">Clinical Sound Engine</span>
-                              <span className="text-[8px] font-mono bg-blue-500/10 text-blue-600 dark:bg-blue-500/25 dark:text-blue-400 px-2 py-0.5 rounded-md uppercase font-black tracking-widest">Active Background</span>
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <Bell size={16} className="text-red-500" />
+                              <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Clinical Alerts</span>
                             </div>
+                            <span className="text-[10px] font-bold bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">3 Critical</span>
+                          </div>
 
-                            {/* Section 1: Heartbeat Pulse Sonification */}
-                            <div className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100/50 dark:border-slate-850/50 text-left">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex gap-2">
-                                  <div className="p-1.5 rounded-xl bg-rose-500/10 text-rose-500 mt-0.5 shrink-0">
-                                    <Activity size={14} className={vitalsAudioEnabled ? "animate-pulse" : ""} />
-                                  </div>
-                                  <div>
-                                    <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Vitals Pulse (Heart)</h4>
-                                    <p className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">Audible pulse, SpO2 pitch-tracking, and diagnostic warning alerts.</p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={toggleVitalsAudio}
-                                  className={`w-9 h-5 rounded-full p-0.5 transition-all outline-none border cursor-pointer ${
-                                    vitalsAudioEnabled 
-                                      ? 'bg-rose-500 border-rose-400 flex justify-end items-center' 
-                                      : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
-                                  }`}
-                                >
-                                  <motion.div layout className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
-                                </button>
+                          <div className="divide-y divide-slate-100 dark:divide-slate-800/60 max-h-80 overflow-y-auto custom-scrollbar">
+                            {/* Alert 1 */}
+                            <div 
+                              onClick={() => {
+                                setCurrentView('diagnostic_lab');
+                                setIsUpperBarAlertsOpen(false);
+                                addToast('Navigating to Diagnostic Lab for James Okwera', 'info');
+                              }}
+                              className="py-3 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-xs font-black text-rose-600 dark:text-rose-400">Critical Lab Alert</span>
+                                <span className="text-[9px] text-slate-400">5m ago</span>
                               </div>
-
-                              {vitalsAudioEnabled && (
-                                <div className="mt-2 flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/40 pt-2">
-                                  <div className="flex items-center justify-between text-[8px] uppercase font-black text-slate-400">
-                                    <span>Volume</span>
-                                    <span>{Math.round(vitalsAudioVolume * 100)}%</span>
-                                  </div>
-                                  <input 
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.05"
-                                    value={vitalsAudioVolume}
-                                    onChange={(e) => handleVitalsVolumeChange(parseFloat(e.target.value))}
-                                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                                  />
-                                </div>
-                              )}
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">James Okwera (#P-10244)</p>
+                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Fasting Blood Sugar flagged high at 184 mg/dL. Mulago Hospital node.</p>
                             </div>
 
-                            {/* Section 2: Cognitive Binaural Soundscapes */}
-                            <div className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100/50 dark:border-slate-850/50 text-left">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex gap-2">
-                                  <div className="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-500 mt-0.5 shrink-0">
-                                    <Music size={14} className={soundscapeEnabled ? "animate-spin" : ""} style={{ animationDuration: '8s' }} />
-                                  </div>
-                                  <div>
-                                    <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">Ambient Soundscape</h4>
-                                    <p className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">Focus binaural carrier waves stacked with a soft brown noise mask.</p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={toggleSoundscapeGlobal}
-                                  className={`w-9 h-5 rounded-full p-0.5 transition-all outline-none border cursor-pointer ${
-                                    soundscapeEnabled 
-                                      ? 'bg-indigo-500 border-indigo-400 flex justify-end items-center' 
-                                      : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 flex justify-start items-center'
-                                  }`}
-                                >
-                                  <motion.div layout className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
-                                </button>
+                            {/* Alert 2 */}
+                            <div 
+                              onClick={() => {
+                                setCurrentView('doctors_dashboard');
+                                setIsUpperBarAlertsOpen(false);
+                                addToast('Navigating to Doctors Hub for Rebecca Namagembe', 'info');
+                              }}
+                              className="py-3 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">High Temp Flag</span>
+                                <span className="text-[9px] text-slate-400">7m ago</span>
                               </div>
-
-                              {soundscapeEnabled && (
-                                <div className="mt-2 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800/40 pt-2 text-[8px] uppercase">
-                                  <div className="flex items-center justify-between font-black text-slate-400">
-                                    <span>Volume</span>
-                                    <span>{Math.round(soundscapeVolume * 100)}%</span>
-                                  </div>
-                                  <input 
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.05"
-                                    value={soundscapeVolume}
-                                    onChange={(e) => handleSoundscapeVolChangeGlobal(parseFloat(e.target.value))}
-                                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                                  />
-
-                                  <div className="font-black text-slate-400 mt-1 mb-0.5">Preset Profile</div>
-                                  <div className="grid grid-cols-3 gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-100 dark:border-slate-850 rounded-xl">
-                                    {(['alpha_focus', 'theta_meditation', 'beta_high_cognition'] as const).map((p, pIdx) => {
-                                      const labelMap = { alpha_focus: 'Alpha', theta_meditation: 'Theta', beta_high_cognition: 'Beta' };
-                                      const active = soundscapePreset === p;
-                                      return (
-                                        <button
-                                          key={`hdr-sound-preset-${p}-${pIdx}`}
-                                          type="button"
-                                          onClick={() => changePresetGlobal(p)}
-                                          className={`py-1 text-[8px] font-black uppercase rounded-lg transition-all border cursor-pointer leading-none truncate ${
-                                            active 
-                                              ? 'bg-indigo-500 text-white border-indigo-500 shadow-sm' 
-                                              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'
-                                          }`}
-                                        >
-                                          {labelMap[p]}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">Rebecca Namagembe (#P-10241)</p>
+                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Body temperature elevated at 38.6°C febrile spike. Triage required.</p>
                             </div>
 
-                            <div className="text-[7.5px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500 text-center select-none pt-1">
-                              👉 Click page anywhere to run soundscapes
+                            {/* Alert 3 */}
+                            <div 
+                              onClick={() => {
+                                setCurrentView('clinical_roadmap');
+                                setIsUpperBarAlertsOpen(false);
+                                addToast('Opening Appointments schedule', 'info');
+                              }}
+                              className="py-3 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-xs font-black text-blue-600 dark:text-blue-400">Upcoming Consultation</span>
+                                <span className="text-[9px] text-slate-400">In 15m</span>
+                              </div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">Grace Akello (#P-10245)</p>
+                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Cardiology Clinic Room 3 with Dr. Sarah Nakato at Mulago Hospital.</p>
                             </div>
                           </div>
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsUpperBarAlertsOpen(false);
+                                addToast('All alerts marked as reviewed', 'success');
+                              }}
+                              className="text-[11px] font-black text-blue-600 dark:text-cyan-400 uppercase tracking-wider hover:underline"
+                            >
+                              Mark All as Reviewed
+                            </button>
+                          </div>
                         </motion.div>
+                      </>
                     )}
                   </AnimatePresence>
                 </div>
 
+                {/* 2. Fullscreen Toggle Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                  aria-label="Toggle Fullscreen"
+                >
+                  <Maximize2 size={17} className="text-slate-700 dark:text-slate-200" />
+                </button>
 
-
-                {/* Restructured Executive Settings Icon Button with Feature Matrix */}
-                <div className="relative overflow-visible shrink-0">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsOperationsSettingsOpen(!isOperationsSettingsOpen)}
-                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer relative group ${
-                      isOperationsSettingsOpen 
-                        ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 border-cyan-400 text-white shadow-[0_0_18px_rgba(6,182,212,0.5)] ring-2 ring-cyan-400/40' 
-                        : 'bg-slate-100 border-slate-300 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-900/90 dark:hover:bg-slate-800'
-                    }`}
-                    aria-label="Executive Operations Settings & Feature Buttons Matrix"
-                    title="Executive Operations Settings & Feature Buttons Matrix"
+                {/* 3. User Profile Capsule (Dr. Joseph Akora / Administrator) */}
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsProfileOpen(!isProfileOpen);
+                      setIsUpperBarAlertsOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-full shadow-2xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group"
+                    aria-label="User profile menu"
+                    aria-expanded={isProfileOpen}
                   >
-                    <Settings size={18} className={`shrink-0 stroke-[2.2] transition-transform duration-500 ${
-                      isOperationsSettingsOpen ? 'text-white rotate-90' : 'text-cyan-500 group-hover:rotate-90'
-                    }`} />
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 border-white dark:border-slate-950 shadow-[0_0_8px_rgba(6,182,212,1)] animate-pulse" />
-                  </motion.button>
-                </div>
-
-
-
-                {/* Doctorian Systems Menu Launchpad - Icon Only to Save Space */}
-                <div className="relative overflow-visible shrink-0">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsWindowsMenuOpen(!isWindowsMenuOpen)}
-                    className={`rounded-xl transition-all flex items-center justify-center border shadow-xs shrink-0 h-10 w-10 md:h-10.5 md:w-10.5 lg:h-11 lg:w-11 cursor-pointer relative ${
-                      isWindowsMenuOpen 
-                        ? 'bg-blue-100 border-blue-400 text-blue-900 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-200 ring-2 ring-blue-500/20 shadow-md' 
-                        : 'bg-slate-100 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750'
-                    }`}
-                    aria-label="Doctorian Systems Menu (Settings, Languages & Launchpad)"
-                    title="Doctorian Systems Menu (Access Settings, Languages & Clinical Launchpad)"
-                  >
-                    <LayoutGrid size={18} className="shrink-0 text-blue-500 stroke-[2.2]" />
-                    {hasNotification && (
-                      <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 shrink-0 border border-white dark:border-slate-900 animate-pulse" />
-                    )}
-                  </motion.button>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 sm:gap-3 md:gap-3.5 ml-auto shrink-0">
-              {isAuthReady && (
-                user ? (
-                  <div className="flex items-center gap-2 sm:gap-3 relative shrink-0">
-                    <div className="hidden lg:flex items-center gap-1.5 px-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 shrink-0 h-10 md:h-10.5 lg:h-11">
-                      <Zap size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                      <span className="text-[10px] lg:text-xs font-black text-blue-700 dark:text-blue-300 shrink-0">
-                        {displayCredits}
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden border border-blue-200 dark:border-blue-700 shrink-0">
+                      <img 
+                        src={josephPortrait} 
+                        alt="Dr. Joseph Akora" 
+                        className="w-full h-full object-cover shrink-0" 
+                      />
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+                    </div>
+                    <div className="hidden lg:flex flex-col text-left">
+                      <span className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                        Dr. Joseph Akora
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold leading-tight">
+                        Administrator
                       </span>
                     </div>
-
-                    <div className="relative shrink-0">
-                      <button 
-                        className="group flex items-center gap-2 pl-1 pr-2 md:pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer active:scale-95 shrink-0 h-10 md:h-10.5 lg:h-11 items-center"
-                        onClick={() => setIsProfileOpen(!isProfileOpen)}
-                        aria-label="User profile menu"
-                        aria-haspopup="true"
-                        aria-expanded={isProfileOpen}
-                      >
-                        <div className="h-6 w-6 md:h-7 md:w-7 lg:h-8 lg:w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 overflow-hidden flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-blue-500/50 transition-all">
-                          {user.photoURL ? (
-                            <img src={user.photoURL} alt={`Profile of ${user.displayName || user.email}`} className="w-full h-full object-cover shrink-0" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-[10px] md:text-xs shrink-0">
-                              {user.displayName?.[0] || user.email[0].toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <div className="hidden lg:flex flex-col items-start leading-tight">
-                          <span className="text-[10px] font-black text-slate-900 dark:text-white truncate max-w-[80px] uppercase tracking-tighter">
-                            {user.displayName?.split(' ')[0] || 'User'}
-                          </span>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                            {user.subscriptionTier || 'Free'} Core
-                          </span>
-                        </div>
-                        <ChevronDown size={12} className={`text-slate-400 transition-transform duration-300 hidden lg:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
-                      </button>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 hidden lg:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
                       {isProfileOpen && (
                         <div 
@@ -3382,39 +3283,10 @@ export default function App() {
                         )}
                       </AnimatePresence>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    <button 
-                      onClick={() => {
-                        setAuthModalView('login');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="flex items-center justify-center gap-1.5 h-9 sm:h-9.5 px-3 sm:px-3.5 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-250 dark:border-slate-800 whitespace-nowrap shrink-0 cursor-pointer"
-                      title="Sign In"
-                    >
-                      <LogIn size={14} className="shrink-0 text-slate-500 dark:text-slate-400" />
-                      <span>Sign In</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setAuthModalView('signup');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="hidden sm:flex items-center justify-center gap-1.5 h-9 sm:h-9.5 px-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-all shadow-sm shadow-blue-600/20 whitespace-nowrap shrink-0 cursor-pointer"
-                      title="Create Account"
-                    >
-                      <UserPlus size={14} className="shrink-0" />
-                      <span>Sign Up</span>
-                    </button>
-                  </div>
-                )
-              )}
-
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </motion.header>
+          </motion.header>
 
       {/* Visual Offline Mode Banner */}
       <AnimatePresence>
@@ -3463,78 +3335,14 @@ export default function App() {
       </div>
 
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0' : 'pb-8 sm:pb-12'
+        ['ai_nexus', 'home', 'doctors_dashboard', 'vitality', 'settings'].includes(currentView) ? 'pb-0 h-full min-h-0' : 'pb-8 sm:pb-12'
       }`} id="main-content">
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
-            currentView === 'ai_nexus' 
-              ? 'py-0 px-0 max-w-full h-full min-h-0' 
+            ['ai_nexus', 'home', 'doctors_dashboard', 'vitality', 'settings'].includes(currentView)
+              ? 'py-0 px-0 max-w-full h-full min-h-0 space-y-0' 
               : 'py-6 sm:py-8 lg:py-10 px-4 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-6 sm:space-y-8'
           }`}>
-            {currentView !== 'ai_nexus' && (
-              <EdgeScrollNavigation 
-                currentView={currentView}
-                onOpenStorageVault={() => setIsStorageVaultOpen(true)}
-                onNavigateNext={() => {
-                  const views = [
-                    'home',
-                    'vitality',
-                    'monitor',
-                    'health_trace',
-                    'meds',
-                    'clinical_roadmap',
-                    'records',
-                    'symptoms',
-                    'ambient_scribe',
-                    'diagnostic_lab',
-                    'illustrator',
-                    'doctors_dashboard',
-                    'neuro',
-                    'specialist',
-                    'biomatic',
-                    'genomic_longevity',
-                    'gsm_sms_gateway',
-                    'profile',
-                    'admin'
-                  ];
-                  const idx = views.indexOf(currentView);
-                  if (idx >= 0 && idx < views.length - 1) {
-                    setCurrentView(views[idx + 1] as any);
-                  } else {
-                    setCurrentView('home');
-                  }
-                }}
-                onNavigatePrev={() => {
-                  const views = [
-                    'home',
-                    'vitality',
-                    'monitor',
-                    'health_trace',
-                    'meds',
-                    'clinical_roadmap',
-                    'records',
-                    'symptoms',
-                    'ambient_scribe',
-                    'diagnostic_lab',
-                    'illustrator',
-                    'doctors_dashboard',
-                    'neuro',
-                    'specialist',
-                    'biomatic',
-                    'genomic_longevity',
-                    'gsm_sms_gateway',
-                    'profile',
-                    'admin'
-                  ];
-                  const idx = views.indexOf(currentView);
-                  if (idx > 0) {
-                    setCurrentView(views[idx - 1] as any);
-                  } else {
-                    setCurrentView(views[views.length - 1] as any);
-                  }
-                }}
-              />
-            )}
-            {renderSubTabsBar()}
+            {/* Side buttons remain exclusively on the left sidebar and are not repeated inside the page */}
             <Suspense fallback={
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
                 <div className="relative">
@@ -4312,6 +4120,16 @@ export default function App() {
           >
             <AppointmentsView user={user} onShowToast={(msg, type) => addToast(msg, type || 'info')} />
           </motion.div>
+        ) : currentView === 'settings' ? (
+          <motion.div
+            key="settings"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full"
+          >
+            <AppSettingsPage onNavigate={setCurrentView} user={user} addToast={(msg, type) => addToast(msg, type || 'info')} />
+          </motion.div>
         ) : (
           <motion.div
             role="main"
@@ -4824,12 +4642,11 @@ export default function App() {
   />
   
             {currentView !== 'ai_nexus' && (
-              <>
-                <div className="flex-grow" />
+              <div className="w-full mt-auto pb-28 sm:pb-16 relative z-10">
                 <Suspense fallback={<div className="h-20" />}>
                   <Footer onNavigate={(view) => setCurrentView(view)} />
                 </Suspense>
-              </>
+              </div>
             )}
 
             {/* Single clean install modal when triggered from upper bar or sidebar */}

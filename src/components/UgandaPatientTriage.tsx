@@ -54,6 +54,10 @@ interface UgandaPatientRecord {
   medications: string[];
   ownerEmail?: string;
   avatar: string;
+  nin: string;
+  bloodType: string;
+  allergies: string[];
+  insuranceScheme: string;
 }
 
 const UGANDA_PATIENTS: UgandaPatientRecord[] = [
@@ -76,7 +80,11 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     diagnosis: 'Acute Severe Asthma Exacerbation with Secondary Bronchospasm',
     medications: ['Salbutamol Nebulization 5mg', 'Hydrocortisone 100mg IV', 'Oxygen via Mask 6L/min'],
     ownerEmail: 'sarah.nakato@patient.ug',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
+    nin: 'CM8802914209LK',
+    bloodType: 'O+ (Rh Positive) • HbAA',
+    allergies: ['Penicillin (Moderate rash)', 'NSAIDs (Mild dyspepsia)'],
+    insuranceScheme: 'Uganda National Health Insurance (UCHIS) • ID: UCH-9021-KLA'
   },
   {
     id: 'UG-MBR-002',
@@ -97,7 +105,11 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     diagnosis: 'Acute Coronary Syndrome (NSTEMI) / Hypertensive Urgency',
     medications: ['Aspirin 300mg stat', 'Clopidogrel 300mg stat', 'Atorvastatin 80mg'],
     ownerEmail: 'john.mukasa@patient.ug',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+    nin: 'CM7901419401KJ',
+    bloodType: 'A+ (Rh Positive) • HbAS',
+    allergies: ['No Known Drug Allergies (NKDA)'],
+    insuranceScheme: 'Jubilee Health Insurance Uganda • Gold Plan #JUB-44910'
   },
   {
     id: 'UG-GLU-003',
@@ -118,7 +130,11 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     diagnosis: 'Complicated Malaria in Recovery / Mild Anemia',
     medications: ['Artesunate IV Completed', 'Coartem oral tablets', 'Ferrous Sulfate 200mg'],
     ownerEmail: 'mary.atim@patient.ug',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+    nin: 'CF9402810941GT',
+    bloodType: 'B+ (Rh Positive) • HbAA',
+    allergies: ['Sulfa Antibiotics (Co-trimoxazole)'],
+    insuranceScheme: 'Northern Uganda VHT Community Fund • Card #VHT-GLU-102'
   },
   {
     id: 'UG-JNJ-004',
@@ -139,7 +155,11 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     diagnosis: 'Diabetic Ketoacidosis (DKA) with Community-Acquired Pneumonia',
     medications: ['Normal Saline 1L IV stat', 'Regular Insulin Infusion', 'Ceftriaxone 2g IV daily'],
     ownerEmail: 'david.ssemwogerere@patient.ug',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+    nin: 'CM6801940122MN',
+    bloodType: 'AB+ (Rh Positive) • HbAA',
+    allergies: ['Latex sensitivity'],
+    insuranceScheme: 'Prudential Uganda Health Scheme • Policy #PRU-UG-7721'
   },
   {
     id: 'UG-KRD-005',
@@ -160,7 +180,11 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     diagnosis: 'Chronic Kidney Disease Stage 3 / Routine Dialysis Evaluation',
     medications: ['Furosemide 40mg daily', 'Calcium Carbonate 500mg TDS', 'Erythropoietin 4000 IU'],
     ownerEmail: 'florence.nabukenya@patient.ug',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80',
+    nin: 'CF8503910023LK',
+    bloodType: 'O- (Universal Donor) • HbAA',
+    allergies: ['Aspirin (Bronchospasm)'],
+    insuranceScheme: 'Kiruddu Renal Subsidy & UCHIS • Account #KRD-8812'
   },
   {
     id: 'UG-ENT-006',
@@ -181,7 +205,11 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     diagnosis: 'COPD Mild Flare-up / Post Viral Bronchitis Resolved',
     medications: ['Tiotropium HandiHaler', 'Prednisolone 20mg tapering', 'Paracetamol 1g PRN'],
     ownerEmail: 'emmanuel.otim@patient.ug',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80'
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
+    nin: 'CM9702209110AR',
+    bloodType: 'A- (Rh Negative) • HbAA',
+    allergies: ['No Known Drug Allergies (NKDA)'],
+    insuranceScheme: 'Arua Regional Emergency Voucher • #AR-EMG-412'
   }
 ];
 
@@ -628,6 +656,32 @@ export const UgandaPatientTriage: React.FC<UgandaPatientTriageProps> = ({ user, 
                       <li key={i}>{med}</li>
                     ))}
                   </ul>
+                </div>
+
+                {/* SECTION 5: National Identity, Blood Profile, Allergies & Scheme */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1c3f] border border-slate-200 dark:border-blue-900/50 space-y-2">
+                  <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-black uppercase text-[11px]">
+                    <ShieldCheck size={14} />
+                    <span>Section 5: National Identity, Blood Profile & Allergies</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">National Identification Number (NIN)</span>
+                      <strong className="text-cyan-400 font-mono text-xs block">{selectedPatientDetails.nin}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Blood Type & Genotype</span>
+                      <strong className="text-emerald-400 font-mono text-xs block">{selectedPatientDetails.bloodType}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Known Drug Allergies</span>
+                      <strong className="text-rose-400 text-xs block">{selectedPatientDetails.allergies.join(', ') || 'NKDA (None)'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Health Insurance / Referral Voucher</span>
+                      <strong className="text-slate-900 dark:text-slate-200 text-xs block">{selectedPatientDetails.insuranceScheme}</strong>
+                    </div>
+                  </div>
                 </div>
 
               </div>

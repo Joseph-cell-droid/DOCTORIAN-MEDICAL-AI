@@ -43,7 +43,11 @@ import {
   TrendingUp,
   Image as ImageIcon,
   CalendarDays,
-  ExternalLink
+  ExternalLink,
+  Home,
+  HelpCircle,
+  Settings,
+  Maximize2
 } from 'lucide-react';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
@@ -224,129 +228,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   });
 
   return (
-    <div className="w-full min-h-screen bg-[#f3f7fd] dark:bg-[#060c18] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 pb-16 overflow-x-hidden">
-      
-      {/* ========================================================================= */}
-      {/* TOP HEADER BAR                                                            */}
-      {/* ========================================================================= */}
-      <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-[#081329]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-blue-900/40 px-4 sm:px-6 lg:px-8 py-3.5 transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          
-          {/* Search Bar */}
-          <div className="flex-1 max-w-xl relative">
-            <div className="relative flex items-center">
-              <Search size={18} className="absolute left-3.5 text-slate-400 dark:text-blue-400 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchActive(true)}
-                onBlur={() => setTimeout(() => setIsSearchActive(false), 200)}
-                placeholder="Search patients, doctors, or features..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-[#0c1a36] border border-slate-200 dark:border-blue-800/60 rounded-full text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner transition-all"
-              />
-            </div>
-            {/* Search Dropdown preview */}
-            {isSearchActive && searchQuery.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#0a162e] border border-slate-200 dark:border-blue-800 rounded-2xl shadow-2xl p-2 z-50 text-xs">
-                <p className="px-3 py-1 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Quick Matches</p>
-                <button
-                  type="button"
-                  onMouseDown={() => onNavigate('records')}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/60 flex items-center justify-between text-slate-700 dark:text-slate-200"
-                >
-                  <span>Patient: Sarah Nakato (PT-00124)</span>
-                  <span className="text-[10px] text-blue-500 font-bold">Records →</span>
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={() => onNavigate('diagnostic_lab')}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/60 flex items-center justify-between text-slate-700 dark:text-slate-200"
-                >
-                  <span>Lab Analyzer: Complete Blood Count</span>
-                  <span className="text-[10px] text-emerald-500 font-bold">Lab →</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Right Header Controls */}
-          <div className="flex items-center gap-3">
-            
-            {/* Notification Bell with Badge */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsNotificationsOpen(prev => !prev)}
-                className="relative p-2 rounded-full bg-slate-100 dark:bg-[#0c1a36] hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-                aria-label="Notifications"
-              >
-                <Bell size={18} />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center shadow-md animate-pulse">
-                  3
-                </span>
-              </button>
-
-              {/* Notification Popover */}
-              {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#0a162e] border border-slate-200 dark:border-blue-800/80 rounded-2xl shadow-2xl p-4 z-50 space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-blue-900/40">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Live Alerts (3)</span>
-                    <button onClick={() => setIsNotificationsOpen(false)} className="text-slate-400 hover:text-slate-200">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/50">
-                      <p className="font-bold text-blue-700 dark:text-blue-300">Appointment with Dr. Nakitto</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Scheduled for 04:30 PM (General Checkup)</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/50">
-                      <p className="font-bold text-emerald-700 dark:text-emerald-300">Lab Results Verified</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Sarah Nakato test report completed at 09:15 AM</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/50">
-                      <p className="font-bold text-amber-700 dark:text-amber-300">Prescription Refill Ready</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Amoxicillin 500mg dose due in 1h 55m</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* User Profile Capsule: Dr. Joseph Akora (Administrator) */}
-            <div 
-              onClick={() => onNavigate('admin')}
-              className="flex items-center gap-2.5 pl-2 pr-3 py-1 bg-slate-100 dark:bg-[#0c1a36] hover:bg-slate-200 dark:hover:bg-[#122349] border border-slate-200 dark:border-blue-800/60 rounded-full cursor-pointer transition-all shadow-sm"
-              title="View Administrator Command Hub"
-            >
-              <img
-                src="/african_doctor_male.png"
-                alt="Dr. Joseph Akora"
-                className="w-8 h-8 rounded-full object-cover border border-blue-400 shadow-sm"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=100&auto=format&fit=crop&q=80';
-                }}
-              />
-              <div className="hidden sm:block text-left">
-                <div className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                  Dr. Joseph Akora
-                </div>
-                <div className="text-[10px] text-blue-600 dark:text-cyan-400 font-semibold leading-tight">
-                  Administrator
-                </div>
-              </div>
-              <ChevronDown size={14} className="text-slate-400 hidden sm:block" />
-            </div>
-
-          </div>
-        </div>
-      </header>
-
-      {/* ========================================================================= */}
-      {/* MAIN CONTENT CONTAINER                                                    */}
-      {/* ========================================================================= */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+    <div className="w-full bg-[#f3f7fd] dark:bg-[#071329] text-slate-900 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+      <main className="w-full space-y-6">
 
         {/* ===================================================================== */}
         {/* CARD 1: MAIN CLINICAL DASHBOARD (Matching image_9ca8ccdf.png)          */}
@@ -1222,241 +1105,332 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* 3x3 Grid of 9 Interactive Feature Cards */}
+          {/* 3x3 Grid of 9 Interactive Feature Cards (Horizontal layout matching image 2) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
             {/* 1. AI Health Assistant */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-cyan-400 flex items-center justify-center text-xl shadow-inner">
-                  🤖
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-                  Active
-                </span>
+            <div 
+              onClick={() => onNavigate('ai_nexus')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 flex items-center justify-center text-3xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                🤖
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">AI Health Assistant</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    AI Health Assistant
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase shrink-0">
+                    Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Ask health questions, get instant expert advice.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('ai_nexus');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('ai_nexus')}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 2. Laboratory Analyzer */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shadow-inner">
-                  🔬
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase">
-                  New
-                </span>
+            <div 
+              onClick={() => onNavigate('diagnostic_lab')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-purple-400 via-indigo-500 to-purple-600 flex items-center justify-center text-3xl shadow-md shadow-purple-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                🔬
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Laboratory Analyzer</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Laboratory Analyzer
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase shrink-0">
+                    New
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Analyze lab results with AI insights.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('diagnostic_lab');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('diagnostic_lab')}
-                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 3. Telemedicine */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shadow-inner">
-                  📹
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-                  Online
-                </span>
+            <div 
+              onClick={() => setIsVideoModalOpen(true)}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-3xl shadow-md shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                📹
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Telemedicine</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Telemedicine
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase flex items-center gap-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Online
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Consult real doctors via video call.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsVideoModalOpen(true);
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsVideoModalOpen(true)}
-                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 4. Image & Scan Analysis */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xl shadow-inner">
-                  🖼️
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase">
-                  Smart
-                </span>
+            <div 
+              onClick={() => onNavigate('illustrator')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 flex items-center justify-center text-3xl shadow-md shadow-orange-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                🖼️
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Image & Scan Analysis</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Image & Scan Analysis
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase shrink-0">
+                    Smart
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Analyze your medical images (X-ray, MRI, etc).
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('illustrator');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('illustrator')}
-                className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 5. Health Monitor */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-xl shadow-inner">
-                  ❤️
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-                  Connected
-                </span>
+            <div 
+              onClick={() => onNavigate('vitality')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-cyan-300 dark:hover:border-cyan-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-teal-400 via-cyan-500 to-blue-600 flex items-center justify-center text-3xl shadow-md shadow-cyan-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                ❤️
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Health Monitor</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Health Monitor
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase shrink-0">
+                    Connected
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Track vitals: steps, heart rate, temperature & more.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('vitality');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('monitor')}
-                className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 6. Health Robot */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-inner">
-                  🦾
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[10px] font-black uppercase">
-                  Ready
-                </span>
+            <div 
+              onClick={() => onNavigate('biomatic')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-indigo-400 via-blue-600 to-indigo-700 flex items-center justify-center text-3xl shadow-md shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                🦾
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Health Robot</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Health Robot
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase shrink-0">
+                    Ready
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Your personal health robot assistant.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('biomatic');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('biomatic')}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 7. Prescription Manager */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shadow-inner">
-                  💊
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-                  Active
-                </span>
+            <div 
+              onClick={() => onNavigate('meds')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-green-600 flex items-center justify-center text-3xl shadow-md shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                💊
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Prescription Manager</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Prescription Manager
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase shrink-0">
+                    Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Get and manage prescriptions online or offline.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('meds');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('meds')}
-                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 8. Smart Appointments */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-inner">
-                  📅
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase">
-                  Easy
-                </span>
+            <div 
+              onClick={() => onNavigate('clinical_roadmap')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-blue-400 via-indigo-500 to-blue-700 flex items-center justify-center text-3xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                📅
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Smart Appointments</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Smart Appointments
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase shrink-0">
+                    Easy
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Book and manage your appointments.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('clinical_roadmap');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('clinical_roadmap')}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
             {/* 9. Preventive Care */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl shadow-inner">
-                  🛡️
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase">
-                  Proactive
-                </span>
+            <div 
+              onClick={() => onNavigate('genomic_longevity')}
+              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all cursor-pointer flex items-center gap-4 group"
+            >
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-rose-400 via-pink-500 to-red-600 flex items-center justify-center text-3xl shadow-md shadow-rose-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                🛡️
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-900 dark:text-white">Preventive Care</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                    Preventive Care
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase shrink-0">
+                    Proactive
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   Stay healthy with personalized health tips.
                 </p>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('genomic_longevity');
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>Open</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('genomic_longevity')}
-                className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
 
           </div>
@@ -1464,117 +1438,189 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {/* Bottom Summary Row of Card 2: Health Summary + Activity + Actions + Security */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
-            {/* Your Health Summary Donut */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            {/* 1. Your Health Summary Donut */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Your Health Summary</h4>
-                <span className="text-[10px] text-slate-400 font-bold">Last 30 Days</span>
+                <div className="flex items-center gap-1.5">
+                  <Activity size={16} className="text-blue-500" />
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    Your Health Summary
+                  </h4>
+                </div>
+                <select className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg px-2 py-0.5 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer">
+                  <option>Last 30 Days</option>
+                  <option>Last 7 Days</option>
+                  <option>This Year</option>
+                </select>
               </div>
 
-              <div className="flex items-center justify-center gap-4 py-2">
-                <div className="relative w-20 h-20 flex items-center justify-center">
+              <div className="flex items-center justify-between gap-3 py-1">
+                <div className="relative w-22 h-22 flex items-center justify-center shrink-0">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" strokeOpacity="0.1" strokeWidth="3.5" />
-                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray="92, 100" />
+                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray="92, 100" strokeLinecap="round" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-sm font-black text-slate-900 dark:text-white">92%</span>
-                    <span className="text-[7px] font-bold text-slate-400 uppercase">Health Score</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white leading-none">92%</span>
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Health Score</span>
                   </div>
                 </div>
 
-                <div className="space-y-1 text-xs text-left">
-                  <p className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                    <span className="text-emerald-500">✓</span> Steps Goal: 85%
-                  </p>
-                  <p className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                    <span className="text-emerald-500">✓</span> Medication: 100%
-                  </p>
-                  <p className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                    <span className="text-emerald-500">✓</span> Appointments: 100%
-                  </p>
+                <div className="space-y-1.5 text-xs text-left flex-1">
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-[10px] font-black">✓</span>
+                      Steps Goal
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">85%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-[10px] font-black">✓</span>
+                      Medication
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">100%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-[10px] font-black">✓</span>
+                      Appointments
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">100%</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            {/* 2. Recent Activity */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Recent Activity</h4>
-                <button type="button" onClick={() => onNavigate('tasks')} className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline">
+                <div className="flex items-center gap-1.5">
+                  <Clock size={16} className="text-blue-500" />
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    Recent Activity
+                  </h4>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => onNavigate('clinical_roadmap')} 
+                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
+                >
                   View All →
                 </button>
               </div>
 
               <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36]">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">💬 AI consultation completed</span>
-                  <span className="text-[10px] text-slate-400">2 min ago</span>
+                <div 
+                  onClick={() => onNavigate('ai_nexus')}
+                  className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-slate-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="w-6 h-6 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center text-xs shrink-0">💬</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">AI consultation completed</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 shrink-0">2 min ago</span>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36]">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">💊 Prescription updated</span>
-                  <span className="text-[10px] text-slate-400">12 min ago</span>
+                <div 
+                  onClick={() => onNavigate('meds')}
+                  className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-slate-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-xs shrink-0">💊</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">Prescription updated</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 shrink-0">12 min ago</span>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36]">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">🔬 Lab report ready</span>
-                  <span className="text-[10px] text-slate-400">1 hour ago</span>
+                <div 
+                  onClick={() => onNavigate('diagnostic_lab')}
+                  className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-slate-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="w-6 h-6 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center text-xs shrink-0">🔬</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">Lab report ready</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 shrink-0">1 hour ago</span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions (Patient facing) */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
-              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Quick Actions</h4>
+            {/* 3. Quick Actions */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={16} className="text-blue-500" />
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  Quick Actions
+                </h4>
+              </div>
 
               <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() => onNavigate('symptoms')}
-                  className="w-full p-2.5 rounded-xl bg-blue-50 dark:bg-[#0c1a36] hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-cyan-300 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                  className="w-full p-2.5 rounded-2xl bg-blue-50/80 dark:bg-[#0c1a36] hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-cyan-300 text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2">🩺 Check Symptoms</span>
-                  <ChevronRight size={14} />
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs group-hover:scale-110 transition-transform">🩺</span>
+                    Check Symptoms
+                  </span>
+                  <ChevronRight size={14} className="text-blue-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => onNavigate('monitor')}
-                  className="w-full p-2.5 rounded-xl bg-emerald-50 dark:bg-[#0c1a36] hover:bg-emerald-100 dark:hover:bg-blue-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                  onClick={() => onNavigate('vitality')}
+                  className="w-full p-2.5 rounded-2xl bg-emerald-50/80 dark:bg-[#0c1a36] hover:bg-emerald-100 dark:hover:bg-blue-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2">📊 Analyze Health Data</span>
-                  <ChevronRight size={14} />
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs group-hover:scale-110 transition-transform">📊</span>
+                    Analyze Health Data
+                  </span>
+                  <ChevronRight size={14} className="text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onNavigate('records')}
-                  className="w-full p-2.5 rounded-xl bg-purple-50 dark:bg-[#0c1a36] hover:bg-purple-100 dark:hover:bg-blue-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                  className="w-full p-2.5 rounded-2xl bg-purple-50/80 dark:bg-[#0c1a36] hover:bg-purple-100 dark:hover:bg-blue-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2">📁 View My Records</span>
-                  <ChevronRight size={14} />
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center text-xs group-hover:scale-110 transition-transform">📁</span>
+                    View My Records
+                  </span>
+                  <ChevronRight size={14} className="text-purple-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             </div>
 
-            {/* Your Data is Safe */}
-            <div className="p-4 rounded-3xl bg-gradient-to-br from-blue-900 to-indigo-950 text-white shadow-sm flex flex-col justify-between space-y-3 relative overflow-hidden">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-cyan-400" />
+            {/* 4. Your Data is Safe with 3D glowing padlock */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-[#0c2340] via-[#091b33] to-[#040e1e] text-white shadow-md flex flex-col justify-between space-y-3 relative overflow-hidden border border-cyan-500/30">
+              {/* Glowing padlock background graphic on the right */}
+              <div className="absolute -right-4 -bottom-4 w-28 h-28 opacity-30 pointer-events-none flex items-center justify-center">
+                <div className="w-20 h-20 rounded-3xl bg-cyan-500/20 blur-xl absolute" />
+                <Lock size={64} className="text-cyan-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+              </div>
+
+              <div className="flex items-center gap-2 relative z-10">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <ShieldCheck size={16} />
+                </div>
                 <h4 className="text-xs font-black uppercase tracking-wider text-white">Your Data is Safe</h4>
               </div>
 
-              <p className="text-xs text-blue-200 leading-relaxed">
-                Powered by advanced security and privacy protocols. End-to-end encrypted medical telemetry.
+              <p className="text-xs text-blue-200/90 leading-relaxed relative z-10">
+                Powered by advanced security and privacy protocols with AES-256 telemetry encryption.
               </p>
 
-              <button
-                type="button"
-                onClick={() => onNavigate('privacy')}
-                className="w-full py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>Learn More</span>
-                <ChevronRight size={14} />
-              </button>
+              <div className="relative z-10 pt-1">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('privacy')}
+                  className="px-5 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+                >
+                  <span>Learn More</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
 
           </div>
@@ -1630,7 +1676,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       )}
-
     </div>
   );
 };

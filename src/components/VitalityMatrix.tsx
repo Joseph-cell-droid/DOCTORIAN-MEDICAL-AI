@@ -1,1292 +1,1254 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useArduinoContext } from '../ArduinoContext';
 import { 
-  Dna, 
   Activity, 
-  Zap, 
   Heart, 
-  Scale, 
+  Thermometer, 
+  Droplet, 
+  Footprints, 
+  CheckCircle2, 
+  ChevronDown, 
+  Sparkles, 
+  TrendingUp, 
+  BarChart3, 
+  Calendar, 
   Clock, 
+  Plus, 
+  X, 
   ShieldCheck, 
-  ChevronRight,
-  TrendingUp,
-  Target,
-  FlaskConical,
-  Brain,
-  Award,
-  Settings,
-  X,
-  Plus,
-  Play,
-  Info,
-  Lock
+  Moon, 
+  Apple, 
+  Smile, 
+  Zap, 
+  FileText, 
+  Target, 
+  MessageSquare, 
+  ArrowUpRight, 
+  Send,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis
-} from 'recharts';
-import { SafeResponsiveContainer } from './SafeResponsiveContainer';
+import { useArduinoContext } from '../ArduinoContext';
 
-export const VitalityMatrix: React.FC = () => {
+interface VitalityMatrixProps {
+  onNavigate?: (view: string) => void;
+  user?: any;
+  addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
+}
+
+export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user, addToast }) => {
   const arduino = useArduinoContext();
-  const vitals = arduino?.vitals;
+  const liveVitals = arduino?.vitals;
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [longevityScore, setLongevityScore] = useState(89);
-  const [activeSystem, setActiveSystem] = useState<string | null>(null);
+  // Active Sub-Navigation Tab
+  const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'insights' | 'recommendations'>('overview');
 
-  const systemHealthData = [
-    { subject: 'Neural', A: vitals ? Math.min(100, Math.max(10, Math.round(100 - Math.abs(vitals.heartRate - 72) * 0.4))) : 95, fullMark: 100 },
-    { subject: 'Cardiac', A: vitals ? Math.min(100, Math.max(10, Math.round(100 - Math.abs(vitals.systolicBP - 120) * 0.6 - Math.abs(vitals.diastolicBP - 80) * 0.4))) : 88, fullMark: 100 },
-    { subject: 'Metabolic', A: vitals ? Math.min(100, Math.max(10, Math.round(vitals.spo2))) : 92, fullMark: 100 },
-    { subject: 'Respiratory', A: vitals ? Math.min(100, Math.max(10, Math.round(100 - Math.abs(vitals.respiratoryRate - 16) * 1.5))) : 82, fullMark: 100 },
-    { subject: 'Immune', A: vitals ? Math.min(100, Math.max(10, Math.round(100 - Math.abs(vitals.temperature - 36.8) * 8))) : 91, fullMark: 100 },
-    { subject: 'Cellular', A: vitals ? Math.min(100, Math.max(10, Math.round(85 + (vitals.spo2 - 95) * 1.5))) : 85, fullMark: 100 },
+  // Timeframe filters
+  const [trendsTimeframe, setTrendsTimeframe] = useState<'7d' | '24h' | '30d'>('7d');
+  const [summaryTimeframe, setSummaryTimeframe] = useState<'month' | 'week' | 'year'>('month');
+
+  // Reactive Smart Recommendations Checklist
+  const [completedRecommendations, setCompletedRecommendations] = useState<{ [key: string]: boolean }>({
+    hydration: true,
+    sleep: true,
+    exercise: true
+  });
+
+  // Hovered Chart Day
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+
+  // Modals state
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  // Quick Action Modals
+  const [trackVitalsInput, setTrackVitalsInput] = useState({
+    hr: '72',
+    bp: '118/76',
+    temp: '36.6',
+    spo2: '98',
+    steps: '8450'
+  });
+
+  const [aiAdviceQuestion, setAiAdviceQuestion] = useState('');
+  const [aiAdviceResponse, setAiAdviceResponse] = useState<string | null>(null);
+  const [isAiAnswering, setIsAiAnswering] = useState(false);
+
+  // Health Goals
+  const [healthGoals, setHealthGoals] = useState({
+    steps: 10000,
+    water: 3.0,
+    sleep: 8.0
+  });
+
+  // Daily Trend Data (matching image_a33b3901.png points Mon - Sun)
+  const trendData = [
+    { day: 'Mon', hr: 70, temp: 36.5, o2: 97, bp: '116/74' },
+    { day: 'Tue', hr: 68, temp: 36.4, o2: 98, bp: '118/76' },
+    { day: 'Wed', hr: 74, temp: 36.7, o2: 98, bp: '120/78' },
+    { day: 'Thu', hr: 69, temp: 36.5, o2: 99, bp: '117/75' },
+    { day: 'Fri', hr: 73, temp: 36.8, o2: 98, bp: '119/76' },
+    { day: 'Sat', hr: 71, temp: 36.6, o2: 98, bp: '118/76' },
+    { day: 'Sun', hr: 72, temp: 36.6, o2: 98, bp: '118/76' }
   ];
 
-  const [metabolicAge, setMetabolicAge] = useState(24);
-  const [actualAge, setActualAge] = useState(32);
-  const [showProtocols, setShowProtocols] = useState(false);
-  const [viewMode, setViewMode] = useState<'real-time' | 'predictive'>('real-time');
-  const [predictionParams, setPredictionParams] = useState({
-    timeframe: 90,
-    intensity: 'optimal' as 'conservative' | 'optimal' | 'aggressive',
-    dataWeight: 'blended' as 'historical' | 'blended' | 'recent'
-  });
-
-  // Real-Time Lifestyle Sandbox Controls
-  const [sleepHours, setSleepHours] = useState(7.5);
-  const [directSunExposure, setDirectSunExposure] = useState(30);
-  const [weeklyFastingDuration, setWeeklyFastingDuration] = useState(16);
-  const [calorieDeficit, setCalorieDeficit] = useState(0); // in kcal
-  const [hiitSessions, setHiitSessions] = useState(2);
-  const [activeModel, setActiveModel] = useState<'gero' | 'metabo' | 'sympathetic'>('gero');
-
-  // Scanning Neural Simulation Network
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(100);
-  const [scanStep, setScanStep] = useState("Projections calibrated");
-
-  const [user, setUser] = useState<any>(() => {
-    try {
-      const stored = localStorage.getItem("medical_user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const stored = localStorage.getItem("medical_user");
-        if (stored) {
-          setUser(JSON.parse(stored));
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-    // Also perform an initial sync on mount
-    handleStorage();
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
-  const triggerReforecastSim = () => {
-    setIsScanning(true);
-    setScanProgress(0);
-    setScanStep("Initializing deep neural net model weights...");
-    
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 10;
-      setScanProgress(currentProgress);
-      
-      if (currentProgress === 30) {
-        setScanStep("Ingesting real-time micro-fluctuations and heartbeat drift...");
-      } else if (currentProgress === 60) {
-        setScanStep("Synthesizing lifestyle covariates and computing nonlinear regression trajectories...");
-      } else if (currentProgress === 85) {
-        setScanStep("Resolving epigenetic methylation targets and optimizing autophagy limits...");
-      } else if (currentProgress >= 100) {
-        clearInterval(interval);
-        setScanStep("Real-time neural projection weights fully converged!");
-        setTimeout(() => setIsScanning(false), 1200);
-      }
-    }, 120);
-  };
-
-  // Dynamically calculate dynamic prediction curve based on chosen parameters and live vitals
-  const baseMetabolic = vitals ? Math.min(100, Math.max(20, Math.round(92 - Math.abs(vitals.heartRate - 70) * 0.2))) : 82;
-  const baseRegen = vitals ? Math.min(100, Math.max(20, Math.round(vitals.spo2 * 0.95))) : 78;
-  const intensityFactor = predictionParams.intensity === 'aggressive' ? 1.4 : predictionParams.intensity === 'conservative' ? 0.7 : 1.0;
-
-  // Real-time recalculation multiplier based on user sandbox variables!
-  const lifestyleFactor = (
-    (sleepHours - 7.5) * 0.12 + 
-    (directSunExposure - 30) * 0.0015 + 
-    (weeklyFastingDuration - 16) * 0.02 + 
-    (calorieDeficit > 0 ? calorieDeficit * 0.0003 : calorieDeficit * 0.00015) + 
-    (hiitSessions - 2) * 0.065
-  );
-
-  const effectiveIntensity = intensityFactor + lifestyleFactor;
-
-  // Active prediction model adjustment
-  const modelMetabolicScale = activeModel === 'metabo' ? 1.3 : activeModel === 'sympathetic' ? 0.75 : 1.0;
-  const modelRegenScale = activeModel === 'metabo' ? 0.85 : activeModel === 'sympathetic' ? 1.35 : 1.15;
-
-  const predictiveData = Array.from({ length: 7 }, (_, index) => {
-    const dayVal = Math.round((predictionParams.timeframe / 6) * index);
-    const progressFactor = index / 6; // 0 to 1
-    const metabolicGrowth = Math.round(12 * progressFactor * effectiveIntensity * modelMetabolicScale);
-    const regenGrowth = Math.round(15 * progressFactor * effectiveIntensity * modelRegenScale);
-
-    return {
-      day: `Day ${dayVal}`,
-      metabolic: Math.min(100, baseMetabolic + metabolicGrowth),
-      regeneration: Math.min(100, baseRegen + regenGrowth),
-    };
-  });
-  
-  // Rituals state
-  const [rituals, setRituals] = useState([
-    { label: 'Cold Exposure', time: 720, total: 900, active: true }, // in seconds
-    { label: 'Red Light Therapy', time: 0, total: 600, active: false },
-    { label: 'Fasting Window', time: 15120, total: 57600, active: true }, // 16h = 57600s
+  // Activities list with reactive toggling
+  const [activities, setActivities] = useState([
+    { id: 1, title: 'Morning Walk – 30 min', time: 'Today, 07:30 AM', icon: 'walk', type: 'physical' },
+    { id: 2, title: 'Sleep Completed – 7.5 hrs', time: 'Today, 06:45 AM', icon: 'sleep', type: 'rest' },
+    { id: 3, title: 'Water Intake – 2.5 L', time: 'Today, 08:00 AM', icon: 'water', type: 'hydration' }
   ]);
 
-  const hrVal = vitals?.heartRate ?? 72;
-  const rawHrv = Math.round(135 - (hrVal * 0.75));
-
-  const hrvHistory = [
-    { day: 'Mon', value: Math.round(rawHrv * 0.95), type: 'actual' },
-    { day: 'Tue', value: Math.round(rawHrv * 0.98), type: 'actual' },
-    { day: 'Wed', value: rawHrv, type: 'actual' },
-    { day: 'Thu', value: Math.round(rawHrv * 0.96), type: 'actual' },
-    { day: 'Fri', value: Math.round(rawHrv * 1.02), type: 'actual' },
-    { day: 'Sat', value: Math.round(rawHrv * 0.99), type: 'actual' },
-    { day: 'Sun', value: Math.round(rawHrv * 1.01), type: 'actual' },
-    ...(viewMode === 'predictive' ? [
-      { day: 'Mon*', value: Math.round(rawHrv * 1.06 * effectiveIntensity), type: 'predicted' },
-      { day: 'Tue*', value: Math.round(rawHrv * 1.09 * effectiveIntensity), type: 'predicted' },
-      { day: 'Wed*', value: Math.round(rawHrv * 1.13 * effectiveIntensity), type: 'predicted' },
-    ] : [])
-  ];
-
-  const currentRhr = Math.round(hrVal * 0.94);
-  const predictedRhr = Math.max(38, Math.round(hrVal * 0.88 - (sleepHours - 7.5) * 1.3 - (hiitSessions - 2) * 0.6));
-
-  const currentHrv = rawHrv;
-  const predictedHrv = Math.round(rawHrv * (1.12 + (sleepHours - 7.5) * 0.045 + (hiitSessions - 2) * 0.025));
-
-  const currentVo2 = vitals ? parseFloat((42.4 + (180 - vitals.heartRate) * 0.06).toFixed(1)) : 54.2;
-  const predictedVo2 = vitals ? parseFloat((45.2 + (180 - vitals.heartRate) * 0.08 + (hiitSessions - 2) * 0.75 + (sleepHours - 7.5) * 0.3).toFixed(1)) : 56.8;
-
-  const currentGFlux = vitals ? parseFloat((1.2 + (vitals.temperature - 36.5) * 0.15).toFixed(1)) : 1.4;
-  const predictedGFlux = vitals ? parseFloat((1.5 + (vitals.temperature - 36.5) * 0.22 + (weeklyFastingDuration - 16) * 0.03 + (calorieDeficit !== 0 ? 0.12 : 0)).toFixed(1)) : 1.6;
-
-  const metrics = [
-    { label: 'VO2 MAX', value: viewMode === 'predictive' ? predictedVo2.toString() : currentVo2.toString(), unit: 'ml/kg/min', icon: <Activity />, color: 'text-blue-500', trend: viewMode === 'predictive' ? `+${(predictedVo2 - currentVo2).toFixed(1)}` : '+4.2%' },
-    { label: 'RHR', value: viewMode === 'predictive' ? predictedRhr.toString() : currentRhr.toString(), unit: 'bpm', icon: <Heart />, color: 'text-rose-500', trend: viewMode === 'predictive' ? `-${currentRhr - predictedRhr}` : '-2 bpm' },
-    { label: 'G-FLUX', value: viewMode === 'predictive' ? predictedGFlux.toString() : currentGFlux.toString(), unit: 'ratio', icon: <Scale />, color: 'text-purple-500', trend: viewMode === 'predictive' ? `+${(predictedGFlux - currentGFlux).toFixed(1)}` : 'Stable' },
-    { label: 'HRV', value: viewMode === 'predictive' ? predictedHrv.toString() : currentHrv.toString(), unit: 'ms', icon: <Zap />, color: 'text-amber-500', trend: viewMode === 'predictive' ? `+${predictedHrv - currentHrv}ms` : '+8ms' },
-  ];
-
-  // Update indices incrementally as vitals drift in real-time
-  useEffect(() => {
-    if (!vitals) return;
-    const baseLongevity = Math.min(100, Math.max(30, Math.round(
-      95 
-      - Math.abs(vitals.heartRate - 70) * 0.1
-      - (100 - vitals.spo2) * 1.5
-      - Math.abs(vitals.temperature - 36.6) * 2.0
-      - Math.abs(vitals.systolicBP - 120) * 0.08
-    )));
-    
-    const baseMetabolicAge = Math.min(50, Math.max(18, Math.round(
-      28 
-      + Math.abs(vitals.heartRate - 70) * 0.08 
-      + (100 - vitals.spo2) * 0.4
-      + Math.abs(vitals.systolicBP - 120) * 0.05
-    )));
-
-    if (viewMode === 'predictive') {
-      const sandboxLongevityBonus = Math.round(
-        (sleepHours - 7.5) * 1.8 + 
-        (directSunExposure - 30) * 0.06 + 
-        (weeklyFastingDuration - 16) * 0.25 + 
-        (hiitSessions - 2) * 1.2
-      );
-      setLongevityScore(Math.min(99, Math.max(40, baseLongevity + sandboxLongevityBonus)));
-
-      const sandboxMetabolicBonus = Math.round(
-        (sleepHours - 7.5) * 0.5 + 
-        (weeklyFastingDuration - 16) * 0.15 + 
-        (calorieDeficit !== 0 ? 0.8 : 0) +
-        (hiitSessions - 2) * 0.4
-      );
-      setMetabolicAge(Math.max(18, baseMetabolicAge - sandboxMetabolicBonus));
-    } else {
-      setLongevityScore(baseLongevity);
-      setMetabolicAge(baseMetabolicAge);
-    }
-  }, [vitals?.heartRate, vitals?.spo2, vitals?.temperature, vitals?.systolicBP, viewMode, sleepHours, directSunExposure, weeklyFastingDuration, hiitSessions, calorieDeficit]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    const interval = setInterval(() => {
-      setRituals(prev => prev.map((r, mapIdx_249) => {
-        if (r.active && r.time > 0) {
-          return { ...r, time: r.time - 1 };
-        }
-        return r;
-      }));
-    }, 1000);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    if (seconds === 0) return 'Completed';
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hrs > 0) return `${hrs}h ${mins}m`;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const toggleRecommendation = (id: string) => {
+    setCompletedRecommendations(prev => {
+      const next = !prev[id];
+      if (addToast) {
+        addToast(next ? `Goal marked as achieved!` : `Goal updated.`, 'info');
+      }
+      return { ...prev, [id]: next };
+    });
   };
 
-  const toggleRitual = (index: number) => {
-    setRituals(prev => prev.map((r, i) => i === index ? { ...r, active: !r.active } : r));
+  const handleSaveVitals = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (addToast) addToast("Vital signs successfully recorded to telemetry ledger.", "success");
+    setActiveModal(null);
   };
 
-  const hrvData = [65, 68, 72, 70, 75, 71, 72]; // Last 7 days
-
-  if (isLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 min-h-screen flex flex-col items-center justify-center space-y-8 animate-pulse">
-        <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/20 rounded-[2rem] flex items-center justify-center">
-          <Dna className="text-emerald-500 animate-spin-slow" size={48} />
-        </div>
-        <div className="space-y-4 text-center">
-          <div className="h-10 w-64 bg-slate-100 dark:bg-slate-800 rounded-full mx-auto" />
-          <div className="h-4 w-48 bg-slate-50 dark:bg-slate-900 rounded-full mx-auto" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-4xl mt-12">
-          {[1, 2, 3].map((i, mapIdx_288) => (
-            <div key={`vitalitymatrix-l290-i-${i}-${mapIdx_288}`} className="h-40 bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-100 dark:border-slate-800" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const handleAskAdvice = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiAdviceQuestion.trim()) return;
+    setIsAiAnswering(true);
+    setTimeout(() => {
+      setIsAiAnswering(false);
+      setAiAdviceResponse(
+        `Based on your steady resting heart rate (72 bpm), blood pressure (118/76 mmHg), and 98% SpO2, your autonomic balance is superb. To optimize afternoon cognitive stamina, maintain 500ml hydration between meals and take a 5-minute brisk walking break.`
+      );
+    }, 800);
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full box-border min-w-0 py-6 sm:py-8 bg-white dark:bg-slate-950 font-sans">
-      <header className="mb-20 text-center">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-3 bg-slate-50 dark:bg-slate-900 px-6 py-2 rounded-full border border-slate-100 dark:border-slate-800 mb-8"
-        >
-          <Dna size={18} className="text-emerald-500" />
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Personalized longevity analytics</span>
-        </motion.div>
-        <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter uppercase mb-6 drop-shadow-sm">
-          VITALITY<span className="text-emerald-500">MATRIX</span>
-        </h1>
-        <p className="text-lg text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto font-serif">
-          "The science of longevity integrated with real-time performance tracking for a superior health outcome."
-        </p>
+    <div className="w-full bg-[#f4f8fd] dark:bg-[#071329] text-slate-800 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
 
-        <div className="mt-12 flex items-center justify-center">
-          <div className="bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[2rem] border border-slate-200 dark:border-slate-800 flex gap-2">
-            <button
-              onClick={() => setViewMode('real-time')}
-              className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
-                viewMode === 'real-time' 
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl shadow-slate-200/50 dark:shadow-black/20' 
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              Real-time
-            </button>
-            <button
-              onClick={() => setViewMode('predictive')}
-              className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 ${
-                viewMode === 'predictive' 
-                  ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/30' 
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <Zap size={14} className={viewMode === 'predictive' ? 'animate-pulse' : ''} />
-              AI Predictive
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* ========================================================================= */}
+      {/* 1. FUTURISTIC HERO BANNER (Exact Match to Image a33b3901)                  */}
+      {/* ========================================================================= */}
+      <div className="relative w-full rounded-[2rem] overflow-hidden bg-gradient-to-r from-[#031542] via-[#092a6b] to-[#041643] text-white p-6 sm:p-8 shadow-2xl border border-blue-500/30">
+        {/* Subtle Background Glow Lines & High-Tech Particles */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_40%,rgba(6,182,212,0.18),transparent_50%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_60%,rgba(59,130,246,0.18),transparent_50%)] pointer-events-none" />
+        
+        {/* Subtle Grid Lines Overlay */}
+        <div 
+          className="absolute inset-0 opacity-10 pointer-events-none" 
+          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+        />
 
-      {viewMode === 'predictive' && !user?.enableDeepHealthInsights ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-3xl mx-auto text-center py-16 px-8 bg-slate-50 dark:bg-slate-900/60 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800 shadow-xl space-y-8 mt-12 mb-20"
-        >
-          <div className="w-24 h-24 bg-amber-50 dark:bg-amber-955/20 text-amber-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
-            <Lock size={40} className="animate-pulse" />
-          </div>
-          <div className="space-y-4 max-w-xl mx-auto font-sans">
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-              Predictive Metabolic Modeling Locked
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-              Neural forecasting of homeostatic baselines, target glucose channels, autonomic nervous system parameters, and longevity trajectories requires enabling <strong className="text-emerald-500">Deep Health Insights</strong>.
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-extrabold font-mono">
-              Status: SECURING PERSISTENT CONNECTION...
-            </p>
-          </div>
+        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
           
-          <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 max-w-lg mx-auto flex items-start gap-4 text-left font-sans">
-            <Info size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-              To activate and begin training model forecasts:
-              <br />
-              1. Open <strong>Profile Settings</strong> from the navigation menu.
-              <br />
-              2. Go to the primary <strong>profile</strong> tab.
-              <br />
-              3. Scroll down to <strong>Advanced Analytics Configuration</strong>.
-              <br />
-              4. Toggle <strong>'Deep Health Insights'</strong> on and click <strong>Commit Identity Changes</strong>.
-            </div>
-          </div>
-        </motion.div>
-      ) : (
-        <>
-          {/* --- System Health Radar Matrix --- */}
-          <section className="mb-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
-          <div className="relative z-10">
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Homeostasis Radar</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">System-Wide Cross-Correlation Matrix</p>
+          {/* Left: Torso Hologram & Titles */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
             
-            <div className="h-[350px] w-full">
-              <SafeResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={systemHealthData}>
-                  <PolarGrid stroke="#e2e8f0" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} />
-                  <Radar
-                    name="System Health"
-                    dataKey="A"
-                    stroke="#10b981"
-                    fill="#10b981"
-                    fillOpacity={0.5}
-                  />
-                </RadarChart>
-              </SafeResponsiveContainer>
-            </div>
-          </div>
-          <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
-            <Dna size={120} />
-          </div>
-        </div>
-
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          <div className="bg-slate-900 text-white rounded-[3rem] p-10 flex-1 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform duration-1000">
-              <Zap size={140} />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                 <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg">
-                    <Brain size={24} />
-                 </div>
-                 <div>
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Neural Performance</p>
-                    <h4 className="text-2xl font-black uppercase tracking-tight">Cortex Sync active</h4>
-                 </div>
-              </div>
-              <p className="text-slate-400 font-bold leading-relaxed mb-8 max-w-lg">
-                Your neural oscillation patterns are currently synchronized at 40Hz (Gamma state), optimal for deep clinical focus and rapid pattern recognition.
-              </p>
-              <div className="flex gap-4">
-                 {[
-                   { label: 'Latency', val: '12ms' },
-                   { label: 'Buffer', val: '99%' },
-                   { label: 'Drift', val: '0.01%' }
-                 ].map((stat, i) => (
-                   <div key={`vitalitymatrix-l432-i-${i}`} className="px-6 py-3 bg-white/5 rounded-xl border border-white/5">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
-                      <p className="text-sm font-black uppercase">{stat.val}</p>
-                   </div>
-                 ))}
-              </div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group cursor-pointer hover:border-blue-500/50 transition-all">
-              <div className="flex items-center gap-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl text-blue-600">
-                  <Activity size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Biological Age</p>
-                  <p className="text-xl font-black text-slate-900 dark:text-white">26.4 yr</p>
-                </div>
-              </div>
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-md">
-                 <span className="text-[8px] font-black text-emerald-600 uppercase">-5.6 yr</span>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group cursor-pointer hover:border-purple-500/50 transition-all">
-               <div className="flex items-center gap-4">
-                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-xl text-purple-600">
-                  <Target size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Optimization</p>
-                  <p className="text-xl font-black text-slate-900 dark:text-white">92%</p>
-                </div>
-              </div>
-              <TrendingUp size={16} className="text-emerald-500" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12">
-        <div className="lg:col-span-2 space-y-12">
-          {/* Top Row Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Main Longevity Card */}
-            <div className="col-span-1 md:col-span-2 bg-slate-50 dark:bg-slate-900 rounded-[3rem] p-12 border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
-              <div className="absolute bottom-0 right-0 p-12 opacity-5 scale-150 group-hover:scale-[1.6] transition-transform duration-700 pointer-events-none">
-                <FlaskConical size={200} />
-              </div>
+            {/* Holographic Torso Graphic */}
+            <div className="relative w-24 h-28 sm:w-28 sm:h-32 shrink-0 flex items-center justify-center">
+              {/* Outer Cyan Ring */}
+              <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-pulse" />
+              <div className="absolute -inset-1 rounded-full bg-cyan-500/10 blur-md" />
               
-              <div className="relative z-10">
-                <div className="flex flex-col md:flex-row justify-between gap-12">
-                  <div className="space-y-8">
-                    <div>
-                      <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">
-                        {viewMode === 'predictive' ? 'Projected Integrity' : 'Biological Integrity'}
-                      </h3>
-                      <p className="text-slate-500 dark:text-slate-400 font-bold max-w-xs leading-relaxed">
-                        {viewMode === 'predictive' 
-                          ? 'Based on your current trajectory, you are projected to reach the 98th percentile within 12 weeks.'
-                          : 'Your cellular health is performing in the 94th percentile for your demographic.'}
-                      </p>
-                    </div>
-                    
-                    <div className="flex gap-12">
-                      <div className="cursor-pointer group" onClick={() => setMetabolicAge(prev => prev > 20 ? prev - 1 : 25)}>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-emerald-500 transition-colors">
-                          {viewMode === 'predictive' ? 'Projected Metabolic Age' : 'Metabolic Age'}
-                        </p>
-                        <p className="text-4xl font-black text-emerald-500">
-                          {viewMode === 'predictive' ? metabolicAge - 2 : metabolicAge}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Actual Age</p>
-                        <p className="text-4xl font-black text-slate-900 dark:text-white">{actualAge}</p>
-                      </div>
-                    </div>
-                  </div>
+              {/* Holographic Torso SVG with Glowing Heart Sphere */}
+              <svg className="w-full h-full drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" viewBox="0 0 100 120" fill="none">
+                {/* Torso Silhouette Lines */}
+                <path d="M50,15 C45,15 42,20 42,25 C42,28 45,30 50,30 C55,30 58,28 58,25 C58,20 55,15 50,15 Z" stroke="#38bdf8" strokeWidth="1.5" fill="rgba(56,189,248,0.2)" />
+                <path d="M42,28 C34,32 28,40 28,52 L32,80 L38,82 L38,110 L62,110 L62,82 L68,80 L72,52 C72,40 66,32 58,28" stroke="#38bdf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="rgba(6,182,212,0.08)" />
+                <path d="M38,50 L46,65 L54,65 L62,50" stroke="#06b6d4" strokeWidth="1.2" opacity="0.7" />
+                <path d="M50,30 L50,85" stroke="#06b6d4" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
+                <path d="M38,72 L62,72" stroke="#06b6d4" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
+                
+                {/* Pulsing Red/Pink Heart Core */}
+                <circle cx="50" cy="52" r="7" fill="#ef4444" className="animate-ping opacity-60" />
+                <circle cx="50" cy="52" r="6" fill="url(#heartGlowGrad)" />
+                <path d="M47,51 C47,49 50,48 50,51 C50,48 53,49 53,51 C53,54 50,56 50,56 C50,56 47,54 47,51 Z" fill="#ffffff" />
 
-                  <div 
-                    className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-xl shadow-emerald-100 dark:shadow-emerald-950/20 border border-emerald-50 dark:border-emerald-900/10 cursor-help"
-                    onClick={() => setLongevityScore(prev => prev > 98 ? 80 : prev + 1)}
-                  >
-                    <div className="relative w-32 h-32 flex items-center justify-center">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100 dark:text-slate-700" />
-                        <motion.circle 
-                          cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="transparent" 
-                          strokeDasharray={351} 
-                          initial={{ strokeDashoffset: 351 }}
-                          animate={{ strokeDashoffset: 351 - (351 * longevityScore) / 100 }} 
-                          className="text-emerald-500" 
-                          strokeLinecap="round" 
-                        />
-                      </svg>
-                      <span className="absolute text-2xl font-black text-slate-900 dark:text-white">{longevityScore}%</span>
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-6">Longevity Index</p>
-                  </div>
-                </div>
+                <defs>
+                  <radialGradient id="heartGlowGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#ff4b72" />
+                    <stop offset="100%" stopColor="#e11d48" />
+                  </radialGradient>
+                </defs>
+              </svg>
+
+              {/* Floating Mini Glowing Heart Badge */}
+              <div className="absolute top-1 right-0 w-6 h-6 rounded-full bg-blue-500/30 border border-cyan-400 flex items-center justify-center shadow-[0_0_8px_rgba(6,182,212,0.8)]">
+                <Heart size={12} className="text-cyan-300 fill-cyan-300 animate-pulse" />
               </div>
             </div>
 
-            {/* Metabolic Efficiency - NEW */}
-            <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
-               <div className="bg-slate-900 text-white p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-6 opacity-10">
-                     <FlaskConical size={60} />
-                  </div>
-                  <h4 className="text-lg font-black uppercase tracking-tight mb-6">
-                    {viewMode === 'predictive' ? 'Projected Autophagy' : 'Autophagy Progress'}
-                  </h4>
-                  <div className="flex items-end gap-6 mb-8 text-center">
-                     <div className="flex-1">
-                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Cellular Cleanup</p>
-                        <p className="text-3xl font-black text-emerald-500">
-                          {viewMode === 'predictive' ? 'Optimized' : 'Active'}
-                        </p>
-                     </div>
-                     <div className="flex-1 border-x border-white/10">
-                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Target Fast</p>
-                        <p className="text-3xl font-black">{viewMode === 'predictive' ? '18h' : '15h'}</p>
-                     </div>
-                  </div>
-                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                     <div 
-                       className="bg-emerald-500 h-full rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-1000" 
-                       style={{ width: viewMode === 'predictive' ? '95%' : '82%' }}
-                     />
-                  </div>
-               </div>
-
-               <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                        {viewMode === 'predictive' ? 'Future Glucose Path' : 'Glucose Stability'}
-                      </h4>
-                      <div className={`w-2 h-2 rounded-full animate-pulse ${viewMode === 'predictive' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 leading-relaxed italic">
-                      {viewMode === 'predictive' 
-                        ? 'Projected stability index based on ritual adherence.'
-                        : 'Optimal glycemic control detected. 24h peak: 112 mg/dL.'}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                     <div className="flex gap-1 items-end h-8">
-                        {[16, 24, 12, 18, 30, 22, 14, 10, 8, 12].map((h, i) => (
-                           <div key={`vitalitymatrix-l583-i-${i}`} className={`w-2 rounded-full transition-all duration-500 ${i > 6 ? 'bg-emerald-100 dark:bg-emerald-900/40 opacity-50' : 'bg-blue-100 dark:bg-blue-900/40'}`} style={{ height: h, display: i > 6 && viewMode !== 'predictive' ? 'none' : 'block' }} />
-                        ))}
-                     </div>
-                     <span className={`text-2xl font-black tracking-tighter ${viewMode === 'predictive' ? 'text-emerald-600' : 'text-blue-600'}`}>
-                        {viewMode === 'predictive' ? '99.9%' : '99.8%'}
-                     </span>
-                  </div>
-               </div>
-            </div>
-
-            {metrics.map((metric, i) => (
-              <motion.div 
-                key={`vitalitymatrix-l595-i-${i}`} 
-                whileHover={{ scale: 1.05 }}
-                className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-8">
-                    <div className={`p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 ${metric.color}`}>
-                      {metric.icon}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp size={14} className="text-emerald-500" />
-                      <span className="text-xs font-black text-emerald-500">{metric.trend}</span>
-                    </div>
-                  </div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{metric.label}</h4>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900 dark:text-white">{metric.value}</span>
-                    <span className="text-xs font-bold text-slate-400">{metric.unit}</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Dedicated HRV Analysis Chart */}
-          <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center justify-between mb-10">
+            {/* Title & Subtext & Sub-Navigation Pills */}
+            <div className="space-y-3">
               <div>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                  <Zap className="text-amber-500" size={24} />
-                  {viewMode === 'predictive' ? 'Bio-AI Predictive Trajectory' : 'HRV Bio-Analytic History'}
-                </h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                  {viewMode === 'predictive' ? 'Projected Parasympathetic Dominance' : 'Autonomic Nervous System Balace (7-Day Trace)'}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-[900] tracking-tight text-white leading-tight">
+                  Vitality Matrix
+                </h1>
+                <p className="text-xs sm:text-sm text-cyan-200/90 font-medium mt-1">
+                  Your complete health vitality dashboard for a healthier tomorrow
                 </p>
               </div>
-              <div className="flex gap-4">
-                {viewMode === 'predictive' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Predictive mode active</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${viewMode === 'predictive' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Recovery</span>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-lg cursor-pointer">
-                  <Info size={16} className="text-slate-400" />
-                </div>
+
+              {/* Sub-Navigation Pills */}
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                {[
+                  { id: 'overview', label: 'Overview', icon: Heart },
+                  { id: 'trends', label: 'Trends', icon: TrendingUp },
+                  { id: 'insights', label: 'Insights', icon: Sparkles },
+                  { id: 'recommendations', label: 'Recommendations', icon: CheckCircle2 }
+                ].map((pill) => {
+                  const isActive = activeTab === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      type="button"
+                      onClick={() => setActiveTab(pill.id as any)}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-1 ring-white/30 scale-105'
+                          : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+                      }`}
+                    >
+                      <pill.icon size={13} className={isActive ? 'text-white' : 'text-cyan-300'} />
+                      <span>{pill.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          </div>
 
-            <div className="h-80 w-full pr-4">
-              <SafeResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hrvHistory}>
-                  <defs>
-                    <linearGradient id="hrvGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="day" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} 
-                    dy={10}
-                  />
-                  <YAxis 
-                    hide 
-                    domain={['dataMin - 5', 'dataMax + 5']}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '16px', 
-                      border: 'none', 
-                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                      backgroundColor: '#0f172a',
-                      color: '#fff'
-                    }}
-                    itemStyle={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '10px' }}
-                    labelStyle={{ fontWeight: 900, marginBottom: '4px', textTransform: 'uppercase', fontSize: '10px', opacity: 0.5 }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke={viewMode === 'predictive' ? '#10b981' : '#f59e0b'} 
-                    strokeWidth={4} 
-                    fillOpacity={1} 
-                    fill={`url(#${viewMode === 'predictive' ? 'hrvPredictiveGradient' : 'hrvGradient'})`} 
-                    animationDuration={2000}
-                  />
-                  {viewMode === 'predictive' && (
-                    <defs>
-                      <linearGradient id="hrvPredictiveGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                  )}
-                </AreaChart>
-              </SafeResponsiveContainer>
-            </div>
+          {/* Right: ECG Waveform with "Monitor • Analyze • Thrive" & Health is Wealth badge */}
+          <div className="flex flex-col items-center lg:items-end gap-3 text-right">
             
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-              {[
-                { label: viewMode === 'predictive' ? 'Projected Avg' : 'Weekly Avg', value: viewMode === 'predictive' ? '76.2ms' : '70.4ms' },
-                { label: viewMode === 'predictive' ? 'Future Peak' : 'Highest Peak', value: viewMode === 'predictive' ? '82ms' : '75ms' },
-                { label: 'ANS State', value: 'Parasympathetic' }
-              ].map((stat, i) => (
-                <div key={`vitalitymatrix-l707-i-${i}`} className="text-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white uppercase">{stat.value}</p>
-                </div>
-              ))}
+            {/* ECG Pulse Wave and Text */}
+            <div className="flex items-center gap-3">
+              {/* Animated ECG SVG */}
+              <div className="w-24 sm:w-32 h-8">
+                <svg className="w-full h-full drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" viewBox="0 0 120 30" fill="none">
+                  <path
+                    d="M0,15 L25,15 L32,5 L40,25 L48,8 L55,18 L60,15 L120,15"
+                    stroke="#22d3ee"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <span className="text-base sm:text-lg lg:text-xl font-bold tracking-wider text-cyan-200/90 whitespace-nowrap italic font-serif">
+                Monitor • Analyze • Thrive
+              </span>
             </div>
+
+            {/* Glowing "Health is Wealth" Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+              <div className="w-5 h-5 rounded-full bg-emerald-500/30 flex items-center justify-center">
+                <Heart size={12} className="text-emerald-300 fill-emerald-300 animate-pulse" />
+              </div>
+              <span>Health is Wealth</span>
+            </div>
+
           </div>
-        </div>
 
-        <div className="space-y-8">
-          <section className="bg-slate-900 text-white rounded-[3rem] p-10 relative overflow-hidden shadow-2xl">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 text-emerald-400 mb-8">
-                <ShieldCheck size={20} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Premium Bio-Hack</span>
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight mb-4">Longevity Rituals</h3>
-              <p className="text-slate-400 text-sm font-bold mb-10 leading-relaxed">Optimizing your biological clock through specialized cold exposure and intermittent fasting protocols.</p>
-              
-              <div className="space-y-4 mb-10">
-                {rituals.map((task, i) => (
-                  <motion.div 
-                    key={`vitalitymatrix-l729-i-${i}`} 
-                    layout
-                    onClick={() => toggleRitual(i)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${task.active ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/5 bg-white/5 opacity-50'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${task.active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`} />
-                      <span className="text-sm font-black">{task.label}</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">{formatTime(task.time)}</span>
-                  </motion.div>
-                ))}
-              </div>
-
-              <button 
-                onClick={() => setShowProtocols(true)}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
-              >
-                Configure Protocols
-              </button>
-            </div>
-          </section>
-
-          <section className="bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800">
-            <h4 className="text-lg font-black text-slate-900 dark:text-white mb-8 flex items-center justify-between uppercase tracking-tight">
-              {viewMode === 'predictive' ? 'AI Projected Targets' : 'Performance Targets'}
-              <Target size={20} className={viewMode === 'predictive' ? 'text-emerald-500' : 'text-slate-400'} />
-            </h4>
-            <div className="space-y-6">
-              {[
-                { label: 'Cellular Recovery', progress: viewMode === 'predictive' ? 94 : 85 },
-                { label: 'Hormonal Balance', progress: viewMode === 'predictive' ? 78 : 62 },
-                { label: 'Liver Detoxification', progress: viewMode === 'predictive' ? 55 : 41 },
-              ].map((target, i) => (
-                <div key={`vitalitymatrix-l763-i-${i}`} className="cursor-help group">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-emerald-500 transition-colors">
-                      {target.label}
-                    </span>
-                    <span className="text-xs font-black text-slate-400 tracking-tight">
-                      {target.progress}%
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <motion.div 
-                      key={`${viewMode}-${i}`}
-                      initial={{ width: 0 }} 
-                      animate={{ width: `${target.progress}%` }} 
-                      transition={{ duration: 1.5, ease: "easeOut" }} 
-                      className={`h-full rounded-full ${viewMode === 'predictive' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-blue-500'}`} 
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-8 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:shadow-lg transition-all">
-            <div className="flex items-center gap-4">
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm">
-                <Award size={24} className="text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-slate-900 dark:text-white">Elite Benchmarking</p>
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Compare with Top 1%</p>
-              </div>
-            </div>
-            <ChevronRight size={20} className="text-emerald-500 group-hover:translate-x-1 transition-transform" />
-          </div>
         </div>
       </div>
 
-      {/* --- Predictive Bio-Markers Section --- */}
-      <section className="mt-16 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-2xl relative">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500"></div>
-        <div className="p-8 sm:p-12">
-          
-          {/* Section Header with General Model Config & Model Variant Selection */}
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 mb-12">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-blue-600/10 p-2 rounded-xl text-blue-600">
-                  <TrendingUp size={20} />
-                </div>
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em]">Neural Forecasting Sandbox</span>
+      {/* ========================================================================= */}
+      {/* 2. 5 KPI SPARKLINE CARDS (Exact Match to Image a33b3901)                   */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        
+        {/* Card 1: Heart Rate */}
+        <div 
+          onClick={() => setActiveModal('hr')}
+          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-pink-500/10 text-pink-500 flex items-center justify-center">
+                <Heart size={18} className="fill-pink-500 text-pink-500 group-hover:scale-110 transition-transform" />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase mb-4">
-                Predictive <span className="text-blue-600 font-serif italic normal-case lowercase animate-pulse">Bio-Markers</span>
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 font-bold text-sm leading-relaxed">
-                Connect live biological feeds with real-time lifestyle adjustments to simulate telomeric decay, autonomic balance, and cellular regeneration curves.
-              </p>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Heart Rate</span>
+            </div>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl font-[900] text-slate-900 dark:text-white">
+                {liveVitals ? liveVitals.heartRate : '72'}
+              </span>
+              <span className="text-xs font-bold text-slate-400">bpm</span>
+            </div>
+            <span className="text-[10px] font-extrabold text-emerald-500 flex items-center gap-0.5">
+              ↑ +2
+            </span>
+          </div>
+          {/* Pink Sparkline SVG */}
+          <div className="w-16 h-10">
+            <svg className="w-full h-full" viewBox="0 0 60 30" fill="none">
+              <path d="M0,20 Q15,8 30,22 T60,10" stroke="#ec4899" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 2: Body Temperature */}
+        <div 
+          onClick={() => setActiveModal('temp')}
+          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                <Thermometer size={18} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Body Temperature</span>
+            </div>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl font-[900] text-slate-900 dark:text-white">
+                {liveVitals ? liveVitals.temperature.toFixed(1) : '36.6'}
+              </span>
+              <span className="text-xs font-bold text-slate-400">°C</span>
+            </div>
+            <span className="text-[10px] font-extrabold text-blue-500 flex items-center gap-0.5">
+              ↑ +0.1
+            </span>
+          </div>
+          {/* Blue Sparkline SVG */}
+          <div className="w-16 h-10">
+            <svg className="w-full h-full" viewBox="0 0 60 30" fill="none">
+              <path d="M0,22 Q15,25 30,12 T60,8" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 3: Blood Oxygen */}
+        <div 
+          onClick={() => setActiveModal('spo2')}
+          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <Droplet size={18} className="fill-emerald-500 text-emerald-500 group-hover:scale-110 transition-transform" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Blood Oxygen</span>
+            </div>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl font-[900] text-slate-900 dark:text-white">
+                {liveVitals ? liveVitals.spo2 : '98'}%
+              </span>
+            </div>
+            <span className="text-[10px] font-extrabold text-emerald-500 flex items-center gap-0.5">
+              → Stable
+            </span>
+          </div>
+          {/* Green Sparkline SVG */}
+          <div className="w-16 h-10">
+            <svg className="w-full h-full" viewBox="0 0 60 30" fill="none">
+              <path d="M0,18 Q15,10 30,16 T60,12" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 4: Blood Pressure */}
+        <div 
+          onClick={() => setActiveModal('bp')}
+          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                <Activity size={18} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Blood Pressure</span>
+            </div>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl font-[900] text-slate-900 dark:text-white">
+                {liveVitals ? `${liveVitals.systolicBP}/${liveVitals.diastolicBP}` : '118/76'}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">mmHg</span>
+            </div>
+            <span className="text-[10px] font-extrabold text-rose-500 flex items-center gap-0.5">
+              ↓ -2
+            </span>
+          </div>
+          {/* Purple/Red Sparkline SVG */}
+          <div className="w-16 h-10">
+            <svg className="w-full h-full" viewBox="0 0 60 30" fill="none">
+              <path d="M0,10 Q15,22 30,15 T60,20" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 5: Steps Today */}
+        <div 
+          onClick={() => setActiveModal('steps')}
+          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                <Footprints size={18} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Steps Today</span>
+            </div>
+            <div className="flex items-baseline gap-1 pt-1">
+              <span className="text-2xl font-[900] text-slate-900 dark:text-white">8,450</span>
+            </div>
+            <span className="text-[10px] font-extrabold text-orange-500 flex items-center gap-0.5">
+              ↑ +1,260
+            </span>
+          </div>
+          {/* Orange Sparkline SVG */}
+          <div className="w-16 h-10">
+            <svg className="w-full h-full" viewBox="0 0 60 30" fill="none">
+              <path d="M0,25 Q15,18 30,20 T60,6" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. ROW 2: HEALTH STATUS MATRIX | VITAL SIGNS TREND | AI HEALTH INSIGHTS    */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Column 1: Health Status Matrix */}
+        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6">
+          
+          {/* Card Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={18} className="text-blue-500" />
+              <h2 className="text-base font-black text-slate-900 dark:text-white">Health Status Matrix</h2>
+            </div>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-black">
+              ✔ Excellent Health
+            </span>
+          </div>
+
+          {/* Donut Chart & Progress Bars Container */}
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            
+            {/* Donut Ring (96% Overall Vitality) */}
+            <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                {/* Background Ring */}
+                <circle cx="50" cy="50" r="40" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeWidth="8" fill="none" />
+                {/* 96% Gradient Ring */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="url(#vitalityDonutGrad)"
+                  strokeWidth="8"
+                  strokeDasharray="251.2"
+                  strokeDashoffset={251.2 * (1 - 0.96)}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <defs>
+                  <linearGradient id="vitalityDonutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#06b6d4" />
+                    <stop offset="100%" stopColor="#10b981" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              {/* Center Donut Label */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-[1000] text-slate-900 dark:text-white leading-none">96%</span>
+                <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Overall Vitality</span>
+              </div>
+
+              {/* Bottom Heart Badge over Donut Ring */}
+              <div className="absolute -bottom-2 w-7 h-7 rounded-full bg-blue-600 border-2 border-white dark:border-[#0c1a36] flex items-center justify-center shadow-md">
+                <Heart size={14} className="fill-white text-white" />
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-6 bg-slate-50 dark:bg-slate-950 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Timeframe (Days)</label>
-                <div className="flex gap-2">
-                  {[30, 90, 180].map((d, dIdx) => (
-                    <button 
-                      key={`vm-tf-${d}-${dIdx}`}
-                      onClick={() => {
-                        setPredictionParams(p => ({ ...p, timeframe: d }));
-                        triggerReforecastSim();
-                      }}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${predictionParams.timeframe === d ? 'bg-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-100 dark:border-slate-700 hover:text-slate-600'}`}
-                    >
-                      {d}d
-                    </button>
-                  ))}
+            {/* 5 Progress Bars */}
+            <div className="flex-1 w-full space-y-3">
+              {[
+                { label: 'Heart Health', val: 95, color: 'bg-emerald-500' },
+                { label: 'Respiratory Health', val: 92, color: 'bg-teal-400' },
+                { label: 'Metabolic Health', val: 90, color: 'bg-cyan-500' },
+                { label: 'Mental Wellness', val: 88, color: 'bg-blue-500' },
+                { label: 'Physical Activity', val: 94, color: 'bg-emerald-400' }
+              ].map((item, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-emerald-500 font-bold">✔</span>
+                      {item.label}
+                    </span>
+                    <span className="text-slate-400 text-[11px] font-mono">{item.val}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${item.color} transition-all duration-700`}
+                      style={{ width: `${item.val}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Intensity</label>
-                <div className="flex gap-2">
-                  {['conservative', 'optimal', 'aggressive'].map((i, iIdx) => (
-                    <button 
-                      key={`vm-int-${i}-${iIdx}`}
-                      onClick={() => {
-                        setPredictionParams(p => ({ ...p, intensity: i as any }));
-                        triggerReforecastSim();
-                      }}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black capitalize transition-all ${predictionParams.intensity === i ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-100 dark:border-slate-700 hover:text-slate-600'}`}
-                    >
-                      {i}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              ))}
+            </div>
+
+          </div>
+
+          {/* Bottom Capsule Message */}
+          <div className="w-full py-2.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+            <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
+              <span>✔</span> Your health is in excellent condition!
+            </p>
+          </div>
+
+        </div>
+
+        {/* Column 2: Vital Signs Trend */}
+        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+          
+          {/* Card Header & Filter */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity size={18} className="text-blue-500" />
+              <h2 className="text-base font-black text-slate-900 dark:text-white">Vital Signs Trend</h2>
+            </div>
+            
+            {/* Timeframe selector */}
+            <div className="relative">
+              <select
+                value={trendsTimeframe}
+                onChange={(e) => setTrendsTimeframe(e.target.value as any)}
+                className="appearance-none bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800/60 rounded-xl px-3 py-1.5 pr-7 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+              >
+                <option value="7d">Last 7 Days</option>
+                <option value="24h">Last 24 Hours</option>
+                <option value="30d">Last 30 Days</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2 top-2.5 pointer-events-none text-slate-400" />
             </div>
           </div>
 
-          {/* AI Model Variant Selector Menu */}
-          <div className="mb-10 p-3 bg-slate-50 dark:bg-slate-950 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-3">
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs font-bold">
+            <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-pink-500" />
+              Heart Rate
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              Temperature
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              Oxygen
+            </span>
+          </div>
+
+          {/* Interactive Multi-Line SVG Chart */}
+          <div className="relative w-full h-56 pt-2 select-none">
+            
+            {/* Y-Axis Labels */}
+            <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-[10px] font-mono text-slate-400 pr-2">
+              <span>120</span>
+              <span>100</span>
+              <span>80</span>
+              <span>60</span>
+              <span>40</span>
+            </div>
+
+            {/* Grid Lines */}
+            <div className="absolute left-8 right-0 top-2 bottom-6 flex flex-col justify-between pointer-events-none">
+              <div className="w-full border-b border-slate-100 dark:border-slate-800/80" />
+              <div className="w-full border-b border-slate-100 dark:border-slate-800/80" />
+              <div className="w-full border-b border-slate-100 dark:border-slate-800/80" />
+              <div className="w-full border-b border-slate-100 dark:border-slate-800/80" />
+              <div className="w-full border-b border-slate-100 dark:border-slate-800/80" />
+            </div>
+
+            {/* SVG Chart Curves */}
+            <div className="absolute left-8 right-0 top-2 bottom-6">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 350 150" preserveAspectRatio="none">
+                
+                {/* Oxygen Series (Green, at ~100) */}
+                <path
+                  d="M 10,40 Q 60,35 110,40 T 210,32 T 310,38"
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Heart Rate Series (Pink/Orange, at ~70) */}
+                <path
+                  d="M 10,95 Q 60,98 110,90 T 210,98 T 310,92"
+                  fill="none"
+                  stroke="#f97316"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Temperature Series (Blue/Purple, at ~60-65) */}
+                <path
+                  d="M 10,110 Q 60,112 110,105 T 210,115 T 310,110"
+                  fill="none"
+                  stroke="#a855f7"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Interactive Points on Trend */}
+                {trendData.map((d, i) => {
+                  const x = 10 + i * 50;
+                  return (
+                    <g key={i} className="cursor-pointer" onMouseEnter={() => setHoveredDay(i)}>
+                      {/* O2 Dot */}
+                      <circle cx={x} cy={35 + (i % 2 === 0 ? 3 : -3)} r="4" fill="#ffffff" stroke="#10b981" strokeWidth="2.5" />
+                      {/* Heart Rate Dot */}
+                      <circle cx={x} cy={92 + (i % 3 === 0 ? 4 : -3)} r="4" fill="#ffffff" stroke="#f97316" strokeWidth="2.5" />
+                      {/* Temp Dot */}
+                      <circle cx={x} cy={110 + (i % 2 === 0 ? -3 : 2)} r="4" fill="#ffffff" stroke="#a855f7" strokeWidth="2.5" />
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+
+            {/* X-Axis Labels */}
+            <div className="absolute left-8 right-0 bottom-0 flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+              {trendData.map((d, i) => (
+                <button
+                  key={d.day}
+                  type="button"
+                  onClick={() => setHoveredDay(i)}
+                  className={`text-center font-bold px-1 transition-colors ${hoveredDay === i ? 'text-blue-500 font-black' : ''}`}
+                >
+                  {d.day}
+                </button>
+              ))}
+            </div>
+
+            {/* Hover Tooltip Preview */}
+            {hoveredDay !== null && (
+              <div className="absolute top-1 right-2 p-2.5 rounded-xl bg-slate-900/90 text-white border border-blue-500/40 shadow-xl text-[10px] space-y-1 z-20 backdrop-blur-md">
+                <div className="font-black text-cyan-300">{trendData[hoveredDay].day} Reading</div>
+                <div className="text-pink-300 font-bold">HR: {trendData[hoveredDay].hr} bpm</div>
+                <div className="text-blue-300 font-bold">Temp: {trendData[hoveredDay].temp} °C</div>
+                <div className="text-emerald-300 font-bold">SpO2: {trendData[hoveredDay].o2}%</div>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* Column 3: AI Health Insights */}
+        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+          
+          {/* Card Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles size={18} className="text-blue-500" />
+              <h2 className="text-base font-black text-slate-900 dark:text-white">AI Health Insights</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveModal('ai_advice')}
+              className="text-xs font-bold text-blue-500 hover:text-blue-600 dark:text-cyan-400 flex items-center gap-1 cursor-pointer"
+            >
+              <span>View More</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* 3D Robot Doctor & Speech Bubble */}
+          <div className="flex items-start gap-3 bg-blue-50/70 dark:bg-[#081530] p-3.5 rounded-2xl border border-blue-100 dark:border-blue-800/40">
+            
+            {/* Robot Avatar */}
+            <div className="relative w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-md flex items-center justify-center">
+              <div className="w-full h-full bg-[#0a1b38] rounded-[14px] flex items-center justify-center">
+                {/* 3D Robot Head SVG */}
+                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
+                  {/* Robot Head Shape */}
+                  <rect x="14" y="16" width="36" height="32" rx="14" fill="#ffffff" stroke="#0284c7" strokeWidth="2" />
+                  {/* Visor */}
+                  <rect x="20" y="24" width="24" height="12" rx="6" fill="#0c1a36" />
+                  {/* Glowing Blue Eyes */}
+                  <circle cx="26" cy="30" r="3" fill="#38bdf8" className="animate-pulse" />
+                  <circle cx="38" cy="30" r="3" fill="#38bdf8" className="animate-pulse" />
+                  {/* Antenna */}
+                  <line x1="32" y1="16" x2="32" y2="8" stroke="#0284c7" strokeWidth="2.5" />
+                  <circle cx="32" cy="7" r="3" fill="#06b6d4" />
+                  {/* Stethoscope */}
+                  <path d="M22,46 Q32,58 42,46" stroke="#ef4444" strokeWidth="2" fill="none" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Speech Bubble */}
+            <div className="flex-1 bg-white dark:bg-[#0f2347] p-3 rounded-2xl rounded-tl-sm text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-blue-700/40 shadow-xs">
+              "Your vitals are stable and within normal range. Keep up the good work!"
+            </div>
+          </div>
+
+          {/* Smart Recommendations List */}
+          <div className="space-y-2.5">
+            <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+              Smart Recommendations:
+            </span>
+
             {[
-              { id: 'gero', label: 'Gero-Aging (DNA & Telomere Health)', desc: 'Forecasts cellular longevity, epigenetic age markers, and chromosome integrity index.' },
-              { id: 'metabo', label: 'Metabolic & Autophagy Core', desc: 'Predictive insulin sensitivity pathways, peak autophagy progress rates, and caloric transport efficiency.' },
-              { id: 'sympathetic', label: 'Sympathetic Balancer (CNS)', desc: 'Autonomic system resonance trends, projected heart rate variability milestones, and biological rest ratios.' }
-            ].map((modelOpt, mapIdx_867) => (
-              <button
-                key={`vitalitymatrix-l870-${mapIdx_867}`}
-                onClick={() => {
-                  setActiveModel(modelOpt.id as any);
-                  triggerReforecastSim();
-                }}
-                className={`flex-1 p-5 rounded-2.5xl transition-all text-left border ${
-                  activeModel === modelOpt.id 
-                    ? 'bg-white dark:bg-slate-900 border-blue-500 shadow-xl shadow-blue-500/5 dark:shadow-blue-500/10' 
-                    : 'border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900/40'
-                }`}
+              { id: 'hydration', label: 'Stay hydrated today' },
+              { id: 'sleep', label: 'Get at least 7-8 hours sleep' },
+              { id: 'exercise', label: 'Continue regular exercise' }
+            ].map((rec) => {
+              const isChecked = completedRecommendations[rec.id];
+              return (
+                <button
+                  key={rec.id}
+                  type="button"
+                  onClick={() => toggleRecommendation(rec.id)}
+                  className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs font-bold transition-colors cursor-pointer ${
+                    isChecked
+                      ? 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
+                      : 'text-slate-400 line-through'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    isChecked ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                  }`}>
+                    <CheckCircle2 size={13} className="stroke-[2.5]" />
+                  </div>
+                  <span>{rec.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 4. ROW 3: HEALTH METRICS SUMMARY | HEALTH ACTIVITIES | QUICK ACTIONS      */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Column 1: Health Metrics Summary */}
+        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+          
+          {/* Card Header & Filter */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <PieChartIcon size={18} className="text-blue-500" />
+              <h2 className="text-base font-black text-slate-900 dark:text-white">Health Metrics Summary</h2>
+            </div>
+            
+            <div className="relative">
+              <select
+                value={summaryTimeframe}
+                onChange={(e) => setSummaryTimeframe(e.target.value as any)}
+                className="appearance-none bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800/60 rounded-xl px-3 py-1.5 pr-7 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
               >
-                <p className={`text-[10px] font-black uppercase tracking-wider mb-1 ${activeModel === modelOpt.id ? 'text-blue-500' : 'text-slate-400'}`}>
-                  {modelOpt.label}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-relaxed">
-                  {modelOpt.desc}
-                </p>
-              </button>
+                <option value="month">This Month</option>
+                <option value="week">This Week</option>
+                <option value="year">This Year</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2 top-2.5 pointer-events-none text-slate-400" />
+            </div>
+          </div>
+
+          {/* 4 Circular Donut Gauges (2x2 Grid from Image a33b3901) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 py-2">
+            {[
+              { label: 'Activity Goal', val: 95, color: '#06b6d4' },
+              { label: 'Sleep Quality', val: 92, color: '#3b82f6' },
+              { label: 'Nutrition Score', val: 97, color: '#10b981' },
+              { label: 'Stress Level', val: 93, color: '#0ea5e9' }
+            ].map((metric, idx) => (
+              <div key={idx} className="flex flex-col items-center text-center space-y-2">
+                <div className="relative w-18 h-18 sm:w-20 sm:h-20 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 70 70">
+                    <circle cx="35" cy="35" r="28" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeWidth="5" fill="none" />
+                    <circle
+                      cx="35"
+                      cy="35"
+                      r="28"
+                      stroke={metric.color}
+                      strokeWidth="5"
+                      strokeDasharray="175.9"
+                      strokeDashoffset={175.9 * (1 - metric.val / 100)}
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                  <span className="absolute text-sm sm:text-base font-[900] text-slate-900 dark:text-white">
+                    {metric.val}%
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                  {metric.label}
+                </span>
+              </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
-            
-            {/* Left Column: Model Live View, Predictions Curves, and Environmental Sandbox */}
-            <div className="xl:col-span-8 space-y-8">
-              
-              {/* Forecast Card and Real-Time Neural Calibrator Feed */}
-              <div className="bg-slate-50 dark:bg-slate-950/50 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800/50 relative overflow-hidden">
-                
-                {/* Visual Neural Net Scanning Banner */}
-                <AnimatePresence>
-                  {isScanning && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute inset-x-0 top-0 bg-blue-600 text-white py-3 px-6 text-xs font-black uppercase tracking-widest flex items-center justify-between z-20"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Brain size={14} className="animate-spin" />
-                        <span>{scanStep}</span>
-                      </div>
-                      <span className="font-mono">{scanProgress}%</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+        </div>
 
-                <div className="flex items-center justify-between mb-8 mt-2">
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                    <Activity size={16} className="text-blue-600 animate-pulse" />
-                    Real-Time Prognostic Trajectory Core
-                  </h3>
-                  <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Metabolic</span>
-                     </div>
-                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Regenerative</span>
-                     </div>
-                  </div>
-                </div>
-
-                <div className="h-[380px] w-full relative">
-                  <SafeResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={predictiveData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="metabolicGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="regenGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis 
-                        dataKey="day" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }}
-                        dy={10}
-                      />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }}
-                        domain={[20, 100]}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#0f172a', 
-                          border: 'none', 
-                          borderRadius: '1rem', 
-                          padding: '1rem',
-                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'
-                        }}
-                        itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="metabolic" 
-                        stroke="#2563eb" 
-                        strokeWidth={4}
-                        fillOpacity={1} 
-                        fill="url(#metabolicGradient)" 
-                        animationDuration={1500}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="regeneration" 
-                        stroke="#10b981" 
-                        strokeWidth={4}
-                        fillOpacity={1} 
-                        fill="url(#regenGradient)" 
-                        animationDuration={1500}
-                      />
-                    </AreaChart>
-                  </SafeResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Dynamic Bio-Environmental Environmental Sandbox Controls row */}
-              <div className="bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                      <Settings size={16} className="text-emerald-500 animate-spin-slow" />
-                      Dynamic Epigenetic Sandbox Controls
-                    </h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Adjust lifestyle predictors to run immediate micro-regressions</p>
-                  </div>
-                  <button 
-                    onClick={triggerReforecastSim}
-                    className="px-4 py-2 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
-                  >
-                    Recalibrate Model
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Slider 1: Sleep Duration */}
-                  <div className="p-4 bg-white dark:bg-slate-950 rounded-[1.5rem] border border-slate-100 dark:border-slate-800/80">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase">Sleep Architecture</span>
-                      <span className="text-xs font-black text-blue-500">{sleepHours} Hours / Night</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="5"
-                      max="10"
-                      step="0.5"
-                      value={sleepHours}
-                      onChange={(e) => {
-                        setSleepHours(Number(e.target.value));
-                        if (!isScanning) triggerReforecastSim();
-                      }}
-                      className="w-full accent-blue-600 h-1 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer"
-                    />
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">Correlates deep & circadian REM recovery cycles</p>
-                  </div>
-
-                  {/* Slider 2: Sunlight Exposure */}
-                  <div className="p-4 bg-white dark:bg-slate-950 rounded-[1.5rem] border border-slate-100 dark:border-slate-800/80">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase">Direct Helio-Exposure (Sun)</span>
-                      <span className="text-xs font-black text-amber-500">{directSunExposure} Minutes / Day</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="90"
-                      step="10"
-                      value={directSunExposure}
-                      onChange={(e) => {
-                        setDirectSunExposure(Number(e.target.value));
-                        if (!isScanning) triggerReforecastSim();
-                      }}
-                      className="w-full accent-amber-500 h-1 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer"
-                    />
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">Modulates cellular ATP synthesis & circadian clock</p>
-                  </div>
-
-                  {/* Slider 3: Fasting window */}
-                  <div className="p-4 bg-white dark:bg-slate-950 rounded-[1.5rem] border border-slate-100 dark:border-slate-800/80">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase">Intermittent Fasting Window</span>
-                      <span className="text-xs font-black text-purple-500">{weeklyFastingDuration} Hours / Fast</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="12"
-                      max="24"
-                      step="1"
-                      value={weeklyFastingDuration}
-                      onChange={(e) => {
-                        setWeeklyFastingDuration(Number(e.target.value));
-                        if (!isScanning) triggerReforecastSim();
-                      }}
-                      className="w-full accent-purple-500 h-1 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer"
-                    />
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">Adjusts targeted lysosomal clean-up (Autophagy index)</p>
-                  </div>
-
-                  {/* Slider 4: Cardiorespiratory HIIT sessions */}
-                  <div className="p-4 bg-white dark:bg-slate-950 rounded-[1.5rem] border border-slate-100 dark:border-slate-800/80">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase">Cardiorespiratory HIIT Load</span>
-                      <span className="text-xs font-black text-emerald-500">{hiitSessions} Sessions / Week</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="5"
-                      step="1"
-                      value={hiitSessions}
-                      onChange={(e) => {
-                        setHiitSessions(Number(e.target.value));
-                        if (!isScanning) triggerReforecastSim();
-                      }}
-                      className="w-full accent-emerald-500 h-1 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer"
-                    />
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">Drives VO2 max expansion & stroke volume capability</p>
-                  </div>
-                </div>
-
-                {/* Optional Caloric Offset Button Slider */}
-                <div className="mt-5 p-4 bg-white dark:bg-slate-950 rounded-[1.5rem] border border-slate-105 dark:border-slate-800/80">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase">Caloric Partition Shift</span>
-                    <span className="text-xs font-black text-indigo-505 dark:text-indigo-400">
-                      {calorieDeficit === 0 ? 'Equilibrium (Isocaloric)' : calorieDeficit > 0 ? `Deficit: -${calorieDeficit} kcal` : `Surplus: +${Math.abs(calorieDeficit)} kcal`}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-500"
-                    max="500"
-                    step="100"
-                    value={calorieDeficit * -1}
-                    onChange={(e) => {
-                      setCalorieDeficit(Number(e.target.value) * -1);
-                      if (!isScanning) triggerReforecastSim();
-                    }}
-                    className="w-full accent-indigo-500 h-1 bg-slate-101 dark:bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">Affects mitochondrial density vs metabolic signaling</p>
-                </div>
-              </div>
+        {/* Column 2: Health Activities */}
+        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+          
+          {/* Card Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Footprints size={18} className="text-blue-500" />
+              <h2 className="text-base font-black text-slate-900 dark:text-white">Health Activities</h2>
             </div>
+            <button
+              type="button"
+              onClick={() => setActiveModal('all_activities')}
+              className="text-xs font-bold text-blue-500 hover:text-blue-600 dark:text-cyan-400 flex items-center gap-1 cursor-pointer"
+            >
+              <span>View All</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
 
-            {/* Right Column: Outcomes Cards, Confidence Rating, and LIVE BIOMETRICS DRIFT correlation ticker */}
-            <div className="xl:col-span-4 space-y-6">
-              
-              <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 border border-white/5 flex flex-col justify-between min-h-[190px]">
-                <div>
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">AI PROJECTED AUTOPHAGIC REACH</p>
-                   <h4 className="text-3xl font-black tracking-tight text-emerald-400">
-                     {activeModel === 'metabo' ? Math.round(92 + (weeklyFastingDuration - 16) * 1.5) : Math.round(82 + (weeklyFastingDuration - 16) * 1.0)}% Efficacy
-                   </h4>
-                </div>
-                <div className="flex items-center gap-3 text-emerald-300">
-                   <Zap size={18} />
-                   <p className="text-xs font-medium leading-tight text-slate-300">
-                     Lysosomal degradation of damaged proteins peaked based on custom fasting window parameters.
-                   </p>
-                </div>
-              </div>
-
-              <div className="bg-emerald-500 text-white rounded-[2.5rem] p-8 flex flex-col justify-between min-h-[190px] shadow-lg shadow-emerald-500/20">
-                <div>
-                   <p className="text-[10px] font-black text-emerald-100 uppercase tracking-widest mb-2">Cellular Age Delta</p>
-                   <h4 className="text-3xl font-black tracking-tight select-none">
-                     {(-1.8 - (sleepHours - 7.5) * 0.45 - (weeklyFastingDuration - 16) * 0.08 - (hiitSessions - 2) * 0.18).toFixed(1)} Years
-                   </h4>
-                </div>
-                <div className="flex items-center gap-3 text-white">
-                   <Clock size={18} />
-                   <p className="text-xs font-semibold leading-tight">
-                     Biological decay slows in real-time. Telomere length stabilization forecasted at Day 45.
-                   </p>
-                </div>
-              </div>
-
-              {/* Real-Time Correlation Drift Ticker Card */}
-              <div className="bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Live Biometrics Drift Impact</h4>
-                  <span className="inline-flex w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                </div>
-                
-                <div className="space-y-4 pt-2">
-                  <div className="text-xs border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <p className="font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-1">
-                      Cardiovascular Drift
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      Live HR at <span className="font-bold text-blue-500">{vitals?.heartRate ?? 72} bpm</span> is pulling the longevity index prediction <span className="font-black text-emerald-500">{(vitals && vitals.heartRate < 75) ? 'UPWARD' : 'DOWNWARD'}</span> by <span className="font-bold">{(Math.abs((vitals?.heartRate ?? 72) - 72) * 0.18).toFixed(2)}%</span>.
-                    </p>
+          {/* Activities List */}
+          <div className="space-y-3">
+            {activities.map((act) => (
+              <div 
+                key={act.id}
+                className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-[#081530] border border-slate-100 dark:border-blue-900/40 hover:bg-slate-100 dark:hover:bg-blue-950/40 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    act.icon === 'walk' ? 'bg-blue-500/15 text-blue-500' :
+                    act.icon === 'sleep' ? 'bg-purple-500/15 text-purple-500' :
+                    'bg-cyan-500/15 text-cyan-500'
+                  }`}>
+                    {act.icon === 'walk' && <Footprints size={18} />}
+                    {act.icon === 'sleep' && <Moon size={18} />}
+                    {act.icon === 'water' && <Droplet size={18} />}
                   </div>
-                  
-                  <div className="text-xs border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <p className="font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-1">
-                      Mitochondrial Saturation
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      O2 levels at <span className="font-bold text-blue-500">{vitals?.spo2 ?? 98}%</span> establishes cellular transcription efficiency at <span className="font-bold text-emerald-500">{((vitals?.spo2 ?? 98) * 0.95).toFixed(1)}%</span>.
-                    </p>
-                  </div>
-
-                  <div className="text-xs">
-                    <p className="font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-1">
-                      Thermoregulation Flux
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      Core temperature of <span className="font-bold text-blue-500">{vitals?.temperature ?? 36.8}°C</span> shifts baseline metabolic regression calculations, optimizing cellular homeostasis.
-                    </p>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white">{act.title}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">{act.time}</p>
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* AI Confidence Tracker */}
-              <div className="bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Simulation Confidence Limit</h4>
-                <div className="flex items-end gap-3 mb-4">
-                  <span className="text-4xl font-black text-slate-900 dark:text-white leading-none">
-                    {Math.min(98, Math.round(92 + (sleepHours > 7 ? 2 : -2) + (hiitSessions > 1 ? 1 : -1)))}%
-                  </span>
-                  <span className="text-emerald-500 text-xs font-black mb-1 flex items-center gap-1">
-                    <TrendingUp size={14} /> +{(sleepHours > 7) ? '2' : '0'}%
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(98, Math.round(92 + (sleepHours > 7 ? 2 : -2) + (hiitSessions > 1 ? 1 : -1)))}%` }}
-                    className="h-full bg-blue-600 rounded-full"
-                  />
-                </div>
-              </div>
+        </div>
 
+        {/* Column 3: Quick Actions */}
+        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+          
+          {/* Card Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap size={18} className="text-blue-500" />
+              <h2 className="text-base font-black text-slate-900 dark:text-white">Quick Actions</h2>
             </div>
           </div>
-        </div>
-      </section>
-      </>
-      )}
 
+          {/* 4 Pastel Tiles in 2x2 Grid (Exact Colors from Image a33b3901) */}
+          <div className="grid grid-cols-2 gap-3.5">
+            
+            {/* Tile 1: Track Vitals (Pink/Rose Pastel) */}
+            <button
+              type="button"
+              onClick={() => setActiveModal('track_vitals')}
+              className="p-4 rounded-2xl bg-[#fee2e2]/70 dark:bg-rose-950/40 hover:bg-[#fecaca] dark:hover:bg-rose-900/50 border border-rose-200/60 dark:border-rose-900/60 flex flex-col items-center justify-center gap-2 text-center transition-all active:scale-95 cursor-pointer group"
+            >
+              <Heart size={20} className="text-rose-500 fill-rose-500 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-black text-rose-950 dark:text-rose-200">Track Vitals</span>
+            </button>
+
+            {/* Tile 2: View Reports (Light Blue Pastel) */}
+            <button
+              type="button"
+              onClick={() => setActiveModal('view_reports')}
+              className="p-4 rounded-2xl bg-[#e0f2fe]/70 dark:bg-sky-950/40 hover:bg-[#bae6fd] dark:hover:bg-sky-900/50 border border-sky-200/60 dark:border-sky-900/60 flex flex-col items-center justify-center gap-2 text-center transition-all active:scale-95 cursor-pointer group"
+            >
+              <BarChart3 size={20} className="text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-black text-sky-950 dark:text-sky-200">View Reports</span>
+            </button>
+
+            {/* Tile 3: Set Goals (Light Green Pastel) */}
+            <button
+              type="button"
+              onClick={() => setActiveModal('set_goals')}
+              className="p-4 rounded-2xl bg-[#dcfce7]/70 dark:bg-emerald-950/40 hover:bg-[#bbf7d0] dark:hover:bg-emerald-900/50 border border-emerald-200/60 dark:border-emerald-900/60 flex flex-col items-center justify-center gap-2 text-center transition-all active:scale-95 cursor-pointer group"
+            >
+              <Target size={20} className="text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Set Goals</span>
+            </button>
+
+            {/* Tile 4: Get Advice (Light Purple Pastel) */}
+            <button
+              type="button"
+              onClick={() => setActiveModal('ai_advice')}
+              className="p-4 rounded-2xl bg-[#f3e8ff]/70 dark:bg-purple-950/40 hover:bg-[#e9d5ff] dark:hover:bg-purple-900/50 border border-purple-200/60 dark:border-purple-900/60 flex flex-col items-center justify-center gap-2 text-center transition-all active:scale-95 cursor-pointer group"
+            >
+              <MessageSquare size={20} className="text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-black text-purple-950 dark:text-purple-200">Get Advice</span>
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 5. INTERACTIVE MODALS FOR QUICK ACTIONS & TELEMETRY LOGGING                */}
+      {/* ========================================================================= */}
       <AnimatePresence>
-        {showProtocols && (
-          <motion.div 
+        {activeModal && (
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
           >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl relative"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg bg-white dark:bg-[#0c1a36] border border-slate-200 dark:border-blue-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative"
             >
-              <button 
-                onClick={() => setShowProtocols(false)}
-                className="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white z-10"
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <X size={28} />
+                <X size={20} />
               </button>
 
-              <div className="p-12">
-                <div className="flex items-center gap-4 mb-2">
-                  <Settings size={32} className="text-emerald-500" />
-                  <h2 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Protocol Configuration</h2>
-                </div>
-                <p className="text-slate-500 dark:text-slate-400 font-bold mb-12 uppercase tracking-widest text-[10px]">Customize your biological enhancement schedule</p>
+              {/* MODAL 1: TRACK VITALS */}
+              {activeModal === 'track_vitals' && (
+                <form onSubmit={handleSaveVitals} className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                      <Heart size={20} className="fill-rose-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Track Vital Signs</h3>
+                      <p className="text-xs text-slate-400 font-medium">Record real-time clinical biomarkers</p>
+                    </div>
+                  </div>
 
-                <div className="space-y-6">
-                  {[
-                    { name: 'Cold Exposure', interval: 'Daily', intensity: 'Advanced (2°C)', icon: <Zap size={18} /> },
-                    { name: 'Red Light Therapy', interval: '3x Weekly', intensity: 'Standard', icon: <Scale size={18} /> },
-                    { name: 'Fast Autophagy', interval: '16/8 Window', intensity: 'Intermittent', icon: <Heart size={18} /> },
-                    { name: 'Hyperbaric Oxygen', interval: 'Monthly', intensity: 'Clinical', icon: <Activity size={18} /> },
-                  ].map((p, i) => (
-                    <div key={`vitalitymatrix-l1255-i-${i}`} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-700/50 group hover:border-emerald-500/50 transition-all cursor-pointer">
-                      <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center text-emerald-500 shadow-sm">
-                          {p.icon}
-                        </div>
-                        <div>
-                          <p className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{p.name}</p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{p.interval} • {p.intensity}</p>
-                        </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500">Heart Rate (bpm)</label>
+                      <input
+                        type="number"
+                        value={trackVitalsInput.hr}
+                        onChange={(e) => setTrackVitalsInput({ ...trackVitalsInput, hr: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500">Blood Pressure (mmHg)</label>
+                      <input
+                        type="text"
+                        value={trackVitalsInput.bp}
+                        onChange={(e) => setTrackVitalsInput({ ...trackVitalsInput, bp: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500">Temperature (°C)</label>
+                      <input
+                        type="text"
+                        value={trackVitalsInput.temp}
+                        onChange={(e) => setTrackVitalsInput({ ...trackVitalsInput, temp: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500">SpO2 Oxygen (%)</label>
+                      <input
+                        type="number"
+                        value={trackVitalsInput.spo2}
+                        onChange={(e) => setTrackVitalsInput({ ...trackVitalsInput, spo2: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs uppercase tracking-wider shadow-lg hover:from-blue-500 hover:to-indigo-500 transition-all cursor-pointer"
+                  >
+                    Save Vitals to Ledger
+                  </button>
+                </form>
+              )}
+
+              {/* MODAL 2: VIEW REPORTS */}
+              {activeModal === 'view_reports' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Vitality Clinical Reports</h3>
+                      <p className="text-xs text-slate-400 font-medium">Export encrypted clinical summary</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081530] border border-slate-200/60 dark:border-blue-900/40 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Overall Vitality:</span>
+                      <span className="font-black text-emerald-500">96% (Optimal Condition)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Resting Heart Rate:</span>
+                      <span className="font-black">72 bpm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Arterial Blood Pressure:</span>
+                      <span className="font-black">118/76 mmHg</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Respiratory SpO2:</span>
+                      <span className="font-black">98% Oxygen Saturation</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (addToast) addToast("Clinical PDF report generated and downloaded.", "success");
+                      setActiveModal(null);
+                    }}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    Download Encrypted PDF Report
+                  </button>
+                </div>
+              )}
+
+              {/* MODAL 3: SET GOALS */}
+              {activeModal === 'set_goals' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                      <Target size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Adjust Daily Health Goals</h3>
+                      <p className="text-xs text-slate-400 font-medium">Configure target milestones</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>Daily Step Target</span>
+                        <span className="text-blue-500">{healthGoals.steps.toLocaleString()} steps</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 text-slate-300 hover:text-emerald-500 transition-colors">
-                          <Play size={20} fill="currentColor" />
-                        </button>
+                      <input
+                        type="range"
+                        min="5000"
+                        max="20000"
+                        step="500"
+                        value={healthGoals.steps}
+                        onChange={(e) => setHealthGoals({ ...healthGoals, steps: Number(e.target.value) })}
+                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>Water Intake</span>
+                        <span className="text-cyan-500">{healthGoals.water} Liters</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1.5"
+                        max="5.0"
+                        step="0.1"
+                        value={healthGoals.water}
+                        onChange={(e) => setHealthGoals({ ...healthGoals, water: Number(e.target.value) })}
+                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (addToast) addToast("Daily vitality targets updated.", "success");
+                      setActiveModal(null);
+                    }}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    Save Health Goals
+                  </button>
+                </div>
+              )}
+
+              {/* MODAL 4: GET ADVICE */}
+              {activeModal === 'ai_advice' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Doctorian AI Consultation</h3>
+                      <p className="text-xs text-slate-400 font-medium">Personalized clinical recommendations</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleAskAdvice} className="space-y-3">
+                    <textarea
+                      rows={3}
+                      value={aiAdviceQuestion}
+                      onChange={(e) => setAiAdviceQuestion(e.target.value)}
+                      placeholder="Ask Doctorian AI: e.g. How can I lower my blood pressure or improve sleep quality?"
+                      className="w-full p-3.5 rounded-2xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-900 dark:text-white"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={isAiAnswering || !aiAdviceQuestion.trim()}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isAiAnswering ? "Synthesizing Clinical Insights..." : "Generate AI Medical Advice"}
+                    </button>
+                  </form>
+
+                  {aiAdviceResponse && (
+                    <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-xs leading-relaxed text-slate-700 dark:text-purple-200">
+                      {aiAdviceResponse}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODAL 5: ALL ACTIVITIES */}
+              {activeModal === 'all_activities' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                        <Footprints size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">Activity Log History</h3>
+                        <p className="text-xs text-slate-400 font-medium">All recorded physical sessions</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                <div className="mt-12 flex gap-4">
-                  <button className="flex-1 bg-slate-900 dark:bg-white dark:text-slate-900 py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all text-white">
-                    Save Changes
-                  </button>
-                  <button className="px-8 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                    <Plus size={24} />
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto">
+                    {activities.map((a) => (
+                      <div key={a.id} className="p-3 rounded-xl bg-slate-50 dark:bg-[#081530] flex justify-between items-center text-xs">
+                        <span className="font-bold">{a.title}</span>
+                        <span className="text-slate-400">{a.time}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivities(prev => [
+                        { id: Date.now(), title: 'Hydration - 500 mL', time: 'Just now', icon: 'water', type: 'hydration' },
+                        ...prev
+                      ]);
+                      if (addToast) addToast("New activity logged: 500 mL Water", "success");
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-cyan-400 font-bold text-xs uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    + Log 500 mL Hydration Now
                   </button>
                 </div>
-              </div>
+              )}
+
+              {/* MODAL 6: VITAL DETAIL PREVIEW (HR, BP, TEMP, SPO2, STEPS) */}
+              {['hr', 'temp', 'spo2', 'bp', 'steps'].includes(activeModal) && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                      <Activity size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase">
+                        {activeModal === 'hr' ? 'Heart Rate Telemetry' :
+                         activeModal === 'temp' ? 'Core Temperature Telemetry' :
+                         activeModal === 'spo2' ? 'Blood Oxygen Saturation' :
+                         activeModal === 'bp' ? 'Blood Pressure History' : 'Pedometer Step History'}
+                      </h3>
+                      <p className="text-xs text-emerald-500 font-black">Status: Optimal Physiological Equilibrium</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081530] border border-slate-200/60 dark:border-blue-900/40 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Standard Target Range:</span>
+                      <span className="font-black text-slate-800 dark:text-white">
+                        {activeModal === 'hr' ? '60 - 100 bpm (Normal)' :
+                         activeModal === 'temp' ? '36.1 - 37.2 °C' :
+                         activeModal === 'spo2' ? '95 - 100% (Normal)' :
+                         activeModal === 'bp' ? '90/60 - 120/80 mmHg' : '8,000 - 12,000 steps'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Telemetry Sensor:</span>
+                      <span className="font-black text-cyan-400">Doctorian Arduino MAX30102 / Medical Biosensor</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Encryption:</span>
+                      <span className="font-black text-emerald-400">AES-256 Medical Vault Lock</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    Close Telemetry Window
+                  </button>
+                </div>
+              )}
+
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   );
 };
 
-export default VitalityMatrix;
+// Helper Icon for Pie/Donut Chart
+const PieChartIcon: React.FC<{ size?: number; className?: string }> = ({ size = 18, className = '' }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+  </svg>
+);
 
+export default VitalityMatrix;

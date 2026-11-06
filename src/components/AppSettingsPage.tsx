@@ -165,14 +165,9 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
         {/* TOP HERO BANNER: App Settings & Tools (Matching Image 3)               */}
         {/* ===================================================================== */}
         <section className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] sm:min-h-[150px] flex items-center justify-between p-6 sm:p-8">
-          {/* Subtle medical watermark overlay */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay"
-            style={{
-              backgroundImage: `url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1600&auto=format&fit=crop&q=80')`
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 via-blue-800/80 to-transparent pointer-events-none" />
+          {/* Modern cyber-clinical ambient overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(56,189,248,0.25),transparent_60%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-950/80 via-blue-900/60 to-transparent pointer-events-none" />
 
           {/* Left: 3D Gear Icon & Title */}
           <div className="relative z-10 flex items-center gap-4 max-w-xl">
@@ -861,8 +856,8 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
             <div className="pt-2 flex items-center justify-center">
               <div className="relative w-28 h-20 bg-slate-800 rounded-t-lg border-2 border-slate-600 flex flex-col items-center justify-center shadow-lg">
                 <div className="w-24 h-14 bg-gradient-to-tr from-blue-900 to-cyan-900 rounded flex items-center justify-center">
-                  <div className="w-7 h-7 rounded-full bg-cyan-400/20 border border-cyan-400 flex items-center justify-center text-cyan-300">
-                    <Heart size={14} className="fill-cyan-400 text-cyan-400" />
+                  <div className="w-8 h-8 rounded-lg bg-cyan-400/20 border border-cyan-400/40 p-0.5 flex items-center justify-center">
+                    <img src="/doctorian-logo.png" alt="Doctorian AI" className="w-full h-full object-contain rounded-md" />
                   </div>
                 </div>
                 {/* Keyboard base */}

@@ -90,7 +90,8 @@ import { Compass,
   HelpCircle,
   Users,
   FlaskConical,
-  Maximize2
+  Maximize2,
+  Watch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -219,6 +220,7 @@ const DeveloperPortal = safeLazy(() => import("./components/DeveloperPortal"), "
 const GsmSmsGateway = safeLazy(() => import("./components/GsmSmsGateway"), "GsmSmsGateway");
 const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
 const AppSettingsPage = safeLazy(() => import("./components/AppSettingsPage"), "AppSettingsPage");
+const DoctorianSmartWatchOS = safeLazy(() => import("./components/DoctorianSmartWatchOS"), "DoctorianSmartWatchOS");
 import { BMICalculator } from "./components/BMICalculator";
 const AmbientClinicalScribe = safeLazy(() => import("./components/AmbientClinicalScribe"), "AmbientClinicalScribe");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
@@ -2675,116 +2677,232 @@ export default function App() {
       </a>
       
       {/* ========================================================================= */}
-      {/* CANONICAL MODERN DARK NAVY SIDEBAR (Matching Image a33b3901 & Image 9ca8ccdf) */}
+      {/* WINDOWS 11 FLUENT ACRYLIC SIDEBAR - MODERN CLINICAL EDITION               */}
       {/* ========================================================================= */}
       {user && (
         <aside 
-          className="hidden md:flex flex-col w-64 bg-[#081530] border-r border-blue-900/50 shrink-0 h-full select-none z-30 relative overflow-hidden"
-          aria-label="Doctorian Main Navigation"
+          className="hidden md:flex flex-col w-64 bg-[#071329]/95 dark:bg-[#040b18]/98 backdrop-blur-2xl border-r border-blue-900/40 shrink-0 h-full select-none z-30 relative overflow-hidden"
+          aria-label="Doctorian Windows Fluent Navigation"
         >
-          {/* Top Logo & Branding */}
+          {/* Windows Fluent Acrylic Ambient Accent */}
+          <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-cyan-500/10 via-blue-600/5 to-transparent pointer-events-none" />
+
+          {/* Windows App Title & Brand Header */}
           <div 
             onClick={() => setCurrentView('home')}
-            className="p-5 flex items-center gap-3 cursor-pointer hover:opacity-95 transition-opacity shrink-0 border-b border-blue-900/40"
+            className="p-4.5 flex items-center gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors shrink-0 border-b border-blue-900/40 relative z-10"
           >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg">
-              <div className="w-full h-full bg-[#061127] rounded-[14px] flex items-center justify-center text-cyan-400 font-black">
-                <Heart size={20} className="fill-cyan-400 text-cyan-400" />
-              </div>
+            {/* Windows App Icon with Glow */}
+            <div className="w-10 h-10 rounded-xl bg-white/10 dark:bg-slate-900/80 border border-white/20 dark:border-blue-500/30 p-1 flex items-center justify-center shadow-lg shadow-cyan-500/15 backdrop-blur-md shrink-0 group">
+              <img 
+                src="/assets/aistudio/image_3d2127ab.png" 
+                alt="Doctorian AI Official Logo" 
+                className="w-full h-full object-contain rounded-lg transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/logo.png';
+                }}
+              />
             </div>
-            <div>
-              <h2 className="text-base font-black tracking-tight text-white leading-tight">Doctorian AI</h2>
-              <p className="text-[9px] text-cyan-300 font-medium">Smarter Healthcare, Better Life</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-black tracking-tight text-white leading-tight truncate">Doctorian AI</h2>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              </div>
+              <p className="text-[9px] text-cyan-300 font-semibold tracking-wide flex items-center gap-1 mt-0.5">
+                <span>Windows 11 Fluent</span>
+                <span className="text-slate-500">·</span>
+                <span className="text-slate-400">Clinical OS</span>
+              </p>
             </div>
           </div>
 
-          {/* Scrollable Navigation List (13 Modern Buttons) */}
-          <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 text-xs font-bold" aria-label="Primary Navigation">
-            {[
-              { id: 'home', label: 'Dashboard', icon: Home },
-              { id: 'records', label: 'Patients', icon: Users, badge: '24' },
-              { id: 'doctors_dashboard', label: 'Doctors', icon: Stethoscope },
-              { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
-              { id: 'meds', label: 'Prescriptions', icon: Pill },
-              { id: 'diagnostic_lab', label: 'Laboratory', icon: FlaskConical },
-              { id: 'pharmacy', label: 'Pharmacy', icon: Pill, targetView: 'meds' },
-              { id: 'telemedicine', label: 'Telemedicine', icon: Video, action: () => setIsTelehealthOpen(true) },
-              { id: 'ai_nexus', label: 'AI Assistant', icon: Bot },
-              { id: 'analytics', label: 'Analytics', icon: TrendingUp, targetView: 'vitality' },
-              { id: 'vitality', label: 'Vitality Matrix', icon: Activity },
-              { id: 'settings', label: 'Settings', icon: Settings },
-              { id: 'about', label: 'Help & Support', icon: HelpCircle }
-            ].map((item) => {
-              const target = item.targetView || item.id;
-              const isActive = (item.id === 'pharmacy' && currentView === 'meds')
-                ? false
-                : (item.id === 'analytics' && currentView === 'vitality')
-                ? false
-                : currentView === target;
+          {/* Windows Categorized Navigation List */}
+          <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4 text-xs select-none relative z-10" aria-label="Primary Navigation">
+            
+            {/* Section 1: Clinical Core */}
+            <div className="space-y-1">
+              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 flex items-center justify-between">
+                <span>Clinical Core</span>
+                <span className="text-[9px] font-mono text-cyan-400/80 font-bold">01</span>
+              </div>
+              {[
+                { id: 'home', label: 'Dashboard', icon: Home },
+                { id: 'records', label: 'Patients Registry', icon: Users, badge: '24' },
+                { id: 'doctors_dashboard', label: 'Doctors Hub', icon: Stethoscope },
+                { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
+                { id: 'meds', label: 'Prescriptions', icon: Pill },
+              ].map((item) => {
+                const isActive = currentView === item.id;
+                const Icon = item.icon;
 
-              const Icon = item.icon;
+                return (
+                  <button
+                    key={`nav-core-${item.id}`}
+                    type="button"
+                    onClick={() => setCurrentView(item.id as any)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
+                      isActive
+                        ? 'bg-white/[0.10] dark:bg-white/[0.08] text-white font-bold border border-white/[0.12] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
+                        : 'text-slate-300 dark:text-slate-300 hover:text-white hover:bg-white/[0.04] hover:border hover:border-white/[0.06] border border-transparent font-medium active:scale-[0.98]'
+                    }`}
+                  >
+                    {/* Windows 11 Active Indicator Accent Pill on Left Edge */}
+                    {isActive && (
+                      <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 via-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
+                    )}
+                    <div className="flex items-center gap-2.5 pl-1.5">
+                      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/90 text-white font-mono text-[9px] font-bold shadow-xs">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-              return (
-                <button
-                  key={`main-nav-${item.id}`}
-                  type="button"
-                  onClick={() => {
-                    if (item.action) {
-                      item.action();
-                    } else {
-                      setCurrentView(target as any);
-                    }
-                  }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 font-black'
-                      : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge && (
-                    <span className="w-5 h-5 rounded-full bg-rose-500 text-[10px] font-black text-white flex items-center justify-center shadow-sm">
-                      {item.badge}
-                    </span>
-                  )}
-                  {isActive && !item.badge && (
-                    <ChevronRight size={14} className="text-white/80" />
-                  )}
-                </button>
-              );
-            })}
+            {/* Section 2: Diagnostics & AI Telemetry */}
+            <div className="space-y-1">
+              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 flex items-center justify-between">
+                <span>Diagnostics & AI</span>
+                <span className="text-[9px] font-mono text-cyan-400/80 font-bold">02</span>
+              </div>
+              {[
+                { id: 'smart_watch', label: 'Doctorian Smart Watch', icon: Watch, badge: 'OS', badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' },
+                { id: 'diagnostic_lab', label: 'Laboratory Analyzer', icon: FlaskConical },
+                { id: 'telemedicine', label: 'Telemedicine Consultation', icon: Video, action: () => setIsTelehealthOpen(true) },
+                { id: 'ai_nexus', label: 'AI Health Assistant', icon: Bot, badge: 'AI', badgeColor: 'bg-purple-500/20 text-purple-300 border border-purple-400/30' },
+                { id: 'vitality', label: 'Vitality Matrix & ECG', icon: Activity },
+              ].map((item) => {
+                const isActive = currentView === item.id;
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={`nav-diag-${item.id}`}
+                    type="button"
+                    onClick={() => {
+                      if (item.action) {
+                        item.action();
+                      } else {
+                        setCurrentView(item.id as any);
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
+                      isActive
+                        ? 'bg-white/[0.10] dark:bg-white/[0.08] text-white font-bold border border-white/[0.12] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
+                        : 'text-slate-300 dark:text-slate-300 hover:text-white hover:bg-white/[0.04] hover:border hover:border-white/[0.06] border border-transparent font-medium active:scale-[0.98]'
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 via-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
+                    )}
+                    <div className="flex items-center gap-2.5 pl-1.5">
+                      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span className={`px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold ${item.badgeColor || 'bg-blue-600 text-white'}`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Section 3: Management & Settings */}
+            <div className="space-y-1">
+              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 flex items-center justify-between">
+                <span>System & Tools</span>
+                <span className="text-[9px] font-mono text-cyan-400/80 font-bold">03</span>
+              </div>
+              {[
+                { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'meds' },
+                { id: 'analytics', label: 'Clinical Analytics', icon: TrendingUp, targetView: 'vitality' },
+                { id: 'settings', label: 'App Settings & Tools', icon: Settings },
+                { id: 'about', label: 'Help & Knowledge Center', icon: HelpCircle },
+              ].map((item) => {
+                const target = item.targetView || item.id;
+                const isActive = (item.id === 'pharmacy' && currentView === 'meds')
+                  ? false
+                  : (item.id === 'analytics' && currentView === 'vitality')
+                  ? false
+                  : currentView === target;
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={`nav-settings-${item.id}`}
+                    type="button"
+                    onClick={() => setCurrentView(target as any)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
+                      isActive
+                        ? 'bg-white/[0.10] dark:bg-white/[0.08] text-white font-bold border border-white/[0.12] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
+                        : 'text-slate-300 dark:text-slate-300 hover:text-white hover:bg-white/[0.04] hover:border hover:border-white/[0.06] border border-transparent font-medium active:scale-[0.98]'
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 via-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
+                    )}
+                    <div className="flex items-center gap-2.5 pl-1.5">
+                      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {isActive && (
+                      <ChevronRight size={13} className="text-cyan-300/80" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
           </nav>
 
-          {/* Bottom System Status Box (Exact Match to Image a33b3901) */}
-          <div className="p-3 border-t border-blue-900/40 shrink-0">
-            <div className="p-3 rounded-2xl bg-[#0a1b38] border border-blue-800/60 space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-emerald-400" />
-                <div>
-                  <span className="text-[11px] font-black text-white block leading-tight">System Online</span>
-                  <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    All Services Active
-                  </span>
+          {/* Windows Fluent Acrylic Telemetry Widget */}
+          <div className="p-3 border-t border-blue-900/40 shrink-0 relative z-10">
+            <div className="p-2.5 rounded-xl bg-white/[0.04] dark:bg-black/40 border border-white/10 dark:border-blue-900/50 backdrop-blur-md space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={15} className="text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-black text-white block leading-tight">System Online</span>
+                    <span className="text-[8px] text-emerald-400 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      14ms · All Core Nodes Active
+                    </span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('vitality')}
+                  className="p-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 text-[9px] font-bold cursor-pointer"
+                  title="Open Vitality Hub"
+                >
+                  <Activity size={12} />
+                </button>
               </div>
-              {/* Animated ECG Waveform */}
-              <div className="h-5 w-full">
+
+              {/* Windows ECG Heartbeat Indicator */}
+              <div className="h-4 w-full rounded-md bg-[#040e20] p-0.5 border border-blue-950 overflow-hidden">
                 <svg className="w-full h-full" viewBox="0 0 100 20" preserveAspectRatio="none">
                   <path
-                    d="M 0,10 L 25,10 L 32,2 L 38,18 L 44,6 L 50,14 L 56,10 L 100,10"
+                    d="M 0,10 L 25,10 L 32,3 L 38,17 L 44,7 L 50,13 L 56,10 L 100,10"
                     fill="none"
                     stroke="#10b981"
-                    strokeWidth="2"
+                    strokeWidth="1.8"
                     strokeLinecap="round"
                   />
                 </svg>
               </div>
             </div>
-            <p className="text-[9px] text-slate-500 text-center font-mono mt-2">v2.0.0 | Doctorian AI</p>
+            <div className="flex items-center justify-between text-[8px] text-slate-500 font-mono mt-1.5 px-1">
+              <span>v2.0.0 (Build 26100)</span>
+              <span>Windows Clinical</span>
+            </div>
           </div>
         </aside>
       )}
@@ -2805,7 +2923,7 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-[#081530] border-r border-blue-900/50 flex flex-col z-10 shadow-2xl"
+              className="absolute top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-[#071329]/98 border-r border-blue-900/40 flex flex-col z-10 shadow-2xl backdrop-blur-2xl"
             >
               <div className="p-4 flex items-center justify-between border-b border-blue-900/40">
                 <div 
@@ -2815,83 +2933,166 @@ export default function App() {
                   }}
                   className="flex items-center gap-2.5 cursor-pointer"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 flex items-center justify-center">
-                    <div className="w-full h-full bg-[#061127] rounded-[10px] flex items-center justify-center text-cyan-400 font-black">
-                      <Heart size={18} className="fill-cyan-400 text-cyan-400" />
-                    </div>
+                  <div className="w-9 h-9 rounded-xl bg-white/10 dark:bg-slate-900/80 border border-white/20 p-1 flex items-center justify-center shadow-md">
+                    <img 
+                      src="/assets/aistudio/image_3d2127ab.png" 
+                      alt="Doctorian AI" 
+                      className="w-full h-full object-contain rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/logo.png';
+                      }}
+                    />
                   </div>
                   <div>
                     <h2 className="text-sm font-black tracking-tight text-white leading-tight">Doctorian AI</h2>
-                    <p className="text-[9px] text-cyan-300 font-medium">Smarter Healthcare, Better Life</p>
+                    <p className="text-[9px] text-cyan-300 font-medium">Windows 11 Clinical Edition</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 text-xs font-bold">
-                {[
-                  { id: 'home', label: 'Dashboard', icon: Home },
-                  { id: 'records', label: 'Patients', icon: Users, badge: '24' },
-                  { id: 'doctors_dashboard', label: 'Doctors', icon: Stethoscope },
-                  { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
-                  { id: 'meds', label: 'Prescriptions', icon: Pill },
-                  { id: 'diagnostic_lab', label: 'Laboratory', icon: FlaskConical },
-                  { id: 'pharmacy', label: 'Pharmacy', icon: Pill, targetView: 'meds' },
-                  { id: 'telemedicine', label: 'Telemedicine', icon: Video, action: () => { setIsTelehealthOpen(true); setIsMobileSidebarOpen(false); } },
-                  { id: 'ai_nexus', label: 'AI Assistant', icon: Bot },
-                  { id: 'analytics', label: 'Analytics', icon: TrendingUp, targetView: 'vitality' },
-                  { id: 'vitality', label: 'Vitality Matrix', icon: Activity },
-                  { id: 'settings', label: 'Settings', icon: Settings },
-                  { id: 'about', label: 'Help & Support', icon: HelpCircle }
-                ].map((item) => {
-                  const target = item.targetView || item.id;
-                  const isActive = currentView === target;
-                  const Icon = item.icon;
+              <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 text-xs font-bold">
+                {/* Clinical Core */}
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">Clinical Core</span>
+                  {[
+                    { id: 'home', label: 'Dashboard', icon: Home },
+                    { id: 'records', label: 'Patients Registry', icon: Users, badge: '24' },
+                    { id: 'doctors_dashboard', label: 'Doctors Hub', icon: Stethoscope },
+                    { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
+                    { id: 'meds', label: 'Prescriptions', icon: Pill },
+                  ].map((item) => {
+                    const isActive = currentView === item.id;
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={`mob-nav-${item.id}`}
+                        type="button"
+                        onClick={() => {
+                          setCurrentView(item.id as any);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
+                          isActive
+                            ? 'bg-white/[0.10] text-white font-bold border border-white/[0.12] shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+                        )}
+                        <div className="flex items-center gap-2.5 pl-1.5">
+                          <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-rose-500/90 text-[9px] font-black text-white">
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                  return (
-                    <button
-                      key={`mob-nav-${item.id}`}
-                      type="button"
-                      onClick={() => {
-                        if (item.action) {
-                          item.action();
-                        } else {
+                {/* Diagnostics & AI */}
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">Diagnostics & AI</span>
+                  {[
+                    { id: 'smart_watch', label: 'Doctorian Smart Watch', icon: Watch, badge: 'OS' },
+                    { id: 'diagnostic_lab', label: 'Laboratory Analyzer', icon: FlaskConical },
+                    { id: 'telemedicine', label: 'Telemedicine', icon: Video, action: () => { setIsTelehealthOpen(true); setIsMobileSidebarOpen(false); } },
+                    { id: 'ai_nexus', label: 'AI Health Assistant', icon: Bot, badge: 'AI' },
+                    { id: 'vitality', label: 'Vitality Matrix & ECG', icon: Activity },
+                  ].map((item) => {
+                    const isActive = currentView === item.id;
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={`mob-nav-${item.id}`}
+                        type="button"
+                        onClick={() => {
+                          if (item.action) {
+                            item.action();
+                          } else {
+                            setCurrentView(item.id as any);
+                            setIsMobileSidebarOpen(false);
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
+                          isActive
+                            ? 'bg-white/[0.10] text-white font-bold border border-white/[0.12] shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+                        )}
+                        <div className="flex items-center gap-2.5 pl-1.5">
+                          <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-[9px] font-black">
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* System & Tools */}
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">System & Tools</span>
+                  {[
+                    { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'meds' },
+                    { id: 'analytics', label: 'Clinical Analytics', icon: TrendingUp, targetView: 'vitality' },
+                    { id: 'settings', label: 'App Settings & Tools', icon: Settings },
+                    { id: 'about', label: 'Help & Knowledge Center', icon: HelpCircle }
+                  ].map((item) => {
+                    const target = item.targetView || item.id;
+                    const isActive = currentView === target;
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={`mob-nav-${item.id}`}
+                        type="button"
+                        onClick={() => {
                           setCurrentView(target as any);
                           setIsMobileSidebarOpen(false);
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 font-black'
-                          : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
-                        <span>{item.label}</span>
-                      </div>
-                      {item.badge && (
-                        <span className="w-5 h-5 rounded-full bg-rose-500 text-[10px] font-black text-white flex items-center justify-center shadow-sm">
-                          {item.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
+                          isActive
+                            ? 'bg-white/[0.10] text-white font-bold border border-white/[0.12] shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+                        )}
+                        <div className="flex items-center gap-2.5 pl-1.5">
+                          <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+                          <span>{item.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </nav>
 
               <div className="p-3 border-t border-blue-900/40">
-                <div className="p-2.5 rounded-xl bg-[#0a1b38] border border-blue-800/60 flex items-center gap-2">
+                <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-2">
                   <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
                   <div className="text-[10px] text-white font-bold leading-tight">
-                    System Online
-                    <span className="block text-[9px] text-emerald-400 font-medium">All Services Active</span>
+                    Windows Clinical Online
+                    <span className="block text-[8px] text-emerald-400 font-medium">14ms · All Services Active</span>
                   </div>
                 </div>
               </div>
@@ -2949,10 +3150,15 @@ export default function App() {
                   onClick={() => setCurrentView('home')}
                   className="md:hidden flex items-center gap-2 shrink-0 cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-sm">
-                    <div className="w-full h-full bg-[#061127] rounded-[10px] flex items-center justify-center text-cyan-400">
-                      <Heart size={16} className="fill-cyan-400 text-cyan-400" />
-                    </div>
+                  <div className="w-8 h-8 rounded-xl bg-white/10 dark:bg-slate-900/80 border border-white/20 p-1 flex items-center justify-center shadow-sm shrink-0">
+                    <img 
+                      src="/assets/aistudio/image_3d2127ab.png" 
+                      alt="Doctorian AI" 
+                      className="w-full h-full object-contain rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/logo.png';
+                      }} 
+                    />
                   </div>
                   <span className="text-sm font-black text-slate-900 dark:text-white">Doctorian</span>
                 </button>
@@ -2970,8 +3176,20 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Right Side: Search Icon (mobile), Notification Bell (3), Fullscreen Toggle, User Profile */}
+              {/* Right Side: Doctorian Smart Watch OS, Search Icon (mobile), Notification Bell (3), Fullscreen Toggle, User Profile */}
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                {/* Doctorian Smart Watch OS Capsule in Top Bar (Exact Match to User Requirement) */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('smart_watch')}
+                  className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-indigo-600/10 hover:from-blue-600/20 hover:to-cyan-500/20 border border-blue-400/40 dark:border-cyan-500/40 text-blue-700 dark:text-cyan-300 font-bold text-xs transition-all cursor-pointer shadow-2xs group shrink-0"
+                  title="Open Doctorian Smart Watch OS"
+                >
+                  <Watch size={16} className="text-cyan-500 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline font-black tracking-tight">Doctorian Smart Watch</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </button>
+
                 {/* Mobile Search Button */}
                 <button
                   type="button"
@@ -3335,11 +3553,13 @@ export default function App() {
       </div>
 
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        ['ai_nexus', 'home', 'doctors_dashboard', 'vitality', 'settings'].includes(currentView) ? 'pb-0 h-full min-h-0' : 'pb-8 sm:pb-12'
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0 overflow-hidden' : 'pb-0'
       }`} id="main-content">
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
-            ['ai_nexus', 'home', 'doctors_dashboard', 'vitality', 'settings'].includes(currentView)
+            currentView === 'ai_nexus'
               ? 'py-0 px-0 max-w-full h-full min-h-0 space-y-0' 
+              : ['home', 'doctors_dashboard', 'vitality', 'settings', 'smart_watch'].includes(currentView)
+              ? 'py-0 px-0 max-w-full space-y-0'
               : 'py-6 sm:py-8 lg:py-10 px-4 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-6 sm:space-y-8'
           }`}>
             {/* Side buttons remain exclusively on the left sidebar and are not repeated inside the page */}
@@ -4130,6 +4350,16 @@ export default function App() {
           >
             <AppSettingsPage onNavigate={setCurrentView} user={user} addToast={(msg, type) => addToast(msg, type || 'info')} />
           </motion.div>
+        ) : currentView === 'smart_watch' ? (
+          <motion.div
+            key="smart_watch"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            className="w-full"
+          >
+            <DoctorianSmartWatchOS onNavigate={setCurrentView} user={user} addToast={(msg, type) => addToast(msg, type || 'info')} />
+          </motion.div>
         ) : (
           <motion.div
             role="main"
@@ -4158,6 +4388,15 @@ export default function App() {
             </Suspense>
           </div>
         </main>
+        
+        {/* Canonical Doctorian Footer - Clean Natural Bottom Flow (never blocking any page feature) */}
+        {currentView !== 'ai_nexus' && (
+          <div className="w-full mt-auto pb-36 sm:pb-24 relative z-10 shrink-0">
+            <Suspense fallback={<div className="h-16" />}>
+              <Footer onNavigate={(view) => setCurrentView(view)} />
+            </Suspense>
+          </div>
+        )}
 
   {/* Search Overlay */}
   <AnimatePresence>
@@ -4640,15 +4879,7 @@ export default function App() {
     currentUser={user}
     onShowToast={(msg, type) => addToast(msg, type === 'warning' ? 'info' : (type || 'info'))}
   />
-  
-            {currentView !== 'ai_nexus' && (
-              <div className="w-full mt-auto pb-28 sm:pb-16 relative z-10">
-                <Suspense fallback={<div className="h-20" />}>
-                  <Footer onNavigate={(view) => setCurrentView(view)} />
-                </Suspense>
-              </div>
-            )}
-
+            {/* Modals and Overlays Section */}
             {/* Single clean install modal when triggered from upper bar or sidebar */}
 
             <AnimatePresence>

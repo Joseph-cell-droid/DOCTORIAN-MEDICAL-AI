@@ -236,17 +236,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         <section className="space-y-6">
 
-          {/* 1. Good Afternoon Hero Banner with Hospital Photo */}
-          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] sm:min-h-[160px] flex items-center justify-between p-6 sm:p-8">
-            {/* Background Medical Architecture Photo with Soft Overlay */}
+          {/* 1. Good Afternoon Hero Banner (Modern Cyber-Clinical Styling, No Photos) */}
+          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] sm:min-h-[160px] flex items-center justify-between p-6 sm:p-8 border border-blue-400/30">
+            {/* High-tech animated clinical ambient background */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(56,189,248,0.25),transparent_60%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(99,102,241,0.3),transparent_60%)] pointer-events-none" />
+            
+            {/* Subtle Clinical Grid Overlay */}
             <div 
-              className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-overlay"
+              className="absolute inset-0 opacity-15 pointer-events-none"
               style={{
-                backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1600&auto=format&fit=crop&q=80')`
+                backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px)',
+                backgroundSize: '20px 20px'
               }}
             />
-            {/* Subtle Gradient Glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 via-blue-800/80 to-transparent pointer-events-none" />
+            {/* Subtle Gradient Vignette */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-950/80 via-blue-900/60 to-transparent pointer-events-none" />
 
             {/* Left Welcome Copy */}
             <div className="relative z-10 max-w-xl space-y-2">

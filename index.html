@@ -3,18 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <!-- Vite React Refresh Preamble for development & iframe proxy environments -->
+    <script>
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
     <script type="module">
       try {
-        import('/@react-refresh').then((RefreshRuntime) => {
+        const RefreshRuntime = await import('/@react-refresh');
+        if (RefreshRuntime && RefreshRuntime.default) {
           RefreshRuntime.default.injectIntoGlobalHook(window);
           window.$RefreshReg$ = () => {};
           window.$RefreshSig$ = () => (type) => type;
-          window.__vite_plugin_react_preamble_installed__ = true;
-        }).catch(() => {
-          window.__vite_plugin_react_preamble_installed__ = true;
-        });
+        }
       } catch (e) {
-        window.__vite_plugin_react_preamble_installed__ = true;
+        // Fallback for production or standalone mode
       }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />

@@ -3676,6 +3676,7 @@ export default function App() {
                 vitals={arduino.vitals}
                 healthStatus={arduino.healthStatus}
                 history={arduino.history}
+                arduino={arduino}
                 onUpdateUser={(u) => setUser(u)}
                 currentLanguage={currentLanguage}
               />
@@ -4379,6 +4380,7 @@ export default function App() {
               vitals={arduino.vitals}
               healthStatus={arduino.healthStatus}
               history={arduino.history}
+              arduino={arduino}
               onUpdateUser={(u) => setUser(u)}
               currentLanguage={currentLanguage}
             />

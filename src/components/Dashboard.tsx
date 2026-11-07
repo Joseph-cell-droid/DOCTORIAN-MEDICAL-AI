@@ -47,7 +47,12 @@ import {
   Home,
   HelpCircle,
   Settings,
-  Maximize2
+  Maximize2,
+  Sunrise,
+  Sunset,
+  Radio,
+  Usb,
+  Bluetooth
 } from 'lucide-react';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
@@ -63,6 +68,7 @@ interface DashboardProps {
   vitals: Vitals | null;
   healthStatus: HealthStatus | null;
   history: Vitals[];
+  arduino?: any;
   onUpdateUser?: (u: any) => void;
   currentLanguage?: string;
 }
@@ -77,6 +83,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   vitals,
   healthStatus,
   history,
+  arduino,
   onUpdateUser,
   currentLanguage = 'English (US)'
 }) => {
@@ -86,11 +93,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
   const [isEmergencyCalling, setIsEmergencyCalling] = useState(false);
   const [emergencyCountdown, setEmergencyCountdown] = useState<number | null>(null);
 
-  // Selected Patient for Live Health Monitoring
-  const [selectedPatientId, setSelectedPatientId] = useState<'sarah' | 'john' | 'mary'>('sarah');
+  // Real-time Clock following exact current time
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Ensure live sensor stream is running so the app operates with real-time sensor machine feeds
+  useEffect(() => {
+    if (arduino && !arduino.connection?.connected && typeof arduino.startDemo === 'function') {
+      arduino.startDemo('healthy');
+    }
+  }, [arduino]);
+
+  // Selected Patient or Machine Hardware for Live Health Monitoring
+  const [selectedPatientId, setSelectedPatientId] = useState<'sarah' | 'john' | 'mary' | 'machine'>('sarah');
 
   // Patient profiles
   const patientsData = {

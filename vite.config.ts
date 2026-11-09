@@ -1,20 +1,128 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react({
-      fastRefresh: false // Prevent preamble timing conflicts in proxied iframe environments
-    }),
-    tailwindcss()
-  ],
-  server: {
-    host: '0.0.0.0',
-    port: 3000,
-    strictPort: true,
-    allowedHosts: true,
-    cors: true
-  }
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig(() => {
+  return {
+    plugins: [
+      react(), 
+      tailwindcss(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        disable: true, // Disable PWA service worker build-time workbox generation to prevent OOM
+        manifest: {
+          name: 'Doctorian Medical AI',
+          short_name: 'Doctorian',
+          description: 'Comprehensive autonomous AI bio-organ stress & hemodynamic medical intelligence platform.',
+          theme_color: '#090d16',
+          background_color: '#090d16',
+          display: 'standalone',
+          icons: [
+            {
+              src: 'logo-192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'logo-512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        }
+      })
+    ],
+    resolve: {
+      dedupe: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+      ],
+      alias: [
+        { find: '@', replacement: path.resolve(__dirname, '.') },
+        { find: /^react$/, replacement: path.resolve(__dirname, 'node_modules/react') },
+        { find: /^react-dom$/, replacement: path.resolve(__dirname, 'node_modules/react-dom') },
+        { find: /^motion\/react$/, replacement: path.resolve(__dirname, 'src/utils/motionShim.tsx') },
+        { find: /^framer-motion$/, replacement: path.resolve(__dirname, 'src/utils/motionShim.tsx') },
+        { find: /^motion$/, replacement: path.resolve(__dirname, 'src/utils/motionShim.tsx') },
+      ],
+    },
+    server: {
+      hmr: process.env.DISABLE_HMR !== 'true',
+      warmup: {
+        clientFiles: ['./src/main.tsx', './src/App.tsx'],
+      },
+    },
+    optimizeDeps: {
+      exclude: ['motion', 'motion/react', 'framer-motion'],
+      include: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'lucide-react',
+        'recharts',
+        'canvas-confetti',
+        'qrcode.react',
+        'react-markdown',
+        'remark-gfm',
+        'jspdf',
+        'jsqr',
+        'd3',
+        '@simplewebauthn/browser',
+        'firebase/app',
+        'firebase/auth',
+        'firebase/firestore',
+      ],
+    },
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      sourcemap: false,
+      reportCompressedSize: false,
+      minify: 'esbuild',
+      target: 'esnext',
+      chunkSizeWarningLimit: 5000,
+      rollupOptions: {
+        cache: false,
+        maxParallelFileOps: 2,
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('@tensorflow') || id.includes('tfjs')) {
+                return 'vendor-tfjs';
+              }
+              if (id.includes('recharts') || id.includes('d3')) {
+                return 'vendor-charts';
+              }
+              if (id.includes('jspdf') || id.includes('html2canvas')) {
+                return 'vendor-pdf';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('@google') || id.includes('generative-ai')) {
+                return 'vendor-genai';
+              }
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('motion')) {
+                return 'vendor-motion';
+              }
+            }
+          },
+        },
+      },
+    },
+  };
 });

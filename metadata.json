@@ -1,12 +1,8 @@
 {
-  "name": "Doctorian Medical AI",
-  "description": "Next-gen medical intelligence platform with multilingual support for Ugandan languages, cognitive performance tracking, and AI-driven clinical insights.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone",
-    "geolocation"
-  ],
-  "majorCapabilities": [
+  "name": "Doctorian AI - Hospital EHR & E-Pharmacy",
+  "description": "Comprehensive Hospital EHR, real-time medical sensor monitoring, and reactive Ugandan E-Pharmacy with live clinic and pharmacy ad network.",
+  "permissions": [],
+  "capabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

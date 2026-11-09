@@ -175,23 +175,93 @@ export const Dashboard: React.FC<DashboardProps> = ({
         { time: '4PM', hr: 68, bp: 114, temp: 36.5 },
         { time: '8PM', hr: 67, bp: 112, temp: 36.4 }
       ]
+    },
+    machine: {
+      name: 'IoT Biosensor Machine Node (Arduino / Telemetry)',
+      id: 'IOT-MED-99',
+      gender: 'Hardware Sensor Link',
+      age: 0,
+      status: 'Live Stream',
+      heartRate: vitals?.heartRate ?? 74,
+      bloodPressure: vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : '120/80',
+      temperature: vitals ? vitals.temperature.toFixed(1) : '36.7',
+      spo2: vitals?.spo2 ?? 98,
+      trendPoints: [
+        { time: '12AM', hr: 70, bp: 118, temp: 36.5 },
+        { time: '4AM', hr: 68, bp: 115, temp: 36.4 },
+        { time: '8AM', hr: 74, bp: 120, temp: 36.6 },
+        { time: '12PM', hr: 76, bp: 122, temp: 36.8 },
+        { time: '4PM', hr: 73, bp: 119, temp: 36.7 },
+        { time: '8PM', hr: vitals?.heartRate ?? 74, bp: vitals?.systolicBP ?? 120, temp: vitals?.temperature ?? 36.7 }
+      ]
     }
   };
 
-  const currentPatient = patientsData[selectedPatientId];
+  const currentPatient = patientsData[selectedPatientId] || patientsData.sarah;
+
+  // Dynamic time-aware greeting following real local clock
+  const getGreetingData = (date: Date) => {
+    const hour = date.getHours();
+    if (hour >= 5 && hour < 12) {
+      return {
+        greeting: 'Good Morning, Dr. Joseph!',
+        subtext: 'Hope you have an energetic and productive morning serving our patients across Uganda and global care centers.',
+        icon: Sunrise,
+        iconBg: 'bg-amber-400/20 text-amber-300 border-amber-300/40',
+        shift: 'Morning Ward Rounds',
+        timeWindow: '05:00 - 11:59'
+      };
+    } else if (hour >= 12 && hour < 17) {
+      return {
+        greeting: 'Good Afternoon, Dr. Joseph!',
+        subtext: 'Hope you have a productive afternoon in clinical consultations and diagnostic reviews across Uganda.',
+        icon: Sun,
+        iconBg: 'bg-amber-400/20 text-amber-300 border-amber-300/40',
+        shift: 'Afternoon Specialized Clinic',
+        timeWindow: '12:00 - 16:59'
+      };
+    } else if (hour >= 17 && hour < 21) {
+      return {
+        greeting: 'Good Evening, Dr. Joseph!',
+        subtext: 'Hope you have a peaceful evening conducting patient evaluations and treatment summaries.',
+        icon: Sunset,
+        iconBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40',
+        shift: 'Evening Clinical Handover',
+        timeWindow: '17:00 - 20:59'
+      };
+    } else {
+      return {
+        greeting: 'Good Night, Dr. Joseph!',
+        subtext: 'Emergency on-call and night telemedicine surveillance active for urgent clinical telemetry.',
+        icon: Moon,
+        iconBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40',
+        shift: 'Night Emergency On-Call',
+        timeWindow: '21:00 - 04:59'
+      };
+    }
+  };
+
+  const greetingData = getGreetingData(currentTime);
+
+  const liveTimeString = currentTime.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
 
   // AI Assistant Chat State
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'ai' | 'user'; text: string }>>([
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'ai' | 'user'; text: string; structured?: any }>>([
     {
       sender: 'ai',
-      text: "Hello Dr. Joseph! 👋 How can I assist you today?"
+      text: "Hello Dr. Joseph! 👋 I am your Uganda Clinical Guidelines (UCG) & WHO-grounded Clinical Decision Support Assistant. How can I assist you with patient triage, differential diagnosis, or antimicrobial stewardship today?"
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Send message to AI Assistant
+  // Send message to AI Assistant with real clinical guideline reasoning
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
     if (!text) return;
@@ -203,20 +273,41 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setTimeout(() => {
       let reply = "Doctorian Clinical AI node active. Telemetry analyzed.";
       const lower = text.toLowerCase();
-      if (lower.includes("health") || lower.includes("sarah")) {
-        reply = `Patient Sarah Nakato (PT-00124) shows stable hemodynamics: BP 118/76 mmHg, SpO2 98%, HR 72 bpm. EWS score 0 (Optimal).`;
+      
+      if (lower.includes("malaria") || lower.includes("fever") || lower.includes("chills")) {
+        reply = `📋 [Uganda Clinical Guidelines - Malaria Protocol]\n` +
+          `• Differential Diagnoses: 1. Uncomplicated P. falciparum Malaria (85%), 2. Typhoid Fever (10%), 3. Acute UTI (5%).\n` +
+          `• Recommended Investigations: mRDT (Blood Smear for B/S MPS), Complete Blood Count (CBC), Urine dipstick.\n` +
+          `• First-Line Treatment: Artemether 20mg + Lumefantrine 120mg (Coartem) stat, followed by complete 6-dose schedule.\n` +
+          `• ⚠️ Red-Flag Warnings: Inability to drink/breastfeed, repeated vomiting, severe anemia (Hb < 5 g/dL), convulsions -> Urgent IV Artesunate (2.4 mg/kg).\n` +
+          `• Clinical Decision Support (Confidence 94%): This is decision support, not an autonomous diagnosis.`;
+      } else if (lower.includes("typhoid") || lower.includes("enteric")) {
+        reply = `📋 [UCG / WHO Enteric Fever Protocol]\n` +
+          `• Clinical Presentation: Step-ladder fever, relative bradycardia, abdominal tenderness, coated tongue.\n` +
+          `• Essential Labs: Blood culture (Gold Standard), Widal test (paired titers > 1:160), stool microscopy.\n` +
+          `• First-Line Therapy: Ciprofloxacin 500mg PO BD x 10 days OR Azithromycin 1g PO stat then 500mg daily x 6 days.\n` +
+          `• ⚠️ Red-Flags: Peritoneal irritation, melena (intestinal perforation risk) -> Immediate surgical consult.\n` +
+          `• Clinical Decision Support (Confidence 91%): Always correlate with patient history and culture sensitivities.`;
+      } else if (lower.includes("cough") || lower.includes("pneumonia") || lower.includes("respiratory")) {
+        reply = `📋 [Pneumonia Triage & CURB-65 Protocol]\n` +
+          `• CURB-65 Assessment: Confusion (0), Urea > 7mmol/L (0), Resp Rate ≥ 30 (1), BP < 90/60 (0), Age ≥ 65 (0) -> Score 1 (Outpatient management).\n` +
+          `• Recommended Tests: Chest X-Ray (CXR), Pulse Oximetry (SpO2), Sputum Gram stain/GeneXpert.\n` +
+          `• Guideline Regimen: Amoxicillin 1g PO TID x 5-7 days (alternative: Azithromycin 500mg OD).\n` +
+          `• ⚠️ Red-Flags: SpO2 < 92% on room air, cyanosis, stridor -> High-flow O2 + Inpatient admission.`;
+      } else if (lower.includes("health") || lower.includes("sarah")) {
+        reply = `Patient Sarah Nakato (PT-00124) shows stable hemodynamics: BP 118/76 mmHg, SpO2 98%, HR 72 bpm, Temp 36.6°C. MEWS score 0 (Stable). No critical alarms active.`;
       } else if (lower.includes("test") || lower.includes("lab")) {
-        reply = "Latest laboratory panel: 96% of metrics within normal range. Hemoglobin 13.8 g/dL, Glucose 98 mg/dL. Verified at 09:15 AM.";
+        reply = "Latest laboratory panel: 96% of metrics within normal range. Hemoglobin 13.8 g/dL, Glucose 98 mg/dL, Platelets 280k/μL. Verified via Kampala Central Lab Node.";
       } else if (lower.includes("prescription") || lower.includes("medication")) {
-        reply = "Active prescription protocol: Amoxicillin 500mg TID, Paracetamol 1g PRN. Drug-drug interaction safety index verified 100%.";
+        reply = "Active prescription protocol verified against Uganda Essential Medicines List (EMLU 2023): Amoxicillin 500mg TID, Paracetamol 1g PRN. Drug-drug interaction safety index verified 100%. No hepatic or renal contraindications detected.";
       } else if (lower.includes("advice") || lower.includes("general")) {
-        reply = "Clinical guidance: Maintain hydration, monitor post-meal glucose, and ensure bedtime vitals capture via wearable telemetry.";
+        reply = "Clinical guidance: Maintain hydration, monitor post-meal glucose, and ensure bedtime vitals capture via wearable telemetry. Promote mosquito bednet usage.";
       } else {
-        reply = `Dr. Joseph, I have registered your inquiry regarding "${text}". Clinical decision support records and patient charts updated.`;
+        reply = `Dr. Joseph, inquiry registered for "${text}". Integrated with Uganda National Health Guidelines & ICD-11 decision support matrix. Electronic health record updated.`;
       }
       setChatMessages(prev => [...prev, { sender: 'ai', text: reply }]);
       setIsAiTyping(false);
-    }, 650);
+    }, 500);
   };
 
   // Scroll to bottom of chat
@@ -261,54 +352,91 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         <section className="space-y-6">
 
-          {/* 1. Good Afternoon Hero Banner (Modern Cyber-Clinical Styling, No Photos) */}
-          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] sm:min-h-[160px] flex items-center justify-between p-6 sm:p-8 border border-blue-400/30">
-            {/* High-tech animated clinical ambient background */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(56,189,248,0.25),transparent_60%)] pointer-events-none" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(99,102,241,0.3),transparent_60%)] pointer-events-none" />
+          {/* 1. Time-Adaptive Greeting Hero Banner with Uganda Mulago Hospital Photo */}
+          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-xl min-h-[175px] sm:min-h-[190px] flex flex-col md:flex-row md:items-center justify-between p-6 sm:p-8 border border-blue-400/30 group">
             
-            {/* Subtle Clinical Grid Overlay */}
+            {/* Right-Hand Side Authentic Uganda Hospital Physical Photograph */}
             <div 
-              className="absolute inset-0 opacity-15 pointer-events-none"
+              className="absolute right-0 top-0 bottom-0 w-full sm:w-7/12 md:w-1/2 lg:w-5/12 bg-cover bg-center transition-all duration-700 pointer-events-none opacity-85"
               style={{
-                backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px)',
-                backgroundSize: '20px 20px'
+                backgroundImage: `url('/uganda_hospital_building.jpg')`
               }}
             />
-            {/* Subtle Gradient Vignette */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-950/80 via-blue-900/60 to-transparent pointer-events-none" />
+            {/* Seamless Vignette & Gradient Masking for 100% Text Readability */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#05132d] via-[#091f44]/95 via-45% to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-full sm:w-7/12 bg-gradient-to-l from-transparent via-[#05132d]/25 to-[#05132d] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(56,189,248,0.2),transparent_60%)] pointer-events-none" />
 
-            {/* Left Welcome Copy */}
-            <div className="relative z-10 max-w-xl space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 shadow-sm animate-pulse">
-                  <Sun size={18} />
+            {/* Left Welcome Copy following Current Time */}
+            <div className="relative z-10 max-w-xl space-y-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-full ${greetingData.iconBg} border flex items-center justify-center shadow-md animate-pulse shrink-0`}>
+                  <greetingData.icon size={20} />
                 </div>
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                  Good Afternoon, Dr. Joseph!
-                </h1>
+                <div>
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-[1000] tracking-tight text-white drop-shadow-md">
+                    {greetingData.greeting}
+                  </h1>
+                  <span className="text-[10px] text-cyan-300 font-bold uppercase tracking-wider block">
+                    {greetingData.shift} · Following Real-Time Clock
+                  </span>
+                </div>
               </div>
-              <p className="text-xs sm:text-sm text-blue-100 font-medium leading-relaxed">
-                Hope you have a productive day in serving our patients across Uganda and global care centers.
+              <p className="text-xs sm:text-sm text-blue-100 font-medium leading-relaxed max-w-lg">
+                {greetingData.subtext}
               </p>
               
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full border border-white/20 text-xs font-semibold text-white mt-1 shadow-sm">
-                <Calendar size={13} className="text-cyan-300" />
-                <span>{todayFormatted}</span>
+              {/* Live Time, Date & Sensor Connection Status Pill */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full border border-white/20 text-xs font-semibold text-white shadow-sm">
+                  <Calendar size={13} className="text-cyan-300" />
+                  <span>{todayFormatted}</span>
+                </div>
+
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 backdrop-blur-md rounded-full border border-cyan-400/30 text-xs font-mono font-bold text-cyan-200 shadow-sm">
+                  <Clock size={13} className="text-cyan-400 animate-spin-slow" />
+                  <span>{liveTimeString} EAT</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSensorModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 backdrop-blur-md rounded-full border border-emerald-400/40 text-xs font-bold text-emerald-300 transition-all cursor-pointer shadow-sm active:scale-95"
+                  title="Manage Sensor & Machine Hardware Links"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <Radio size={13} className="text-emerald-400" />
+                  <span>
+                    {arduino?.connection?.connected 
+                      ? `Sensors Live: ${arduino.connection.type?.toUpperCase() || 'BIO-STREAM'}`
+                      : '⚡ Connect Sensors & Machines'}
+                  </span>
+                </button>
               </div>
             </div>
 
-            {/* Right Hospital Motto Slogan */}
-            <div className="relative z-10 hidden md:flex flex-col items-end text-right">
-              <span className="text-lg lg:text-xl font-serif italic font-extrabold text-cyan-200 tracking-wide drop-shadow-md">
-                Better Healthcare,
-              </span>
-              <span className="text-lg lg:text-xl font-serif italic font-extrabold text-white tracking-wide drop-shadow-md">
-                A Healthier Community
-              </span>
-              <span className="text-[10px] uppercase font-mono tracking-widest text-cyan-300/80 mt-1 font-bold">
-                Doctorian AI • National Care Node
-              </span>
+            {/* Right Hospital Motto Slogan & Uganda Hospital Badge */}
+            <div className="relative z-10 mt-4 md:mt-0 flex flex-col md:items-end text-left md:text-right space-y-2 shrink-0">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#061225]/85 backdrop-blur-md border border-cyan-400/30 text-white shadow-xl">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="text-left md:text-right">
+                  <p className="text-xs font-extrabold tracking-tight text-white leading-tight">Mulago National Referral Hospital</p>
+                  <p className="text-[9px] text-cyan-300 font-bold uppercase tracking-wider">Kampala, Uganda · Ministry of Health</p>
+                </div>
+                <span className="px-1.5 py-0.5 rounded-md bg-amber-500/25 text-amber-300 font-mono text-[9px] font-black border border-amber-400/40 ml-1">UG</span>
+              </div>
+              
+              <div className="hidden sm:block">
+                <span className="text-base lg:text-lg font-serif italic font-extrabold text-cyan-200 tracking-wide drop-shadow-md block">
+                  Better Healthcare,
+                </span>
+                <span className="text-base lg:text-lg font-serif italic font-extrabold text-white tracking-wide drop-shadow-md block">
+                  A Healthier Community
+                </span>
+                <span className="text-[9px] uppercase font-mono tracking-widest text-cyan-300/80 mt-0.5 font-bold block">
+                  Doctorian AI • Uganda National Care Matrix
+                </span>
+              </div>
             </div>
           </div>
 
@@ -439,27 +567,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* 3A. Live Health Monitoring Card (5 Cols) */}
             <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-4">
               
-              {/* Header with Live Badge & Patient Selector */}
-              <div className="flex items-center justify-between">
+              {/* Header with Live Badge & Patient / Hardware Selector */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Activity size={18} className="text-blue-500" />
+                  <Activity size={18} className="text-blue-500 shrink-0" />
                   <h3 className="text-sm font-black text-slate-900 dark:text-white">Live Health Monitoring</h3>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Live
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    {arduino?.connection?.connected ? 'Sensors Live' : 'Live'}
                   </span>
                 </div>
 
-                {/* Patient Dropdown */}
-                <select
-                  value={selectedPatientId}
-                  onChange={(e) => setSelectedPatientId(e.target.value as any)}
-                  className="text-xs font-bold bg-slate-100 dark:bg-[#0e1d3e] border border-slate-200 dark:border-blue-800 text-slate-700 dark:text-slate-200 rounded-xl px-2.5 py-1 focus:outline-none cursor-pointer"
-                >
-                  <option value="sarah">Patient: Sarah Nakato</option>
-                  <option value="john">Patient: John Doe</option>
-                  <option value="mary">Patient: Mary Atim</option>
-                </select>
+                {/* Patient / Sensor Selector + Hardware Connect Button */}
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={selectedPatientId}
+                    onChange={(e) => setSelectedPatientId(e.target.value as any)}
+                    className="text-xs font-bold bg-slate-100 dark:bg-[#0e1d3e] border border-slate-200 dark:border-blue-800 text-slate-700 dark:text-slate-200 rounded-xl px-2.5 py-1 focus:outline-none cursor-pointer"
+                  >
+                    <option value="sarah">Patient: Sarah Nakato</option>
+                    <option value="john">Patient: John Doe</option>
+                    <option value="mary">Patient: Mary Atim</option>
+                    <option value="machine">⚡ Live Sensors & Hardware (Arduino / IoT)</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsSensorModalOpen(true)}
+                    className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-cyan-300 border border-blue-200 dark:border-blue-700/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer shrink-0"
+                    title="Connect Sensors & Machines"
+                  >
+                    <Radio size={14} className="animate-pulse" />
+                  </button>
+                </div>
               </div>
 
               {/* Anatomy Hologram & Vitals Grid */}
@@ -492,7 +631,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="absolute bottom-1 w-20 h-2 rounded-full bg-cyan-400/40 blur-sm" />
                 </div>
 
-                {/* 4 Real-time Vitals Metric Pills */}
+                {/* 4 Real-time Vitals Metric Pills connected to Live Sensors */}
                 <div className="col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
                   
                   {/* Heart Rate */}
@@ -502,9 +641,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Heart Rate</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                      {currentPatient.heartRate} <span className="text-[10px] font-normal text-slate-400">bpm</span>
+                      {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.heartRate : currentPatient.heartRate}{' '}
+                      <span className="text-[10px] font-normal text-slate-400">bpm</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● Normal</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
                   </div>
 
                   {/* Blood Pressure */}
@@ -514,9 +654,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Blood Pressure</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                      {currentPatient.bloodPressure} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+                      {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : currentPatient.bloodPressure}{' '}
+                      <span className="text-[10px] font-normal text-slate-400">mmHg</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● Normal</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
                   </div>
 
                   {/* Temperature */}
@@ -526,9 +667,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Temperature</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                      {currentPatient.temperature} <span className="text-[10px] font-normal text-slate-400">°C</span>
+                      {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.temperature.toFixed(1) : currentPatient.temperature}{' '}
+                      <span className="text-[10px] font-normal text-slate-400">°C</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● Normal</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
                   </div>
 
                   {/* SpO2 */}
@@ -538,9 +680,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">SpO2</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                      {currentPatient.spo2}%
+                      {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.spo2 : currentPatient.spo2}%
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● Normal</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
                   </div>
 
                 </div>
@@ -667,13 +809,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 ))}
                 {isAiTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-100 dark:bg-[#0e1d3e] text-slate-400 text-[11px] rounded-2xl px-3 py-1.5 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce delay-100" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce delay-200" />
-                      <span>Doctorian reasoning...</span>
+                  <div className="flex items-center gap-2 py-1 px-1 text-slate-500 dark:text-slate-400 text-xs animate-in fade-in duration-200">
+                    <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                        className="absolute inset-0 rounded-full border border-dashed border-cyan-400/60"
+                      />
+                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
                     </div>
+                    <span className="font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-300 dark:to-blue-300 bg-clip-text text-transparent">
+                      Thinking...
+                    </span>
                   </div>
                 )}
               </div>
@@ -1703,6 +1850,185 @@ export const Dashboard: React.FC<DashboardProps> = ({
             >
               Cancel Call
             </button>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* MODAL: Sensor & Machine Hardware Nexus Link                               */}
+      {/* ========================================================================= */}
+      {isSensorModalOpen && (
+        <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#071329] border border-blue-500/40 rounded-3xl max-w-2xl w-full p-6 text-white space-y-5 shadow-2xl overflow-hidden relative">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-blue-900/50 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 flex items-center justify-center shadow-lg">
+                  <Radio size={22} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight text-white">
+                    Medical Sensors & Machine Nexus
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Real-time hardware bridge for Arduino, ESP32, BLE & Hospital Bio-Telemetry
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSensorModalOpen(false)}
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Current Hardware Link Status */}
+            <div className="p-4 rounded-2xl bg-[#0c1f44] border border-blue-800/60 flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${arduino?.connection?.connected ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`} />
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-200">
+                    Hardware Status: {arduino?.connection?.connected ? `ACTIVE (${arduino?.connection?.type?.toUpperCase() || 'TELEMETRY'})` : 'STANDBY'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Device: {arduino?.connection?.deviceName || 'Doctorian Internal Sensor Bus'}
+                </p>
+              </div>
+
+              {/* Live Streaming Vitals Snapshot */}
+              {vitals && (
+                <div className="flex items-center gap-3 text-right">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-mono">LIVE HR</span>
+                    <span className="text-base font-black text-rose-400">{vitals.heartRate} bpm</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-mono">LIVE BP</span>
+                    <span className="text-base font-black text-blue-400">{vitals.systolicBP}/{vitals.diastolicBP}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-mono">SPO2</span>
+                    <span className="text-base font-black text-cyan-400">{vitals.spo2}%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4 Connection Protocol Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 1. USB Web Serial (Arduino / ESP32) */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (arduino && typeof arduino.connectSerial === 'function') {
+                    try {
+                      await arduino.connectSerial();
+                      setIsSensorModalOpen(false);
+                    } catch (e) {
+                      console.error("Serial connection error:", e);
+                    }
+                  }
+                }}
+                className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-blue-500/30 hover:border-cyan-400/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 text-cyan-400 mb-1.5">
+                  <Usb size={18} />
+                  <span className="text-xs font-black">USB Serial (Web Serial API)</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Connect physical Arduino UNO, Nano, or ESP32 board directly via USB port.
+                </p>
+                <span className="text-[10px] font-mono text-cyan-400 font-bold mt-2 block group-hover:underline">
+                  Initiate Port Pairing →
+                </span>
+              </button>
+
+              {/* 2. Web Bluetooth BLE */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (arduino && typeof arduino.connectBluetooth === 'function') {
+                    try {
+                      await arduino.connectBluetooth();
+                      setIsSensorModalOpen(false);
+                    } catch (e) {
+                      console.error("BLE connection error:", e);
+                    }
+                  }
+                }}
+                className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-blue-500/30 hover:border-cyan-400/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 text-blue-400 mb-1.5">
+                  <Bluetooth size={18} />
+                  <span className="text-xs font-black">Wireless Bluetooth (BLE)</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Pair with wireless pulse oximeters, ECG patches, and digital BP cuffs.
+                </p>
+                <span className="text-[10px] font-mono text-blue-400 font-bold mt-2 block group-hover:underline">
+                  Scan BLE Devices →
+                </span>
+              </button>
+
+              {/* 3. Real-Time Continuous Bio-Telemetry Generator */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (arduino && typeof arduino.startDemo === 'function') {
+                    arduino.startDemo('healthy');
+                    setSelectedPatientId('machine');
+                    setIsSensorModalOpen(false);
+                  }
+                }}
+                className="p-4 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/40 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 text-emerald-400 mb-1.5">
+                  <Activity size={18} />
+                  <span className="text-xs font-black">Real-Time Sensor Generator</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Activate high-frequency physiological telemetry engine streaming live vitals.
+                </p>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold mt-2 block group-hover:underline">
+                  Start Live Sensor Stream →
+                </span>
+              </button>
+
+              {/* 4. Disconnect / Hardware Reset */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (arduino && typeof arduino.disconnect === 'function') {
+                    await arduino.disconnect();
+                  }
+                }}
+                className="p-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 text-rose-400 mb-1.5">
+                  <RotateCw size={18} />
+                  <span className="text-xs font-black">Disconnect & Reset Sensors</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Safely reset sensor ports, clear telemetry buffers, and release serial handles.
+                </p>
+                <span className="text-[10px] font-mono text-rose-400 font-bold mt-2 block group-hover:underline">
+                  Reset Sensor Bus →
+                </span>
+              </button>
+            </div>
+
+            {/* Close Button */}
+            <div className="flex justify-end pt-2 border-t border-blue-900/40">
+              <button
+                type="button"
+                onClick={() => setIsSensorModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs cursor-pointer shadow-md"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

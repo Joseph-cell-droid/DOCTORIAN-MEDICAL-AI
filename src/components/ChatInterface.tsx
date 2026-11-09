@@ -4629,41 +4629,33 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                         </div>
                         
                         {(isThinking || isLoading) && (
-                          <div className="flex flex-col gap-3 mt-2 max-w-md bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-3xl border border-slate-100/50 dark:border-slate-800/50 backdrop-blur-sm">
-                             <div className="flex items-center justify-between mb-1">
+                          <div className="flex flex-col gap-2 mt-1 max-w-md bg-transparent p-0">
+                             <div className="flex items-center justify-between mb-0.5">
                                 <div className="flex gap-1">
                                   {[1, 2, 3, 4, 5].map((i, mapIdx_4599) => (
                                     <motion.div 
                                       key={`chatinterface-l4562-i-${i}-${mapIdx_4599}`}
                                       animate={{ height: [4, 12, 4], opacity: [0.3, 1, 0.3] }}
                                       transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
-                                      className="w-1 bg-blue-600/40 rounded-full"
+                                      className="w-1 bg-blue-500/50 rounded-full"
                                     />
                                   ))}
                                 </div>
-                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Neural Stream: Active</span>
+                                <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Neural Stream Active</span>
                              </div>
-                             <div className="space-y-2">
-                               <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                             <div className="space-y-1.5">
+                               <div className="h-1.5 bg-slate-200/60 dark:bg-slate-800/60 rounded-full overflow-hidden">
                                   <motion.div 
                                     initial={{ x: "-100%" }}
                                     animate={{ x: "100%" }}
                                     transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                                    className="h-full w-1/3 bg-gradient-to-r from-transparent via-blue-600/30 to-transparent"
-                                  />
-                               </div>
-                               <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden w-2/3">
-                                  <motion.div 
-                                    initial={{ x: "-100%" }}
-                                    animate={{ x: "100%" }}
-                                    transition={{ duration: 1.2, repeat: Infinity, ease: "linear", delay: 0.2 }}
-                                    className="h-full w-1/4 bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent"
+                                    className="h-full w-1/3 bg-gradient-to-r from-transparent via-blue-500/40 to-transparent"
                                   />
                                </div>
                              </div>
-                             <div className="flex items-center gap-2 mt-1">
+                             <div className="flex items-center gap-2 mt-0.5">
                                <Cpu size={10} className="text-slate-400 animate-spin-slow" />
-                               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Processing Clinical Knowledge Base...</span>
+                               <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 italic">Processing clinical knowledge base...</span>
                              </div>
                           </div>
                         )}

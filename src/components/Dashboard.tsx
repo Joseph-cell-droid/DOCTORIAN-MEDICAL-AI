@@ -809,13 +809,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 ))}
                 {isAiTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-100 dark:bg-[#0e1d3e] text-slate-400 text-[11px] rounded-2xl px-3 py-1.5 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce delay-100" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce delay-200" />
-                      <span>Doctorian reasoning...</span>
+                  <div className="flex items-center gap-2 py-1 px-1 text-slate-500 dark:text-slate-400 text-xs animate-in fade-in duration-200">
+                    <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                        className="absolute inset-0 rounded-full border border-dashed border-cyan-400/60"
+                      />
+                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
                     </div>
+                    <span className="font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-300 dark:to-blue-300 bg-clip-text text-transparent">
+                      Thinking...
+                    </span>
                   </div>
                 )}
               </div>

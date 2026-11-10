@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { vibrateCriticalAlert, vibrateWarning } from '../utils/haptics';
+import { VitalsSonifier } from '../utils/vitalsSonifier';
 
 export interface Vitals {
   heartRate: number;
@@ -234,9 +235,11 @@ export const useArduino = () => {
     }
     
     // Feed parameters directly to background sonification agent
-    import('../utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+    try {
       VitalsSonifier.updatePresence(newVitals, status.overall);
-    });
+    } catch (e) {
+      // Audio context safe fallback
+    }
   }, [calculateHealthStatus]);
 
   const parseData = useCallback((data: string) => {
@@ -420,9 +423,11 @@ export const useArduino = () => {
               timestamp: Date.now()
             };
             
-            import('../utils/vitalsSonifier').then(({ VitalsSonifier }) => {
+            try {
               VitalsSonifier.updatePresence(updated, calculateHealthStatus(updated).overall);
-            });
+            } catch (e) {
+              // Audio context safe fallback
+            }
             
             return updated;
           });

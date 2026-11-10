@@ -466,26 +466,26 @@ export const DoctorianChainedThinkingVisual: React.FC<{
   const isLarge = size === 'lg';
 
   return (
-    <div className="flex items-center gap-2.5">
-      {/* Visual Rotating Stage Box */}
+    <div className="flex items-center">
+      {/* Spinning Logo / Glyph emerging seamlessly from background (Grok & ChatGPT style) */}
       <div 
         className={`relative flex items-center justify-center shrink-0 ${
-          isSmall ? 'w-8 h-8 rounded-xl' : isLarge ? 'w-14 h-14 rounded-2xl' : 'w-11 h-11 rounded-2xl'
-        } bg-gradient-to-br from-slate-900/95 via-[#06102b] to-slate-950 border border-slate-700/80 shadow-xl shadow-cyan-950/60 backdrop-blur-md overflow-hidden`}
+          isSmall ? 'w-8 h-8' : isLarge ? 'w-12 h-12' : 'w-10 h-10'
+        } bg-transparent`}
       >
-        {/* Ambient iridescent rotating backdrop aura */}
+        {/* Ambient soft glow blooming directly into the background */}
+        <div className="absolute inset-0 rounded-full bg-cyan-500/15 dark:bg-cyan-400/20 blur-md pointer-events-none animate-pulse" />
         <motion.div 
           animate={{ rotate: 360 }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-          className="absolute -inset-1 opacity-40 bg-[conic-gradient(from_0deg,#3b82f6,#06b6d4,#10b981,#eab308,#f43f5e,#a855f7,#3b82f6)] blur-sm pointer-events-none"
+          transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+          className="absolute -inset-1.5 rounded-full opacity-30 bg-[conic-gradient(from_0deg,transparent_0deg,#06b6d4_90deg,transparent_180deg,#3b82f6_270deg,transparent_360deg)] blur-sm pointer-events-none"
         />
-        <div className="absolute inset-[1px] bg-slate-950/90 rounded-[inherit] pointer-events-none" />
 
         {/* Chained rotating orbit ring perimeter */}
         <motion.div
           animate={{ rotate: -360 }}
           transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-          className="absolute inset-1 rounded-full border border-dashed border-cyan-400/30 pointer-events-none"
+          className="absolute inset-0.5 rounded-full border border-dashed border-cyan-400/40 pointer-events-none"
         />
 
         <AnimatePresence mode="wait">
@@ -2283,70 +2283,72 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           ))
         )}
 
-        {/* Doctorian AI Chained Thinking Visual & Professional Reasoning */}
+        {/* Doctorian AI Seamless Background Thinking (Grok & ChatGPT style) */}
         {isLoading && (
-          <div className="flex items-start gap-3.5 sm:gap-4.5 w-full max-w-3xl py-3 px-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 via-cyan-950/30 to-blue-950/20 border border-cyan-500/25 shadow-2xl shadow-cyan-950/50 backdrop-blur-xl">
-            {/* Spinning App Logo & Sequential Chained Geometric Shapes (No shape names displayed) */}
+          <div className="flex items-start gap-3 w-full max-w-3xl py-2 px-1 text-slate-800 dark:text-slate-200 animate-in fade-in duration-300">
+            {/* Spinning App Logo & Sequential Chained Shapes emerging directly from background */}
             <DoctorianChainedThinkingVisual size="md" />
 
-            <div className="flex-1 min-w-0 space-y-2.5">
-              {/* Colorful, professional reasoning badge & dynamic stage format */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-indigo-500/20 text-cyan-300 border border-cyan-400/35 shadow-xs">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <div className="flex-1 min-w-0 space-y-1.5 pt-1">
+              {/* Minimalist Grok / ChatGPT style inline thinking line */}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
+                  <span className="bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 dark:from-cyan-300 dark:via-blue-300 dark:to-indigo-300 bg-clip-text text-transparent font-extrabold tracking-wide">
+                    Thinking
+                  </span>
+                  <span className="text-slate-400 dark:text-slate-500 font-mono text-[11px] font-medium">
+                    ({reasoningElapsed.toFixed(1)}s)
+                  </span>
+                </span>
+
+                <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
+
+                <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
                   {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.stage || 'Clinical Reasoning'}
                 </span>
 
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.badge || 'WHO & MoH Uganda Guidelines'}
-                </span>
-
-                <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-500/40 ml-auto shadow-xs">
-                  {reasoningElapsed.toFixed(1)}s elapsed
-                </span>
-              </div>
-
-              {/* Professional Clinical Reasoning Text Detail */}
-              <motion.div
-                key={`desc-${reasoningIndex}`}
-                initial={{ opacity: 0, y: 3 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="text-xs sm:text-[13px] text-slate-200/95 font-medium leading-relaxed pl-0.5"
-              >
-                {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.detail}
-              </motion.div>
-
-              {/* Colorful multi-spectral inference synthesis wave (No shape names) */}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
-                <div className="flex items-center gap-1.5">
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => (
+                <div className="hidden sm:flex items-center gap-1 ml-1">
+                  {[0, 1, 2, 3].map((idx) => (
                     <motion.div
                       key={idx}
                       animate={{
-                        scaleY: [0.25, 1.2, 0.25],
-                        opacity: [0.4, 1, 0.4]
+                        opacity: [0.3, 1, 0.3],
+                        scaleY: [0.4, 1, 0.4]
                       }}
                       transition={{
-                        duration: 0.9,
+                        duration: 1,
                         repeat: Infinity,
-                        delay: idx * 0.1,
+                        delay: idx * 0.15,
                         ease: 'easeInOut'
                       }}
-                      className="w-1.5 h-3 rounded-full bg-gradient-to-t from-cyan-500 via-blue-400 to-fuchsia-400"
+                      className="w-1 h-2 rounded-full bg-cyan-400/60"
                     />
                   ))}
-                  <span className="text-[10px] font-semibold text-cyan-400/90 ml-2 tracking-wide">
-                    Live Synthesis Stream
-                  </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Clinical Engine Active</span>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleStopGeneration}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    title="Stop generating"
+                  >
+                    <Square size={8} className="fill-current" /> Stop
+                  </button>
                 </div>
               </div>
+
+              {/* Seamless unboxed reasoning thought detail */}
+              <motion.div
+                key={`desc-${reasoningIndex}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.25 }}
+                className="text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed pl-0.5"
+              >
+                {PROFESSIONAL_REASONING_STAGES[reasoningIndex]?.detail}
+              </motion.div>
             </div>
           </div>
         )}

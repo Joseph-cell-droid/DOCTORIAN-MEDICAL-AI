@@ -2,6 +2,8 @@ import React from 'react';
 
 interface LogoProps {
   variant?: 'full' | 'icon' | 'pharmacy';
+  size?: string | number;
+  showText?: boolean;
   className?: string;
 }
 

@@ -9,7 +9,7 @@ import {
   Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope, Baby,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
   PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal,
-  CheckCircle2, Shield, Download, ShieldAlert
+  CheckCircle2, Shield, Download, ShieldAlert, Square
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
 import { api, detectIntelligentBrainStatus, IntelligentBrainStatus } from '../api';
@@ -841,6 +841,13 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [reasoningElapsed, setReasoningElapsed] = useState(0);
   const reasoningStepsExecutedRef = useRef<string[]>([]);
   const streamingTimerRef = useRef<any>(null);
+
+  const handleStopGeneration = () => {
+    setIsLoading(false);
+    if (streamingTimerRef.current) {
+      clearInterval(streamingTimerRef.current);
+    }
+  };
 
   // Clean up streaming on unmount
   useEffect(() => {

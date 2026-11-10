@@ -21,38 +21,6 @@
     "clean": "rm -rf dist build dist-electron",
     "lint": "tsc --noEmit"
   },
-  "build": {
-    "appId": "com.doctorian.ai",
-    "productName": "Doctorian AI",
-    "directories": {
-      "output": "dist-electron"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "public/logo-512.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Doctorian AI"
-    },
-    "compression": "maximum"
-  },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.5.0",

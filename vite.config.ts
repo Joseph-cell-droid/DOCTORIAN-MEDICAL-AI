@@ -10,6 +10,12 @@ export default defineConfig({
     }),
     tailwindcss()
   ],
+  resolve: {
+    dedupe: ['react', 'react-dom']
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,

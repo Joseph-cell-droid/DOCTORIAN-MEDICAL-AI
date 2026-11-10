@@ -3837,7 +3837,13 @@ export default function App() {
             exit={{ opacity: 0, scale: 1.05 }}
             className="w-full max-w-[1720px] mx-auto py-2 sm:py-4 px-2"
           >
-            <MedicationTracker user={user} onNavigate={setCurrentView} addToast={addToast} />
+            <Suspense fallback={
+              <div className="flex h-64 items-center justify-center">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+              </div>
+            }>
+              <MedicationTracker user={user} onNavigate={setCurrentView} addToast={addToast} />
+            </Suspense>
           </motion.div>
         ) : currentView === 'fitness' ? (
           <motion.div

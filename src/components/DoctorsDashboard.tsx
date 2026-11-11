@@ -37,6 +37,7 @@ import {
   Heart
 } from 'lucide-react';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
+import { useNearestHospital } from '../hooks/useNearestHospital';
 
 interface DoctorsDashboardProps {
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
@@ -68,6 +69,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
   });
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
+  const { hospital: currentFacility, distanceKm, isGpsLive } = useNearestHospital();
 
   // Search & Navigation
   const [searchQuery, setSearchQuery] = useState('');
@@ -530,23 +532,28 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
 
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h5 className="text-sm font-black text-white">Mulago Hospital</h5>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold inline-block mt-1">
-                      ● Online
-                    </span>
+                    <h5 className="text-sm font-black text-white">{currentFacility.name}</h5>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold inline-block">
+                        ● Online
+                      </span>
+                      <span className="text-[10px] text-cyan-400 font-mono font-bold">
+                        {isGpsLive ? 'GPS Live' : 'Uganda Node'} ({distanceKm}km)
+                      </span>
+                    </div>
                     <p className="text-[11px] text-slate-400 mt-2 font-mono">
-                      Beds: 240 • Occupied: 198
+                      Beds: {currentFacility.bedCapacity} • Occupied: {Math.round((currentFacility.bedCapacity * currentFacility.currentOccupancyRate) / 100)}
                     </p>
                   </div>
 
-                  {/* 83% Donut Gauge */}
+                  {/* Dynamic Donut Gauge */}
                   <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#051024" strokeWidth="3.5" />
-                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray="83, 100" />
+                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray={`${currentFacility.currentOccupancyRate}, 100`} />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-sm font-black text-white">83%</span>
+                      <span className="text-sm font-black text-white">{currentFacility.currentOccupancyRate}%</span>
                       <span className="text-[7px] font-bold text-slate-400 uppercase">Occupancy</span>
                     </div>
                   </div>

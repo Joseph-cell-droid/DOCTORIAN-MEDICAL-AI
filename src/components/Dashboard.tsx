@@ -57,6 +57,7 @@ import {
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
 import { DoctorianVoiceCallModal } from './DoctorianVoiceCallModal';
+import { useNearestHospital } from '../hooks/useNearestHospital';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
@@ -96,6 +97,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
   const [isEmergencyCalling, setIsEmergencyCalling] = useState(false);
   const [emergencyCountdown, setEmergencyCountdown] = useState<number | null>(null);
+  const { hospital, distanceKm, isGpsLive, scanGps } = useNearestHospital();
 
   // Real-time Clock following exact current time
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -417,11 +419,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Right Hospital Motto Slogan & Uganda Hospital Badge */}
             <div className="relative z-10 mt-4 md:mt-0 flex flex-col md:items-end text-left md:text-right space-y-2 shrink-0">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#061225]/85 backdrop-blur-md border border-cyan-400/30 text-white shadow-xl">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div 
+                onClick={scanGps}
+                title="Click to recalibrate GPS location for nearest Uganda hospital"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#061225]/85 backdrop-blur-md border border-cyan-400/30 text-white shadow-xl cursor-pointer hover:border-cyan-400 transition-colors"
+              >
+                <div className={`w-2 h-2 rounded-full ${isGpsLive ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'}`} />
                 <div className="text-left md:text-right">
-                  <p className="text-xs font-extrabold tracking-tight text-white leading-tight">Mulago National Referral Hospital</p>
-                  <p className="text-[9px] text-cyan-300 font-bold uppercase tracking-wider">Kampala, Uganda · Ministry of Health</p>
+                  <p className="text-xs font-extrabold tracking-tight text-white leading-tight">
+                    {hospital.name}
+                  </p>
+                  <p className="text-[9px] text-cyan-300 font-bold uppercase tracking-wider">
+                    {hospital.district} · {distanceKm} km {isGpsLive ? '(GPS Live)' : 'away'}
+                  </p>
                 </div>
                 <span className="px-1.5 py-0.5 rounded-md bg-amber-500/25 text-amber-300 font-mono text-[9px] font-black border border-amber-400/40 ml-1">UG</span>
               </div>

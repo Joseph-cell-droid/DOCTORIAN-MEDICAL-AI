@@ -143,7 +143,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
         system: {
           appVersion: 'v2.0.0',
           database: 'PostgreSQL',
-          node: 'Mulago Hospital Central Node'
+          node: 'Uganda MoH National Clinical Node'
         },
         exportedAt: new Date().toISOString()
       }, null, 2)], { type: 'application/json' });

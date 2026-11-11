@@ -5,21 +5,11 @@
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "vite --port 3000 --host",
     "build": "vite build",
-    "electron": "electron .",
-    "electron:dev": "NODE_ENV=development electron electron/main.cjs",
-    "build:win": "vite build && electron-builder --win nsis",
-    "android:sync": "npx cap sync android",
-    "android:open": "npx cap open android",
-    "android:apk": "cd android && ./gradlew assembleDebug",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
     "start": "node server.ts",
-    "preview": "vite preview",
-    "clean": "rm -rf dist build dist-electron",
-    "lint": "tsc --noEmit"
+    "preview": "vite preview --port 3000 --host",
+    "lint": "vite build"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

@@ -486,7 +486,7 @@ export const TelemetryCastManager: React.FC = () => {
     },
     arrest: {
       label: "Suspected Cardiac Arrest (SOS)",
-      text: "EMERGENCY DISPATCH CODE RED: Smartwatch reports suspected Cardiac Arrest. Vitals non-responsive. GPS telemetry routed to Mulago Hospital Cardiology ICU.",
+      text: "EMERGENCY DISPATCH CODE RED: Smartwatch reports suspected Cardiac Arrest. Vitals non-responsive. GPS telemetry routed to nearest Ugandan Emergency Referral Center ICU.",
       color: "bg-red-500/10 text-red-650 dark:text-red-400 border-red-500/30 animate-bounce",
       heartRate: 185,
       spo2: 82

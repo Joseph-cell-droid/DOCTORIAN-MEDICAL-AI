@@ -408,10 +408,14 @@ export const UgandaPatientTriage: React.FC<UgandaPatientTriageProps> = ({ user, 
                 className="bg-slate-100 dark:bg-[#050e20] border border-slate-200 dark:border-blue-800/60 text-xs font-semibold text-slate-800 dark:text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
               >
                 <option value="All">All Hospitals</option>
-                <option value="Mulago">Mulago Hospital</option>
-                <option value="Mbarara">Mbarara Referral</option>
-                <option value="Gulu">Gulu Referral</option>
-                <option value="Jinja">Jinja Referral</option>
+                <option value="Mulago">Mulago National Referral</option>
+                <option value="Mbarara">Mbarara Regional Referral</option>
+                <option value="Gulu">Gulu Regional Referral</option>
+                <option value="Jinja">Jinja Regional Referral</option>
+                <option value="Mbale">Mbale Regional Referral</option>
+                <option value="Fort Portal">Fort Portal (Buhinga) Referral</option>
+                <option value="Arua">Arua Regional Referral</option>
+                <option value="Kabale">Kabale Regional Referral</option>
                 <option value="Kiruddu">Kiruddu Hospital</option>
                 <option value="Entebbe">Entebbe Hospital</option>
               </select>

@@ -91,7 +91,9 @@ import { Compass,
   Users,
   FlaskConical,
   Maximize2,
-  Watch
+  Watch,
+  MapPin,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
@@ -118,6 +120,8 @@ import { AdminOnboardingPortal } from './components/AdminOnboardingPortal';
 import { EmergencySmsChat } from './components/EmergencySmsChat';
 import { DoctorianVoiceCallModal } from './components/DoctorianVoiceCallModal';
 import { DoctorianVideoConsultationModal } from './components/DoctorianVideoConsultationModal';
+import { DoctorianProfileModal } from './components/DoctorianProfileModal';
+import { useNearestHospital } from './hooks/useNearestHospital';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
 import { trustDevice, untrustDevice, detectDeviceName } from './utils/deviceRecognition';
@@ -211,6 +215,7 @@ const UgandaPatientTriage = safeLazy(() => import("./components/UgandaPatientTri
 const SymptomChecker = safeLazy(() => import("./components/UgandaPatientTriage"), "UgandaPatientTriage");
 const DiagnosticLab = safeLazy(() => import("./components/DiagnosticLab"), "DiagnosticLab");
 const AppMedics = safeLazy(() => import("./components/AppMedics"), "AppMedics");
+const EPharmacyAndMedics = safeLazy(() => import("./components/EPharmacyAndMedics"), "EPharmacyAndMedics");
 const EmergencyRegistry = safeLazy(() => import("./components/EmergencyRegistry"), "EmergencyRegistry");
 const Billing = safeLazy(() => import("./components/Billing"), "Billing");
 const MedicationTracker = safeLazy(() => import("./components/MedicationTracker"), "MedicationTracker");
@@ -858,6 +863,8 @@ export default function App() {
   }, [currentLanguage]);
 
   const [currentView, _setCurrentView] = useState<'home' | 'ambient_scribe' | 'monitor' | 'features' | 'about' | 'learn_more' | 'records' | 'profile' | 'admin' | 'specialist' | 'neuro' | 'vitality' | 'meds' | 'fitness' | 'symptoms' | 'biosecurity' | 'ai_nexus' | 'illustrator' | 'diagnostic_lab' | 'emergency' | 'emergency_sms' | 'training' | 'tasks' | 'clinical_roadmap' | 'anomaly_detail' | 'health_matrix' | 'autonomous_sync' | 'dev_portal' | 'gsm_sms_gateway' | 'billing' | 'health_trace' | 'biomatic' | 'genomic_longevity' | 'systems_hub' | 'doctors_dashboard' | 'server_network' | 'nextgen_tech' | 'app_medics' | 'settings' | 'smart_watch' | ResourceType>('home');
+  const nearestHospitalData = useNearestHospital();
+  const [isDoctorianProfileModalOpen, setIsDoctorianProfileModalOpen] = useState(false);
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
@@ -891,8 +898,10 @@ export default function App() {
       target = 'vitality';
     } else if (view === 'lab' || view === 'camera') {
       target = 'diagnostic_lab';
-    } else if (view === 'prescription' || view === 'pharmacy') {
+    } else if (view === 'prescription' || view === 'prescriptions') {
       target = 'meds';
+    } else if (view === 'pharmacy' || view === 'e_pharmacy') {
+      target = 'app_medics';
     } else if (view === 'ambulance' || view === 'sos') {
       target = 'emergency';
     } else if (view === 'cognis_hub') {
@@ -1993,7 +2002,7 @@ export default function App() {
             console.log("[Doctorian] Silent automated SOS protocol triggered.");
 
             await api.alerts.sendSms(msg, user.doctorPhone, user.mentorPhone);
-            const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+            const hospitalName = nearestHospitalData.hospital.name || user?.hospitalPreference || 'Mulago National Specialized Hospital';
             const callMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling to report an automated physiological crisis update from ${hospitalName}. Patient: ${user.displayName || user.email} has reached a vital limit. The heart rate is recorded at ${hr || 0} beats per minute and the blood oxygen saturation level is at ${spo2 || 0} percent. Immediate clinical intervention is required at ${hospitalName}. Please review the patient's telemetry and check on them immediately!`;
             await api.alerts.makeCall(callMessage, user.doctorPhone, user.mentorPhone, user.phone);
             addToast("CRITICAL baseline reached. Automated SOS protocols active.", "error");
@@ -2245,7 +2254,7 @@ export default function App() {
           await arduino.triggerAlarm('emergency');
           const msg = `EMERGENCY SOS from ${user?.displayName || 'User'}: Immediate assistance required! Location: App Dashboard.`;
           const smsRes = await api.alerts.sendSms(msg, user?.doctorPhone, user?.mentorPhone);
-          const hospitalName = user?.hospitalPreference || 'Mulago National Referral Hospital';
+          const hospitalName = nearestHospitalData.hospital.name || user?.hospitalPreference || 'Mulago National Specialized Hospital';
           const manualCallMessage = `Hello! This is the Doctorian AI Clinical Guardian, an automated patient monitoring intelligence system. We are calling to report a manual emergency clinical distress signal initiated from ${hospitalName}. Patient: ${user?.displayName || 'User'} has manually triggered a high-priority SOS alarm directly from their telemetry user interface, requesting immediate medical and physical assistance. Please check on the patient immediately!`;
           const callRes = await api.alerts.makeCall(manualCallMessage, user?.doctorPhone, user?.mentorPhone, user?.phone);
           
@@ -2821,17 +2830,13 @@ export default function App() {
                 <span className="text-[9px] font-mono text-cyan-400/80 font-bold">03</span>
               </div>
               {[
-                { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'meds' },
+                { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'app_medics' },
                 { id: 'analytics', label: 'Clinical Analytics', icon: TrendingUp, targetView: 'vitality' },
                 { id: 'settings', label: 'App Settings & Tools', icon: Settings },
                 { id: 'about', label: 'Help & Knowledge Center', icon: HelpCircle },
               ].map((item) => {
                 const target = item.targetView || item.id;
-                const isActive = (item.id === 'pharmacy' && currentView === 'meds')
-                  ? false
-                  : (item.id === 'analytics' && currentView === 'vitality')
-                  ? false
-                  : currentView === target;
+                const isActive = currentView === target;
                 const Icon = item.icon;
 
                 return (
@@ -3052,7 +3057,7 @@ export default function App() {
                 <div className="space-y-1">
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">System & Tools</span>
                   {[
-                    { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'meds' },
+                    { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'app_medics' },
                     { id: 'analytics', label: 'Clinical Analytics', icon: TrendingUp, targetView: 'vitality' },
                     { id: 'settings', label: 'App Settings & Tools', icon: Settings },
                     { id: 'about', label: 'Help & Knowledge Center', icon: HelpCircle }
@@ -3178,6 +3183,19 @@ export default function App() {
 
               {/* Right Side: Doctorian Smart Watch OS, Search Icon (mobile), Notification Bell (3), Fullscreen Toggle, User Profile */}
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                {/* GPS Nearest Ugandan Hospital Live Capsule in Top Bar */}
+                <button
+                  type="button"
+                  onClick={() => setIsDoctorianProfileModalOpen(true)}
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/40 text-emerald-800 dark:text-emerald-300 font-bold text-xs transition-all cursor-pointer shadow-2xs group shrink-0"
+                  title={`GPS Nearest Hospital: ${nearestHospitalData.hospital.name} (${nearestHospitalData.distanceKm}km). Click to view Uganda Digital Health Card & emergency facilities.`}
+                >
+                  <MapPin size={15} className="text-emerald-500 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="font-black tracking-tight max-w-[130px] lg:max-w-[160px] truncate">{nearestHospitalData.hospital.shortName}</span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-black">{nearestHospitalData.distanceKm}km</span>
+                  <span className={`w-2 h-2 rounded-full ${nearestHospitalData.isGpsLive ? 'bg-emerald-500 animate-pulse' : 'bg-cyan-400'}`} />
+                </button>
+
                 {/* Doctorian Smart Watch OS Capsule in Top Bar (Exact Match to User Requirement) */}
                 <button
                   type="button"
@@ -3330,24 +3348,25 @@ export default function App() {
                       setIsProfileOpen(!isProfileOpen);
                       setIsUpperBarAlertsOpen(false);
                     }}
-                    className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-full shadow-2xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group"
+                    className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-full shadow-2xs hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-500 transition-all cursor-pointer group"
                     aria-label="User profile menu"
                     aria-expanded={isProfileOpen}
                   >
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden border border-blue-200 dark:border-blue-700 shrink-0">
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-emerald-500/30 p-[1px] shrink-0">
                       <img 
                         src={josephPortrait} 
                         alt="Dr. Joseph Akora" 
-                        className="w-full h-full object-cover shrink-0" 
+                        className="w-full h-full object-cover rounded-full shrink-0" 
                       />
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 animate-pulse" />
                     </div>
                     <div className="hidden lg:flex flex-col text-left">
-                      <span className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                      <span className="text-xs font-black text-slate-900 dark:text-white leading-tight flex items-center gap-1">
                         Dr. Joseph Akora
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="GPS Active" />
                       </span>
                       <span className="text-[10px] text-slate-400 font-semibold leading-tight">
-                        Administrator
+                        Uganda MoH Verified
                       </span>
                     </div>
                     <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 hidden lg:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
@@ -3366,22 +3385,24 @@ export default function App() {
                             initial={{ opacity: 0, y: 12, scale: 0.95, filter: 'blur(10px)' }}
                               animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                               exit={{ opacity: 0, y: 12, scale: 0.95, filter: 'blur(10px)' }}
-                              className="absolute right-0 mt-3 w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/20 dark:border-slate-800/50 py-3 z-50 overflow-hidden"
+                              className="absolute right-0 mt-3 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 dark:border-slate-800/80 py-3 z-50 overflow-hidden"
                             >
                               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/50 mb-2">
                                 <div className="flex items-center gap-3 mb-3">
-                                  <div className="w-10 h-10 rounded-2xl bg-blue-600 p-[2px]">
+                                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-[2px] shrink-0">
                                     <div className="w-full h-full rounded-[14px] bg-white dark:bg-slate-900 overflow-hidden">
                                       {user.photoURL ? (
                                         <img src={user.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                       ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-blue-600 font-bold">{user.displayName?.[0] || 'U'}</div>
+                                        <img src={josephPortrait} alt="" className="w-full h-full object-cover" />
                                       )}
                                     </div>
                                   </div>
                                   <div className="overflow-hidden">
-                                    <p className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{user.displayName || 'Doctorian Medical User'}</p>
-                                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate tracking-tight">{user.email}</p>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{user.displayName || 'Dr. Joseph Akora'}</p>
+                                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight flex items-center gap-1">
+                                      <MapPin size={10} /> {nearestHospitalData.hospital.shortName} • {nearestHospitalData.distanceKm}km
+                                    </p>
                                   </div>
                                 </div>
                     <div className="flex items-center gap-2">
@@ -3389,11 +3410,11 @@ export default function App() {
                                     <motion.div 
                                       initial={{ width: 0 }}
                                       animate={{ width: `${creditPercentage}%` }}
-                                      className="h-full bg-blue-600"
+                                      className="h-full bg-emerald-500"
                                     />
                                   </div>
                                   <div className="flex flex-col items-end">
-                                    <span className="text-[9px] font-black text-blue-600 uppercase">
+                                    <span className="text-[9px] font-black text-emerald-600 uppercase">
                                       {displayCredits} Neural Energy
                                     </span>
                                     <span className="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Daily Allotment</span>
@@ -3402,6 +3423,29 @@ export default function App() {
                               </div>
                               
                               <div className="px-2 space-y-1">
+                                {/* Upgraded Uganda Digital Health ID Card Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsProfileOpen(false);
+                                    setIsDoctorianProfileModalOpen(true);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all group border border-emerald-400/30"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                                      <Award size={16} />
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                      <span className="leading-tight font-black uppercase text-[11px]">Uganda Health Card</span>
+                                      <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">GPS: {nearestHospitalData.hospital.shortName}</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[8px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full uppercase">
+                                    VIEW
+                                  </span>
+                                </button>
+
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -3424,16 +3468,16 @@ export default function App() {
 
                                 <button
                                   onClick={() => {
-                                    setCurrentView('profile');
                                     setIsProfileOpen(false);
+                                    setIsDoctorianProfileModalOpen(true);
                                   }}
-                                  className="w-full flex items-center justify-between px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all group"
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all group"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
                                       <UserIcon size={16} />
                                     </div>
-                                    <span className="font-black uppercase tracking-tight">Clinical Profile</span>
+                                    <span className="font-black uppercase tracking-tight">Clinical Profile & ID</span>
                                   </div>
                                   <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                 </button>
@@ -4009,7 +4053,7 @@ export default function App() {
               <BiomaticSandbox />
             </Suspense>
           </motion.div>
-        ) : currentView === 'app_medics' || currentView === 'emergency' ? (
+        ) : currentView === 'app_medics' ? (
           <motion.div
             key="app_medics"
             initial={{ opacity: 0, scale: 0.98 }}
@@ -4017,7 +4061,29 @@ export default function App() {
             exit={{ opacity: 0, scale: 0.98 }}
             className="w-full"
           >
-            <AppMedics onNavigate={setCurrentView} />
+            <Suspense fallback={
+              <div className="flex h-64 items-center justify-center">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+              </div>
+            }>
+              <EPharmacyAndMedics onNavigate={setCurrentView} addToast={addToast} />
+            </Suspense>
+          </motion.div>
+        ) : currentView === 'emergency' ? (
+          <motion.div
+            key="emergency"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="w-full"
+          >
+            <Suspense fallback={
+              <div className="flex h-64 items-center justify-center">
+                <Loader2 size={32} className="text-blue-500 animate-spin" />
+              </div>
+            }>
+              <EmergencyRegistry user={user} onNavigate={setCurrentView} />
+            </Suspense>
           </motion.div>
         ) : currentView === 'biosecurity' ? (
           <motion.div
@@ -5085,6 +5151,20 @@ export default function App() {
                       setIsTelehealthOpen(true);
                     }
                   }}
+                />
+              )}
+              {isDoctorianProfileModalOpen && (
+                <DoctorianProfileModal
+                  key="modal-doctorian-profile"
+                  isOpen={isDoctorianProfileModalOpen}
+                  user={user}
+                  onClose={() => setIsDoctorianProfileModalOpen(false)}
+                  onNavigate={(view) => {
+                    setIsDoctorianProfileModalOpen(false);
+                    setCurrentView(view as any);
+                  }}
+                  onLogout={handleLogout}
+                  addToast={addToast}
                 />
               )}
             </AnimatePresence>

@@ -1,76 +1,107 @@
 import React from 'react';
 
-interface LogoProps {
+export interface LogoProps {
   variant?: 'full' | 'icon' | 'pharmacy';
-  size?: string | number;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | string | number;
   showText?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
-export const Logo: React.FC<LogoProps> = ({ variant = 'full', className = '' }) => {
+export const Logo: React.FC<LogoProps> = ({ 
+  variant = 'full', 
+  size = 'md', 
+  showText = true, 
+  className = '',
+  onClick
+}) => {
+  // Determine pixel size based on size prop
+  const getDimension = () => {
+    if (typeof size === 'number') return `${size}px`;
+    switch (size) {
+      case 'xs': return '24px';
+      case 'sm': return '32px';
+      case 'md': return '44px';
+      case 'lg': return '56px';
+      case 'xl': return '72px';
+      default: return size || '44px';
+    }
+  };
+
+  const dim = getDimension();
+
+  if (variant === 'icon') {
+    return (
+      <div 
+        onClick={onClick}
+        className={`relative inline-flex items-center justify-center shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        style={{ width: dim, height: dim }}
+      >
+        <img 
+          src="/logo.png" 
+          alt="Doctorian AI Permanent Logo" 
+          className="w-full h-full object-contain drop-shadow-sm select-none"
+        />
+      </div>
+    );
+  }
+
   if (variant === 'pharmacy') {
     return (
-      <div className={`flex items-center gap-3 ${className}`}>
-        <div className="relative w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="8" cy="21" r="1"/>
-            <circle cx="19" cy="21" r="1"/>
-            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
-          </svg>
-          <div className="absolute -top-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-            <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
+      <div onClick={onClick} className={`flex items-center gap-3 ${onClick ? 'cursor-pointer' : ''} ${className}`}>
+        <div 
+          className="relative rounded-2xl flex items-center justify-center shrink-0 p-1"
+          style={{ width: dim, height: dim }}
+        >
+          <img 
+            src="/logo.png" 
+            alt="Doctorian AI Permanent Logo" 
+            className="w-full h-full object-contain drop-shadow-md select-none"
+          />
+        </div>
+        {showText && (
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
+              Doctorian <span className="text-blue-600">AI</span>
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+              E-Pharmacy & Clinical Care • Uganda
+            </p>
           </div>
-        </div>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-            E-pharmacy <span className="text-blue-600">&</span> Medics
-          </h1>
-          <p className="text-xs text-slate-500 font-medium tracking-wide">
-            Buy Medicines • Get Medical Care • Stay Healthy
-          </p>
-        </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col items-center justify-center text-center ${className}`}>
-      {/* Heart with Cross and ECG */}
-      <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-sky-500 flex items-center justify-center shadow-lg shadow-blue-600/30 p-2.5 mb-2">
-        <svg viewBox="0 0 48 48" className="w-full h-full text-white" fill="none">
-          {/* Heart outline */}
-          <path
-            d="M24 40.5s-16-10.2-16-21.5c0-6 4.7-10.5 10.5-10.5 4.1 0 7.2 2.3 8.5 4.5 1.3-2.2 4.4-4.5 8.5-4.5 5.8 0 10.5 4.5 10.5 10.5 0 11.3-16 21.5-16 21.5z"
-            stroke="currentColor"
-            strokeWidth="3.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Medical cross in upper center */}
-          <path
-            d="M24 15v8M20 19h8"
-            stroke="currentColor"
-            strokeWidth="3.2"
-            strokeLinecap="round"
-          />
-          {/* Pulse line through lower half */}
-          <path
-            d="M10 27h6l2.5-4 4 8 3.5-6 2 2h9"
-            stroke="currentColor"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+    <div 
+      onClick={onClick} 
+      className={`flex items-center gap-3 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
+    >
+      <div 
+        className="relative rounded-2xl flex items-center justify-center shrink-0"
+        style={{ width: dim, height: dim }}
+      >
+        <img 
+          src="/logo.png" 
+          alt="Doctorian AI Permanent Logo" 
+          className="w-full h-full object-contain drop-shadow-md select-none"
+        />
       </div>
-      <div className="text-white font-extrabold text-lg tracking-tight">
-        Doctorian AI
-      </div>
-      <div className="text-[10px] text-blue-200 font-medium tracking-wider uppercase">
-        Uganda Clinical OS
-      </div>
+      {showText && (
+        <div className="flex flex-col text-left">
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
+              Doctorian <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">AI</span>
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold tracking-wider uppercase">
+            Uganda Clinical Intelligence
+          </span>
+        </div>
+      )}
     </div>
   );
 };
+
+export default Logo;

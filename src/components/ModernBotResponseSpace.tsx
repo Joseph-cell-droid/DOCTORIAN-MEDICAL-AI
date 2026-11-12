@@ -8,6 +8,7 @@ import {
   Dna, Clock, ShieldCheck, HeartPulse, Info, FileText
 } from 'lucide-react';
 import { cleanAiResponse, extractInteractiveSuggestions } from '../utils/cleanAiResponse';
+import { MedicalDisclaimer } from './common/MedicalDisclaimer';
 
 export interface StructuredItem {
   icon: 'pill' | 'thermometer' | 'alert' | 'heart';
@@ -831,6 +832,11 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
             )}
           </AnimatePresence>
         </div>
+      )}
+
+      {/* 6. Medical Disclaimer */}
+      {!msg.isStreaming && (
+        <MedicalDisclaimer variant="inline" className="mt-3" />
       )}
 
     </div>

@@ -67,7 +67,11 @@ export interface Doctor {
 
 const API_BASE = "/api";
 
-const SHARED_CRYPT_KEY = "doctorian-shared-quantum-key-2026-secure-salt";
+const SHARED_CRYPT_KEY =
+  (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_ENCRYPTION_KEY) ||
+  (typeof process !== 'undefined' && (process.env?.ENCRYPTION_KEY || process.env?.VITE_ENCRYPTION_KEY)) ||
+  (typeof window !== 'undefined' && (window.localStorage?.getItem('doctorian_encryption_key') || '')) ||
+  'doctorian-env-salt-prod-key';
 
 function encryptText(text: string, key: string = SHARED_CRYPT_KEY): string {
   if (!text) return "";
@@ -2458,12 +2462,23 @@ export const api = {
           if (userStr) {
             try { parsedUser = JSON.parse(userStr); } catch (e) {}
           }
-          const hfToken = (parsedUser?.huggingfaceToken || localStorage.getItem('doctorian_hf_token') || "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").trim();
-          const hfModel = (parsedUser?.huggingfaceModel || localStorage.getItem('doctorian_hf_model') || "google/gemma-3-4b-it").trim();
+          const hfToken = (
+            parsedUser?.huggingfaceToken || 
+            (typeof window !== 'undefined' && localStorage.getItem('doctorian_hf_token')) || 
+            (typeof import.meta !== 'undefined' && ((import.meta as any)?.env?.VITE_HF_TOKEN || (import.meta as any)?.env?.HF_TOKEN)) ||
+            (typeof process !== 'undefined' && (process.env?.HF_TOKEN || process.env?.HUGGINGFACE_API_KEY)) ||
+            ""
+          ).trim();
+          const hfModel = (
+            parsedUser?.huggingfaceModel || 
+            (typeof window !== 'undefined' && localStorage.getItem('doctorian_hf_model')) || 
+            (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.HUGGINGFACE_MODEL) ||
+            "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16:deepinfra"
+          ).trim();
 
           if (hfToken) {
-            console.log(`[Neural Link] Executing direct Client Hugging Face Synapse for Vercel/Web: ${hfModel}`);
-            const hfRes = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
+            console.log(`[Neural Link] Executing direct Client Hugging Face Synapse for Vercel/Web via Router: ${hfModel}`);
+            const hfRes = await fetch("https://router.huggingface.co/v1/chat/completions", {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${hfToken}`,
@@ -2793,12 +2808,23 @@ export const api = {
           if (userStr) {
             try { parsedUser = JSON.parse(userStr); } catch (e) {}
           }
-          const hfToken = (parsedUser?.huggingfaceToken || localStorage.getItem('doctorian_hf_token') || "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").trim();
-          const hfModel = (parsedUser?.huggingfaceModel || localStorage.getItem('doctorian_hf_model') || "google/gemma-3-4b-it").trim();
+          const hfToken = (
+            parsedUser?.huggingfaceToken || 
+            (typeof window !== 'undefined' && localStorage.getItem('doctorian_hf_token')) || 
+            (typeof import.meta !== 'undefined' && ((import.meta as any)?.env?.VITE_HF_TOKEN || (import.meta as any)?.env?.HF_TOKEN)) ||
+            (typeof process !== 'undefined' && (process.env?.HF_TOKEN || process.env?.HUGGINGFACE_API_KEY)) ||
+            ""
+          ).trim();
+          const hfModel = (
+            parsedUser?.huggingfaceModel || 
+            (typeof window !== 'undefined' && localStorage.getItem('doctorian_hf_model')) || 
+            (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.HUGGINGFACE_MODEL) ||
+            "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16:deepinfra"
+          ).trim();
 
           if (hfToken) {
-            console.log(`[Neural Link] Directing stream to client Hugging Face: ${hfModel}`);
-            const hfRes = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
+            console.log(`[Neural Link] Directing stream to client Hugging Face via Router: ${hfModel}`);
+            const hfRes = await fetch("https://router.huggingface.co/v1/chat/completions", {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${hfToken}`,

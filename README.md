@@ -1,51 +1,102 @@
-# Doctorian AI - Local Setup Guide
+# Doctorian Medical AI
 
-This project was developed by **AKORA JOSEPH** from **Dr. Obote College**. It is a professional medical intelligence companion designed to provide evidence-based health insights.
+> **IMPORTANT MEDICAL DISCLAIMER**: Doctorian Medical AI is a clinical decision-support and educational tool designed to assist healthcare professionals, students, and patients. It is **not a replacement for professional clinical judgment, physical examination, or licensed medical diagnosis**. In medical emergencies, seek immediate care at the nearest accredited health facility or call emergency services.
 
-## Prerequisites
+---
 
-- **Node.js**: Ensure you have Node.js (v18 or higher) installed.
-- **npm**: Standard Node Package Manager.
-- **VS Code (VSC)**: Recommended for local development.
+## Overview
+
+Doctorian Medical AI is a high-performance clinical intelligence and patient management platform tailored for healthcare delivery in Uganda and East Africa. It combines clinical triage, vitals telemetry, prescription tracking, and AI-assisted diagnostic guidance grounded in **World Health Organization (WHO)** standards and the **Uganda Clinical Guidelines (UCG)**.
+
+- **Developer & Designer**: Akora Joseph (EBRO Company Ltd / Dr. Obote College)
+- **Supported AI Engines**:
+  - **Hugging Face Inference Router** (Default: `nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16:deepinfra`)
+  - **Google Gemini Neural Core** (`gemini-3.8-flash`)
+  - **Local Offline / On-Device AI** (Ollama `gemma3:1b`, LM Studio, offline clinical matrix)
+
+---
+
+## Security Best Practices
+
+1. **No Hardcoded Keys**: Never commit real API keys, bearer tokens, or database credentials to version control.
+2. **Environment Variables**: Use `.env` (copied from `.env.example`) to configure API secrets locally.
+3. **Client-Side Safety**: Tokens stored in browser `localStorage` (such as custom Hugging Face user tokens) are kept strictly on the client and never logged to external servers.
+4. **Data Encryption**: Patient records and sensitive telemetry use environment-driven encryption keys (`ENCRYPTION_KEY` / `VITE_ENCRYPTION_KEY`).
+
+---
 
 ## Getting Started
 
-1. **Clone or Download**: Get the project files onto your local machine.
-2. **Install Dependencies**:
+### Prerequisites
+
+- **Node.js**: v18.0.0 or higher
+- **npm** or **bun**: For dependency management
+- **Modern Browser**: Chrome, Edge, Firefox, or Safari (PWA-compatible)
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Joseph-cell-droid/DOCTORIAN-MEDICAL-AI.git
+   cd DOCTORIAN-MEDICAL-AI
+   ```
+
+2. **Install dependencies**:
    ```bash
    npm install
    ```
-3. **Environment Setup (VS Code / Local)**:
-   - The project is **pre-configured** with a fallback Gemini API key.
-   - To use your own key in VS Code or other software, create a file named `.env` in the root directory.
-   - Copy the following line into your new `.env` file:
-     ```env
-     GEMINI_API_KEY="AIzaSyADzRa4RnF75BnL_rnfzNPnH2tlj2Sfjkw"
-     ```
-   
-4. **Run the Project**:
+
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Add your API keys to `.env`:
+   ```env
+   # Hugging Face Router (Recommended)
+   HF_TOKEN=your_huggingface_token_here
+   HUGGINGFACE_MODEL=nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16:deepinfra
+
+   # Google Gemini API (Alternative)
+   GEMINI_API_KEY=your_gemini_api_key_here
+
+   # Data Encryption Key
+   ENCRYPTION_KEY=your_secure_random_key_here
+   ```
+
+4. **Run the Development Server**:
    ```bash
    npm run dev
    ```
-5. **Open in Browser**: The application will be running at `http://localhost:3000`.
+   The application will be available at `http://localhost:3000`.
 
-## Independent & Downloaded App
-
-- **Standalone Mode**: The app is a Progressive Web App (PWA). You can "install" it to your device (Desktop or Mobile) to run it independently of the browser.
-- **Baking the API Key**: When you build the app (`npm run build`), the API key is baked into the code. This ensures that the "downloaded" (installed) app works perfectly without any extra configuration.
-
-- `src/`: Contains the React source code.
-- `src/components/`: Reusable UI components (Chat, Image Generator, Patient Monitor, etc.).
-- `src/hooks/`: Custom React hooks (e.g., `useArduino` for vital signs simulation).
-- `vite.config.ts`: Configuration for the Vite build tool.
-
-## Key Features
-
-- **Live Medical Assistant**: AI-powered chat for health inquiries.
-- **Patient Monitor**: Real-time visualization of vital signs (Heart Rate, SpO2, Blood Pressure, etc.).
-- **Health Records**: Comprehensive prescription and patient record management.
-- **Anatomical Illustrator**: AI-generated medical illustrations.
+5. **Build for Production**:
+   ```bash
+   npm run build
+   ```
 
 ---
-*Developed by AKORA JOSEPH (Dr. Obote College)*
 
+## AI Clinical Safety Framework
+
+All clinical AI interactions follow a rigorous safety protocol aligned with international clinical guidelines:
+
+1. **Structured Clinical Guidance**:
+   - **Summary of Presented Symptoms**: Direct distillation of reported signs and onset.
+   - **Most Likely Diagnosis**: With probabilistic confidence estimation.
+   - **Differential Diagnoses**: 2–4 alternate clinical possibilities to avoid premature diagnostic closure.
+   - **Recommended Next Steps / Investigations**: Evidence-based laboratory and bedside tests.
+   - **Supportive Care & Self-Management**: Safe hydration, nutrition, and non-pharmacological care.
+   - **Medication Suggestions**: Only when clearly indicated by guidelines, with an explicit reminder that a licensed clinician must prescribe.
+   - **Emergency Red Flags**: Critical warning signs requiring immediate emergency hospital transfer.
+   - **Clinical Disclaimer**: Prominently presented alongside every output.
+
+2. **Hugging Face Inference Router**:
+   Supports direct access via `https://router.huggingface.co/v1/chat/completions` with automatic fallback to Gemini and offline guidance.
+
+---
+
+## License & Attribution
+
+Designed and developed by **Akora Joseph** (EBRO Company Ltd).
+Built for clinical resilience and community healthcare empowerment across Uganda and East Africa.

@@ -3181,30 +3181,17 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Right Side: Doctorian Smart Watch OS, Search Icon (mobile), Notification Bell (3), Fullscreen Toggle, User Profile */}
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                {/* GPS Nearest Ugandan Hospital Live Capsule in Top Bar */}
-                <button
-                  type="button"
-                  onClick={() => setIsDoctorianProfileModalOpen(true)}
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/40 text-emerald-800 dark:text-emerald-300 font-bold text-xs transition-all cursor-pointer shadow-2xs group shrink-0"
-                  title={`GPS Nearest Hospital: ${nearestHospitalData.hospital.name} (${nearestHospitalData.distanceKm}km). Click to view Uganda Digital Health Card & emergency facilities.`}
-                >
-                  <MapPin size={15} className="text-emerald-500 group-hover:scale-110 transition-transform shrink-0" />
-                  <span className="font-black tracking-tight max-w-[130px] lg:max-w-[160px] truncate">{nearestHospitalData.hospital.shortName}</span>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-black">{nearestHospitalData.distanceKm}km</span>
-                  <span className={`w-2 h-2 rounded-full ${nearestHospitalData.isGpsLive ? 'bg-emerald-500 animate-pulse' : 'bg-cyan-400'}`} />
-                </button>
-
-                {/* Doctorian Smart Watch OS Capsule in Top Bar (Exact Match to User Requirement) */}
+              {/* Right Side: Doctorian Smart Watch OS, Search Icon (mobile), Notification Bell (3), User Profile */}
+              <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                {/* Doctorian Smart Watch OS Capsule in Top Bar */}
                 <button
                   type="button"
                   onClick={() => setCurrentView('smart_watch')}
-                  className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-indigo-600/10 hover:from-blue-600/20 hover:to-cyan-500/20 border border-blue-400/40 dark:border-cyan-500/40 text-blue-700 dark:text-cyan-300 font-bold text-xs transition-all cursor-pointer shadow-2xs group shrink-0"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-indigo-600/10 hover:from-blue-600/20 hover:to-cyan-500/20 border border-blue-400/40 dark:border-cyan-500/40 text-blue-700 dark:text-cyan-300 font-bold text-xs transition-all cursor-pointer shadow-2xs group shrink-0"
                   title="Open Doctorian Smart Watch OS"
                 >
-                  <Watch size={16} className="text-cyan-500 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline font-black tracking-tight">Doctorian Smart Watch</span>
+                  <Watch size={15} className="text-cyan-500 group-hover:scale-110 transition-transform" />
+                  <span className="font-black tracking-tight">Doctorian Watch</span>
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </button>
 
@@ -3212,26 +3199,27 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsSearchOpen(true)}
-                  className="sm:hidden w-9 h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs cursor-pointer"
+                  className="sm:hidden w-8.5 h-8.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs cursor-pointer shrink-0"
                   title="Search"
+                  aria-label="Search"
                 >
-                  <Search size={16} />
+                  <Search size={15} />
                 </button>
 
                 {/* 1. Notification Bell with "3" Red Badge & Popover */}
-                <div className="relative">
+                <div className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => {
                       setIsUpperBarAlertsOpen(!isUpperBarAlertsOpen);
                       setIsProfileOpen(false);
                     }}
-                    className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative"
+                    className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative shrink-0"
                     title="3 Urgent Clinical Notifications"
                     aria-label="Clinical Notifications"
                   >
-                    <Bell size={18} className="text-slate-700 dark:text-slate-200" />
-                    <span className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 text-white font-black text-[10px] flex items-center justify-center shadow-md shadow-red-500/40">
+                    <Bell size={16} className="text-slate-700 dark:text-slate-200" />
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                       3
                     </span>
                   </button>
@@ -3329,47 +3317,36 @@ export default function App() {
                   </AnimatePresence>
                 </div>
 
-                {/* 2. Fullscreen Toggle Button */}
-                <button
-                  type="button"
-                  onClick={handleToggleFullscreen}
-                  className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                  aria-label="Toggle Fullscreen"
-                >
-                  <Maximize2 size={17} className="text-slate-700 dark:text-slate-200" />
-                </button>
-
-                {/* 3. User Profile Capsule (Dr. Joseph Akora / Administrator) */}
-                <div className="relative">
+                {/* 2. Small Smart User Profile Avatar Icon */}
+                <div className="relative shrink-0">
                   <button 
                     type="button"
                     onClick={() => {
                       setIsProfileOpen(!isProfileOpen);
                       setIsUpperBarAlertsOpen(false);
                     }}
-                    className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-full shadow-2xs hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-500 transition-all cursor-pointer group"
+                    className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 ring-2 ring-emerald-500/40 p-0.5 hover:ring-emerald-500 transition-all cursor-pointer shadow-2xs flex items-center justify-center relative group shrink-0"
                     aria-label="User profile menu"
                     aria-expanded={isProfileOpen}
+                    title="Dr. Joseph Akora (Uganda MoH Verified)"
                   >
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-emerald-500/30 p-[1px] shrink-0">
-                      <img 
-                        src={josephPortrait} 
-                        alt="Dr. Joseph Akora" 
-                        className="w-full h-full object-cover rounded-full shrink-0" 
-                      />
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 animate-pulse" />
+                    <div className="w-full h-full rounded-full overflow-hidden">
+                      {user.photoURL ? (
+                        <img 
+                          src={user.photoURL} 
+                          alt="" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      ) : (
+                        <img 
+                          src={josephPortrait} 
+                          alt="Dr. Joseph Akora" 
+                          className="w-full h-full object-cover" 
+                        />
+                      )}
                     </div>
-                    <div className="hidden lg:flex flex-col text-left">
-                      <span className="text-xs font-black text-slate-900 dark:text-white leading-tight flex items-center gap-1">
-                        Dr. Joseph Akora
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="GPS Active" />
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-semibold leading-tight">
-                        Uganda MoH Verified
-                      </span>
-                    </div>
-                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 hidden lg:inline-block ${isProfileOpen ? 'rotate-180' : ''}`} />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 animate-pulse" />
                   </button>
 
                       {isProfileOpen && (
@@ -3604,7 +3581,7 @@ export default function App() {
               ? 'py-0 px-0 max-w-full h-full min-h-0 space-y-0' 
               : ['home', 'doctors_dashboard', 'vitality', 'settings', 'smart_watch'].includes(currentView)
               ? 'py-0 px-0 max-w-full space-y-0'
-              : 'py-6 sm:py-8 lg:py-10 px-4 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-6 sm:space-y-8'
+              : 'py-3.5 sm:py-8 lg:py-10 px-3 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-4 sm:space-y-8 overflow-x-hidden'
           }`}>
             {/* Side buttons remain exclusively on the left sidebar and are not repeated inside the page */}
             <Suspense fallback={

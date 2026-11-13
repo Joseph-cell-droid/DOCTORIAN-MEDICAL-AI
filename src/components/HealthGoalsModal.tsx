@@ -155,14 +155,14 @@ export const HealthGoalsModal: React.FC<HealthGoalsModalProps> = ({
 
   const handleAddGoal = () => {
     if (!newGoalLabel.trim() || !newGoalUnit.trim()) {
-      setToast({ id: Math.random().toString(), message: 'Missing fields', sub: 'Please provide both a label and a unit.' });
+      alert("Please provide both a label and a unit.");
       return;
     }
     const finalId = newGoalId === 'custom' ? `custom_${Date.now()}` : newGoalId;
     
     // Check if goal with same ID already exists to avoid duplication
     if (localGoals.some(g => g.id === finalId)) {
-      setToast({ id: Math.random().toString(), message: 'Duplicate Goal', sub: 'A goal with this biometric type already exists.' });
+      alert("A goal with this biometric type already exists.");
       return;
     }
 

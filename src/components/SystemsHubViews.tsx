@@ -92,7 +92,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
     },
     {
       q: "Are the telemetry streams saved to persistent servers?",
-      a: "This application prioritizes safe offline processing. Patient metrics and logs are handled using client-side memory and local encrypted storage aligned with Uganda DPPA 2019 privacy safeguards.",
+      a: "This application prioritizes safe offline processing. Patient metrics and logs are handled using client-side memory and local sandbox encryption models to satisfy rigorous HIPAA patient data protection standards.",
       category: "security"
     },
     {
@@ -159,11 +159,11 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
 
   const handleContactWhatsApp = (message: string = "Hello, I need assistance with Doctorian.") => {
     const url = `https://wa.me/256787674140?text=${encodeURIComponent(message)}`;
-    window.location.assign(url);
+    window.open(url, '_blank');
   };
 
   const handleContactEmail = (subject: string = "Doctorian Support Request", body: string = "Hello, I need assistance with...") => {
-    const url = `mailto:support@doctorian.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const url = `mailto:gloriajayakullo@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = url;
   };
 
@@ -269,7 +269,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
             <div className="relative">
               <input 
                 type="text"
-                placeholder="Search database articles (e.g., Alarms, SpO2, Privacy)..."
+                placeholder="Search database articles (e.g., Alarms, SpO2, HIPAA)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] pl-12 pr-6 py-4 text-xs font-bold uppercase tracking-wider placeholder:text-slate-400 focus:border-blue-500 outline-none shadow-md transition-colors"
@@ -570,7 +570,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                           <option>Acoustic Alarms</option>
                           <option>SMS Relays</option>
                           <option>Patient Registries</option>
-                          <option>Clinical Privacy Logging Archive</option>
+                          <option>HIPAA Logging Archive</option>
                         </select>
                       </div>
                     </div>
@@ -651,8 +651,8 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                     <Mail size={18} />
                   </div>
                   <div className="truncate">
-                    <span className="text-[11px] font-black uppercase text-blue-600 tracking-wider block">Clinical Systems Support</span>
-                    <span className="text-xs font-bold text-slate-705 dark:text-slate-350 block truncate">support@doctorian.org</span>
+                    <span className="text-[11px] font-black uppercase text-blue-600 tracking-wider block">Lead Systems Officer</span>
+                    <span className="text-xs font-bold text-slate-705 dark:text-slate-350 block truncate">gloriajayakullo@gmail.com</span>
                   </div>
                 </button>
               </div>
@@ -738,7 +738,7 @@ export const HelpCenter: React.FC<SubViewProps> = ({ user, onNavigate, onStartTu
                     <div className="space-y-3 mt-4">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Predefined Performance Tags</label>
                       <div className="flex flex-wrap gap-2">
-                        {['AI Accuracy', 'Acoustic Alarms', 'Twilio Relays', 'User Interface', 'Speed', 'Offline Safety', 'Data Privacy'].map((tag, mapIdx_740) => (
+                        {['AI Accuracy', 'Acoustic Alarms', 'Twilio Relays', 'User Interface', 'Speed', 'Offline Safety', 'HIPAA Privacy'].map((tag, mapIdx_740) => (
                           <button 
                             key={`systemshubviews-l743-${mapIdx_740}`} 
                             onClick={() => setFeedbackText(prev => prev + (prev ? ', ' : '') + tag)}
@@ -802,9 +802,9 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
   const [zeroKnowledgeProof, setZeroKnowledgeProof] = useState(true);
   const [anonymizeData, setAnonymizeData] = useState(true);
 
-  // Simulated live privacy audit access logs
+  // Simulated live HIPAA Audit Access Logs
   const [auditLogs, setAuditLogs] = useState([
-    { actor: "Dr. Sarah Nakitto", action: "Pulled real-time telemetry waveforms", status: "Secure", time: "22:01:10", hash: "0x89e1...f01" },
+    { actor: "Dr. Gloria Jayakullo", action: "Pulled real-time telemetry waveforms", status: "Secure", time: "22:01:10", hash: "0x89e1...f01" },
     { actor: "Systems Core", action: "Triggered Twilio emergency outbound broadcast", status: "Secure", time: "21:58:32", hash: "0xa210...9bb" },
     { actor: "Secure Client Proxy", action: "Refreshed local bio-alarm threshold limits", status: "Secure", time: "21:30:15", hash: "0xb771...33e" },
     { actor: "Patient Portal", action: "Authorized attending cardiac tracking keys", status: "Secure", time: "19:15:00", hash: "0x44cd...ee1" }
@@ -829,7 +829,7 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-6">
         <div>
           <span className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-500 tracking-[0.2em] bg-rose-50 dark:bg-rose-950/20 px-3 py-1 rounded-full">Systems Hub</span>
-          <h1 className="text-3xl font-black uppercase tracking-tight mt-3 text-slate-950 dark:text-white">Uganda DPPA Privacy Vault & Crypto Core</h1>
+          <h1 className="text-3xl font-black uppercase tracking-tight mt-3 text-slate-950 dark:text-white">HIPAA Privacy Vault & Crypto Core</h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">Verify continuous encryption blocks, toggle local privacy parameters, and monitor immutable telemetry audit logs.</p>
         </div>
         <button 
@@ -861,7 +861,7 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
               { id: 'localEnc', val: isLocalEncrypted, set: setIsLocalEncrypted, label: "AES-GCM Local Database Encryption", desc: "Forces sandbox values to save under randomized key parameters." },
               { id: 'reqBio', val: requireBiometrics, set: setRequireBiometrics, label: "Attending Passphrase Verification", desc: "Interrupts actions and requires a secure user credential hash." },
               { id: 'zkpAuth', val: zeroKnowledgeProof, set: setZeroKnowledgeProof, label: "Zero-Knowledge Telemetry Relay", desc: "Transmits indicators to relays without releasing individual patient identifiers." },
-              { id: 'anonData', val: anonymizeData, set: setAnonymizeData, label: "PII Scrub AI Analytics", desc: "Scrubs diagnostic outputs before forwarding metrics into predictive models." }
+              { id: 'anonData', val: anonymizeData, set: setAnonymizeData, label: "HIPAA Scrub AI Analytics", desc: "Scrubs diagnostic outputs before forwarding metrics into predictive models." }
             ].map((sw, mapIdx_864) => (
               <div key={`systemshubviews-l866-${mapIdx_864}`} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-105 dark:border-slate-850 space-y-2">
                 <div className="flex items-center justify-between">
@@ -889,7 +889,7 @@ export const PrivacyVault: React.FC<SubViewProps> = ({ user, onNavigate }) => {
                   <Database size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-white">Clinical Access Audit Trails</h3>
+                  <h3 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-white">HIPAA Access Audit Trails</h3>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Immutable Cryptographic Loggers</p>
                 </div>
               </div>
@@ -1072,7 +1072,7 @@ export const TermsAndData: React.FC<SubViewProps> = ({ vitals, onNavigate }) => 
         systolicBP: vitals?.systolicBP || 120,
         diastolicBP: vitals?.diastolicBP || 80
       },
-      telemetryStandardsCompliance: ["IEC 60601-1-8", "Uganda DPPA 2019 Privacy Guardrails"],
+      telemetryStandardsCompliance: ["IEC 60601-1-8", "HIPAA Omnibus Guardrails"],
       exporterCredentialNode: "UGANDA-REGINAL-CLINIC-GUEST"
     };
 

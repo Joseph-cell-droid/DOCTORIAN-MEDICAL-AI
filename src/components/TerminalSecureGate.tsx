@@ -112,12 +112,12 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     { label: 'Dynamic IP Routing Certificate', ok: true, score: 'Validated Air-Gap' }
   ]);
   
-  // Clinical privacy & electronic signature states
+  // HIPAA compliance & electronic signature states
   const [consentA, setConsentA] = useState(true);
   const [consentB, setConsentB] = useState(true);
   const [consentC, setConsentC] = useState(true);
   const [eSignature, setESignature] = useState('');
-  const [expectedSignature, setExpectedSignature] = useState(role === 'admin' ? 'System Administrator' : 'Attending Clinician');
+  const [expectedSignature, setExpectedSignature] = useState(role === 'admin' ? 'System Administrator' : 'Dr. Gloria Jay Akullo');
   
   // UI & general states
   const [error, setError] = useState('');
@@ -223,7 +223,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
         }
       }
     } catch (e) {}
-    return 'clinician@doctorian.org';
+    return 'gloriajayakullo@gmail.com'; // Default signup Gmail
   };
 
   const sendToken = async () => {
@@ -1460,7 +1460,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
                     />
                   </div>
                   <span className="text-[8px] text-slate-500 block leading-normal">
-                    * Active checks isolate browser processes from cross-origin scripts to align with clinical data protection safeguards.
+                    * Active checks isolate browser processes from cross-origin scripts to align with HIPAA Administrative safeguards.
                   </span>
                 </div>
 

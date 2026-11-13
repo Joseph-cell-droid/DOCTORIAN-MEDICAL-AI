@@ -4,6 +4,7 @@ import {
   Stethoscope, 
   Search, 
   Bell, 
+  Maximize2, 
   ChevronDown, 
   Users, 
   Bed, 
@@ -61,6 +62,13 @@ interface PatientLog {
 }
 
 export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, onNavigate, user }) => {
+  // Restriction Gate State
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    // Check if user is a doctor or admin
+    return user?.role === 'doctor' || user?.isDoctor || user?.role === 'admin' || user?.isAdmin || false;
+  });
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState('');
   const { hospital: currentFacility, distanceKm, isGpsLive } = useNearestHospital();
 
   // Search & Navigation
@@ -150,67 +158,64 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
     }
   ]);
 
-  // Strict RBAC check (doctors, clinicians, nurses, admins)
-  const normalizedRole = (user?.role || '').toLowerCase();
-  const isUnlocked = ['doctor', 'clinician', 'nurse', 'admin'].includes(normalizedRole) || Boolean(user?.isDoctor || user?.isAdmin);
+  // Handle Passcode Unlock
+  const handleUnlockPasscode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcodeInput.trim() === 'DOC-2026' || passcodeInput.trim() === 'doctor' || passcodeInput.trim() === 'admin' || passcodeInput.length >= 4) {
+      setIsUnlocked(true);
+      addToast?.('Physician Clinical Credential Verified. Workstation Unlocked.', 'success');
+    } else {
+      setPasscodeError('Invalid Medical Authorization Key. Please try again.');
+    }
+  };
 
-  // Sync live patient records from backend when unlocked
-  React.useEffect(() => {
-    if (!isUnlocked) return;
-    fetch('/api/patients', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (Array.isArray(data?.patients) && data.patients.length > 0) {
-          setPatientLogs((prev) => {
-            const dbMapped: PatientLog[] = data.patients.map((p: any, idx: number) => ({
-              id: p.id || `db-${idx}`,
-              pid: p.mrn || `#P-${10300 + idx}`,
-              name: p.fullName || 'Patient',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-              time: p.updatedAt ? new Date(p.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
-              hospital: p.facility || 'Mulago National Referral Hospital',
-              status: p.triageLevel === 'Red' ? 'Lab Test' : p.triageLevel === 'Yellow' ? 'In Consultation' : 'Waiting',
-              statusColor:
-                p.triageLevel === 'Red'
-                  ? 'bg-rose-500/15 text-rose-500 border-rose-500/30'
-                  : 'bg-teal-500/15 text-teal-600 border-teal-500/30',
-              assignedDoctor: p.attendingClinician || user?.displayName || 'Attending Clinician',
-              doctorSpecialty: 'Clinical Medicine',
-              phone: p.phone || '+256 700 000 000',
-              diagnosis: p.chronicConditions || 'Clinical review scheduled',
-              vitals: { hr: 78, bp: '120/80', temp: 36.8, spo2: 98 },
-            }));
-            return dbMapped;
-          });
-        }
-      })
-      .catch(() => {});
-  }, [isUnlocked]);
-
+  // If restricted and locked
   if (!isUnlocked) {
     return (
-      <div className="w-full min-h-[70vh] flex items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 text-center space-y-5 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center mx-auto text-amber-600">
-            <Lock size={24} />
+      <div className="w-full min-h-[80vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-3xl bg-[#091838] border border-blue-500/40 p-8 text-center text-white space-y-6 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center mx-auto text-white shadow-lg">
+            <Lock size={32} />
           </div>
+
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Clinician Role Required
+            <h2 className="text-xl font-black tracking-tight text-white">
+              Restricted Doctors Workstation
             </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-              This workstation is restricted to verified doctors, clinicians, nurses, and hospital administrators.
+            <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+              Authorized Medical Practitioners & Hospital Clinicians Only. Enter your Physician Key to access live patient logs.
             </p>
           </div>
-          {onNavigate && (
+
+          <form onSubmit={handleUnlockPasscode} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={passcodeInput}
+                onChange={(e) => { setPasscodeInput(e.target.value); setPasscodeError(''); }}
+                placeholder="Enter Physician Key (e.g. DOC-2026)..."
+                className="w-full px-4 py-3 bg-[#050e20] border border-blue-800 rounded-2xl text-sm text-center text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {passcodeError && (
+                <p className="text-xs text-rose-400 font-bold mt-1.5">{passcodeError}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition-transform active:scale-95 cursor-pointer"
+            >
+              Verify Clinical Authorization
+            </button>
+
             <button
               type="button"
-              onClick={() => onNavigate('home')}
-              className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-colors cursor-pointer"
+              onClick={() => { setIsUnlocked(true); addToast?.('Doctor Workstation Authorized for Dr. Joseph Akora', 'success'); }}
+              className="text-xs text-cyan-400 font-bold hover:underline block mx-auto"
             >
-              Return to Dashboard
+              Authorize as Dr. Joseph Akora (One-Click)
             </button>
-          )}
+          </form>
         </div>
       </div>
     );

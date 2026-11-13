@@ -21,24 +21,15 @@ export interface FlutterwaveConfig {
     logo?: string;
   };
   callback: (response: any) => void;
-  onError?: (message: string) => void;
+  onclose?: () => void;
 }
-
-const notifyPaymentError = (message: string, onError?: (msg: string) => void) => {
-  if (onError) {
-    onError(message);
-  } else {
-    window.dispatchEvent(new CustomEvent('doctorian:payment-notice', { detail: { message } }));
-    console.warn(message);
-  }
-};
 
 export const openFlutterwavePayment = (config: FlutterwaveConfig) => {
   const triggerModal = () => {
     if (window.FlutterwaveCheckout) {
       window.FlutterwaveCheckout(config);
     } else {
-      notifyPaymentError("Flutterwave checkout gateway is loading or unavailable offline.", config.onError);
+      alert("Flutterwave checkout gateway is loading or unavailable offline.");
     }
   };
 
@@ -59,7 +50,7 @@ export const openFlutterwavePayment = (config: FlutterwaveConfig) => {
   script.async = true;
   script.onload = () => triggerModal();
   script.onerror = () => {
-    notifyPaymentError("Unable to load Flutterwave online payment gateway. Please check connection.", config.onError);
+    alert("Unable to load Flutterwave online payment gateway. Please check connection.");
   };
   document.body.appendChild(script);
 };

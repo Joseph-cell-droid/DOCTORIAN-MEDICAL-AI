@@ -49,7 +49,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     { label: "WHATSAPP CLINIC RELAY", href: "https://wa.me/256787674140" },
     { label: "WHO GREAT LAKES NODE", href: "https://www.who.int" },
     { label: "UGANDAN CLINICAL GUIDELINES", href: "https://health.go.ug" },
-    { label: "E-MAIL CLINICAL SUPPORT", href: "mailto:support@doctorian.org" },
+    { label: "E-MAIL CLINICAL LEAD", href: "mailto:gloriajayakullo@gmail.com" },
     { label: "NATIONAL TOLL-FREE LINE", href: "tel:256787674140" }
   ];
 
@@ -280,7 +280,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#061c2b]/90 border border-[#0d344d] text-slate-300 text-xs">
                 <Mail size={14} className="text-blue-400 shrink-0" />
-                <span className="truncate font-medium text-slate-200">support@doctorian.org</span>
+                <span className="truncate font-medium text-slate-200">gloriajayakullo@gmail.com</span>
               </div>
 
               <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#061c2b]/90 border border-[#0d344d] text-slate-300 text-xs">
@@ -290,7 +290,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
               <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#061c2b]/90 border border-[#0d344d] text-slate-300 text-xs">
                 <Lock size={14} className="text-emerald-400 shrink-0" />
-                <span className="truncate font-medium text-slate-200">256-Bit TLS & Uganda DPPA 2019</span>
+                <span className="truncate font-medium text-slate-200">256-Bit TLS & HIPAA Ready</span>
               </div>
 
               <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#061c2b]/90 border border-[#0d344d] text-slate-300 text-xs">

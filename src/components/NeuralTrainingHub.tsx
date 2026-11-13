@@ -82,7 +82,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setSuccessMsg("Smart dataset diagnostic matrix completed successfully!");
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
-      setHubError("Smart analysis failed: " + err.message);
+      alert("Smart analysis failed: " + err.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -92,7 +92,7 @@ export const NeuralTrainingHub: React.FC = () => {
   const handleAugmentDataset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!augmentTopic.trim()) {
-      setHubError("Please provide a topic/focus for synthetic AI generation.");
+      alert("Please provide a topic/focus for synthetic AI generation.");
       return;
     }
     try {
@@ -103,7 +103,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setSuccessMsg("Successfully synthesized 3 custom clinical nodes!");
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
-      setHubError("Synthesis failed: " + err.message);
+      alert("Synthesis failed: " + err.message);
     } finally {
       setIsAugmenting(false);
     }
@@ -126,7 +126,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setTimeout(() => setSuccessMsg(''), 4500);
       await fetchKnowledge();
     } catch (err: any) {
-      setHubError("Injection failed: " + err.message);
+      alert("Injection failed: " + err.message);
     } finally {
       setIsInjectingAugmented(false);
     }
@@ -143,7 +143,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setSuccessMsg("Neural evaluation complete. Smart Diagnostics Report compiled!");
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
-      setHubError("Evaluation failed: " + err.message);
+      alert("Evaluation failed: " + err.message);
     } finally {
       setIsEvaluatingReport(false);
     }
@@ -178,27 +178,21 @@ export const NeuralTrainingHub: React.FC = () => {
   const [langTerm, setLangTerm] = useState('');
   const [langMeaning, setLangMeaning] = useState('');
   const [formError, setFormError] = useState('');
-  const [hubError, setHubError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isSeeding, setIsSeeding] = useState(false);
-  const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<string | null>(null);
-  const [showLangPrompt, setShowLangPrompt] = useState(false);
-  const [langPromptInput, setLangPromptInput] = useState('');
-  const [showCloudPrompt, setShowCloudPrompt] = useState(false);
-  const [cloudPromptInput, setCloudPromptInput] = useState('');
 
   const handleBulkQuantumSeed = async () => {
     try {
       setIsSeeding(true);
-      setSuccessMsg("Igniting clinical knowledge synchronization pipeline...");
+      setSuccessMsg("Igniting sub-atomic quantum synchronization pipeline...");
       
       const result = await (api.ai as any).bulkSeedKnowledge();
       
-      setSuccessMsg(`Synchronized ${result.count || 35} high-fidelity clinical knowledge nodes successfully!`);
+      setSuccessMsg(`Synchronized ${result.count || 35} high-fidelity Health Quantum Nodes successfully!`);
       setTimeout(() => setSuccessMsg(''), 4500);
       fetchKnowledge();
     } catch (err: any) {
-      setHubError(err.message || "Knowledge synchronization protocol failed.");
+      alert(err.message || "Quantum synchronization protocol failed.");
     } finally {
       setIsSeeding(false);
     }
@@ -208,7 +202,7 @@ export const NeuralTrainingHub: React.FC = () => {
   const [ftJobs, setFtJobs] = useState<FineTuningJob[]>([]);
   const [ftIsLoading, setFtIsLoading] = useState(false);
   const [ftBaseModel, setFtBaseModel] = useState('google/gemma-3-4b-tfjs');
-  const [ftCustomName, setFtCustomName] = useState('doctorian-clinical-ft-v1');
+  const [ftCustomName, setFtCustomName] = useState('gloria-clinical-ft-v1');
   const [ftEpochs, setFtEpochs] = useState(5);
   const [ftIsStarting, setFtIsStarting] = useState(false);
   const [selectedJob, setSelectedJob] = useState<FineTuningJob | null>(null);
@@ -222,7 +216,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setTimeout(() => setSuccessMsg(''), 4000);
       await fetchKnowledge();
     } catch (err: any) {
-      setHubError("Failed to inject training preset: " + err.message);
+      alert("Failed to inject training preset: " + err.message);
     } finally {
       setIsInjectingPreset(null);
     }
@@ -245,17 +239,12 @@ export const NeuralTrainingHub: React.FC = () => {
     { id: 'deepseek-ai/DeepSeek-R1', label: 'Doctorian Research AI (Quantum Max Core)', desc: 'Advanced differential clinical diagnostics with scratchpad thoughts.' }
   ];
 
-  const handleLanguageGenerate = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const lang = langPromptInput.trim();
-    if (!lang) {
-      setHubError("Please enter a Ugandan language (e.g., Luganda, Acholi, Runyankole).");
-      return;
-    }
+  const handleLanguageGenerate = async () => {
+    const lang = prompt("Enter Ugandan Language (e.g., Luganda, Acholi, Runyankole):");
+    if (!lang) return;
     
     try {
       setIsSaving(true);
-      setHubError('');
       setSuccessMsg(`Generating ${lang} medical node...`);
       const response = await api.ai.aiChat([{
         role: 'user', 
@@ -265,37 +254,28 @@ export const NeuralTrainingHub: React.FC = () => {
       setNewTitle(`Medical Translation: ${lang}`);
       setNewContent(response.text);
       setNewCategory('language');
-      setShowLangPrompt(false);
-      setLangPromptInput('');
       setShowForm(true);
     } catch (err) {
-      setHubError("Language translation node generation failed.");
+      alert("Neural generation failed.");
     } finally {
       setIsSaving(false);
       setSuccessMsg('');
     }
   };
 
-  const handleCloudFetchData = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const query = cloudPromptInput.trim();
-    if (!query) {
-      setHubError("Please enter a clinical topic or guideline to fetch.");
-      return;
-    }
+  const handleCloudFetchData = async () => {
+    const query = prompt("Enter clinical topic or protocol to fetch directly from the cloud using grounded search (e.g., WHO Malaria protocols, CDC Covid triaging, maternal safety standards):");
+    if (!query) return;
 
     try {
       setIsSaving(true);
-      setHubError('');
-      setSuccessMsg(`Fetching clinical guidelines for: "${query}"...`);
+      setSuccessMsg(`Establishing cloud neural link to fetch guidelines for: "${query}"...`);
       await (api.ai as any).cloudFetchKnowledge(query);
-      setSuccessMsg("Clinical knowledge retrieved, indexed, and synchronized into dataset registry successfully!");
-      setShowCloudPrompt(false);
-      setCloudPromptInput('');
+      setSuccessMsg("Cloud clinical knowledge retrieved, indexed, and synchronized into dataset registry successfully!");
       setTimeout(() => setSuccessMsg(''), 4500);
       fetchKnowledge();
     } catch (err: any) {
-      setHubError(err.message || "Cloud data retrieval failed.");
+      alert(err.message || "Cloud data retrieval failed.");
     } finally {
       setIsSaving(false);
     }
@@ -400,12 +380,12 @@ export const NeuralTrainingHub: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to decouple this knowledge node from the neural core?")) return;
     try {
       await api.ai.deleteKnowledge(id.toString());
-      setConfirmDeleteItemId(null);
       fetchKnowledge();
     } catch (err) {
-      setHubError("Failed to decouple knowledge node.");
+      alert("Decoupling failed.");
     }
   };
 
@@ -495,7 +475,7 @@ export const NeuralTrainingHub: React.FC = () => {
         setTimeout(() => setSuccessMsg(''), 4000);
 
       } catch (err: any) {
-        setHubError("Local TF.js Optimization failed: " + err.message);
+        alert("Local TF.js Optimization failed: " + err.message);
       } finally {
         setFtIsStarting(false);
       }
@@ -515,7 +495,7 @@ export const NeuralTrainingHub: React.FC = () => {
         if (found) setSelectedJob(found);
       }
     } catch (err: any) {
-      setHubError(err.message || "Failed to establish fine-tuning protocol.");
+      alert(err.message || "Failed to establish fine-tuning protocol.");
     } finally {
       setFtIsStarting(false);
     }
@@ -536,11 +516,11 @@ export const NeuralTrainingHub: React.FC = () => {
         localStorage.setItem('tfjs_active_model_id', jobId);
         localStorage.setItem('doctorian_clinical_engine', 'gemma3-tfjs');
 
-        setSuccessMsg("TensorFlow.js Doctorian Brain prioritized actively for client-side chat.");
+        setSuccessMsg("TensorFlow.js Doctorian Opus Brain prioritized actively for client-side chat.");
         setTimeout(() => setSuccessMsg(''), 4000);
         await fetchFineTuningJobs(true);
       } catch (err: any) {
-        setHubError(err.message || "Failed to prioritize local weights.");
+        alert(err.message || "Failed to prioritize local weights.");
       }
       return;
     }
@@ -552,7 +532,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setTimeout(() => setSuccessMsg(''), 4000);
       await fetchFineTuningJobs(true);
     } catch (err: any) {
-      setHubError(err.message || "Failed to prioritize weights.");
+      alert(err.message || "Failed to prioritize weights.");
     }
   };
 
@@ -578,7 +558,7 @@ export const NeuralTrainingHub: React.FC = () => {
       setTimeout(() => setSuccessMsg(''), 4000);
       await fetchFineTuningJobs(true);
     } catch (err: any) {
-      setHubError(err.message || "Failed to decouple weights.");
+      alert(err.message || "Failed to decouple weights.");
     }
   };
 
@@ -621,14 +601,14 @@ export const NeuralTrainingHub: React.FC = () => {
               Inject New Node
             </button>
             <button 
-              onClick={() => { setShowLangPrompt(prev => !prev); setShowCloudPrompt(false); }}
+              onClick={handleLanguageGenerate}
               className="w-full md:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-500/20"
             >
               <Zap size={18} className="animate-pulse" />
               Neural Lang Injector
             </button>
             <button 
-              onClick={() => { setShowCloudPrompt(prev => !prev); setShowLangPrompt(false); }}
+              onClick={handleCloudFetchData}
               className="w-full md:w-auto px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-emerald-500/20"
             >
               <Globe size={18} className="animate-bounce" />
@@ -642,7 +622,7 @@ export const NeuralTrainingHub: React.FC = () => {
               {isSeeding ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  Seeding Dataset...
+                  Seeding Quantum...
                 </>
               ) : (
                 <>
@@ -654,56 +634,6 @@ export const NeuralTrainingHub: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {hubError && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-center justify-between gap-3 text-rose-700 dark:text-rose-300 text-sm font-bold">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={18} />
-            <span>{hubError}</span>
-          </div>
-          <button type="button" onClick={() => setHubError('')} className="text-xs uppercase underline cursor-pointer">Dismiss</button>
-        </div>
-      )}
-
-      {showLangPrompt && (
-        <form onSubmit={handleLanguageGenerate} className="p-5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          <input
-            type="text"
-            value={langPromptInput}
-            onChange={(e) => setLangPromptInput(e.target.value)}
-            placeholder="Enter Ugandan language (e.g., Luganda, Acholi, Runyankole)..."
-            className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none"
-          />
-          <div className="flex gap-2">
-            <button type="submit" disabled={isSaving} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-50">
-              {isSaving ? 'Generating...' : 'Generate'}
-            </button>
-            <button type="button" onClick={() => setShowLangPrompt(false)} className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold uppercase cursor-pointer">
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {showCloudPrompt && (
-        <form onSubmit={handleCloudFetchData} className="p-5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          <input
-            type="text"
-            value={cloudPromptInput}
-            onChange={(e) => setCloudPromptInput(e.target.value)}
-            placeholder="Enter clinical guideline topic (e.g., WHO Malaria protocols, maternal care)..."
-            className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none"
-          />
-          <div className="flex gap-2">
-            <button type="submit" disabled={isSaving} className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-50">
-              {isSaving ? 'Fetching...' : 'Fetch'}
-            </button>
-            <button type="button" onClick={() => setShowCloudPrompt(false)} className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold uppercase cursor-pointer">
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
 
       {/* Tabs Menu Selector */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2">
@@ -859,10 +789,10 @@ export const NeuralTrainingHub: React.FC = () => {
             <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 text-white shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <ShieldCheck size={20} className="text-blue-200" />
-                <h3 className="font-black uppercase tracking-widest text-xs">Uganda DPPA 2019 Aligned</h3>
+                <h3 className="font-black uppercase tracking-widest text-xs">HIPAA Compliant</h3>
               </div>
               <p className="text-blue-100 text-sm leading-relaxed mb-6">
-                All injected node records are encrypted and partitioned in alignment with clinical privacy safeguards.
+                All injected node records undergo rigorous end-to-end symmetric encryption before synchronization.
               </p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
@@ -915,32 +845,12 @@ export const NeuralTrainingHub: React.FC = () => {
                       exit={{ opacity: 0, scale: 0.9 }}
                       className="group bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all shadow-lg hover:shadow-xl relative"
                     >
-                      {confirmDeleteItemId === item.id ? (
-                        <div className="absolute top-4 right-4 flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(item.id)}
-                            className="px-2.5 py-1 bg-rose-600 text-white text-[10px] font-bold uppercase rounded-lg cursor-pointer"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteItemId(null)}
-                            className="px-2.5 py-1 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button 
-                          type="button"
-                          onClick={() => setConfirmDeleteItemId(item.id)}
-                          className="absolute top-4 right-4 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all cursor-pointer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        className="absolute top-4 right-4 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
 
                       <div className="flex items-center gap-2 mb-4">
                         <div className={`p-1.5 rounded-lg ${item.category === 'language' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'}`}>

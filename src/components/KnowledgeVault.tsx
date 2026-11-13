@@ -34,7 +34,6 @@ export const KnowledgeVault: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   const [newNode, setNewNode] = useState({
     title: '',
@@ -71,9 +70,9 @@ export const KnowledgeVault: React.FC = () => {
   };
 
   const handleDeleteNode = async (id: string) => {
+    if (!window.confirm("Are you sure you want to decouple this neural node?")) return;
     try {
       await api.ai.deleteKnowledge(id);
-      setConfirmDeleteId(null);
       fetchNodes();
     } catch (err) {
       console.error("Failed to delete node:", err);
@@ -204,33 +203,12 @@ export const KnowledgeVault: React.FC = () => {
                           <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight line-clamp-1">{node.title}</h4>
                         </div>
                       </div>
-                      {confirmDeleteId === node.id ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteNode(node.id)}
-                            className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold hover:bg-rose-700 transition-colors"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button 
-                          type="button"
-                          onClick={() => setConfirmDeleteId(node.id)}
-                          className="p-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all"
-                          title="Delete Knowledge Node"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => handleDeleteNode(node.id)}
+                        className="p-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                     <p className="text-xs font-bold text-slate-500 line-clamp-4 leading-relaxed mb-8 flex-grow">
                       {node.content}

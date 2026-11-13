@@ -125,7 +125,6 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [previewFileItem, setPreviewFileItem] = useState<VaultFile | null>(null);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
-  const [confirmDeleteFileId, setConfirmDeleteFileId] = useState<string | null>(null);
 
   // Modern UI & Reactive Features State
   const [fileViewMode, setFileViewMode] = useState<'grid' | 'list'>('grid');
@@ -620,7 +619,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
         medicalRecords: localStorage.getItem('doctorian_medical_records') || '[]',
         registeredPatients: localStorage.getItem('doctorian_registered_patients') || '[]',
         clinicalRoadmap: localStorage.getItem('doctorian_treatment_plans') || '[]',
-        securityCompliance: 'Uganda DPPA 2019 & Encrypted Cloud Isolation',
+        securityCompliance: 'HIPAA & GDPR Encrypted Cloud Isolation',
       };
 
       const title = `EHR_Clinical_Snapshot_${new Date().toISOString().slice(0, 10)}`;
@@ -662,11 +661,14 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
 
   // Delete file
   const handleDeleteFile = async (fileId: string, fileName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${fileName}"? This will reclaim its storage space.`)) {
+      return;
+    }
+
     try {
       const updatedQuota = await deleteVaultFile(vaultToken, fileId);
       setFiles((prev) => prev.filter((f) => f.id !== fileId));
       setQuota(updatedQuota);
-      setConfirmDeleteFileId(null);
       if (onShowToast) onShowToast(`"${fileName}" deleted. Storage reclaimed!`, 'info');
     } catch (err: any) {
       if (onShowToast) onShowToast(err.message || 'Failed to delete file', 'error');
@@ -2107,33 +2109,14 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                                 <span>Download</span>
                               </button>
 
-                              {confirmDeleteFileId === file.id ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteFile(file.id, file.name)}
-                                    className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold hover:bg-rose-700"
-                                  >
-                                    Delete
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteFileId(null)}
-                                    className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmDeleteFileId(file.id)}
-                                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteFile(file.id, file.name)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -2211,33 +2194,14 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                               <Download className="w-4 h-4" />
                             </button>
 
-                            {confirmDeleteFileId === file.id ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteFile(file.id, file.name)}
-                                  className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold hover:bg-rose-700"
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmDeleteFileId(null)}
-                                  className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeleteFileId(file.id)}
-                                className="p-2 rounded-xl text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                                title="Delete File & Reclaim Space"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFile(file.id, file.name)}
+                              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                              title="Delete File & Reclaim Space"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       ))}

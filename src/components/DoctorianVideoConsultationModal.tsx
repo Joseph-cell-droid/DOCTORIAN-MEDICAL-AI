@@ -465,10 +465,7 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
           {/* Share */}
           <button
             type="button"
-            onClick={() => {
-              setActiveSpeech('Screen sharing preview enabled for active consultation.');
-              setPromptReply('Screen sharing active.');
-            }}
+            onClick={() => alert('Screen sharing active')}
             className="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-300 hover:text-white"
           >
             <div className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-white shadow-md">
@@ -480,10 +477,7 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
           {/* Chat with notification badge 3 */}
           <button
             type="button"
-            onClick={() => {
-              setActiveSpeech('Clinical consultation chat channel ready.');
-              setPromptReply('3 clinical chat notes available.');
-            }}
+            onClick={() => alert('Chat drawer open')}
             className="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-300 hover:text-white relative"
           >
             <div className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-white shadow-md relative">
@@ -498,10 +492,7 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
           {/* More */}
           <button
             type="button"
-            onClick={() => {
-              setActiveSpeech('Consultation options: recording, live translation, and clinical summary export.');
-              setPromptReply('Options panel active.');
-            }}
+            onClick={() => alert('Additional consultation options')}
             className="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-300 hover:text-white"
           >
             <div className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-white shadow-md">

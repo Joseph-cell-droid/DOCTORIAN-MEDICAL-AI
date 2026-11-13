@@ -209,11 +209,6 @@ export const PatientsDashboard: React.FC = () => {
   const [conditionFilter, setConditionFilter] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedPatient, setExpandedPatient] = useState<PatientTelemetry | null>(null);
-  const [monitorNotice, setMonitorNotice] = useState<string | null>(null);
-  const triggerMonitorNotice = (msg: string) => {
-    setMonitorNotice(msg);
-    setTimeout(() => setMonitorNotice(prev => (prev === msg ? null : prev)), 3500);
-  };
 
   // Live ECG Waveform Tick
   const [tick, setTick] = useState(0);
@@ -587,15 +582,10 @@ export const PatientsDashboard: React.FC = () => {
                   <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
                     Updated at: {new Date().toLocaleTimeString()}
                   </span>
-                  {monitorNotice && (
-                    <span className="px-3 py-1 rounded-lg bg-teal-600/20 border border-teal-400/40 text-teal-200 text-xs font-semibold">
-                      {monitorNotice}
-                    </span>
-                  )}
                   <button
                     type="button"
                     onClick={() => {
-                      triggerMonitorNotice(`Monitoring suspended for ${expandedPatient.name}`);
+                      alert(`Monitoring suspended for ${expandedPatient.name}`);
                       setExpandedPatient(null);
                     }}
                     className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs cursor-pointer shadow"
@@ -669,7 +659,7 @@ export const PatientsDashboard: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => triggerMonitorNotice(`Clinical event logged for ${expandedPatient.name}`)}
+                        onClick={() => alert(`Clinical event logged for ${expandedPatient.name}`)}
                         className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow"
                       >
                         ADD EVENT
@@ -693,7 +683,7 @@ export const PatientsDashboard: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => triggerMonitorNotice('Patient vitals refreshed')}
+                        onClick={() => alert('Vitals updated')}
                         className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase cursor-pointer"
                       >
                         UPDATE
@@ -710,7 +700,7 @@ export const PatientsDashboard: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => triggerMonitorNotice(`Active alerts: ${expandedPatient.alertsCount}`)}
+                      onClick={() => alert(`Active alerts: ${expandedPatient.alertsCount}`)}
                       className="py-2.5 rounded-xl bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow"
                     >
                       <AlertTriangle size={14} />
@@ -718,7 +708,7 @@ export const PatientsDashboard: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => triggerMonitorNotice('Longitudinal trend summary updated')}
+                      onClick={() => alert('Opening longitudinal trend review...')}
                       className="py-2.5 rounded-xl bg-[#0c2044] hover:bg-blue-800/60 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 border border-blue-800"
                     >
                       <TrendingUp size={14} />

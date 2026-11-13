@@ -69,7 +69,7 @@ export const BioMonitorCommandCenter: React.FC<BioMonitorCommandCenterProps> = (
       no: "5.",
       icon: <Shield className="w-6 h-6 text-rose-600 dark:text-rose-400" />,
       title: "Advanced Security",
-      subtitle: "DPPA & Biometric Shield",
+      subtitle: "HIPAA & Biometric Shield",
       description: "Passkeys, biometric authentication, two-factor authorization, end-to-end telemetry encryption, and strict medical device management.",
       tasks: "8.9k",
       success: "99.9%",

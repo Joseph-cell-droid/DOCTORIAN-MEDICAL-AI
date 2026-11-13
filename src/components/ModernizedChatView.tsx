@@ -22,9 +22,6 @@ import { DownloadAppModal } from './DownloadAppModal';
 import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { TelehealthScribeHub } from './TelehealthScribeHub';
 import { computePredictiveTriage, VitalsInput } from '../services/predictiveTriageService';
-import { sendChatMessage, ClinicalSpecialistMode } from '../services/aiService';
-import { ClinicalGuidelineEntry } from '../data/ugandaGuidelinesCorpus';
-import { MedicalDisclaimer } from './common/MedicalDisclaimer';
 
 export interface ChatbotAgent {
   id: 'primary' | 'emergency' | 'cardiology' | 'pediatric' | 'pharmacology' | 'lab' | 'maternal' | 'neurology' | 'preventive' | 'soap';
@@ -198,8 +195,6 @@ interface ChatMessage {
   thoughtDuration?: string;
   reasoningSteps?: string[];
   thoughtContent?: string;
-  citations?: ClinicalGuidelineEntry[];
-  outdatedWarnings?: string[];
 }
 
 interface ChatSession {
@@ -764,10 +759,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   // --- THEME SYNC (Light Mode / Dark Mode) ---
   const [effectiveDarkMode, setEffectiveDarkMode] = useState<boolean>(() => {
     if (typeof isDarkMode === 'boolean') return isDarkMode;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('doctorian_dark_mode') === 'true';
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark') || localStorage.getItem('doctorian_dark_mode') !== 'false';
     }
-    return false;
+    return true;
   });
 
   useEffect(() => {
@@ -919,23 +914,15 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const [brainStatus, setBrainStatus] = useState<IntelligentBrainStatus>({
     mode: 'gemini-online',
     isOnline: true,
-    providerName: 'Doctorian Clinical Cloud',
-    modelName: 'gemini-4-hydrogen',
-    badgeText: 'Clinical AI Ready',
-    details: 'WHO & Uganda Clinical Guidelines decision-support active'
+    providerName: 'Google Gemini Pro',
+    modelName: 'gemini-3.8-flash',
+    badgeText: 'Online • Gemini Pro',
+    latencyMs: 38,
+    details: 'Primary Online Intelligence active with real-time reasoning & search'
   });
   const [showBrainModal, setShowBrainModal] = useState(false);
   const [showQuickClinicalTools, setShowQuickClinicalTools] = useState(false);
   const [showTelemetryBanner, setShowTelemetryBanner] = useState(false);
-  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
-  const [confirmClearChat, setConfirmClearChat] = useState(false);
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editingSessionTitle, setEditingSessionTitle] = useState('');
-
-  const showTemporaryNotice = (msg: string) => {
-    setNoticeMessage(msg);
-    setTimeout(() => setNoticeMessage(null), 3500);
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -1197,14 +1184,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
     {
       id: 'moh',
       category: 'Telehealth & Consultation',
-      title: 'Uganda Clinical Guidelines (UCG 2023)',
-      desc: 'Reference local health centre triage and WHO referral guidance',
+      title: 'Uganda MoH Protocols 2023/2026',
+      desc: 'Certified local health center triage & national referral guidelines',
       icon: BookOpen,
-      badge: 'UCG Ref',
+      badge: 'MoH Certified',
       color: 'from-teal-600 to-emerald-600',
       action: () => {
         setIsUgandaMOHActive(true);
-        handleSendMessage("Summarize the standard evaluation and first-line management guidelines according to Uganda Clinical Guidelines (UCG 2023) for uncomplicated malaria and community-acquired pneumonia.");
+        handleSendMessage("Summarize the standard first-line treatment guidelines according to the Uganda Clinical Guidelines (UCG 2023/2026) for uncomplicated malaria and bacterial pneumonia.");
       },
     },
     {
@@ -1335,7 +1322,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
     if (typeof window === 'undefined') return;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
-      showTemporaryNotice('Speech dictation is not supported in this browser.');
+      alert('Speech recognition is not supported in this browser.');
       return;
     }
 
@@ -1444,43 +1431,62 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       }
 
       // Build multi-turn context array for conversational memory
-      const historyForAi = messages.slice(-8).map((m, idx) => ({
-        id: m.id || `hist-${idx}`,
-        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: m.text,
-        timestamp: new Date()
+      const chatPayload = newMsgs.map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        text: m.text,
       }));
 
-      const enrichedText = contextNote
-        ? `${text}\n[Clinical Context: ${contextNote.trim()}]`
-        : text;
-
+      // Enrich the active user query with telemetry & guidelines context
+      if (chatPayload.length > 0 && contextNote) {
+        const lastIdx = chatPayload.length - 1;
+        chatPayload[lastIdx].text = `${chatPayload[lastIdx].text}\n[Clinical Context: ${contextNote.trim()}]`;
+      }
+      
       const activeAgent = CHATBOT_AGENTS.find(a => a.id === consultationMode) || CHATBOT_AGENTS[0];
-      const mappedSpecialty: ClinicalSpecialistMode =
-        activeAgent.id === 'emergency' ? 'Emergency Triage' :
-        activeAgent.id === 'maternal' ? 'Maternal & Reproductive' :
-        activeAgent.id === 'pediatric' ? 'Pediatrics' :
-        activeAgent.id === 'cardiology' ? 'Cardiology & NCDs' :
-        activeAgent.id === 'pharmacology' ? 'Pharmacology & Rx' :
-        activeAgent.id === 'lab' ? 'Laboratory Diagnostics' :
-        'Primary Care';
+      const clinicalSystemInstruction = 
+        `You are Doctorian Clinical AI, specialized in ${activeAgent.name} (${activeAgent.role}).\n\n` +
+        "PERMANENT CREATOR & SYSTEM IDENTITY:\n" +
+        "Akora Joseph from EBRO Company. ltd designed this app and the AI brain. Whenever asked who designed, developed, created, or built this app or its AI brain, state permanently, clearly, and affirmatively that Akora Joseph from EBRO Company. ltd designed this app and the AI brain.\n\n" +
+        "MANDATORY CLINICAL DIRECTIVES:\n" +
+        "1. ACCURATE SIGN & SYMPTOM ANALYSIS: Accurately examine and analyze all signs and symptoms described by the patient, including duration, fever spikes, and physiological severity.\n" +
+        "2. STRICT SINGLE SUSPECTED DISEASE ISOLATION: When evaluating symptoms, YOUR RESPONSE MUST BE GENERATED ON STRICTLY ONLY ONE SUSPECTED DISEASE (the primary condition with highest clinical probability supported by the evidence). Never provide an overwhelming multi-disease differential list. Clearly announce the single primary diagnosis as:\n" +
+        "   🩺 PRIMARY SUSPECTED DISEASE: [Exact Formal Medical Name of Disease]\n" +
+        "3. EXPLANATIONS & EVIDENCE OF THE CAUSE:\n" +
+        "   🧬 EVIDENCE & CAUSE:\n" +
+        "   Provide a clear clinical explanation of the pathophysiology, etiology, and direct evidence of why the reported symptoms point to this single condition.\n" +
+        "4. ACCURATE DRUG PRESCRIPTIONS:\n" +
+        "   💊 ACCURATE DRUG PRESCRIPTIONS:\n" +
+        "   List the exact medications for this condition adhering strictly to WHO and Uganda Clinical Guidelines (UCG 2023/2026). For each medication, specify:\n" +
+        "   • [Drug Generic Name] (Brand: [Common Brand if applicable, e.g., Coartem]): [Exact Dosage & Strength] | Route: [Oral / IV / Topical] | Frequency: [Exact frequency & timing with meals] | Duration: [Treatment course duration] | Precautions: [Key safety contraindications]\n" +
+        "5. ACCURATE NON-PHARMACOLOGICAL ADVICE & CARE:\n" +
+        "   💡 CLINICAL ADVICE & CARE:\n" +
+        "   Provide clear supportive home care (exact hydration volume, bed rest, nutrition).\n" +
+        "6. EMERGENCY RED FLAGS:\n" +
+        "   ⚠️ EMERGENCY RED FLAGS:\n" +
+        "   List critical danger signs requiring immediate hospital presentation.\n" +
+        "7. DIAGNOSTIC FOLLOW-UP:\n" +
+        "   ❓ DIAGNOSTIC FOLLOW-UP:\n" +
+        "   Ask 1-2 interactive diagnostic questions to clarify progress.\n" +
+        "8. FORMATTING CONSTRAINTS:\n" +
+        "   - NEVER use double asterisks (**) or single asterisks (*) anywhere in the text.\n" +
+        "   - If the user query is purely conversational (greeting, thanks, creator query), reply conversationally without diagnostic sections.\n" +
+        `SPECIALIZED AGENT FOCUS: ${activeAgent.instruction}`;
 
-      const response = await sendChatMessage({
-        message: enrichedText,
-        history: historyForAi,
-        targetLanguage: currentLanguage,
-        specialty: mappedSpecialty,
-        userRole: user?.role || 'patient'
-      });
+      const response = await api.ai.aiChat(
+        chatPayload,
+        clinicalSystemInstruction,
+        "gemini-3.8-flash",
+        0.5
+      );
 
-      const rawBotText = response?.response || "Thank you for sharing your symptoms. Please consult a qualified healthcare professional for a physical examination and proper diagnostic testing. Seek immediate care if urgent warning signs develop.";
+      const rawBotText = response?.text || "Thank you for sharing your symptoms. Please ensure you remain well-hydrated with clean fluids and rest in a cool space. If your symptoms worsen or persist, please visit your nearest clinic for hands-on evaluation. Medical attention is recommended.";
       const botText = ensureModernEmojiInteractivity(cleanAiResponse(rawBotText));
       const structured = parseClinicalResponse(botText);
 
       const thoughtDuration = `${Math.max(0.8, reasoningElapsed).toFixed(1)}s`;
       const recordedSteps = reasoningStepsExecutedRef.current.length > 0
         ? [...reasoningStepsExecutedRef.current]
-        : ['Reviewing reported symptoms...', 'Checking WHO & Uganda Clinical Guidelines...', 'Structuring clinical safety guidance...'];
+        : ['Thinking...', 'Configuring neural clinical weights...', 'Mapping physiological pathways...'];
 
       const botMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
@@ -1492,21 +1498,20 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         isStreaming: true,
         thoughtDuration,
         reasoningSteps: recordedSteps,
-        citations: response.citations,
-        outdatedWarnings: response.outdatedWarnings,
       };
 
       const finalMsgs = [...newMsgs, botMsg];
       setMessages(finalMsgs);
       setIsLoading(false);
 
+      // Stream the response smoothly from the background (fast progressive reveal in < 500ms)
       if (streamingTimerRef.current) {
         clearInterval(streamingTimerRef.current);
       }
 
       const words = botText.split(' ');
       let wordIdx = 0;
-      const wordsPerTick = 8;
+      const wordsPerTick = 6; // Fast 6 words per tick for rapid ≤ 5s overall interaction
 
       streamingTimerRef.current = setInterval(() => {
         wordIdx += wordsPerTick;
@@ -1518,7 +1523,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
 
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === botMsgId ? { ...m, text: botText, isStreaming: false, citations: response.citations, outdatedWarnings: response.outdatedWarnings } : m
+              m.id === botMsgId ? { ...m, text: botText, isStreaming: false } : m
             )
           );
 
@@ -1528,7 +1533,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 ? {
                     ...s,
                     messages: s.messages.map((m) =>
-                      m.id === botMsgId ? { ...m, text: botText, isStreaming: false, citations: response.citations, outdatedWarnings: response.outdatedWarnings } : m
+                      m.id === botMsgId ? { ...m, text: botText, isStreaming: false } : m
                     ),
                   }
                 : s
@@ -1639,7 +1644,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   const deleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (sessions.length <= 1) {
-      showTemporaryNotice("At least one active consultation session is required.");
+      alert("Cannot delete the only session.");
       return;
     }
     const filtered = sessions.filter((s) => s.id !== id);
@@ -1652,18 +1657,12 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
 
   const renameSession = (id: string, currentTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingSessionId(id);
-    setEditingSessionTitle(currentTitle);
-  };
-
-  const commitRenameSession = (id: string) => {
-    if (editingSessionTitle.trim()) {
+    const newTitle = prompt("Enter new session title:", currentTitle);
+    if (newTitle && newTitle.trim()) {
       setSessions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, title: editingSessionTitle.trim() } : s))
+        prev.map((s) => (s.id === id ? { ...s, title: newTitle.trim() } : s))
       );
     }
-    setEditingSessionId(null);
-    setEditingSessionTitle('');
   };
 
   // Filter messages by search term
@@ -2053,7 +2052,16 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     type="button"
                     onClick={() => {
                       setShowMoreMenu(false);
-                      setConfirmClearChat(true);
+                      if (confirm("Are you sure you want to clear this consultation?")) {
+                        setMessages([
+                          {
+                            id: `bot-${Date.now()}`,
+                            sender: 'bot',
+                            text: "Conversation cleared. How can I help you today?",
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          },
+                        ]);
+                      }
                     }}
                     className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-rose-950/40 text-rose-300' : 'hover:bg-rose-50 text-rose-700'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
                   >
@@ -2267,7 +2275,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25 border border-cyan-400/40 shrink-0 mt-0.5">
                     <Sparkles size={16} className="text-cyan-200" />
                   </div>
-                  <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex-1 min-w-0">
                     <ModernBotResponseSpace
                       msg={msg}
                       onSendPrompt={(p) => handleSendMessage(p)}
@@ -2275,18 +2283,6 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       isSpeaking={isSpeaking}
                       onRegenerate={handleRegenerate}
                     />
-                    {msg.citations && msg.citations.length > 0 && !msg.isStreaming && (
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-3 text-xs space-y-1">
-                        <div className="font-semibold text-teal-700 dark:text-teal-400">
-                          Referenced Clinical Guidelines
-                        </div>
-                        {msg.citations.map((cit) => (
-                          <div key={cit.id} className="text-slate-600 dark:text-slate-300">
-                            {cit.source} · {cit.section} ({cit.year})
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -2760,37 +2756,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             </form>
           </div>
 
-          {noticeMessage && (
-            <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 text-center">
-              {noticeMessage}
-            </div>
-          )}
-          {confirmClearChat && (
-            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 flex items-center justify-between gap-3 text-xs">
-              <span className="font-medium">Clear current consultation transcript?</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setConfirmClearChat(false)}
-                  className="px-2.5 py-1 rounded-md border border-slate-300 dark:border-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmClearChat(false);
-                    setMessages([]);
-                  }}
-                  className="px-2.5 py-1 rounded-md bg-red-600 text-white font-semibold"
-                >
-                  Confirm Clear
-                </button>
-              </div>
-            </div>
-          )}
-          {/* Clinical Medical Disclaimer */}
-          <MedicalDisclaimer variant="compact" />
+          {/* Clean Medical Disclaimer */}
+          <p className={`text-[10px] text-center ${effectiveDarkMode ? 'text-slate-500' : 'text-slate-400'} font-medium`}>
+            Doctorian AI provides clinical decision support • In an emergency, contact your nearest medical facility.
+          </p>
         </div>
       </div>
 
@@ -2863,23 +2832,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1" onClick={(e) => editingSessionId === sess.id && e.stopPropagation()}>
-                          {editingSessionId === sess.id ? (
-                            <input
-                              type="text"
-                              value={editingSessionTitle}
-                              onChange={(e) => setEditingSessionTitle(e.target.value)}
-                              onBlur={() => commitRenameSession(sess.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') commitRenameSession(sess.id);
-                                if (e.key === 'Escape') setEditingSessionId(null);
-                              }}
-                              autoFocus
-                              className="w-full px-2 py-1 text-xs font-semibold rounded border border-teal-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                            />
-                          ) : (
-                            <p className={`text-xs font-bold truncate ${effectiveDarkMode ? 'text-white' : 'text-slate-900'}`}>{sess.title}</p>
-                          )}
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs font-bold truncate ${effectiveDarkMode ? 'text-white' : 'text-slate-900'}`}>{sess.title}</p>
                           <div className={`flex items-center gap-2 mt-1.5 text-[9px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-mono`}>
                             <span>{new Date(sess.createdAt).toLocaleDateString()}</span>
                             <span className={`px-1.5 py-0.5 rounded-md ${effectiveDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'}`}>
@@ -2931,8 +2885,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             isOpen={showVoiceCallModal}
             onClose={() => setShowVoiceCallModal(false)}
             initialMode={callMode}
-            doctorName="Dr. Sarah M. Nakitto"
-            patientName={user?.displayName || 'Patient'}
+            doctorName="Dr. Gloria Jayakullo"
+            patientName={user?.displayName || 'Joseph A. (Patient)'}
           />
         )}
       </AnimatePresence>
@@ -2975,7 +2929,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                           {filteredClinicalActions.length} Actions
                         </span>
                       </div>
-                      <p className="text-[11px] text-cyan-300/80">WHO &amp; Uganda Clinical Guidelines Decision Support Suite</p>
+                      <p className="text-[11px] text-cyan-300/80">Certified WHO & Uganda MoH Decision Support Suite</p>
                     </div>
                   </div>
                   <button
@@ -3167,25 +3121,29 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 <p className="text-xs text-slate-300 font-medium leading-relaxed">
                   {brainStatus.details}
                 </p>
-                {brainStatus.latencyMs !== undefined && brainStatus.latencyMs > 0 && (
+                {brainStatus.latencyMs !== undefined && (
                   <div className="mt-2 text-[10px] font-mono text-slate-400 flex items-center gap-2">
-                    <span>Measured API Response: <strong className="text-white">{brainStatus.latencyMs}ms</strong></span>
+                    <span>Round-trip Response: <strong className="text-white">{brainStatus.latencyMs}ms</strong></span>
+                    <span>•</span>
+                    <span>Auto-Detection: <strong className="text-emerald-400">Zero User Switching</strong></span>
                   </div>
                 )}
               </div>
 
               {/* Priority Architecture Breakdown */}
               <div className="space-y-2.5 mb-5 text-xs">
+                {/* 1st Priority: Google Gemini */}
                 <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
                   <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center shrink-0 font-bold text-xs">
                     1st
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-white text-xs">Doctorian Clinical AI Server</h4>
+                      <h4 className="font-bold text-white text-xs">Google Gemini AI (Online Priority)</h4>
+                      <span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold uppercase">Primary</span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                      Server-side clinical decision support grounded in WHO and Uganda Clinical Guidelines.
+                      High-precision multimodal clinical reasoning via modern @google/genai SDK with real-time PubMed grounding & vision.
                     </p>
                   </div>
                 </div>

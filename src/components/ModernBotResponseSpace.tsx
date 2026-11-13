@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { cleanAiResponse, extractInteractiveSuggestions } from '../utils/cleanAiResponse';
 import { MedicalDisclaimer } from './common/MedicalDisclaimer';
-import { ClinicalGuidelineEntry } from '../data/ugandaGuidelinesCorpus';
 
 export interface StructuredItem {
   icon: 'pill' | 'thermometer' | 'alert' | 'heart';
@@ -32,8 +31,6 @@ export interface ChatMessage {
   thoughtDuration?: string;
   reasoningSteps?: string[];
   thoughtContent?: string;
-  citations?: ClinicalGuidelineEntry[];
-  outdatedWarnings?: string[];
 }
 
 export interface ParsedPrescriptionItem {
@@ -156,16 +153,10 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
 
     const lower = trimmed.toLowerCase();
 
-    // 1. SUMMARY / POSSIBLE DIFFERENTIALS (Never presented as a confirmed diagnosis)
+    // 1. PRIMARY SUSPECTED DISEASE HEADER
     if (
-      (trimmed.startsWith('🩺') ||
-        /^1\.\s+summary/i.test(trimmed) ||
-        /^3\.\s+possible explanations/i.test(trimmed) ||
-        lower.includes('possible explanations') ||
-        lower.includes('differential diagnoses') ||
-        lower.includes('summary of the reported symptoms') ||
-        lower.includes('clinical impression')) &&
-      (trimmed.length < 95 || trimmed.includes(':'))
+      (trimmed.startsWith('🩺') || lower.includes('primary suspected disease') || lower.includes('suspected disease') || lower.includes('primary diagnosis') || lower.includes('clinical impression')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
@@ -174,23 +165,17 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
         type: 'disease',
         title: trimmed.replace(/^#*\s*🩺?\s*/, '').replace(/:$/, '').trim(),
         icon: Stethoscope,
-        titleColor: 'text-teal-700 dark:text-teal-300',
-        textColor: 'text-slate-800 dark:text-slate-100',
+        titleColor: 'text-cyan-300',
+        textColor: 'text-slate-100',
         lines: []
       };
       continue;
     }
 
-    // 2. HISTORY / INVESTIGATIONS / EVIDENCE HEADER
+    // 2. EVIDENCE & CAUSE HEADER
     if (
-      (trimmed.startsWith('🧬') ||
-        /^2\.\s+relevant information/i.test(trimmed) ||
-        /^5\.\s+suggested investigations/i.test(trimmed) ||
-        /^9\.\s+evidence sources/i.test(trimmed) ||
-        lower.includes('evidence sources') ||
-        lower.includes('missing from the history') ||
-        lower.includes('suggested investigations')) &&
-      (trimmed.length < 95 || trimmed.includes(':'))
+      (trimmed.startsWith('🧬') || lower.includes('evidence & cause') || lower.includes('evidence of the cause') || lower.includes('pathophysiology & cause') || lower.includes('etiology & evidence')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
@@ -199,21 +184,17 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
         type: 'evidence',
         title: trimmed.replace(/^#*\s*🧬?\s*/, '').replace(/:$/, '').trim(),
         icon: Dna,
-        titleColor: 'text-sky-700 dark:text-sky-300',
-        textColor: 'text-slate-800 dark:text-slate-200',
+        titleColor: 'text-indigo-300',
+        textColor: 'text-slate-200',
         lines: []
       };
       continue;
     }
 
-    // 3. MEDICATION INFORMATION HEADER
+    // 3. ACCURATE DRUG PRESCRIPTIONS HEADER
     if (
-      (trimmed.startsWith('💊') ||
-        /^7\.\s+medication information/i.test(trimmed) ||
-        lower.includes('medication information') ||
-        lower.includes('medication suggestions') ||
-        lower.includes('pharmacotherapy')) &&
-      (trimmed.length < 95 || trimmed.includes(':'))
+      (trimmed.startsWith('💊') || lower.includes('accurate drug prescriptions') || lower.includes('drug prescriptions') || lower.includes('prescription list') || lower.includes('pharmacotherapy & medications') || lower.includes('medication prescriptions')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
@@ -222,24 +203,18 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
         type: 'prescription',
         title: trimmed.replace(/^#*\s*💊?\s*/, '').replace(/:$/, '').trim(),
         icon: Pill,
-        titleColor: 'text-blue-700 dark:text-blue-300',
-        textColor: 'text-slate-800 dark:text-slate-200',
+        titleColor: 'text-blue-300',
+        textColor: 'text-slate-200',
         lines: [],
         prescriptions: []
       };
       continue;
     }
 
-    // 4. SUPPORTIVE CARE & RECOMMENDED NEXT STEPS HEADER
+    // 4. RECOMMENDED ACTIONS & CLINICAL ADVICE HEADER
     if (
-      (trimmed.startsWith('💡') ||
-        trimmed.startsWith('📋') ||
-        /^4\.\s+clinical urgency/i.test(trimmed) ||
-        /^6\.\s+supportive care/i.test(trimmed) ||
-        lower.includes('clinical urgency') ||
-        lower.includes('supportive care') ||
-        lower.includes('recommended next steps')) &&
-      (trimmed.length < 95 || trimmed.includes(':'))
+      (trimmed.startsWith('💡') || trimmed.startsWith('📋') || lower.includes('clinical advice & care') || lower.includes('clinical advice') || lower.includes('recommended actions') || lower.includes('action plan') || lower.includes('self-care & supportive care')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
@@ -248,8 +223,8 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
         type: 'actions',
         title: trimmed.replace(/^#*\s*[💡📋]?\s*/, '').replace(/:$/, '').trim(),
         icon: Lightbulb,
-        titleColor: 'text-emerald-700 dark:text-emerald-300',
-        textColor: 'text-slate-800 dark:text-slate-200',
+        titleColor: 'text-emerald-300',
+        textColor: 'text-slate-200',
         lines: []
       };
       continue;
@@ -257,13 +232,8 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
 
     // 5. WARNING SIGNS & EMERGENCY RED FLAGS HEADER
     if (
-      (trimmed.startsWith('⚠️') ||
-        trimmed.startsWith('🚨') ||
-        /^8\.\s+emergency warning/i.test(trimmed) ||
-        lower.includes('emergency warning signs') ||
-        lower.includes('danger signs') ||
-        lower.includes('red flags')) &&
-      (trimmed.length < 95 || trimmed.includes(':'))
+      (trimmed.startsWith('⚠️') || trimmed.startsWith('🚨') || lower.includes('emergency red flags') || lower.includes('warning signs & emergency') || lower.includes('danger signs') || lower.includes('red flags')) &&
+      (trimmed.length < 85 || trimmed.includes(':'))
     ) {
       if (currentSection.lines.length > 0) {
         sections.push(currentSection);
@@ -272,8 +242,8 @@ function parseClinicalTextIntoSections(rawText: string): ParsedClinicalSection[]
         type: 'warning',
         title: trimmed.replace(/^#*\s*[⚠️🚨]?\s*/, '').replace(/:$/, '').trim(),
         icon: AlertTriangle,
-        titleColor: 'text-rose-700 dark:text-rose-400',
-        textColor: 'text-rose-900 dark:text-rose-100',
+        titleColor: 'text-rose-400',
+        textColor: 'text-rose-100',
         lines: []
       };
       continue;
@@ -361,22 +331,22 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
   }, [cleanedText]);
 
   return (
-    <div className="w-full text-slate-800 dark:text-slate-100 space-y-3 pt-0.5 group/bot">
+    <div className="w-full text-slate-100 space-y-3 pt-0.5 group/bot">
       
       {/* 1. Bot Metadata & Clinical Identity Header */}
-      <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-200 dark:border-slate-800/60">
+      <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800/40">
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 text-teal-700 dark:text-cyan-300 font-bold text-xs tracking-wide">
-            <Sparkles size={13} className="text-teal-600 dark:text-cyan-400" />
+          <div className="flex items-center gap-1.5 text-cyan-300 font-bold text-xs tracking-wide">
+            <Sparkles size={13} className="text-cyan-400" />
             <span>Doctorian AI</span>
           </div>
           <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-            Clinical Decision Support
+            Clinical Diagnostic Intelligence • Gemini 3.8-Flash
           </span>
           {isEmergency && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold animate-pulse">
               <ShieldAlert size={11} />
-              <span>Urgent Assessment Recommended</span>
+              <span>High Acuity Triage</span>
             </span>
           )}
         </div>
@@ -386,16 +356,16 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
         </div>
       </div>
 
-      {/* 2. Collapsible Reasoning Summary */}
+      {/* 2. Open-Web Collapsible Thinking / Reasoning State */}
       {(msg.thoughtDuration || (msg.reasoningSteps && msg.reasoningSteps.length > 0)) && (
         <div className="pt-0.5 pb-1">
           <button
             type="button"
             onClick={() => setShowReasoning(!showReasoning)}
-            className="inline-flex items-center gap-2 py-1 px-2.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-teal-700 dark:hover:text-cyan-300 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
+            className="inline-flex items-center gap-2 py-1 px-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-cyan-300 hover:bg-slate-800/40 transition-colors group cursor-pointer"
           >
-            <BrainCircuit size={13} className="text-teal-600 dark:text-cyan-400" />
-            <span>{msg.thoughtDuration ? `Clinical synthesis (${msg.thoughtDuration})` : 'Clinical reasoning steps'}</span>
+            <BrainCircuit size={13} className="text-cyan-400 group-hover:rotate-12 transition-transform" />
+            <span>{msg.thoughtDuration ? `Thought for ${msg.thoughtDuration}` : 'Reasoning process'}</span>
             {showReasoning ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
           
@@ -408,14 +378,15 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="mt-1.5 ml-2 pl-3 border-l-2 border-teal-500/40 py-1.5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-100/70 dark:bg-slate-900/20 rounded-r-lg">
+                <div className="mt-1.5 ml-2 pl-3 border-l-2 border-cyan-500/30 py-1.5 space-y-1.5 text-xs text-slate-400 bg-slate-900/20 rounded-r-lg">
                   {(msg.reasoningSteps && msg.reasoningSteps.length > 0 ? msg.reasoningSteps : [
-                    'Reviewing reported symptoms, missing history, and vital signs',
-                    'Cross-referencing Uganda Clinical Guidelines (UCG) & WHO reference entries',
-                    'Listing preliminary differentials alongside emergency red flags for clinician review'
+                    'Evaluating reported signs, symptoms, onset and fever cycle',
+                    'Correlating physiological pathways against Uganda Clinical Guidelines (UCG) & WHO protocols',
+                    'Isolating strictly single primary suspected disease with highest evidence probability',
+                    'Formulating accurate guideline-directed drug prescription matrix & supportive care'
                   ]).map((step, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                      <CheckCircle2 size={12} className="text-teal-600 dark:text-cyan-400 shrink-0" />
+                    <div key={idx} className="flex items-center gap-2 text-slate-300">
+                      <CheckCircle2 size={12} className="text-cyan-400 shrink-0" />
                       <span>{step}</span>
                     </div>
                   ))}
@@ -426,27 +397,36 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
         </div>
       )}
 
-      {/* 3. Structured 10-Section Clinical Response Content */}
-      <div className="space-y-3.5 relative transition-all">
+      {/* 3. Clinical Response Content with Structured Single Suspected Disease & Drug Matrix */}
+      <div className={`space-y-3.5 relative transition-all ${msg.isStreaming ? 'text-slate-100' : ''}`}>
         {parsedSections.length > 1 ? (
           <div className="space-y-4">
             {parsedSections.map((sec, sIdx) => {
+              // 3.1 PRIMARY SUSPECTED DISEASE HERO DISPLAY (STRICT SINGLE DISEASE REQUIREMENT)
               if (sec.type === 'disease') {
+                const diseaseTitle = sec.title.replace(/^PRIMARY SUSPECTED DISEASE:?\s*/i, '').trim();
                 return (
-                  <div key={sIdx} className="rounded-xl p-3.5 sm:p-4 bg-teal-50/70 dark:bg-slate-900/80 border border-teal-200 dark:border-cyan-500/30 shadow-xs space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="inline-flex items-center gap-2 text-teal-800 dark:text-cyan-300 text-xs font-bold uppercase tracking-wide">
-                        <Stethoscope size={15} className="text-teal-600 dark:text-cyan-400 shrink-0" />
-                        <span>{sec.title || 'Clinical Summary & Possibilities'}</span>
+                  <div key={sIdx} className="rounded-xl p-3.5 sm:p-4 bg-linear-to-br from-cyan-950/40 via-slate-900/60 to-slate-900/80 border border-cyan-500/30 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-semibold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>PRIMARY SUSPECTED DISEASE</span>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                        <ShieldCheck size={12} className="text-teal-600 dark:text-emerald-400" />
-                        Not a confirmed diagnosis
+                      <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
+                        <ShieldCheck size={12} className="text-emerald-400" />
+                        WHO & UCG Guideline Protocol
                       </span>
                     </div>
 
+                    {diseaseTitle && (
+                      <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2 mt-1">
+                        <Stethoscope size={18} className="text-cyan-400 shrink-0" />
+                        <span>{diseaseTitle}</span>
+                      </h3>
+                    )}
+
                     {sec.lines.length > 0 && (
-                      <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed space-y-1">
+                      <div className="mt-2 text-sm text-slate-300 leading-relaxed space-y-1">
                         {sec.lines.map((l, lIdx) => {
                           const t = l.trim();
                           if (!t) return null;
@@ -854,41 +834,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
         </div>
       )}
 
-      {/* 6. Evidence Citations (WHO / Uganda Clinical Guidelines) */}
-      {!msg.isStreaming && msg.citations && msg.citations.length > 0 && (
-        <div className="rounded-xl p-3 bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-            <FileText size={13} className="text-teal-600 dark:text-cyan-400" />
-            <span>Referenced Clinical Guidelines ({msg.citations.length})</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {msg.citations.map((cit) => (
-              <div
-                key={cit.id}
-                className={`px-2.5 py-1.5 rounded-lg border text-xs ${
-                  cit.isOutdated
-                    ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
-                }`}
-              >
-                <div className="font-semibold flex items-center gap-1.5 flex-wrap">
-                  <span>{cit.title}</span>
-                  {cit.isOutdated && (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-200/70 dark:bg-amber-900 text-[10px] font-bold">
-                      Outdated — Needs Review
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {cit.sourceOrg} • {cit.version} • Published {cit.publicationDate}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 7. Medical Disclaimer */}
+      {/* 6. Medical Disclaimer */}
       {!msg.isStreaming && (
         <MedicalDisclaimer variant="inline" className="mt-3" />
       )}

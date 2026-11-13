@@ -47,6 +47,7 @@ import {
   Home,
   HelpCircle,
   Settings,
+  Maximize2,
   Sunrise,
   Sunset,
   Radio,

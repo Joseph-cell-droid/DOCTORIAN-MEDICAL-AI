@@ -353,7 +353,7 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
       showToast("Initializing clinical metric compilations...", "info");
 
       const storedUser = localStorage.getItem("medical_user");
-      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "patient@doctorian.org" };
+      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "gloriajayakullo@gmail.com" };
 
       let lastVitals = null;
       try {

@@ -116,10 +116,10 @@ export const MedicalIllustrator: React.FC<MedicalIllustratorProps> = ({ user, on
             <div className="flex items-center gap-2 pl-2 pr-3 py-1 bg-[#050e20] rounded-full border border-blue-800/60">
               <img
                 src="/african_doctor_male.png"
-                alt="Attending Clinician"
+                alt="Dr. Joseph Akora"
                 className="w-7 h-7 rounded-full object-cover border border-blue-400"
               />
-              <span className="text-xs font-bold hidden md:inline">Attending Clinician</span>
+              <span className="text-xs font-bold hidden md:inline">Dr. Joseph Akora</span>
             </div>
           </div>
 

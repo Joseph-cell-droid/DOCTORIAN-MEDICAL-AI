@@ -139,7 +139,6 @@ export const SymptomChecker: React.FC<SymptomCheckerProps> = ({
   const [selectedLabTestIds, setSelectedLabTestIds] = useState<string[]>([]);
   const [isSynthesizingLabMapper, setIsSynthesizingLabMapper] = useState(false);
   const [labMapperSynthesisResult, setLabMapperSynthesisResult] = useState<string | null>(null);
-  const [orderedTestNames, setOrderedTestNames] = useState<string[]>([]);
 
   // Computed Doctor Recommended Lab Tests based on Active Symptoms
   const doctorRecommendedTests = useMemo(() => {
@@ -1422,7 +1421,6 @@ Return ONLY the raw JSON response.`;
                             </span>
 
                             <button
-                              type="button"
                               onClick={() => {
                                 if (onAddLabTest) {
                                   onAddLabTest({
@@ -1436,17 +1434,13 @@ Return ONLY the raw JSON response.`;
                                     referenceRange: 'Normal Control',
                                     isNormal: true
                                   });
-                                  setOrderedTestNames(prev => prev.includes(test.name) ? prev : [...prev, test.name]);
+                                  alert(`Ordered: ${test.name} added to Patient Lab Records!`);
                                 }
                               }}
-                              className={`px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
-                                orderedTestNames.includes(test.name)
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-blue-600 hover:bg-blue-500 text-white'
-                              }`}
+                              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
                             >
                               <Plus size={12} />
-                              <span>{orderedTestNames.includes(test.name) ? 'Added to Lab Records' : 'Order & Add Record'}</span>
+                              <span>Order & Add Record</span>
                             </button>
                           </div>
                         </div>

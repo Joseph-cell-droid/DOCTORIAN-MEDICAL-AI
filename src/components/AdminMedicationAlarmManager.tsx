@@ -232,7 +232,7 @@ export const AdminMedicationAlarmManager: React.FC<AdminMedicationAlarmManagerPr
                     required
                     value={targetAccountEmail}
                     onChange={(e) => setTargetAccountEmail(e.target.value)}
-                    placeholder="e.g. patient@doctorian.org"
+                    placeholder="e.g. gloriajayakullo@gmail.com or patient@doctorian.health"
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
 

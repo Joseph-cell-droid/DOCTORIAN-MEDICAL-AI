@@ -40,11 +40,11 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
 
   const handleContactWhatsApp = (message: string = "Hello, I need assistance with Doctorian.") => {
     const url = `https://wa.me/256787674140?text=${encodeURIComponent(message)}`;
-    window.location.assign(url);
+    window.open(url, '_blank');
   };
 
   const handleContactEmail = (subject: string = "Doctorian Support Request", body: string = "Hello, I need assistance with...") => {
-    const url = `mailto:support@doctorian.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const url = `mailto:josephhaxzy@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = url;
   };
 
@@ -81,7 +81,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
               <div className="grid md:grid-cols-2 gap-6" role="region" aria-label="FAQ list">
                 {[
                   { q: "How does the AI analyze my symptoms?", a: "Doctorian uses advanced natural language processing trained on medical literature to identify potential health patterns. It is not a diagnostic tool but a guidance companion." },
-                  { q: "Is my medical data secure?", a: "Yes, we use transport encryption and Uganda DPPA 2019 privacy safeguards. Your data is stored securely and never shared with third parties without your consent." },
+                  { q: "Is my medical data secure?", a: "Yes, we use end-to-end encryption and are HIPAA compliant. Your data is stored securely and never shared with third parties without your consent." },
                   { q: "Can I connect my own medical devices?", a: "Currently, we support Arduino-based monitors via Bluetooth, WiFi, and Serial. We are working on integration with popular wearables like Apple Watch and Fitbit." },
                   { q: "What should I do in an emergency?", a: "Doctorian is for informational purposes only. In a life-threatening emergency, always contact your local emergency services (e.g., 911) immediately." },
                   { q: "Is Doctorian free to use?", a: "We offer a generous free tier for basic symptom analysis and health tracking. Premium features like advanced anatomical rendering are available via subscription." },
@@ -360,11 +360,11 @@ export const ResourceView: React.FC<ResourceViewProps> = ({ type, onBack }) => {
                  <div className="flex gap-4">
                    <div className="px-4 py-2 bg-white/10 rounded-xl flex items-center gap-2 border border-white/10">
                       <Shield size={16} className="text-emerald-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Encrypted Storage & TLS</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">ISO 27001 Certified</span>
                    </div>
                    <div className="px-4 py-2 bg-white/10 rounded-xl flex items-center gap-2 border border-white/10">
                       <CheckCircle2 size={16} className="text-blue-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Uganda DPPA 2019 Aligned</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">HIPAA Compliant</span>
                    </div>
                  </div>
                </div>

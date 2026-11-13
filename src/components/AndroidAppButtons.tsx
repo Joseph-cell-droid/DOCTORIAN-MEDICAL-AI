@@ -416,7 +416,7 @@ export const CLINICAL_MODULES_REGISTRY: IntelligentAppButtonItem[] = [
     icon: HardDrive,
     badge: '1GB FREE',
     intelligenceTag: 'SHA-256 Bit-Check & AES-256',
-    guidelineCompliance: 'Uganda DPPA 2019 & Encrypted Cloud Isolation',
+    guidelineCompliance: 'HIPAA & GDPR Encrypted Cloud Isolation',
     clinicalCapabilities: ['1.00 GB Free Storage', 'SHA-256 Integrity Verification', 'DICOM Scans & Labs'],
     priorityLevel: 'critical',
     theme: {

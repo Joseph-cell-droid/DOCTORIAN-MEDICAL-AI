@@ -299,8 +299,8 @@ export class TargetedMedicationAlarmSystem {
       {
         id: 'sample-alarm-01',
         targetAccountId: 'patient_sample_01',
-        targetAccountEmail: 'patient@doctorian.org',
-        targetAccountName: 'Sarah Nakato',
+        targetAccountEmail: 'gloriajayakullo@gmail.com',
+        targetAccountName: 'Gloria Jay Akullo',
         medicationName: 'Amlodipine Besylate',
         dosage: '5mg oral tablet',
         route: 'Oral',
@@ -316,7 +316,7 @@ export class TargetedMedicationAlarmSystem {
           {
             timestamp: '2026-09-22T08:05:12.000Z',
             action: 'taken',
-            accountEmail: 'patient@doctorian.org',
+            accountEmail: 'gloriajayakullo@gmail.com',
             notes: 'Taken with breakfast'
           }
         ],

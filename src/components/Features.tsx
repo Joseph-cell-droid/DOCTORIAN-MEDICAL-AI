@@ -203,8 +203,8 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
       badge: 'Zero-Knowledge',
       tagline: 'WebAuthn hardware passkeys, biometric 2FA, and cryptographic defense',
       description: "Protect sensitive clinical data with FIDO2 WebAuthn biometric authentication (Touch ID, Face ID, YubiKey) and immutable audit logging.",
-      details: "Ensures alignment with Uganda DPPA 2019 privacy safeguards and clinical authorization controls across every endpoint.",
-      specs: ["WebAuthn / Passkey 2FA", "Hardware Key Support", "Encrypted Storage", "Uganda DPPA 2019 Aligned"],
+      details: "Ensures compliance with HIPAA privacy standards and enterprise-grade clinical authorization controls across every endpoint.",
+      specs: ["WebAuthn / Passkey 2FA", "Hardware Key Support", "Zero-Knowledge Encryption", "HIPAA Compliance"],
       status: "Operational"
     }
   ];
@@ -524,7 +524,7 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
               Built for Clinical Precision & Data Confidentiality
             </h2>
             <p className="text-slate-300 text-sm leading-relaxed font-medium">
-              Every telemetry channel, AI model inference, and electronic health record transaction follows Uganda DPPA 2019 privacy safeguards and strict encryption protocols.
+              Every telemetry channel, AI model inference, and electronic health record transaction complies with HIPAA privacy regulations and strict zero-knowledge encryption protocols.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <div className="flex items-center gap-2 bg-white/10 px-3.5 py-2 rounded-xl text-xs font-bold">

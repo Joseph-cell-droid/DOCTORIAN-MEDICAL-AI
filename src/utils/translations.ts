@@ -104,12 +104,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Active Session': 'Active Session',
     'Settings': 'Settings',
     'Emergency SOS': 'Emergency SOS',
-    'Clinical Systems Information': 'Clinical Systems Information',
-    'Medical Image Analyzer': 'Medical Image Analyzer',
-    'Medication Adherence': 'Medication Adherence',
-    'Clinical Safety Disclaimer': 'Clinical Safety Disclaimer',
-    'Guest Mode': 'Guest Mode',
-    'Uganda DPPA 2019': 'Uganda DPPA 2019'
+    'Clinical Systems Information': 'Clinical Systems Information'
   },
   'English (UK)': {
     'Dashboard': 'Dashboard',
@@ -189,12 +184,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Primary clinical reasoning layer. Successfully integrated and synchronizing real-time Uganda Ministry of Health Care Guidance protocols, VHT community registry logs, bio-stethoscope diagnostics, and regional patient telemetry with sub-millisecond latencies.': 'Ekiini ekikulu eky’okuwabula ekituuse. Kikoleddwamu dda pulotokolo z’Obulamu eza Minisitule y’Obulamu eya Uganda, ebiwandiiko bya VHT, ebyuma bya stethoscope, ne mikutu gy’abarwadde mu dakiika mbu.',
     'Change UI Language': 'Kyusa Olulimi lw’Ekyuma',
     'Core Operations': 'Okukola Okusookera ddala',
-    "Doctors' Dashboard": 'Wwebbulaasi y’Omusawo',
-    'Medical Image Analyzer': 'Ekyuma Ekikebera Ebifaananyi by’Eddagala',
-    'Medication Adherence': 'Okugoberera Eddagala',
-    'Clinical Safety Disclaimer': 'Okulabula ku Bukuumi bw’Obulamu',
-    'Guest Mode': 'Okugezesa kw’Omugenyi',
-    'Uganda DPPA 2019': 'Etteeka lya Uganda DPPA 2019'
+    "Doctors' Dashboard": 'Wwebbulaasi y’Omusawo'
   },
   'Swahili': {
     'Dashboard': 'Mwangaza',
@@ -723,12 +713,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Hydration': 'Okunywa Amaizi',
     'Change UI Language': 'Kyusa Olulimi rwa Sistemu',
     'Core Operations': 'Emirimo y’Ekiini',
-    "Doctors' Dashboard": 'Ebaandi y’Omushaho',
-    'Medical Image Analyzer': 'Okushwijuma Ebishushani by’Obujanjabi',
-    'Medication Adherence': 'Okukuratira Eddagala',
-    'Clinical Safety Disclaimer': 'Okurabura ahari Oburingaaniza bw’Obujanjabi',
-    'Guest Mode': 'Emiringo y’Omugyenyi',
-    'Uganda DPPA 2019': 'Ekiragiro kya Uganda DPPA 2019'
+    "Doctors' Dashboard": 'Ebaandi y’Omushaho'
   },
   'Acholi-Luo': {
     'Dashboard': 'Pany kin mogo',
@@ -772,12 +757,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     'Hydration': 'Okodo Pii',
     'Change UI Language': 'Alook leb me lany',
     'Core Operations': 'Tic ma Cal',
-    "Doctors' Dashboard": 'Pany pa Musawo',
-    'Medical Image Analyzer': 'Kwan me Cal me Yat',
-    'Medication Adherence': 'Luboo Cor Yat',
-    'Clinical Safety Disclaimer': 'Juk me Gwoko Kwo',
-    'Guest Mode': 'Kit me Welo',
-    'Uganda DPPA 2019': 'Cik me Uganda DPPA 2019'
+    "Doctors' Dashboard": 'Pany pa Musawo'
   },
   'Langi': {
     'Dashboard': 'Kany me ngol',

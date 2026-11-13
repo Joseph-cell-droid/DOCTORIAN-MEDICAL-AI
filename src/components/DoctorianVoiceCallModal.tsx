@@ -56,11 +56,6 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
 
   // Animated Audio Wave Frequency Levels
   const [audioWaves, setAudioWaves] = useState([20, 45, 75, 95, 60, 80, 40, 65, 90, 50, 70, 35]);
-  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-  const triggerVoiceNotice = (msg: string) => {
-    setVoiceNotice(msg);
-    setTimeout(() => setVoiceNotice(prev => (prev === msg ? null : prev)), 3500);
-  };
 
   useEffect(() => {
     if (!isOpen || !isCallActive) return;
@@ -265,7 +260,7 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
               <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
                 <button
                   type="button"
-                  onClick={() => triggerVoiceNotice('Listening for medical query...')}
+                  onClick={() => alert('Listening for medical query...')}
                   className="p-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/40 text-center"
                 >
                   💬 Ask a Question (Voice)
@@ -273,7 +268,7 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
 
                 <button
                   type="button"
-                  onClick={() => triggerVoiceNotice('Opening Doctor call booking...')}
+                  onClick={() => alert('Opening Doctor call booking...')}
                   className="p-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-800/40 text-center"
                 >
                   📅 Book a Call with Doctor
@@ -281,7 +276,7 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
 
                 <button
                   type="button"
-                  onClick={() => triggerVoiceNotice('Dispensing clinical health advice...')}
+                  onClick={() => alert('Dispensing clinical health advice...')}
                   className="p-2.5 rounded-xl bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/40 text-center"
                 >
                   💊 Get Health Tips (Voice)
@@ -289,17 +284,12 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
 
                 <button
                   type="button"
-                  onClick={() => triggerVoiceNotice('Translating live conversation...')}
+                  onClick={() => alert('Translating live conversation...')}
                   className="p-2.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-800/40 text-center"
                 >
                   🌐 Translate Conversation
                 </button>
               </div>
-              {voiceNotice && (
-                <div className="px-3 py-2 rounded-xl bg-teal-950/70 border border-teal-500/40 text-teal-200 text-[11px] font-semibold text-center">
-                  {voiceNotice}
-                </div>
-              )}
             </div>
 
           </div>
@@ -409,7 +399,7 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
                 </div>
                 <button 
                   type="button"
-                  onClick={() => triggerVoiceNotice('Language preferences saved')}
+                  onClick={() => alert('Language preferences saved')}
                   className="text-[10px] text-cyan-400 font-bold hover:underline"
                 >
                   Change

@@ -308,7 +308,7 @@ export const ClinicalReportExporter: React.FC<ClinicalReportExporterProps> = ({
         <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-400 text-xs font-bold">
             <Lock size={14} className="text-emerald-500" />
-            <span>HIPAA & GDPR Compliant Medical Document</span>
+            <span>Uganda DPPA 2019 Aligned Clinical Document</span>
           </div>
 
           <div className="flex items-center gap-3">

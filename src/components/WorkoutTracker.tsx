@@ -50,6 +50,8 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activityNotice, setActivityNotice] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form State for manual logging
   const [type, setType] = useState('Running');
@@ -138,7 +140,7 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
         } else {
           setSensorPermissionState('simulated');
           setIsSimulationMode(true);
-          alert("Motion sensor permission denied. Switched to Interactive Motion Sensor Simulator mode.");
+          setActivityNotice("Motion sensor permission denied. Switched to Interactive Motion Sensor Simulator mode.");
         }
       } catch (e) {
         console.error("Motion permission error:", e);
@@ -414,7 +416,7 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
   // Save Workout Session to Database
   const handleSaveAndSyncWorkout = async () => {
     if (stepsCount === 0 && sessionTimerSeconds < 5) {
-      alert("Please record some motion or steps before saving the session!");
+      setError("Please record some motion or steps before saving the session.");
       return;
     }
 
@@ -437,7 +439,8 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
         notes: `Motion Sensor Recorded Session: ${stepsCount} ${sensorMode === 'Squats' ? 'reps' : 'steps'}, ${calculatedDistanceMeters}m distance, average cadence ${currentCadenceBpm} steps/min.`
       });
 
-      alert(`Workout Session Saved! ${stepsCount} steps synchronized to your medical vault.`);
+      setActivityNotice(`Workout Session Saved! ${stepsCount} steps synchronized to your medical vault.`);
+      setError(null);
       handleResetSession();
       fetchWorkouts();
     } catch (err: any) {
@@ -476,10 +479,10 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to purge this activity log?")) return;
     try {
       await api.workouts.delete(id);
       setWorkouts(prev => prev.filter(w => w.id !== id));
+      setConfirmDeleteId(null);
     } catch (err) {
       setError("Failed to delete activity.");
     }
@@ -537,10 +540,24 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
         <motion.div 
           initial={{ opacity: 0, y: -10 }} 
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 text-rose-500 font-bold text-sm"
+          className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-between gap-3 text-rose-500 font-bold text-sm"
         >
-          <AlertCircle size={20} />
-          {error}
+          <div className="flex items-center gap-3">
+            <AlertCircle size={20} />
+            {error}
+          </div>
+          <button type="button" onClick={() => setError(null)} className="text-xs uppercase underline cursor-pointer">Dismiss</button>
+        </motion.div>
+      )}
+
+      {activityNotice && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-3 text-emerald-400 font-bold text-sm"
+        >
+          <span>{activityNotice}</span>
+          <button type="button" onClick={() => setActivityNotice(null)} className="text-xs uppercase underline cursor-pointer">Dismiss</button>
         </motion.div>
       )}
 
@@ -993,12 +1010,33 @@ export const WorkoutTracker: React.FC<{ user: any }> = ({ user }) => {
                     )}
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleDelete(workout.id)}
-                  className="p-2 text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-                >
-                  <Trash2 size={18} />
-                </button>
+                {confirmDeleteId === workout.id ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(workout.id)}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase rounded-xl cursor-pointer"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] font-black uppercase rounded-xl cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={() => setConfirmDeleteId(workout.id)}
+                    className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                    title="Delete activity"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </motion.div>
             ))
           )}

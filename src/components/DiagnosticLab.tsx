@@ -232,10 +232,10 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             <div className="flex items-center gap-2 pl-2 pr-3 py-1 bg-slate-100 dark:bg-[#0c1a36] rounded-full border border-slate-200 dark:border-blue-800/60">
               <img
                 src="/african_doctor_male.png"
-                alt="Dr. Joseph Akora"
+                alt="Attending Clinician"
                 className="w-7 h-7 rounded-full object-cover border border-blue-400"
               />
-              <span className="text-xs font-bold hidden sm:inline">Dr. Joseph Akora</span>
+              <span className="text-xs font-bold hidden sm:inline">Attending Clinician</span>
             </div>
           </div>
 
@@ -848,7 +848,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
 
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black uppercase tracking-wider self-start sm:self-auto flex items-center gap-1.5">
                   <ShieldCheck size={12} className="text-emerald-400" />
-                  ISO 15189 Certified Tele-Pathology
+                  Structured Tele-Pathology Support
                 </span>
               </div>
 
@@ -896,7 +896,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
                   </span>
                 </div>
                 <span className="font-mono text-[10px] text-cyan-300 font-bold shrink-0">
-                  Validated by Dr. Joseph Akora (Consultant Pathologist)
+                  Reviewed for Clinician Sign-off (Pathology Support)
                 </span>
               </div>
             </div>

@@ -277,33 +277,34 @@ export const EmergencyRegistry: React.FC<EmergencyRegistryProps> = ({
                     <div className="flex flex-col">
                       <input
                         type="password"
-                        placeholder="Enter Admin PIN/Passkey to Unlock overrides"
+                        placeholder="Confirm clinician/admin email or ID"
                         value={localPin}
                         onChange={e => {
                           setLocalPin(e.target.value);
                           setLocalPinError('');
                         }}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-black placeholder:text-slate-500 outline-none w-48 text-slate-900 dark:text-white"
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-black placeholder:text-slate-500 outline-none w-56 text-slate-900 dark:text-white"
                       />
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 text-right">Default Admin PIN: 1234 / admin@2026@Doctorian</span>
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 text-right">Authorized for signed-in Doctor / Admin roles</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
-                        if (localPin === '1234' || localPin === 'admin@2026@Doctorian' || localPin === 'DOC@Protocol2') {
+                        const isAuthorizedRole = user?.role === 'admin' || user?.role === 'doctor';
+                        if (isAuthorizedRole && localPin.trim().length >= 3) {
                           if (setIsAdmin) {
                             setIsAdmin(true);
                           }
                           setLocalPin('');
-                          addNotification(`Override authorized. ${localPin === 'DOC@Protocol2' ? 'Doctor Protocol' : 'Admin'} override open.`, "success");
+                          addNotification("Override authorized for verified clinician/administrator session.", "success");
                         } else {
-                          setLocalPinError("Invalid PIN / Passkey");
-                          addNotification("Protection Alert: Invalid PIN/Passkey rejected.", "error");
+                          setLocalPinError("Clinician or Administrator role required");
+                          addNotification("Access Restricted: Sign in as a verified Clinician or Administrator to unlock overrides.", "error");
                         }
                       }}
                       className="px-4 py-2 bg-slate-950 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer shadow-sm border border-slate-700/50 self-start"
                     >
-                      Unlock PIN
+                      Verify Role
                     </button>
                   </div>
                 ) : (

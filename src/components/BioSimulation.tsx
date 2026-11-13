@@ -383,6 +383,11 @@ export default function BioSimulation({ user, onUpdateUser }: BioSimulationProps
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [aiCreditsUsed, setAiCreditsUsed] = useState<number | null>(null);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const showCopyNotice = (msg: string) => {
+    setCopyNotice(msg);
+    setTimeout(() => setCopyNotice(prev => (prev === msg ? null : prev)), 3000);
+  };
 
   // Categories list
   const categories = [
@@ -485,7 +490,7 @@ export default function BioSimulation({ user, onUpdateUser }: BioSimulationProps
     } else {
       const amaText = papersToExport.map((p, idx) => `${idx + 1}. ${p.citationAMA}`).join('\n\n');
       navigator.clipboard.writeText(amaText);
-      alert(`Copied ${papersToExport.length} formatted AMA citations to clipboard!`);
+      showCopyNotice(`Copied ${papersToExport.length} formatted AMA citations to clipboard!`);
     }
   };
 
@@ -665,6 +670,12 @@ Provide a structured, rigorous, evidence-based analysis containing:
             </button>
           ))}
         </div>
+        {copyNotice && (
+          <div className="px-4 py-2 rounded-xl bg-teal-600/20 border border-teal-500/40 text-teal-200 text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-teal-400 shrink-0" />
+            <span>{copyNotice}</span>
+          </div>
+        )}
       </div>
 
       {/* TAB 1: EXPLORE LIVE TOPICS */}
@@ -902,7 +913,7 @@ Provide a structured, rigorous, evidence-based analysis containing:
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(paper.citationAMA);
-                        alert('Copied AMA citation to clipboard!');
+                        showCopyNotice('Copied AMA citation to clipboard!');
                       }}
                       className="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1"
                     >
@@ -1070,7 +1081,7 @@ Provide a structured, rigorous, evidence-based analysis containing:
                             <button
                               onClick={() => {
                                 navigator.clipboard.writeText(paper.citationAMA);
-                                alert('Copied AMA citation!');
+                                showCopyNotice('Copied AMA citation!');
                               }}
                               className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded text-xs font-bold flex items-center gap-1"
                             >

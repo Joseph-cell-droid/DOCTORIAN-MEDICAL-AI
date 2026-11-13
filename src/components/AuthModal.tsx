@@ -59,9 +59,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showTermsOverlay, setShowTermsOverlay] = useState<'terms' | 'privacy' | null>(null);
 
-  const fillDemo = (type: 'doctor-gloria' | 'doctor-aaron' | 'doctor-sarah' | 'patient-sarah' | 'admin' | 'admin-gloria') => {
-    if (type === 'doctor-gloria') {
-      setEmail('gloria.doctor@doctorian.org');
+  const fillDemo = (type: 'doctor-nakitto' | 'doctor-aaron' | 'doctor-sarah' | 'patient-sarah' | 'admin') => {
+    if (type === 'doctor-nakitto') {
+      setEmail('dr.nakitto@doctorian.org');
       setPassword('Doctorian@2026!');
       setPortalType('doctor');
     } else if (type === 'doctor-aaron') {
@@ -78,10 +78,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setPortalType('user');
     } else if (type === 'admin') {
       setEmail('admin@doctorian.org');
-      setPassword('Admin@Doctorian2026!');
-      setPortalType('admin');
-    } else if (type === 'admin-gloria') {
-      setEmail('gloriajayakullo@gmail.com');
       setPassword('Doctorian@2026!');
       setPortalType('admin');
     }
@@ -280,7 +276,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           throw new Error(`Password must meet all security requirements: ${evalRes.missingRequirements.join(', ')}.`);
         }
         if (!agreedToTerms) {
-          throw new Error("Please accept the Terms of Service & HIPAA Security Agreement to proceed.");
+          throw new Error("Please accept the Terms of Service & Clinical Privacy Agreement to proceed.");
         }
         const formattedName = signupRole === 'doctor' && !displayName.toLowerCase().startsWith('dr.')
           ? `Dr. ${displayName}`
@@ -390,17 +386,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (!response.ok) throw new Error(`Could not initiate ${providerName} sign in`);
       
       const { url } = await response.json();
-      
-      const width = 560;
-      const height = 660;
-      const left = window.screenX + (window.innerWidth - width) / 2;
-      const top = window.screenY + (window.innerHeight - height) / 2;
-      
-      const authWindow = window.open(url, `${providerName}_oauth`, `width=${width},height=${height},left=${left},top=${top}`);
-      
-      if (!authWindow) {
-        throw new Error('Sign-in window was blocked by your browser. Please allow popups for this site.');
+      if (!url) {
+        throw new Error(`No redirect URL returned for ${providerName}.`);
       }
+      window.location.assign(url);
     } catch (err: any) {
       setError(err.message);
       setIsLoading(false);
@@ -562,19 +551,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => fillDemo('doctor-gloria')}
+                      onClick={() => fillDemo('doctor-nakitto')}
                       className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-emerald-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
                     >
-                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-500">Dr. Gloria J.</div>
-                      <div className="text-[8px] text-emerald-600 dark:text-emerald-400 font-medium">Cardiologist</div>
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-500">Dr. Nakitto</div>
+                      <div className="text-[8px] text-emerald-600 dark:text-emerald-400 font-medium">Clinician</div>
                     </button>
                     <button
                       type="button"
                       onClick={() => fillDemo('doctor-aaron')}
                       className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-blue-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
                     >
-                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500">Prof. Aaron S.</div>
-                      <div className="text-[8px] text-blue-600 dark:text-blue-400 font-medium">Neurosurgeon</div>
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500">Dr. Aaron S.</div>
+                      <div className="text-[8px] text-blue-600 dark:text-blue-400 font-medium">Medical Officer</div>
                     </button>
                     <button
                       type="button"
@@ -582,23 +571,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-indigo-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
                     >
                       <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-500">Sarah N.</div>
-                      <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-medium">Patient Node</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillDemo('admin-gloria')}
-                      className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-purple-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
-                    >
-                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-500">Gloria (Admin)</div>
-                      <div className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">Lead Director</div>
+                      <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-medium">Patient</div>
                     </button>
                     <button
                       type="button"
                       onClick={() => fillDemo('admin')}
                       className="px-2 py-1.5 bg-white dark:bg-slate-800 hover:border-purple-500 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-all shadow-xs cursor-pointer group"
                     >
-                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-500">System Admin</div>
-                      <div className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">Core Director</div>
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-500">Hospital Admin</div>
+                      <div className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">Administrator</div>
                     </button>
                   </div>
                 </div>

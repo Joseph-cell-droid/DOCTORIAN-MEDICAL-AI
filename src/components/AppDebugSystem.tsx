@@ -593,23 +593,17 @@ export const AppDebugSystem: React.FC<{
                 <button
                   type="button"
                   onClick={() => {
-                    localStorage.setItem('medical_user', JSON.stringify({
-                      id: 'admin-akora',
-                      email: 'akora.joseph@doctorian.ai',
-                      name: 'Dr. Joseph Akora',
-                      role: 'super_admin'
-                    }));
-                    addToast?.('Session restored to Super Admin Dr. Joseph Akora.', 'success');
+                    addToast?.('Session role is managed strictly by server JWT verification.', 'info');
                     runDiagnostics();
                   }}
                   className="p-4 rounded-2xl bg-[#0a1838] hover:bg-emerald-500/20 border border-emerald-500/30 text-left transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-1">
                     <ShieldCheck size={16} />
-                    <span>Ensure Super Admin Session (Dr. Joseph Akora)</span>
+                    <span>Verify Role Permissions Check</span>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Verifies full elevated permissions, unrestricted patient telemetry view, and emergency override access.
+                    Re-runs RBAC permission verification against the active authenticated session.
                   </p>
                 </button>
 

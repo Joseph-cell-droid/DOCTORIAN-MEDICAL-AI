@@ -193,7 +193,7 @@ export const AppointmentsView: React.FC<{ user: any; onShowToast: (msg: string, 
 
               <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 <Shield size={12} className="text-blue-500 shrink-0" />
-                <span>Secure HIPAA Compliance Active</span>
+                <span>Uganda DPPA 2019 Privacy Guard Active</span>
               </div>
             </div>
 

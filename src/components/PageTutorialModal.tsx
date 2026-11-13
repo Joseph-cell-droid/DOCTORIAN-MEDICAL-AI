@@ -308,7 +308,7 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
               title: '2. AES-256 Encryption & SHA-256 Bit-Level Proof',
               badge: 'Security',
               icon: ShieldCheck,
-              description: 'Each uploaded clinical file is cryptographically hashed and secured with HIPAA-compliant encryption.',
+              description: 'Each uploaded clinical file is cryptographically hashed and secured with AES-256 privacy-aligned encryption.',
               lugandaDescription: 'Buli fayiro eteekebwamu esibibwa n’amakubo g’ebyokwerinda ag’amaanyi ennyo nga tewali ayinza kugiyingirira.',
               swahiliDescription: 'Kila faili linalohifadhiwa hulindwa kwa usimbaji fiche wa kijeshi wa AES-256 na uthibitisho wa SHA-256.',
               tips: [

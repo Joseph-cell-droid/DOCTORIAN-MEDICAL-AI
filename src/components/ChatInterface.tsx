@@ -1645,6 +1645,10 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const [isVHTLogsActive, setIsVHTLogsActive] = useState<boolean>(false);
   const [isBioStethoscopeActive, setIsBioStethoscopeActive] = useState<boolean>(false);
   const [localNotification, setLocalNotification] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renameTitleInput, setRenameTitleInput] = useState<string>('');
+  const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState<string | null>(null);
+  const [confirmPurgeLogs, setConfirmPurgeLogs] = useState<boolean>(false);
 
   const showLocalToast = (text: string, type: 'success' | 'info' | 'error') => {
     setLocalNotification({ text, type });
@@ -1716,11 +1720,6 @@ export function ChatInterface({ onMessageSent, isExploreView = false, user, onUp
   const checkModelAccess = useCallback((modelId: 'llama-clinical' | 'medlm-medium' | 'medlm-large' | 'gemma3-tfjs' | 'huggingface' | 'gemma-cloud') => {
     if (modelId === 'gemma3-tfjs' || modelId === 'huggingface' || modelId === 'gemma-cloud') {
       return { hasAccess: true, tierName: 'Always Free (Offline)' };
-    }
-    
-    // Gloriajayakullo clinical bypass
-    if (user?.email?.toLowerCase() === "gloriajayakullo@gmail.com") {
-      return { hasAccess: true, tierName: 'Priority Professional Access' };
     }
     
     const tier = (user?.subscriptionTier || 'free').toLowerCase();
@@ -2211,12 +2210,17 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
     }
   };
 
-  const renameSession = async (id: string, currentTitle: string, e: React.MouseEvent) => {
+  const renameSession = (id: string, currentTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newTitle = window.prompt("Rename History Session Title:", currentTitle);
-    if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
-      const clean = newTitle.trim();
-      setSessions(prev => prev.map((s, mapIdx_2134) => s.id === id ? { ...s, title: clean } : s));
+    setRenamingSessionId(id);
+    setRenameTitleInput(currentTitle);
+  };
+
+  const commitRenameSession = async (id: string, originalTitle: string) => {
+    const clean = renameTitleInput.trim();
+    setRenamingSessionId(null);
+    if (clean && clean !== originalTitle) {
+      setSessions(prev => prev.map((s) => s.id === id ? { ...s, title: clean } : s));
       try {
         await api.ai.updateSessionTitle(id, clean);
         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Session renamed to "${clean}"`]);
@@ -2387,7 +2391,7 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
       promptText = `Draft Medical Report: Craft a formal, highly structured [${templLabel}] report for patient ${pObj.name} (Age: ${pObj.age}, Gender: ${pObj.gender}, Bed: ${pObj.bedNumber}). Main active diagnoses: ${pObj.conditions}. Clinical allergies: ${pObj.allergies}.${vitalsPart}${mohPart}${diffPart}\nFormat clearly with Markdown headers, bold terms, and specific clinical fields.`;
     } else if (ragSubTool === 'speech_note') {
       if (!speechTranscript.trim()) {
-        alert("Please enter or simulate a speech transcript first.");
+        showLocalToast("Please enter or simulate a speech transcript first.", "error");
         return;
       }
       let finalTranscript = speechTranscript;
@@ -2697,16 +2701,14 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   }, [messages, isLoading, shouldAutoScroll]);
 
   const clearChat = () => {
-    if (window.confirm("Purge Neural Buffer? This will permanently delete the current session timeline from your local matrix.")) {
-      if (currentSessionId) {
-        api.ai.deleteSession(currentSessionId).catch(console.error);
-        setSessions(prev => prev.filter(s => s.id !== currentSessionId));
-      }
-      setMessages([]);
-      setCurrentSessionId(null);
-      localStorage.removeItem('last_chat_session_id');
-      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Buffer cleared', 'SYS: Diagnostic reset']);
+    if (currentSessionId) {
+      api.ai.deleteSession(currentSessionId).catch(console.error);
+      setSessions(prev => prev.filter(s => s.id !== currentSessionId));
     }
+    setMessages([]);
+    setCurrentSessionId(null);
+    localStorage.removeItem('last_chat_session_id');
+    setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Buffer cleared', 'SYS: Diagnostic reset']);
   };
 
   const downloadReport = () => {
@@ -2722,16 +2724,16 @@ Please run deep clinical mechanisms formulation and provide a structured Differe
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (window.confirm("Prune this message? This action will permanently delete this specific entry from your local matrix.")) {
-      try {
-        await api.ai.deleteMessage(messageId);
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Message deleted successfully']);
-      } catch (err) {
-        console.error("Message deletion failed, removing from state:", err);
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-        setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Message removed from UI state']);
-      }
+    try {
+      await api.ai.deleteMessage(messageId);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Message deleted successfully']);
+    } catch (err) {
+      console.error("Message deletion failed, removing from state:", err);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Message removed from UI state']);
+    } finally {
+      setConfirmDeleteMsgId(null);
     }
   };
   // BRAND NEW CLINICAL TOOL DECISION FUNCTIONS
@@ -3158,7 +3160,7 @@ ${f.prescription}
   };
 
   const isUserPremium = useMemo(() => {
-    return ['gold', 'business', 'silver', 'pro'].includes(user?.subscriptionStatus === 'active' ? user?.subscriptionTier : '') || user?.email?.toLowerCase() === "gloriajayakullo@gmail.com";
+    return ['gold', 'business', 'silver', 'pro'].includes(user?.subscriptionStatus === 'active' ? user?.subscriptionTier : '');
   }, [user]);
 
   const [credits, setCredits] = useState<number | string>(isUserPremium ? 'Unlimited' : (user?.credits ?? 0));
@@ -3753,9 +3755,32 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     )}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className={`text-[10px] font-black uppercase tracking-widest truncate ${currentSessionId === session.id ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                          {session.title}
-                        </p>
+                        {renamingSessionId === session.id ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={renameTitleInput}
+                              onChange={(e) => setRenameTitleInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') commitRenameSession(session.id, session.title);
+                                if (e.key === 'Escape') setRenamingSessionId(null);
+                              }}
+                              className="w-full px-2 py-1 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-blue-400 outline-none"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => commitRenameSession(session.id, session.title)}
+                              className="px-2 py-1 bg-emerald-600 text-white text-[9px] font-bold uppercase rounded-lg cursor-pointer"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        ) : (
+                          <p className={`text-[10px] font-black uppercase tracking-widest truncate ${currentSessionId === session.id ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                            {session.title}
+                          </p>
+                        )}
                         <div className="flex items-center gap-3 mt-2">
                           <span className={`text-[8px] font-bold uppercase tracking-tighter ${currentSessionId === session.id ? 'text-white/60' : 'text-slate-400'}`}>
                             {new Date(session.createdAt).toLocaleDateString()}
@@ -4441,7 +4466,7 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                                     onClick={() => {
                                       navigator.clipboard.writeText(msg.text);
                                       setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Clinical report copied in raw Markdown format']);
-                                      alert("Markdown blueprint copied to clipboard!");
+                                      showLocalToast("Markdown blueprint copied to clipboard.", "success");
                                     }}
                                     className="flex-1 sm:flex-initial px-3 py-1.5 bg-white dark:bg-slate-950 text-slate-705 dark:text-slate-300 border border-slate-150 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
                                   >
@@ -4495,10 +4520,10 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                                     onClick={() => {
                                       setTerminalLogs(prev => [
                                         ...prev.slice(-3),
-                                        "SYS: Initiating SSL socket link with Bed monitor terminals...",
-                                        `SYS: Synchronized clinical report payload for patient target successfully.`
+                                        "SYS: Preparing clinical report export...",
+                                        `SYS: Clinical report synchronized.`
                                       ]);
-                                      alert("Clinical record transferred successfully to physical Ward EMR terminal.");
+                                      showLocalToast("Clinical record synced to workspace summary.", "success");
                                     }}
                                     className="flex-1 sm:flex-initial px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/45 text-emerald-650 dark:text-emerald-400 border border-emerald-200/20 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-emerald-100/50 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
                                   >
@@ -4576,13 +4601,33 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                                  <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-700/80 mx-0.5" />
                                </>
                              )}
-                             <button 
-                               onClick={() => handleDeleteMessage(msg.id)} 
-                               className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500 dark:text-slate-300 hover:text-rose-500 transition-all cursor-pointer"
-                               title="Delete message"
-                             >
-                               <Trash2 size={14} />
-                             </button>
+                             {confirmDeleteMsgId === msg.id ? (
+                               <div className="flex items-center gap-1 pl-1">
+                                 <button
+                                   type="button"
+                                   onClick={() => handleDeleteMessage(msg.id)}
+                                   className="px-2 py-0.5 bg-rose-600 text-white text-[10px] font-bold uppercase rounded-lg cursor-pointer"
+                                 >
+                                   Delete
+                                 </button>
+                                 <button
+                                   type="button"
+                                   onClick={() => setConfirmDeleteMsgId(null)}
+                                   className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-[10px] font-bold uppercase rounded-lg cursor-pointer"
+                                 >
+                                   Cancel
+                                 </button>
+                               </div>
+                             ) : (
+                               <button 
+                                 type="button"
+                                 onClick={() => setConfirmDeleteMsgId(msg.id)} 
+                                 className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500 dark:text-slate-300 hover:text-rose-500 transition-all cursor-pointer"
+                                 title="Delete message"
+                               >
+                                 <Trash2 size={14} />
+                               </button>
+                             )}
                            </div>
                         </div>
                       </div>
@@ -4875,20 +4920,38 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                     Export Log
                   </button>
                   {healthLogs.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to purge all logged entries? This is irreversible.")) {
-                          setHealthLogs([]);
-                          localStorage.removeItem('doctorian_health_logs');
-                          setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Health log buffer completely purged.']);
-                        }
-                      }}
-                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-105 dark:bg-rose-950/20 text-rose-600 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Trash2 size={12} />
-                      Purge All
-                    </button>
+                    confirmPurgeLogs ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHealthLogs([]);
+                            localStorage.removeItem('doctorian_health_logs');
+                            setConfirmPurgeLogs(false);
+                            setTerminalLogs(prev => [...prev.slice(-3), 'SYS: Health log buffer completely purged.']);
+                          }}
+                          className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer"
+                        >
+                          Confirm Purge
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmPurgeLogs(false)}
+                          className="px-3 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmPurgeLogs(true)}
+                        className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                        Purge All
+                      </button>
+                    )
                   )}
                 </div>
               </div>

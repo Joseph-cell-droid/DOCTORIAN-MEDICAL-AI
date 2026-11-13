@@ -64,9 +64,9 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
 
   // Profile State
   const [profileData, setProfileData] = useState({
-    name: 'Dr. Joseph Akora',
+    name: 'Dr. Sarah Nakitto',
     role: 'Administrator',
-    email: 'josephakora@email.com',
+    email: 'clinician@doctorian.org',
     phone: '+256 700 123 456',
     location: 'Uganda, Kampala'
   });
@@ -233,7 +233,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
                 <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img
                     src="/african_doctor_male.png"
-                    alt="Dr. Joseph Akora"
+                    alt="Clinician profile avatar"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -1155,8 +1155,8 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
 
               <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                 <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60">
-                  <h5 className="font-black text-emerald-800 dark:text-emerald-300 mb-1">HIPAA & MOH Uganda Data Standards</h5>
-                  <p>All clinical logs, laboratory readings, and doctor-patient consultations are encrypted in transit and at rest using AES-256 and TLS 1.3 encryption.</p>
+                  <h5 className="font-black text-emerald-800 dark:text-emerald-300 mb-1">Uganda DPPA 2019 & MOH Clinical Privacy Standards</h5>
+                  <p>All clinical logs, laboratory readings, and doctor-patient consultations are encrypted in transit and at rest using TLS and AES-256 encryption.</p>
                 </div>
 
                 <div className="space-y-2">

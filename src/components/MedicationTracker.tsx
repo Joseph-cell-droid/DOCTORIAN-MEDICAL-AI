@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Pill,
@@ -21,7 +21,6 @@ import {
   BarChart3,
   Lightbulb,
   Video,
-  Shield,
   Cloud,
   Globe,
   Heart,
@@ -29,9 +28,23 @@ import {
   Settings,
   X,
   FileText,
-  User,
-  ExternalLink
+  Plus,
+  RefreshCw,
+  ShieldAlert,
+  History,
+  ClipboardCheck
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
+import { api } from '../api';
+import { MedicalDisclaimer } from './common/MedicalDisclaimer';
 
 export interface MedicationTrackerProps {
   user?: any;
@@ -40,22 +53,72 @@ export interface MedicationTrackerProps {
 }
 
 interface PrescriptionItem {
-  id: number;
+  id: number | string;
   medicine: string;
   dosage: string;
   frequency: string;
   duration: string;
-  status: 'Active' | 'Completed' | 'Pending';
+  status: string;
   instructions: string;
   category: string;
   prescribedBy: string;
+  refillStatus?: string;
 }
+
+type AdherenceStatus =
+  | 'Taken'
+  | 'Confirmed'
+  | 'Not yet taken'
+  | 'Missed'
+  | 'Skipped'
+  | 'Pending verification';
+
+type ConfirmationMethod =
+  | 'self_report'
+  | 'caregiver_verified'
+  | 'supervised_clinical_admin'
+  | 'smart_device';
+
+interface AdherenceLogItem {
+  id: string;
+  medicineName: string;
+  dosage: string;
+  scheduledAt: string;
+  reportedAt: string | null;
+  confirmedAt: string | null;
+  confirmedByName: string | null;
+  status: AdherenceStatus;
+  confirmationMethod: ConfirmationMethod;
+  reason: string | null;
+  auditHistory: Array<{ status: string; actor: string; method?: string; reason?: string; timestamp: string }>;
+}
+
+const CONFIRMATION_LABELS: Record<ConfirmationMethod, string> = {
+  self_report: 'Patient Self-Report (Unverified)',
+  caregiver_verified: 'Caregiver Verified',
+  supervised_clinical_admin: 'Supervised Clinical Admin',
+  smart_device: 'Connected Smart Dispenser'
+};
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  Taken: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800',
+  Confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800',
+  'Not yet taken': 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+  Missed: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800',
+  Skipped: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800',
+  'Pending verification': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800'
+};
 
 export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
   user,
   onNavigate = () => {},
   addToast = () => {}
 }) => {
+  const userRole = String(user?.role || 'patient').toLowerCase();
+  const isClinician = ['doctor', 'nurse', 'admin'].includes(userRole);
+  const canPrescribe = ['doctor', 'admin'].includes(userRole);
+  const isGuest = !user || userRole === 'guest' || Boolean(user?.isGuest);
+
   // Prescriptions list matching the reference image exactly
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([
     {
@@ -111,6 +174,201 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [scheduleDay, setScheduleDay] = useState('Today');
   const [isScheduleDayMenuOpen, setIsScheduleDayMenuOpen] = useState(false);
+
+  // Persistent Medication Adherence & Clinical Extensions (rendered below trust banner)
+  const [adherenceLogs, setAdherenceLogs] = useState<AdherenceLogItem[]>([
+    {
+      id: 'adh-local-1',
+      medicineName: 'Paracetamol',
+      dosage: '500mg',
+      scheduledAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+      reportedAt: new Date(Date.now() - 2.9 * 3600 * 1000).toISOString(),
+      confirmedAt: null,
+      confirmedByName: null,
+      status: 'Taken',
+      confirmationMethod: 'self_report',
+      reason: null,
+      auditHistory: [
+        {
+          status: 'Taken',
+          actor: user?.displayName || 'Patient Self-Log',
+          method: 'self_report',
+          timestamp: new Date(Date.now() - 2.9 * 3600 * 1000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 'adh-local-2',
+      medicineName: 'Amoxicillin',
+      dosage: '500mg',
+      scheduledAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+      reportedAt: null,
+      confirmedAt: null,
+      confirmedByName: null,
+      status: 'Not yet taken',
+      confirmationMethod: 'self_report',
+      reason: null,
+      auditHistory: []
+    }
+  ]);
+  const [isSampleDemo, setIsSampleDemo] = useState(isGuest);
+  const [isSyncingClinical, setIsSyncingClinical] = useState(false);
+  const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [isNewRxModalOpen, setIsNewRxModalOpen] = useState(false);
+  const [newRxForm, setNewRxForm] = useState({
+    medicine: 'Artemether-Lumefantrine',
+    dosage: '20/120mg',
+    frequency: 'Every 12 Hours (4 Tabs)',
+    duration: '3 Days',
+    instructions: 'Take with a fatty meal or milk for absorption. Complete the full 6-dose course.'
+  });
+  const [logForm, setLogForm] = useState<{
+    medicineName: string;
+    dosage: string;
+    status: AdherenceStatus;
+    confirmationMethod: ConfirmationMethod;
+    reason: string;
+  }>({
+    medicineName: 'Amoxicillin',
+    dosage: '500mg',
+    status: 'Taken',
+    confirmationMethod: isClinician ? 'supervised_clinical_admin' : 'self_report',
+    reason: ''
+  });
+
+  const loadClinicalMedicationData = useCallback(async () => {
+    setIsSyncingClinical(true);
+    try {
+      const [rxRes, adhRes] = await Promise.allSettled([
+        api.clinical.listPrescriptions(),
+        api.clinical.listAdherence()
+      ]);
+      if (rxRes.status === 'fulfilled' && Array.isArray(rxRes.value?.prescriptions) && rxRes.value.prescriptions.length > 0) {
+        const mapped = rxRes.value.prescriptions.map((p: any, idx: number) => ({
+          id: p.id || idx + 1,
+          medicine: p.medicineName || p.medicine || 'Medication',
+          dosage: p.dosage || 'Standard',
+          frequency: p.frequency || 'Once Daily',
+          duration: p.duration || '7 Days',
+          status: p.status || 'Active',
+          instructions: p.instructions || 'Follow prescribing clinician guidance.',
+          category: p.category || 'Clinical Prescription',
+          prescribedBy: p.prescribedByName || p.prescribedBy || 'Dr. Sarah M. Nakitto',
+          refillStatus: p.refillStatus || 'none'
+        }));
+        setPrescriptions(mapped);
+        if (rxRes.value.isSampleDemo !== undefined) setIsSampleDemo(Boolean(rxRes.value.isSampleDemo));
+      }
+      if (adhRes.status === 'fulfilled' && Array.isArray(adhRes.value?.logs) && adhRes.value.logs.length > 0) {
+        setAdherenceLogs(adhRes.value.logs);
+        if (adhRes.value.isSampleDemo !== undefined) setIsSampleDemo(Boolean(adhRes.value.isSampleDemo));
+      }
+    } catch {
+      // Keep graceful offline defaults
+    } finally {
+      setIsSyncingClinical(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadClinicalMedicationData();
+  }, [loadClinicalMedicationData]);
+
+  const handleLogAdherence = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isGuest) {
+      addToast('Guest mode displays sample logs only. Sign in to record persistent account logs.', 'info');
+      return;
+    }
+    if ((logForm.status === 'Missed' || logForm.status === 'Skipped') && !logForm.reason.trim()) {
+      addToast('Please provide a brief clinical or practical reason for a missed or skipped dose.', 'error');
+      return;
+    }
+    try {
+      const saved = await api.clinical.logAdherence({
+        medicineName: logForm.medicineName,
+        dosage: logForm.dosage,
+        status: logForm.status,
+        confirmationMethod: logForm.confirmationMethod,
+        reason: logForm.reason.trim() || undefined
+      });
+      setAdherenceLogs((prev) => [saved, ...prev]);
+      setLogForm((prev) => ({ ...prev, reason: '' }));
+      addToast(`Recorded "${logForm.status}" entry in adherence account log.`, 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Unable to log adherence entry.', 'error');
+    }
+  };
+
+  const handleClinicianConfirmLog = async (logId: string, nextStatus: AdherenceStatus = 'Confirmed') => {
+    if (!isClinician) {
+      addToast('Clinician authorization required to verify/confirm doses.', 'error');
+      return;
+    }
+    try {
+      const updated = await api.clinical.updateAdherence(logId, {
+        status: nextStatus,
+        confirmationMethod: 'supervised_clinical_admin'
+      });
+      setAdherenceLogs((prev) => prev.map((l) => (l.id === logId ? updated : l)));
+      addToast(`Dose entry transitioned to ${nextStatus}.`, 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to confirm adherence log.', 'error');
+    }
+  };
+
+  const handleCreateSignedRx = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canPrescribe) {
+      addToast('Only authorized physicians or hospital admins can sign prescriptions.', 'error');
+      return;
+    }
+    try {
+      const created = await api.clinical.createPrescription({
+        medicineName: newRxForm.medicine,
+        dosage: newRxForm.dosage,
+        frequency: newRxForm.frequency,
+        duration: newRxForm.duration,
+        instructions: newRxForm.instructions
+      });
+      setPrescriptions((prev) => [
+        {
+          id: created.id || prev.length + 1,
+          medicine: created.medicineName || newRxForm.medicine,
+          dosage: created.dosage || newRxForm.dosage,
+          frequency: created.frequency || newRxForm.frequency,
+          duration: created.duration || newRxForm.duration,
+          status: created.status || 'Active',
+          instructions: created.instructions || newRxForm.instructions,
+          category: 'Clinician Signed',
+          prescribedBy: user?.displayName || 'Attending Clinician',
+          refillStatus: 'none'
+        },
+        ...prev
+      ]);
+      setIsNewRxModalOpen(false);
+      addToast(`Signed prescription for ${newRxForm.medicine} issued.`, 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to issue prescription.', 'error');
+    }
+  };
+
+  const handleRequestRefill = async (rxId: number | string, medName: string) => {
+    if (isGuest) {
+      addToast('Sign in with a patient account to submit refill requests.', 'info');
+      return;
+    }
+    try {
+      await api.clinical.requestRefill(String(rxId));
+      setPrescriptions((prev) =>
+        prev.map((item) => (String(item.id) === String(rxId) ? { ...item, refillStatus: 'requested' } : item))
+      );
+      addToast(`Refill review requested for ${medName}.`, 'success');
+    } catch (err: any) {
+      addToast(err?.message || `Refill noted locally for ${medName}.`, 'info');
+    }
+  };
 
   // Toggle dose taken status
   const toggleDose = (id: string) => {
@@ -960,6 +1218,451 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
 
       </div>
 
+      {/* 6B. MEDICATION ADHERENCE & VERIFICATION ACCOUNT LOGS (Below Trust Banner) */}
+      <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 flex items-center justify-center">
+                <ClipboardCheck size={17} />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                Medication Adherence &amp; Verification Account Logs
+              </h2>
+              {isSampleDemo && (
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md">
+                  Sample Demo Data
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Track dose scheduling, self-reported events, clinician confirmations, missed-dose reasons, and refill status.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={loadClinicalMedicationData}
+              disabled={isSyncingClinical}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+            >
+              <RefreshCw size={14} className={isSyncingClinical ? 'animate-spin' : ''} />
+              <span>Sync Logs</span>
+            </button>
+
+            {canPrescribe && (
+              <button
+                type="button"
+                onClick={() => setIsNewRxModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Issue Signed Rx</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Clinical honesty notice about self-reported medication intake */}
+        <div
+          role="note"
+          className="rounded-xl border border-amber-200 dark:border-amber-800/70 bg-amber-50/70 dark:bg-amber-950/30 p-3.5 flex items-start gap-2.5 text-xs text-amber-950 dark:text-amber-100"
+        >
+          <ShieldAlert size={16} className="text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <strong className="font-semibold">Ingestion Verification Disclosure: </strong>
+            Self-reporting a dose as &ldquo;Taken&rdquo; logs patient intent in your account timeline and does <strong>not</strong> physically prove ingestion unless confirmed via supervised clinical administration, caregiver verification, or a connected smart dispenser.
+          </div>
+        </div>
+
+        {/* Interactive Refill & Adherence Summary Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left: Log Dose Entry + Refill Status (5 cols) */}
+          <div className="lg:col-span-5 space-y-4">
+            <form
+              onSubmit={handleLogAdherence}
+              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3"
+            >
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Record Dose Event</h3>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    Medication
+                  </label>
+                  <select
+                    value={logForm.medicineName}
+                    onChange={(e) => {
+                      const found = prescriptions.find((p) => p.medicine === e.target.value);
+                      setLogForm((prev) => ({
+                        ...prev,
+                        medicineName: e.target.value,
+                        dosage: found?.dosage || prev.dosage
+                      }));
+                    }}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
+                  >
+                    {Array.from(new Set(prescriptions.map((p) => p.medicine))).map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    Dosage
+                  </label>
+                  <input
+                    type="text"
+                    value={logForm.dosage}
+                    onChange={(e) => setLogForm((prev) => ({ ...prev, dosage: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    Adherence Status
+                  </label>
+                  <select
+                    value={logForm.status}
+                    onChange={(e) => setLogForm((prev) => ({ ...prev, status: e.target.value as AdherenceStatus }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="Taken">Taken (Self-Report)</option>
+                    {isClinician && <option value="Confirmed">Confirmed (Clinician)</option>}
+                    <option value="Not yet taken">Not yet taken</option>
+                    <option value="Pending verification">Pending verification</option>
+                    <option value="Missed">Missed</option>
+                    <option value="Skipped">Skipped</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    Confirmation Method
+                  </label>
+                  <select
+                    value={logForm.confirmationMethod}
+                    onChange={(e) =>
+                      setLogForm((prev) => ({ ...prev, confirmationMethod: e.target.value as ConfirmationMethod }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="self_report">Patient Self-Report</option>
+                    <option value="caregiver_verified">Caregiver Verified</option>
+                    {isClinician && <option value="supervised_clinical_admin">Supervised Clinical Admin</option>}
+                    <option value="smart_device">Smart Pill Dispenser</option>
+                  </select>
+                </div>
+              </div>
+
+              {(logForm.status === 'Missed' || logForm.status === 'Skipped') && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-rose-700 dark:text-rose-300 mb-1">
+                    Reason for Missed / Skipped Dose *
+                  </label>
+                  <input
+                    type="text"
+                    value={logForm.reason}
+                    onChange={(e) => setLogForm((prev) => ({ ...prev, reason: e.target.value }))}
+                    placeholder="e.g., Nausea after morning dose, pharmacy out of stock, forgot..."
+                    className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Save to Account Log
+              </button>
+            </form>
+
+            {/* Quick Refill Requests synced with Backend */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Prescription Refill Coordination
+              </h3>
+              <div className="space-y-2">
+                {prescriptions.slice(0, 4).map((rx) => (
+                  <div
+                    key={String(rx.id)}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900 dark:text-white truncate">
+                        {rx.medicine} <span className="text-slate-500 font-normal">· {rx.dosage}</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        By {rx.prescribedBy} · {rx.duration}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={rx.refillStatus === 'requested'}
+                      onClick={() => handleRequestRefill(rx.id, rx.medicine)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 cursor-pointer ${
+                        rx.refillStatus === 'requested'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {rx.refillStatus === 'requested' ? 'Refill Requested' : 'Request Refill'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Adherence Breakdown Chart & Account Audit Table (7 cols) */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Verification Status Distribution
+                </h3>
+                <div className="flex flex-wrap gap-1">
+                  {(['All', 'Confirmed', 'Taken', 'Pending verification', 'Not yet taken', 'Missed', 'Skipped'] as const).map(
+                    (st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setStatusFilter(st)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer border ${
+                          statusFilter === st
+                            ? 'bg-slate-900 dark:bg-teal-600 text-white border-transparent'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              <div className="h-44 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { status: 'Confirmed', count: adherenceLogs.filter((l) => l.status === 'Confirmed').length },
+                      { status: 'Taken', count: adherenceLogs.filter((l) => l.status === 'Taken').length },
+                      { status: 'Pending', count: adherenceLogs.filter((l) => l.status === 'Pending verification').length },
+                      { status: 'Upcoming', count: adherenceLogs.filter((l) => l.status === 'Not yet taken').length },
+                      { status: 'Missed', count: adherenceLogs.filter((l) => l.status === 'Missed').length },
+                      { status: 'Skipped', count: adherenceLogs.filter((l) => l.status === 'Skipped').length }
+                    ]}
+                    margin={{ top: 6, right: 12, left: -18, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.18} />
+                    <XAxis dataKey="status" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#0d9488" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Account Adherence Logs List */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <tr>
+                      <th className="py-2.5 px-3">Medication</th>
+                      <th className="py-2.5 px-3">Status &amp; Method</th>
+                      <th className="py-2.5 px-3">Timestamps</th>
+                      <th className="py-2.5 px-3 text-right">Audit / Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {adherenceLogs
+                      .filter((l) => statusFilter === 'All' || l.status === statusFilter)
+                      .map((log) => (
+                        <React.Fragment key={log.id}>
+                          <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                            <td className="py-3 px-3">
+                              <p className="font-semibold text-slate-900 dark:text-white">{log.medicineName}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {log.dosage}
+                                {log.reason ? ` · Reason: ${log.reason}` : ''}
+                              </p>
+                            </td>
+                            <td className="py-3 px-3 space-y-1">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-md border text-[11px] font-semibold ${
+                                  STATUS_BADGE_STYLES[log.status] || STATUS_BADGE_STYLES['Not yet taken']
+                                }`}
+                              >
+                                {log.status}
+                              </span>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {CONFIRMATION_LABELS[log.confirmationMethod] || log.confirmationMethod}
+                              </p>
+                            </td>
+                            <td className="py-3 px-3 tabular-nums font-mono text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                              <div>Sched: {new Date(log.scheduledAt).toLocaleString()}</div>
+                              {log.reportedAt && <div>Rep: {new Date(log.reportedAt).toLocaleString()}</div>}
+                              {log.confirmedAt && (
+                                <div className="text-emerald-700 dark:text-emerald-400">
+                                  Conf: {new Date(log.confirmedAt).toLocaleString()} ({log.confirmedByName || 'Clinician'})
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-right space-x-1.5 whitespace-nowrap">
+                              {isClinician && (log.status === 'Taken' || log.status === 'Pending verification') && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClinicianConfirmLog(log.id, 'Confirmed')}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold cursor-pointer"
+                                >
+                                  Confirm
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setExpandedAuditId(expandedAuditId === log.id ? null : log.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                              >
+                                <History size={12} />
+                                <span>Audit</span>
+                              </button>
+                            </td>
+                          </tr>
+                          {expandedAuditId === log.id && (
+                            <tr className="bg-slate-50 dark:bg-slate-800/50">
+                              <td colSpan={4} className="px-4 py-2.5 text-[11px] text-slate-600 dark:text-slate-300">
+                                <strong className="block mb-1 text-slate-800 dark:text-slate-100">
+                                  Account Log Audit Trail
+                                </strong>
+                                {Array.isArray(log.auditHistory) && log.auditHistory.length > 0 ? (
+                                  <ul className="space-y-1">
+                                    {log.auditHistory.map((ev, eIdx) => (
+                                      <li key={eIdx} className="tabular-nums">
+                                        {new Date(ev.timestamp).toLocaleString()} · <strong>{ev.status}</strong> by{' '}
+                                        {ev.actor} {ev.method ? `(${ev.method})` : ''}
+                                        {ev.reason ? ` — ${ev.reason}` : ''}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span>No transitions logged yet. Scheduled entry awaiting action.</span>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <MedicalDisclaimer variant="compact" />
+      </section>
+
+      {/* Modal: Issue New Signed Prescription (Clinicians only) */}
+      <AnimatePresence>
+        {isNewRxModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Issue Clinician-Signed Prescription
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsNewRxModalOpen(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleCreateSignedRx} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Medicine Name</label>
+                  <input
+                    required
+                    value={newRxForm.medicine}
+                    onChange={(e) => setNewRxForm((p) => ({ ...p, medicine: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Dosage</label>
+                    <input
+                      required
+                      value={newRxForm.dosage}
+                      onChange={(e) => setNewRxForm((p) => ({ ...p, dosage: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Duration</label>
+                    <input
+                      required
+                      value={newRxForm.duration}
+                      onChange={(e) => setNewRxForm((p) => ({ ...p, duration: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Frequency</label>
+                  <input
+                    required
+                    value={newRxForm.frequency}
+                    onChange={(e) => setNewRxForm((p) => ({ ...p, frequency: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Clinical Instructions</label>
+                  <textarea
+                    rows={2}
+                    value={newRxForm.instructions}
+                    onChange={(e) => setNewRxForm((p) => ({ ...p, instructions: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsNewRxModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold cursor-pointer"
+                  >
+                    Sign &amp; Issue Rx
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* 7. INTERACTIVE MODALS */}
       
       {/* Modal 1: Medication View Details */}
@@ -1011,7 +1714,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
                   </div>
                   <div className="mt-2">
                     <span className="text-slate-400 font-bold block">Verification Status</span>
-                    <span className="font-black text-emerald-600">● Uganda MoH Active</span>
+                    <span className="font-black text-emerald-600">● Clinician Signed Rx</span>
                   </div>
                 </div>
 

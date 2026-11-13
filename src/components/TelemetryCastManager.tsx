@@ -72,6 +72,7 @@ export const TelemetryCastManager: React.FC = () => {
   const [metrics, setMetrics] = useState({ heartRate: 72, calories: 0, steps: 0, distance: 0, elevation: 0, score: 0 });
   const [logs, setLogs] = useState<string[]>([]);
   const [selectedSessionForAnalysis, setSelectedSessionForAnalysis] = useState<any | null>(null);
+  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   
@@ -1132,8 +1133,9 @@ export const TelemetryCastManager: React.FC = () => {
     <div class="bg-slate-950 rounded-2xl p-3 border border-slate-850">
       <div class="flex justify-between items-center mb-2">
         <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Local Watch Log (<span id="local-count">0</span>)</span>
-        <button onclick="clearWatchLogs()" class="text-[8px] font-bold text-rose-400 hover:text-rose-300 uppercase font-mono">Clear List</button>
+        <button id="btn-clear-logs" onclick="clearWatchLogs()" class="text-[8px] font-bold text-rose-400 hover:text-rose-300 uppercase font-mono">Clear List</button>
       </div>
+      <div id="watch-toast" class="hidden mb-2 px-2.5 py-1.5 rounded-xl bg-indigo-950/90 border border-indigo-500/30 text-[8.5px] font-mono text-indigo-200 text-center"></div>
       <div id="local-history" class="space-y-1.5 max-h-[90px] overflow-y-auto custom-scroll text-[8.5px] text-slate-400">
         <p class="italic text-[8px] text-slate-600 text-center py-2">No local watch logs. Start and save workouts to record.</p>
       </div>
@@ -1141,7 +1143,7 @@ export const TelemetryCastManager: React.FC = () => {
   </div>
 
   <footer class="text-center text-[9px] text-slate-500 font-mono tracking-wide max-w-sm">
-    Doctorian Wearable Platform • HIPAA & Clinical Guardrails Compliant
+    Doctorian Wearable Platform • Clinical Privacy Guardrails & Uganda DPPA 2019 Aligned
   </footer>
 
   <script>
@@ -1423,8 +1425,16 @@ export const TelemetryCastManager: React.FC = () => {
       }
     }
 
+    function showWatchToast(msg) {
+      const el = document.getElementById('watch-toast');
+      if (!el) return;
+      el.innerText = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => { el.classList.add('hidden'); }, 4000);
+    }
+
     function saveWorkout() {
-      if (timerVal < 3) return alert("Workout set must be at least 3 seconds long to save.");
+      if (timerVal < 3) return showWatchToast("Workout set must be at least 3 seconds long to save.");
       
       const log = {
         id: 'watch_set_' + Date.now(),
@@ -1471,14 +1481,27 @@ export const TelemetryCastManager: React.FC = () => {
       });
     }
 
+    let pendingClearConfirm = false;
     function clearWatchLogs() {
-      if (confirm("Are you sure you want to clear your local standalone smartwatch log history?")) {
-        watchLogs = [];
-        try {
-          localStorage.removeItem('doctorian_watch_logs');
-        } catch(e) {}
-        updateHistoryUI();
+      const btn = document.getElementById('btn-clear-logs');
+      if (!pendingClearConfirm) {
+        pendingClearConfirm = true;
+        if (btn) btn.innerText = "Confirm Clear?";
+        showWatchToast("Click 'Confirm Clear?' again within 4s to clear local watch logs.");
+        setTimeout(() => {
+          pendingClearConfirm = false;
+          if (btn) btn.innerText = "Clear List";
+        }, 4000);
+        return;
       }
+      pendingClearConfirm = false;
+      if (btn) btn.innerText = "Clear List";
+      watchLogs = [];
+      try {
+        localStorage.removeItem('doctorian_watch_logs');
+      } catch(e) {}
+      updateHistoryUI();
+      showWatchToast("Local smartwatch logs cleared.");
     }
 
     function generateSyncCode() {
@@ -1496,7 +1519,7 @@ export const TelemetryCastManager: React.FC = () => {
       const area = document.getElementById('sync-code-area');
       area.select();
       document.execCommand('copy');
-      alert("Doctorian Secure Pairing Code Copied! Paste this code in the Doctorian Main Web App under Smart Watch Synchronization to log your results completely offline.");
+      showWatchToast("Pairing code copied. Paste it in Doctorian Watch Sync.");
     }
 
     let lastX = 0, lastY = 0, lastZ = 0;
@@ -1509,7 +1532,7 @@ export const TelemetryCastManager: React.FC = () => {
           if (res === 'granted') {
             enableSensors();
           } else {
-            alert("Motion permissions denied by device OS.");
+            showWatchToast("Motion permissions denied by device OS.");
           }
         } else {
           enableSensors();
@@ -1832,8 +1855,7 @@ export const TelemetryCastManager: React.FC = () => {
         date: new Date().toISOString()
       });
 
-      addLog(`Sync'd to Patient EMR successfully!`, 'success');
-      alert("Workout record synchronized with your clinical EHR patient charts!");
+      addLog(`Synced to Patient EMR charts successfully!`, 'success');
     } catch (err: any) {
       console.error(err);
       addLog(`EHR Upload Failed.`, 'warn');
@@ -1842,13 +1864,12 @@ export const TelemetryCastManager: React.FC = () => {
 
   const handleDeleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Permanently purge this session?")) {
-      const updated = completedSessions.filter(s => s.id !== id);
-      setCompletedSessions(updated);
-      localStorage.setItem('doctorian_sports_sessions', JSON.stringify(updated));
-      if (selectedSessionForAnalysis?.id === id) setSelectedSessionForAnalysis(null);
-      addLog("Session deleted.", 'warn');
-    }
+    const updated = completedSessions.filter(s => s.id !== id);
+    setCompletedSessions(updated);
+    localStorage.setItem('doctorian_sports_sessions', JSON.stringify(updated));
+    if (selectedSessionForAnalysis?.id === id) setSelectedSessionForAnalysis(null);
+    setConfirmDeleteSessionId(null);
+    addLog("Session deleted.", 'warn');
   };
 
   const handleExportSession = (session: any, e: React.MouseEvent) => {
@@ -2725,13 +2746,32 @@ export const TelemetryCastManager: React.FC = () => {
                     >
                       <Download size={12} />
                     </button>
-                    <button
-                      type="button" title="Delete record"
-                      onClick={(e) => handleDeleteSession(session.id, e)}
-                      className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-xl cursor-pointer"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    {confirmDeleteSessionId === session.id ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteSession(session.id, e)}
+                          className="px-2 py-1 bg-rose-600 text-white text-[10px] font-bold uppercase rounded-lg cursor-pointer"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteSessionId(null); }}
+                          className="px-2 py-1 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button" title="Delete record"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteSessionId(session.id); }}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-xl cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

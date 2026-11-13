@@ -71,7 +71,7 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     district: 'Kampala',
     ward: 'Respiratory Ward 10',
     bedNumber: 'Bed 14',
-    admittingPhysician: 'Dr. Joseph Akora',
+    admittingPhysician: 'Dr. Sarah Nakitto',
     triageLevel: 'Level 1 - Resuscitation',
     status: 'Critical',
     vitals: { hr: 138, bp: '135/88', spo2: 92, temp: 38.4 },

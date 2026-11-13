@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { api, AmbientScribeRecord, AmbientSoapData } from '../api';
 import { Vitals } from '../hooks/useArduino';
+import { MedicalDisclaimer } from './common/MedicalDisclaimer';
 
 interface AmbientClinicalScribeProps {
   user: any;
@@ -49,9 +50,12 @@ export const AmbientClinicalScribe: React.FC<AmbientClinicalScribeProps> = ({
   onShowToast
 }) => {
   // Consultation metadata
-  const [patientName, setPatientName] = useState<string>('Sarah Namubiru');
-  const [clinicianName, setClinicianName] = useState<string>(user?.displayName || 'Dr. Gloria Jayakullo');
+  const [patientName, setPatientName] = useState<string>('Sample Patient');
+  const [clinicianName, setClinicianName] = useState<string>(user?.displayName || 'Attending Clinician');
   const [language, setLanguage] = useState<'en' | 'lg' | 'sw' | 'ny'>('en');
+  const [consentConfirmed, setConsentConfirmed] = useState<boolean>(false);
+  const [clinicianReviewed, setClinicianReviewed] = useState<boolean>(false);
+  const [isEditingSoap, setIsEditingSoap] = useState<boolean>(false);
 
   // Audio & Dictation state
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -142,6 +146,10 @@ export const AmbientClinicalScribe: React.FC<AmbientClinicalScribeProps> = ({
 
   // Start Audio & Speech Recognition
   const startRecording = async () => {
+    if (!consentConfirmed) {
+      onShowToast?.('Please confirm patient verbal or written consent before starting ambient recording.', 'warning');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
@@ -270,12 +278,17 @@ export const AmbientClinicalScribe: React.FC<AmbientClinicalScribeProps> = ({
 
   // Process Transcription -> AI Structured SOAP Note
   const processConsultation = async () => {
+    if (!consentConfirmed) {
+      onShowToast?.("Patient recording consent must be confirmed before generating a SOAP note.", "warning");
+      return;
+    }
     if (!transcript.trim()) {
-      if (onShowToast) onShowToast("Please record or input a clinical transcript first.", "warning");
+      onShowToast?.("Please record or input a clinical transcript first.", "warning");
       return;
     }
 
     setIsProcessing(true);
+    setClinicianReviewed(false);
     try {
       const patientVitals = vitals
         ? {
@@ -296,48 +309,82 @@ export const AmbientClinicalScribe: React.FC<AmbientClinicalScribeProps> = ({
         language,
         patientVitals,
         patientName,
-        clinicianName
+        clinicianName,
+        consentConfirmed: true
       });
 
-      if (result.success && result.scribeResult) {
-        const soapData = result.scribeResult.soap;
-        setCurrentSoapResult(soapData);
-        setCurrentFhirReport(result.scribeResult.fhirDiagnosticReport);
-        setEncounterSummary(result.scribeResult.encounterSummary || "Consultation structured successfully.");
+      const rawSoap = result?.scribeResult?.soap || result?.soap;
+      if (result?.success && rawSoap) {
+        const soapData: AmbientSoapData = {
+          subjective: {
+            chiefComplaint: rawSoap.subjective?.chiefComplaint || 'See encounter transcript',
+            historyOfPresentIllness: rawSoap.subjective?.historyOfPresentIllness || '',
+            reviewOfSystems: Array.isArray(rawSoap.subjective?.reviewOfSystems) ? rawSoap.subjective.reviewOfSystems : []
+          },
+          objective: {
+            vitalSigns: rawSoap.objective?.vitalSigns || patientVitals,
+            physicalExamFindings: Array.isArray(rawSoap.objective?.physicalExamFindings) ? rawSoap.objective.physicalExamFindings : []
+          },
+          assessment: {
+            primaryDiagnosis: rawSoap.assessment?.primaryDiagnosis || 'Clinical Impression Pending Clinician Review',
+            icd10Code: rawSoap.assessment?.icd10Code || 'R69',
+            differentialDiagnoses: Array.isArray(rawSoap.assessment?.differentialDiagnoses) ? rawSoap.assessment.differentialDiagnoses : [],
+            clinicalTriage: rawSoap.assessment?.clinicalTriage || 'WATCH',
+            clinicalSeverityExplanation: rawSoap.assessment?.clinicalSeverityExplanation || 'Requires licensed clinician verification.'
+          },
+          plan: {
+            prescriptions: Array.isArray(rawSoap.plan?.prescriptions) ? rawSoap.plan.prescriptions : [],
+            diagnosticOrders: Array.isArray(rawSoap.plan?.diagnosticOrders) ? rawSoap.plan.diagnosticOrders : [],
+            patientInstructions: rawSoap.plan?.patientInstructions || { en: 'Follow up with your attending clinician.' },
+            followUpDays: rawSoap.plan?.followUpDays || 3,
+            redFlagWarnings: Array.isArray(rawSoap.plan?.redFlagWarnings) ? rawSoap.plan.redFlagWarnings : []
+          }
+        };
 
-        // Automatically create and save record
+        const fhirReport = result?.scribeResult?.fhirDiagnosticReport || {
+          resourceType: 'DiagnosticReport',
+          status: 'preliminary',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0074', code: 'OTH' }] }],
+          code: { text: `Clinical SOAP Encounter (${soapData.assessment.icd10Code})` },
+          subject: { display: patientName },
+          effectiveDateTime: new Date().toISOString(),
+          performer: [{ display: clinicianName }],
+          conclusion: `${soapData.assessment.primaryDiagnosis} — Pending clinician sign-off`
+        };
+
+        setCurrentSoapResult(soapData);
+        setCurrentFhirReport(fhirReport);
+        setEncounterSummary(result?.scribeResult?.encounterSummary || "Draft structured — review and edit before clinician sign-off.");
+
         const newRecord: AmbientScribeRecord = {
           id: `scribe_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           patientName,
           clinicianName,
           encounterDate: new Date().toISOString(),
           audioDurationSeconds: recordingSeconds,
-          detectedLanguage: result.scribeResult.detectedLanguage || language,
+          detectedLanguage: result?.scribeResult?.detectedLanguage || language,
           rawTranscript: transcript,
           subjective: soapData.subjective,
           objective: soapData.objective,
           assessment: soapData.assessment,
           plan: soapData.plan,
-          icd10Code: soapData.assessment?.icd10Code || 'R50.9',
-          fhirResource: result.scribeResult.fhirDiagnosticReport,
+          icd10Code: soapData.assessment.icd10Code,
+          fhirResource: fhirReport,
           syncStatus: isOnline ? 'CLOUD_PERSISTED' : 'LOCAL_DRAFT',
           createdAt: new Date().toISOString()
         };
 
-        // Cache locally first for resilience
         saveDraftLocally(newRecord);
-
-        // If online, save to server database
         if (isOnline) {
           await api.ambientScribe.saveRecord(newRecord).catch(() => {});
         }
 
         setRecords(prev => [newRecord, ...prev.filter(r => r.id !== newRecord.id)]);
-        if (onShowToast) onShowToast("Clinical SOAP Note formulated & FHIR synced!", "success");
+        onShowToast?.("SOAP draft generated. Review, edit if needed, and mark Clinician-Reviewed.", "success");
       }
     } catch (err: any) {
       console.error("Failed to generate SOAP note:", err);
-      if (onShowToast) onShowToast(err?.message || "Failed to generate SOAP note", "error");
+      onShowToast?.(err?.message || "Failed to generate SOAP note", "error");
     } finally {
       setIsProcessing(false);
     }
@@ -700,25 +747,38 @@ Doctorian Autonomous Clinical Telemetry Core
               />
             </div>
 
+            {/* Patient Recording Consent Gate */}
+            <label className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentConfirmed}
+                onChange={(e) => setConsentConfirmed(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-xs text-slate-700 dark:text-slate-300 leading-snug">
+                <strong className="text-slate-900 dark:text-white">Patient Consent Confirmed:</strong> The patient has given verbal or written consent for clinical audio documentation and AI-assisted SOAP drafting.
+              </span>
+            </label>
+
             {/* Execute AI Scribe Action */}
             <button
               onClick={processConsultation}
-              disabled={isProcessing || !transcript.trim()}
-              className={`w-full py-3.5 px-6 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg ${
-                isProcessing || !transcript.trim()
+              disabled={isProcessing || !transcript.trim() || !consentConfirmed}
+              className={`w-full py-3.5 px-6 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
+                isProcessing || !transcript.trim() || !consentConfirmed
                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25 active:scale-98'
+                  : 'bg-teal-600 hover:bg-teal-700 text-white'
               }`}
             >
               {isProcessing ? (
                 <>
                   <RefreshCw size={16} className="animate-spin" />
-                  <span>Synthesizing Clinical SOAP Note with Gemini...</span>
+                  <span>Structuring Clinical SOAP Draft...</span>
                 </>
               ) : (
                 <>
                   <Sparkles size={16} />
-                  <span>Generate Structured SOAP Note & FHIR</span>
+                  <span>Generate Structured SOAP Draft & FHIR</span>
                 </>
               )}
             </button>
@@ -782,7 +842,38 @@ Doctorian Autonomous Clinical Telemetry Core
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingSoap(!isEditingSoap)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      {isEditingSoap ? 'Done Editing' : 'Edit SOAP'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClinicianReviewed(true);
+                        if (currentFhirReport) {
+                          setCurrentFhirReport({
+                            ...currentFhirReport,
+                            status: 'final',
+                            conclusion: `${currentSoapResult.assessment.primaryDiagnosis} — Clinician reviewed & signed by ${clinicianName}`
+                          });
+                        }
+                        onShowToast?.('SOAP note marked as Clinician-Reviewed & Signed.', 'success');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                        clinicianReviewed
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300'
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>{clinicianReviewed ? 'Clinician Signed' : 'Mark Clinician-Reviewed & Sign'}</span>
+                    </button>
+
                     <button
                       onClick={downloadClinicalSummary}
                       className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -793,13 +884,57 @@ Doctorian Autonomous Clinical Telemetry Core
 
                     <button
                       onClick={copyFhirToClipboard}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       {copiedFhir ? <Check size={14} /> : <Copy size={14} />}
                       <span>{copiedFhir ? 'Copied' : 'Copy FHIR'}</span>
                     </button>
                   </div>
                 </div>
+
+                {isEditingSoap && (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">Clinician SOAP Draft Editor</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">Chief Complaint (S)</label>
+                        <input
+                          type="text"
+                          value={currentSoapResult.subjective.chiefComplaint}
+                          onChange={(e) => setCurrentSoapResult({
+                            ...currentSoapResult,
+                            subjective: { ...currentSoapResult.subjective, chiefComplaint: e.target.value }
+                          })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">Working Assessment (A)</label>
+                        <input
+                          type="text"
+                          value={currentSoapResult.assessment.primaryDiagnosis}
+                          onChange={(e) => setCurrentSoapResult({
+                            ...currentSoapResult,
+                            assessment: { ...currentSoapResult.assessment, primaryDiagnosis: e.target.value }
+                          })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">History of Present Illness (S)</label>
+                      <textarea
+                        rows={2}
+                        value={currentSoapResult.subjective.historyOfPresentIllness}
+                        onChange={(e) => setCurrentSoapResult({
+                          ...currentSoapResult,
+                          subjective: { ...currentSoapResult.subjective, historyOfPresentIllness: e.target.value }
+                        })}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Tab: FHIR JSON Resource */}
                 {activeSoapTab === 'fhir' ? (
@@ -991,6 +1126,7 @@ Doctorian Autonomous Clinical Telemetry Core
                 </p>
               </div>
             )}
+            <MedicalDisclaimer variant="compact" className="mt-4" />
           </div>
 
           {/* Past Consultation Records Ledger */}

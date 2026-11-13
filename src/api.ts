@@ -1248,10 +1248,10 @@ export const api = {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Signup failed");
         
-        // Cache offline copy Synchronously
+        // Cache user profile offline safely without storing raw password
         const users = getStorageItem<any[]>("medical_offline_users", []);
         const cleanUsers = users.filter((u: any) => u.email !== email);
-        cleanUsers.push({ ...data.user, password });
+        cleanUsers.push({ ...data.user });
         setStorageItem("medical_offline_users", cleanUsers);
         setStorageItem("medical_user", data.user);
         return data.user as User;
@@ -1264,7 +1264,7 @@ export const api = {
         if (users.some((u: any) => u.email === email)) {
           throw new Error("Email address already registered offline");
         }
-        users.push({ ...offlineUser, password });
+        users.push({ ...offlineUser });
         setStorageItem("medical_offline_users", users);
         setStorageItem("medical_user", offlineUser);
         return offlineUser;
@@ -1273,14 +1273,12 @@ export const api = {
     async login(email: string, password: string) {
       if (isOffline()) {
         const users = getStorageItem<any[]>("medical_offline_users", []);
-        const matched = users.find((u: any) => u.email === email && u.password === password);
+        const matched = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
         if (matched) {
-          const sansPassword = { ...matched };
-          delete sansPassword.password;
-          setStorageItem("medical_user", sansPassword);
-          return sansPassword as User;
+          setStorageItem("medical_user", matched);
+          return matched as User;
         }
-        throw new Error("Invalid credentials when logging in offline.");
+        throw new Error("Unable to authenticate offline for an unrecognized account.");
       }
 
       try {
@@ -1292,25 +1290,55 @@ export const api = {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Login failed");
-        
+
         const users = getStorageItem<any[]>("medical_offline_users", []);
         const cleanUsers = users.filter((u: any) => u.email !== email);
-        cleanUsers.push({ ...data.user, password });
+        cleanUsers.push({ ...data.user });
         setStorageItem("medical_offline_users", cleanUsers);
         setStorageItem("medical_user", data.user);
         return data.user as User;
       } catch (err: any) {
-        console.warn("[Offline Auth] Login server connection issue, running local offline validation pass...");
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        const matched = users.find((u: any) => u.email === email && u.password === password);
-        if (matched) {
-          const sansPassword = { ...matched };
-          delete sansPassword.password;
-          setStorageItem("medical_user", sansPassword);
-          return sansPassword as User;
-        }
         throw err;
       }
+    },
+    async guestLogin() {
+      try {
+        const res = await fetch(`${API_BASE}/auth/guest`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) {
+            setStorageItem("medical_user", data.user);
+            return data.user as User;
+          }
+        }
+      } catch {
+        // offline fallback below
+      }
+      const fallbackGuest: User = {
+        id: `guest-${Date.now()}`,
+        email: "guest.demo@doctorian.org",
+        displayName: "Guest Explorer (Demo Mode)",
+        role: "guest",
+        credits: 50,
+        subscriptionTier: "free",
+        createdAt: new Date().toISOString()
+      };
+      setStorageItem("medical_user", fallbackGuest);
+      return fallbackGuest;
+    },
+    async recover(email: string) {
+      const res = await fetch(`${API_BASE}/auth/recover`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Recovery request failed");
+      return data;
     },
     async logout() {
       setStorageItem("medical_user", null);
@@ -4056,6 +4084,164 @@ export const api = {
       } catch (e) {
         return { totalMessages: 0, totalUsers: 0, totalDoctors: 0, unreadCount: 0, networkStatus: "OFFLINE" };
       }
+    }
+  },
+  clinical: {
+    async getPatients() {
+      const res = await fetch(`${API_BASE}/patients`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load patients");
+      return data.patients || [];
+    },
+    async createPatient(payload: { fullName: string; age: number; gender: string; district: string; bloodGroup?: string; allergies?: string; chronicConditions?: string; riskTier?: string }) {
+      const res = await fetch(`${API_BASE}/patients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to register patient");
+      return data.patient;
+    },
+    async getPrescriptions() {
+      const res = await fetch(`${API_BASE}/prescriptions`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load prescriptions");
+      return data.prescriptions || [];
+    },
+    async createPrescription(payload: { patientId?: string; patientName: string; medicationName: string; dosage: string; frequency: string; duration: string; route?: string; instructions?: string }) {
+      const res = await fetch(`${API_BASE}/prescriptions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create prescription");
+      return data.prescription;
+    },
+    async updatePrescription(id: string, payload: { status?: string; adherencePercent?: number }) {
+      const res = await fetch(`${API_BASE}/prescriptions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update prescription");
+      return data.prescription;
+    },
+    async getLabs() {
+      const res = await fetch(`${API_BASE}/labs`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load labs");
+      return data.labs || [];
+    },
+    async createLab(payload: { patientId?: string; patientName: string; testName: string; category?: string; resultValue: string; referenceRange?: string; unit?: string; interpretation?: 'Normal' | 'Attention' | 'Critical' }) {
+      const res = await fetch(`${API_BASE}/labs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to record lab result");
+      return data.lab;
+    },
+    async getVitals(patientId?: string) {
+      const qs = patientId ? `?patientId=${encodeURIComponent(patientId)}` : '';
+      const res = await fetch(`${API_BASE}/vitals${qs}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load vitals");
+      return data.vitals || [];
+    },
+    async recordVitals(payload: { patientId?: string; heartRate: number; systolicBp: number; diastolicBp: number; spo2: number; temperature: number; respiratoryRate?: number; notes?: string }) {
+      const res = await fetch(`${API_BASE}/vitals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save vitals");
+      return data.vital;
+    },
+    async getAppointments() {
+      const res = await fetch(`${API_BASE}/appointments`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load appointments");
+      return data.appointments || [];
+    },
+    async createAppointment(payload: { patientId?: string; patientName?: string; clinicianName?: string; facility?: string; scheduledFor: string; visitType?: string; reason: string }) {
+      const res = await fetch(`${API_BASE}/appointments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to book appointment");
+      return data.appointment;
+    },
+    async getReferrals() {
+      const res = await fetch(`${API_BASE}/referrals`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load referrals");
+      return data.referrals || [];
+    },
+    async createReferral(payload: { patientId?: string; patientName: string; toFacility: string; urgency?: 'Routine' | 'Urgent' | 'Emergency'; reason: string; vitalsSummary?: string }) {
+      const res = await fetch(`${API_BASE}/referrals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create referral");
+      return data.referral;
+    },
+    async analyzeImage(payload: { imageBase64: string; mimeType?: string; modality?: string; clinicalNotes?: string }) {
+      const res = await fetch(`${API_BASE}/clinical/analyze-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Image analysis failed");
+      return data;
+    }
+  },
+  hospitalAdmin: {
+    async getOverview() {
+      const res = await fetch(`${API_BASE}/admin/overview`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load hospital overview");
+      return data.metrics;
+    },
+    async getUsers() {
+      const res = await fetch(`${API_BASE}/admin/users`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load staff directory");
+      return data.users || [];
+    },
+    async updateUser(id: string, payload: { role?: string; status?: string }) {
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update staff account");
+      return data.user;
+    },
+    async getAuditLogs() {
+      const res = await fetch(`${API_BASE}/admin/audit-logs`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load audit logs");
+      return data.logs || [];
     }
   }
 };

@@ -20,7 +20,7 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
   const handleDownloadPDF = () => {
     try {
       const storedUser = localStorage.getItem("medical_user");
-      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "gloriajayakullo@gmail.com" };
+      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "patient@doctorian.org" };
 
       const storedMedications = localStorage.getItem("medical_offline_medications");
       const medsObj = storedMedications ? JSON.parse(storedMedications) : [];

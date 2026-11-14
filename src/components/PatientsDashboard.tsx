@@ -78,7 +78,7 @@ const INITIAL_PATIENTS: PatientTelemetry[] = [
     posture: 'Supine',
     ews: 4,
     hasSignal: true,
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'
+    avatar: '/portraits/patient_sarah.jpg'
   },
   {
     id: 'UG-123451',
@@ -102,7 +102,7 @@ const INITIAL_PATIENTS: PatientTelemetry[] = [
     posture: 'Supine',
     ews: 3,
     hasSignal: true,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+    avatar: '/portraits/akora_joseph.jpg'
   },
   {
     id: 'UG-123452',
@@ -126,7 +126,7 @@ const INITIAL_PATIENTS: PatientTelemetry[] = [
     posture: 'Sitting',
     ews: 0,
     hasSignal: true,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+    avatar: '/portraits/patient_mary.jpg'
   },
   {
     id: 'UG-123453',
@@ -150,7 +150,7 @@ const INITIAL_PATIENTS: PatientTelemetry[] = [
     posture: 'Supine',
     ews: 5,
     hasSignal: true,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'
+    avatar: '/portraits/dr_emmanuel_kato.jpg'
   },
   {
     id: 'UG-123454',
@@ -174,7 +174,7 @@ const INITIAL_PATIENTS: PatientTelemetry[] = [
     posture: 'Sitting',
     ews: 1,
     hasSignal: true,
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'
+    avatar: '/portraits/dr_achan_grace.jpg'
   },
   {
     id: 'UG-123455',
@@ -198,7 +198,7 @@ const INITIAL_PATIENTS: PatientTelemetry[] = [
     posture: 'Supine',
     ews: 2,
     hasSignal: true,
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80'
+    avatar: '/portraits/dr_joseph_mukasa.jpg'
   }
 ];
 

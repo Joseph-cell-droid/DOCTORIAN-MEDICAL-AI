@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Activity, X, Sparkles, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
+import { ChevronRight, ShieldCheck } from 'lucide-react';
 
 interface MedicalAISplashProps {
   onDismiss?: () => void;
@@ -11,7 +11,7 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
   onDismiss,
   autoCloseTimeout,
 }) => {
-  const [progress, setProgress] = useState(42);
+  const [progress, setProgress] = useState(25);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -20,9 +20,9 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
           clearInterval(timer);
           return 100;
         }
-        return Math.min(prev + 2, 100);
+        return Math.min(prev + 3, 100);
       });
-    }, 60);
+    }, 45);
 
     return () => clearInterval(timer);
   }, []);
@@ -35,30 +35,31 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
   }, [autoCloseTimeout, onDismiss]);
 
   return (
-    <div className="relative w-full min-h-screen bg-[#040816] text-white flex flex-col justify-between items-center px-6 py-8 overflow-hidden select-none">
-      {/* Background Neural Grid & Subtle Hex Pattern */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-20"
+    <div className="relative w-full min-h-screen bg-[#03091a] doctorian-canvas text-white flex flex-col justify-between items-center px-6 py-8 overflow-hidden select-none">
+      {/* Subtle Ambient Bioluminescent Spotlights */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(6,182,212,0.12) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(6,182,212,0.12) 1px, transparent 1px)
+            radial-gradient(circle at 50% 35%, rgba(6, 182, 212, 0.25), transparent 55%),
+            radial-gradient(circle at 50% 88%, rgba(29, 97, 242, 0.28), transparent 60%)
           `,
-          backgroundSize: '36px 36px',
         }}
       />
 
-      {/* Top Mobile Status Simulation / Header */}
-      <div className="w-full flex items-center justify-between text-cyan-400/80 text-xs font-mono relative z-10 pt-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-          <span className="tracking-widest uppercase text-[10px] text-cyan-300">NEURAL CORE v3.7</span>
+      {/* Top Header Strip */}
+      <div className="w-full max-w-md flex items-center justify-between text-cyan-300/90 text-xs relative z-10 pt-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#071432]/85 border border-cyan-500/30 shadow-lg">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-semibold tracking-wider text-[11px] text-cyan-200 flex items-center gap-1">
+            <ShieldCheck size={13} className="text-cyan-400" /> Doctorian Clinical OS
+          </span>
         </div>
         {onDismiss && (
           <button
             type="button"
             onClick={onDismiss}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0a1c44]/90 hover:bg-blue-600 border border-cyan-400/40 text-cyan-200 hover:text-white text-xs font-bold transition-all cursor-pointer shadow-[0_4px_16px_rgba(6,182,212,0.25)] active:scale-95"
           >
             <span>Enter App</span>
             <ChevronRight size={14} />
@@ -66,113 +67,125 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
         )}
       </div>
 
-      {/* Center Medical AI Holographic Core (Exact Photo 4) */}
-      <div className="my-auto flex flex-col items-center text-center relative z-10 max-w-md w-full">
-        {/* Glow Halo */}
+      {/* Center Medical AI Lockup Matching Reference Image */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.45 }}
+        className="my-auto flex flex-col items-center text-center relative z-10 max-w-md w-full"
+      >
+        {/* Glowing Doctorian Emblem */}
         <div className="relative mb-6 flex items-center justify-center">
-          <div className="absolute -inset-10 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute -inset-4 bg-blue-600/30 rounded-full blur-xl" />
-
-          {/* Concentric Cyber Rings */}
-          <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full border border-cyan-400/40 flex items-center justify-center">
-            <div className="absolute inset-1 rounded-full border border-cyan-500/20 border-dashed animate-spin" style={{ animationDuration: '30s' }} />
-            <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full border-2 border-cyan-400/60 flex items-center justify-center bg-gradient-to-b from-[#0a1532] to-[#040816] shadow-[0_0_35px_rgba(6,182,212,0.5)]">
-              
-              {/* Luminous Neon Medical Cross with Nodes */}
-              <svg viewBox="0 0 100 100" className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-[0_0_15px_#22d3ee]">
-                {/* Circuit Traces */}
-                <path d="M20 50 L35 50" stroke="#06b6d4" strokeWidth="2" strokeDasharray="2 2" />
-                <path d="M80 50 L65 50" stroke="#06b6d4" strokeWidth="2" strokeDasharray="2 2" />
-                <path d="M50 20 L50 35" stroke="#06b6d4" strokeWidth="2" strokeDasharray="2 2" />
-                <path d="M50 80 L50 65" stroke="#06b6d4" strokeWidth="2" strokeDasharray="2 2" />
-
-                {/* Vertical Bar */}
-                <rect x="42" y="24" width="16" height="52" rx="4" fill="#06b6d4" />
-                {/* Horizontal Bar */}
-                <rect x="24" y="42" width="52" height="16" rx="4" fill="#06b6d4" />
-
-                {/* Inner Cross Glow */}
-                <rect x="45" y="27" width="10" height="46" rx="2" fill="#e0f2fe" opacity="0.9" />
-                <rect x="27" y="45" width="46" height="10" rx="2" fill="#e0f2fe" opacity="0.9" />
-
-                {/* Center Core Dot */}
-                <circle cx="50" cy="50" r="4" fill="#ffffff" />
-
-                {/* Corner Node Circles */}
-                <circle cx="35" cy="35" r="2.5" fill="#38bdf8" />
-                <circle cx="65" cy="35" r="2.5" fill="#38bdf8" />
-                <circle cx="35" cy="65" r="2.5" fill="#38bdf8" />
-                <circle cx="65" cy="65" r="2.5" fill="#38bdf8" />
-              </svg>
-            </div>
+          <div className="absolute -inset-8 bg-cyan-500/25 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -inset-3 bg-blue-600/30 rounded-full blur-xl" />
+          <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-[2.2rem] bg-gradient-to-b from-[#0d2455] to-[#050d24] border-2 border-cyan-400/45 shadow-[0_20px_50px_rgba(6,182,212,0.35),inset_0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center p-4">
+            <img
+              src="/logo.png"
+              alt="Doctorian AI Emblem"
+              className="w-full h-full object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.65)]"
+            />
           </div>
         </div>
 
-        {/* Title: MEDICAL AI */}
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider uppercase mb-2">
-          MEDICAL <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">AI</span>
+        {/* Title: Doctorian AI */}
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-2">
+          Doctorian{' '}
+          <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(34,211,238,0.5)]">
+            AI
+          </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xs sm:text-sm font-semibold tracking-[0.25em] text-cyan-300/80 uppercase mb-8">
-          SMARTER CARE • HEALTHIER LIVES
+        <p className="text-sm sm:text-base font-semibold text-slate-200 tracking-wide mb-7">
+          Smart Healthcare. Better Life.
         </p>
 
-        {/* Loading Architecture */}
-        <div className="w-full max-w-xs space-y-3">
-          <div className="flex items-center justify-between text-[11px] font-mono tracking-widest text-cyan-400">
-            <span>LOADING NEURAL ARCHITECTURE...</span>
-            <span className="font-bold">{progress}%</span>
-          </div>
-
-          {/* Luminous Glowing Progress Bar */}
-          <div className="w-full h-2 rounded-full bg-slate-900 border border-cyan-500/30 overflow-hidden shadow-[0_0_15px_rgba(6,182,212,0.2)] p-0.5">
-            <motion.div 
-              className="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-400 to-teal-300 shadow-[0_0_10px_#22d3ee]"
-              style={{ width: `${progress}%` }}
-              transition={{ ease: 'easeOut' }}
+        {/* Cyan ECG Heartbeat Pulse Divider */}
+        <div className="w-full max-w-[260px] h-10 mb-5 flex items-center justify-center">
+          <svg viewBox="0 0 220 36" className="w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id="splashEcgGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="rgba(6,182,212,0)" />
+                <stop offset="30%" stopColor="#22d3ee" />
+                <stop offset="70%" stopColor="#38bdf8" />
+                <stop offset="100%" stopColor="rgba(6,182,212,0)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M0 18 L72 18 L82 18 L89 6 L97 30 L106 3 L115 26 L122 14 L128 18 L220 18"
+              fill="none"
+              stroke="url(#splashEcgGrad)"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="drop-shadow-[0_0_8px_rgba(34,211,238,0.85)]"
             />
-          </div>
-
-          {/* 4 Dots Indicator */}
-          <div className="flex items-center justify-center gap-2 pt-2">
-            {[0, 1, 2, 3].map((dot) => (
-              <span 
-                key={dot} 
-                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                  progress > dot * 25 ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-slate-700'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Wireframe Wave & Heartbeat Line (Exact Photo 4) */}
-      <div className="w-full flex flex-col items-center relative z-10 pb-4">
-        {/* Animated Sine Wave Wireframe */}
-        <div className="w-full max-w-md h-12 overflow-hidden relative opacity-70 mb-2">
-          <svg viewBox="0 0 300 40" className="w-full h-full stroke-cyan-400/60 fill-none" preserveAspectRatio="none">
-            <motion.path 
-              d="M0 20 Q25 5, 50 20 T100 20 T150 20 T200 20 T250 20 T300 20"
-              strokeWidth="1.5"
-              animate={{ d: [
-                "M0 20 Q25 5, 50 20 T100 20 T150 20 T200 20 T250 20 T300 20",
-                "M0 20 Q25 35, 50 20 T100 20 T150 20 T200 20 T250 20 T300 20",
-                "M0 20 Q25 5, 50 20 T100 20 T150 20 T200 20 T250 20 T300 20",
-              ]}}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <path d="M0 20 L300 20" stroke="rgba(6,182,212,0.2)" strokeWidth="0.8" strokeDasharray="3 3" />
           </svg>
         </div>
 
-        {/* Heartbeat Line with Text */}
-        <div className="flex items-center gap-3 text-[11px] font-mono uppercase tracking-[0.3em] text-cyan-400">
-          <Activity size={16} className="text-cyan-400 animate-pulse" />
-          <span>AI • MEDICINE • YOU</span>
-          <Activity size={16} className="text-cyan-400 animate-pulse" />
+        {/* Corrected Headline */}
+        <p className="text-sm sm:text-base font-medium text-slate-200/95 max-w-xs leading-snug mb-8">
+          Revolutionizing Healthcare
+          <br />
+          Through Artificial Intelligence
+        </p>
+      </motion.div>
+
+      {/* Bottom Luminous Cyan Particle Waves & Initializing Spinner */}
+      <div className="w-full max-w-md flex flex-col items-center relative z-10 pb-4 space-y-4">
+        <div className="w-full h-16 overflow-hidden relative opacity-85 pointer-events-none">
+          <svg viewBox="0 0 400 70" className="w-full h-full" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="waveCyan" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="rgba(6,182,212,0)" />
+                <stop offset="50%" stopColor="rgba(34,211,238,0.8)" />
+                <stop offset="100%" stopColor="rgba(6,182,212,0)" />
+              </linearGradient>
+            </defs>
+            <motion.path
+              d="M0 45 Q100 10, 200 40 T400 35"
+              fill="none"
+              stroke="url(#waveCyan)"
+              strokeWidth="2"
+              animate={{
+                d: [
+                  'M0 45 Q100 10, 200 40 T400 35',
+                  'M0 35 Q100 60, 200 28 T400 48',
+                  'M0 45 Q100 10, 200 40 T400 35',
+                ],
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.path
+              d="M0 55 Q120 20, 230 50 T400 42"
+              fill="none"
+              stroke="rgba(59,130,246,0.55)"
+              strokeWidth="1.5"
+              strokeDasharray="2 5"
+              animate={{
+                d: [
+                  'M0 55 Q120 20, 230 50 T400 42',
+                  'M0 42 Q120 65, 230 35 T400 55',
+                  'M0 55 Q120 20, 230 50 T400 42',
+                ],
+              }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </svg>
         </div>
+
+        {/* Circular Cyan Progress Ring */}
+        <div className="relative w-12 h-12 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full border-[3.5px] border-cyan-500/20" />
+          <div className="absolute inset-0 rounded-full border-[3.5px] border-transparent border-t-cyan-400 border-r-blue-500 animate-spin drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+          <span className="text-[10px] font-mono font-bold text-cyan-300 tabular-nums">
+            {progress}%
+          </span>
+        </div>
+
+        <p className="text-xs sm:text-sm font-medium text-slate-300 tracking-wide">
+          Initializing Doctorian...
+        </p>
       </div>
     </div>
   );

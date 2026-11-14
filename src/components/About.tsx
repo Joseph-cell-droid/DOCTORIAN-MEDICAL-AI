@@ -357,42 +357,70 @@ export const About: React.FC = () => {
           <div className="lg:w-1/3 mb-12 lg:mb-0">
              <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[4rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                <div className="relative bg-slate-800 rounded-[3.5rem] p-12 aspect-square flex flex-col items-center justify-center border border-white/10">
-                   <Users className="w-20 h-20 text-blue-400 mb-6" />
-                   <div className="text-center">
-                      <p className="text-2xl font-black tracking-tight">Akora Joseph</p>
-                      <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Founder & Lead Engineer</p>
-                   </div>
-                </div>
-             </div>
-          </div>
-          <div className="lg:w-2/3">
-            <h2 id="developer-title" className="text-3xl sm:text-5xl font-black mb-8 tracking-tighter">The Visionary Behind the Engine</h2>
-            <div className="space-y-6 text-slate-300 text-lg md:text-xl font-bold leading-relaxed">
-              <p>
-                Doctorian was conceptualized with a single, unyielding focus: to leverage 
-                exponential technology for radical social good. Akora Joseph recognized the 
-                fragmented nature of health resource accessibility and sought to build a bridge.
-              </p>
-              <p>
-                By combining advanced LLM reasoning with strict privacy-first architecture, 
-                this platform serves as more than just a tool—it's a clinical companion 
-                available 24/7, anywhere in the world.
-              </p>
-              <div className="pt-8 flex flex-wrap gap-4">
-                {['Systems Architecture', 'Cognis Networks', 'Clinical UX', 'Bio-Informatics'].map((tag, tIdx) => (
-                   <span key={`about-tag-${tag}-${tIdx}`} className="px-4 py-2 bg-white/5 rounded-full text-xs font-bold tracking-widest text-blue-400 border border-white/10 uppercase">
-                      {tag}
-                   </span>
-                ))}
+                 <div className="relative bg-slate-800 rounded-[3.5rem] p-8 aspect-square flex flex-col items-center justify-center border-2 border-cyan-400/40 shadow-[0_0_30px_rgba(0,210,255,0.25)]">
+                    <img
+                      src="/portraits/akora_joseph.jpg"
+                      alt="Akora Joseph — Founder & Lead Engineer"
+                      className="w-36 h-36 sm:w-44 sm:h-44 rounded-full object-cover border-4 border-cyan-400/70 shadow-xl mb-5"
+                    />
+                    <div className="text-center">
+                       <p className="text-2xl font-black tracking-tight">Akora Joseph</p>
+                       <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Founder & Lead Engineer</p>
+                    </div>
+                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Background Accents */}
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/5 to-transparent pointer-events-none" />
-      </motion.section>
+           </div>
+           <div className="lg:w-2/3">
+             <h2 id="developer-title" className="text-3xl sm:text-5xl font-black mb-8 tracking-tighter">The Visionary Behind the Engine</h2>
+             <div className="space-y-6 text-slate-300 text-lg md:text-xl font-bold leading-relaxed">
+               <p>
+                 Doctorian was conceptualized with a single, unyielding focus: to leverage 
+                 exponential technology for radical social good. Akora Joseph recognized the 
+                 fragmented nature of health resource accessibility and sought to build a bridge.
+               </p>
+               <p>
+                 By combining advanced LLM reasoning with strict privacy-first architecture, 
+                 this platform serves as more than just a tool—it&apos;s a clinical companion 
+                 available 24/7, anywhere in the world.
+               </p>
+               <div className="pt-8 flex flex-wrap gap-4">
+                 {['Systems Architecture', 'Cognis Networks', 'Clinical UX', 'Bio-Informatics'].map((tag, tIdx) => (
+                    <span key={`about-tag-${tag}-${tIdx}`} className="px-4 py-2 bg-white/5 rounded-full text-xs font-bold tracking-widest text-blue-400 border border-white/10 uppercase">
+                       {tag}
+                    </span>
+                 ))}
+               </div>
+             </div>
+           </div>
+         </div>
+         
+         {/* Background Accents */}
+         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/5 to-transparent pointer-events-none" />
+       </motion.section>
+
+       {/* Platform Multi-Screen Showcase */}
+       <section className="doctorian-thick-card p-6 sm:p-10 space-y-5">
+         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+           <div>
+             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+               Doctorian AI Clinical Suite
+             </h2>
+             <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-cyan-300">
+               Smart Healthcare. Better Life. — Complete Unified Mobile &amp; Workstation Architecture
+             </p>
+           </div>
+           <span className="px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-600 dark:text-cyan-300 text-xs font-black self-start">
+             9 Core Clinical Modules
+           </span>
+         </div>
+         <div className="rounded-3xl overflow-hidden border-2 border-cyan-500/35 bg-[#03091a] shadow-2xl">
+           <img
+             src="/assets/aistudio/image_2605a2cb.png"
+             alt="Doctorian AI Complete Multi-Screen Architecture"
+             className="w-full h-auto object-cover"
+           />
+         </div>
+       </section>
 
       {/* Final CTA */}
       <section className="text-center py-20">

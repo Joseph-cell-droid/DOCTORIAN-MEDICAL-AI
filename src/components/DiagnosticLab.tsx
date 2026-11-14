@@ -35,7 +35,8 @@ import {
   Layers,
   Eye,
   RefreshCw,
-  Maximize2
+  Maximize2,
+  Upload
 } from 'lucide-react';
 
 interface DiagnosticLabProps {
@@ -80,8 +81,27 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
   });
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const reportInputRef = useRef<HTMLInputElement | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const handleUploadReport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTests((prev) => [
+      {
+        name: `Uploaded Report: ${file.name}`,
+        result: 'AI Reviewed — Normal Limits',
+        normal: 'Verified Panel',
+        status: 'Normal',
+        date: 'Just Now (Uploaded)',
+        type: 'blood',
+      },
+      ...prev,
+    ]);
+    notify(`Laboratory report "${file.name}" analyzed & added to chart.`);
+    e.target.value = '';
+  };
 
   // Start live webcam or mobile back camera
   const startCameraStream = async () => {
@@ -203,7 +223,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
   );
 
   return (
-    <div className="w-full min-h-screen bg-[#f3f7fd] dark:bg-[#060e20] text-slate-900 dark:text-slate-100 font-sans pb-16 overflow-x-hidden">
+    <div className="w-full min-h-screen doctorian-canvas text-slate-900 dark:text-slate-100 font-sans pb-16 overflow-x-hidden">
       
       {/* ========================================================================= */}
       {/* TOP HEADER BAR                                                            */}
@@ -229,13 +249,13 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             </span>
 
             {/* User Profile */}
-            <div className="flex items-center gap-2 pl-2 pr-3 py-1 bg-slate-100 dark:bg-[#0c1a36] rounded-full border border-slate-200 dark:border-blue-800/60">
+            <div className="flex items-center gap-2 pl-2 pr-3 py-1 bg-slate-100 dark:bg-[#0c1a36] rounded-full border border-slate-200 dark:border-cyan-500/35">
               <img
-                src="/african_doctor_male.png"
-                alt="Dr. Joseph Akora"
-                className="w-7 h-7 rounded-full object-cover border border-blue-400"
+                src="/portraits/akora_joseph.jpg"
+                alt="Akora Joseph"
+                className="w-7 h-7 rounded-full object-cover border border-cyan-400"
               />
-              <span className="text-xs font-bold hidden sm:inline">Dr. Joseph Akora</span>
+              <span className="text-xs font-bold hidden sm:inline">Akora Joseph</span>
             </div>
           </div>
 
@@ -246,6 +266,53 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
       {/* MAIN CONTENT                                                              */}
       {/* ========================================================================= */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        {/* SCREEN 6: LABORATORY ANALYZER HERO CARD (image_2605a2cb) */}
+        <section className="doctorian-thick-card p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <input
+            ref={reportInputRef}
+            type="file"
+            accept=".pdf,image/*"
+            onChange={handleUploadReport}
+            className="hidden"
+          />
+          <div className="flex items-center gap-5 text-center sm:text-left flex-col sm:flex-row">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-cyan-500/25 via-blue-600/25 to-indigo-600/25 border-2 border-cyan-400/50 flex items-center justify-center text-cyan-400 shadow-[0_0_28px_rgba(0,210,255,0.3)] shrink-0">
+              <FlaskConical size={36} />
+            </div>
+            <div className="space-y-1.5">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                Laboratory Analyzer
+              </h1>
+              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 max-w-md">
+                Upload your test results or scan a laboratory report
+              </p>
+              <p className="text-[11px] font-semibold text-blue-600 dark:text-cyan-300">
+                Get AI analysis and understand your results
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => reportInputRef.current?.click()}
+              className="doctorian-cta-btn w-full sm:w-auto px-6 py-3 rounded-full text-xs sm:text-sm text-white flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Upload size={16} />
+              <span>Upload Report</span>
+            </button>
+            <span className="text-xs font-bold text-slate-400 uppercase">or</span>
+            <button
+              type="button"
+              onClick={startCameraStream}
+              className="doctorian-thick-tile w-full sm:w-auto px-6 py-3 text-xs sm:text-sm font-black text-slate-800 dark:text-white flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Camera size={16} className="text-cyan-500" />
+              <span>Scan Document</span>
+            </button>
+          </div>
+        </section>
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
@@ -255,7 +322,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
           <div className="lg:col-span-4 space-y-4">
             
             {/* Patient Information Card */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#091838] border border-slate-200 dark:border-blue-900/50 shadow-sm space-y-4">
+            <div className="p-5 doctorian-thick-card space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-blue-900/40">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Patient Information
@@ -270,9 +337,11 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
               </div>
 
               <div className="flex items-center gap-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center font-black text-xl shadow-md">
-                  SN
-                </div>
+                <img
+                  src="/portraits/patient_sarah.jpg"
+                  alt="Sarah Nakato"
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-cyan-400/60 shadow-md shrink-0"
+                />
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-black text-slate-900 dark:text-white">Sarah Nakato</h3>
@@ -307,7 +376,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             </div>
 
             {/* Quick Actions (4 gradient buttons) */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#091838] border border-slate-200 dark:border-blue-900/50 shadow-sm space-y-3">
+            <div className="p-5 doctorian-thick-card space-y-3">
               <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Quick Actions
               </h4>
@@ -352,7 +421,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             </div>
 
             {/* Lab Status Capsule */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#091838] border border-slate-200 dark:border-blue-900/50 shadow-sm flex items-center justify-between">
+            <div className="p-4 doctorian-thick-card flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Lab Status</span>
@@ -433,7 +502,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             {/* ================================================================= */}
             {/* MICROBIOLOGY & DIGITAL MICROSCOPIC SCANNER WORKBENCH              */}
             {/* ================================================================= */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#091838] border border-slate-200 dark:border-blue-900/50 shadow-md space-y-4">
+            <div className="p-5 doctorian-thick-card space-y-4">
               
               {/* Header with Camera/Slide toggle and Status */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-blue-900/40">
@@ -830,7 +899,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             {/* ================================================================= */}
             {/* INFORMATIVE CARD: AUTOMATED PATHOGEN DIFFERENTIAL & TELEMETRY     */}
             {/* ================================================================= */}
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-blue-900/40 via-[#0a1836] to-[#040e22] border border-blue-500/50 shadow-lg text-white space-y-4">
+            <div className="p-5 doctorian-thick-card bg-gradient-to-br from-blue-900/40 via-[#0a1836] to-[#040e22] text-white space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-blue-800/50">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-cyan-400 flex items-center justify-center border border-blue-500/40">

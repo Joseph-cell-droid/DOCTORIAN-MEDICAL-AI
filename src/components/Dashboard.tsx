@@ -52,7 +52,9 @@ import {
   Sunset,
   Radio,
   Usb,
-  Bluetooth
+  Bluetooth,
+  Footprints,
+  ShoppingBag
 } from 'lucide-react';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
@@ -345,9 +347,242 @@ export const Dashboard: React.FC<DashboardProps> = ({
     year: 'numeric'
   });
 
+  const liveHeartRate = vitals?.heartRate ?? 72;
+  const liveBP = vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : '118/76';
+  const liveSpo2 = vitals?.spo2 ?? 98;
+  const liveTemp = vitals ? vitals.temperature.toFixed(1) : '36.8';
+
   return (
-    <div className="w-full bg-[#f3f7fd] dark:bg-[#071329] text-slate-900 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+    <div className="w-full doctorian-canvas text-slate-900 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
       <main className="w-full space-y-6">
+
+        {/* ===================================================================== */}
+        {/* SCREEN 3: MOBILE-FIRST HEALTH OVERVIEW & QUICK ACTIONS (image_2605a2cb) */}
+        {/* ===================================================================== */}
+        <section className="space-y-5">
+          {/* Greeting Header with Cyan ECG Pulse & Glowing Heart */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-[900] tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-2 flex-wrap">
+                <span>Good Morning,</span>
+                <span className="bg-gradient-to-r from-cyan-500 to-blue-600 dark:from-cyan-300 dark:to-blue-400 bg-clip-text text-transparent">
+                  {user?.displayName || 'Akora Joseph'}
+                </span>
+                <span>👋</span>
+              </h1>
+              <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mt-1">
+                Stay healthy, stay strong!
+              </p>
+            </div>
+
+            {/* Cyan ECG Heartbeat Pulse Lockup */}
+            <div className="flex items-center gap-3 self-start sm:self-auto px-4 py-2 rounded-2xl bg-[#071535]/90 border-2 border-cyan-400/40 shadow-[0_0_24px_rgba(0,210,255,0.25)]">
+              <svg className="w-24 sm:w-28 h-8 drop-shadow-[0_0_10px_rgba(34,211,238,0.85)]" viewBox="0 0 120 32" fill="none">
+                <path
+                  d="M0,16 L24,16 L32,6 L40,26 L48,8 L55,20 L62,16 L120,16"
+                  stroke="#00d2ff"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <div className="w-9 h-9 rounded-full bg-cyan-500/20 border border-cyan-300/60 flex items-center justify-center shadow-[0_0_16px_rgba(0,210,255,0.55)]">
+                <Heart size={18} className="text-cyan-300 fill-cyan-400/50 animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {/* Thick Elevated Card: Health Overview */}
+          <div className="doctorian-thick-card p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center text-cyan-500 dark:text-cyan-300">
+                  <Activity size={17} />
+                </div>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                  Health Overview
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('vitality')}
+                className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <span>View Details</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            {/* 4 Circular Progress Rings: Heart Rate, Blood Pressure, SpO2, Temp */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4">
+              {/* Ring 1: Heart Rate */}
+              <div
+                onClick={() => onNavigate('vitality')}
+                className="doctorian-thick-tile p-3.5 flex flex-col items-center text-center cursor-pointer"
+              >
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#ec4899" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * 0.22} strokeLinecap="round" fill="none" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <Heart size={13} className="text-rose-400 fill-rose-500 mb-0.5 animate-pulse" />
+                    <span className="text-base font-black text-slate-900 dark:text-white leading-none">{liveHeartRate}</span>
+                    <span className="text-[9px] font-bold text-slate-400">bpm</span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">Heart Rate</span>
+              </div>
+
+              {/* Ring 2: Blood Pressure */}
+              <div
+                onClick={() => onNavigate('vitality')}
+                className="doctorian-thick-tile p-3.5 flex flex-col items-center text-center cursor-pointer"
+              >
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#00d2ff" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * 0.16} strokeLinecap="round" fill="none" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-none">{liveBP}</span>
+                    <span className="text-[9px] font-bold text-slate-400 mt-0.5">mmHg</span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">Blood Pressure</span>
+              </div>
+
+              {/* Ring 3: SpO2 */}
+              <div
+                onClick={() => onNavigate('vitality')}
+                className="doctorian-thick-tile p-3.5 flex flex-col items-center text-center cursor-pointer"
+              >
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#10b981" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * (1 - liveSpo2 / 100)} strokeLinecap="round" fill="none" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-base font-black text-slate-900 dark:text-white leading-none">{liveSpo2}%</span>
+                    <span className="text-[9px] font-bold text-emerald-400 mt-0.5">SpO2</span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">SpO2</span>
+              </div>
+
+              {/* Ring 4: Temp */}
+              <div
+                onClick={() => onNavigate('vitality')}
+                className="doctorian-thick-tile p-3.5 flex flex-col items-center text-center cursor-pointer"
+              >
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#f59e0b" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * 0.25} strokeLinecap="round" fill="none" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-black text-slate-900 dark:text-white leading-none">{liveTemp}°C</span>
+                    <span className="text-[9px] font-bold text-amber-400 mt-0.5">Temp</span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">Temp</span>
+              </div>
+            </div>
+
+            {/* 2 Metric Tiles: Steps Today & Health Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div
+                onClick={() => onNavigate('fitness')}
+                className="doctorian-thick-tile p-4 flex items-center gap-3.5 cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0">
+                  <Footprints size={22} />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">Steps Today</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-black text-slate-900 dark:text-white">6,850</span>
+                    <span className="text-xs font-black text-emerald-500">↑ +12%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => onNavigate('vitality')}
+                className="doctorian-thick-tile p-4 flex items-center gap-3.5 cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0">
+                  <CheckCircle2 size={22} />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">Health Status</span>
+                  <span className="text-xl font-black text-emerald-500 dark:text-emerald-400">Excellent</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Thick Card Row: Quick Actions */}
+          <div className="doctorian-thick-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Quick Actions</h2>
+              <button
+                type="button"
+                onClick={() => onNavigate('features')}
+                className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+              >
+                <span>See All</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <button
+                type="button"
+                onClick={() => onNavigate('ai_nexus')}
+                className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/30 group-hover:scale-110 transition-transform">
+                  <Bot size={22} />
+                </div>
+                <span className="text-xs font-black text-slate-900 dark:text-white">AI Assistant</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('app_medics')}
+                className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                  <ShoppingBag size={22} />
+                </div>
+                <span className="text-xs font-black text-slate-900 dark:text-white">E-Pharmacy</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('meds')}
+                className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                  <Pill size={22} />
+                </div>
+                <span className="text-xs font-black text-slate-900 dark:text-white">Prescriptions</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('diagnostic_lab')}
+                className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                  <FlaskConical size={22} />
+                </div>
+                <span className="text-xs font-black text-slate-900 dark:text-white">Laboratory</span>
+              </button>
+            </div>
+          </div>
+        </section>
 
         {/* ===================================================================== */}
         {/* CARD 1: MAIN CLINICAL DASHBOARD (Matching image_9ca8ccdf.png)          */}
@@ -355,7 +590,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <section className="space-y-6">
 
           {/* 1. Time-Adaptive Greeting Hero Banner with Uganda Mulago Hospital Photo */}
-          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-xl min-h-[175px] sm:min-h-[190px] flex flex-col md:flex-row md:items-center justify-between p-6 sm:p-8 border border-blue-400/30 group">
+          <div className="relative w-full doctorian-thick-card overflow-hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white min-h-[175px] sm:min-h-[190px] flex flex-col md:flex-row md:items-center justify-between p-6 sm:p-8 group">
             
             {/* Right-Hand Side Authentic Uganda Hospital Physical Photograph */}
             <div 
@@ -457,7 +692,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('records')}
-              className="p-4 rounded-2xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Patients</span>
@@ -481,7 +716,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('doctors_dashboard')}
-              className="p-4 rounded-2xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Active Doctors</span>
@@ -504,7 +739,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('clinical_roadmap')}
-              className="p-4 rounded-2xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Today's Appointments</span>
@@ -527,7 +762,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('meds')}
-              className="p-4 rounded-2xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Prescriptions Today</span>
@@ -575,7 +810,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
             
             {/* 3A. Live Health Monitoring Card (5 Cols) */}
-            <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-4">
+            <div className="lg:col-span-5 p-5 doctorian-thick-card flex flex-col justify-between space-y-4">
               
               {/* Header with Live Badge & Patient / Hardware Selector */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -779,7 +1014,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 3B. AI Assistant Interactive Card (4 Cols) */}
-            <div className="lg:col-span-4 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="lg:col-span-4 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
               
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -886,7 +1121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 3C. Quick Actions (3 Cols) */}
-            <div className="lg:col-span-3 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="lg:col-span-3 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -981,7 +1216,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* 4A. Recent Patients */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Users size={16} className="text-blue-500" />
@@ -998,19 +1233,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
               <div className="space-y-2.5">
                 {[
-                  { name: 'Sarah Nakato', id: 'PT-00124', gender: 'Female', age: '28y', status: 'Active', color: 'bg-emerald-500/15 text-emerald-600' },
-                  { name: 'John Doe', id: 'PT-00123', gender: 'Male', age: '45y', status: 'Consultation', color: 'bg-blue-500/15 text-blue-600' },
-                  { name: 'Mary Atim', id: 'PT-00122', gender: 'Female', age: '32y', status: 'Follow-up', color: 'bg-orange-500/15 text-orange-600' }
+                  { name: 'Sarah Nakato', id: 'PT-00124', gender: 'Female', age: '28y', status: 'Active', avatar: '/portraits/patient_sarah.jpg', color: 'bg-emerald-500/15 text-emerald-600' },
+                  { name: 'John Doe', id: 'PT-00123', gender: 'Male', age: '45y', status: 'Consultation', avatar: '/portraits/dr_joseph_mukasa.jpg', color: 'bg-blue-500/15 text-blue-600' },
+                  { name: 'Mary Atim', id: 'PT-00122', gender: 'Female', age: '32y', status: 'Follow-up', avatar: '/portraits/patient_mary.jpg', color: 'bg-orange-500/15 text-orange-600' }
                 ].map((p, idx) => (
                   <div
                     key={idx}
                     onClick={() => { setSelectedPatientId(idx === 0 ? 'sarah' : idx === 1 ? 'john' : 'mary'); onNavigate('records'); }}
-                    className="p-2.5 rounded-2xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/60 dark:border-blue-900/40 flex items-center justify-between cursor-pointer transition-colors"
+                    className="doctorian-thick-tile p-2.5 flex items-center justify-between cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-white font-black text-xs flex items-center justify-center">
-                        {p.name.charAt(0)}
-                      </div>
+                      <img
+                        src={p.avatar}
+                        alt={p.name}
+                        className="w-9 h-9 rounded-full object-cover border-2 border-cyan-400/50 shadow-sm shrink-0"
+                      />
                       <div className="text-left">
                         <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug">{p.name}</p>
                         <p className="text-[10px] text-slate-400 leading-snug">{p.id} • {p.gender} • {p.age}</p>
@@ -1025,7 +1262,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 4B. Lab Results Overview Donut */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <FlaskConical size={16} className="text-blue-500" />
@@ -1083,7 +1320,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 4C. Upcoming Appointments */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <CalendarDays size={16} className="text-blue-500" />
@@ -1123,7 +1360,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 4D. System Performance */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Activity size={16} className="text-blue-500" />
@@ -1183,7 +1420,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* 5. Bottom Utility Ribbon with Emergency Call 112 */}
-          <div className="p-3 sm:p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="p-3 sm:p-4 doctorian-thick-card flex flex-col md:flex-row items-center justify-between gap-4">
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto text-left">
               
@@ -1298,7 +1535,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* 1. AI Health Assistant */}
             <div 
               onClick={() => onNavigate('ai_nexus')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer flex items-center gap-4 group"
+              className="p-4 sm:p-5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-4 group"
             >
               <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 flex items-center justify-center text-3xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 🤖
@@ -1551,7 +1788,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* 8. Smart Appointments */}
             <div 
               onClick={() => onNavigate('clinical_roadmap')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer flex items-center gap-4 group"
+              className="p-4 sm:p-5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-4 group"
             >
               <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-blue-400 via-indigo-500 to-blue-700 flex items-center justify-center text-3xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 📅
@@ -1626,7 +1863,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* 1. Your Health Summary Donut */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 sm:p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Activity size={16} className="text-blue-500" />
@@ -1680,7 +1917,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 2. Recent Activity */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 sm:p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Clock size={16} className="text-blue-500" />
@@ -1732,7 +1969,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* 3. Quick Actions */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-4 sm:p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center gap-1.5">
                 <Sparkles size={16} className="text-blue-500" />
                 <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">

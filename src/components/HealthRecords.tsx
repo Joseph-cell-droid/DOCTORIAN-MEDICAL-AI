@@ -348,12 +348,12 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
 
-  const handleDownloadAppointmentReport = useCallback(() => {
+  const handleDownloadAppointmentReport = useCallback(async () => {
     try {
       showToast("Initializing clinical metric compilations...", "info");
 
       const storedUser = localStorage.getItem("medical_user");
-      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "gloriajayakullo@gmail.com" };
+      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "patient@doctorian.org" };
 
       let lastVitals = null;
       try {
@@ -373,7 +373,7 @@ export const HealthRecords: React.FC<{ user?: any; onNavigate?: (v: any) => void
 
       const aiInsightStored = localStorage.getItem("doctorian_ai_insight") || sessionStorage.getItem("doctorian_ai_insight");
 
-      exportMedicalReportPDF({
+      await exportMedicalReportPDF({
         user: userObj,
         vitals: lastVitals,
         aiInsight: aiInsightStored,

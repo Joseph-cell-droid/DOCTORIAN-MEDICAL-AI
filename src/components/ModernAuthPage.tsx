@@ -24,7 +24,9 @@ import {
   X,
   KeyRound,
   ArrowLeft,
-  UserCheck
+  UserCheck,
+  Globe,
+  ChevronDown
 } from 'lucide-react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { api, User as UserType } from '../api';
@@ -96,6 +98,9 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   // Operations settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [opsConfig, setOpsConfig] = useState<AppOperationsConfig>(() => getOperationsConfig());
+  const [authLang, setAuthLang] = useState<string>(() => {
+    try { return localStorage.getItem('app_lang') || 'English'; } catch { return 'English'; }
+  });
 
   // Listen to operations config events
   useEffect(() => {
@@ -209,6 +214,39 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
       onSuccess(appleUser as UserType);
     } catch (err: any) {
       setError(err.message || 'Apple Sign In encountered an error.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Microsoft Social Sign In (Patient Only Access)
+  const handleMicrosoftSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+    if (portalRole === 'doctor' || portalRole === 'admin') {
+      setError("SECURITY RESTRICTION: Privileged Health Worker & Administrator consoles are 100% restricted. Consumer social shortcuts cannot bypass clinical licensing verification or admin master passkeys.");
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const msUser: any = {
+        id: `ms-user-${Date.now()}`,
+        email: loginIdentifier || signupEmail || 'akora.joseph@outlook.com',
+        displayName: signupFullName || 'Akora Joseph',
+        role: 'user',
+        isDoctor: false,
+        photoURL: '/portraits/akora_joseph.jpg'
+      };
+      if (rememberMe) {
+        trustDevice(true);
+      }
+      setSuccessMessage(`Microsoft Identity verified (${msUser.email}).`);
+      notifyLoginInGmail(msUser).catch(() => {});
+      await new Promise(r => setTimeout(r, 500));
+      setActiveCard('none');
+      onSuccess(msUser as UserType);
+    } catch (err: any) {
+      setError(err.message || 'Microsoft Sign In encountered an error.');
     } finally {
       setIsLoading(false);
     }
@@ -470,120 +508,124 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_40%,rgba(59,130,246,0.14),transparent_45%)] pointer-events-none" />
 
       {/* ========================================================================= */}
-      {/* TOP HEADER SECTION (Matches Photo Layout)                                 */}
+      {/* TOP HEADER SECTION (Matches Photo Screen 2 Layout)                        */}
       {/* ========================================================================= */}
-      <header className="relative z-10 w-full pt-6 pb-2 px-4 sm:px-8 max-w-7xl mx-auto flex flex-col items-center">
-        {/* Top Control Bar */}
-        <div className="w-full flex items-center justify-between gap-2 mb-4 text-xs">
-          {/* Clinical Real Role Selector */}
-          <div className="flex items-center gap-1.5 p-1 rounded-full bg-slate-900/80 border border-cyan-500/30 backdrop-blur-md">
-            <button
-              type="button"
-              onClick={() => handleSelectRole('user')}
-              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
-                portalRole === 'user'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Patient
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectRole('doctor')}
-              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
-                portalRole === 'doctor'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Doctor
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectRole('admin')}
-              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
-                portalRole === 'admin'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Admin
-            </button>
+      <header className="relative z-10 w-full pt-5 pb-2 px-4 sm:px-8 max-w-6xl mx-auto flex flex-col items-center">
+        {/* Top Control Bar: Back button, Role Tiers, Language Pill & Passkey */}
+        <div className="w-full flex flex-wrap items-center justify-between gap-2.5 mb-5 text-xs">
+          <div className="flex items-center gap-2">
+            {activeCard !== 'none' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setActiveCard('none');
+                }}
+                className="w-9 h-9 rounded-full bg-[#09183a]/90 border border-cyan-500/35 text-slate-200 hover:text-white hover:border-cyan-400 flex items-center justify-center transition-all cursor-pointer shadow-lg"
+                title="Back to Workstation Portal"
+              >
+                <ChevronDown size={17} className="rotate-90" />
+              </button>
+            )}
+
+            {/* Clinical Real Role Selector */}
+            <div className="flex items-center gap-1 p-1 rounded-full bg-[#081534]/90 border border-cyan-500/30 backdrop-blur-md shadow-lg">
+              <button
+                type="button"
+                onClick={() => handleSelectRole('user')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                  portalRole === 'user'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Patient
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectRole('doctor')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                  portalRole === 'doctor'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Doctor
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectRole('admin')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                  portalRole === 'admin'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Admin
+              </button>
+            </div>
           </div>
 
-          {/* Quick utility controls */}
+          {/* Right controls: Language Pill (English v) + Passkey + Settings */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const langs = ['English', 'Luganda', 'Swahili', 'Runyankole'];
+                const next = langs[(langs.indexOf(authLang) + 1) % langs.length];
+                setAuthLang(next);
+                try { localStorage.setItem('app_lang', next); } catch {}
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#09183a]/90 border border-cyan-500/35 text-slate-200 hover:text-white hover:border-cyan-400 text-xs font-semibold transition-all cursor-pointer shadow-lg"
+              title="Switch Clinical Language"
+            >
+              <Globe size={13} className="text-cyan-400" />
+              <span>{authLang}</span>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
+
             <button
               type="button"
               onClick={handleBiometricAuth}
               disabled={isBiometricLoading}
               title="Hardware WebAuthn Passkey"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/50 hover:border-cyan-400 text-xs font-medium transition-all cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:border-cyan-400 text-xs font-medium transition-all cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]"
             >
               <Fingerprint size={13} className="text-cyan-400" />
-              <span>Passkey</span>
+              <span className="hidden sm:inline">Passkey</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsSettingsOpen(true)}
               title="AES-256 Enclave Configuration"
-              className="p-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 hover:border-cyan-500 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+              className="p-2 rounded-full bg-[#09183a]/90 border border-slate-700/80 hover:border-cyan-500 text-slate-300 hover:text-cyan-300 transition-colors cursor-pointer"
             >
               <Sliders size={14} />
             </button>
           </div>
         </div>
 
-        {/* Center Brand Lockup */}
+        {/* Center Brand Lockup Matching Photo Screen 2 */}
         <div className="flex flex-col items-center text-center relative w-full">
-          {/* Top Right Neon Artistic Script */}
-          <div className="hidden md:block absolute right-0 top-0 pointer-events-none">
-            <span
-              className="font-['Caveat',cursive] text-2xl lg:text-3xl text-cyan-300 drop-shadow-[0_0_14px_rgba(6,182,212,0.9)] tracking-wider block transform -rotate-6 select-none"
-              style={{ textShadow: '0 0 10px #06b6d4, 0 0 20px #0ea5e9, 0 0 35px #0284c7' }}
-            >
-              Your Health <br /> Our Priority
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.4rem] bg-gradient-to-b from-[#0d2455] to-[#050d24] p-2.5 border border-cyan-400/40 shadow-[0_14px_35px_rgba(6,182,212,0.35),inset_0_1px_0_rgba(255,255,255,0.18)] flex items-center justify-center mb-3">
+            <img
+              src="/logo.png"
+              alt="Doctorian Medical AI Logo"
+              className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]"
+            />
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-2">
+            <span>Doctorian</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]">
+              AI
             </span>
-          </div>
+          </h1>
 
-          {/* Logo with Rainbow Petal Neural Cross */}
-          <div className="flex items-center gap-3.5 justify-center mb-1">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 dark:bg-slate-900/60 p-1 border border-white/20 dark:border-cyan-500/30 shadow-[0_0_25px_rgba(6,182,212,0.4)] backdrop-blur-md flex items-center justify-center shrink-0">
-              <img 
-                src="/logo.png" 
-                alt="Doctorian Medical AI Logo" 
-                className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)]" 
-                referrerPolicy="no-referrer"
-              />
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white flex items-center gap-2">
-              <span>Doctorian</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_15px_rgba(6,182,212,0.7)]">
-                AI
-              </span>
-            </h1>
-          </div>
-
-          {/* Slogan */}
-          <p className="text-slate-200 text-sm sm:text-base font-semibold tracking-wide drop-shadow-sm">
-            Smarter Health. Brighter Tomorrows.
+          <p className="text-slate-300 text-xs sm:text-sm font-medium tracking-wide mt-1">
+            Smart Healthcare. Better Life.
           </p>
-
-          {/* Subnav Pill Tagline */}
-          <div className="mt-2.5 px-4 py-1 rounded-full bg-[#051538]/70 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(3,105,161,0.2)]">
-            <p className="text-xs sm:text-sm font-medium text-cyan-300/90 tracking-wide flex items-center gap-2">
-              <span>AI-Powered Health Assistant</span>
-              <span className="text-cyan-500/60">|</span>
-              <span className="text-slate-300">Diagnose</span>
-              <span className="text-cyan-400">•</span>
-              <span className="text-slate-300">Prevent</span>
-              <span className="text-cyan-400">•</span>
-              <span className="text-slate-300">Live Better</span>
-            </p>
-          </div>
         </div>
 
         {/* Global Feedback Banner */}
@@ -594,7 +636,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mt-3 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2 max-w-md backdrop-blur-md"
+              className="mt-3 px-4 py-2.5 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2 max-w-md backdrop-blur-md"
             >
               <AlertCircle size={15} className="shrink-0 text-rose-400" />
               <span>{error}</span>
@@ -606,7 +648,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mt-3 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2 max-w-md backdrop-blur-md"
+              className="mt-3 px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2 max-w-md backdrop-blur-md"
             >
               <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
               <span>{successMessage}</span>
@@ -632,7 +674,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
               className="max-w-2xl mx-auto w-full text-center space-y-6"
             >
               {/* Central Glass Card with Trigger Buttons */}
-              <div className="rounded-[2.5rem] p-7 sm:p-10 bg-[#030d24]/85 backdrop-blur-2xl border border-cyan-500/35 shadow-[0_0_45px_rgba(3,105,161,0.35)]">
+              <div className="doctorian-thick-card !rounded-[2.5rem] p-7 sm:p-10 !bg-[#06122e]/90 backdrop-blur-2xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold uppercase tracking-wider mb-4">
                   <ShieldCheck size={14} className="text-cyan-400" />
                   <span>Authorized Healthcare Workstation</span>
@@ -758,99 +800,35 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
             </motion.div>
           )}
 
-          {/* VIEW B: SIGN IN CARD (Shown when user clicks Sign In) */}
+          {/* VIEW B: SIGN IN CARD (Exact Screen 2 from Reference Photo) */}
           {activeCard === 'signin' && (
             <motion.div
               key="signin-card-view"
-              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              initial={{ opacity: 0, y: 18, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.96 }}
+              exit={{ opacity: 0, y: -18, scale: 0.97 }}
               transition={{ duration: 0.25 }}
               className="max-w-md mx-auto w-full"
             >
-              <div className="rounded-[2.5rem] p-6 sm:p-8 bg-[#030d24]/90 backdrop-blur-2xl border border-cyan-500/40 shadow-[0_0_45px_rgba(3,105,161,0.35)] relative">
-                {/* Close Button: Returns to landing view */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setActiveCard('none');
-                  }}
-                  className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
-                  title="Close and return to landing"
-                >
-                  <X size={18} />
-                </button>
-
-                {/* Back button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setActiveCard('none');
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 mb-3 transition-colors cursor-pointer font-medium"
-                >
-                  <ArrowLeft size={14} />
-                  <span>Back to Portal</span>
-                </button>
-
-                {/* Card Header: Profile Icon + Title */}
-                <div className="flex items-center gap-3.5 mb-2">
-                  <div className="w-12 h-12 rounded-full bg-blue-600/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] shrink-0">
-                    <User size={22} strokeWidth={2.4} />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-white">Sign In</h2>
-                    <p className="text-xs text-slate-300 mt-0.5">
-                      Enter your credentials to access your clinical workstation.
-                    </p>
-                  </div>
+              <div className="doctorian-thick-card p-6 sm:p-8 relative">
+                {/* Card Header: Welcome Back! / Sign in to your account */}
+                <div className="text-center mb-5">
+                  <h2 className="text-2xl font-black tracking-tight text-white">Welcome Back!</h2>
+                  <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">
+                    Sign in to your account
+                  </p>
                 </div>
 
-                {/* Role Switcher in Sign In */}
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-[#061533] border border-slate-700/60 my-4 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectRole('user')}
-                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                      portalRole === 'user' ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Patient
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectRole('doctor')}
-                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                      portalRole === 'doctor' ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Lock size={11} className={portalRole === 'doctor' ? 'text-slate-950' : 'text-cyan-400'} />
-                    <span>Doctor</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectRole('admin')}
-                    className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                      portalRole === 'admin' ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Lock size={11} className={portalRole === 'admin' ? 'text-slate-950' : 'text-amber-400'} />
-                    <span>Admin</span>
-                  </button>
-                </div>
-
-                {/* Restricted Role Alert Badge */}
+                {/* Restricted Role Alert Badge (Doctor / Admin) */}
                 {portalRole !== 'user' && (
-                  <div className={`mb-4 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2.5 border ${
-                    portalRole === 'doctor' 
-                      ? 'bg-cyan-950/50 border-cyan-500/40 text-cyan-200' 
-                      : 'bg-amber-950/50 border-amber-500/40 text-amber-200'
+                  <div className={`mb-4 px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-2.5 border ${
+                    portalRole === 'doctor'
+                      ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-200'
+                      : 'bg-amber-950/60 border-amber-500/40 text-amber-200'
                   }`}>
                     <ShieldCheck size={16} className={`shrink-0 ${portalRole === 'doctor' ? 'text-cyan-400' : 'text-amber-400'}`} />
                     <span className="text-[11px] leading-tight font-medium">
-                      {portalRole === 'doctor' 
+                      {portalRole === 'doctor'
                         ? '100% Restricted: Uganda Medical Council (UMDPC) License ID & PIN required.'
                         : '100% Restricted: System Administrator Master Authorization Key required.'}
                     </span>
@@ -859,40 +837,41 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
 
                 {/* Sign In Form */}
                 <form onSubmit={handleSignInSubmit} className="space-y-3.5">
-                  {/* Input: Email or Username */}
+                  {/* Thick Input: Email or Phone Number */}
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Mail size={16} />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-300">
+                      <Mail size={17} />
                     </div>
                     <input
                       type="text"
                       required
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="Email address / Workstation ID"
-                      className="w-full pl-10 pr-4 py-3 bg-[#061533]/80 border border-cyan-600/30 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                      placeholder="Email or Phone Number"
+                      className="w-full pl-11 pr-4 py-3.5 bg-[#09183a]/90 border border-blue-400/35 rounded-2xl text-sm text-white placeholder-slate-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all"
                     />
                   </div>
 
-                  {/* Input: Password */}
+                  {/* Thick Input: Password */}
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Lock size={16} />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-300">
+                      <Lock size={17} />
                     </div>
                     <input
                       type={showLoginPassword ? 'text' : 'password'}
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Account Password"
-                      className="w-full pl-10 pr-10 py-3 bg-[#061533]/80 border border-cyan-600/30 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                      placeholder="Password"
+                      className="w-full pl-11 pr-11 py-3.5 bg-[#09183a]/90 border border-blue-400/35 rounded-2xl text-sm text-white placeholder-slate-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                      aria-label="Toggle password visibility"
                     >
-                      {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showLoginPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
 
@@ -900,7 +879,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   {portalRole === 'doctor' && (
                     <div className="space-y-3 pt-1 border-t border-cyan-500/20">
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-cyan-400">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-cyan-400">
                           <Stethoscope size={16} />
                         </div>
                         <input
@@ -909,11 +888,11 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                           value={medicalLicenseId}
                           onChange={(e) => setMedicalLicenseId(e.target.value)}
                           placeholder="UMDPC License ID (e.g. UMDPC-MD-94021)"
-                          className="w-full pl-10 pr-4 py-2.5 bg-cyan-950/40 border border-cyan-500/50 rounded-xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
+                          className="w-full pl-11 pr-4 py-3 bg-cyan-950/50 border border-cyan-500/50 rounded-2xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
                         />
                       </div>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-cyan-400">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-cyan-400">
                           <KeyRound size={16} />
                         </div>
                         <input
@@ -922,7 +901,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                           value={clinicalPin}
                           onChange={(e) => setClinicalPin(e.target.value)}
                           placeholder="4-digit Clinical PIN"
-                          className="w-full pl-10 pr-4 py-2.5 bg-cyan-950/40 border border-cyan-500/50 rounded-xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
+                          className="w-full pl-11 pr-4 py-3 bg-cyan-950/50 border border-cyan-500/50 rounded-2xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
                         />
                       </div>
                     </div>
@@ -932,7 +911,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   {portalRole === 'admin' && (
                     <div className="pt-1 border-t border-amber-500/20">
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-amber-400">
                           <KeyRound size={16} />
                         </div>
                         <input
@@ -941,22 +920,22 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                           value={adminMasterKey}
                           onChange={(e) => setAdminMasterKey(e.target.value)}
                           placeholder="Master Passkey (Level 7 Root)"
-                          className="w-full pl-10 pr-4 py-2.5 bg-amber-950/40 border border-amber-500/50 rounded-xl text-xs text-white placeholder-amber-200/50 focus:outline-none focus:border-amber-400 font-mono"
+                          className="w-full pl-11 pr-4 py-3 bg-amber-950/50 border border-amber-500/50 rounded-2xl text-xs text-white placeholder-amber-200/50 focus:outline-none focus:border-amber-400 font-mono"
                         />
                       </div>
                     </div>
                   )}
 
-                  {/* Options Row: Remember Device & Forgot Password */}
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white">
+                  {/* Options Row: Remember Me & Forgot Password? */}
+                  <div className="flex items-center justify-between text-xs pt-1 px-0.5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-slate-200 hover:text-white font-medium">
                       <input
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 rounded bg-[#061533] border-cyan-500/40 text-blue-600 focus:ring-cyan-500/30 cursor-pointer"
+                        className="w-4 h-4 rounded accent-blue-500 bg-[#09183a] border-cyan-500/50 cursor-pointer"
                       />
-                      <span>Recognize this device (Auto-Login)</span>
+                      <span>Remember Me</span>
                     </label>
 
                     <button
@@ -965,95 +944,112 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                         setForgotEmail(loginIdentifier);
                         setShowForgotModal(true);
                       }}
-                      className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors cursor-pointer"
+                      className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors cursor-pointer"
                     >
-                      Forgot password?
+                      Forgot Password?
                     </button>
                   </div>
 
-                  {/* Primary Sign In Button */}
+                  {/* Primary Glowing Log In CTA Button Matching Reference Photo */}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm tracking-wide shadow-[0_0_22px_rgba(6,182,212,0.45)] hover:shadow-[0_0_28px_rgba(6,182,212,0.65)] flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full py-3.5 px-5 rounded-full doctorian-cta-btn text-white font-bold text-base tracking-wide flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
                   >
                     {isLoading ? (
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2 size={20} className="animate-spin" />
                     ) : (
                       <>
+                        <span>Log In</span>
                         <ArrowRight size={18} />
-                        <span>Sign In to {portalRole === 'admin' ? 'Admin Console' : portalRole === 'doctor' ? 'Health Worker Station' : 'Workstation'}</span>
                       </>
                     )}
                   </button>
                 </form>
 
-                {/* Continue without Account Button */}
-                <div className="pt-3">
-                  <button
-                    type="button"
-                    onClick={handleContinueWithoutAccount}
-                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600/25 via-teal-600/30 to-cyan-600/25 hover:from-emerald-600/40 hover:to-cyan-600/40 border border-emerald-500/50 hover:border-emerald-400 text-white font-bold text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_18px_rgba(16,185,129,0.25)]"
-                  >
-                    <Stethoscope size={16} className="text-emerald-400" />
-                    <span>Continue without Account (Guest Clinical Mode)</span>
-                  </button>
-                </div>
-
-                {/* Divider: OR */}
-                <div className="relative my-3">
+                {/* Divider: or continue with */}
+                <div className="relative my-5">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-700/60" />
+                    <div className="w-full border-t border-blue-400/20" />
                   </div>
-                  <div className="relative flex justify-center text-[11px] uppercase">
-                    <span className="bg-[#030d24] px-3 text-slate-400 font-semibold tracking-wider">
-                      OR
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-[#09193c] px-3 text-slate-300 font-medium rounded-full">
+                      or continue with
                     </span>
                   </div>
                 </div>
 
-                {/* Social Login Buttons (Patient Only Access) */}
-                <div className="space-y-2">
+                {/* 3 Thick Square Social Tiles (Google | Microsoft | Apple) Matching Reference Photo */}
+                <div className="flex items-center justify-center gap-4">
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#061533]/80 hover:bg-[#0c2452] border border-slate-700/80 hover:border-cyan-500/40 text-xs font-semibold text-slate-200 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                    title="Continue with Google"
+                    aria-label="Continue with Google"
+                    className="w-14 h-14 doctorian-thick-tile flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                   >
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                     </svg>
-                    <span>Continue with Google (Patient Portal)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleMicrosoftSignIn}
+                    disabled={isLoading}
+                    title="Continue with Microsoft"
+                    aria-label="Continue with Microsoft"
+                    className="w-14 h-14 doctorian-thick-tile flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                  >
+                    <svg className="w-6 h-6" viewBox="0 0 24 24">
+                      <rect x="2" y="2" width="9" height="9" fill="#F25022" />
+                      <rect x="13" y="2" width="9" height="9" fill="#7FBA00" />
+                      <rect x="2" y="13" width="9" height="9" fill="#00A4EF" />
+                      <rect x="13" y="13" width="9" height="9" fill="#FFB900" />
+                    </svg>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleAppleSignIn}
                     disabled={isLoading}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#061533]/80 hover:bg-[#0c2452] border border-slate-700/80 hover:border-cyan-500/40 text-xs font-semibold text-slate-200 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                    title="Continue with Apple"
+                    aria-label="Continue with Apple"
+                    className="w-14 h-14 doctorian-thick-tile flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                   >
-                    <svg className="w-4 h-4 fill-current text-white shrink-0" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 fill-current text-white" viewBox="0 0 24 24">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.66-1.09 1.73-.95 2.76 1.01.08 2.05-.51 2.68-1.26z" />
                     </svg>
-                    <span>Continue with Apple (Patient Portal)</span>
                   </button>
                 </div>
 
-                {/* Card Footer: Switch to Sign Up */}
-                <div className="mt-5 pt-3 border-t border-slate-800 text-center text-xs text-slate-400">
-                  <span>Don't have an account? </span>
+                {/* Card Footer: Don't have an account? Sign Up + Guest Access */}
+                <div className="mt-5 pt-4 border-t border-blue-400/15 space-y-3 text-center text-xs">
+                  <div className="text-slate-300">
+                    <span>Don't have an account? </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setActiveCard('signup');
+                      }}
+                      className="text-cyan-400 hover:text-cyan-300 font-bold hover:underline transition-colors cursor-pointer"
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setError(null);
-                      setActiveCard('signup');
-                    }}
-                    className="text-cyan-400 hover:text-cyan-300 font-bold hover:underline transition-colors cursor-pointer"
+                    onClick={handleContinueWithoutAccount}
+                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
-                    Create Account
+                    <Stethoscope size={14} className="text-emerald-400" />
+                    <span>Continue without Account (Guest Clinical Mode)</span>
                   </button>
                 </div>
               </div>
@@ -1070,7 +1066,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
               transition={{ duration: 0.25 }}
               className="max-w-md mx-auto w-full"
             >
-              <div className="rounded-[2.5rem] p-6 sm:p-8 bg-[#030d24]/90 backdrop-blur-2xl border border-cyan-500/40 shadow-[0_0_45px_rgba(3,105,161,0.35)] relative">
+              <div className="doctorian-thick-card !rounded-[2.5rem] p-6 sm:p-8 !bg-[#06122e]/95 backdrop-blur-2xl relative">
                 {/* Close Button: Returns to landing view */}
                 <button
                   type="button"

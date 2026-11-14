@@ -95,7 +95,7 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({ isOpen, onClos
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">HIPAA & GDPR Security Audit Log</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Clinical Security Audit Log</h3>
                 <span className="px-3 py-0.5 bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 font-black text-[9px] uppercase tracking-wider rounded-full border border-purple-200 dark:border-purple-800">
                   Immutable Cryptographic Ledger
                 </span>
@@ -180,7 +180,7 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({ isOpen, onClos
           <div className="flex items-center gap-2">
             <Award size={18} className="text-purple-600 dark:text-purple-400" />
             <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-              ISO 27001 & SOC 2 Type II Compliance Architecture Active
+              Encrypted Audit Ledger & Role-Based Access Logging Active
             </span>
           </div>
 

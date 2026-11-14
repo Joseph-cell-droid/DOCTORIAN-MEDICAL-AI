@@ -39,16 +39,26 @@ import {
   Shield,
   Eye,
   Sliders,
-  Database
+  Database,
+  Moon,
+  Watch
 } from 'lucide-react';
 
 interface AppSettingsPageProps {
   onNavigate?: (view: string) => void;
   user?: any;
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
+  isDarkMode?: boolean;
+  onToggleTheme?: () => void;
 }
 
-export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, user, addToast }) => {
+export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
+  onNavigate,
+  user,
+  addToast,
+  isDarkMode = true,
+  onToggleTheme
+}) => {
   // Navigation helper
   const handleNav = (view: string) => {
     if (onNavigate) {
@@ -64,11 +74,12 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
 
   // Profile State
   const [profileData, setProfileData] = useState({
-    name: 'Dr. Joseph Akora',
-    role: 'Administrator',
-    email: 'josephakora@email.com',
+    name: user?.displayName || 'Akora Joseph',
+    patientId: 'Patient ID: DAI-2026-1187',
+    role: 'Verified Patient & Clinician',
+    email: user?.email || 'akora.joseph@doctorian.org',
     phone: '+256 700 123 456',
-    location: 'Uganda, Kampala'
+    location: 'Kampala, Uganda'
   });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
@@ -79,7 +90,12 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [voiceAssistantEnabled, setVoiceAssistantEnabled] = useState(true);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
-  const [offlineModeEnabled, setOfflineModeEnabled] = useState(false);
+  const [offlineModeEnabled, setOfflineModeEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('medical_forced_offline') === 'true';
+    }
+    return false;
+  });
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
 
   // Notifications toggles
@@ -97,6 +113,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
   const [isDataSafetyModalOpen, setIsDataSafetyModalOpen] = useState(false);
   const [isContactSupportOpen, setIsContactSupportOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
 
   // Form inputs
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
@@ -157,14 +174,182 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
     }, 600);
   };
 
+  const handleToggleOfflineMode = () => {
+    const next = !offlineModeEnabled;
+    setOfflineModeEnabled(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medical_forced_offline', next ? 'true' : 'false');
+    }
+    toast(next ? 'Offline Mode active (Local Cache)' : 'Live Cloud connected', 'info');
+  };
+
   return (
-    <div className="w-full bg-[#f3f7fd] dark:bg-[#071329] text-slate-900 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+    <div className="w-full doctorian-canvas text-slate-900 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
       <main className="w-full space-y-6">
+
+        {/* ===================================================================== */}
+        {/* SCREEN 9: MOBILE-FIRST SETTINGS PROFILE & MENU STACK (image_2605a2cb) */}
+        {/* ===================================================================== */}
+        <section className="space-y-4">
+          <div className="doctorian-thick-card p-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <img
+                src="/portraits/akora_joseph.jpg"
+                alt={profileData.name}
+                className="w-16 h-16 sm:w-18 sm:h-18 rounded-full object-cover border-2 border-cyan-400/70 shadow-[0_0_20px_rgba(0,210,255,0.35)] shrink-0"
+              />
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white truncate">
+                  {profileData.name}
+                </h2>
+                <p className="text-xs font-mono font-bold text-blue-600 dark:text-cyan-300 mt-0.5">
+                  {profileData.patientId}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleNav('profile')}
+                  className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-cyan-400 cursor-pointer"
+                >
+                  <Edit3 size={12} />
+                  <span>Edit Profile &gt;</span>
+                </button>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-500 dark:text-emerald-300 text-[11px] font-black hidden sm:inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Verified
+            </span>
+          </div>
+
+          <div className="doctorian-thick-card divide-y divide-slate-200/70 dark:divide-cyan-500/20 overflow-hidden">
+            {/* Row 1: Account & Security */}
+            <button
+              type="button"
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-500 dark:text-cyan-400 flex items-center justify-center">
+                  <ShieldCheck size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Account &amp; Security</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </button>
+
+            {/* Row 2: Notifications */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('notifications')}
+              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-500 dark:text-cyan-300 flex items-center justify-center">
+                  <Bell size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Notifications</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </button>
+
+            {/* Row 3: Language */}
+            <div className="px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-400/30 text-indigo-500 dark:text-indigo-300 flex items-center justify-center">
+                  <Globe size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Language</span>
+              </div>
+              <select
+                value={selectedLanguage}
+                onChange={(e) => {
+                  setSelectedLanguage(e.target.value);
+                  toast(`Language set to ${e.target.value}`, 'success');
+                }}
+                className="bg-transparent text-xs font-bold text-slate-600 dark:text-cyan-300 cursor-pointer focus:outline-none text-right"
+              >
+                <option value="English">English &gt;</option>
+                <option value="Luganda">Luganda &gt;</option>
+                <option value="Swahili">Swahili &gt;</option>
+                <option value="French">French &gt;</option>
+              </select>
+            </div>
+
+            {/* Row 4: Appearance */}
+            <button
+              type="button"
+              onClick={() => onToggleTheme?.()}
+              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-400/30 text-purple-500 dark:text-purple-300 flex items-center justify-center">
+                  <Moon size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Appearance</span>
+              </div>
+              <span className="text-xs font-bold text-slate-500 dark:text-cyan-300 flex items-center gap-1">
+                {isDarkMode ? 'Dark Mode' : 'Light Mode'} <ChevronRight size={15} />
+              </span>
+            </button>
+
+            {/* Row 5: Offline Mode */}
+            <div className="px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-500 flex items-center justify-center">
+                  <WifiOff size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Offline Mode</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleOfflineMode}
+                aria-label="Toggle Offline Mode"
+                className={`w-11 h-6 rounded-full p-1 transition-colors cursor-pointer ${
+                  offlineModeEnabled ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${
+                  offlineModeEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            {/* Row 6: Connected Devices */}
+            <button
+              type="button"
+              onClick={() => handleNav('smart_watch')}
+              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-500 flex items-center justify-center">
+                  <Watch size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Connected Devices</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </button>
+
+            {/* Row 7: About Doctorian AI */}
+            <button
+              type="button"
+              onClick={() => setIsAboutModalOpen(true)}
+              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-500 flex items-center justify-center">
+                  <Info size={17} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">About Doctorian AI</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </button>
+          </div>
+        </section>
 
         {/* ===================================================================== */}
         {/* TOP HERO BANNER: App Settings & Tools (Matching Image 3)               */}
         {/* ===================================================================== */}
-        <section className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] sm:min-h-[150px] flex items-center justify-between p-6 sm:p-8">
+        <section className="relative w-full doctorian-thick-card overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white min-h-[140px] sm:min-h-[150px] flex items-center justify-between p-6 sm:p-8">
           {/* Modern cyber-clinical ambient overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(56,189,248,0.25),transparent_60%)] pointer-events-none" />
           <div className="absolute inset-0 bg-gradient-to-r from-blue-950/80 via-blue-900/60 to-transparent pointer-events-none" />
@@ -209,7 +394,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
           
           {/* 1. Profile Information (Col 3 on LG) */}
-          <div className="lg:col-span-3 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-4">
+          <div className="lg:col-span-3 p-5 doctorian-thick-card flex flex-col justify-between space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-blue-900/40">
               <div className="flex items-center gap-2">
                 <User size={16} className="text-blue-600 dark:text-cyan-400" />
@@ -232,8 +417,8 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
               <div className="relative w-20 h-20 rounded-full p-0.5 bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-md">
                 <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img
-                    src="/african_doctor_male.png"
-                    alt="Dr. Joseph Akora"
+                    src="/portraits/akora_joseph.jpg"
+                    alt="Akora Joseph"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -275,7 +460,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
           </div>
 
           {/* 2. Useful Tools (Col 5 on LG - 6 colorful tool cards) */}
-          <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+          <div className="lg:col-span-5 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-blue-900/40">
               <div>
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
@@ -408,7 +593,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
           </div>
 
           {/* 3. App Settings (Col 4 on LG - Interactive Toggles) */}
-          <div className="lg:col-span-4 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+          <div className="lg:col-span-4 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-blue-900/40">
                 <div>
@@ -640,7 +825,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
           <div className="lg:col-span-3 space-y-5 flex flex-col justify-between">
             
             {/* Quick Stats */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm space-y-3">
+            <div className="p-4 doctorian-thick-card space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Quick Stats</h4>
                 <button type="button" onClick={() => handleNav('records')} className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline">
@@ -719,7 +904,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
           </div>
 
           {/* Col 2 (Col 3 on LG): Health & Privacy */}
-          <div className="lg:col-span-3 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+          <div className="lg:col-span-3 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-blue-900/40">
               <ShieldCheck size={16} className="text-blue-600 dark:text-cyan-400" />
               <div>
@@ -811,7 +996,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
           </div>
 
           {/* Col 3 (Col 3 on LG): System Information with 3D Laptop Display */}
-          <div className="lg:col-span-3 p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm flex flex-col justify-between space-y-3">
+          <div className="lg:col-span-3 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-blue-900/40">
               <div className="flex items-center gap-2">
                 <Info size={16} className="text-blue-600 dark:text-cyan-400" />
@@ -1220,6 +1405,56 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({ onNavigate, us
                   className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-xs shadow-md shadow-rose-600/30"
                 >
                   Confirm Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* About Doctorian AI Modal with Embedded Platform Showcase */}
+      <AnimatePresence>
+        {isAboutModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-2xl doctorian-thick-card p-6 space-y-4 text-slate-900 dark:text-white"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img src="/logo.png" alt="Doctorian AI" className="w-9 h-9 object-contain" />
+                  <div>
+                    <h3 className="text-base font-black">Doctorian AI · Smart Healthcare. Better Life.</h3>
+                    <p className="text-xs text-slate-500 dark:text-cyan-300">Your Complete Medical Companion in Your Pocket</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAboutModalOpen(false)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border-2 border-cyan-500/40 bg-[#03091a]">
+                <img
+                  src="/assets/aistudio/image_2605a2cb.png"
+                  alt="Doctorian AI Multi-Screen Clinical Architecture"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-300 pt-1">
+                <span>Founder: Akora Joseph • Patient ID: DAI-2026-1187</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAboutModalOpen(false)}
+                  className="doctorian-cta-btn px-5 py-2 rounded-full text-white font-black text-xs cursor-pointer"
+                >
+                  Close
                 </button>
               </div>
             </motion.div>

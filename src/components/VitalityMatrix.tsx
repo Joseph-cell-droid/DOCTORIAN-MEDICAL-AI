@@ -26,7 +26,8 @@ import {
   ArrowUpRight, 
   Send,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Flame
 } from 'lucide-react';
 import { useArduinoContext } from '../ArduinoContext';
 
@@ -126,8 +127,161 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
     }, 800);
   };
 
+  const liveHR = liveVitals?.heartRate ?? 72;
+  const vitalityDays = [
+    { day: 'Mon', val: 68 },
+    { day: 'Tue', val: 76 },
+    { day: 'Wed', val: 84 },
+    { day: 'Thu', val: 74 },
+    { day: 'Fri', val: 90 },
+    { day: 'Sat', val: 88 },
+    { day: 'Sun', val: 98 },
+  ];
+
   return (
-    <div className="w-full bg-[#f4f8fd] dark:bg-[#071329] text-slate-800 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+    <div className="w-full doctorian-canvas text-slate-800 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+
+      {/* ========================================================================= */}
+      {/* SCREEN 7: VITALITY MATRIX SHOWCASE CARD (image_2605a2cb)                  */}
+      {/* ========================================================================= */}
+      <section className="doctorian-thick-card p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-[900] text-slate-900 dark:text-white tracking-tight">Vitality Matrix</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Comprehensive biometric wellness &amp; 7-day trend</p>
+          </div>
+          <div className="inline-flex p-1 rounded-full bg-slate-200/80 dark:bg-[#081535] border-2 border-cyan-500/30 self-start">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'overview' ? 'doctorian-cta-btn text-white' : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('trends')}
+              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'trends' ? 'doctorian-cta-btn text-white' : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Trends
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+          {/* Glowing Semicircle 98 Health Score Gauge */}
+          <div className="lg:col-span-4 doctorian-thick-tile p-5 flex flex-col items-center text-center">
+            <div className="relative w-48 h-28 flex items-end justify-center">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 200 110">
+                <defs>
+                  <linearGradient id="screen7ArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="60%" stopColor="#00d2ff" />
+                    <stop offset="100%" stopColor="#1d61f2" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 20 95 A 80 80 0 0 1 180 95"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeOpacity="0.14"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M 20 95 A 80 80 0 0 1 180 95"
+                  fill="none"
+                  stroke="url(#screen7ArcGrad)"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  strokeDasharray="251.3"
+                  strokeDashoffset={251.3 * 0.04}
+                />
+              </svg>
+              <div className="absolute bottom-1 flex flex-col items-center">
+                <span className="text-4xl font-[900] text-slate-900 dark:text-white leading-none">98</span>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-300 mt-1">Health Score</span>
+              </div>
+            </div>
+            <span className="mt-3 px-4 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-600 dark:text-emerald-300 text-xs font-black">
+              Excellent
+            </span>
+          </div>
+
+          {/* 2x2 Thick Vitals Tiles */}
+          <div className="lg:col-span-4 grid grid-cols-2 gap-3">
+            <div onClick={() => setActiveModal('hr')} className="doctorian-thick-tile p-3.5 cursor-pointer">
+              <div className="flex items-center gap-2 text-rose-500 mb-1.5">
+                <Heart size={16} className="fill-rose-500/30 animate-pulse" />
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Heart Rate</span>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-white">
+                {liveHR} <span className="text-xs font-bold text-slate-400">bpm</span>
+              </div>
+            </div>
+
+            <div onClick={() => setActiveModal('steps')} className="doctorian-thick-tile p-3.5 cursor-pointer">
+              <div className="flex items-center gap-2 text-cyan-500 mb-1.5">
+                <Footprints size={16} />
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Steps</span>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-white">6,850</div>
+            </div>
+
+            <div onClick={() => onNavigate?.('neuro')} className="doctorian-thick-tile p-3.5 cursor-pointer">
+              <div className="flex items-center gap-2 text-indigo-400 mb-1.5">
+                <Moon size={16} />
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Sleep</span>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-white">7h 45m</div>
+            </div>
+
+            <div onClick={() => onNavigate?.('fitness')} className="doctorian-thick-tile p-3.5 cursor-pointer">
+              <div className="flex items-center gap-2 text-amber-500 mb-1.5">
+                <Flame size={16} />
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Calories</span>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-white">
+                420 <span className="text-xs font-bold text-slate-400">kcal</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Health Trend (7 Days) Vertical Cyan-Blue Bar Chart */}
+          <div className="lg:col-span-4 doctorian-thick-tile p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white">
+                Health Trend (7 Days)
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveTab('trends')}
+                className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>View All</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+            <div className="h-28 flex items-end justify-between gap-2 pt-2">
+              {vitalityDays.map((d) => (
+                <div key={d.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                  <div className="w-full max-w-[20px] h-full flex items-end bg-slate-200/50 dark:bg-[#050e24] rounded-full overflow-hidden p-0.5">
+                    <div
+                      className="w-full rounded-full bg-gradient-to-t from-blue-600 via-cyan-500 to-cyan-300 shadow-[0_0_10px_rgba(0,210,255,0.5)] transition-all duration-500"
+                      style={{ height: `${d.val}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{d.day}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ========================================================================= */}
       {/* 1. FUTURISTIC HERO BANNER (Exact Match to Image a33b3901)                  */}
@@ -266,7 +420,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         {/* Card 1: Heart Rate */}
         <div 
           onClick={() => setActiveModal('hr')}
-          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+          className="doctorian-thick-card p-4 cursor-pointer flex items-center justify-between group"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -296,7 +450,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         {/* Card 2: Body Temperature */}
         <div 
           onClick={() => setActiveModal('temp')}
-          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+          className="doctorian-thick-card p-4 cursor-pointer flex items-center justify-between group"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -326,7 +480,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         {/* Card 3: Blood Oxygen */}
         <div 
           onClick={() => setActiveModal('spo2')}
-          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+          className="doctorian-thick-card p-4 cursor-pointer flex items-center justify-between group"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -355,7 +509,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         {/* Card 4: Blood Pressure */}
         <div 
           onClick={() => setActiveModal('bp')}
-          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+          className="doctorian-thick-card p-4 cursor-pointer flex items-center justify-between group"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -385,7 +539,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         {/* Card 5: Steps Today */}
         <div 
           onClick={() => setActiveModal('steps')}
-          className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+          className="doctorian-thick-card p-4 cursor-pointer flex items-center justify-between group"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -417,7 +571,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Column 1: Health Status Matrix */}
-        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6">
+        <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-6">
           
           {/* Card Header */}
           <div className="flex items-center justify-between">
@@ -509,7 +663,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         </div>
 
         {/* Column 2: Vital Signs Trend */}
-        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-4">
           
           {/* Card Header & Filter */}
           <div className="flex items-center justify-between">
@@ -646,7 +800,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         </div>
 
         {/* Column 3: AI Health Insights */}
-        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-4">
           
           {/* Card Header */}
           <div className="flex items-center justify-between">
@@ -664,33 +818,19 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
             </button>
           </div>
 
-          {/* 3D Robot Doctor & Speech Bubble */}
-          <div className="flex items-start gap-3 bg-blue-50/70 dark:bg-[#081530] p-3.5 rounded-2xl border border-blue-100 dark:border-blue-800/40">
-            
-            {/* Robot Avatar */}
-            <div className="relative w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-md flex items-center justify-center">
-              <div className="w-full h-full bg-[#0a1b38] rounded-[14px] flex items-center justify-center">
-                {/* 3D Robot Head SVG */}
-                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
-                  {/* Robot Head Shape */}
-                  <rect x="14" y="16" width="36" height="32" rx="14" fill="#ffffff" stroke="#0284c7" strokeWidth="2" />
-                  {/* Visor */}
-                  <rect x="20" y="24" width="24" height="12" rx="6" fill="#0c1a36" />
-                  {/* Glowing Blue Eyes */}
-                  <circle cx="26" cy="30" r="3" fill="#38bdf8" className="animate-pulse" />
-                  <circle cx="38" cy="30" r="3" fill="#38bdf8" className="animate-pulse" />
-                  {/* Antenna */}
-                  <line x1="32" y1="16" x2="32" y2="8" stroke="#0284c7" strokeWidth="2.5" />
-                  <circle cx="32" cy="7" r="3" fill="#06b6d4" />
-                  {/* Stethoscope */}
-                  <path d="M22,46 Q32,58 42,46" stroke="#ef4444" strokeWidth="2" fill="none" />
-                </svg>
-              </div>
+          {/* Physician Clinical Advisor Portrait & Guidance Bubble */}
+          <div className="flex items-start gap-3 bg-blue-50/70 dark:bg-[#081530] p-3.5 rounded-2xl border border-blue-100 dark:border-cyan-500/30">
+            <div className="relative w-14 h-14 shrink-0 rounded-2xl overflow-hidden border-2 border-cyan-400/70 shadow-md">
+              <img
+                src="/portraits/dr_sarah_nakalema.jpg"
+                alt="Dr. Sarah M. Nakalema"
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {/* Speech Bubble */}
             <div className="flex-1 bg-white dark:bg-[#0f2347] p-3 rounded-2xl rounded-tl-sm text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-blue-700/40 shadow-xs">
-              "Your vitals are stable and within normal range. Keep up the good work!"
+              &ldquo;Your vitals are stable and within normal range. Keep up the good work!&rdquo;
             </div>
           </div>
 
@@ -738,7 +878,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Column 1: Health Metrics Summary */}
-        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-4">
           
           {/* Card Header & Filter */}
           <div className="flex items-center justify-between">
@@ -799,7 +939,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         </div>
 
         {/* Column 2: Health Activities */}
-        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-4">
           
           {/* Card Header */}
           <div className="flex items-center justify-between">
@@ -846,7 +986,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
         </div>
 
         {/* Column 3: Quick Actions */}
-        <div className="bg-white dark:bg-[#0c1a36] border border-slate-200/80 dark:border-blue-900/50 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-4">
           
           {/* Card Header */}
           <div className="flex items-center justify-between">

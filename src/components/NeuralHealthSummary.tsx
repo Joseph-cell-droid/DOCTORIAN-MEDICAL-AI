@@ -17,15 +17,15 @@ export const NeuralHealthSummary: React.FC<NeuralHealthSummaryProps> = ({ vitals
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     try {
       const storedUser = localStorage.getItem("medical_user");
-      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "gloriajayakullo@gmail.com" };
+      const userObj = storedUser ? JSON.parse(storedUser) : { displayName: "Patient", email: "patient@doctorian.org" };
 
       const storedMedications = localStorage.getItem("medical_offline_medications");
       const medsObj = storedMedications ? JSON.parse(storedMedications) : [];
 
-      exportMedicalReportPDF({
+      await exportMedicalReportPDF({
         user: userObj,
         vitals: vitals,
         vitalsHistory: history,

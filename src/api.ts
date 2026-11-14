@@ -1957,7 +1957,7 @@ export const api = {
             whatsappNumber: "+256787674140",
             specialization: "Lead Cardiologist (Clinical Duty)",
             location: "Mulago Hospital Main Ward",
-            imageUrl: "/african_doctor_female.png",
+            imageUrl: "/portraits/dr_achan_grace.jpg",
             active: true,
             createdAt: new Date().toISOString()
           },
@@ -1967,17 +1967,17 @@ export const api = {
             whatsappNumber: "+256770000001",
             specialization: "Neuro-Critical Care Specialist",
             location: "Emergency Trauma Unit",
-            imageUrl: "/african_doctor_male.png",
+            imageUrl: "/portraits/dr_joseph_mukasa.jpg",
             active: true,
             createdAt: new Date().toISOString()
           },
           {
             id: "doc-sarah",
-            name: "Dr. Sarah Namubiru",
+            name: "Dr. Sarah M. Nakalema",
             whatsappNumber: "+256770000002",
             specialization: "General Physician & Geriatrics",
             location: "Inpatient Clinical Suite C",
-            imageUrl: "/african_doctor_female.png",
+            imageUrl: "/portraits/dr_sarah_nakalema.jpg",
             active: true,
             createdAt: new Date().toISOString()
           }
@@ -3959,6 +3959,7 @@ export const api = {
       patientName?: string;
       clinicianName?: string;
       consultationNotes?: string;
+      consentConfirmed?: boolean;
     }) {
       const res = await fetch(`${API_BASE}/ai/ambient-scribe`, {
         method: "POST",
@@ -3994,6 +3995,24 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete scribe record");
+      return data;
+    }
+  },
+  clinical: {
+    async analyzeImage(payload: {
+      imageBase64: string;
+      mimeType?: string;
+      modality?: string;
+      clinicalNotes?: string;
+    }): Promise<{ analysis: string; provider?: string; model?: string; disclaimer?: string }> {
+      const res = await fetch(`${API_BASE}/clinical/analyze-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to analyze clinical image");
       return data;
     }
   },

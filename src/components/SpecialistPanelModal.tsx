@@ -95,10 +95,10 @@ Return valid raw JSON only.`;
           'from-rose-500 to-pink-600'
         ];
         const avatars = [
-          '/african_doctor_female.png',
-          '/african_doctor_male.png',
-          '/african_doctor_female.png',
-          '/african_doctor_videocall.png'
+          '/portraits/dr_sarah_nakalema.jpg',
+          '/portraits/dr_emmanuel_kato.jpg',
+          '/portraits/dr_achan_grace.jpg',
+          '/portraits/dr_joseph_mukasa.jpg'
         ];
 
         const mappedReviews: SpecialistReview[] = parsed.reviews.map((r: any, idx: number) => ({
@@ -122,7 +122,7 @@ Return valid raw JSON only.`;
             doctorName: 'Dr. Grace Akello, MD, FACC',
             specialty: 'Cardiovascular Medicine',
             color: 'from-blue-500 to-indigo-600',
-            avatar: '/african_doctor_female.png',
+            avatar: '/portraits/dr_sarah_nakalema.jpg',
             opinion: 'Hemodynamic metrics indicate stable mean arterial blood pressure with zero acute ischemic alterations on waveform analysis. Baseline heart rate remains well-controlled.',
             confidence: 97,
             recommendations: ['Maintain current Lisinopril dosing', 'Quarterly lipid panel monitoring', 'Daily ambulatory BP telemetry']
@@ -132,7 +132,7 @@ Return valid raw JSON only.`;
             doctorName: 'Dr. Joseph Okello, MD',
             specialty: 'Respiratory & Critical Care',
             color: 'from-emerald-500 to-teal-600',
-            avatar: '/african_doctor_male.png',
+            avatar: '/portraits/dr_emmanuel_kato.jpg',
             opinion: 'Oxygen saturation of 98% on ambient air demonstrates optimal gas exchange. Mild asthma is well-controlled without bronchodilator overuse.',
             confidence: 95,
             recommendations: ['Pre-exercise Albuterol PRN', 'Peak flow baseline assessment']
@@ -142,7 +142,7 @@ Return valid raw JSON only.`;
             doctorName: 'Dr. Amara Osei, PharmD',
             specialty: 'Clinical Pharmacology & Toxicology',
             color: 'from-purple-500 to-violet-600',
-            avatar: '/african_doctor_female.png',
+            avatar: '/portraits/dr_achan_grace.jpg',
             opinion: 'No severe cytochrome P450 drug-drug interaction flagged between Lisinopril and Albuterol. Serum potassium and renal function panels remain within green thresholds.',
             confidence: 98,
             recommendations: ['Monitor serum electrolyte panel semi-annually', 'Ensure consistent morning administration']
@@ -152,7 +152,7 @@ Return valid raw JSON only.`;
             doctorName: 'Dr. David Ochieng, MD, PhD',
             specialty: 'Preventive Genomics & Metabolic Health',
             color: 'from-rose-500 to-pink-600',
-            avatar: '/african_doctor_videocall.png',
+            avatar: '/portraits/dr_joseph_mukasa.jpg',
             opinion: 'Metabolic telemetry shows strong HRV resilience. Recommending Mediterranean zone-2 aerobic conditioning to optimize arterial compliance.',
             confidence: 94,
             recommendations: ['150 min/week Zone-2 aerobic training', 'Omega-3 index optimization']

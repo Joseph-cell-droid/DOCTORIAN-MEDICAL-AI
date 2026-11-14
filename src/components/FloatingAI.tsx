@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bot, X, Sparkles, Send, Brain, MessageSquare, 
@@ -6,7 +6,8 @@ import {
   Stethoscope, Activity, FileText, Search, UserPlus,
   Compass, ShieldCheck, Cpu
 } from 'lucide-react';
-import { ChatInterface } from './ChatInterface';
+
+const ChatInterface = lazy(() => import('./ChatInterface').then(m => ({ default: m.ChatInterface })));
 
 interface FloatingAIProps {
   user?: any;
@@ -167,7 +168,9 @@ export function FloatingAI({ user, currentView, onNavigate }: FloatingAIProps) {
                     exit={{ opacity: 0, x: 20 }}
                     className="h-full"
                   >
-                    <ChatInterface user={user} isExploreView={isMaximized} onMessageSent={() => {}} forcedPersona="support" />
+                    <Suspense fallback={<div className="flex items-center justify-center h-full text-xs font-bold text-slate-400">Loading AI Assistant...</div>}>
+                      <ChatInterface user={user} isExploreView={isMaximized} onMessageSent={() => {}} forcedPersona="support" />
+                    </Suspense>
                   </motion.div>
                 )}
               </AnimatePresence>

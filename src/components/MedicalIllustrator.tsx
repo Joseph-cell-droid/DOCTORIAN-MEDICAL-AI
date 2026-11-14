@@ -67,11 +67,11 @@ export const MedicalIllustrator: React.FC<MedicalIllustratorProps> = ({ user, on
 
   // Modality Images
   const scanImages = {
-    xray: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&auto=format&fit=crop&q=80',
-    mri: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800&auto=format&fit=crop&q=80',
-    ct: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=800&auto=format&fit=crop&q=80',
-    ultrasound: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop&q=80',
-    others: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80'
+    xray: '/portraits/hologram_anatomy.jpg',
+    mri: '/portraits/hologram_anatomy.jpg',
+    ct: '/portraits/cyber_world_map.jpg',
+    ultrasound: '/portraits/hologram_anatomy.jpg',
+    others: '/portraits/hologram_anatomy.jpg'
   };
 
   const currentScanImage = uploadedScanUrl || scanImages[selectedModality];
@@ -115,11 +115,11 @@ export const MedicalIllustrator: React.FC<MedicalIllustratorProps> = ({ user, on
 
             <div className="flex items-center gap-2 pl-2 pr-3 py-1 bg-[#050e20] rounded-full border border-blue-800/60">
               <img
-                src="/african_doctor_male.png"
-                alt="Dr. Joseph Akora"
+                src="/portraits/akora_joseph.jpg"
+                alt="Akora Joseph"
                 className="w-7 h-7 rounded-full object-cover border border-blue-400"
               />
-              <span className="text-xs font-bold hidden md:inline">Dr. Joseph Akora</span>
+              <span className="text-xs font-bold hidden md:inline">Akora Joseph</span>
             </div>
           </div>
 
@@ -440,7 +440,7 @@ export const MedicalIllustrator: React.FC<MedicalIllustratorProps> = ({ user, on
             <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img
-                  src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80"
+                  src="/portraits/patient_sarah.jpg"
                   alt="Sarah Nakato"
                   className="w-12 h-12 rounded-2xl object-cover border border-blue-400"
                 />

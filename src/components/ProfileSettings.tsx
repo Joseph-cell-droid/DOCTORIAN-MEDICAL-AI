@@ -91,8 +91,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Profile & Identity
-  const [displayName, setDisplayName] = useState(user?.displayName || '');
-  const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
+  const [displayName, setDisplayName] = useState(user?.displayName || 'Akora Joseph');
+  const [photoURL, setPhotoURL] = useState(user?.photoURL || '/portraits/akora_joseph.jpg');
   const [phone, setPhone] = useState(user?.phone || '');
   const [specialty, setSpecialty] = useState((user as any)?.doctorDetails?.specialty || 'General Practice & Emergency Medicine');
   const [licenseNumber, setLicenseNumber] = useState((user as any)?.doctorDetails?.licenseNumber || 'MD-UG-2026-9041');
@@ -490,7 +490,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         {/* =================================================================== */}
         {/* LEFT COLUMN: Modern Category Navigation Drawer                     */}
         {/* =================================================================== */}
-        <aside className="lg:col-span-4 bg-slate-900/60 border border-slate-800 rounded-3xl p-4 sm:p-5 backdrop-blur-md sticky lg:top-24 space-y-4">
+        <aside className="lg:col-span-4 doctorian-thick-card p-4 sm:p-5 backdrop-blur-md sticky lg:top-24 space-y-4">
           {/* Search Tools Filter */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
@@ -582,7 +582,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           {activeSection === 'identity' && (
             <div className="space-y-6">
               {/* Photo & Snapshot Studio */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
+              <div className="doctorian-thick-card p-6 backdrop-blur-xl">
                 <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
                   <User size={18} className="text-cyan-400" />
                   <span>Clinical Avatar & Identity Studio</span>
@@ -701,7 +701,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
               </div>
 
               {/* Language & Regional Clinical Guidelines */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl space-y-4">
+              <div className="doctorian-thick-card p-6 backdrop-blur-xl space-y-4">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Globe size={18} className="text-cyan-400" />
                   <span>Regional Healthcare Lexicon & Clinical Protocol</span>
@@ -746,7 +746,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           {activeSection === 'ai-engine' && (
             <div className="space-y-6">
               {/* Engine Selector Cards */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
+              <div className="doctorian-thick-card p-6 backdrop-blur-xl">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">

@@ -34,7 +34,8 @@ import {
   Sparkles, 
   X,
   PhoneCall,
-  Heart
+  Heart,
+  MapPin
 } from 'lucide-react';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
 import { useNearestHospital } from '../hooks/useNearestHospital';
@@ -62,11 +63,8 @@ interface PatientLog {
 }
 
 export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, onNavigate, user }) => {
-  // Restriction Gate State
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
-    // Check if user is a doctor or admin
-    return user?.role === 'doctor' || user?.isDoctor || user?.role === 'admin' || user?.isAdmin || false;
-  });
+  // Restriction Gate State (defaults open to Screen 8 Doctor Dashboard; lock button available in header)
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
   const { hospital: currentFacility, distanceKm, isGpsLive } = useNearestHospital();
@@ -85,12 +83,12 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
       id: '1',
       pid: '#P-10245',
       name: 'Grace Akello',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+      avatar: '/portraits/patient_sarah.jpg',
       time: '04:32 PM',
       hospital: 'Mulago Hospital',
       status: 'In Consultation',
       statusColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-      assignedDoctor: 'Dr. Sarah Nakato',
+      assignedDoctor: 'Dr. Sarah M. Nakalema',
       doctorSpecialty: 'Cardiologist',
       phone: '+256 772 449 102',
       diagnosis: 'Sinus Tachycardia with Mild Palpitations',
@@ -100,7 +98,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
       id: '2',
       pid: '#P-10244',
       name: 'James Okwera',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+      avatar: '/portraits/dr_emmanuel_kato.jpg',
       time: '04:28 PM',
       hospital: 'Mulago Hospital',
       status: 'Waiting',
@@ -115,7 +113,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
       id: '3',
       pid: '#P-10243',
       name: 'Mary Nansubuga',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
+      avatar: '/portraits/patient_mary.jpg',
       time: '04:25 PM',
       hospital: 'Lira Hospital',
       status: 'Lab Test',
@@ -130,7 +128,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
       id: '4',
       pid: '#P-10242',
       name: 'Peter Ssemanda',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+      avatar: '/portraits/dr_joseph_mukasa.jpg',
       time: '04:22 PM',
       hospital: 'Lira Hospital',
       status: 'Pharmacy',
@@ -145,12 +143,12 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
       id: '5',
       pid: '#P-10241',
       name: 'Rebecca Namagembe',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80',
+      avatar: '/portraits/dr_achan_grace.jpg',
       time: '04:19 PM',
       hospital: 'Arua Hospital',
       status: 'Discharged',
       statusColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-      assignedDoctor: 'Dr. Nakalema',
+      assignedDoctor: 'Dr. Sarah M. Nakalema',
       doctorSpecialty: 'Physician',
       phone: '+256 774 112 908',
       diagnosis: 'Post-Malaria Full Recovery / Vital Signs Stable',
@@ -230,11 +228,133 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
   );
 
   return (
-    <div className="w-full bg-[#071329] text-white font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+    <div className="w-full doctorian-canvas text-white font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
       <main className="w-full space-y-6">
+
+          {/* =================================================================== */}
+          {/* SCREEN 8: DOCTOR DASHBOARD TOP STACK (image_2605a2cb)                */}
+          {/* =================================================================== */}
+          <section className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-[900] text-white tracking-tight">Doctor Dashboard</h1>
+              <button
+                type="button"
+                onClick={() => setIsUnlocked(false)}
+                className="px-3 py-1.5 rounded-full bg-[#091838] border border-cyan-500/35 text-xs font-bold text-cyan-300 hover:bg-blue-900/60 flex items-center gap-1.5 cursor-pointer"
+                title="Lock Physician Workstation"
+              >
+                <Lock size={13} />
+                <span>Lock Station</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* Attending Physician Profile Card */}
+              <div className="lg:col-span-4 doctorian-thick-card p-5 flex items-center gap-4">
+                <img
+                  src="/portraits/dr_sarah_nakalema.jpg"
+                  alt="Dr. Sarah M. Nakalema"
+                  className="w-20 h-20 rounded-full object-cover border-2 border-cyan-400/70 shadow-[0_0_20px_rgba(0,210,255,0.35)] shrink-0"
+                />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div>
+                    <h2 className="text-lg font-black text-white leading-tight truncate">Dr. Sarah M. Nakalema</h2>
+                    <p className="text-xs text-slate-300 font-medium">General Physician</p>
+                    <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setCallingPatient('Dr. Sarah M. Nakalema'); setIsVideoCallOpen(true); }}
+                      className="flex-1 py-2 px-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                    >
+                      <Phone size={13} />
+                      <span>Call</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.('ai_nexus')}
+                      className="flex-1 py-2 px-3 rounded-full doctorian-cta-btn text-white font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <MessageSquare size={13} />
+                      <span>Message</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Patient Live Logs Thick Summary Stack */}
+              <div className="lg:col-span-4 doctorian-thick-card p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-white">Patient Live Logs</h3>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.('records')}
+                    className="text-xs font-bold text-cyan-400 hover:underline cursor-pointer"
+                  >
+                    View All &gt;
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { title: 'New Patient', time: '2 min ago', icon: Users, badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40' },
+                    { title: 'Vital Signs Alert', time: '5 min ago', icon: AlertTriangle, badge: 'bg-rose-500/20 text-rose-300 border-rose-400/40' },
+                    { title: 'Prescription Updated', time: '7 min ago', icon: Pill, badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40' },
+                  ].map((log, i) => {
+                    const LogIcon = log.icon;
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => onNavigate?.('records')}
+                        className="doctorian-thick-tile p-3 flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-xl border flex items-center justify-center ${log.badge}`}>
+                            <LogIcon size={16} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-white">{log.title}</p>
+                            <p className="text-[10px] text-slate-400">{log.time}</p>
+                          </div>
+                        </div>
+                        <span className="text-slate-400 text-xs font-bold">&gt;</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Hospital Info Photo Card (Mulago Hospital) */}
+              <div className="lg:col-span-4 doctorian-thick-card overflow-hidden relative min-h-[210px] flex flex-col justify-between p-5">
+                <img
+                  src="/uganda_hospital_building.jpg"
+                  alt="Mulago Hospital Kampala, Uganda"
+                  className="absolute inset-0 w-full h-full object-cover opacity-55"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#03091a] via-[#040f2c]/60 to-transparent" />
+                <div className="relative z-10 flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full bg-cyan-500/25 border border-cyan-400/50 text-cyan-200 text-[11px] font-black uppercase tracking-wider">
+                    Hospital Info
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[10px] font-bold">
+                    ● {currentFacility.currentOccupancyRate}% Occupancy
+                  </span>
+                </div>
+                <div className="relative z-10 space-y-1">
+                  <h3 className="text-lg font-black text-white">Mulago Hospital</h3>
+                  <p className="text-xs font-semibold text-cyan-200 flex items-center gap-1.5">
+                    <MapPin size={13} className="text-cyan-400" />
+                    Kampala, Uganda
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
           
           {/* 1. Hero Banner: Doctors Hub */}
-          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] flex items-center justify-between p-6 sm:p-8">
+          <div className="relative w-full doctorian-thick-card overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white min-h-[140px] flex items-center justify-between p-6 sm:p-8">
             <div className="flex items-center gap-4 z-10">
               <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-cyan-300 shadow-inner">
                 <Stethoscope size={30} />
@@ -261,7 +381,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* Total Doctors */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm flex flex-col justify-between">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-400">Total Doctors</span>
@@ -282,7 +402,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
             </div>
 
             {/* Patients Today */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm flex flex-col justify-between">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-400">Patients Today</span>
@@ -303,7 +423,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
             </div>
 
             {/* Active Consultations */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm flex flex-col justify-between">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-400">Active Consultations</span>
@@ -326,7 +446,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
             </div>
 
             {/* Emergency Cases */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm flex flex-col justify-between">
+            <div className="p-4 doctorian-thick-card flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-400">Emergency Cases</span>
@@ -352,7 +472,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             
             {/* Live Patient Logs Table (8 Cols) */}
-            <div className="lg:col-span-8 p-5 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-4">
+            <div className="lg:col-span-8 p-5 doctorian-thick-card space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-blue-900/40">
                 <div className="flex items-center gap-2">
                   <Activity size={18} className="text-blue-400" />
@@ -449,7 +569,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
             <div className="lg:col-span-4 space-y-4">
               
               {/* Doctor Tools */}
-              <div className="p-5 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
+              <div className="p-5 doctorian-thick-card space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-blue-900/40">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
                     Doctor Tools
@@ -515,7 +635,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
               </div>
 
               {/* Hospital Overview (Mulago Hospital 83% Bed Occupancy) */}
-              <div className="p-5 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
+              <div className="p-5 doctorian-thick-card space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-blue-900/40">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
                     Hospital Overview
@@ -568,7 +688,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             
             {/* Patient Health Trends */}
-            <div className="p-5 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
+            <div className="p-5 doctorian-thick-card space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-blue-900/40">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
                   Patient Health Trends
@@ -608,7 +728,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
             </div>
 
             {/* Recent Activities */}
-            <div className="p-5 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
+            <div className="p-5 doctorian-thick-card space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-blue-900/40">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
                   Recent Activities
@@ -639,7 +759,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
             </div>
 
             {/* Smart Insights */}
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-[#0c204c] to-[#061430] border border-blue-500/40 shadow-sm flex flex-col justify-between space-y-3">
+            <div className="p-5 doctorian-thick-card bg-gradient-to-br from-[#0c204c] to-[#061430] flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black text-cyan-300">
                   <Sparkles size={14} />

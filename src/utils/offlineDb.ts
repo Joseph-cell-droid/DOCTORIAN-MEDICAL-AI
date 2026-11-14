@@ -723,55 +723,130 @@ const queueSyncRecord = (entityType: SyncRecord['entityType'], entityId: string,
   setStorage(STORAGE_KEYS.SYNC, syncRecords);
 };
 
-// Trigger Synchronization
-export const syncOfflineRecords = (): Promise<{ success: boolean; count: number }> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const syncRecords = getSyncRecords();
-      const pending = syncRecords.filter(r => r.status === 'pending');
-      
-      if (pending.length === 0) {
-        resolve({ success: true, count: 0 });
-        return;
+// Trigger Synchronization with Server Batch Sync & Explicit Conflict Detection
+export const syncOfflineRecords = async (): Promise<{
+  success: boolean;
+  count: number;
+  conflictsCount?: number;
+}> => {
+  const syncRecords = getSyncRecords();
+  const pending = syncRecords.filter((r) => r.status === 'pending');
+
+  if (pending.length === 0) {
+    return { success: true, count: 0, conflictsCount: 0 };
+  }
+
+  if (!isNetworkOnline()) {
+    return { success: false, count: 0, conflictsCount: 0 };
+  }
+
+  const rxTable = getPrescriptions();
+  const medTable = getMedicines();
+  const logsTable = getMedicationLogs();
+
+  const items = pending.map((rec) => {
+    let data: any = {};
+    if (rec.entityType === 'prescriptions') {
+      data = rxTable.find((p) => p.id === rec.entityId) || {};
+    } else if (rec.entityType === 'medicines') {
+      data = medTable.find((m) => m.id === rec.entityId) || {};
+    } else if (rec.entityType === 'medication_logs') {
+      data = logsTable.find((l) => l.id === rec.entityId) || {};
+    }
+    return {
+      id: rec.id,
+      entityType: rec.entityType === 'medication_logs' ? 'adherence' : rec.entityType,
+      targetId: rec.entityId,
+      action: rec.action,
+      baseUpdatedAt: rec.timestamp,
+      payload: data
+    };
+  });
+
+  try {
+    const res = await fetch('/api/sync/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ items })
+    });
+
+    if (!res.ok) {
+      return { success: false, count: 0, conflictsCount: 0 };
+    }
+
+    const result = await res.json();
+    const appliedQueueIds = new Set<string>(Array.isArray(result.applied) ? result.applied : []);
+    const rawConflicts: any[] = Array.isArray(result.conflicts) ? result.conflicts : [];
+    const normalizedConflicts = rawConflicts.map((c: any) => ({
+      id: String(c.itemId || c.id || c.targetId || Date.now()),
+      targetId: c.targetId || c.id,
+      entityType: c.entityType || 'adherence',
+      label: c.reason || c.targetId || c.entityType,
+      localUpdatedAt: c.localRecord?.updatedAt || new Date().toISOString(),
+      serverUpdatedAt: c.serverRecord?.updatedAt,
+      localData: c.localRecord || c.localData || {},
+      serverData: c.serverRecord || c.serverData || {}
+    }));
+    const conflictTargetIds = new Set<string>(normalizedConflicts.map((c) => String(c.targetId || c.id)));
+
+    const updatedSync = syncRecords.map((r) => {
+      if (r.status !== 'pending') return r;
+      if (conflictTargetIds.has(r.entityId)) return r;
+      if (appliedQueueIds.size === 0 || appliedQueueIds.has(r.id)) {
+        return { ...r, status: 'success' as const };
       }
+      return r;
+    });
+    setStorage(STORAGE_KEYS.SYNC, updatedSync);
 
-      // Mark all pending as success
-      const updatedSync = syncRecords.map(r => r.status === 'pending' ? { ...r, status: 'success' as const } : r);
-      setStorage(STORAGE_KEYS.SYNC, updatedSync);
+    pending.forEach((rec) => {
+      if (conflictTargetIds.has(rec.entityId)) return;
+      if (appliedQueueIds.size > 0 && !appliedQueueIds.has(rec.id)) return;
 
-      // Mark associated entity records as synced in actual tables
-      const rxTable = getPrescriptions();
-      const medTable = getMedicines();
-      const logsTable = getMedicationLogs();
+      if (rec.entityType === 'prescriptions') {
+        const idx = rxTable.findIndex((p) => p.id === rec.entityId);
+        if (idx !== -1) rxTable[idx].synced = true;
+      } else if (rec.entityType === 'medicines') {
+        const idx = medTable.findIndex((m) => m.id === rec.entityId);
+        if (idx !== -1) medTable[idx].synced = true;
+      } else if (rec.entityType === 'medication_logs') {
+        const idx = logsTable.findIndex((l) => l.id === rec.entityId);
+        if (idx !== -1) logsTable[idx].synced = true;
+      }
+    });
 
-      pending.forEach(rec => {
-        if (rec.entityType === 'prescriptions') {
-          const idx = rxTable.findIndex(p => p.id === rec.entityId);
-          if (idx !== -1) rxTable[idx].synced = true;
-        } else if (rec.entityType === 'medicines') {
-          const idx = medTable.findIndex(m => m.id === rec.entityId);
-          if (idx !== -1) medTable[idx].synced = true;
-        } else if (rec.entityType === 'medication_logs') {
-          const idx = logsTable.findIndex(l => l.id === rec.entityId);
-          if (idx !== -1) logsTable[idx].synced = true;
-        }
-      });
+    setStorage(STORAGE_KEYS.PRESCRIPTIONS, rxTable);
+    setStorage(STORAGE_KEYS.MEDICINES, medTable);
+    setStorage(STORAGE_KEYS.LOGS, logsTable);
 
-      setStorage(STORAGE_KEYS.PRESCRIPTIONS, rxTable);
-      setStorage(STORAGE_KEYS.MEDICINES, medTable);
-      setStorage(STORAGE_KEYS.LOGS, logsTable);
+    if (normalizedConflicts.length > 0 && typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('doctorian_sync_conflicts', { detail: normalizedConflicts })
+      );
+    }
 
-      // Create system notification for patient/doctor indicating synchronization fulfilled
+    const syncedCount = appliedQueueIds.size > 0
+      ? appliedQueueIds.size
+      : pending.filter((p) => !conflictTargetIds.has(p.entityId)).length;
+
+    if (syncedCount > 0) {
       createNotification(
         'PAT-001',
-        '🔄 Offline Records Synchronized',
-        `Successfully uploaded and secured ${pending.length} local offline medication logs and prescription items to the Cloud nodes!`,
+        'Offline Records Synchronized',
+        `Synchronized ${syncedCount} offline record(s) with the server.${normalizedConflicts.length > 0 ? ` ${normalizedConflicts.length} conflict(s) require manual review.` : ''}`,
         'sync'
       );
+    }
 
-      resolve({ success: true, count: pending.length });
-    }, 1500); // simulate network latency
-  });
+    return {
+      success: normalizedConflicts.length === 0,
+      count: syncedCount,
+      conflictsCount: normalizedConflicts.length
+    };
+  } catch {
+    return { success: false, count: 0, conflictsCount: 0 };
+  }
 };
 
 // HELPER LOG GENERATION FOR DEMO PREVIEW

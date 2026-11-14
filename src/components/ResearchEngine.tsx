@@ -282,7 +282,7 @@ export const ResearchEngine: React.FC = () => {
   // Handle Text to Speech
   const toggleSpeech = useCallback((textToRead: string) => {
     if (!('speechSynthesis' in window)) {
-      alert("Text-to-Speech audio reader is not supported in this browser.");
+      setGoogleSearchError("Text-to-Speech audio reader is not supported in this browser.");
       return;
     }
 

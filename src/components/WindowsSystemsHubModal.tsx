@@ -873,7 +873,7 @@ export const WindowsSystemsHubModal: React.FC<WindowsSystemsHubModalProps> = ({
                         <div className="flex items-center gap-2.5">
                           <Shield size={16} className="text-emerald-500" />
                           <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            HIPAA & Local Cryptographic Enclave: Active
+                            Uganda DPPA 2019 & Local Cryptographic Enclave: Active
                           </span>
                         </div>
                         <span className="text-[8px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">

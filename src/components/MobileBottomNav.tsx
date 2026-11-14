@@ -556,7 +556,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             className="fixed bottom-0 left-0 right-0 z-[140] w-full select-none"
           >
             {/* Flat Rectangular Bar: Edge-to-edge, smart, high-contrast, no curved or bent corners */}
-            <div className="bg-white/95 dark:bg-slate-950/95 text-slate-900 dark:text-slate-100 border-t border-slate-200/90 dark:border-slate-800/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_30px_rgba(0,0,0,0.5)] backdrop-blur-2xl h-16 sm:h-17 px-3 sm:px-8 flex items-center justify-around rounded-none">
+            <div className="bg-white/95 dark:bg-[#050e26]/95 text-slate-900 dark:text-slate-100 border-t border-slate-200/90 dark:border-cyan-500/30 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-6px_30px_rgba(0,210,255,0.18)] backdrop-blur-2xl h-16 sm:h-17 px-3 sm:px-8 flex items-center justify-around rounded-none">
 
               {/* 1. Home Button - Latest Capsule Squircle Look */}
               <button
@@ -663,7 +663,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
                     title="Clinical App Buttons & All Modules Hub (16 Apps)"
                     aria-label="Clinical App Buttons & All Modules Hub"
-                    className="w-13 h-13 sm:w-15 sm:h-15 -mt-5 sm:-mt-6 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-600 text-white flex flex-col items-center justify-center shadow-[0_8px_25px_rgba(37,99,235,0.5)] active:scale-95 hover:scale-105 transition-all cursor-pointer ring-4 ring-white dark:ring-slate-900 group relative"
+                    className="w-13 h-13 sm:w-15 sm:h-15 -mt-5 sm:-mt-6 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white flex flex-col items-center justify-center shadow-[0_8px_28px_rgba(0,210,255,0.55)] active:scale-95 hover:scale-105 transition-all cursor-pointer ring-4 ring-white dark:ring-[#050e26] group relative"
                   >
                     {isSwitcherOpen ? (
                       <div className="flex flex-col items-center justify-center">

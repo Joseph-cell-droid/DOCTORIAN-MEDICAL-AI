@@ -44,6 +44,7 @@ export const DeveloperPortal: React.FC = () => {
   const [revealKeyId, setRevealKeyId] = useState<number | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [showCredentials, setShowCredentials] = useState(false);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<number | null>(null);
 
   // Smart Fallback Diagnostic States
   const [prioritizeLocal, setPrioritizeLocal] = useState<boolean>(() => {
@@ -202,9 +203,9 @@ export const DeveloperPortal: React.FC = () => {
   };
 
   const handleDeleteKey = async (id: number) => {
-    if (!confirm("Are you sure you want to revoke this API key?")) return;
     try {
       await api.developer.deleteKey(id);
+      setConfirmRevokeId(null);
       fetchKeys();
     } catch (err) {
       console.error(err);
@@ -569,13 +570,33 @@ console.log(data.choices[0].message.content);
                           >
                             <Copy size={18} />
                           </button>
-                          <button 
-                            onClick={() => handleDeleteKey(key.id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
-                            title="Revoke Key"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {confirmRevokeId === key.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteKey(key.id)}
+                                className="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-[10px] font-bold hover:bg-rose-700"
+                              >
+                                Revoke
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmRevokeId(null)}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              type="button"
+                              onClick={() => setConfirmRevokeId(key.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                              title="Revoke Key"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

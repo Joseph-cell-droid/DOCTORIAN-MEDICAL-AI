@@ -69,10 +69,10 @@ interface AlertItem {
   severity: 'high' | 'medium' | 'info';
 }
 
-const ADMIN_AVATAR = "/src/assets/images/doctorian_admin_avatar_1793707337172.jpg";
-const ROBOT_DOCTOR = "/src/assets/images/doctorian_robot_doctor_1793707339282.jpg";
-const HOLOGRAM_ANATOMY = "/src/assets/images/doctorian_hologram_anatomy_1793707339524.jpg";
-const CYBER_WORLD_MAP = "/src/assets/images/doctorian_cyber_world_map_1793707340360.jpg";
+const ADMIN_AVATAR = "/portraits/admin_avatar.jpg";
+const ROBOT_DOCTOR = "/portraits/dr_sarah_nakalema.jpg";
+const HOLOGRAM_ANATOMY = "/portraits/hologram_anatomy.jpg";
+const CYBER_WORLD_MAP = "/portraits/cyber_world_map.jpg";
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavigate }) => {
   // Live Clock State
@@ -126,7 +126,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
       doctorName: 'Dr. Sarah Nakato',
       specialty: 'General Medicine',
       time: '09:00 AM',
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=120&auto=format&fit=crop&q=80',
+      avatar: '/portraits/dr_sarah_nakalema.jpg',
       status: 'Pending'
     },
     {
@@ -134,7 +134,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
       doctorName: 'Dr. John Kato',
       specialty: 'Cardiology',
       time: '09:30 AM',
-      avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=120&auto=format&fit=crop&q=80',
+      avatar: '/portraits/dr_emmanuel_kato.jpg',
       status: 'Pending'
     },
     {
@@ -142,7 +142,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
       doctorName: 'Dr. Grace Nanyonga',
       specialty: 'Pediatrics',
       time: '10:00 AM',
-      avatar: 'https://images.unsplash.com/photo-1594824813576-9634f192b1cf?w=120&auto=format&fit=crop&q=80',
+      avatar: '/portraits/dr_achan_grace.jpg',
       status: 'Pending'
     }
   ]);

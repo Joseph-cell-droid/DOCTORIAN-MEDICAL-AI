@@ -95,7 +95,7 @@ export const DoctorianSmartWatchOS: React.FC<DoctorianSmartWatchOSProps> = ({
     setTimeout(() => {
       const ecgData = {
         device: 'Doctorian Smart Watch OS v2.0',
-        patient: user?.displayName || 'Dr. Joseph Akora',
+        patient: user?.displayName || 'Clinical User',
         timestamp: new Date().toISOString(),
         vitals: {
           heartRate: `${heartRate} bpm`,

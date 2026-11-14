@@ -1,5 +1,3 @@
-import { jsPDF } from 'jspdf';
-
 export interface ExportReportData {
   user: any;
   vitals: {
@@ -16,7 +14,8 @@ export interface ExportReportData {
   medications?: any[];
 }
 
-export const exportMedicalReportPDF = (data: ExportReportData) => {
+export const exportMedicalReportPDF = async (data: ExportReportData) => {
+  const { jsPDF } = await import('jspdf');
   const { user, vitals, vitalsHistory = [], aiInsight, medications = [] } = data;
 
   const doc = new jsPDF({

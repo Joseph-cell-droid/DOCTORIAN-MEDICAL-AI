@@ -1164,7 +1164,7 @@ Return ONLY the raw JSON response.`;
                                   }`}
                                 >
                                   <img
-                                    src={doc.imageUrl || "/african_doctor_female.png"}
+                                    src={doc.imageUrl || "/portraits/dr_sarah_nakalema.jpg"}
                                     alt={doc.name}
                                     className="w-10 h-10 rounded-full object-cover border-2 border-slate-100"
                                     referrerPolicy="no-referrer"

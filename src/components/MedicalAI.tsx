@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bot, Brain, Crown, Loader2, Dna
 } from 'lucide-react';
-import { ChatInterface } from './ChatInterface';
 import { ModernizedChatView } from './ModernizedChatView';
 import { api, User } from '../api';
 import { parseResponseCredits } from '../utils/creditUtils';
-import { UpgradeModal } from './UpgradeModal';
-import { NeuralVisualizer } from './NeuralVisualizer';
+
+const ChatInterface = lazy(() => import('./ChatInterface').then(m => ({ default: m.ChatInterface })));
+const UpgradeModal = lazy(() => import('./UpgradeModal').then(m => ({ default: m.UpgradeModal })));
+const NeuralVisualizer = lazy(() => import('./NeuralVisualizer').then(m => ({ default: m.NeuralVisualizer })));
 
 interface MedicalAIProps {
   user: User | null;
@@ -88,16 +89,18 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
               >
                 <span>Return to Modern View</span>
               </button>
-              <ChatInterface 
-                user={user} 
-                onUpdate={onUpdate} 
-                arduino={arduino} 
-                onUpgradeRequested={onUpgradeRequested}
-                currentLanguage={currentLanguage}
-                onChangeLanguage={onChangeLanguage}
-                onNavigate={onNavigate}
-                onShowNeuralVisualizer={() => setShowVisualizer(true)}
-              />
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-blue-500" size={28} /></div>}>
+                <ChatInterface 
+                  user={user} 
+                  onUpdate={onUpdate} 
+                  arduino={arduino} 
+                  onUpgradeRequested={onUpgradeRequested}
+                  currentLanguage={currentLanguage}
+                  onChangeLanguage={onChangeLanguage}
+                  onNavigate={onNavigate}
+                  onShowNeuralVisualizer={() => setShowVisualizer(true)}
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -105,20 +108,24 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
 
       <AnimatePresence>
         {showUpgradeModal && (
-          <UpgradeModal 
-            user={user} 
-            onClose={() => setShowUpgradeModal(false)} 
-            onUpdate={(u) => {
-              onUpdate?.(u);
-              setShowUpgradeModal(false);
-            }} 
-          />
+          <Suspense fallback={null}>
+            <UpgradeModal 
+              user={user} 
+              onClose={() => setShowUpgradeModal(false)} 
+              onUpdate={(u) => {
+                onUpdate?.(u);
+                setShowUpgradeModal(false);
+              }} 
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showVisualizer && (
-          <NeuralVisualizer onClose={() => setShowVisualizer(false)} />
+          <Suspense fallback={null}>
+            <NeuralVisualizer onClose={() => setShowVisualizer(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

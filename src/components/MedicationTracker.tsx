@@ -30,7 +30,9 @@ import {
   X,
   FileText,
   User,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  ShoppingBag
 } from 'lucide-react';
 
 export interface MedicationTrackerProps {
@@ -67,7 +69,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       status: 'Active',
       instructions: 'Take 1 tablet after meals with water as needed for fever or mild pain.',
       category: 'Analgesic & Antipyretic',
-      prescribedBy: 'Dr. Sarah M. Nakitto'
+      prescribedBy: 'Dr. Sarah M. Nakalema'
     },
     {
       id: 2,
@@ -78,7 +80,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       status: 'Active',
       instructions: 'Take 1 capsule every 8 hours with water after food. Complete the full course.',
       category: 'Antibiotic (Penicillin class)',
-      prescribedBy: 'Dr. Sarah M. Nakitto'
+      prescribedBy: 'Dr. Sarah M. Nakalema'
     },
     {
       id: 3,
@@ -89,7 +91,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       status: 'Active',
       instructions: 'Take 1 tablet in the morning with breakfast for immune resilience.',
       category: 'Nutritional Supplement',
-      prescribedBy: 'Dr. Sarah M. Nakitto'
+      prescribedBy: 'Dr. Sarah M. Nakalema'
     }
   ]);
 
@@ -145,8 +147,163 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
     window.print();
   };
 
+  const [rxViewTab, setRxViewTab] = useState<'prescriptions' | 'tracker'>('prescriptions');
+  const takenDosesCount = schedule.filter((s) => s.status === 'Taken').length;
+  const totalDosesCount = schedule.length || 3;
+  const adherencePercent = Math.round((takenDosesCount / totalDosesCount) * 100);
+  const progressOffset = 226.2 * (1 - adherencePercent / 100);
+
   return (
-    <div className="w-full max-w-6xl mx-auto py-2 sm:py-4 px-2 sm:px-4 space-y-4 sm:space-y-5 text-slate-800 dark:text-slate-100 font-sans">
+    <div className="w-full max-w-6xl mx-auto py-3 sm:py-5 px-3 sm:px-5 space-y-5 text-slate-800 dark:text-slate-100 font-sans">
+
+      {/* ===================================================================== */}
+      {/* SCREEN 5: PRESCRIPTIONS & MEDICATION PROGRESS STACK (image_2605a2cb)  */}
+      {/* ===================================================================== */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-[900] tracking-tight text-slate-900 dark:text-white">Prescriptions</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Active clinical regimens & daily dose compliance</p>
+          </div>
+
+          <div className="inline-flex p-1 rounded-full bg-slate-200/80 dark:bg-[#081535] border-2 border-cyan-500/30 self-start">
+            <button
+              type="button"
+              onClick={() => setRxViewTab('prescriptions')}
+              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                rxViewTab === 'prescriptions'
+                  ? 'doctorian-cta-btn text-white'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              My Prescriptions
+            </button>
+            <button
+              type="button"
+              onClick={() => setRxViewTab('tracker')}
+              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                rxViewTab === 'tracker'
+                  ? 'doctorian-cta-btn text-white'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Medication Tracker
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Active Amoxicillin Card */}
+          <div className="lg:col-span-5 doctorian-thick-card p-5 flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/30 shrink-0">
+                  <Pill size={22} className="rotate-45" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+                    Amoxicillin 500mg
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">
+                    Take 1 Capsule 3 times daily
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-600 dark:text-emerald-300 text-[10px] font-black uppercase">
+                Active
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 dark:border-cyan-500/20 text-xs">
+              <span className="text-slate-500 dark:text-slate-400 font-semibold">Prescribed by Dr. Sarah M. Nakalema</span>
+              <span className="font-mono font-bold text-blue-600 dark:text-cyan-300">Until: Mar 20, 2026</span>
+            </div>
+          </div>
+
+          {/* Medication Progress Radial Card */}
+          <div className="lg:col-span-4 doctorian-thick-card p-5 flex items-center justify-between gap-4">
+            <div className="relative w-22 h-22 flex items-center justify-center shrink-0">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 84 84">
+                <circle cx="42" cy="42" r="36" stroke="currentColor" strokeOpacity="0.14" strokeWidth="7" fill="none" />
+                <circle
+                  cx="42"
+                  cy="42"
+                  r="36"
+                  stroke="#00d2ff"
+                  strokeWidth="7"
+                  strokeDasharray="226.2"
+                  strokeDashoffset={progressOffset}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </svg>
+              <span className="absolute text-lg font-black text-slate-900 dark:text-white">
+                {adherencePercent}%
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-2">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">Medication Progress</h3>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                  {takenDosesCount} of {totalDosesCount} doses today
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextPending = schedule.find((s) => s.status !== 'Taken') || schedule[0];
+                  if (nextPending) toggleDose(nextPending.id);
+                }}
+                className="doctorian-cta-btn px-4 py-1.5 rounded-full text-xs text-white inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <CheckCircle2 size={13} />
+                <span>Track</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Next Dose + Quick Action Tiles (Refill, Pharmacy, History) */}
+          <div className="lg:col-span-3 doctorian-thick-card p-4 flex flex-col justify-between space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-500 flex items-center justify-center shrink-0">
+                <Bell size={16} />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Next Dose</span>
+                <p className="text-xs font-black text-slate-900 dark:text-white truncate">Today at 8:00 PM 🔔</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => addToast('Refill request transmitted to Mulago E-Pharmacy.', 'success')}
+                className="doctorian-thick-tile p-2 flex flex-col items-center gap-1 text-center cursor-pointer"
+              >
+                <RefreshCw size={15} className="text-cyan-500" />
+                <span className="text-[10px] font-bold">Refill</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('app_medics')}
+                className="doctorian-thick-tile p-2 flex flex-col items-center gap-1 text-center cursor-pointer"
+              >
+                <ShoppingBag size={15} className="text-blue-500" />
+                <span className="text-[10px] font-bold">Pharmacy</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveToolModal('tracker')}
+                className="doctorian-thick-tile p-2 flex flex-col items-center gap-1 text-center cursor-pointer"
+              >
+                <Clock size={15} className="text-emerald-500" />
+                <span className="text-[10px] font-bold">History</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
       
       {/* 1. HERO BANNER: Smart Remote Prescription (Exact match to image) */}
       <div className="relative overflow-hidden rounded-3xl shadow-lg border border-blue-200/60 dark:border-blue-900/40 bg-gradient-to-r from-[#00388d] via-[#025ecb] to-[#00b0ff]">
@@ -173,15 +330,12 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         
         {/* Card 1: Patient Name */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex items-center gap-4 shadow-2xs hover:shadow-sm transition-shadow">
-          <div className="w-16 h-16 rounded-full bg-sky-100 dark:bg-sky-950/60 p-0.5 overflow-hidden shrink-0 border-2 border-white dark:border-slate-800 shadow-2xs flex items-center justify-center">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-sky-100 dark:bg-sky-950/60 p-0.5 overflow-hidden shrink-0 border-2 border-cyan-400/60 shadow-sm flex items-center justify-center">
             <img
-              src="/rx_patient_avatar.png"
+              src="/portraits/akora_joseph.jpg"
               alt="Akora Joseph"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/african_doctor_male.png';
-              }}
+              className="w-full h-full object-cover rounded-full"
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -207,7 +361,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 2: Next Medication */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex items-center gap-4 shadow-2xs hover:shadow-sm transition-shadow">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
             <Calendar size={28} className="stroke-[2.2]" />
           </div>
@@ -234,16 +388,20 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 3: Your Doctor */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex items-center justify-between gap-3 shadow-2xs hover:shadow-sm transition-shadow">
-          <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-            <Stethoscope size={28} className="stroke-[2.2]" />
+        <div className="doctorian-thick-card p-4 sm:p-5 flex items-center justify-between gap-3">
+          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-cyan-400/60 shadow-sm shrink-0">
+            <img
+              src="/portraits/dr_sarah_nakalema.jpg"
+              alt="Dr. Sarah M. Nakalema"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block tracking-tight">
               Your Doctor
             </span>
             <h3 className="text-lg font-black text-slate-900 dark:text-white truncate leading-tight">
-              Dr. Sarah M. Nakitto
+              Dr. Sarah M. Nakalema
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-300 font-medium truncate mt-0.5">
               General Physician
@@ -270,7 +428,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       </div>
 
       {/* 3. YOUR PRESCRIPTIONS TABLE CARD (Dark Blue Header Bar) */}
-      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 overflow-hidden shadow-2xs">
+      <div className="doctorian-thick-card overflow-hidden">
         {/* Header Bar */}
         <div className="bg-[#0b387e] dark:bg-blue-950 px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -366,7 +524,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         
         {/* Card 1: Medication Schedule */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3.5">
               <div className="flex items-center gap-2">
@@ -479,7 +637,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 2: Smart Reminders */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3.5">
               <div className="flex items-center gap-2">
@@ -578,7 +736,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 3: Prescription Actions */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3.5">
               <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
@@ -656,7 +814,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* Card 1: Medicine Information */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
@@ -701,7 +859,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 2: Health Tools */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
@@ -774,7 +932,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 3: Your Health Insights */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
@@ -834,7 +992,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
         </div>
 
         {/* Card 4: Telemedicine */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 flex flex-col justify-between shadow-2xs relative overflow-hidden">
+        <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
@@ -852,12 +1010,9 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
             <div className="flex justify-end mt-1">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-sky-100 dark:bg-slate-800 border-2 border-white dark:border-slate-800 shadow-sm">
                 <img
-                  src="/rx_doctor_telemed.png"
-                  alt="Doctorian Video Telemedicine Physician"
+                  src="/portraits/dr_sarah_nakalema.jpg"
+                  alt="Dr. Sarah M. Nakalema"
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/african_doctor_male.png';
-                  }}
                 />
               </div>
             </div>
@@ -881,7 +1036,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
       </div>
 
       {/* 6. BOTTOM TRUST & BENEFITS BANNER */}
-      <div className="rounded-3xl bg-blue-50/80 dark:bg-slate-900 border border-blue-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="doctorian-thick-card p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* 4 Feature Badges */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full md:w-auto flex-1">

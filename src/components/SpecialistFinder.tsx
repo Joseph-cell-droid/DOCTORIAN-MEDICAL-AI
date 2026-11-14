@@ -167,7 +167,7 @@ export const SpecialistFinder: React.FC = () => {
         });
         stopCamera();
       } else {
-        alert("Scanned QR is not a valid patient record.");
+        setCameraError("Scanned QR code does not contain a valid patient clinical record.");
       }
     } catch (e) {
       console.error("Failed to parse QR content", e);
@@ -325,10 +325,10 @@ export const SpecialistFinder: React.FC = () => {
     fetchDoctors();
   }, []);
 
-  // Trigger standard whatsapp direct message
-  const handleWhatsAppBase = (whatsappNumber: string) => {
+  // Format standard WhatsApp direct link
+  const getWhatsAppHref = (whatsappNumber: string) => {
     const cleanNumber = whatsappNumber.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanNumber}`, '_blank');
+    return `https://wa.me/${cleanNumber}`;
   };
 
   // Google Maps Grounding Facilities Fetcher (Gemini 3.8 Flash)
@@ -1273,12 +1273,14 @@ export const SpecialistFinder: React.FC = () => {
               </p>
             </div>
             {doctors.length > 0 && (
-              <button 
-                onClick={() => handleWhatsAppBase(doctors[0].whatsappNumber)}
-                className="w-full sm:w-auto px-10 py-5 bg-white text-slate-950 rounded-2xl font-[1000] text-xs uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 whitespace-nowrap shadow-xl"
+              <a 
+                href={getWhatsAppHref(doctors[0].whatsappNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-10 py-5 bg-white text-slate-950 rounded-2xl font-[1000] text-xs uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 whitespace-nowrap shadow-xl text-center inline-block"
               >
                  Direct Consult
-              </button>
+              </a>
             )}
           </div>
         </div>
@@ -1332,12 +1334,14 @@ export const SpecialistFinder: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                  <button 
-                    onClick={() => handleWhatsAppBase(doctor.whatsappNumber)} 
+                  <a 
+                    href={getWhatsAppHref(doctor.whatsappNumber)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-[1000] text-[9px] uppercase tracking-widest transition-all shadow-md active:scale-[0.98]"
                   >
                     <MessageSquare size={14} /> WhatsApp
-                  </button>
+                  </a>
                   <button 
                     onClick={() => setBookingSpecialist({
                       id: doctor.id,

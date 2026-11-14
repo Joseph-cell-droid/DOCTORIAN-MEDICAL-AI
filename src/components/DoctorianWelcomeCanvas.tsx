@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { 
   Sparkles, Stethoscope, Pill, Activity, Baby, 
   ChevronRight, Heart, ShieldCheck, Thermometer,
-  Zap, BrainCircuit, BookOpen
+  Zap, BrainCircuit, BookOpen, CheckCircle2, Bot
 } from 'lucide-react';
 
 export interface DoctorianWelcomeCanvasProps {
@@ -67,7 +67,48 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
   const temp = arduino?.temperature || 36.8;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 my-auto max-w-4xl mx-auto w-full">
+    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 my-auto max-w-4xl mx-auto w-full space-y-5">
+      {/* Screen 4 Greeting Bubble & "You can ask me about:" Thick Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl space-y-3.5"
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(0,210,255,0.45)] border-2 border-cyan-300/60 shrink-0">
+            <Bot size={20} />
+          </div>
+          <div className="doctorian-thick-card px-4 py-3.5 text-sm text-slate-900 dark:text-slate-100 leading-relaxed flex-1">
+            Hello <strong className="text-blue-600 dark:text-cyan-300">Akora Joseph! 👋</strong> I&apos;m your Doctorian AI assistant. How can I help you today?
+          </div>
+        </div>
+
+        <div className="doctorian-thick-card p-4 sm:p-5 space-y-2.5 ml-0 sm:ml-12">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white">
+            You can ask me about:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { label: 'Symptoms & Treatments', prompt: 'What are the symptoms of malaria?' },
+              { label: 'Medication Information', prompt: 'Review dosage, schedule, and safety for Amoxicillin 500mg.' },
+              { label: 'Health Tips & Advice', prompt: 'Give me daily preventive health tips based on my vitals.' },
+              { label: 'Medical Image Analysis', prompt: 'How do I interpret my laboratory and diagnostic scan results?' },
+              { label: 'And much more...', prompt: 'What emergency signs require urgent hospital attention?' },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onSelectPrompt(item.prompt)}
+                className="flex items-center gap-2 text-left px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#071534] hover:bg-cyan-50 dark:hover:bg-cyan-950/50 border border-slate-200 dark:border-cyan-500/25 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+              >
+                <CheckCircle2 size={15} className="text-cyan-500 dark:text-cyan-400 shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
       {/* Top Clinical AI Hero Badge */}
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
@@ -134,7 +175,7 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
               key={card.id}
               type="button"
               onClick={() => onSelectPrompt(card.prompt)}
-              className={`p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#0c1f4c]/70 dark:via-[#071330]/80 dark:to-[#040c20]/90 border border-slate-200/90 dark:${card.borderColor} shadow-xs hover:shadow-lg dark:hover:shadow-cyan-950/30 hover:scale-[1.01] transition-all text-left group cursor-pointer flex flex-col justify-between space-y-2.5 backdrop-blur-md`}
+              className="p-4 sm:p-5 doctorian-thick-card hover:scale-[1.01] transition-all text-left group cursor-pointer flex flex-col justify-between space-y-2.5 backdrop-blur-md"
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">

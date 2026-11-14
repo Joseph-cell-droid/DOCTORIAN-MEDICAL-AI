@@ -126,14 +126,14 @@ export const DoctorianProfileModal: React.FC<DoctorianProfileModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-black text-lg sm:text-xl text-slate-900 dark:text-white truncate tracking-tight">
-                  {user?.name || user?.displayName || 'Dr. Joseph Akora'}
+                  {user?.name || user?.displayName || 'Clinical User'}
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-[10px] font-black uppercase text-blue-700 dark:text-blue-300">
-                  {user?.role || 'Clinical Administrator'}
+                  {user?.role || 'Patient'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                {user?.email || 'gloriajayakullo@gmail.com'} • Verified Member
+                {user?.email || 'patient@doctorian.org'} • Active Account
               </p>
             </div>
           </div>
@@ -220,7 +220,7 @@ export const DoctorianProfileModal: React.FC<DoctorianProfileModalProps> = ({
                   <div>
                     <span className="text-[10px] text-cyan-200 font-semibold uppercase block">Patient Name</span>
                     <span className="font-extrabold text-sm text-white truncate block">
-                      {user?.name || user?.displayName || 'Dr. Joseph Akora'}
+                      {user?.name || user?.displayName || 'Clinical User'}
                     </span>
                   </div>
 

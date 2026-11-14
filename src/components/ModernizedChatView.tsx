@@ -1716,14 +1716,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h2 className={`text-xs sm:text-sm font-black tracking-tight ${effectiveDarkMode ? 'text-white' : 'text-slate-900'} leading-tight truncate`}>
-                  Doctorian <span className="text-blue-500">AI</span>
+                  AI Medical Assistant
                 </h2>
-                <span className={`hidden xl:inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8px] font-mono font-bold ${effectiveDarkMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-emerald-50 text-emerald-600 border-emerald-200'} border`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${effectiveDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'} animate-ping`} /> LIVE
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8px] font-mono font-bold ${effectiveDarkMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-emerald-50 text-emerald-600 border-emerald-200'} border`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${effectiveDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'} animate-ping`} /> Online
                 </span>
               </div>
               <p className={`text-[9px] sm:text-[10px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium tracking-wide truncate`}>
-                Your Health, Our Priority
+                Doctorian AI · Your Health, Our Priority
               </p>
             </div>
           </div>
@@ -2077,16 +2077,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigate?.('profile')}
-            className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full border border-blue-500/50 overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform shrink-0"
+            className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full border-2 border-cyan-400/60 overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform shrink-0 shadow-sm"
             title="User Profile"
           >
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="User" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-xs text-white">
-                {user?.name?.[0] || 'U'}
-              </div>
-            )}
+            <img
+              src={user?.avatarUrl || user?.photoURL || '/portraits/akora_joseph.jpg'}
+              alt={user?.displayName || 'Akora Joseph'}
+              className="w-full h-full object-cover"
+            />
           </button>
         </div>
       </header>
@@ -2259,14 +2257,12 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                       <CheckCheck size={14} className="text-cyan-300 stroke-[2.5]" />
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full border border-blue-400/50 overflow-hidden bg-slate-800 flex items-center justify-center mt-0.5 shrink-0">
-                    {user?.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="User" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-blue-600 flex items-center justify-center font-bold text-[10px] text-white">
-                        {user?.name?.[0] || 'U'}
-                      </div>
-                    )}
+                  <div className="w-8 h-8 rounded-full border-2 border-cyan-400/60 overflow-hidden bg-slate-800 flex items-center justify-center mt-0.5 shrink-0 shadow-sm">
+                    <img
+                      src={user?.avatarUrl || user?.photoURL || '/portraits/akora_joseph.jpg'}
+                      alt={user?.displayName || 'Akora Joseph'}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               ) : (
@@ -2695,10 +2691,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className={`flex items-center gap-2 rounded-2xl sm:rounded-full border transition-all p-1.5 sm:p-2 ${
+              className={`flex items-center gap-2 rounded-full border-2 transition-all p-1.5 sm:p-2 ${
                 effectiveDarkMode
-                  ? 'bg-slate-900/95 border-slate-700/80 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/20 shadow-lg shadow-black/40'
-                  : 'bg-white border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 shadow-md shadow-slate-200/50'
+                  ? 'bg-[#071535]/95 border-cyan-500/50 focus-within:border-cyan-300 focus-within:ring-2 focus-within:ring-cyan-400/30 shadow-[0_0_24px_rgba(0,210,255,0.2)]'
+                  : 'bg-white border-blue-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 shadow-md shadow-slate-200/50'
               }`}
             >
               {/* Plus Attachment Button */}
@@ -2722,7 +2718,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 type="text"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
-                placeholder="Ask Doctorian AI a clinical question or symptom..."
+                placeholder="Type or speak..."
                 className={`flex-1 bg-transparent text-sm sm:text-base font-normal px-2 py-1 focus:outline-hidden ${
                   effectiveDarkMode ? 'text-white placeholder-slate-400' : 'text-slate-900 placeholder-slate-400'
                 }`}

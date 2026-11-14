@@ -34,7 +34,7 @@ export function NeuralVisualizer({ onClose }: NeuralVisualizerProps) {
         // and optionally use a placeholder or relevant asset if we had one.
         // For now, we'll just show the generated text analysis in the visual area.
         setError("AI Synthesis Complete. Visual layer rendered based on: " + response.text.substring(0, 50) + "...");
-        setGeneratedImage("https://images.unsplash.com/photo-1576091160550-217359f42f8c?auto=format&fit=crop&q=80&w=1000"); // Generic medical fallback
+        setGeneratedImage("/portraits/hologram_anatomy.jpg"); // Local clinical hologram fallback
       }
     } catch (err: any) {
       console.error("Analysis failed:", err);

@@ -97,30 +97,10 @@ import { Compass,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SEARCHABLE_ITEMS, HEALTH_TIPS } from './constants';
-import { Dashboard } from './components/Dashboard';
-import { MedicalAI } from './components/MedicalAI';
-import { ChatInterface } from './components/ChatInterface';
-import { PatientsDashboard } from './components/PatientsDashboard';
-import VitalityMatrix from './components/VitalityMatrix';
 import { VoiceCommandToggle } from './components/VoiceCommandToggle';
-import { BiomaticSandbox } from './components/BiomaticSandbox';
 import { EdgeScrollNavigation } from './components/EdgeScrollNavigation';
-import { LocalBackupModal } from './components/LocalBackupModal';
-import { WindowsSystemsHubModal } from './components/WindowsSystemsHubModal';
-import { MobileBottomNav } from './components/MobileBottomNav';
-import { AndroidAppButtons } from './components/AndroidAppButtons';
-import { StorageVaultModal } from './components/StorageVaultModal';
-import { ThemeSchedulerModal } from './components/ThemeSchedulerModal';
-import { TargetedDoseAlarmModal } from './components/TargetedDoseAlarmModal';
-import { ModernAuthPage } from './components/ModernAuthPage';
-import { AppOperationsSettingsModal } from './components/AppOperationsSettingsModal';
-import { PageTutorialModal } from './components/PageTutorialModal';
+import { MedicalAISplash } from './components/MedicalAISplash';
 import { BioTelemetryRangeTooltip } from './components/BioTelemetryRangeTooltip';
-import { AdminOnboardingPortal } from './components/AdminOnboardingPortal';
-import { EmergencySmsChat } from './components/EmergencySmsChat';
-import { DoctorianVoiceCallModal } from './components/DoctorianVoiceCallModal';
-import { DoctorianVideoConsultationModal } from './components/DoctorianVideoConsultationModal';
-import { DoctorianProfileModal } from './components/DoctorianProfileModal';
 import { useNearestHospital } from './hooks/useNearestHospital';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
@@ -226,36 +206,60 @@ const GsmSmsGateway = safeLazy(() => import("./components/GsmSmsGateway"), "GsmS
 const DoctorsDashboard = safeLazy(() => import("./components/DoctorsDashboard"), "DoctorsDashboard");
 const AppSettingsPage = safeLazy(() => import("./components/AppSettingsPage"), "AppSettingsPage");
 const DoctorianSmartWatchOS = safeLazy(() => import("./components/DoctorianSmartWatchOS"), "DoctorianSmartWatchOS");
-import { BMICalculator } from "./components/BMICalculator";
+const Dashboard = safeLazy(() => import("./components/Dashboard"), "Dashboard");
+const MedicalAI = safeLazy(() => import("./components/MedicalAI"), "MedicalAI");
+const PatientsDashboard = safeLazy(() => import("./components/PatientsDashboard"), "PatientsDashboard");
+const VitalityMatrix = safeLazy(() => import("./components/VitalityMatrix"));
+const BiomaticSandbox = safeLazy(() => import("./components/BiomaticSandbox"), "BiomaticSandbox");
+const BMICalculator = safeLazy(() => import("./components/BMICalculator"), "BMICalculator");
+const LocalBackupModal = safeLazy(() => import("./components/LocalBackupModal"), "LocalBackupModal");
+const WindowsSystemsHubModal = safeLazy(() => import("./components/WindowsSystemsHubModal"), "WindowsSystemsHubModal");
+const MobileBottomNav = safeLazy(() => import("./components/MobileBottomNav"), "MobileBottomNav");
+const AndroidAppButtons = safeLazy(() => import("./components/AndroidAppButtons"), "AndroidAppButtons");
+const StorageVaultModal = safeLazy(() => import("./components/StorageVaultModal"), "StorageVaultModal");
+const ThemeSchedulerModal = safeLazy(() => import("./components/ThemeSchedulerModal"), "ThemeSchedulerModal");
+const TargetedDoseAlarmModal = safeLazy(() => import("./components/TargetedDoseAlarmModal"), "TargetedDoseAlarmModal");
+const ModernAuthPage = safeLazy(() => import("./components/ModernAuthPage"), "ModernAuthPage");
+const AppOperationsSettingsModal = safeLazy(() => import("./components/AppOperationsSettingsModal"), "AppOperationsSettingsModal");
+const PageTutorialModal = safeLazy(() => import("./components/PageTutorialModal"), "PageTutorialModal");
+const AdminOnboardingPortal = safeLazy(() => import("./components/AdminOnboardingPortal"), "AdminOnboardingPortal");
+const EmergencySmsChat = safeLazy(() => import("./components/EmergencySmsChat"), "EmergencySmsChat");
+const DoctorianVoiceCallModal = safeLazy(() => import("./components/DoctorianVoiceCallModal"), "DoctorianVoiceCallModal");
+const DoctorianVideoConsultationModal = safeLazy(() => import("./components/DoctorianVideoConsultationModal"), "DoctorianVideoConsultationModal");
+const DoctorianProfileModal = safeLazy(() => import("./components/DoctorianProfileModal"), "DoctorianProfileModal");
+const AppServerNetwork = safeLazy(() => import("./components/AppServerNetwork"), "AppServerNetwork");
+const AuthModal = safeLazy(() => import("./components/AuthModal"), "AuthModal");
+const AdminInfoModal = safeLazy(() => import("./components/AdminInfoModal"), "AdminInfoModal");
+const ClinicalProtocols = safeLazy(() => import("./components/Tasks"), "ClinicalProtocols");
+const ClinicalReportExporter = safeLazy(() => import("./components/ClinicalReportExporter"), "ClinicalReportExporter");
+const TelehealthScribeHub = safeLazy(() => import("./components/TelehealthScribeHub"), "TelehealthScribeHub");
+const AuditTrailModal = safeLazy(() => import("./components/AuditTrailModal"), "AuditTrailModal");
+const HealthTipModal = safeLazy(() => import("./components/HealthTipModal"), "HealthTipModal");
+const HealthProgressTracker = safeLazy(() => import("./components/HealthProgressTracker"), "HealthProgressTracker");
+const HelpCenter = safeLazy(() => import("./components/SystemsHubViews"), "HelpCenter");
+const PrivacyVault = safeLazy(() => import("./components/SystemsHubViews"), "PrivacyVault");
+const TermsAndData = safeLazy(() => import("./components/SystemsHubViews"), "TermsAndData");
+const TerminalSecureGate = safeLazy(() => import("./components/TerminalSecureGate"), "TerminalSecureGate");
+const MarianConsole = safeLazy(() => import("./components/MarianConsole"), "MarianConsole");
+const DownloadAppModal = safeLazy(() => import("./components/DownloadAppModal"), "DownloadAppModal");
+const NextGenTechSuiteModal = safeLazy(() => import("./components/NextGenTechSuiteModal"), "NextGenTechSuiteModal");
+const SubscriptionModal = safeLazy(() => import("./components/SubscriptionModal"), "SubscriptionModal");
+const AppTutorial = safeLazy(() => import("./components/AppTutorial"), "AppTutorial");
+const DoctorVerificationModal = safeLazy(() => import("./components/DoctorVerificationModal"), "DoctorVerificationModal");
 const AmbientClinicalScribe = safeLazy(() => import("./components/AmbientClinicalScribe"), "AmbientClinicalScribe");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
 const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"), "NeuralTrainingHub");
 const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
 
-const josephPortrait = "/african_doctor_male.png";
-import { AppServerNetwork } from "./components/AppServerNetwork";
-import { AuthModal } from "./components/AuthModal";
-import { AdminInfoModal } from "./components/AdminInfoModal";
+const josephPortrait = "/portraits/akora_joseph.jpg";
 import { Footer } from "./components/Footer";
-import { ClinicalProtocols } from "./components/Tasks";
 import { AmbientBubbleBackground } from "./components/AmbientBubbleBackground";
-
-import { ClinicalReportExporter } from "./components/ClinicalReportExporter";
-import { TelehealthScribeHub } from "./components/TelehealthScribeHub";
-import { AuditTrailModal } from "./components/AuditTrailModal";
 import { Soundscape } from "./utils/soundscape";
-
-import { HealthTip } from "./components/HealthTipModal";
-import { HealthTipModal } from "./components/HealthTipModal";
-import { HealthProgressTracker } from "./components/HealthProgressTracker";
-import { HelpCenter, PrivacyVault, TermsAndData } from "./components/SystemsHubViews";
-import { TerminalSecureGate } from "./components/TerminalSecureGate";
+import type { HealthTip } from "./components/HealthTipModal";
 import { translate } from './utils/translations';
-import { MarianConsole } from "./components/MarianConsole";
-import { DownloadAppModal } from "./components/DownloadAppModal";
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
 import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
-import { NextGenTechSuiteModal, NextGenTechTab } from './components/NextGenTechSuiteModal';
+import type { NextGenTechTab } from './components/NextGenTechSuiteModal';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -425,18 +429,8 @@ import { api, User, autoDiscoverLocalNode } from './api';
 import { Logo } from "./components/Logo";
 import { ResourceView, ResourceType } from './components/ResourceView';
 import { startRegistration } from '@simplewebauthn/browser';
-import { 
-  googleProvider, 
-  githubProvider, 
-  facebookProvider, 
-  instagramProvider,
-  signInWithSocial 
-} from './firebase';
 import { useArduinoContext } from './ArduinoContext';
 import { useMedicationReminders } from './hooks/useMedicationReminders';
-import { SubscriptionModal } from './components/SubscriptionModal';
-import { AppTutorial } from './components/AppTutorial';
-import { DoctorVerificationModal } from './components/DoctorVerificationModal';
 
 const viewNamesMap: Record<string, string> = {
   home: 'Clinical Health Dashboard',
@@ -991,6 +985,7 @@ export default function App() {
     } catch (e) {}
     return false;
   });
+  const [showSplash, setShowSplash] = useState<boolean>(true);
   const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
   const [isScanLoading, setIsScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -1064,9 +1059,9 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('medical_dark_mode');
       if (saved !== null) return saved === 'true';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return true;
     }
-    return false;
+    return true;
   });
   const [isEyeCareMode, setIsEyeCareMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -1354,12 +1349,19 @@ export default function App() {
     };
   }, [currentView]);
 
-  const handleSocialLogin = async (provider: any, providerName: string) => {
+  const handleSocialLogin = async (providerKey: 'google' | 'github' | 'facebook' | 'instagram', providerName: string) => {
     setIsInsightLoading(true); // Reuse a loading state or add a new one, but let's use a generic one if possible
     // Actually let's use toast
     setToast({ message: `Accessing ${providerName} nexus...`, type: 'info' });
     try {
-      const firebaseUser = await signInWithSocial(provider);
+      const fb = await import('./firebase');
+      const providerMap = {
+        google: fb.googleProvider,
+        github: fb.githubProvider,
+        facebook: fb.facebookProvider,
+        instagram: fb.instagramProvider,
+      };
+      const firebaseUser = await fb.signInWithSocial(providerMap[providerKey]);
       if (firebaseUser.email) {
         const loggedInUser = await api.auth.socialLogin({
           email: firebaseUser.email,
@@ -2597,47 +2599,59 @@ export default function App() {
   const mobileNavLinks = navLinks.slice(0, 5);
 
   if (!hasEnteredApp) {
+    if (showSplash) {
+      return (
+        <ErrorBoundary>
+          <MedicalAISplash
+            onDismiss={() => setShowSplash(false)}
+            autoCloseTimeout={3200}
+          />
+        </ErrorBoundary>
+      );
+    }
     return (
       <ErrorBoundary>
-        <ModernAuthPage
-          isDarkMode={isDarkMode}
-          onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-          initialMode="none"
-          onContinueAsGuest={() => {
-            const guestUser: any = {
-              id: `guest-${Date.now()}`,
-              email: 'guest.clinical@doctorian.org',
-              displayName: 'Guest Clinical Officer',
-              role: 'user',
-              isGuest: true,
-              isDoctor: false
-            };
-            setUser(guestUser);
-            localStorage.setItem('medical_user', JSON.stringify(guestUser));
-            trustDevice(true);
-            setHasEnteredApp(true);
-            setIsAuthModalOpen(false);
-            addToast("Guest Clinical Mode active. Diagnostic and consultation tools enabled.", "info");
-          }}
-          onSuccess={(authenticatedUser, isSignUp) => {
-            setUser(authenticatedUser);
-            localStorage.setItem('medical_user', JSON.stringify(authenticatedUser));
-            trustDevice(true);
-            setHasEnteredApp(true);
-            setIsAuthModalOpen(false);
-            if (authenticatedUser.role === 'doctor' || (authenticatedUser as any).isDoctor) {
-              setIsDoctorAuthenticated(true);
-            }
-            if (authenticatedUser.role === 'admin' || (authenticatedUser as any).isAdmin) {
-              setIsAdminAuthenticated(true);
-            }
-            if (isSignUp) {
-              addToast(`Welcome to Doctorian! Workstation initialized & confirmation sent to Gmail (${authenticatedUser.email}).`, "success");
-            } else {
-              addToast(`Welcome back, ${authenticatedUser.displayName || 'User'}! Login security alert sent to Gmail (${authenticatedUser.email}).`, "success");
-            }
-          }}
-        />
+        <Suspense fallback={<div className="min-h-screen bg-[#03091a] doctorian-canvas" />}>
+          <ModernAuthPage
+            isDarkMode={isDarkMode}
+            onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+            initialMode="login"
+            onContinueAsGuest={() => {
+              const guestUser: any = {
+                id: `guest-${Date.now()}`,
+                email: 'guest.clinical@doctorian.org',
+                displayName: 'Guest Clinical Officer',
+                role: 'user',
+                isGuest: true,
+                isDoctor: false
+              };
+              setUser(guestUser);
+              localStorage.setItem('medical_user', JSON.stringify(guestUser));
+              trustDevice(true);
+              setHasEnteredApp(true);
+              setIsAuthModalOpen(false);
+              addToast("Guest Clinical Mode active. Diagnostic and consultation tools enabled.", "info");
+            }}
+            onSuccess={(authenticatedUser, isSignUp) => {
+              setUser(authenticatedUser);
+              localStorage.setItem('medical_user', JSON.stringify(authenticatedUser));
+              trustDevice(true);
+              setHasEnteredApp(true);
+              setIsAuthModalOpen(false);
+              if (authenticatedUser.role === 'doctor' || (authenticatedUser as any).isDoctor) {
+                setIsDoctorAuthenticated(true);
+              }
+              if (authenticatedUser.role === 'admin' || (authenticatedUser as any).isAdmin) {
+                setIsAdminAuthenticated(true);
+              }
+              if (isSignUp) {
+                addToast(`Welcome to Doctorian! Workstation initialized & confirmation sent to Gmail (${authenticatedUser.email}).`, "success");
+              } else {
+                addToast(`Welcome back, ${authenticatedUser.displayName || 'User'}! Login security alert sent to Gmail (${authenticatedUser.email}).`, "success");
+              }
+            }}
+          />
+        </Suspense>
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -2663,7 +2677,9 @@ export default function App() {
     <ErrorBoundary>
       {scannedPatientData && (
         <div className="fixed inset-0 z-[99999] overflow-y-auto">
-          <PatientProfileViewer data={scannedPatientData} onClose={() => setScannedPatientData(null)} />
+          <Suspense fallback={null}>
+            <PatientProfileViewer data={scannedPatientData} onClose={() => setScannedPatientData(null)} />
+          </Suspense>
         </div>
       )}
       {isScanLoading && (
@@ -2675,7 +2691,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <div id="app-root-container" className="h-screen h-[100dvh] bg-[#f8fafc] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
+      <div id="app-root-container" className="h-screen h-[100dvh] doctorian-canvas font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
         <AmbientBubbleBackground isDarkMode={isDarkMode} currentView={currentView} />
         <div ref={navigationContainerRef} className="fixed inset-0 z-[140] pointer-events-none" />
       <a 
@@ -3643,7 +3659,7 @@ export default function App() {
                   <p className="text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-6 sm:mb-8">Global Security Matrix</p>
                   <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
                     {[
-                      { id: 'google', provider: googleProvider, color: 'hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500', icon: (
+                      { id: 'google' as const, color: 'hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500', icon: (
                         <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24">
                           <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -3651,13 +3667,13 @@ export default function App() {
                           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                         </svg>
                       )},
-                      { id: 'facebook', provider: facebookProvider, color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600', icon: <Facebook size={24} className="sm:w-7 sm:h-7" /> },
-                      { id: 'instagram', provider: instagramProvider, color: 'hover:bg-pink-50 dark:hover:bg-pink-900/20 text-pink-500', icon: <Instagram size={24} className="sm:w-7 sm:h-7" /> },
-                      { id: 'github', provider: githubProvider, color: 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white', icon: <Github size={24} className="sm:w-7 sm:h-7" /> },
+                      { id: 'facebook' as const, color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600', icon: <Facebook size={24} className="sm:w-7 sm:h-7" /> },
+                      { id: 'instagram' as const, color: 'hover:bg-pink-50 dark:hover:bg-pink-900/20 text-pink-500', icon: <Instagram size={24} className="sm:w-7 sm:h-7" /> },
+                      { id: 'github' as const, color: 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white', icon: <Github size={24} className="sm:w-7 sm:h-7" /> },
                     ].map((shortcut, scIdx) => (
                       <button
                         key={`login-shortcut-${shortcut.id}-${scIdx}`}
-                        onClick={() => handleSocialLogin(shortcut.provider, shortcut.id)}
+                        onClick={() => handleSocialLogin(shortcut.id, shortcut.id)}
                         className={`flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-[1.25rem] sm:rounded-[1.5rem] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 transition-all hover:scale-110 active:scale-95 group ${shortcut.color}`}
                         aria-label={`Login with ${shortcut.id}`}
                       >
@@ -4398,7 +4414,13 @@ export default function App() {
             exit={{ opacity: 0, scale: 1.02 }}
             className="w-full"
           >
-            <AppSettingsPage onNavigate={setCurrentView} user={user} addToast={(msg, type) => addToast(msg, type || 'info')} />
+            <AppSettingsPage
+              onNavigate={setCurrentView}
+              user={user}
+              addToast={(msg, type) => addToast(msg, type || 'info')}
+              isDarkMode={isDarkMode}
+              onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+            />
           </motion.div>
         ) : currentView === 'smart_watch' ? (
           <motion.div
@@ -4655,12 +4677,14 @@ export default function App() {
 
   </Suspense>
 
-  <AppTutorial 
-    isOpen={isTutorialOpen} 
-    onClose={() => setIsTutorialOpen(false)} 
-    onNavigate={setCurrentView} 
-    currentView={currentView} 
-  />
+    <Suspense fallback={null}>
+      <AppTutorial 
+        isOpen={isTutorialOpen} 
+        onClose={() => setIsTutorialOpen(false)} 
+        onNavigate={setCurrentView} 
+        currentView={currentView} 
+      />
+    </Suspense>
 
   {/* Admin Authentication Overlay */}
   <AnimatePresence>
@@ -4892,14 +4916,16 @@ export default function App() {
             
             {/* Content Categories with Intelligent Non-Repeating App Buttons in Two Columns */}
             <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar">
-              <AndroidAppButtons
-                currentView={currentView}
-                onNavigate={(view) => {
-                  setCurrentView(view as any);
-                  setIsMobileMenuOpen(false);
-                }}
-                onItemClick={() => setIsMobileMenuOpen(false)}
-              />
+              <Suspense fallback={null}>
+                <AndroidAppButtons
+                  currentView={currentView}
+                  onNavigate={(view) => {
+                    setCurrentView(view as any);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  onItemClick={() => setIsMobileMenuOpen(false)}
+                />
+              </Suspense>
             </div>
           </motion.div>
         </motion.div>
@@ -4925,6 +4951,7 @@ export default function App() {
     )}
   </AnimatePresence>
 
+  <Suspense fallback={null}>
   {/* Targeted Account-Specific Medication Dose Alarm Modal (Admin Authorized) */}
   <TargetedDoseAlarmModal
     currentUser={user}
@@ -5145,6 +5172,7 @@ export default function App() {
                 />
               )}
             </AnimatePresence>
+  </Suspense>
 
 
       </div>
@@ -5153,11 +5181,13 @@ export default function App() {
     {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << (Hidden in full-screen AI chat to prevent blocking the input card) */}
     {currentView !== 'ai_nexus' && (
       <SafeNavErrorBoundary key={`bottom-nav-${currentView}`}>
-        <MobileBottomNav 
-          currentView={currentView} 
-          onNavigate={(view) => setCurrentView(view as any)}
-          onOpenMenu={() => setIsMobileMenuOpen(true)}
-        />
+        <Suspense fallback={null}>
+          <MobileBottomNav 
+            currentView={currentView} 
+            onNavigate={(view) => setCurrentView(view as any)}
+            onOpenMenu={() => setIsMobileMenuOpen(true)}
+          />
+        </Suspense>
       </SafeNavErrorBoundary>
     )}
 

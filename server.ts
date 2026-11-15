@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
@@ -8,8 +8,8 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import { db, initDatabase, logAudit } from './server/db';
-import { retrieveClinicalEvidence } from './server/rag';
+import { db, initDatabase, logAudit, ensureHospitalBeds } from './server/db.ts';
+import { retrieveClinicalEvidence } from './server/rag.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -828,6 +828,232 @@ app.patch('/api/admin/users/:id', requireRoles(['admin']), (req: AuthedRequest, 
 app.get('/api/admin/audit-logs', requireRoles(['admin']), (_req, res) => {
   const logs = db.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 50').all();
   res.json({ logs });
+});
+
+// ---------------------------------------------------------------------------
+// LIVE DASHBOARD TELEMETRY, STEPS & BED LEDGER (REAL-TIME SQLITE STATE)
+// ---------------------------------------------------------------------------
+function getLiveDashboardSummaryPayload(hospitalId: string, userKey: string) {
+  ensureHospitalBeds(hospitalId);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const totalPatients = (db.prepare('SELECT COUNT(*) as c FROM patients').get() as { c: number }).c;
+  const stablePatients = (db.prepare("SELECT COUNT(*) as c FROM patients WHERE risk_tier = 'Stable'").get() as { c: number }).c;
+  const attentionPatients = (db.prepare("SELECT COUNT(*) as c FROM patients WHERE risk_tier IN ('Attention', 'Critical')").get() as { c: number }).c;
+
+  const activeDoctors = (db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'doctor' AND status = 'active'").get() as { c: number }).c;
+  const activeNurses = (db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'nurse' AND status = 'active'").get() as { c: number }).c;
+
+  const totalAppointments = (db.prepare('SELECT COUNT(*) as c FROM appointments').get() as { c: number }).c;
+  const completedAppointments = (db.prepare("SELECT COUNT(*) as c FROM appointments WHERE status = 'Completed'").get() as { c: number }).c;
+  const pendingAppointments = Math.max(0, totalAppointments - completedAppointments);
+
+  const totalPrescriptions = (db.prepare('SELECT COUNT(*) as c FROM prescriptions').get() as { c: number }).c;
+  const activePrescriptions = (db.prepare("SELECT COUNT(*) as c FROM prescriptions WHERE status = 'active'").get() as { c: number }).c;
+  const pendingPrescriptions = (db.prepare("SELECT COUNT(*) as c FROM prescriptions WHERE status = 'pending_approval'").get() as { c: number }).c;
+
+  const totalLabs = (db.prepare('SELECT COUNT(*) as c FROM lab_results').get() as { c: number }).c;
+  const completedLabs = (db.prepare("SELECT COUNT(*) as c FROM lab_results WHERE status = 'Completed'").get() as { c: number }).c;
+  const pendingLabs = Math.max(0, totalLabs - completedLabs);
+  const normalLabs = (db.prepare("SELECT COUNT(*) as c FROM lab_results WHERE interpretation = 'Normal'").get() as { c: number }).c;
+  const abnormalLabs = Math.max(0, totalLabs - normalLabs);
+
+  const openEmergencies = (db.prepare("SELECT COUNT(*) as c FROM referrals WHERE urgency = 'Emergency' AND status != 'Completed'").get() as { c: number }).c;
+  const criticalPatientCount = (db.prepare("SELECT COUNT(*) as c FROM patients WHERE risk_tier = 'Critical'").get() as { c: number }).c;
+
+  const beds = db.prepare('SELECT * FROM hospital_beds WHERE hospital_id = ? ORDER BY bed_number ASC').all(hospitalId) as any[];
+  const occupiedBeds = beds.filter(b => b.status === 'occupied').length;
+  const availableBeds = beds.filter(b => b.status === 'available').length;
+  const cleaningBeds = beds.filter(b => b.status === 'cleaning').length;
+  const bedOccupancyPct = beds.length > 0 ? Math.round((occupiedBeds / beds.length) * 100) : 0;
+
+  let telemetry = db.prepare('SELECT * FROM daily_telemetry WHERE user_key = ? AND date_str = ?').get(userKey, todayStr) as any;
+  if (!telemetry) {
+    telemetry = {
+      user_key: userKey,
+      date_str: todayStr,
+      steps: 0,
+      steps_goal: 10000,
+      calories: 0,
+      water_ml: 0,
+      sleep_minutes: 0,
+      updated_at: null
+    };
+  }
+
+  const recentPatients = db.prepare('SELECT id, mrn, full_name, age, gender, district, risk_tier, updated_at FROM patients ORDER BY updated_at DESC LIMIT 6').all();
+  const recentAppointments = db.prepare('SELECT * FROM appointments ORDER BY created_at DESC LIMIT 6').all();
+  const recentLabs = db.prepare('SELECT * FROM lab_results ORDER BY created_at DESC LIMIT 6').all();
+  const recentLogs = db.prepare('SELECT id, actor_role, action, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 8').all();
+
+  const vitalsCountToday = (db.prepare("SELECT COUNT(*) as c FROM vital_signs WHERE date(recorded_at) = date('now')").get() as { c: number }).c;
+
+  const stepsGoalPct = telemetry.steps_goal > 0 ? Math.min(100, Math.round((telemetry.steps / telemetry.steps_goal) * 100)) : 0;
+  const rxDonePct = totalPrescriptions > 0 ? Math.round((activePrescriptions / totalPrescriptions) * 100) : 0;
+  const apptsDonePct = totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0;
+  const labsDonePct = totalLabs > 0 ? Math.round((completedLabs / totalLabs) * 100) : 0;
+
+  const checklist = [
+    {
+      key: 'steps',
+      label: 'Daily Movement / Steps',
+      done: telemetry.steps > 0,
+      statusText: telemetry.steps > 0 ? `${telemetry.steps.toLocaleString()} / ${telemetry.steps_goal.toLocaleString()} steps logged` : '0 steps yet — walk or sync steps'
+    },
+    {
+      key: 'appointments',
+      label: 'Appointments Completed',
+      done: totalAppointments > 0 && pendingAppointments === 0,
+      statusText: `${completedAppointments} done · ${pendingAppointments} not yet completed`
+    },
+    {
+      key: 'labs',
+      label: 'Lab Results Reviewed',
+      done: totalLabs > 0 && pendingLabs === 0,
+      statusText: `${completedLabs} completed · ${pendingLabs} pending review`
+    },
+    {
+      key: 'prescriptions',
+      label: 'Prescriptions Approved',
+      done: totalPrescriptions > 0 && pendingPrescriptions === 0,
+      statusText: `${activePrescriptions} approved · ${pendingPrescriptions} awaiting approval`
+    },
+    {
+      key: 'vitals',
+      label: 'Vitals Recorded Today',
+      done: vitalsCountToday > 0,
+      statusText: vitalsCountToday > 0 ? `${vitalsCountToday} readings saved today` : 'No readings saved to DB today yet'
+    }
+  ];
+
+  const overallScore = Math.round((stepsGoalPct + rxDonePct + apptsDonePct + labsDonePct) / 4);
+
+  return {
+    serverTime: new Date().toISOString(),
+    hospitalId,
+    counts: {
+      totalPatients,
+      stablePatients,
+      attentionPatients,
+      activeDoctors,
+      activeNurses,
+      totalClinicians: activeDoctors + activeNurses,
+      totalAppointments,
+      completedAppointments,
+      pendingAppointments,
+      totalPrescriptions,
+      activePrescriptions,
+      pendingPrescriptions,
+      totalLabs,
+      completedLabs,
+      pendingLabs,
+      normalLabs,
+      abnormalLabs,
+      emergencyCases: openEmergencies + criticalPatientCount,
+      vitalsCountToday
+    },
+    beds: {
+      total: beds.length,
+      occupied: occupiedBeds,
+      available: availableBeds,
+      cleaning: cleaningBeds,
+      occupancyPct: bedOccupancyPct,
+      list: beds
+    },
+    telemetry: {
+      steps: telemetry.steps || 0,
+      stepsGoal: telemetry.steps_goal || 10000,
+      calories: telemetry.calories || 0,
+      waterMl: telemetry.water_ml || 0,
+      sleepMinutes: telemetry.sleep_minutes || 0,
+      updatedAt: telemetry.updated_at || null,
+      stepsGoalPct
+    },
+    progress: {
+      stepsGoalPct,
+      rxDonePct,
+      apptsDonePct,
+      labsDonePct,
+      overallScore
+    },
+    checklist,
+    recentPatients,
+    recentAppointments,
+    recentLabs,
+    recentLogs
+  };
+}
+
+app.get('/api/dashboard/live-summary', (req: AuthedRequest, res) => {
+  const hospitalId = typeof req.query.hospitalId === 'string' && req.query.hospitalId.trim()
+    ? req.query.hospitalId.trim()
+    : 'mulago-national';
+  const userKey = req.user?.id || (typeof req.query.userKey === 'string' && req.query.userKey.trim()) || 'default-user';
+  res.json(getLiveDashboardSummaryPayload(hospitalId, userKey));
+});
+
+app.post('/api/dashboard/steps', (req: AuthedRequest, res) => {
+  const { deltaSteps, absoluteSteps, waterMl, sleepMinutes, stepsGoal, userKey: bodyUserKey, hospitalId = 'mulago-national' } = req.body || {};
+  const userKey = req.user?.id || (typeof bodyUserKey === 'string' && bodyUserKey.trim()) || 'default-user';
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const existing = db.prepare('SELECT * FROM daily_telemetry WHERE user_key = ? AND date_str = ?').get(userKey, todayStr) as any;
+  let nextSteps = existing ? existing.steps : 0;
+  if (typeof absoluteSteps === 'number' && !Number.isNaN(absoluteSteps)) {
+    nextSteps = Math.max(0, Math.round(absoluteSteps));
+  } else if (typeof deltaSteps === 'number' && !Number.isNaN(deltaSteps)) {
+    nextSteps = Math.max(0, nextSteps + Math.round(deltaSteps));
+  }
+
+  const nextGoal = typeof stepsGoal === 'number' && stepsGoal >= 1000 ? Math.round(stepsGoal) : (existing?.steps_goal ?? 10000);
+  const nextWater = typeof waterMl === 'number' ? Math.max(0, Math.round(waterMl)) : (existing?.water_ml ?? 0);
+  const nextSleep = typeof sleepMinutes === 'number' ? Math.max(0, Math.round(sleepMinutes)) : (existing?.sleep_minutes ?? 0);
+  const nextCalories = Math.round(nextSteps * 0.042);
+
+  if (existing) {
+    db.prepare(`
+      UPDATE daily_telemetry
+      SET steps = ?, steps_goal = ?, calories = ?, water_ml = ?, sleep_minutes = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(nextSteps, nextGoal, nextCalories, nextWater, nextSleep, existing.id);
+  } else {
+    db.prepare(`
+      INSERT INTO daily_telemetry (id, user_key, date_str, steps, steps_goal, calories, water_ml, sleep_minutes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(`tel-${Date.now()}`, userKey, todayStr, nextSteps, nextGoal, nextCalories, nextWater, nextSleep);
+  }
+
+  res.json(getLiveDashboardSummaryPayload(String(hospitalId), userKey));
+});
+
+app.post('/api/dashboard/beds/update', (req: AuthedRequest, res) => {
+  const { bedId, hospitalId = 'mulago-national', status, patientName, diagnosis } = req.body || {};
+  if (!bedId || !['occupied', 'available', 'cleaning'].includes(status)) {
+    return res.status(400).json({ error: 'bedId and valid status (occupied | available | cleaning) are required.' });
+  }
+  ensureHospitalBeds(String(hospitalId));
+  db.prepare(`
+    UPDATE hospital_beds
+    SET status = ?, patient_name = ?, diagnosis = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(
+    status,
+    status === 'occupied' ? (patientName || 'Admitted Patient') : null,
+    status === 'occupied' ? (diagnosis || 'Inpatient monitoring') : status === 'cleaning' ? 'Sanitization in progress' : null,
+    bedId
+  );
+  logAudit(req.user?.id || null, req.user?.email || 'clinician@doctorian.org', req.user?.role || 'doctor', 'BED_STATUS_UPDATED', bedId, `Hospital ${hospitalId} bed -> ${status}`);
+  res.json(getLiveDashboardSummaryPayload(String(hospitalId), req.user?.id || 'default-user'));
+});
+
+app.post('/api/dashboard/appointments/:id/toggle', (req: AuthedRequest, res) => {
+  const { id } = req.params;
+  const hospitalId = String(req.body?.hospitalId || 'mulago-national');
+  const row = db.prepare('SELECT status FROM appointments WHERE id = ?').get(id) as { status: string } | undefined;
+  if (!row) return res.status(404).json({ error: 'Appointment not found.' });
+  const nextStatus = row.status === 'Completed' ? 'Scheduled' : 'Completed';
+  db.prepare('UPDATE appointments SET status = ? WHERE id = ?').run(nextStatus, id);
+  res.json(getLiveDashboardSummaryPayload(hospitalId, req.user?.id || 'default-user'));
 });
 
 // ---------------------------------------------------------------------------

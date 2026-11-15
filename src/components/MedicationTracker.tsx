@@ -34,6 +34,7 @@ import {
   RefreshCw,
   ShoppingBag
 } from 'lucide-react';
+import { useAppLanguage } from '../utils/translations';
 
 export interface MedicationTrackerProps {
   user?: any;
@@ -58,6 +59,7 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
   onNavigate = () => {},
   addToast = () => {}
 }) => {
+  const [, , t] = useAppLanguage();
   // Prescriptions list matching the reference image exactly
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([
     {
@@ -157,37 +159,39 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
     <div className="w-full max-w-6xl mx-auto py-3 sm:py-5 px-3 sm:px-5 space-y-5 text-slate-800 dark:text-slate-100 font-sans">
 
       {/* ===================================================================== */}
-      {/* SCREEN 5: PRESCRIPTIONS & MEDICATION PROGRESS STACK (image_2605a2cb)  */}
+      {/* SCREEN 5: PRESCRIPTIONS & MEDICATION PROGRESS STACK (image_77dd7586)  */}
       {/* ===================================================================== */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-[900] tracking-tight text-slate-900 dark:text-white">Prescriptions</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Active clinical regimens & daily dose compliance</p>
+            <h1 className="text-2xl font-[900] tracking-tight text-slate-900 dark:text-white">{t('Prescriptions')}</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t('Active clinical regimens & daily dose compliance')}
+            </p>
           </div>
 
-          <div className="inline-flex p-1 rounded-full bg-slate-200/80 dark:bg-[#081535] border-2 border-cyan-500/30 self-start">
+          <div className="inline-flex p-1.5 rounded-full bg-slate-200/85 dark:bg-[#06112d] border-[2.5px] border-cyan-500/35 shadow-inner self-start gap-1">
             <button
               type="button"
               onClick={() => setRxViewTab('prescriptions')}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-black transition-all cursor-pointer min-h-[38px] ${
                 rxViewTab === 'prescriptions'
                   ? 'doctorian-cta-btn text-white'
-                  : 'text-slate-600 dark:text-slate-300'
+                  : 'doctorian-dark-btn text-slate-200 dark:text-slate-200 border-transparent shadow-none bg-transparent'
               }`}
             >
-              My Prescriptions
+              {t('My Prescriptions')}
             </button>
             <button
               type="button"
               onClick={() => setRxViewTab('tracker')}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-black transition-all cursor-pointer min-h-[38px] ${
                 rxViewTab === 'tracker'
                   ? 'doctorian-cta-btn text-white'
-                  : 'text-slate-600 dark:text-slate-300'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-white/10'
               }`}
             >
-              Medication Tracker
+              {t('Medication Tracker')}
             </button>
           </div>
         </div>
@@ -197,25 +201,25 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
           <div className="lg:col-span-5 doctorian-thick-card p-5 flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/30 shrink-0">
-                  <Pill size={22} className="rotate-45" />
+                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/35 border-2 border-cyan-300/50 shrink-0">
+                  <Pill size={23} className="rotate-45" />
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
                     Amoxicillin 500mg
                   </h2>
                   <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">
-                    Take 1 Capsule 3 times daily
+                    {t('Take 1 Capsule 3 times daily')}
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-600 dark:text-emerald-300 text-[10px] font-black uppercase">
-                Active
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 text-emerald-600 dark:text-emerald-300 text-[10px] font-black uppercase">
+                {t('Active')}
               </span>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 dark:border-cyan-500/20 text-xs">
-              <span className="text-slate-500 dark:text-slate-400 font-semibold">Prescribed by Dr. Sarah M. Nakalema</span>
+            <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 dark:border-cyan-500/20 text-xs">
+              <span className="text-slate-500 dark:text-slate-400 font-semibold">Dr. Sarah M. Nakalema</span>
               <span className="font-mono font-bold text-blue-600 dark:text-cyan-300">Until: Mar 20, 2026</span>
             </div>
           </div>
@@ -224,13 +228,13 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
           <div className="lg:col-span-4 doctorian-thick-card p-5 flex items-center justify-between gap-4">
             <div className="relative w-22 h-22 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 84 84">
-                <circle cx="42" cy="42" r="36" stroke="currentColor" strokeOpacity="0.14" strokeWidth="7" fill="none" />
+                <circle cx="42" cy="42" r="36" stroke="currentColor" strokeOpacity="0.14" strokeWidth="7.5" fill="none" />
                 <circle
                   cx="42"
                   cy="42"
                   r="36"
                   stroke="#00d2ff"
-                  strokeWidth="7"
+                  strokeWidth="7.5"
                   strokeDasharray="226.2"
                   strokeDashoffset={progressOffset}
                   strokeLinecap="round"
@@ -242,9 +246,9 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
               </span>
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-2.5">
               <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">Medication Progress</h3>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">{t('Medication Progress')}</h3>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">
                   {takenDosesCount} of {totalDosesCount} doses today
                 </p>
@@ -255,22 +259,22 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
                   const nextPending = schedule.find((s) => s.status !== 'Taken') || schedule[0];
                   if (nextPending) toggleDose(nextPending.id);
                 }}
-                className="doctorian-cta-btn px-4 py-1.5 rounded-full text-xs text-white inline-flex items-center gap-1.5 cursor-pointer"
+                className="doctorian-cta-btn px-5 py-2 rounded-full text-xs text-white inline-flex items-center gap-1.5 cursor-pointer min-h-[38px]"
               >
-                <CheckCircle2 size={13} />
-                <span>Track</span>
+                <CheckCircle2 size={14} />
+                <span>{t('Track')}</span>
               </button>
             </div>
           </div>
 
-          {/* Next Dose + Quick Action Tiles (Refill, Pharmacy, History) */}
+          {/* Next Dose + Thick Bottom Quick Action Tiles (Refill, Pharmacy, History) */}
           <div className="lg:col-span-3 doctorian-thick-card p-4 flex flex-col justify-between space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-500 flex items-center justify-center shrink-0">
-                <Bell size={16} />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border-2 border-amber-400/45 text-amber-500 flex items-center justify-center shrink-0">
+                <Bell size={17} />
               </div>
               <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Next Dose</span>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">{t('Next Dose')}</span>
                 <p className="text-xs font-black text-slate-900 dark:text-white truncate">Today at 8:00 PM 🔔</p>
               </div>
             </div>
@@ -279,26 +283,26 @@ export const MedicationTracker: React.FC<MedicationTrackerProps> = ({
               <button
                 type="button"
                 onClick={() => addToast('Refill request transmitted to Mulago E-Pharmacy.', 'success')}
-                className="doctorian-thick-tile p-2 flex flex-col items-center gap-1 text-center cursor-pointer"
+                className="doctorian-thick-tile p-2.5 flex flex-col items-center gap-1.5 text-center cursor-pointer"
               >
-                <RefreshCw size={15} className="text-cyan-500" />
-                <span className="text-[10px] font-bold">Refill</span>
+                <RefreshCw size={16} className="text-cyan-400" />
+                <span className="text-[10px] font-black">{t('Refill')}</span>
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('app_medics')}
-                className="doctorian-thick-tile p-2 flex flex-col items-center gap-1 text-center cursor-pointer"
+                className="doctorian-thick-tile p-2.5 flex flex-col items-center gap-1.5 text-center cursor-pointer"
               >
-                <ShoppingBag size={15} className="text-blue-500" />
-                <span className="text-[10px] font-bold">Pharmacy</span>
+                <ShoppingBag size={16} className="text-blue-400" />
+                <span className="text-[10px] font-black">{t('Pharmacy')}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveToolModal('tracker')}
-                className="doctorian-thick-tile p-2 flex flex-col items-center gap-1 text-center cursor-pointer"
+                className="doctorian-thick-tile p-2.5 flex flex-col items-center gap-1.5 text-center cursor-pointer"
               >
-                <Clock size={15} className="text-emerald-500" />
-                <span className="text-[10px] font-bold">History</span>
+                <Clock size={16} className="text-emerald-400" />
+                <span className="text-[10px] font-black">{t('History')}</span>
               </button>
             </div>
           </div>

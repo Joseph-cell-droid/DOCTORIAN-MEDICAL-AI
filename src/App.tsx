@@ -252,11 +252,17 @@ const NeuralTrainingHub = safeLazy(() => import("./components/NeuralTrainingHub"
 const AppointmentsView = safeLazy(() => import("./components/AppointmentsView"), "AppointmentsView");
 
 const josephPortrait = "/portraits/akora_joseph.jpg";
-import { Footer } from "./components/Footer";
 import { AmbientBubbleBackground } from "./components/AmbientBubbleBackground";
 import { Soundscape } from "./utils/soundscape";
 import type { HealthTip } from "./components/HealthTipModal";
-import { translate } from './utils/translations';
+import {
+  translate,
+  SUPPORTED_LANGUAGES,
+  DOCTORIAN_LANGUAGE_EVENT,
+  getAppLanguage,
+  setAppLanguage,
+  normalizeLanguageCode,
+} from './utils/translations';
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
 import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
 import type { NextGenTechTab } from './components/NextGenTechSuiteModal';
@@ -480,7 +486,7 @@ const viewNamesMap: Record<string, string> = {
 export default function App() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState(() => localStorage.getItem("app_lang") || 'English (US)');
+  const [currentLanguage, setCurrentLanguage] = useState(() => getAppLanguage());
   const [downloadedLanguages, setDownloadedLanguages] = useState<string[]>(() => {
     const defaultLangs = ['English (US)', 'English (UK)'];
     try {
@@ -657,18 +663,27 @@ export default function App() {
   const translatedLanguagesMap = useRef(new WeakMap<Node, string>());
 
   useEffect(() => {
+    const onLanguageEvent = (e: Event) => {
+      const next = (e as CustomEvent)?.detail?.language;
+      if (next) {
+        const canonical = normalizeLanguageCode(next);
+        setCurrentLanguage((prev) => (prev === canonical ? prev : canonical));
+      }
+    };
+    window.addEventListener(DOCTORIAN_LANGUAGE_EVENT, onLanguageEvent);
+    return () => window.removeEventListener(DOCTORIAN_LANGUAGE_EVENT, onLanguageEvent);
+  }, []);
+
+  useEffect(() => {
     let isTranslating = false;
 
-    if (currentLanguage.startsWith('English')) {
-      // Restore all translated text nodes in the DOM to English
+    const restoreAllNodesToOriginal = () => {
       const restoreNode = (node: Node) => {
         const originalText = originalTextMap.current.get(node);
         if (originalText !== undefined && node.textContent !== originalText) {
-          isTranslating = true;
           node.textContent = originalText;
-          isTranslating = false;
         }
-        translatedLanguagesMap.current.set(node, currentLanguage);
+        translatedLanguagesMap.current.delete(node);
       };
 
       const walkRestore = (parent: Node) => {
@@ -693,6 +708,12 @@ export default function App() {
       } finally {
         isTranslating = false;
       }
+    };
+
+    // Always restore previous mutations cleanly before applying new target language
+    restoreAllNodesToOriginal();
+
+    if (currentLanguage.startsWith('English')) {
       return;
     }
 
@@ -1049,7 +1070,6 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isUpperBarAlertsOpen, setIsUpperBarAlertsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
@@ -1250,7 +1270,7 @@ export default function App() {
   // Auto-detect language and download model pack on first load
   useAutoLanguageSetup({
     currentLanguage,
-    setCurrentLanguage,
+    setCurrentLanguage: (lang: string) => setCurrentLanguage(setAppLanguage(lang)),
     downloadedLanguages,
     handleDownloadLanguage,
     setToast,
@@ -2691,7 +2711,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <div id="app-root-container" className="h-screen h-[100dvh] doctorian-canvas font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col lg:flex-row overflow-hidden relative">
+      <div id="app-root-container" className="h-screen h-[100dvh] doctorian-canvas font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors duration-300 flex flex-col overflow-hidden relative">
         <AmbientBubbleBackground isDarkMode={isDarkMode} currentView={currentView} />
         <div ref={navigationContainerRef} className="fixed inset-0 z-[140] pointer-events-none" />
       <a 
@@ -2700,430 +2720,9 @@ export default function App() {
       >
         Skip to main content
       </a>
-      
-      {/* ========================================================================= */}
-      {/* WINDOWS 11 FLUENT ACRYLIC SIDEBAR - MODERN CLINICAL EDITION               */}
-      {/* ========================================================================= */}
-      {user && (
-        <aside 
-          className="hidden md:flex flex-col w-64 bg-[#071329]/95 dark:bg-[#040b18]/98 backdrop-blur-2xl border-r border-blue-900/40 shrink-0 h-full select-none z-30 relative overflow-hidden"
-          aria-label="Doctorian Windows Fluent Navigation"
-        >
-          {/* Windows Fluent Acrylic Ambient Accent */}
-          <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-cyan-500/10 via-blue-600/5 to-transparent pointer-events-none" />
 
-          {/* Windows App Title & Brand Header */}
-          <div 
-            onClick={() => setCurrentView('home')}
-            className="p-4.5 flex items-center gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors shrink-0 border-b border-blue-900/40 relative z-10"
-          >
-            {/* Windows App Icon with Glow */}
-            <div className="w-10 h-10 rounded-xl bg-white/10 dark:bg-slate-900/80 border border-white/20 dark:border-blue-500/30 p-1 flex items-center justify-center shadow-lg shadow-cyan-500/15 backdrop-blur-md shrink-0 group">
-              <img 
-                src="/assets/aistudio/image_3d2127ab.png" 
-                alt="Doctorian AI Official Logo" 
-                className="w-full h-full object-contain rounded-lg transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/logo.png';
-                }}
-              />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-black tracking-tight text-white leading-tight truncate">Doctorian AI</h2>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              </div>
-              <p className="text-[9px] text-cyan-300 font-semibold tracking-wide flex items-center gap-1 mt-0.5">
-                <span>Windows 11 Fluent</span>
-                <span className="text-slate-500">·</span>
-                <span className="text-slate-400">Clinical OS</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Windows Categorized Navigation List */}
-          <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4 text-xs select-none relative z-10" aria-label="Primary Navigation">
-            
-            {/* Section 1: Clinical Core */}
-            <div className="space-y-1">
-              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 flex items-center justify-between">
-                <span>Clinical Core</span>
-                <span className="text-[9px] font-mono text-cyan-400/80 font-bold">01</span>
-              </div>
-              {[
-                { id: 'home', label: 'Dashboard', icon: Home },
-                { id: 'records', label: 'Patients Registry', icon: Users, badge: '24' },
-                { id: 'doctors_dashboard', label: 'Doctors Hub', icon: Stethoscope },
-                { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
-                { id: 'meds', label: 'Prescriptions', icon: Pill },
-              ].map((item) => {
-                const isActive = currentView === item.id;
-                const Icon = item.icon;
-
-                return (
-                  <button
-                    key={`nav-core-${item.id}`}
-                    type="button"
-                    onClick={() => setCurrentView(item.id as any)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
-                      isActive
-                        ? 'bg-white/[0.10] dark:bg-white/[0.08] text-white font-bold border border-white/[0.12] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
-                        : 'text-slate-300 dark:text-slate-300 hover:text-white hover:bg-white/[0.04] hover:border hover:border-white/[0.06] border border-transparent font-medium active:scale-[0.98]'
-                    }`}
-                  >
-                    {/* Windows 11 Active Indicator Accent Pill on Left Edge */}
-                    {isActive && (
-                      <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 via-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
-                    )}
-                    <div className="flex items-center gap-2.5 pl-1.5">
-                      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
-                      <span className="truncate">{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/90 text-white font-mono text-[9px] font-bold shadow-xs">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Section 2: Diagnostics & AI Telemetry */}
-            <div className="space-y-1">
-              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 flex items-center justify-between">
-                <span>Diagnostics & AI</span>
-                <span className="text-[9px] font-mono text-cyan-400/80 font-bold">02</span>
-              </div>
-              {[
-                { id: 'smart_watch', label: 'Doctorian Smart Watch', icon: Watch, badge: 'OS', badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' },
-                { id: 'diagnostic_lab', label: 'Laboratory Analyzer', icon: FlaskConical },
-                { id: 'telemedicine', label: 'Telemedicine Consultation', icon: Video, action: () => setIsTelehealthOpen(true) },
-                { id: 'ai_nexus', label: 'AI Health Assistant', icon: Bot, badge: 'AI', badgeColor: 'bg-purple-500/20 text-purple-300 border border-purple-400/30' },
-                { id: 'vitality', label: 'Vitality Matrix & ECG', icon: Activity },
-              ].map((item) => {
-                const isActive = currentView === item.id;
-                const Icon = item.icon;
-
-                return (
-                  <button
-                    key={`nav-diag-${item.id}`}
-                    type="button"
-                    onClick={() => {
-                      if (item.action) {
-                        item.action();
-                      } else {
-                        setCurrentView(item.id as any);
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
-                      isActive
-                        ? 'bg-white/[0.10] dark:bg-white/[0.08] text-white font-bold border border-white/[0.12] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
-                        : 'text-slate-300 dark:text-slate-300 hover:text-white hover:bg-white/[0.04] hover:border hover:border-white/[0.06] border border-transparent font-medium active:scale-[0.98]'
-                    }`}
-                  >
-                    {isActive && (
-                      <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 via-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
-                    )}
-                    <div className="flex items-center gap-2.5 pl-1.5">
-                      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
-                      <span className="truncate">{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span className={`px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold ${item.badgeColor || 'bg-blue-600 text-white'}`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Section 3: Management & Settings */}
-            <div className="space-y-1">
-              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 flex items-center justify-between">
-                <span>System & Tools</span>
-                <span className="text-[9px] font-mono text-cyan-400/80 font-bold">03</span>
-              </div>
-              {[
-                { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'app_medics' },
-                { id: 'analytics', label: 'Clinical Analytics', icon: TrendingUp, targetView: 'vitality' },
-                { id: 'settings', label: 'App Settings & Tools', icon: Settings },
-                { id: 'about', label: 'Help & Knowledge Center', icon: HelpCircle },
-              ].map((item) => {
-                const target = item.targetView || item.id;
-                const isActive = currentView === target;
-                const Icon = item.icon;
-
-                return (
-                  <button
-                    key={`nav-settings-${item.id}`}
-                    type="button"
-                    onClick={() => setCurrentView(target as any)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
-                      isActive
-                        ? 'bg-white/[0.10] dark:bg-white/[0.08] text-white font-bold border border-white/[0.12] dark:border-white/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
-                        : 'text-slate-300 dark:text-slate-300 hover:text-white hover:bg-white/[0.04] hover:border hover:border-white/[0.06] border border-transparent font-medium active:scale-[0.98]'
-                    }`}
-                  >
-                    {isActive && (
-                      <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 via-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
-                    )}
-                    <div className="flex items-center gap-2.5 pl-1.5">
-                      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
-                      <span className="truncate">{item.label}</span>
-                    </div>
-                    {isActive && (
-                      <ChevronRight size={13} className="text-cyan-300/80" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-          </nav>
-
-          {/* Windows Fluent Acrylic Telemetry Widget */}
-          <div className="p-3 border-t border-blue-900/40 shrink-0 relative z-10">
-            <div className="p-2.5 rounded-xl bg-white/[0.04] dark:bg-black/40 border border-white/10 dark:border-blue-900/50 backdrop-blur-md space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={15} className="text-emerald-400 shrink-0" />
-                  <div>
-                    <span className="text-[10px] font-black text-white block leading-tight">System Online</span>
-                    <span className="text-[8px] text-emerald-400 font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      14ms · All Core Nodes Active
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('vitality')}
-                  className="p-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 text-[9px] font-bold cursor-pointer"
-                  title="Open Vitality Hub"
-                >
-                  <Activity size={12} />
-                </button>
-              </div>
-
-              {/* Windows ECG Heartbeat Indicator */}
-              <div className="h-4 w-full rounded-md bg-[#040e20] p-0.5 border border-blue-950 overflow-hidden">
-                <svg className="w-full h-full" viewBox="0 0 100 20" preserveAspectRatio="none">
-                  <path
-                    d="M 0,10 L 25,10 L 32,3 L 38,17 L 44,7 L 50,13 L 56,10 L 100,10"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-[8px] text-slate-500 font-mono mt-1.5 px-1">
-              <span>v2.0.0 (Build 26100)</span>
-              <span>Windows Clinical</span>
-            </div>
-          </div>
-        </aside>
-      )}
-
-      {/* Mobile Slide-out Drawer for Navigation */}
-      <AnimatePresence>
-        {isMobileSidebarOpen && (
-          <div className="fixed inset-0 z-[120] md:hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileSidebarOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
-            />
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-[#071329]/98 border-r border-blue-900/40 flex flex-col z-10 shadow-2xl backdrop-blur-2xl"
-            >
-              <div className="p-4 flex items-center justify-between border-b border-blue-900/40">
-                <div 
-                  onClick={() => {
-                    setCurrentView('home');
-                    setIsMobileSidebarOpen(false);
-                  }}
-                  className="flex items-center gap-2.5 cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-white/10 dark:bg-slate-900/80 border border-white/20 p-1 flex items-center justify-center shadow-md">
-                    <img 
-                      src="/assets/aistudio/image_3d2127ab.png" 
-                      alt="Doctorian AI" 
-                      className="w-full h-full object-contain rounded-lg"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/logo.png';
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black tracking-tight text-white leading-tight">Doctorian AI</h2>
-                    <p className="text-[9px] text-cyan-300 font-medium">Windows 11 Clinical Edition</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 text-xs font-bold">
-                {/* Clinical Core */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">Clinical Core</span>
-                  {[
-                    { id: 'home', label: 'Dashboard', icon: Home },
-                    { id: 'records', label: 'Patients Registry', icon: Users, badge: '24' },
-                    { id: 'doctors_dashboard', label: 'Doctors Hub', icon: Stethoscope },
-                    { id: 'clinical_roadmap', label: 'Appointments', icon: CalendarIcon },
-                    { id: 'meds', label: 'Prescriptions', icon: Pill },
-                  ].map((item) => {
-                    const isActive = currentView === item.id;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={`mob-nav-${item.id}`}
-                        type="button"
-                        onClick={() => {
-                          setCurrentView(item.id as any);
-                          setIsMobileSidebarOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
-                          isActive
-                            ? 'bg-white/[0.10] text-white font-bold border border-white/[0.12] shadow-sm'
-                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
-                        }`}
-                      >
-                        {isActive && (
-                          <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
-                        )}
-                        <div className="flex items-center gap-2.5 pl-1.5">
-                          <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-rose-500/90 text-[9px] font-black text-white">
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Diagnostics & AI */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">Diagnostics & AI</span>
-                  {[
-                    { id: 'smart_watch', label: 'Doctorian Smart Watch', icon: Watch, badge: 'OS' },
-                    { id: 'diagnostic_lab', label: 'Laboratory Analyzer', icon: FlaskConical },
-                    { id: 'telemedicine', label: 'Telemedicine', icon: Video, action: () => { setIsTelehealthOpen(true); setIsMobileSidebarOpen(false); } },
-                    { id: 'ai_nexus', label: 'AI Health Assistant', icon: Bot, badge: 'AI' },
-                    { id: 'vitality', label: 'Vitality Matrix & ECG', icon: Activity },
-                  ].map((item) => {
-                    const isActive = currentView === item.id;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={`mob-nav-${item.id}`}
-                        type="button"
-                        onClick={() => {
-                          if (item.action) {
-                            item.action();
-                          } else {
-                            setCurrentView(item.id as any);
-                            setIsMobileSidebarOpen(false);
-                          }
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
-                          isActive
-                            ? 'bg-white/[0.10] text-white font-bold border border-white/[0.12] shadow-sm'
-                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
-                        }`}
-                      >
-                        {isActive && (
-                          <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
-                        )}
-                        <div className="flex items-center gap-2.5 pl-1.5">
-                          <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-[9px] font-black">
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* System & Tools */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-3 block">System & Tools</span>
-                  {[
-                    { id: 'pharmacy', label: 'E-Pharmacy & Meds', icon: Pill, targetView: 'app_medics' },
-                    { id: 'analytics', label: 'Clinical Analytics', icon: TrendingUp, targetView: 'vitality' },
-                    { id: 'settings', label: 'App Settings & Tools', icon: Settings },
-                    { id: 'about', label: 'Help & Knowledge Center', icon: HelpCircle }
-                  ].map((item) => {
-                    const target = item.targetView || item.id;
-                    const isActive = currentView === target;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={`mob-nav-${item.id}`}
-                        type="button"
-                        onClick={() => {
-                          setCurrentView(target as any);
-                          setIsMobileSidebarOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
-                          isActive
-                            ? 'bg-white/[0.10] text-white font-bold border border-white/[0.12] shadow-sm'
-                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
-                        }`}
-                      >
-                        {isActive && (
-                          <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
-                        )}
-                        <div className="flex items-center gap-2.5 pl-1.5">
-                          <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
-                          <span>{item.label}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </nav>
-
-              <div className="p-3 border-t border-blue-900/40">
-                <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
-                  <div className="text-[10px] text-white font-bold leading-tight">
-                    Windows Clinical Online
-                    <span className="block text-[8px] text-emerald-400 font-medium">14ms · All Services Active</span>
-                  </div>
-                </div>
-              </div>
-            </motion.aside>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Mobile/Tablet Header & Bottom Nav */}
-      <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-md overflow-hidden z-10">
+      {/* Unified Android-Style Native Shell (No Desktop/Tablet Left Sidebar) */}
+      <div id="app-main-layout-wrapper" className="flex-1 flex flex-col h-full min-h-0 relative doctorian-canvas overflow-hidden z-10">
 
 
         <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative scroll-smooth overscroll-y-contain ${
@@ -3134,93 +2733,95 @@ export default function App() {
           initial={false}
           animate={{
             backgroundColor: isEyeCareMode 
-              ? (isDarkMode ? 'rgba(69, 26, 3, 0.95)' : 'rgba(254, 243, 199, 0.95)')
-              : (isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'),
+              ? (isDarkMode ? 'rgba(69, 26, 3, 0.96)' : 'rgba(254, 243, 199, 0.96)')
+              : (isDarkMode ? 'rgba(5, 14, 38, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
             borderColor: isEyeCareMode
-              ? (isDarkMode ? 'rgba(217, 119, 6, 0.4)' : 'rgba(251, 191, 36, 0.4)')
-              : (isDarkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(226, 232, 240, 1)'),
+              ? (isDarkMode ? 'rgba(217, 119, 6, 0.45)' : 'rgba(251, 191, 36, 0.45)')
+              : (isDarkMode ? 'rgba(34, 211, 238, 0.25)' : 'rgba(203, 213, 225, 0.95)'),
             boxShadow: isEyeCareMode
-              ? '0 10px 15px -3px rgba(245, 158, 11, 0.15), 0 4px 6px -4px rgba(245, 158, 11, 0.15)'
-              : (isDarkMode ? '0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1)' : '0 1px 3px 0 rgba(0, 0, 0, 0.05)'),
+              ? '0 10px 20px -3px rgba(245, 158, 11, 0.15)'
+              : (isDarkMode ? '0 8px 28px -4px rgba(1, 6, 20, 0.65)' : '0 4px 16px -2px rgba(15, 23, 42, 0.06)'),
           }}
           transition={{ 
             type: "spring", 
             stiffness: 140, 
             damping: 22 
           }}
-          className="sticky top-0 z-[100] backdrop-blur-xl border-b overflow-visible pt-[env(safe-area-inset-top,0px)]"
+          className="sticky top-0 z-[100] backdrop-blur-2xl border-b-2 overflow-visible pt-[env(safe-area-inset-top,0px)]"
         >
-          <div className="w-full px-3 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between py-2.5 sm:py-3 gap-3 w-full">
+          <div className="w-full px-3 sm:px-5 lg:px-6 max-w-5xl mx-auto">
+            <div className="flex items-center justify-between py-2 gap-3 w-full">
               
-              {/* Left Side: Mobile Menu Toggle & Brand (on mobile) or Search Bar (on desktop) */}
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                {/* Mobile hamburger menu */}
+              {/* Left Side: ≡ Bottom Apps Card Button + Clean Doctorian Brand */}
+              <div className="flex items-center gap-2.5 min-w-0">
                 <button
                   type="button"
-                  onClick={() => setIsMobileSidebarOpen(true)}
-                  className="md:hidden p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs shrink-0"
-                  aria-label="Open Navigation Menu"
+                  onClick={() => window.dispatchEvent(new CustomEvent('doctorian-open-apps-card'))}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-[#0b1b3a] border-2 border-b-[3px] border-slate-300 dark:border-cyan-500/35 text-slate-800 dark:text-cyan-200 hover:border-cyan-400 cursor-pointer shadow-sm active:scale-95 transition-all shrink-0"
+                  aria-label="Open App Buttons Card"
+                  title="Open App Buttons Card"
                 >
-                  <Menu size={20} />
+                  <Menu size={18} strokeWidth={2.4} />
                 </button>
 
-                {/* Mobile Brand Logo */}
+                {/* Brand Logo (Clean & Uncrowded) */}
                 <button
                   type="button"
                   onClick={() => setCurrentView('home')}
-                  className="md:hidden flex items-center gap-2 shrink-0 cursor-pointer"
+                  className="flex items-center gap-2 shrink-0 cursor-pointer group"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-white/10 dark:bg-slate-900/80 border border-white/20 p-1 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="w-8.5 h-8.5 rounded-xl bg-white/10 dark:bg-[#0b1b3a] border-2 border-cyan-400/35 p-1 flex items-center justify-center shadow-sm shrink-0">
                     <img 
                       src="/assets/aistudio/image_3d2127ab.png" 
                       alt="Doctorian AI" 
-                      className="w-full h-full object-contain rounded-lg"
+                      className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/logo.png';
                       }} 
                     />
                   </div>
-                  <span className="text-sm font-black text-slate-900 dark:text-white">Doctorian</span>
+                  <div className="text-left leading-none">
+                    <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+                      Doctorian <span className="text-cyan-500 dark:text-cyan-400">AI</span>
+                    </span>
+                  </div>
                 </button>
-
-                {/* Modern Search Capsule Input (Matching Screenshots image_9ca8ccdf & image_a33b3901) */}
-                <div className="flex-1 max-w-xl relative hidden sm:block">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    onClick={() => setIsSearchOpen(true)}
-                    readOnly
-                    placeholder="Search patients, doctors, or health records... (Ctrl + K)"
-                    className="w-full pl-11 pr-4 py-2 sm:py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-200 font-medium placeholder:text-slate-400 hover:border-blue-400 transition-all cursor-pointer shadow-2xs focus:outline-none"
-                  />
-                </div>
               </div>
 
-              {/* Right Side: Doctorian Smart Watch OS, Search Icon (mobile), Notification Bell (3), User Profile */}
-              <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-                {/* Doctorian Smart Watch OS Capsule in Top Bar */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('smart_watch')}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-indigo-600/10 hover:from-blue-600/20 hover:to-cyan-500/20 border border-blue-400/40 dark:border-cyan-500/40 text-blue-700 dark:text-cyan-300 font-bold text-xs transition-all cursor-pointer shadow-2xs group shrink-0"
-                  title="Open Doctorian Smart Watch OS"
-                >
-                  <Watch size={15} className="text-cyan-500 group-hover:scale-110 transition-transform" />
-                  <span className="font-black tracking-tight">Doctorian Watch</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                </button>
-
-                {/* Mobile Search Button */}
+              {/* Right Side: Compact Search, Language Selector, Notification Bell, User Avatar */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Compact Search Icon Button (All screens) */}
                 <button
                   type="button"
                   onClick={() => setIsSearchOpen(true)}
-                  className="sm:hidden w-8.5 h-8.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs cursor-pointer shrink-0"
-                  title="Search"
+                  className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/30 hover:border-cyan-400 text-slate-700 dark:text-cyan-200 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 transition-all shrink-0"
+                  title={translate("Search patients, doctors, or health records...", currentLanguage)}
                   aria-label="Search"
                 >
                   <Search size={15} />
                 </button>
+
+                {/* Global Instant Language Switcher Pill */}
+                <div className="relative flex items-center" data-no-translate>
+                  <Globe size={13} className="absolute left-2.5 text-cyan-500 dark:text-cyan-400 pointer-events-none" />
+                  <select
+                    aria-label="Select Language"
+                    value={normalizeLanguageCode(currentLanguage)}
+                    onChange={(e) => {
+                      const nextLang = e.target.value;
+                      const canonical = setAppLanguage(nextLang);
+                      setCurrentLanguage(canonical);
+                      addToast(`Language changed to ${canonical}`, 'success');
+                    }}
+                    className="pl-7 pr-2 py-1.5 rounded-full bg-slate-100 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/35 text-[11px] font-extrabold text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-cyan-400 max-w-[92px] sm:max-w-[114px] truncate"
+                  >
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
+                        {lang.nativeLabel}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* 1. Notification Bell with "3" Red Badge & Popover */}
                 <div className="relative shrink-0">
@@ -3234,7 +2835,7 @@ export default function App() {
                     title="3 Urgent Clinical Notifications"
                     aria-label="Clinical Notifications"
                   >
-                    <Bell size={16} className="text-slate-700 dark:text-slate-200" />
+                    <Bell size={15} className="text-slate-700 dark:text-slate-200" />
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                       3
                     </span>
@@ -3476,6 +3077,23 @@ export default function App() {
                                 </button>
 
                                 <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentView('smart_watch');
+                                    setIsProfileOpen(false);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 transition-all group border border-cyan-500/25 cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-cyan-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                                      <Watch size={16} />
+                                    </div>
+                                    <span className="font-black uppercase tracking-tight text-left">{translate("Doctorian Watch", currentLanguage)}</span>
+                                  </div>
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                </button>
+
+                                <button
                                   onClick={() => {
                                     handleNeuralCoreAccess();
                                     setIsProfileOpen(false);
@@ -3590,14 +3208,14 @@ export default function App() {
       </div>
 
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0 overflow-hidden' : 'pb-0'
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0 overflow-hidden' : 'pb-16 sm:pb-20'
       }`} id="main-content">
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus'
               ? 'py-0 px-0 max-w-full h-full min-h-0 space-y-0' 
               : ['home', 'doctors_dashboard', 'vitality', 'settings', 'smart_watch'].includes(currentView)
               ? 'py-0 px-0 max-w-full space-y-0'
-              : 'py-3.5 sm:py-8 lg:py-10 px-3 sm:px-8 lg:px-12 max-w-[1400px] mx-auto w-full box-border space-y-4 sm:space-y-8 overflow-x-hidden'
+              : 'py-3.5 sm:py-6 px-3 sm:px-8 max-w-[1200px] mx-auto w-full box-border space-y-4 sm:space-y-6 overflow-x-hidden'
           }`}>
             {/* Side buttons remain exclusively on the left sidebar and are not repeated inside the page */}
             <Suspense fallback={
@@ -4461,15 +4079,6 @@ export default function App() {
             </Suspense>
           </div>
         </main>
-        
-        {/* Canonical Doctorian Footer - Clean Natural Bottom Flow (never blocking any page feature) */}
-        {currentView !== 'ai_nexus' && (
-          <div className="w-full mt-auto pb-36 sm:pb-24 relative z-10 shrink-0">
-            <Suspense fallback={<div className="h-16" />}>
-              <Footer onNavigate={(view) => setCurrentView(view)} />
-            </Suspense>
-          </div>
-        )}
 
   {/* Search Overlay */}
   <AnimatePresence>

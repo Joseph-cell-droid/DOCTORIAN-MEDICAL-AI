@@ -361,7 +361,7 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
   }, [cleanedText]);
 
   return (
-    <div className="w-full text-slate-800 dark:text-slate-100 space-y-3 pt-0.5 group/bot">
+    <div className="w-full text-slate-800 dark:text-slate-100 space-y-2 pt-0.5 group/bot">
       
       {/* 1. Bot Metadata & Clinical Identity Header */}
       <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-200 dark:border-slate-800/60">
@@ -427,26 +427,26 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
       )}
 
       {/* 3. Structured 10-Section Clinical Response Content */}
-      <div className="space-y-3.5 relative transition-all">
+      <div className="space-y-2.5 relative transition-all">
         {parsedSections.length > 1 ? (
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {parsedSections.map((sec, sIdx) => {
               if (sec.type === 'disease') {
                 return (
-                  <div key={sIdx} className="rounded-xl p-3.5 sm:p-4 bg-teal-50/70 dark:bg-slate-900/80 border border-teal-200 dark:border-cyan-500/30 shadow-xs space-y-2">
+                  <div key={sIdx} className="rounded-xl p-2.5 sm:p-3 bg-teal-50/70 dark:bg-slate-900/80 border border-teal-200 dark:border-cyan-500/30 shadow-xs space-y-1.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="inline-flex items-center gap-2 text-teal-800 dark:text-cyan-300 text-xs font-bold uppercase tracking-wide">
-                        <Stethoscope size={15} className="text-teal-600 dark:text-cyan-400 shrink-0" />
+                      <div className="inline-flex items-center gap-1.5 text-teal-800 dark:text-cyan-300 text-[11px] font-bold uppercase tracking-wide">
+                        <Stethoscope size={14} className="text-teal-600 dark:text-cyan-400 shrink-0" />
                         <span>{sec.title || 'Clinical Summary & Possibilities'}</span>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                        <ShieldCheck size={12} className="text-teal-600 dark:text-emerald-400" />
+                      <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                        <ShieldCheck size={11} className="text-teal-600 dark:text-emerald-400" />
                         Not a confirmed diagnosis
                       </span>
                     </div>
 
                     {sec.lines.length > 0 && (
-                      <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed space-y-1">
+                      <div className="text-xs sm:text-[13px] text-slate-800 dark:text-slate-200 leading-snug space-y-1">
                         {sec.lines.map((l, lIdx) => {
                           const t = l.trim();
                           if (!t) return null;
@@ -461,19 +461,19 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               // 3.2 EVIDENCE & CAUSE CALLOUT
               if (sec.type === 'evidence') {
                 return (
-                  <div key={sIdx} className="rounded-xl p-3.5 bg-slate-900/40 border-l-4 border-l-indigo-500 border border-slate-800/80 space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold tracking-wide uppercase">
-                      <Dna size={14} className="text-indigo-400" />
+                  <div key={sIdx} className="rounded-xl p-2.5 sm:p-3 bg-slate-900/40 border-l-4 border-l-indigo-500 border border-slate-800/80 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-indigo-300 text-[11px] font-bold tracking-wide uppercase">
+                      <Dna size={13} className="text-indigo-400" />
                       <span>{sec.title || "Evidence & Pathophysiological Cause"}</span>
                     </div>
-                    <div className="text-[14px] leading-relaxed text-slate-300 space-y-1.5">
+                    <div className="text-xs sm:text-[13px] leading-snug text-slate-300 space-y-1">
                       {sec.lines.map((l, lIdx) => {
                         const t = l.trim();
                         if (!t) return null;
                         if (t.startsWith('•') || t.startsWith('-')) {
                           return (
                             <div key={lIdx} className="flex items-start gap-2 pl-1">
-                              <span className="text-indigo-400 mt-1 shrink-0 text-xs">●</span>
+                              <span className="text-indigo-400 mt-0.5 shrink-0 text-[10px]">●</span>
                               <span>{t.replace(/^[•\-]\s*/, '')}</span>
                             </div>
                           );
@@ -492,31 +492,31 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                   : sec.lines.map(l => parsePrescriptionLine(l)).filter(p => p && p.name);
 
                 return (
-                  <div key={sIdx} className="rounded-xl p-3.5 sm:p-4 bg-slate-900/60 border border-blue-500/30 space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-800/60 pb-2">
-                      <div className="flex items-center gap-2 text-blue-300 text-xs font-bold tracking-wide uppercase">
-                        <Pill size={15} className="text-blue-400" />
+                  <div key={sIdx} className="rounded-xl p-2.5 sm:p-3 bg-slate-900/60 border border-blue-500/30 space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-800/60 pb-1.5">
+                      <div className="flex items-center gap-1.5 text-blue-300 text-[11px] font-bold tracking-wide uppercase">
+                        <Pill size={14} className="text-blue-400" />
                         <span>{sec.title || "Accurate Drug Prescriptions"}</span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 text-[11px] font-mono">
+                      <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 text-[10px] font-mono">
                         {prescriptionsList.length} Guideline Medication{prescriptionsList.length !== 1 ? 's' : ''}
                       </span>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       {prescriptionsList.map((med, mIdx) => (
-                        <div key={mIdx} className="p-3 rounded-lg bg-slate-950/70 border border-slate-800/80 hover:border-blue-500/40 transition-colors space-y-2">
+                        <div key={mIdx} className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/80 hover:border-blue-500/40 transition-colors space-y-1.5">
                           <div className="flex items-start justify-between gap-2 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <span className="p-1.5 rounded-md bg-blue-500/20 text-blue-300 shrink-0">
-                                <Pill size={14} />
+                              <span className="p-1 rounded-md bg-blue-500/20 text-blue-300 shrink-0">
+                                <Pill size={13} />
                               </span>
                               <div>
-                                <span className="font-semibold text-white text-sm">
+                                <span className="font-semibold text-white text-xs sm:text-[13px]">
                                   {med.name}
                                 </span>
                                 {med.brand && (
-                                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono">
+                                  <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono">
                                     Brand: {med.brand}
                                   </span>
                                 )}
@@ -525,34 +525,34 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                           </div>
 
                           {/* Prescribed details badges */}
-                          <div className="flex flex-wrap gap-1.5 text-xs">
+                          <div className="flex flex-wrap gap-1 text-[11px]">
                             {med.dosage && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40 text-cyan-200 text-[11px]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40 text-cyan-200 text-[10.5px]">
                                 <Activity size={10} className="text-cyan-400" />
                                 <span>{med.dosage}</span>
                               </span>
                             )}
                             {med.route && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800/40 text-purple-200 text-[11px]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800/40 text-purple-200 text-[10.5px]">
                                 <span>Route: {med.route}</span>
                               </span>
                             )}
                             {med.frequency && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40 text-emerald-200 text-[11px]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40 text-emerald-200 text-[10.5px]">
                                 <Clock size={10} className="text-emerald-400" />
                                 <span>{med.frequency}</span>
                               </span>
                             )}
                             {med.duration && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/40 text-amber-200 text-[11px]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/40 text-amber-200 text-[10.5px]">
                                 <span>Course: {med.duration}</span>
                               </span>
                             )}
                           </div>
 
                           {med.precautions && (
-                            <div className="pt-1 text-[11px] text-amber-300/90 flex items-start gap-1.5 bg-amber-950/20 p-1.5 rounded border border-amber-500/20">
-                              <Info size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                            <div className="pt-1 text-[10.5px] text-amber-300/90 flex items-start gap-1.5 bg-amber-950/20 p-1.5 rounded border border-amber-500/20">
+                              <Info size={11} className="text-amber-400 shrink-0 mt-0.5" />
                               <span>{med.precautions}</span>
                             </div>
                           )}
@@ -566,18 +566,18 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               // 3.4 CLINICAL ADVICE & CARE
               if (sec.type === 'actions') {
                 return (
-                  <div key={sIdx} className="rounded-xl p-3.5 bg-slate-900/50 border border-emerald-500/25 space-y-2">
-                    <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold tracking-wide uppercase">
-                      <Lightbulb size={14} className="text-emerald-400" />
+                  <div key={sIdx} className="rounded-xl p-2.5 sm:p-3 bg-slate-900/50 border border-emerald-500/25 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-emerald-300 text-[11px] font-bold tracking-wide uppercase">
+                      <Lightbulb size={13} className="text-emerald-400" />
                       <span>{sec.title || "Clinical Advice & Supportive Care"}</span>
                     </div>
-                    <div className="space-y-1.5 text-[14px] text-slate-200 leading-relaxed">
+                    <div className="space-y-1 text-xs sm:text-[13px] text-slate-200 leading-snug">
                       {sec.lines.map((l, lIdx) => {
                         const t = l.trim();
                         if (!t) return null;
                         return (
-                          <div key={lIdx} className="flex items-start gap-2.5 pl-0.5">
-                            <CheckCircle2 size={14} className="text-emerald-400 mt-1 shrink-0" />
+                          <div key={lIdx} className="flex items-start gap-2 pl-0.5">
+                            <CheckCircle2 size={13} className="text-emerald-400 mt-0.5 shrink-0" />
                             <span>{t.replace(/^[•\-]\s*/, '')}</span>
                           </div>
                         );
@@ -590,17 +590,17 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               // 3.5 EMERGENCY RED FLAGS
               if (sec.type === 'warning') {
                 return (
-                  <div key={sIdx} className="rounded-xl p-3.5 bg-rose-950/30 border border-rose-500/40 space-y-2.5">
+                  <div key={sIdx} className="rounded-xl p-2.5 sm:p-3 bg-rose-950/30 border border-rose-500/40 space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 text-rose-300 text-xs font-bold tracking-wide uppercase">
-                        <AlertTriangle size={15} className="text-rose-400 animate-pulse" />
+                      <div className="flex items-center gap-1.5 text-rose-300 text-[11px] font-bold tracking-wide uppercase">
+                        <AlertTriangle size={14} className="text-rose-400 animate-pulse" />
                         <span>{sec.title || "Emergency Red Flags"}</span>
                       </div>
                       <span className="text-[10px] text-rose-300 bg-rose-900/40 px-2 py-0.5 rounded font-mono">
                         Immediate Hospital Escalation
                       </span>
                     </div>
-                    <div className="space-y-1.5 text-[14px] text-rose-100/90 leading-relaxed">
+                    <div className="space-y-1 text-xs sm:text-[13px] text-rose-100/90 leading-snug">
                       {sec.lines.map((l, lIdx) => {
                         const t = l.trim();
                         if (!t) return null;
@@ -613,17 +613,17 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
                       })}
                     </div>
                     <div className="pt-1 flex items-center justify-between flex-wrap gap-2 text-xs">
-                      <span className="text-[11px] text-rose-300/80">
+                      <span className="text-[10.5px] text-rose-300/80">
                         If danger signs persist, present to the nearest Regional Referral Hospital.
                       </span>
                       <button
                         type="button"
                         onClick={() => onSendPrompt("🚨 I am experiencing emergency warning symptoms. What triage steps should I take immediately?")}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-[11px] transition-colors cursor-pointer"
                       >
-                        <AlertTriangle size={12} />
+                        <AlertTriangle size={11} />
                         <span>Emergency Triage Steps</span>
-                        <ArrowRight size={12} />
+                        <ArrowRight size={11} />
                       </button>
                     </div>
                   </div>
@@ -633,12 +633,12 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
               // 3.6 DIAGNOSTIC FOLLOW-UP QUESTIONS
               if (sec.type === 'questions') {
                 return (
-                  <div key={sIdx} className="p-3 rounded-lg bg-slate-900/30 border border-purple-500/20 space-y-1.5">
-                    <div className="flex items-center gap-2 text-purple-300 text-xs font-bold uppercase">
-                      <HelpCircle size={13} className="text-purple-400" />
+                  <div key={sIdx} className="p-2.5 rounded-lg bg-slate-900/30 border border-purple-500/20 space-y-1">
+                    <div className="flex items-center gap-1.5 text-purple-300 text-[11px] font-bold uppercase">
+                      <HelpCircle size={12} className="text-purple-400" />
                       <span>{sec.title || "Diagnostic Follow-Up"}</span>
                     </div>
-                    <div className="space-y-1 text-sm text-cyan-200 font-medium">
+                    <div className="space-y-1 text-xs sm:text-[13px] text-cyan-200 font-medium">
                       {sec.lines.map((l, lIdx) => {
                         const t = l.trim();
                         if (!t) return null;
@@ -656,14 +656,14 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               // 3.7 GENERAL SECTION
               return (
-                <div key={sIdx} className="space-y-2 text-[14.5px] leading-relaxed text-slate-200">
+                <div key={sIdx} className="space-y-1.5 text-xs sm:text-[13.5px] leading-snug text-slate-200">
                   {sec.lines.map((line, lIdx) => {
                     const trimmed = line.trim();
                     if (!trimmed) return <div key={lIdx} className="h-1" />;
                     if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
                       return (
-                        <div key={lIdx} className="flex items-start gap-2.5 pl-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-2 shrink-0 inline-block" />
+                        <div key={lIdx} className="flex items-start gap-2 pl-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5 shrink-0 inline-block" />
                           <span>{trimmed.replace(/^[•\-]\s*/, '')}</span>
                         </div>
                       );
@@ -676,15 +676,15 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
           </div>
         ) : (
           /* Plain Open-Web Text Style */
-          <div className="space-y-2.5 text-[14.5px] sm:text-[15px] leading-relaxed text-slate-800 dark:text-slate-200">
+          <div className="space-y-1.5 text-xs sm:text-[13.5px] leading-snug text-slate-800 dark:text-slate-200">
             {cleanedText.split('\n').map((line, idx) => {
               const trimmed = line.trim();
-              if (!trimmed) return <div key={idx} className="h-1.5" />;
+              if (!trimmed) return <div key={idx} className="h-1" />;
 
               // Clinical section header line
               if (/^[🩺🧬💊💡⚠️❓🚨📋📌]/.test(trimmed)) {
                 return (
-                  <div key={idx} className="pt-2 font-bold text-cyan-300 dark:text-cyan-300 text-sm flex items-center gap-1.5">
+                  <div key={idx} className="pt-1.5 font-bold text-cyan-300 dark:text-cyan-300 text-xs sm:text-[13px] flex items-center gap-1.5">
                     <span>{trimmed}</span>
                   </div>
                 );
@@ -692,9 +692,9 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
                 return (
-                  <div key={idx} className="flex items-start gap-2.5 text-slate-800 dark:text-slate-200 pl-1">
-                    <span className="text-blue-600 dark:text-cyan-400 mt-1 shrink-0 text-xs">●</span>
-                    <span className="font-normal text-[14px] sm:text-[14.5px] leading-relaxed">
+                  <div key={idx} className="flex items-start gap-2 text-slate-800 dark:text-slate-200 pl-1">
+                    <span className="text-blue-600 dark:text-cyan-400 mt-0.5 shrink-0 text-[10px]">●</span>
+                    <span className="font-normal text-xs sm:text-[13.5px] leading-snug">
                       {trimmed.replace(/^[•\-]\s*/, '')}
                     </span>
                   </div>
@@ -703,15 +703,15 @@ export const ModernBotResponseSpace: React.FC<ModernBotResponseSpaceProps> = ({
 
               if (trimmed.startsWith('❓') || (trimmed.endsWith('?') && (trimmed.toLowerCase().includes('how') || trimmed.toLowerCase().includes('have you') || trimmed.toLowerCase().includes('do you')))) {
                 return (
-                  <div key={idx} className="flex items-start gap-2 my-2 text-blue-700 dark:text-cyan-200 font-medium text-sm">
-                    <span className="shrink-0 text-base">❓</span>
+                  <div key={idx} className="flex items-start gap-2 my-1.5 text-blue-700 dark:text-cyan-200 font-medium text-xs sm:text-[13px]">
+                    <span className="shrink-0 text-sm">❓</span>
                     <span>{trimmed.replace(/^❓\s*/, '')}</span>
                   </div>
                 );
               }
 
               return (
-                <p key={idx} className="text-slate-800 dark:text-slate-200 font-normal leading-relaxed">
+                <p key={idx} className="text-slate-800 dark:text-slate-200 font-normal leading-snug">
                   {trimmed}
                 </p>
               );

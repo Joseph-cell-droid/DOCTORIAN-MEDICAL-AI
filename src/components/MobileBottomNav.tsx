@@ -25,6 +25,7 @@ import {
   Mic,
 } from 'lucide-react';
 import { AndroidAppButtons, CLINICAL_MODULES_REGISTRY } from './AndroidAppButtons';
+import { useAppLanguage } from '../utils/translations';
 
 interface MobileBottomNavProps {
   currentView: string;
@@ -192,62 +193,16 @@ export const ALL_APP_PAGES: PageItem[] = [
  *  - Resized desktop browsers or non-Android devices
  */
 export function isAndroidOrTabletDevice(): boolean {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return false;
-  }
-
-  // Optional developer simulation override via URL search query (?device=android_phone) or session storage for testing
-  try {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('device') === 'android_phone') return true;
-    if (sessionStorage.getItem('doctorian_force_android_phone') === 'true') return true;
-  } catch {}
-
-  const ua = (navigator.userAgent || navigator.vendor || (window as any).opera || '').toLowerCase();
-
-  // 1. MUST be an Android operating system
-  const isAndroid = ua.includes('android');
-  if (!isAndroid) {
-    return false;
-  }
-
-  // 2. EXCLUDE all Apple devices (iPhone, iPad, iPod, Mac)
-  if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod') || ua.includes('macintosh')) {
-    return false;
-  }
-
-  // 3. EXCLUDE tablets (Android tablets have "Android" but DO NOT include "Mobile", or explicitly specify "Tablet")
-  const isExplicitTablet = ua.includes('tablet') || ua.includes('playbook') || ua.includes('silk');
-  if (isExplicitTablet) {
-    return false;
-  }
-
-  // 4. Standard Chrome/Firefox/Samsung Internet on Android:
-  // Android smartphones explicitly contain the token "Mobile" (e.g. "Linux; Android 14; ... Mobile Safari/537.36")
-  // Android tablets omit the "Mobile" token.
-  const hasMobileToken = ua.includes('mobile');
-  if (!hasMobileToken) {
-    return false;
-  }
-
-  // 5. Verify screen geometry: handheld smartphone screens (min dimension < 820px)
-  const minDimension = Math.min(window.innerWidth, window.innerHeight);
-  if (minDimension >= 820) {
-    return false; // Tablet / large display
-  }
-
-  return true;
+  // Unified native Android-style experience across Phone, Tablet, and Windows/Desktop views (no sidebar anywhere).
+  return typeof window !== 'undefined';
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   currentView,
   onNavigate,
 }) => {
-  // Only show on Androids and tablets, never on laptops and desktops
-  const [isAllowedDevice, setIsAllowedDevice] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return isAndroidOrTabletDevice();
-  });
+  const [, , t] = useAppLanguage();
+  const [isAllowedDevice, setIsAllowedDevice] = useState<boolean>(() => typeof window !== 'undefined');
 
   useEffect(() => {
     const updateDeviceCheck = () => {
@@ -296,7 +251,26 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   }, []);
 
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const [appCardMode, setAppCardMode] = useState<'grid' | 'detailed'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const openAppsCard = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.mode === 'detailed' || detail?.mode === 'grid') {
+        setAppCardMode(detail.mode);
+      }
+      setIsSwitcherOpen(true);
+      setIsCornerDocked(false);
+    };
+    const closeAppsCard = () => setIsSwitcherOpen(false);
+    window.addEventListener('doctorian-open-apps-card', openAppsCard);
+    window.addEventListener('doctorian-close-apps-card', closeAppsCard);
+    return () => {
+      window.removeEventListener('doctorian-open-apps-card', openAppsCard);
+      window.removeEventListener('doctorian-close-apps-card', closeAppsCard);
+    };
+  }, []);
 
   // Persistent dock state: corner collapsed vs expanded card
   const [isCornerDocked, setIsCornerDocked] = useState<boolean>(() => {
@@ -353,7 +327,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   return (
     <>
-      {/* 1. Floating App Buttons in Transparent Background (No Enclosing Card) */}
+      {/* 1. Bottom Card for App Buttons Anchored at Footer Side */}
       <AnimatePresence>
         {isSwitcherOpen && (
           <motion.div
@@ -365,137 +339,185 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               setIsSwitcherOpen(false);
               setSearchQuery('');
             }}
-            className="fixed inset-0 z-[135] bg-slate-950/50 dark:bg-slate-950/75 backdrop-blur-xl cursor-pointer"
+            className="fixed inset-0 z-[135] bg-[#020817]/70 backdrop-blur-md cursor-pointer"
           />
         )}
         {isSwitcherOpen && (
           <motion.div
-            key="switcher-floating-content"
-            initial={{ opacity: 0, y: 35 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 25, transition: { duration: 0.15 } }}
-              transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-              className="fixed inset-x-0 bottom-24 sm:bottom-28 z-[138] pointer-events-none flex flex-col items-center justify-end px-3 sm:px-6 max-h-[calc(100vh-120px)] overflow-y-auto no-scrollbar"
-            >
-              <div className="pointer-events-auto w-full max-w-md sm:max-w-lg mx-auto flex flex-col items-center pb-2">
-                {/* Floating Header Chip & Search Bar (Transparent Glass) */}
-                <div className="w-full flex items-center justify-between gap-2.5 mb-3 px-1">
-                  <div className="relative flex-1">
-                    <Search
-                      size={14}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none"
-                    />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search 16 clinical apps..."
-                      className="w-full pl-9 pr-8 py-2 rounded-full bg-white/15 dark:bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/55 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400/70 shadow-lg"
-                    />
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white cursor-pointer"
-                      >
-                        <X size={13} />
-                      </button>
-                    )}
+            key="switcher-bottom-card"
+            initial={{ opacity: 0, y: 36, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.98, transition: { duration: 0.16 } }}
+            transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+            className="fixed inset-x-0 bottom-[62px] sm:bottom-[66px] z-[138] pointer-events-none flex flex-col items-center justify-end px-2.5 sm:px-5"
+          >
+            <div className="pointer-events-auto w-full max-w-2xl mx-auto doctorian-thick-card bg-[#071530]/96 dark:bg-[#051026]/98 border-cyan-500/40 p-3 sm:p-4 shadow-[0_-14px_42px_rgba(0,180,255,0.22)] max-h-[54vh] flex flex-col overflow-hidden">
+              {/* Top Drag Handle + Card Title */}
+              <div className="w-9 h-1 rounded-full bg-cyan-400/40 mx-auto mb-2 shrink-0" />
+
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md border border-cyan-300/40">
+                    <LayoutGrid size={16} />
                   </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-black text-white leading-tight">
+                      {t('All Clinical Apps')} <span className="text-cyan-400">({CLINICAL_MODULES_REGISTRY.length})</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-300 font-semibold">
+                      {t('Quick Actions')} · {t('Tap a clinical module')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {/* Switch between Compact App Grid & Full App Hub */}
+                  <div className="flex items-center p-0.5 rounded-xl bg-[#040c1e] border border-blue-900/60">
+                    <button
+                      type="button"
+                      onClick={() => setAppCardMode('grid')}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        appCardMode === 'grid'
+                          ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {t('Grid')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAppCardMode('detailed')}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        appCardMode === 'detailed'
+                          ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {t('All Details')}
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => {
                       setIsSwitcherOpen(false);
                       setSearchQuery('');
                     }}
-                    className="h-8.5 px-3.5 rounded-full bg-white/15 dark:bg-white/10 hover:bg-white/25 text-white backdrop-blur-md border border-white/20 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-lg active:scale-95 shrink-0"
-                    title="Close Floating Apps"
+                    className="h-8 px-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white border border-b-2 border-slate-600/80 text-[11px] font-extrabold flex items-center gap-1 transition-all cursor-pointer active:scale-95 shrink-0"
+                    title={t('Close')}
                   >
-                    <X size={14} />
-                    <span>Close</span>
+                    <X size={13} />
+                    <span>{t('Close')}</span>
                   </button>
                 </div>
+              </div>
 
-                {/* Floating App Buttons Grid - 4 Columns floating freely on transparent background */}
-                <div className="w-full grid grid-cols-4 gap-y-3.5 sm:gap-y-5 gap-x-2 sm:gap-x-4 px-1 py-1">
-                  {CLINICAL_MODULES_REGISTRY.filter((btn) => {
-                    if (!searchQuery.trim()) return true;
-                    const q = searchQuery.toLowerCase().trim();
-                    return (
-                      btn.label.toLowerCase().includes(q) ||
-                      btn.subtitle.toLowerCase().includes(q) ||
-                      btn.categoryLabel.toLowerCase().includes(q)
-                    );
-                  }).map((btn, index) => {
-                    const isActive = currentView === btn.id;
-                    const IconComp = btn.icon;
+              {appCardMode === 'grid' && (
+                <div className="relative mb-2 shrink-0">
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300/75 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('Search 16 clinical apps...')}
+                    className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-[#040c1e]/90 border border-cyan-500/30 text-white placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-cyan-400 shadow-inner"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              )}
 
-                    return (
-                      <motion.button
-                        key={`floating-app-${btn.id}`}
-                        type="button"
-                        initial={{ opacity: 0, scale: 0.55, y: 25 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.7, y: 15 }}
-                        transition={{
-                          type: 'spring',
-                          damping: 18,
-                          stiffness: 350,
-                          delay: Math.min(index * 0.02, 0.25),
-                        }}
-                        whileHover={{ scale: 1.12, y: -4 }}
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => {
-                          onNavigate(btn.id);
-                          setIsSwitcherOpen(false);
-                          setSearchQuery('');
-                        }}
-                        className="group flex flex-col items-center justify-start cursor-pointer select-none focus:outline-none relative py-1"
-                      >
-                        {/* 1. Floating Icon Squircle */}
-                        <div className="relative">
-                          <div
-                            className={`w-13 h-13 sm:w-15 sm:h-15 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-tr ${btn.theme.iconGradient} text-white flex items-center justify-center shadow-[0_8px_22px_rgba(0,0,0,0.4)] ring-1 ring-white/35 backdrop-blur-xs transition-all duration-200 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.6)] group-hover:ring-white/70`}
-                          >
-                            {/* Glassy reflection sheen */}
-                            <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent rounded-t-2xl sm:rounded-t-[1.35rem] pointer-events-none" />
+              {/* Scrollable Compact Thick App Buttons Grid or Detailed Hub */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5">
+                {appCardMode === 'detailed' ? (
+                  <AndroidAppButtons
+                    currentView={currentView}
+                    onNavigate={(viewId) => {
+                      onNavigate(viewId);
+                    }}
+                    onItemClick={() => {
+                      setIsSwitcherOpen(false);
+                      setSearchQuery('');
+                    }}
+                  />
+                ) : (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-2 py-0.5">
+                    {CLINICAL_MODULES_REGISTRY.filter((btn) => {
+                      if (!searchQuery.trim()) return true;
+                      const q = searchQuery.toLowerCase().trim();
+                      return (
+                        btn.label.toLowerCase().includes(q) ||
+                        t(btn.label).toLowerCase().includes(q) ||
+                        btn.subtitle.toLowerCase().includes(q) ||
+                        btn.categoryLabel.toLowerCase().includes(q)
+                      );
+                    }).map((btn, index) => {
+                      const isActive = currentView === btn.id;
+                      const IconComp = btn.icon;
 
-                            <IconComp
-                              size={22}
-                              className="text-white drop-shadow-sm transition-transform duration-200 group-hover:scale-110 sm:w-6 sm:h-6"
-                            />
-
-                            {/* Floating Micro-Badge */}
+                      return (
+                        <motion.button
+                          key={`bottom-app-${btn.id}`}
+                          type="button"
+                          initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          transition={{
+                            type: 'spring',
+                            damping: 22,
+                            stiffness: 360,
+                            delay: Math.min(index * 0.012, 0.16),
+                          }}
+                          whileHover={{ y: -2 }}
+                          whileTap={{ scale: 0.94 }}
+                          onClick={() => {
+                            onNavigate(btn.id);
+                            setIsSwitcherOpen(false);
+                            setSearchQuery('');
+                          }}
+                          className={`group flex flex-col items-center justify-center p-2 rounded-xl border-2 border-b-[3px] transition-all cursor-pointer select-none relative ${
+                            isActive
+                              ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_6px_16px_rgba(0,210,255,0.3)]'
+                              : 'bg-[#0b1b3a]/90 hover:bg-[#10254f] border-blue-800/70 hover:border-cyan-400/70 shadow-md'
+                          }`}
+                        >
+                          <div className="relative mb-1.5">
+                            <div
+                              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr ${btn.theme.iconGradient} text-white flex items-center justify-center shadow-[0_6px_14px_rgba(0,0,0,0.35)] border border-white/25 transition-transform duration-200 group-hover:scale-105`}
+                            >
+                              <IconComp size={18} className="text-white drop-shadow-sm" />
+                            </div>
                             {btn.isUrgent ? (
-                              <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-[7.5px] font-black text-white uppercase tracking-wider shadow-md ring-1.5 ring-black/40 animate-pulse">
+                              <span className="absolute -top-1 -right-1 px-1 py-0.2 rounded-full bg-rose-500 text-[7px] font-black text-white uppercase shadow animate-pulse">
                                 SOS
                               </span>
                             ) : btn.badge ? (
-                              <span className="absolute -top-1.5 -right-1.5 px-1 py-0.2 rounded-full bg-slate-950/75 backdrop-blur-md text-[7px] font-bold text-white uppercase tracking-tight ring-1 ring-white/25 shadow-md">
-                                {btn.badge.replace(' FREE', '').replace(' AI', '').replace(' LIVE', '')}
+                              <span className="absolute -top-1 -right-1.5 px-1 py-0.2 rounded-full bg-slate-950/90 text-[6.5px] font-black text-cyan-300 uppercase border border-cyan-400/40 shadow">
+                                {btn.badge.replace(' FREE', '').replace(' AI', '').replace(' LIVE', '').slice(0, 6)}
                               </span>
                             ) : null}
-
-                            {/* Active Glow Ring */}
-                            {isActive && (
-                              <span className="absolute -inset-1.5 rounded-[1.3rem] sm:rounded-[1.55rem] ring-2 ring-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.7)] animate-pulse" />
-                            )}
                           </div>
-                        </div>
 
-                        {/* 2. Floating Title Underneath */}
-                        <span className="text-[10.5px] sm:text-[11px] font-bold text-white/95 text-center mt-1.5 leading-tight tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] line-clamp-1 max-w-[74px] sm:max-w-[84px] group-hover:text-white transition-colors">
-                          {btn.label}
-                        </span>
-                        <span className="text-[8.5px] text-white/70 text-center leading-none tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] line-clamp-1 max-w-[74px] sm:max-w-[84px] mt-0.5">
-                          {btn.categoryLabel}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
+                          <span className="text-[10px] font-extrabold text-white text-center leading-tight line-clamp-1">
+                            {t(btn.label)}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -544,275 +566,169 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
           </motion.div>
         ) : (
-          /* Flat Rectangular Navigation Bar for Android & Mobile (No Bent Edges) */
+          /* Unified Native Bottom Dock Card for Android, Tablet, and Desktop */
           <motion.nav
             key="bottom-flat-nav"
             role="navigation"
-            aria-label="Mobile Navigation"
+            aria-label="Primary App Dock"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.2 }}
             className="fixed bottom-0 left-0 right-0 z-[140] w-full select-none"
           >
-            {/* Flat Rectangular Bar: Edge-to-edge, smart, high-contrast, no curved or bent corners */}
-            <div className="bg-white/95 dark:bg-[#050e26]/95 text-slate-900 dark:text-slate-100 border-t border-slate-200/90 dark:border-cyan-500/30 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-6px_30px_rgba(0,210,255,0.18)] backdrop-blur-2xl h-16 sm:h-17 px-3 sm:px-8 flex items-center justify-around rounded-none">
+            <div className="bg-white/96 dark:bg-[#05122c]/96 text-slate-900 dark:text-slate-100 border-t-2 border-slate-200 dark:border-cyan-500/45 shadow-[0_-10px_28px_rgba(15,23,42,0.12)] dark:shadow-[0_-10px_32px_rgba(0,190,255,0.2)] backdrop-blur-2xl min-h-[54px] sm:min-h-[58px] pb-[env(safe-area-inset-bottom,0px)] px-2 sm:px-5 flex items-center justify-around max-w-xl sm:max-w-2xl mx-auto md:rounded-t-2xl md:border-x-2">
 
-              {/* 1. Home Button - Latest Capsule Squircle Look */}
+              {/* 1. Home Button */}
               <button
                 type="button"
-                onClick={() => onNavigate('home')}
-                aria-label="Home Overview"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  onNavigate('home');
+                }}
+                aria-label={t('Home')}
                 className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
-                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
                     isHomeActive
-                      ? 'bg-blue-500/15 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30 dark:ring-blue-400/30 shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                      ? 'bg-gradient-to-tr from-cyan-500 to-blue-600 text-white border border-b-2 border-cyan-300/60 shadow-[0_4px_12px_rgba(14,165,233,0.4)]'
+                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
                   }`}
                 >
-                  <Home
-                    size={19}
-                    strokeWidth={isHomeActive ? 2.5 : 2}
-                    className={`transition-transform duration-200 group-hover:scale-110 ${
-                      isHomeActive ? 'scale-105' : ''
-                    }`}
-                  />
-                  {isHomeActive && (
-                    <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-600" />
-                    </span>
-                  )}
+                  <Home size={16} strokeWidth={isHomeActive ? 2.6 : 2} />
                 </div>
                 <span
-                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
                     isHomeActive
-                      ? 'font-bold text-blue-600 dark:text-blue-400'
-                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                      ? 'font-black text-cyan-600 dark:text-cyan-300'
+                      : 'font-semibold text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  Home
+                  {t('Home')}
                 </span>
-                {isHomeActive ? (
-                  <motion.span
-                    layoutId="activeDockDot"
-                    className="w-4 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1 shadow-[0_1px_5px_rgba(37,99,235,0.4)]"
-                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                  />
-                ) : (
-                  <span className="w-4 h-1 mt-1 opacity-0" />
-                )}
               </button>
 
-              {/* 2. Health Button (Direct to Monitor / Vitality) - Latest Capsule Squircle Look */}
+              {/* 2. Health Button */}
               <button
                 type="button"
-                onClick={() => onNavigate('monitor')}
-                aria-label="Health Bio-Telemetry"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  onNavigate('vitality');
+                }}
+                aria-label={t('Health')}
                 className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
-                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
                     isHealthActive
-                      ? 'bg-rose-500/15 dark:bg-rose-400/20 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30 dark:ring-rose-400/30 shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                      ? 'bg-gradient-to-tr from-rose-500 to-pink-600 text-white border border-b-2 border-rose-300/60 shadow-[0_4px_12px_rgba(244,63,94,0.4)]'
+                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
                   }`}
                 >
-                  <Heart
-                    size={19}
-                    strokeWidth={isHealthActive ? 2.5 : 2}
-                    className={`transition-transform duration-200 group-hover:scale-110 ${
-                      isHealthActive ? 'scale-105 fill-rose-500/20' : ''
-                    }`}
-                  />
-                  {/* Micro Live Telemetry Pulse Beacon */}
-                  <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
+                  <Heart size={16} strokeWidth={isHealthActive ? 2.6 : 2} />
+                  <span className="absolute top-0.5 right-0.5 flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
                   </span>
                 </div>
                 <span
-                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
                     isHealthActive
-                      ? 'font-bold text-rose-600 dark:text-rose-400'
-                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                      ? 'font-black text-rose-500 dark:text-rose-400'
+                      : 'font-semibold text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  Health
+                  {t('Health')}
                 </span>
-                {isHealthActive ? (
-                  <motion.span
-                    layoutId="activeDockDot"
-                    className="w-4 h-1 rounded-full bg-rose-600 dark:bg-rose-400 mt-1 shadow-[0_1px_5px_rgba(225,29,72,0.4)]"
-                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                  />
-                ) : (
-                  <span className="w-4 h-1 mt-1 opacity-0" />
-                )}
               </button>
 
-              {/* 3. Center Promoted Elevated Circular App Buttons Launcher */}
+              {/* 3. Center Promoted Sleek App Buttons Card Launcher */}
               <div className="relative shrink-0 px-1 flex flex-col items-center justify-center">
-                {/* Glowing Concentric Halo Effect */}
-                <div className="absolute -inset-2 top-0 rounded-full bg-blue-500/25 blur-md -z-10 animate-pulse" />
-                <div className="p-1 rounded-full bg-gradient-to-b from-blue-500/15 to-transparent">
-                  <button
-                    type="button"
-                    onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-                    title="Clinical App Buttons & All Modules Hub (16 Apps)"
-                    aria-label="Clinical App Buttons & All Modules Hub"
-                    className="w-13 h-13 sm:w-15 sm:h-15 -mt-5 sm:-mt-6 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white flex flex-col items-center justify-center shadow-[0_8px_28px_rgba(0,210,255,0.55)] active:scale-95 hover:scale-105 transition-all cursor-pointer ring-4 ring-white dark:ring-[#050e26] group relative"
-                  >
-                    {isSwitcherOpen ? (
-                      <div className="flex flex-col items-center justify-center">
-                        <X
-                          size={22}
-                          className="text-white drop-shadow-sm group-hover:rotate-90 transition-transform duration-300"
-                        />
-                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-wider uppercase text-blue-100 leading-none mt-0.5">
-                          Close
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center">
-                        {/* 4-App Square Grid Symbol representing App Buttons with +16 Counter */}
-                        <div className="relative flex items-center justify-center">
-                          <LayoutGrid
-                            size={20}
-                            strokeWidth={2.4}
-                            className="text-white drop-shadow-sm group-hover:scale-110 transition-transform duration-300"
-                          />
-                          {/* Mini "+16" indicator badge indicating all app buttons inside */}
-                          <span className="absolute -top-1.5 -right-3 px-1 py-0.2 rounded-full bg-cyan-400 text-blue-950 font-black text-[7px] leading-tight shadow-sm border border-white/60 tracking-tighter">
-                            +16
-                          </span>
-                        </div>
-                        {/* Clear text indicator right on the button face */}
-                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-wider uppercase text-blue-100 leading-none mt-1 font-mono">
-                          Apps
-                        </span>
-                      </div>
-                    )}
-                  </button>
-                </div>
-
-                {/* Subtitle label underneath aligned with Home, Health, Records, Profile */}
-                <span
-                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
-                    isSwitcherOpen
-                      ? 'font-bold text-blue-600 dark:text-blue-400'
-                      : 'font-medium text-slate-500 dark:text-slate-400'
-                  }`}
+                <div className="absolute -inset-1 top-0 rounded-full bg-cyan-500/25 blur-sm -z-10 animate-pulse" />
+                <button
+                  type="button"
+                  onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
+                  title={`${t('Apps')} (+16)`}
+                  aria-label={`${t('Apps')} (+16)`}
+                  className="w-11 h-11 sm:w-12 sm:h-12 -mt-3.5 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white flex flex-col items-center justify-center shadow-[0_8px_20px_rgba(0,210,255,0.48)] active:scale-95 hover:scale-105 transition-all cursor-pointer border-2 border-b-[3px] border-cyan-200/70 ring-2 ring-white dark:ring-[#05122c] group relative"
                 >
-                  Apps
-                </span>
-                {isSwitcherOpen ? (
-                  <motion.span
-                    layoutId="activeDockDot"
-                    className="w-4 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-1 shadow-[0_1px_5px_rgba(37,99,235,0.4)]"
-                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                  />
-                ) : (
-                  <span className="w-4 h-1 mt-1 opacity-0" />
-                )}
+                  {isSwitcherOpen ? (
+                    <div className="flex flex-col items-center justify-center">
+                      <X size={17} className="text-white drop-shadow-sm" />
+                      <span className="text-[7px] font-black uppercase text-cyan-100 leading-none mt-0.5">
+                        {t('Close')}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <LayoutGrid size={17} strokeWidth={2.5} className="text-white drop-shadow-sm" />
+                      <span className="text-[7px] font-black uppercase text-cyan-100 leading-none mt-0.5">
+                        {t('Apps')}
+                      </span>
+                    </div>
+                  )}
+                </button>
               </div>
 
-              {/* 4. Records Button - Latest Capsule Squircle Look */}
+              {/* 4. Records Button */}
               <button
                 type="button"
-                onClick={() => onNavigate('records')}
-                aria-label="Medical Records & Vault"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  onNavigate('records');
+                }}
+                aria-label={t('Records')}
                 className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
-                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
+                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
                     isRecordsActive
-                      ? 'bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30 dark:ring-emerald-400/30 shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                      ? 'bg-gradient-to-tr from-emerald-500 to-teal-600 text-white border border-b-2 border-emerald-300/60 shadow-[0_4px_12px_rgba(16,185,129,0.4)]'
+                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
                   }`}
                 >
-                  <Folder
-                    size={19}
-                    strokeWidth={isRecordsActive ? 2.5 : 2}
-                    className={`transition-transform duration-200 group-hover:scale-110 ${
-                      isRecordsActive ? 'scale-105' : ''
-                    }`}
-                  />
-                  {isRecordsActive && (
-                    <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-600" />
-                    </span>
-                  )}
+                  <Folder size={16} strokeWidth={isRecordsActive ? 2.6 : 2} />
                 </div>
                 <span
-                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
+                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
                     isRecordsActive
-                      ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                      ? 'font-black text-emerald-600 dark:text-emerald-400'
+                      : 'font-semibold text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  Records
+                  {t('Records')}
                 </span>
-                {isRecordsActive ? (
-                  <motion.span
-                    layoutId="activeDockDot"
-                    className="w-4 h-1 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-1 shadow-[0_1px_5px_rgba(5,150,105,0.4)]"
-                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                  />
-                ) : (
-                  <span className="w-4 h-1 mt-1 opacity-0" />
-                )}
               </button>
 
-              {/* 5. Profile Button - Latest Capsule Squircle Look */}
+              {/* 5. Profile / Settings Button */}
               <button
                 type="button"
-                onClick={() => onNavigate('profile')}
-                aria-label="User Profile & Settings"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  onNavigate('settings');
+                }}
+                aria-label={t('Profile')}
                 className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
-                  className={`w-10 h-7.5 sm:w-11 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
-                    isProfileActive
-                      ? 'bg-indigo-500/15 dark:bg-indigo-400/20 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 dark:ring-indigo-400/30 shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-800/50'
+                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
+                    isProfileActive || currentView === 'settings'
+                      ? 'bg-gradient-to-tr from-indigo-500 to-blue-600 text-white border border-b-2 border-indigo-300/60 shadow-[0_4px_12px_rgba(99,102,241,0.4)]'
+                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
                   }`}
                 >
-                  <User
-                    size={19}
-                    strokeWidth={isProfileActive ? 2.5 : 2}
-                    className={`transition-transform duration-200 group-hover:scale-110 ${
-                      isProfileActive ? 'scale-105' : ''
-                    }`}
-                  />
-                  {isProfileActive && (
-                    <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-600" />
-                    </span>
-                  )}
+                  <User size={16} strokeWidth={isProfileActive || currentView === 'settings' ? 2.6 : 2} />
                 </div>
                 <span
-                  className={`text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none transition-colors ${
-                    isProfileActive
-                      ? 'font-bold text-indigo-600 dark:text-indigo-400'
-                      : 'font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
+                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
+                    isProfileActive || currentView === 'settings'
+                      ? 'font-black text-indigo-600 dark:text-indigo-400'
+                      : 'font-semibold text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  Profile
+                  {t('Profile')}
                 </span>
-                {isProfileActive ? (
-                  <motion.span
-                    layoutId="activeDockDot"
-                    className="w-4 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-1 shadow-[0_1px_5px_rgba(79,70,229,0.4)]"
-                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                  />
-                ) : (
-                  <span className="w-4 h-1 mt-1 opacity-0" />
-                )}
               </button>
 
             </div>

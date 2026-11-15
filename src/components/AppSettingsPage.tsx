@@ -43,6 +43,7 @@ import {
   Moon,
   Watch
 } from 'lucide-react';
+import { SUPPORTED_LANGUAGES, useAppLanguage } from '../utils/translations';
 
 interface AppSettingsPageProps {
   onNavigate?: (view: string) => void;
@@ -87,7 +88,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'notifications' | 'appearance' | 'privacy'>('general');
 
   // Interactive Controls State
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [selectedLanguage, setSelectedLanguage, t] = useAppLanguage();
   const [voiceAssistantEnabled, setVoiceAssistantEnabled] = useState(true);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
   const [offlineModeEnabled, setOfflineModeEnabled] = useState(() => {
@@ -211,28 +212,28 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
                   className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-cyan-400 cursor-pointer"
                 >
                   <Edit3 size={12} />
-                  <span>Edit Profile &gt;</span>
+                  <span>{t('Edit Profile')} &gt;</span>
                 </button>
               </div>
             </div>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-500 dark:text-emerald-300 text-[11px] font-black hidden sm:inline-flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/15 border-2 border-emerald-400/40 text-emerald-500 dark:text-emerald-300 text-[11px] font-black hidden sm:inline-flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Verified
+              {t('Verified')}
             </span>
           </div>
 
-          <div className="doctorian-thick-card divide-y divide-slate-200/70 dark:divide-cyan-500/20 overflow-hidden">
+          <div className="doctorian-thick-card divide-y-2 divide-slate-200/70 dark:divide-cyan-500/20 overflow-hidden">
             {/* Row 1: Account & Security */}
             <button
               type="button"
               onClick={() => setIsChangePasswordOpen(true)}
-              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-500 dark:text-cyan-400 flex items-center justify-center">
-                  <ShieldCheck size={17} />
+                <div className="w-10 h-10 rounded-xl bg-blue-500/15 border-2 border-blue-400/35 text-blue-500 dark:text-cyan-400 flex items-center justify-center">
+                  <ShieldCheck size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Account &amp; Security</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('Account & Security')}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </button>
@@ -241,37 +242,40 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('notifications')}
-              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-500 dark:text-cyan-300 flex items-center justify-center">
-                  <Bell size={17} />
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border-2 border-cyan-400/35 text-cyan-500 dark:text-cyan-300 flex items-center justify-center">
+                  <Bell size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Notifications</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('Notifications')}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </button>
 
             {/* Row 3: Language */}
-            <div className="px-5 py-3.5 flex items-center justify-between">
+            <div className="px-5 py-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-400/30 text-indigo-500 dark:text-indigo-300 flex items-center justify-center">
-                  <Globe size={17} />
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border-2 border-indigo-400/35 text-indigo-500 dark:text-indigo-300 flex items-center justify-center">
+                  <Globe size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Language</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('Language')}</span>
               </div>
               <select
+                aria-label={t('Language')}
+                data-no-translate
                 value={selectedLanguage}
                 onChange={(e) => {
                   setSelectedLanguage(e.target.value);
-                  toast(`Language set to ${e.target.value}`, 'success');
+                  toast(`${t('Language')}: ${e.target.value}`, 'success');
                 }}
-                className="bg-transparent text-xs font-bold text-slate-600 dark:text-cyan-300 cursor-pointer focus:outline-none text-right"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#0b1b3a] border-2 border-cyan-500/35 text-xs font-extrabold text-slate-800 dark:text-cyan-300 cursor-pointer focus:outline-none focus:border-cyan-400"
               >
-                <option value="English">English &gt;</option>
-                <option value="Luganda">Luganda &gt;</option>
-                <option value="Swahili">Swahili &gt;</option>
-                <option value="French">French &gt;</option>
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
+                    {lang.nativeLabel}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -279,33 +283,33 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
             <button
               type="button"
               onClick={() => onToggleTheme?.()}
-              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-400/30 text-purple-500 dark:text-purple-300 flex items-center justify-center">
-                  <Moon size={17} />
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 border-2 border-purple-400/35 text-purple-500 dark:text-purple-300 flex items-center justify-center">
+                  <Moon size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Appearance</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('Appearance')}</span>
               </div>
-              <span className="text-xs font-bold text-slate-500 dark:text-cyan-300 flex items-center gap-1">
-                {isDarkMode ? 'Dark Mode' : 'Light Mode'} <ChevronRight size={15} />
+              <span className="text-xs font-extrabold text-slate-600 dark:text-cyan-300 flex items-center gap-1">
+                {isDarkMode ? t('Dark Mode') : t('Light Mode')} <ChevronRight size={15} />
               </span>
             </button>
 
             {/* Row 5: Offline Mode */}
-            <div className="px-5 py-3.5 flex items-center justify-between">
+            <div className="px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-500 flex items-center justify-center">
-                  <WifiOff size={17} />
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border-2 border-amber-400/35 text-amber-500 flex items-center justify-center">
+                  <WifiOff size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Offline Mode</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('Offline Mode')}</span>
               </div>
               <button
                 type="button"
                 onClick={handleToggleOfflineMode}
-                aria-label="Toggle Offline Mode"
-                className={`w-11 h-6 rounded-full p-1 transition-colors cursor-pointer ${
-                  offlineModeEnabled ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-slate-700'
+                aria-label={t('Offline Mode')}
+                className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer border-2 ${
+                  offlineModeEnabled ? 'bg-cyan-500 border-cyan-300' : 'bg-slate-300 dark:bg-slate-700 border-slate-500/40'
                 }`}
               >
                 <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${
@@ -318,13 +322,13 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
             <button
               type="button"
               onClick={() => handleNav('smart_watch')}
-              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-500 flex items-center justify-center">
-                  <Watch size={17} />
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border-2 border-emerald-400/35 text-emerald-500 flex items-center justify-center">
+                  <Watch size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Connected Devices</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('Connected Devices')}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </button>
@@ -333,13 +337,13 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
             <button
               type="button"
               onClick={() => setIsAboutModalOpen(true)}
-              className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-blue-950/35 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-500 flex items-center justify-center">
-                  <Info size={17} />
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border-2 border-cyan-400/35 text-cyan-500 flex items-center justify-center">
+                  <Info size={18} />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">About Doctorian AI</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{t('About Doctorian AI')}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </button>
@@ -356,15 +360,15 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
 
           {/* Left: 3D Gear Icon & Title */}
           <div className="relative z-10 flex items-center gap-4 max-w-xl">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-cyan-300 shadow-lg shrink-0">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/15 backdrop-blur-md border-2 border-white/25 flex items-center justify-center text-cyan-300 shadow-lg shrink-0">
               <SettingsIcon size={32} className="animate-spin-slow stroke-[2.2]" />
             </div>
             <div className="space-y-1">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                App Settings & Tools
+                {t('App Settings & Tools')}
               </h1>
               <p className="text-xs sm:text-sm text-blue-100 font-medium leading-relaxed">
-                Manage your application preferences and explore useful tools
+                {t('Manage your application preferences and explore useful tools')}
               </p>
             </div>
           </div>
@@ -627,25 +631,27 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
             <div className="space-y-3 pt-1 text-xs">
               {activeTab === 'general' && (
                 <>
-                  {/* Language Selector */}
+              {/* Language Selector */}
                   <div className="flex items-center justify-between py-1">
                     <div className="flex items-center gap-2">
                       <Globe size={15} className="text-blue-500" />
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Language</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{t('Language')}</span>
                     </div>
                     <select
+                      aria-label={t('Language')}
+                      data-no-translate
                       value={selectedLanguage}
                       onChange={(e) => {
                         setSelectedLanguage(e.target.value);
-                        toast(`Language changed to ${e.target.value}`, 'success');
+                        toast(`${t('Language')}: ${e.target.value}`, 'success');
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer focus:outline-none"
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#0b1b3a] text-slate-800 dark:text-cyan-300 border-2 border-slate-200 dark:border-cyan-500/35 font-bold text-xs cursor-pointer focus:outline-none max-w-[140px]"
                     >
-                      <option value="English">English</option>
-                      <option value="Luganda">Luganda</option>
-                      <option value="Swahili">Swahili</option>
-                      <option value="French">French</option>
-                      <option value="Arabic">Arabic</option>
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
+                          {lang.nativeLabel}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -653,7 +659,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
                   <div className="flex items-center justify-between py-1">
                     <div className="flex items-center gap-2">
                       <Mic size={15} className="text-indigo-500" />
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Voice Assistant</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{t('Voice Assistant')}</span>
                     </div>
                     <button
                       type="button"
@@ -675,7 +681,7 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
                   <div className="flex items-center justify-between py-1">
                     <div className="flex items-center gap-2">
                       <RefreshCw size={15} className="text-emerald-500" />
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Auto Sync Data</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{t('Auto Sync Data')}</span>
                     </div>
                     <button
                       type="button"
@@ -697,14 +703,11 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
                   <div className="flex items-center justify-between py-1">
                     <div className="flex items-center gap-2">
                       <WifiOff size={15} className="text-amber-500" />
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Offline Mode</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{t('Offline Mode')}</span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setOfflineModeEnabled(!offlineModeEnabled);
-                        toast(!offlineModeEnabled ? 'Offline Mode active (Local Cache)' : 'Live Cloud connected', 'info');
-                      }}
+                      onClick={handleToggleOfflineMode}
                       className={`w-10 h-6 rounded-full p-1 transition-colors cursor-pointer ${
                         offlineModeEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
@@ -720,18 +723,18 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
                     <button
                       type="button"
                       onClick={handleBackupNow}
-                      className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm shadow-blue-600/30"
+                      className="flex-1 py-2.5 px-3 doctorian-cta-btn text-white font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Cloud size={14} />
-                      <span>Backup Now</span>
+                      <span>{t('Backup Now')}</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleClearCache}
-                      className="py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="py-2.5 px-3 doctorian-dark-btn text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Trash2 size={13} className="text-slate-400" />
-                      <span>Clear Cache</span>
+                      <Trash2 size={13} className="text-cyan-300" />
+                      <span>{t('Clear Cache')}</span>
                     </button>
                   </div>
                 </>

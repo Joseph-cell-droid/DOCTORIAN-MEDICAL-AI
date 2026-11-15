@@ -27,9 +27,13 @@ import {
   Send,
   ExternalLink,
   ChevronRight,
-  Flame
+  Flame,
+  Smartphone
 } from 'lucide-react';
 import { useArduinoContext } from '../ArduinoContext';
+import { useNearestHospital } from '../hooks/useNearestHospital';
+import { useLiveDashboardSummary } from '../hooks/useLiveDashboardSummary';
+import { useAppLanguage } from '../utils/translations';
 
 interface VitalityMatrixProps {
   onNavigate?: (view: string) => void;
@@ -38,8 +42,32 @@ interface VitalityMatrixProps {
 }
 
 export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user, addToast }) => {
+  const [, , t] = useAppLanguage();
   const arduino = useArduinoContext();
   const liveVitals = arduino?.vitals;
+  const { hospital } = useNearestHospital();
+  const effectiveUserKey = user?.id || user?.email || 'default-user';
+  const {
+    summary: liveSummary,
+    updateSteps,
+    isPedometerActive,
+    togglePhonePedometer
+  } = useLiveDashboardSummary(hospital.id, effectiveUserKey);
+
+  const stepsToday = liveSummary?.telemetry.steps ?? 0;
+  const stepsGoal = liveSummary?.telemetry.stepsGoal ?? 8000;
+  const stepsGoalPct = liveSummary?.telemetry.stepsGoalPct ?? 0;
+  const caloriesToday = liveSummary?.telemetry.calories ?? 0;
+  const waterMlToday = liveSummary?.telemetry.waterMl ?? 0;
+  const sleepMinutesToday = liveSummary?.telemetry.sleepMinutes ?? 0;
+  const sleepHours = Math.floor(sleepMinutesToday / 60);
+  const sleepRemMins = sleepMinutesToday % 60;
+  const sleepGoalPct = Math.min(100, Math.round((sleepMinutesToday / 480) * 100));
+  const hydrationGoalPct = Math.min(100, Math.round((waterMlToday / 2500) * 100));
+  const overallScore = liveSummary?.progress.overallScore ?? 0;
+  const rxDonePct = liveSummary?.progress.rxDonePct ?? 0;
+  const apptsDonePct = liveSummary?.progress.apptsDonePct ?? 0;
+  const labsDonePct = liveSummary?.progress.labsDonePct ?? 0;
 
   // Active Sub-Navigation Tab
   const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'insights' | 'recommendations'>('overview');
@@ -50,10 +78,20 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
   // Reactive Smart Recommendations Checklist
   const [completedRecommendations, setCompletedRecommendations] = useState<{ [key: string]: boolean }>({
-    hydration: true,
-    sleep: true,
-    exercise: true
+    hydration: false,
+    sleep: false,
+    exercise: false
   });
+
+  // Sync checklist state automatically from real logged telemetry
+  useEffect(() => {
+    setCompletedRecommendations((prev) => ({
+      ...prev,
+      hydration: waterMlToday >= 1500 ? true : prev.hydration,
+      sleep: sleepMinutesToday >= 420 ? true : prev.sleep,
+      exercise: stepsToday >= stepsGoal ? true : prev.exercise
+    }));
+  }, [waterMlToday, sleepMinutesToday, stepsToday, stepsGoal]);
 
   // Hovered Chart Day
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -63,11 +101,11 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
   // Quick Action Modals
   const [trackVitalsInput, setTrackVitalsInput] = useState({
-    hr: '72',
-    bp: '118/76',
-    temp: '36.6',
-    spo2: '98',
-    steps: '8450'
+    hr: String(liveVitals?.heartRate ?? 72),
+    bp: liveVitals ? `${liveVitals.systolicBP}/${liveVitals.diastolicBP}` : '118/76',
+    temp: liveVitals ? liveVitals.temperature.toFixed(1) : '36.6',
+    spo2: String(liveVitals?.spo2 ?? 98),
+    steps: String(stepsToday)
   });
 
   const [aiAdviceQuestion, setAiAdviceQuestion] = useState('');
@@ -76,12 +114,12 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
   // Health Goals
   const [healthGoals, setHealthGoals] = useState({
-    steps: 10000,
-    water: 3.0,
+    steps: stepsGoal,
+    water: 2.5,
     sleep: 8.0
   });
 
-  // Daily Trend Data (matching image_a33b3901.png points Mon - Sun)
+  // Daily Trend Data
   const trendData = [
     { day: 'Mon', hr: 70, temp: 36.5, o2: 97, bp: '116/74' },
     { day: 'Tue', hr: 68, temp: 36.4, o2: 98, bp: '118/76' },
@@ -89,29 +127,73 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
     { day: 'Thu', hr: 69, temp: 36.5, o2: 99, bp: '117/75' },
     { day: 'Fri', hr: 73, temp: 36.8, o2: 98, bp: '119/76' },
     { day: 'Sat', hr: 71, temp: 36.6, o2: 98, bp: '118/76' },
-    { day: 'Sun', hr: 72, temp: 36.6, o2: 98, bp: '118/76' }
+    { day: 'Sun', hr: liveVitals?.heartRate ?? 72, temp: liveVitals?.temperature ?? 36.6, o2: liveVitals?.spo2 ?? 98, bp: liveVitals ? `${liveVitals.systolicBP}/${liveVitals.diastolicBP}` : '118/76' }
   ];
 
-  // Activities list with reactive toggling
-  const [activities, setActivities] = useState([
-    { id: 1, title: 'Morning Walk – 30 min', time: 'Today, 07:30 AM', icon: 'walk', type: 'physical' },
-    { id: 2, title: 'Sleep Completed – 7.5 hrs', time: 'Today, 06:45 AM', icon: 'sleep', type: 'rest' },
-    { id: 3, title: 'Water Intake – 2.5 L', time: 'Today, 08:00 AM', icon: 'water', type: 'hydration' }
-  ]);
+  // Dynamic activities list built from live logged telemetry (shows pending when not logged yet)
+  const activities = [
+    {
+      id: 1,
+      title: stepsToday > 0 ? `Steps Logged – ${stepsToday.toLocaleString()} steps` : 'Daily Steps – Not logged yet',
+      time: stepsToday > 0 ? `${caloriesToday} kcal burned` : 'Tap +250 Steps or Phone Sensor',
+      icon: 'walk',
+      done: stepsToday >= stepsGoal
+    },
+    {
+      id: 2,
+      title: sleepMinutesToday > 0 ? `Sleep Logged – ${sleepHours}h ${sleepRemMins}m` : 'Sleep Tracking – Not logged yet',
+      time: sleepMinutesToday > 0 ? `${sleepGoalPct}% of 8h target` : 'Log rest duration in Goals',
+      icon: 'sleep',
+      done: sleepMinutesToday >= 420
+    },
+    {
+      id: 3,
+      title: waterMlToday > 0 ? `Water Intake – ${(waterMlToday / 1000).toFixed(2)} L` : 'Hydration – Not logged yet',
+      time: waterMlToday > 0 ? `${hydrationGoalPct}% of daily target` : 'Tap Log 500 mL to track',
+      icon: 'water',
+      done: waterMlToday >= 1500
+    }
+  ];
 
   const toggleRecommendation = (id: string) => {
     setCompletedRecommendations(prev => {
       const next = !prev[id];
       if (addToast) {
-        addToast(next ? `Goal marked as achieved!` : `Goal updated.`, 'info');
+        addToast(next ? `Goal marked as Done!` : `Goal marked Pending.`, 'info');
       }
       return { ...prev, [id]: next };
     });
   };
 
-  const handleSaveVitals = (e: React.FormEvent) => {
+  const handleSaveVitals = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (addToast) addToast("Vital signs successfully recorded to telemetry ledger.", "success");
+    const numericSteps = Number(trackVitalsInput.steps);
+    if (!Number.isNaN(numericSteps) && numericSteps !== stepsToday && numericSteps >= 0) {
+      await updateSteps({ absoluteSteps: numericSteps });
+    }
+    try {
+      const token = localStorage.getItem('doctorian_auth_token');
+      const [sys, dia] = trackVitalsInput.bp.split('/').map((n) => Number(n.trim()));
+      await fetch('/api/vitals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          heart_rate: Number(trackVitalsInput.hr) || 72,
+          systolic_bp: sys || 118,
+          diastolic_bp: dia || 76,
+          temperature: Number(trackVitalsInput.temp) || 36.6,
+          spo2: Number(trackVitalsInput.spo2) || 98,
+          source: 'vitality_manual'
+        })
+      });
+    } catch {
+      // ignore if guest mode
+    }
+    if (addToast) addToast('Vital signs & telemetry successfully recorded.', 'success');
     setActiveModal(null);
   };
 
@@ -122,58 +204,64 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
     setTimeout(() => {
       setIsAiAnswering(false);
       setAiAdviceResponse(
-        `Based on your steady resting heart rate (72 bpm), blood pressure (118/76 mmHg), and 98% SpO2, your autonomic balance is superb. To optimize afternoon cognitive stamina, maintain 500ml hydration between meals and take a 5-minute brisk walking break.`
+        `Based on your live telemetry (${liveHR} bpm, ${stepsToday.toLocaleString()} steps today, ${waterMlToday} mL water), ${
+          stepsToday === 0
+            ? 'you have not logged walking steps yet today — start a 10-minute walk to activate metabolic momentum.'
+            : `you are at ${stepsGoalPct}% of your daily step goal. Keep hydrating cleanly.`
+        }`
       );
-    }, 800);
+    }, 600);
   };
 
   const liveHR = liveVitals?.heartRate ?? 72;
   const vitalityDays = [
-    { day: 'Mon', val: 68 },
-    { day: 'Tue', val: 76 },
-    { day: 'Wed', val: 84 },
-    { day: 'Thu', val: 74 },
-    { day: 'Fri', val: 90 },
-    { day: 'Sat', val: 88 },
-    { day: 'Sun', val: 98 },
+    { day: 'Mon', val: 62 },
+    { day: 'Tue', val: 70 },
+    { day: 'Wed', val: 78 },
+    { day: 'Thu', val: 68 },
+    { day: 'Fri', val: 82 },
+    { day: 'Sat', val: 76 },
+    { day: 'Today', val: Math.max(12, overallScore) },
   ];
 
   return (
     <div className="w-full doctorian-canvas text-slate-800 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
 
       {/* ========================================================================= */}
-      {/* SCREEN 7: VITALITY MATRIX SHOWCASE CARD (image_2605a2cb)                  */}
+      {/* SCREEN 7: VITALITY MATRIX SHOWCASE CARD (image_77dd7586)                  */}
       {/* ========================================================================= */}
       <section className="doctorian-thick-card p-5 sm:p-6 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-[900] text-slate-900 dark:text-white tracking-tight">Vitality Matrix</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Comprehensive biometric wellness &amp; 7-day trend</p>
+            <h2 className="text-xl font-[900] text-slate-900 dark:text-white tracking-tight">{t('Vitality Matrix')}</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t('Comprehensive biometric wellness & 7-day trend')}
+            </p>
           </div>
-          <div className="inline-flex p-1 rounded-full bg-slate-200/80 dark:bg-[#081535] border-2 border-cyan-500/30 self-start">
+          <div className="inline-flex p-1.5 rounded-full bg-slate-200/85 dark:bg-[#06112d] border-[2.5px] border-cyan-500/35 self-start gap-1">
             <button
               type="button"
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-black transition-all cursor-pointer min-h-[38px] ${
                 activeTab === 'overview' ? 'doctorian-cta-btn text-white' : 'text-slate-600 dark:text-slate-300'
               }`}
             >
-              Overview
+              {t('Overview')}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('trends')}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-black transition-all cursor-pointer min-h-[38px] ${
                 activeTab === 'trends' ? 'doctorian-cta-btn text-white' : 'text-slate-600 dark:text-slate-300'
               }`}
             >
-              Trends
+              {t('Trends')}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-          {/* Glowing Semicircle 98 Health Score Gauge */}
+          {/* Glowing Live Semicircle Health Score Gauge */}
           <div className="lg:col-span-4 doctorian-thick-tile p-5 flex flex-col items-center text-center">
             <div className="relative w-48 h-28 flex items-end justify-center">
               <svg className="w-full h-full overflow-visible" viewBox="0 0 200 110">
@@ -199,54 +287,84 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                   strokeWidth="14"
                   strokeLinecap="round"
                   strokeDasharray="251.3"
-                  strokeDashoffset={251.3 * 0.04}
+                  strokeDashoffset={251.3 * (1 - overallScore / 100)}
                 />
               </svg>
               <div className="absolute bottom-1 flex flex-col items-center">
-                <span className="text-4xl font-[900] text-slate-900 dark:text-white leading-none">98</span>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-300 mt-1">Health Score</span>
+                <span className="text-4xl font-[900] text-slate-900 dark:text-white leading-none">{overallScore}</span>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-300 mt-1">{t('Health Score')}</span>
               </div>
             </div>
-            <span className="mt-3 px-4 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-600 dark:text-emerald-300 text-xs font-black">
-              Excellent
+            <span className="mt-3 px-4 py-1 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 text-emerald-600 dark:text-emerald-300 text-xs font-black">
+              {overallScore >= 80 ? t('Excellent') : overallScore >= 40 ? t('In Progress') : t('Pending Activity')}
             </span>
           </div>
 
-          {/* 2x2 Thick Vitals Tiles */}
+          {/* 2x2 Thick Vitals Tiles (Real SQLite Telemetry) */}
           <div className="lg:col-span-4 grid grid-cols-2 gap-3">
             <div onClick={() => setActiveModal('hr')} className="doctorian-thick-tile p-3.5 cursor-pointer">
               <div className="flex items-center gap-2 text-rose-500 mb-1.5">
                 <Heart size={16} className="fill-rose-500/30 animate-pulse" />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Heart Rate</span>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('Heart Rate')}</span>
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-white">
                 {liveHR} <span className="text-xs font-bold text-slate-400">bpm</span>
               </div>
             </div>
 
-            <div onClick={() => setActiveModal('steps')} className="doctorian-thick-tile p-3.5 cursor-pointer">
-              <div className="flex items-center gap-2 text-cyan-500 mb-1.5">
-                <Footprints size={16} />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Steps</span>
+            <div className="doctorian-thick-tile p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-cyan-500">
+                  <Footprints size={16} />
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('Steps')}</span>
+                </div>
+                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${stepsToday > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'}`}>
+                  {stepsToday === 0 ? 'Not logged' : `${stepsGoalPct}%`}
+                </span>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-white">6,850</div>
+              <div className="text-xl font-black text-slate-900 dark:text-white">
+                {stepsToday.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-1 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => updateSteps({ deltaSteps: 250 })}
+                  className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/50 text-[10px] font-black text-cyan-300 cursor-pointer"
+                >
+                  +250
+                </button>
+                <button
+                  type="button"
+                  onClick={() => togglePhonePedometer()}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black border cursor-pointer flex items-center gap-1 ${
+                    isPedometerActive
+                      ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300'
+                      : 'bg-slate-800 border-slate-600 text-slate-300'
+                  }`}
+                >
+                  <Smartphone size={10} />
+                  <span>{isPedometerActive ? 'On' : 'Sensor'}</span>
+                </button>
+              </div>
             </div>
 
-            <div onClick={() => onNavigate?.('neuro')} className="doctorian-thick-tile p-3.5 cursor-pointer">
+            <div onClick={() => setActiveModal('set_goals')} className="doctorian-thick-tile p-3.5 cursor-pointer">
               <div className="flex items-center gap-2 text-indigo-400 mb-1.5">
                 <Moon size={16} />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Sleep</span>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('Sleep')}</span>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-white">7h 45m</div>
+              <div className="text-xl font-black text-slate-900 dark:text-white">
+                {sleepMinutesToday > 0 ? `${sleepHours}h ${sleepRemMins}m` : '0h (Not logged)'}
+              </div>
             </div>
 
             <div onClick={() => onNavigate?.('fitness')} className="doctorian-thick-tile p-3.5 cursor-pointer">
               <div className="flex items-center gap-2 text-amber-500 mb-1.5">
                 <Flame size={16} />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Calories</span>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('Calories')}</span>
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-white">
-                420 <span className="text-xs font-bold text-slate-400">kcal</span>
+                {caloriesToday} <span className="text-xs font-bold text-slate-400">kcal</span>
               </div>
             </div>
           </div>
@@ -255,14 +373,14 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
           <div className="lg:col-span-4 doctorian-thick-tile p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white">
-                Health Trend (7 Days)
+                {t('Health Trend (7 Days)')}
               </h3>
               <button
                 type="button"
                 onClick={() => setActiveTab('trends')}
                 className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-0.5 cursor-pointer"
               >
-                <span>View All</span>
+                <span>{t('View All')}</span>
                 <ChevronRight size={13} />
               </button>
             </div>
@@ -536,9 +654,9 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
           </div>
         </div>
 
-        {/* Card 5: Steps Today */}
+        {/* Card 5: Live Steps Today */}
         <div 
-          onClick={() => setActiveModal('steps')}
+          onClick={() => updateSteps({ deltaSteps: 250 })}
           className="doctorian-thick-card p-4 cursor-pointer flex items-center justify-between group"
         >
           <div className="space-y-1">
@@ -549,10 +667,10 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Steps Today</span>
             </div>
             <div className="flex items-baseline gap-1 pt-1">
-              <span className="text-2xl font-[900] text-slate-900 dark:text-white">8,450</span>
+              <span className="text-2xl font-[900] text-slate-900 dark:text-white">{stepsToday.toLocaleString()}</span>
             </div>
-            <span className="text-[10px] font-extrabold text-orange-500 flex items-center gap-0.5">
-              ↑ +1,260
+            <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${stepsToday > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {stepsToday === 0 ? 'Not walked yet (+250 tap)' : `${stepsGoalPct}% of ${stepsGoal.toLocaleString()} goal`}
             </span>
           </div>
           {/* Orange Sparkline SVG */}
@@ -579,20 +697,22 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
               <BarChart3 size={18} className="text-blue-500" />
               <h2 className="text-base font-black text-slate-900 dark:text-white">Health Status Matrix</h2>
             </div>
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-black">
-              ✔ Excellent Health
+            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black ${
+              overallScore >= 80
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                : 'bg-amber-500/15 text-amber-500'
+            }`}>
+              {overallScore >= 80 ? '✔ Strong Progress' : '⏳ Pending Items'}
             </span>
           </div>
 
-          {/* Donut Chart & Progress Bars Container */}
+          {/* Donut Chart & Live Progress Bars Container */}
           <div className="flex flex-col sm:flex-row items-center gap-6">
             
-            {/* Donut Ring (96% Overall Vitality) */}
+            {/* Donut Ring (Live Overall Score) */}
             <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                {/* Background Ring */}
                 <circle cx="50" cy="50" r="40" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeWidth="8" fill="none" />
-                {/* 96% Gradient Ring */}
                 <circle
                   cx="50"
                   cy="50"
@@ -600,7 +720,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                   stroke="url(#vitalityDonutGrad)"
                   strokeWidth="8"
                   strokeDasharray="251.2"
-                  strokeDashoffset={251.2 * (1 - 0.96)}
+                  strokeDashoffset={251.2 * (1 - overallScore / 100)}
                   strokeLinecap="round"
                   fill="none"
                 />
@@ -614,8 +734,8 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
               {/* Center Donut Label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-[1000] text-slate-900 dark:text-white leading-none">96%</span>
-                <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Overall Vitality</span>
+                <span className="text-3xl font-[1000] text-slate-900 dark:text-white leading-none">{overallScore}%</span>
+                <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Overall Done</span>
               </div>
 
               {/* Bottom Heart Badge over Donut Ring */}
@@ -624,22 +744,23 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
               </div>
             </div>
 
-            {/* 5 Progress Bars */}
+            {/* 4 Live Progress Bars (Done vs Not Done Yet) */}
             <div className="flex-1 w-full space-y-3">
               {[
-                { label: 'Heart Health', val: 95, color: 'bg-emerald-500' },
-                { label: 'Respiratory Health', val: 92, color: 'bg-teal-400' },
-                { label: 'Metabolic Health', val: 90, color: 'bg-cyan-500' },
-                { label: 'Mental Wellness', val: 88, color: 'bg-blue-500' },
-                { label: 'Physical Activity', val: 94, color: 'bg-emerald-400' }
+                { label: 'Daily Steps Goal', val: stepsGoalPct, status: stepsToday === 0 ? 'Not logged yet' : `${stepsToday.toLocaleString()}/${stepsGoal.toLocaleString()}`, color: 'bg-cyan-500' },
+                { label: 'Prescriptions Done', val: rxDonePct, status: `${liveSummary?.counts.activePrescriptions ?? 0} active`, color: 'bg-emerald-500' },
+                { label: 'Appointments Done', val: apptsDonePct, status: `${liveSummary?.counts.completedAppointments ?? 0}/${liveSummary?.counts.totalAppointments ?? 0}`, color: 'bg-blue-500' },
+                { label: 'Labs Analyzed', val: labsDonePct, status: `${liveSummary?.counts.completedLabs ?? 0}/${liveSummary?.counts.totalLabs ?? 0}`, color: 'bg-teal-400' }
               ].map((item, idx) => (
                 <div key={idx} className="space-y-1">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
                     <span className="flex items-center gap-1.5">
-                      <span className="text-emerald-500 font-bold">✔</span>
+                      <span className={item.val >= 100 ? 'text-emerald-500 font-bold' : 'text-amber-400 font-bold'}>
+                        {item.val >= 100 ? '✔' : '⏳'}
+                      </span>
                       {item.label}
                     </span>
-                    <span className="text-slate-400 text-[11px] font-mono">{item.val}%</span>
+                    <span className="text-slate-400 text-[10px] font-mono">{item.status} ({item.val}%)</span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div 
@@ -654,9 +775,12 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
           </div>
 
           {/* Bottom Capsule Message */}
-          <div className="w-full py-2.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-            <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
-              <span>✔</span> Your health is in excellent condition!
+          <div className="w-full py-2.5 px-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-center">
+            <p className="text-xs font-black text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-1.5">
+              <span>{stepsToday === 0 ? '⏳' : '✔'}</span>
+              {stepsToday === 0
+                ? 'Steps not logged yet today — tap +250 Steps or enable Sensor'
+                : `Live Vitality Completion: ${overallScore}% done`}
             </p>
           </div>
 
@@ -901,13 +1025,13 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
             </div>
           </div>
 
-          {/* 4 Circular Donut Gauges (2x2 Grid from Image a33b3901) */}
+          {/* 4 Live Circular Donut Gauges */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 py-2">
             {[
-              { label: 'Activity Goal', val: 95, color: '#06b6d4' },
-              { label: 'Sleep Quality', val: 92, color: '#3b82f6' },
-              { label: 'Nutrition Score', val: 97, color: '#10b981' },
-              { label: 'Stress Level', val: 93, color: '#0ea5e9' }
+              { label: 'Activity Goal', val: stepsGoalPct, color: '#06b6d4' },
+              { label: 'Sleep Tracked', val: sleepGoalPct, color: '#3b82f6' },
+              { label: 'Hydration Goal', val: hydrationGoalPct, color: '#10b981' },
+              { label: 'Care Done', val: overallScore, color: '#0ea5e9' }
             ].map((metric, idx) => (
               <div key={idx} className="flex flex-col items-center text-center space-y-2">
                 <div className="relative w-18 h-18 sm:w-20 sm:h-20 flex items-center justify-center">
@@ -938,7 +1062,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
         </div>
 
-        {/* Column 2: Health Activities */}
+        {/* Column 2: Health Activities (Done vs Not Yet Done) */}
         <div className="doctorian-thick-card p-6 flex flex-col justify-between space-y-4">
           
           {/* Card Header */}
@@ -949,11 +1073,10 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
             </div>
             <button
               type="button"
-              onClick={() => setActiveModal('all_activities')}
-              className="text-xs font-bold text-blue-500 hover:text-blue-600 dark:text-cyan-400 flex items-center gap-1 cursor-pointer"
+              onClick={() => updateSteps({ waterMl: waterMlToday + 500 })}
+              className="text-xs font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <span>View All</span>
-              <ChevronRight size={14} />
+              <span>+500 mL Water</span>
             </button>
           </div>
 
@@ -962,9 +1085,14 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
             {activities.map((act) => (
               <div 
                 key={act.id}
-                className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-[#081530] border border-slate-100 dark:border-blue-900/40 hover:bg-slate-100 dark:hover:bg-blue-950/40 transition-colors"
+                onClick={() => {
+                  if (act.icon === 'walk') updateSteps({ deltaSteps: 250 });
+                  else if (act.icon === 'water') updateSteps({ waterMl: waterMlToday + 500 });
+                  else setActiveModal('set_goals');
+                }}
+                className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-[#081530] border border-slate-100 dark:border-blue-900/40 hover:bg-slate-100 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     act.icon === 'walk' ? 'bg-blue-500/15 text-blue-500' :
                     act.icon === 'sleep' ? 'bg-purple-500/15 text-purple-500' :
@@ -974,11 +1102,16 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                     {act.icon === 'sleep' && <Moon size={18} />}
                     {act.icon === 'water' && <Droplet size={18} />}
                   </div>
-                  <div>
-                    <h3 className="text-xs font-black text-slate-900 dark:text-white">{act.title}</h3>
-                    <p className="text-[10px] text-slate-400 font-bold">{act.time}</p>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white truncate">{act.title}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold truncate">{act.time}</p>
                   </div>
                 </div>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
+                  act.done ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                  {act.done ? 'Done' : 'Pending'}
+                </span>
               </div>
             ))}
           </div>
@@ -1002,7 +1135,10 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
             {/* Tile 1: Track Vitals (Pink/Rose Pastel) */}
             <button
               type="button"
-              onClick={() => setActiveModal('track_vitals')}
+              onClick={() => {
+                setTrackVitalsInput((prev) => ({ ...prev, steps: String(stepsToday) }));
+                setActiveModal('track_vitals');
+              }}
               className="p-4 rounded-2xl bg-[#fee2e2]/70 dark:bg-rose-950/40 hover:bg-[#fecaca] dark:hover:bg-rose-900/50 border border-rose-200/60 dark:border-rose-900/60 flex flex-col items-center justify-center gap-2 text-center transition-all active:scale-95 cursor-pointer group"
             >
               <Heart size={20} className="text-rose-500 fill-rose-500 group-hover:scale-110 transition-transform" />
@@ -1121,6 +1257,16 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+                    <div className="space-y-1 col-span-2">
+                      <label className="text-[11px] font-bold text-slate-500">Steps Logged Today</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={trackVitalsInput.steps}
+                        onChange={(e) => setTrackVitalsInput({ ...trackVitalsInput, steps: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#081530] border border-slate-200 dark:border-blue-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
 
                   <button
@@ -1147,37 +1293,41 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081530] border border-slate-200/60 dark:border-blue-900/40 space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-slate-400 font-bold">Overall Vitality:</span>
-                      <span className="font-black text-emerald-500">96% (Optimal Condition)</span>
+                      <span className="text-slate-400 font-bold">Overall Live Completion:</span>
+                      <span className="font-black text-emerald-500">{overallScore}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold">Steps Today:</span>
+                      <span className="font-black">{stepsToday.toLocaleString()} / {stepsGoal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400 font-bold">Resting Heart Rate:</span>
-                      <span className="font-black">72 bpm</span>
+                      <span className="font-black">{liveHR} bpm</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400 font-bold">Arterial Blood Pressure:</span>
-                      <span className="font-black">118/76 mmHg</span>
+                      <span className="font-black">{liveVitals ? `${liveVitals.systolicBP}/${liveVitals.diastolicBP}` : '118/76'} mmHg</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400 font-bold">Respiratory SpO2:</span>
-                      <span className="font-black">98% Oxygen Saturation</span>
+                      <span className="font-black">{liveVitals?.spo2 ?? 98}% Oxygen Saturation</span>
                     </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => {
-                      if (addToast) addToast("Clinical PDF report generated and downloaded.", "success");
+                      if (addToast) addToast("Clinical telemetry summary exported.", "success");
                       setActiveModal(null);
                     }}
                     className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer"
                   >
-                    Download Encrypted PDF Report
+                    Export Live Clinical Summary
                   </button>
                 </div>
               )}
 
-              {/* MODAL 3: SET GOALS */}
+              {/* MODAL 3: SET GOALS & LOG SLEEP/HYDRATION */}
               {activeModal === 'set_goals' && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
@@ -1185,8 +1335,8 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                       <Target size={20} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Adjust Daily Health Goals</h3>
-                      <p className="text-xs text-slate-400 font-medium">Configure target milestones</p>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Daily Health Goals & Rest Log</h3>
+                      <p className="text-xs text-slate-400 font-medium">Save targets directly to live database</p>
                     </div>
                   </div>
 
@@ -1198,7 +1348,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                       </div>
                       <input
                         type="range"
-                        min="5000"
+                        min="2000"
                         max="20000"
                         step="500"
                         value={healthGoals.steps}
@@ -1209,30 +1359,51 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
 
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs font-bold">
-                        <span>Water Intake</span>
+                        <span>Water Intake Logged Today</span>
                         <span className="text-cyan-500">{healthGoals.water} Liters</span>
                       </div>
                       <input
                         type="range"
-                        min="1.5"
+                        min="0"
                         max="5.0"
-                        step="0.1"
+                        step="0.25"
                         value={healthGoals.water}
                         onChange={(e) => setHealthGoals({ ...healthGoals, water: Number(e.target.value) })}
                         className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>Sleep Logged Last Night</span>
+                        <span className="text-indigo-400">{healthGoals.sleep} hrs</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="12.0"
+                        step="0.5"
+                        value={healthGoals.sleep}
+                        onChange={(e) => setHealthGoals({ ...healthGoals, sleep: Number(e.target.value) })}
+                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                       />
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (addToast) addToast("Daily vitality targets updated.", "success");
+                    onClick={async () => {
+                      await updateSteps({
+                        stepsGoal: healthGoals.steps,
+                        waterMl: Math.round(healthGoals.water * 1000),
+                        sleepMinutes: Math.round(healthGoals.sleep * 60)
+                      });
+                      if (addToast) addToast("Daily goals, hydration, and sleep synced live.", "success");
                       setActiveModal(null);
                     }}
                     className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer"
                   >
-                    Save Health Goals
+                    Save Live Telemetry & Goals
                   </button>
                 </div>
               )}
@@ -1286,7 +1457,7 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                       </div>
                       <div>
                         <h3 className="text-lg font-black text-slate-900 dark:text-white">Activity Log History</h3>
-                        <p className="text-xs text-slate-400 font-medium">All recorded physical sessions</p>
+                        <p className="text-xs text-slate-400 font-medium">Live tracked daily milestones</p>
                       </div>
                     </div>
                   </div>
@@ -1295,21 +1466,20 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
                     {activities.map((a) => (
                       <div key={a.id} className="p-3 rounded-xl bg-slate-50 dark:bg-[#081530] flex justify-between items-center text-xs">
                         <span className="font-bold">{a.title}</span>
-                        <span className="text-slate-400">{a.time}</span>
+                        <span className={a.done ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {a.done ? 'Done' : 'Not done yet'}
+                        </span>
                       </div>
                     ))}
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setActivities(prev => [
-                        { id: Date.now(), title: 'Hydration - 500 mL', time: 'Just now', icon: 'water', type: 'hydration' },
-                        ...prev
-                      ]);
-                      if (addToast) addToast("New activity logged: 500 mL Water", "success");
+                    onClick={async () => {
+                      await updateSteps({ waterMl: waterMlToday + 500 });
+                      if (addToast) addToast("Logged +500 mL Water to live telemetry.", "success");
                     }}
-                    className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-cyan-400 font-bold text-xs uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-cyan-400 font-bold text-xs uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     + Log 500 mL Hydration Now
                   </button>

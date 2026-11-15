@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ChevronRight, ShieldCheck } from 'lucide-react';
+import { useAppLanguage } from '../utils/translations';
 
 interface MedicalAISplashProps {
   onDismiss?: () => void;
@@ -12,6 +13,7 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
   autoCloseTimeout,
 }) => {
   const [progress, setProgress] = useState(25);
+  const [, , t] = useAppLanguage();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -59,9 +61,9 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
           <button
             type="button"
             onClick={onDismiss}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0a1c44]/90 hover:bg-blue-600 border border-cyan-400/40 text-cyan-200 hover:text-white text-xs font-bold transition-all cursor-pointer shadow-[0_4px_16px_rgba(6,182,212,0.25)] active:scale-95"
+            className="doctorian-cta-btn flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold cursor-pointer"
           >
-            <span>Enter App</span>
+            <span>{t('Enter App')}</span>
             <ChevronRight size={14} />
           </button>
         )}
@@ -97,7 +99,7 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
 
         {/* Subtitle */}
         <p className="text-sm sm:text-base font-semibold text-slate-200 tracking-wide mb-7">
-          Smart Healthcare. Better Life.
+          {t('Smart Healthcare. Better Life.')}
         </p>
 
         {/* Cyan ECG Heartbeat Pulse Divider */}
@@ -124,10 +126,8 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
         </div>
 
         {/* Corrected Headline */}
-        <p className="text-sm sm:text-base font-medium text-slate-200/95 max-w-xs leading-snug mb-8">
-          Revolutionizing Healthcare
-          <br />
-          Through Artificial Intelligence
+        <p className="text-sm sm:text-base font-semibold text-slate-200/95 max-w-xs leading-snug mb-8">
+          {t('Revolutionizing Healthcare Through Artificial Intelligence')}
         </p>
       </motion.div>
 
@@ -183,8 +183,8 @@ export const MedicalAISplash: React.FC<MedicalAISplashProps> = ({
           </span>
         </div>
 
-        <p className="text-xs sm:text-sm font-medium text-slate-300 tracking-wide">
-          Initializing Doctorian...
+        <p className="text-xs sm:text-sm font-semibold text-slate-200 tracking-wide">
+          {t('Initializing Doctorian...')}
         </p>
       </div>
     </div>

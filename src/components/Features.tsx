@@ -320,45 +320,59 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-4">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
                   onClick={() => onNavigate?.(spotlightItem.view)}
-                  className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2 cursor-pointer"
                 >
                   <span>Launch Bio-Monitor Workspace</span>
                   <ArrowUpRight size={16} />
-                </button>
-                <div className="px-4 py-3 bg-white/5 rounded-2xl border border-white/10 text-slate-300 text-xs font-bold flex items-center gap-2">
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={() => onNavigate?.(spotlightItem.view)}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 hover:border-emerald-400/50 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-2 cursor-pointer transition-all"
+                >
                   <Activity size={14} className="text-emerald-400 animate-pulse" />
                   <span>Interactive Clinical Dials & Alarms Fully Enabled</span>
-                </div>
+                </motion.button>
               </div>
             </div>
 
             {/* Visual Telemetry Mini-Preview */}
-            <div className="lg:col-span-4 bg-slate-950/80 p-5 rounded-2xl border border-blue-500/30 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => onNavigate?.(spotlightItem.view)}
+              className="lg:col-span-4 bg-slate-950/80 hover:bg-slate-900/95 p-4 rounded-2xl border border-blue-500/30 hover:border-cyan-400/60 space-y-3 text-left cursor-pointer transition-all shadow-lg"
+            >
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Telemetry Stream</span>
                 <span className="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   LIVE 250Hz
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Heart Rate</p>
-                  <p className="text-2xl font-black text-white">72 <span className="text-xs text-slate-400 font-medium">BPM</span></p>
+                  <p className="text-xl font-black text-white tabular-nums">72 <span className="text-xs text-slate-400 font-medium">BPM</span></p>
                 </div>
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                <div className="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">SpO2 Level</p>
-                  <p className="text-2xl font-black text-emerald-400">98% <span className="text-xs text-slate-400 font-medium">O2</span></p>
+                  <p className="text-xl font-black text-emerald-400 tabular-nums">98% <span className="text-xs text-slate-400 font-medium">O2</span></p>
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-[11px] text-slate-400 font-semibold">
-                  Zero access restrictions. Unlocked for instant physiological monitoring.
-                </p>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                <span>Tap to open physiological monitor</span>
+                <ArrowUpRight size={14} className="text-cyan-400 shrink-0" />
               </div>
-            </div>
+            </motion.button>
           </div>
         </section>
       )}
@@ -401,17 +415,20 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
               layout
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.985 }}
               transition={{ duration: 0.2 }}
-              className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border transition-all flex flex-col justify-between ${
+              onClick={() => setActiveCard(isExpanded ? null : feature.id)}
+              className={`bg-white dark:bg-slate-900 p-5 rounded-3xl border transition-all flex flex-col justify-between cursor-pointer ${
                 isExpanded 
-                  ? 'border-blue-500 shadow-xl shadow-blue-500/5 ring-1 ring-blue-500' 
-                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+                  ? 'border-blue-500 shadow-xl shadow-blue-500/10 ring-1 ring-blue-500' 
+                  : 'border-slate-200 dark:border-slate-800 hover:border-cyan-400/70 dark:hover:border-cyan-500/60 shadow-sm'
               }`}
             >
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Header Row */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/60">
+                  <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/60">
                     {getCategoryIcon(feature.category)}
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
@@ -425,10 +442,10 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
 
                 {/* Title & Tagline */}
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
                     {feature.title}
                   </h3>
-                  <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 font-bold">
+                  <p className="mt-0.5 text-xs text-blue-600 dark:text-blue-400 font-bold">
                     {feature.tagline}
                   </p>
                 </div>
@@ -445,7 +462,7 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800"
+                      className="overflow-hidden space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800"
                     >
                       <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">
                         {feature.details}
@@ -456,7 +473,7 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
                           {feature.specs.map((spec, specIdx) => (
                             <span 
                               key={specIdx} 
-                              className="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700"
+                              className="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700"
                             >
                               {spec}
                             </span>
@@ -469,10 +486,13 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
               </div>
 
               {/* Action Footer */}
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => setActiveCard(isExpanded ? null : feature.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCard(isExpanded ? null : feature.id);
+                  }}
                   className="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 transition-colors cursor-pointer"
                   aria-expanded={isExpanded}
                 >
@@ -482,8 +502,11 @@ export const Features: React.FC<FeaturesProps> = ({ onNavigate }) => {
 
                 <button
                   type="button"
-                  onClick={() => onNavigate?.(feature.view)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm shadow-blue-500/20 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate?.(feature.view);
+                  }}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm shadow-blue-500/20 cursor-pointer"
                 >
                   <span>Open</span>
                   <ArrowUpRight size={13} />

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BioTelemetryRangeTooltip } from './BioTelemetryRangeTooltip';
+import { useAppLanguage } from '../utils/translations';
 
 export type ClinicalCategory = 'all' | 'triage' | 'telemetry' | 'diagnostics' | 'records';
 
@@ -564,6 +565,7 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
   onNavigate,
   onItemClick,
 }) => {
+  const [, , t] = useAppLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<ClinicalCategory>('all');
   const [previewModule, setPreviewModule] = useState<IntelligentAppButtonItem | null>(null);
@@ -672,21 +674,21 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 1. LATEST INTELLIGENCE TELEMETRY & CONTEXT ACTION BAR     */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-500/[0.07] via-cyan-500/[0.05] to-indigo-500/[0.07] backdrop-blur-xs border border-cyan-500/30 dark:border-cyan-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
+      <div className="p-3.5 rounded-2xl bg-[#091a3c]/95 border-2 border-b-[4px] border-cyan-500/35 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-lg">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 shadow-inner">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/30 text-cyan-400 flex items-center justify-center shrink-0 shadow-inner">
             <Radio size={16} className="animate-pulse" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-ping" />
-                {intelligentTip.badge}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 font-mono flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                {t(intelligentTip.badge)}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">Neural Decision Engine v4.2</span>
+              <span className="text-[10px] text-slate-400 font-mono">Doctorian Clinical OS</span>
             </div>
-            <p className="text-xs text-slate-700 dark:text-slate-300 truncate font-medium">
-              {intelligentTip.text}
+            <p className="text-xs text-slate-200 truncate font-medium">
+              {t(intelligentTip.text)}
             </p>
           </div>
         </div>
@@ -694,42 +696,41 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
         <button
           type="button"
           onClick={() => handleSelect(intelligentTip.targetView)}
-          className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs whitespace-nowrap flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
+          className="doctorian-cta-btn self-start sm:self-auto px-4 py-2 text-xs whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0"
         >
-          <span>{intelligentTip.actionLabel}</span>
+          <span>{t(intelligentTip.actionLabel)}</span>
           <ArrowRight size={13} />
         </button>
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 2. TRANSPARENT SEARCH & CATEGORY FILTER BAR                */}
+      {/* 2. SEARCH & CATEGORY FILTER BAR                             */}
       {/* ─────────────────────────────────────────────────────────── */}
       <div className="space-y-2">
-        {/* Search Input Bar (Transparent Frosted Glass) */}
         <div className="relative flex items-center">
           <Search
             size={16}
-            className="absolute left-3 text-slate-400 dark:text-slate-500 pointer-events-none"
+            className="absolute left-3.5 text-cyan-300/70 pointer-events-none"
           />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search clinical modules, triage, lab or EHR..."
-            className="w-full pl-9 pr-8 py-2.5 text-xs sm:text-sm rounded-xl bg-transparent hover:bg-slate-500/[0.03] focus:bg-slate-500/[0.05] border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-cyan-500 dark:focus:border-cyan-400 transition-all backdrop-blur-xs"
+            placeholder={t('Search clinical modules, triage, lab or EHR...')}
+            className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl bg-[#040c1e]/90 border-2 border-cyan-500/25 text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 transition-all"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              className="absolute right-2.5 p-1 rounded-full text-slate-400 hover:text-white cursor-pointer"
             >
               <X size={14} />
             </button>
           )}
         </div>
 
-        {/* Transparent Category Filter Pills */}
+        {/* Category Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {categories.map((cat) => {
             const isSelected = activeCategory === cat.id;
@@ -738,18 +739,18 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => setActiveCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 border-2 border-b-[3px] ${
                   isSelected
-                    ? 'bg-blue-600 text-white shadow-xs border border-blue-500'
-                    : 'bg-transparent hover:bg-slate-500/[0.06] dark:hover:bg-white/[0.05] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md border-cyan-300/50'
+                    : 'bg-[#081633]/90 hover:bg-[#0d224a] border-blue-900/60 text-slate-300'
                 }`}
               >
-                <span>{cat.label}</span>
+                <span>{t(cat.label)}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                     isSelected
                       ? 'bg-white/20 text-white'
-                      : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      : 'bg-slate-800 text-slate-300'
                   }`}
                 >
                   {cat.count}
@@ -759,60 +760,60 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
           })}
         </div>
 
-        {/* Modern Quick Intelligence Tags (Transparent Pills) */}
+        {/* Quick Intelligence Tags */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-0.5 shrink-0">
-            Quick Filter:
+            {t('Quick Filter:')}
           </span>
           {[
-            { id: 'critical', label: '🚨 Critical Triage' },
-            { id: 'ai', label: '🤖 AI Co-Pilot' },
-            { id: 'live', label: '📡 Live Stream' },
+            { id: 'critical', label: 'Critical Triage' },
+            { id: 'ai', label: 'AI Co-Pilot' },
+            { id: 'live', label: 'Live Stream' },
           ].map((tag) => (
             <button
               key={tag.id}
               type="button"
               onClick={() => setSelectedTagFilter(selectedTagFilter === tag.id ? null : tag.id)}
-              className={`text-[10.5px] px-2.5 py-1 rounded-lg border font-medium transition-colors cursor-pointer shrink-0 ${
+              className={`text-[10.5px] px-2.5 py-1 rounded-lg border-2 font-bold transition-colors cursor-pointer shrink-0 ${
                 selectedTagFilter === tag.id
-                  ? 'bg-cyan-500/15 border-cyan-500 text-cyan-600 dark:text-cyan-400 font-bold'
-                  : 'bg-transparent border-slate-200/70 dark:border-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-300'
+                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                  : 'bg-[#07142e]/80 border-blue-900/60 text-slate-300 hover:text-white'
               }`}
             >
-              {tag.label}
+              {t(tag.label)}
             </button>
           ))}
           {selectedTagFilter && (
             <button
               type="button"
               onClick={() => setSelectedTagFilter(null)}
-              className="text-[10px] text-rose-500 hover:underline font-semibold cursor-pointer shrink-0"
+              className="text-[10px] text-rose-400 hover:underline font-bold cursor-pointer shrink-0"
             >
-              Clear
+              {t('Clear')}
             </button>
           )}
         </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 3. TRANSPARENT SQUARE BUTTONS IN TWO COLUMNS (grid-cols-2) */}
+      {/* 3. THICK BUTTONS IN TWO COLUMNS (grid-cols-2)               */}
       {/* ─────────────────────────────────────────────────────────── */}
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between px-0.5 mb-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-200">
             {activeCategory === 'all'
-              ? 'All Clinical Modules'
-              : `${categories.find((c) => c.id === activeCategory)?.label}`}
+              ? t('All Clinical Modules')
+              : t(categories.find((c) => c.id === activeCategory)?.label || '')}
           </span>
-          <span className="text-[11px] text-slate-400 font-mono">
-            {filteredModules.length} modules ready
+          <span className="text-[11px] text-cyan-300 font-mono font-bold">
+            {filteredModules.length} {t('modules ready')}
           </span>
         </div>
 
         {filteredModules.length === 0 ? (
-          <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-transparent">
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              No clinical modules found matching "{searchQuery}".
+          <div className="p-8 text-center rounded-2xl border-2 border-dashed border-cyan-500/30 bg-[#071530]/60">
+            <p className="text-xs text-slate-300 font-medium">
+              {t('No clinical modules found matching')} "{searchQuery}".
             </p>
             <button
               type="button"
@@ -821,14 +822,14 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                 setActiveCategory('all');
                 setSelectedTagFilter(null);
               }}
-              className="mt-2 text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+              className="mt-2 text-xs text-cyan-400 font-bold hover:underline cursor-pointer"
             >
-              Reset Filters
+              {t('Reset Filters')}
             </button>
           </div>
         ) : (
-          /* TWO COLUMNS OF SQUARE BUTTONS WITH TRANSPARENT BACKGROUND */
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+          /* TWO COLUMNS OF THICK BUTTONS */
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
             {filteredModules.map((btn) => {
               const isActive = currentView === btn.id;
               const IconComp = btn.icon;
@@ -845,15 +846,15 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                       handleSelect(btn.id);
                     }
                   }}
-                  className={`w-full aspect-[1/0.95] sm:aspect-square min-h-[145px] sm:min-h-[160px] p-3 sm:p-3.5 rounded-2xl sm:rounded-3xl text-left transition-all duration-200 active:scale-[0.96] flex flex-col justify-between relative overflow-hidden group cursor-pointer border select-none ${
+                  className={`w-full min-h-[104px] sm:min-h-[112px] p-2.5 sm:p-3 rounded-2xl text-left transition-all duration-200 active:scale-[0.96] flex flex-col justify-between relative overflow-hidden group cursor-pointer border-2 border-b-[3px] select-none ${
                     isActive
-                      ? `${btn.theme.activeBg} ${btn.theme.activeBorder} ${btn.theme.activeRing} shadow-md`
-                      : `bg-transparent ${btn.theme.hoverBg} ${btn.theme.borderColor} ${btn.theme.darkBorderColor} ${btn.theme.hoverBorderColor}`
+                      ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_6px_16px_rgba(0,210,255,0.3)]'
+                      : 'bg-[#0a1a3a]/90 hover:bg-[#0f244e] border-blue-800/70 hover:border-cyan-400/70 shadow-md'
                   }`}
                 >
                   {/* Ambient Subtle Radial Highlight on Hover */}
                   <div
-                    className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full blur-2xl pointer-events-none transition-opacity duration-300 ${
+                    className={`absolute -right-6 -bottom-6 w-20 h-20 rounded-full blur-2xl pointer-events-none transition-opacity duration-300 ${
                       isActive
                         ? 'opacity-40 bg-blue-500 dark:bg-blue-400'
                         : 'opacity-0 group-hover:opacity-25 bg-current text-' + btn.theme.accentColor + '-500'
@@ -864,30 +865,30 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                   <div className="flex items-start justify-between gap-1.5 w-full relative z-10">
                     {/* Modern Squircle Icon Container with Vibrant Gradient */}
                     <div
-                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-sm ${
+                      className={`w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-sm ${
                         isActive
                           ? `bg-gradient-to-tr ${btn.theme.iconGradient} text-white shadow-md ring-2 ring-blue-400/40`
                           : `bg-gradient-to-tr ${btn.theme.iconGradient} text-white ${btn.theme.iconShadow}`
                       }`}
                     >
-                      <IconComp size={20} className={btn.isUrgent && !isActive ? 'animate-bounce' : ''} />
+                      <IconComp size={17} className={btn.isUrgent && !isActive ? 'animate-bounce' : ''} />
                     </div>
 
                     {/* Top-Right Badge or Active Status */}
                     <div className="shrink-0 flex items-center gap-1">
                       {isActive ? (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white flex items-center gap-1 shadow-xs font-mono">
+                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-blue-600 text-white flex items-center gap-1 shadow-xs font-mono">
                           <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                           <span>ACTIVE</span>
                         </span>
                       ) : btn.badge ? (
                         <span
-                          className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded-md font-mono tracking-wider border leading-none ${btn.theme.badgeColor}`}
+                          className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-md font-mono tracking-wider border leading-none ${btn.theme.badgeColor}`}
                         >
                           {btn.badge}
                         </span>
                       ) : (
-                        <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500 font-mono">
+                        <span className="text-[8.5px] font-medium text-slate-400 dark:text-slate-500 font-mono">
                           {btn.categoryLabel}
                         </span>
                       )}
@@ -899,39 +900,39 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                           e.stopPropagation();
                           setPreviewModule(btn);
                         }}
-                        className="p-1 rounded-full text-slate-400 hover:text-blue-500 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="p-0.5 rounded-full text-slate-400 hover:text-blue-500 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         title={`View ${btn.label} Details`}
                       >
-                        <Info size={12} />
+                        <Info size={11} />
                       </button>
                     </div>
                   </div>
 
                   {/* Middle & Bottom Area: Module Title & Latest Intelligence */}
-                  <div className="w-full relative z-10 pt-2">
+                  <div className="w-full relative z-10 pt-1.5">
                     <h4
-                      className={`text-[12.5px] sm:text-[14px] font-black tracking-tight leading-snug line-clamp-2 transition-colors ${
-                        isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                      className={`text-[11.5px] sm:text-[12.5px] font-black tracking-tight leading-snug line-clamp-1 transition-colors ${
+                        isActive ? 'text-cyan-300' : 'text-white group-hover:text-cyan-300'
                       }`}
                     >
-                      {btn.label}
+                      {t(btn.label)}
                     </h4>
 
-                    <p className="text-[10px] sm:text-[11px] leading-tight line-clamp-1 mt-0.5 text-slate-500 dark:text-slate-400 font-medium">
-                      {btn.subtitle}
+                    <p className="text-[9.5px] sm:text-[10px] leading-tight line-clamp-1 mt-0.5 text-slate-300 font-medium">
+                      {t(btn.subtitle)}
                     </p>
 
                     {/* Modern Intelligence Telemetry Tag */}
-                    <div className="mt-2 flex items-center justify-between gap-1 border-t border-slate-200/50 dark:border-slate-800/60 pt-1.5">
-                      <span className="text-[9px] font-mono font-semibold text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                    <div className="mt-1.5 flex items-center justify-between gap-1 border-t border-slate-200/30 dark:border-slate-800/60 pt-1">
+                      <span className="text-[8.5px] font-mono font-semibold text-slate-400 truncate flex items-center gap-1">
                         <span className="w-1 h-1 rounded-full bg-emerald-500" />
                         {btn.intelligenceTag}
                       </span>
                       {isActive ? (
-                        <CheckCircle2 size={12} className="text-blue-600 dark:text-blue-400 shrink-0 ml-1" />
+                        <CheckCircle2 size={11} className="text-blue-600 dark:text-blue-400 shrink-0 ml-1" />
                       ) : (
                         <div
-                          className={`h-1 w-5 rounded-full transition-all duration-300 group-hover:w-8 bg-gradient-to-r ${btn.theme.iconGradient}`}
+                          className={`h-1 w-4 rounded-full transition-all duration-300 group-hover:w-7 bg-gradient-to-r ${btn.theme.iconGradient}`}
                         />
                       )}
                     </div>

@@ -54,12 +54,20 @@ import {
   Usb,
   Bluetooth,
   Footprints,
-  ShoppingBag
+  ShoppingBag,
+  Compass,
+  Navigation,
+  MapPin,
+  Bed,
+  RefreshCw
 } from 'lucide-react';
 import { Vitals, HealthStatus } from '../hooks/useArduino';
 import { DoctorianVideoConsultationModal } from './DoctorianVideoConsultationModal';
 import { DoctorianVoiceCallModal } from './DoctorianVoiceCallModal';
+import { HospitalLocationGuideModal } from './HospitalLocationGuideModal';
 import { useNearestHospital } from '../hooks/useNearestHospital';
+import { useLiveDashboardSummary } from '../hooks/useLiveDashboardSummary';
+import { useAppLanguage } from '../utils/translations';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
@@ -90,6 +98,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateUser,
   currentLanguage = 'English (US)'
 }) => {
+  const [, , t] = useAppLanguage();
   // Search query state
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -97,9 +106,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
+  const [isHospitalGuideOpen, setIsHospitalGuideOpen] = useState(false);
   const [isEmergencyCalling, setIsEmergencyCalling] = useState(false);
   const [emergencyCountdown, setEmergencyCountdown] = useState<number | null>(null);
-  const { hospital, distanceKm, isGpsLive, scanGps } = useNearestHospital();
+  const {
+    hospital,
+    distanceKm,
+    estimatedArrivalMins,
+    bearingDegrees,
+    cardinal,
+    directionText,
+    googleMapsDirUrl,
+    isGpsLive,
+    isScanningGps,
+    gpsError,
+    scanGps,
+    selectDistrict,
+    selectHospitalById,
+    nearbyHospitals
+  } = useNearestHospital();
+  const {
+    summary: liveSummary,
+    updateSteps,
+    toggleAppointmentStatus,
+    isPedometerActive,
+    togglePhonePedometer
+  } = useLiveDashboardSummary(hospital.id, user?.id || user?.email || 'default-user');
 
   // Real-time Clock following exact current time
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -203,56 +235,90 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const currentPatient = patientsData[selectedPatientId] || patientsData.sarah;
 
-  // Dynamic time-aware greeting following real local clock
-  const getGreetingData = (date: Date) => {
-    const hour = date.getHours();
+  // Reactive feedback state for feature clicks
+  const [activeFeaturePulse, setActiveFeaturePulse] = useState<string | null>(null);
+  const triggerFeatureFeedback = (label: string, view?: string) => {
+    setActiveFeaturePulse(label);
+    setTimeout(() => setActiveFeaturePulse((prev) => (prev === label ? null : prev)), 1800);
+    if (view) {
+      onNavigate(view);
+    }
+  };
+
+  // Explicit East African Time (Africa/Kampala / UTC+3) helper
+  const getEatParts = (date: Date) => {
+    const hourStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Kampala',
+      hour: 'numeric',
+      hour12: false,
+    }).format(date);
+    const eatHour = (parseInt(hourStr, 10) || 0) % 24;
+    const eatTimeString = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Kampala',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    }).format(date);
+    const eatDateString = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Kampala',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(date);
+    return { eatHour, eatTimeString, eatDateString };
+  };
+
+  const { eatHour, eatTimeString: liveTimeString, eatDateString: todayFormatted } = getEatParts(currentTime);
+
+  // Dynamic East African Time-aware greeting
+  const getGreetingData = (hour: number) => {
+    const firstName = user?.displayName || 'Akora Joseph';
     if (hour >= 5 && hour < 12) {
       return {
-        greeting: 'Good Morning, Dr. Joseph!',
-        subtext: 'Hope you have an energetic and productive morning serving our patients across Uganda and global care centers.',
+        prefix: 'Good Morning,',
+        greeting: `Good Morning, ${firstName}!`,
+        subtext: 'Energized for morning clinical rounds and patient care.',
         icon: Sunrise,
         iconBg: 'bg-amber-400/20 text-amber-300 border-amber-300/40',
         shift: 'Morning Ward Rounds',
-        timeWindow: '05:00 - 11:59'
+        timeWindow: '05:00 - 11:59 EAT'
       };
     } else if (hour >= 12 && hour < 17) {
       return {
-        greeting: 'Good Afternoon, Dr. Joseph!',
-        subtext: 'Hope you have a productive afternoon in clinical consultations and diagnostic reviews across Uganda.',
+        prefix: 'Good Afternoon,',
+        greeting: `Good Afternoon, ${firstName}!`,
+        subtext: 'Active afternoon clinical consultations and diagnostic reviews.',
         icon: Sun,
         iconBg: 'bg-amber-400/20 text-amber-300 border-amber-300/40',
         shift: 'Afternoon Specialized Clinic',
-        timeWindow: '12:00 - 16:59'
+        timeWindow: '12:00 - 16:59 EAT'
       };
     } else if (hour >= 17 && hour < 21) {
       return {
-        greeting: 'Good Evening, Dr. Joseph!',
-        subtext: 'Hope you have a peaceful evening conducting patient evaluations and treatment summaries.',
+        prefix: 'Good Evening,',
+        greeting: `Good Evening, ${firstName}!`,
+        subtext: 'Evening clinical handovers, patient reviews, and treatment summaries.',
         icon: Sunset,
         iconBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40',
         shift: 'Evening Clinical Handover',
-        timeWindow: '17:00 - 20:59'
+        timeWindow: '17:00 - 20:59 EAT'
       };
     } else {
       return {
-        greeting: 'Good Night, Dr. Joseph!',
-        subtext: 'Emergency on-call and night telemedicine surveillance active for urgent clinical telemetry.',
+        prefix: 'Good Night,',
+        greeting: `Good Night, ${firstName}!`,
+        subtext: '24/7 emergency telemetry and night on-call surveillance active.',
         icon: Moon,
         iconBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40',
         shift: 'Night Emergency On-Call',
-        timeWindow: '21:00 - 04:59'
+        timeWindow: '21:00 - 04:59 EAT'
       };
     }
   };
 
-  const greetingData = getGreetingData(currentTime);
-
-  const liveTimeString = currentTime.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  });
+  const greetingData = getGreetingData(eatHour);
 
   // AI Assistant Chat State
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'ai' | 'user'; text: string; structured?: any }>>([
@@ -339,76 +405,88 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }, 1000);
   };
 
-  // Today's formatted date
-  const todayFormatted = new Date().toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-
   const liveHeartRate = vitals?.heartRate ?? 72;
   const liveBP = vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : '118/76';
   const liveSpo2 = vitals?.spo2 ?? 98;
   const liveTemp = vitals ? vitals.temperature.toFixed(1) : '36.8';
 
+  const liveCounts = liveSummary?.counts;
+  const liveBeds = liveSummary?.beds;
+  const liveTelemetry = liveSummary?.telemetry;
+  const liveProgress = liveSummary?.progress;
+  const stepsToday = liveTelemetry?.steps ?? 0;
+  const stepsGoal = liveTelemetry?.stepsGoal ?? 10000;
+  const stepsGoalPct = liveTelemetry?.stepsGoalPct ?? 0;
+  const labNormalPct = liveCounts && liveCounts.totalLabs > 0
+    ? Math.round((liveCounts.normalLabs / liveCounts.totalLabs) * 100)
+    : 0;
+  const labAbnormalPct = liveCounts && liveCounts.totalLabs > 0 ? Math.max(0, 100 - labNormalPct) : 0;
+
   return (
-    <div className="w-full doctorian-canvas text-slate-900 dark:text-slate-100 font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
-      <main className="w-full space-y-6">
+    <div className="w-full doctorian-canvas text-slate-900 dark:text-slate-100 font-sans p-3.5 sm:p-5 lg:p-6 space-y-5 transition-colors duration-300">
+      <main className="w-full space-y-5 max-w-6xl mx-auto">
+
+        {/* Reactive Click Toast Banner */}
+        <AnimatePresence>
+          {activeFeaturePulse && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mx-auto max-w-md px-3.5 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-400/50 text-cyan-700 dark:text-cyan-200 text-xs font-extrabold text-center shadow-sm"
+            >
+              {activeFeaturePulse}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ===================================================================== */}
-        {/* SCREEN 3: MOBILE-FIRST HEALTH OVERVIEW & QUICK ACTIONS (image_2605a2cb) */}
+        {/* SCREEN 3: CENTERED LIVE EAST AFRICAN TIME GREETING & HEALTH OVERVIEW   */}
         {/* ===================================================================== */}
-        <section className="space-y-5">
-          {/* Greeting Header with Cyan ECG Pulse & Glowing Heart */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-[900] tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-2 flex-wrap">
-                <span>Good Morning,</span>
-                <span className="bg-gradient-to-r from-cyan-500 to-blue-600 dark:from-cyan-300 dark:to-blue-400 bg-clip-text text-transparent">
-                  {user?.displayName || 'Akora Joseph'}
-                </span>
-                <span>👋</span>
-              </h1>
-              <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mt-1">
-                Stay healthy, stay strong!
-              </p>
+        <section className="space-y-4">
+          {/* Centered Live East African Time Greeting Header */}
+          <div className="flex flex-col items-center justify-center text-center mx-auto max-w-2xl px-2 pt-0.5 pb-1 space-y-1.5">
+            <h1 className="text-xl sm:text-2xl md:text-[1.75rem] font-[900] tracking-tight text-slate-900 dark:text-white leading-tight flex items-center justify-center gap-1.5 flex-wrap">
+              <span>{t(greetingData.prefix)}</span>
+              <span className="bg-gradient-to-r from-cyan-500 to-blue-600 dark:from-cyan-300 dark:to-blue-400 bg-clip-text text-transparent">
+                {user?.displayName || 'Akora Joseph'}
+              </span>
+              <span>👋</span>
+            </h1>
+
+            <div className="flex items-center justify-center gap-2 flex-wrap text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <span className="inline-flex items-center gap-1.5 font-mono font-bold text-cyan-600 dark:text-cyan-300 tabular-nums">
+                <greetingData.icon size={13} className="text-amber-500 dark:text-cyan-300 shrink-0" />
+                <span>{liveTimeString} EAT</span>
+              </span>
+              <span className="text-slate-400">·</span>
+              <span>{todayFormatted}</span>
+              <span className="text-slate-400 hidden sm:inline">·</span>
+              <span className="hidden sm:inline text-slate-500 dark:text-slate-400">{t(greetingData.shift)}</span>
             </div>
 
-            {/* Cyan ECG Heartbeat Pulse Lockup */}
-            <div className="flex items-center gap-3 self-start sm:self-auto px-4 py-2 rounded-2xl bg-[#071535]/90 border-2 border-cyan-400/40 shadow-[0_0_24px_rgba(0,210,255,0.25)]">
-              <svg className="w-24 sm:w-28 h-8 drop-shadow-[0_0_10px_rgba(34,211,238,0.85)]" viewBox="0 0 120 32" fill="none">
-                <path
-                  d="M0,16 L24,16 L32,6 L40,26 L48,8 L55,20 L62,16 L120,16"
-                  stroke="#00d2ff"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <div className="w-9 h-9 rounded-full bg-cyan-500/20 border border-cyan-300/60 flex items-center justify-center shadow-[0_0_16px_rgba(0,210,255,0.55)]">
-                <Heart size={18} className="text-cyan-300 fill-cyan-400/50 animate-pulse" />
-              </div>
-            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+              {t('Stay healthy, stay strong!')}
+            </p>
           </div>
 
           {/* Thick Elevated Card: Health Overview */}
           <div className="doctorian-thick-card p-5 sm:p-6 space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center text-cyan-500 dark:text-cyan-300">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border-2 border-cyan-400/40 flex items-center justify-center text-cyan-500 dark:text-cyan-300">
                   <Activity size={17} />
                 </div>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                  Health Overview
+                  {t('Health Overview')}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => onNavigate('vitality')}
-                className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
+                className="text-xs font-extrabold text-blue-600 dark:text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
               >
-                <span>View Details</span>
+                <span>{t('View Details')}</span>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -431,7 +509,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[9px] font-bold text-slate-400">bpm</span>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">Heart Rate</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">{t('Heart Rate')}</span>
               </div>
 
               {/* Ring 2: Blood Pressure */}
@@ -449,7 +527,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[9px] font-bold text-slate-400 mt-0.5">mmHg</span>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">Blood Pressure</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">{t('Blood Pressure')}</span>
               </div>
 
               {/* Ring 3: SpO2 */}
@@ -464,10 +542,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-base font-black text-slate-900 dark:text-white leading-none">{liveSpo2}%</span>
-                    <span className="text-[9px] font-bold text-emerald-400 mt-0.5">SpO2</span>
+                    <span className="text-[9px] font-bold text-emerald-400 mt-0.5">{t('SpO2')}</span>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">SpO2</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">{t('SpO2')}</span>
               </div>
 
               {/* Ring 4: Temp */}
@@ -482,41 +560,92 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-sm font-black text-slate-900 dark:text-white leading-none">{liveTemp}°C</span>
-                    <span className="text-[9px] font-bold text-amber-400 mt-0.5">Temp</span>
+                    <span className="text-[9px] font-bold text-amber-400 mt-0.5">{t('Temp')}</span>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">Temp</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">{t('Temp')}</span>
               </div>
             </div>
 
-            {/* 2 Metric Tiles: Steps Today & Health Status */}
+            {/* 2 Metric Tiles: Live Steps Today (starts at 0 if unlogged) & Health Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div
-                onClick={() => onNavigate('fitness')}
-                className="doctorian-thick-tile p-4 flex items-center gap-3.5 cursor-pointer"
+                onClick={() => onNavigate('vitality')}
+                className="doctorian-thick-tile p-4 flex items-center justify-between gap-3 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0">
-                  <Footprints size={22} />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">Steps Today</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-black text-slate-900 dark:text-white">6,850</span>
-                    <span className="text-xs font-black text-emerald-500">↑ +12%</span>
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0 border border-white/25">
+                    <Footprints size={22} />
                   </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300 block">{t('Steps Today')}</span>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-xl font-black text-slate-900 dark:text-white">
+                        {stepsToday.toLocaleString()}
+                      </span>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        stepsToday === 0
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-400/40'
+                          : stepsGoalPct >= 100
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-400/40'
+                          : 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40'
+                      }`}>
+                        {stepsToday === 0
+                          ? t('Not logged yet')
+                          : stepsGoalPct >= 100
+                          ? `✓ ${t('Goal Done')}`
+                          : `${stepsGoalPct}% (${(stepsGoal - stepsToday).toLocaleString()} left)`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => updateSteps({ deltaSteps: 250 })}
+                    className="px-2.5 py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/50 text-[10px] font-black text-cyan-200 cursor-pointer"
+                    title="Log 250 walking steps"
+                  >
+                    +250
+                  </button>
+                  <button
+                    type="button"
+                    onClick={togglePhonePedometer}
+                    className={`px-2.5 py-1 rounded-full border text-[10px] font-black cursor-pointer ${
+                      isPedometerActive
+                        ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300'
+                        : 'bg-white/10 border-white/20 text-slate-300'
+                    }`}
+                    title="Toggle phone motion step sensor"
+                  >
+                    {isPedometerActive ? 'Walking ●' : 'Sensor'}
+                  </button>
                 </div>
               </div>
 
               <div
                 onClick={() => onNavigate('vitality')}
-                className="doctorian-thick-tile p-4 flex items-center gap-3.5 cursor-pointer"
+                className="doctorian-thick-tile p-4 flex items-center justify-between gap-3.5 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0">
-                  <CheckCircle2 size={22} />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">Health Status</span>
-                  <span className="text-xl font-black text-emerald-500 dark:text-emerald-400">Excellent</span>
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center shadow-lg shrink-0 border border-white/25 ${
+                    (liveCounts?.emergencyCases ?? 0) > 0
+                      ? 'bg-gradient-to-tr from-amber-500 to-orange-600 shadow-amber-500/25'
+                      : 'bg-gradient-to-tr from-emerald-500 to-teal-500 shadow-emerald-500/25'
+                  }`}>
+                    <CheckCircle2 size={22} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300 block">{t('Clinical & Telemetry Status')}</span>
+                    <span className="text-base sm:text-lg font-black text-emerald-400 block leading-tight">
+                      {liveCounts
+                        ? `${liveCounts.completedAppointments + liveCounts.completedLabs} Done · ${liveCounts.pendingAppointments + liveCounts.pendingLabs} Pending`
+                        : t('Syncing Live DB...')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">
+                      {liveBeds ? `${liveBeds.available} free beds of ${liveBeds.total} at ${hospital.shortName}` : hospital.shortName}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -525,13 +654,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {/* Thick Card Row: Quick Actions */}
           <div className="doctorian-thick-card p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Quick Actions</h2>
+              <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight">{t('Quick Actions')}</h2>
               <button
                 type="button"
-                onClick={() => onNavigate('features')}
-                className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                onClick={() => window.dispatchEvent(new CustomEvent('doctorian-open-apps-card'))}
+                className="text-xs font-extrabold text-blue-600 dark:text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
               >
-                <span>See All</span>
+                <span>{t('See All')}</span>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -542,10 +671,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() => onNavigate('ai_nexus')}
                 className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
               >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/30 group-hover:scale-110 transition-transform">
-                  <Bot size={22} />
+                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/30 border border-white/25 group-hover:scale-110 transition-transform">
+                  <Bot size={23} />
                 </div>
-                <span className="text-xs font-black text-slate-900 dark:text-white">AI Assistant</span>
+                <span className="text-xs font-black text-slate-900 dark:text-white">{t('AI Assistant')}</span>
               </button>
 
               <button
@@ -553,10 +682,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() => onNavigate('app_medics')}
                 className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
               >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                  <ShoppingBag size={22} />
+                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 border border-white/25 group-hover:scale-110 transition-transform">
+                  <ShoppingBag size={23} />
                 </div>
-                <span className="text-xs font-black text-slate-900 dark:text-white">E-Pharmacy</span>
+                <span className="text-xs font-black text-slate-900 dark:text-white">{t('E-Pharmacy')}</span>
               </button>
 
               <button
@@ -564,10 +693,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() => onNavigate('meds')}
                 className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
               >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
-                  <Pill size={22} />
+                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 border border-white/25 group-hover:scale-110 transition-transform">
+                  <Pill size={23} />
                 </div>
-                <span className="text-xs font-black text-slate-900 dark:text-white">Prescriptions</span>
+                <span className="text-xs font-black text-slate-900 dark:text-white">{t('Prescriptions')}</span>
               </button>
 
               <button
@@ -575,10 +704,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() => onNavigate('diagnostic_lab')}
                 className="doctorian-thick-tile p-4 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer group"
               >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                  <FlaskConical size={22} />
+                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 border border-white/25 group-hover:scale-110 transition-transform">
+                  <FlaskConical size={23} />
                 </div>
-                <span className="text-xs font-black text-slate-900 dark:text-white">Laboratory</span>
+                <span className="text-xs font-black text-slate-900 dark:text-white">{t('Laboratory')}</span>
               </button>
             </div>
           </div>
@@ -589,219 +718,271 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         <section className="space-y-6">
 
-          {/* 1. Time-Adaptive Greeting Hero Banner with Uganda Mulago Hospital Photo */}
-          <div className="relative w-full doctorian-thick-card overflow-hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white min-h-[175px] sm:min-h-[190px] flex flex-col md:flex-row md:items-center justify-between p-6 sm:p-8 group">
+          {/* 1. Compact Location-Aware Hospital Photo Banner + Compass Direction & District Switcher */}
+          <div className="relative w-full doctorian-thick-card overflow-hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white min-h-[160px] flex flex-col justify-between p-4 sm:p-5 gap-3 group">
             
-            {/* Right-Hand Side Authentic Uganda Hospital Physical Photograph */}
+            {/* Dynamic Regional Hospital Physical Photograph — swaps automatically with GPS / City (e.g. Lira, Gulu, Kampala, Mbarara) */}
             <div 
-              className="absolute right-0 top-0 bottom-0 w-full sm:w-7/12 md:w-1/2 lg:w-5/12 bg-cover bg-center transition-all duration-700 pointer-events-none opacity-85"
+              className="absolute right-0 top-0 bottom-0 w-full sm:w-7/12 md:w-1/2 bg-cover bg-center transition-all duration-700 pointer-events-none opacity-85"
               style={{
-                backgroundImage: `url('/uganda_hospital_building.jpg')`
+                backgroundImage: `url('${hospital.photoUrl}')`
               }}
             />
-            {/* Seamless Vignette & Gradient Masking for 100% Text Readability */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#05132d] via-[#091f44]/95 via-45% to-transparent pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-full sm:w-7/12 bg-gradient-to-l from-transparent via-[#05132d]/25 to-[#05132d] pointer-events-none" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(56,189,248,0.2),transparent_60%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#05132d] via-[#091f44]/92 via-48% to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-full sm:w-7/12 bg-gradient-to-l from-transparent via-[#05132d]/20 to-[#05132d] pointer-events-none" />
 
-            {/* Left Welcome Copy following Current Time */}
-            <div className="relative z-10 max-w-xl space-y-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-9 h-9 rounded-full ${greetingData.iconBg} border flex items-center justify-center shadow-md animate-pulse shrink-0`}>
-                  <greetingData.icon size={20} />
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              {/* Left Hospital Telemetry & Sensor Status */}
+              <div className="max-w-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full ${greetingData.iconBg} border flex items-center justify-center shadow-md shrink-0`}>
+                    <greetingData.icon size={16} />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-[1000] tracking-tight text-white drop-shadow-md leading-tight">
+                      {hospital.name}
+                    </h2>
+                    <span className="text-[10px] text-cyan-300 font-bold uppercase tracking-wider block font-mono tabular-nums">
+                      {greetingData.shift} · {liveTimeString} EAT
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-[1000] tracking-tight text-white drop-shadow-md">
-                    {greetingData.greeting}
-                  </h1>
-                  <span className="text-[10px] text-cyan-300 font-bold uppercase tracking-wider block">
-                    {greetingData.shift} · Following Real-Time Clock
-                  </span>
+                <p className="text-xs text-blue-100 font-medium leading-snug line-clamp-2">
+                  {directionText}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/15 backdrop-blur-md rounded-full border border-white/20 text-[10.5px] font-semibold text-white">
+                    <Calendar size={11} className="text-cyan-300" />
+                    <span>{todayFormatted}</span>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={() => setIsSensorModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-full border border-emerald-400/40 text-[10.5px] font-bold text-emerald-300 cursor-pointer"
+                  >
+                    <Radio size={11} />
+                    <span>
+                      {arduino?.connection?.connected
+                        ? `Sensors Live: ${arduino.connection.type?.toUpperCase() || 'BIO'}`
+                        : t('Connect Sensors')}
+                    </span>
+                  </motion.button>
                 </div>
               </div>
-              <p className="text-xs sm:text-sm text-blue-100 font-medium leading-relaxed max-w-lg">
-                {greetingData.subtext}
-              </p>
-              
-              {/* Live Time, Date & Sensor Connection Status Pill */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full border border-white/20 text-xs font-semibold text-white shadow-sm">
-                  <Calendar size={13} className="text-cyan-300" />
-                  <span>{todayFormatted}</span>
-                </div>
 
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 backdrop-blur-md rounded-full border border-cyan-400/30 text-xs font-mono font-bold text-cyan-200 shadow-sm">
-                  <Clock size={13} className="text-cyan-400 animate-spin-slow" />
-                  <span>{liveTimeString} EAT</span>
+              {/* Right Active Hospital Photo & Distance / Bearing Guide Card */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-[#051128]/90 backdrop-blur-md border-2 border-cyan-400/45 rounded-2xl p-3 shadow-2xl shrink-0 max-w-md w-full lg:w-auto">
+                <img
+                  src={hospital.photoUrl}
+                  alt={hospital.name}
+                  referrerPolicy="no-referrer"
+                  onClick={() => setIsHospitalGuideOpen(true)}
+                  className="w-full sm:w-28 h-24 rounded-xl object-cover border border-cyan-400/50 cursor-pointer shrink-0"
+                />
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-[10px] font-black text-cyan-200 flex items-center gap-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${isGpsLive ? 'bg-emerald-400 animate-ping' : 'bg-cyan-300'}`} />
+                      {isGpsLive ? t('GPS Live') : t('Phone Location')}
+                    </span>
+                    <span className="text-[11px] font-mono font-black text-amber-300 flex items-center gap-1">
+                      <Navigation size={11} style={{ transform: `rotate(${bearingDegrees}deg)` }} />
+                      {bearingDegrees}° {cardinal}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-black text-white leading-tight truncate">{hospital.name}</h3>
+                  <p className="text-[11px] font-bold text-cyan-300 flex items-center gap-1">
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{hospital.district} • {distanceKm} km (~{estimatedArrivalMins} min)</span>
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsHospitalGuideOpen(true)}
+                      className="px-2.5 py-1 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                    >
+                      <Compass size={11} />
+                      <span>{t('Photos & Directions')}</span>
+                    </button>
+                    {googleMapsDirUrl && (
+                      <a
+                        href={googleMapsDirUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black flex items-center gap-1"
+                      >
+                        <ExternalLink size={10} />
+                        <span>{t('Route Map')}</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsSensorModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 backdrop-blur-md rounded-full border border-emerald-400/40 text-xs font-bold text-emerald-300 transition-all cursor-pointer shadow-sm active:scale-95"
-                  title="Manage Sensor & Machine Hardware Links"
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <Radio size={13} className="text-emerald-400" />
-                  <span>
-                    {arduino?.connection?.connected 
-                      ? `Sensors Live: ${arduino.connection.type?.toUpperCase() || 'BIO-STREAM'}`
-                      : '⚡ Connect Sensors & Machines'}
-                  </span>
-                </button>
               </div>
             </div>
 
-            {/* Right Hospital Motto Slogan & Uganda Hospital Badge */}
-            <div className="relative z-10 mt-4 md:mt-0 flex flex-col md:items-end text-left md:text-right space-y-2 shrink-0">
-              <div 
+            {/* Bottom Quick Location Bar inside Banner (Lira, Kampala, Gulu, Mbarara, Arua, Mbale, Jinja + Phone GPS) */}
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300 mr-1">
+                  {t('Phone City')}:
+                </span>
+                {['Kampala', 'Lira', 'Gulu', 'Mbarara', 'Arua', 'Mbale', 'Jinja', 'Soroti'].map((city) => {
+                  const active = hospital.district.toLowerCase().includes(city.toLowerCase());
+                  return (
+                    <button
+                      key={city}
+                      type="button"
+                      onClick={() => selectDistrict(city)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-black transition-all cursor-pointer border ${
+                        active
+                          ? 'bg-cyan-400 text-slate-950 border-white shadow-sm'
+                          : 'bg-[#071636]/80 text-slate-200 border-cyan-500/30 hover:border-cyan-400'
+                      }`}
+                    >
+                      {city}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
                 onClick={scanGps}
-                title="Click to recalibrate GPS location for nearest Uganda hospital"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#061225]/85 backdrop-blur-md border border-cyan-400/30 text-white shadow-xl cursor-pointer hover:border-cyan-400 transition-colors"
+                disabled={isScanningGps}
+                className="px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 text-[10px] font-black flex items-center gap-1.5 cursor-pointer"
               >
-                <div className={`w-2 h-2 rounded-full ${isGpsLive ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'}`} />
-                <div className="text-left md:text-right">
-                  <p className="text-xs font-extrabold tracking-tight text-white leading-tight">
-                    {hospital.name}
-                  </p>
-                  <p className="text-[9px] text-cyan-300 font-bold uppercase tracking-wider">
-                    {hospital.district} · {distanceKm} km {isGpsLive ? '(GPS Live)' : 'away'}
-                  </p>
-                </div>
-                <span className="px-1.5 py-0.5 rounded-md bg-amber-500/25 text-amber-300 font-mono text-[9px] font-black border border-amber-400/40 ml-1">UG</span>
-              </div>
-              
-              <div className="hidden sm:block">
-                <span className="text-base lg:text-lg font-serif italic font-extrabold text-cyan-200 tracking-wide drop-shadow-md block">
-                  Better Healthcare,
-                </span>
-                <span className="text-base lg:text-lg font-serif italic font-extrabold text-white tracking-wide drop-shadow-md block">
-                  A Healthier Community
-                </span>
-                <span className="text-[9px] uppercase font-mono tracking-widest text-cyan-300/80 mt-0.5 font-bold block">
-                  Doctorian AI • Uganda National Care Matrix
-                </span>
-              </div>
+                <RefreshCw size={11} className={isScanningGps ? 'animate-spin' : ''} />
+                <span>{isScanningGps ? t('Locating...') : t('Detect My Phone GPS')}</span>
+              </button>
             </div>
           </div>
 
-          {/* 2. 5 KPI Metric Sparkline Cards */}
+          {/* 2. 5 LIVE KPI Metric Cards (Real SQLite Totals + Done vs Not Yet Done) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
             
-            {/* 1. Total Patients */}
+            {/* 1. Registered Patients */}
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('records')}
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Patients</span>
-                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-400">{t('Patients Registered')}</span>
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center">
                   <Users size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">12,480</span>
-                <span className="text-xs font-bold text-emerald-500 flex items-center">↑ 12%</span>
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  {liveCounts?.totalPatients ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400">
+                  {liveCounts ? `${liveCounts.stablePatients} Stable` : 'Live DB'}
+                </span>
               </div>
-              {/* Mini Sparkline SVG */}
-              <div className="h-6 w-full mt-2">
-                <svg className="w-full h-full" viewBox="0 0 100 25" preserveAspectRatio="none">
-                  <path d="M0,20 Q20,15 40,18 T70,8 T100,5" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
+              <p className="text-[10px] text-amber-300 font-bold mt-2">
+                {liveCounts ? `${liveCounts.attentionPatients} need follow-up` : 'Loading...'}
+              </p>
             </motion.div>
 
-            {/* 2. Active Doctors */}
+            {/* 2. Active Clinicians */}
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('doctors_dashboard')}
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Active Doctors</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-400">{t('Active Clinicians')}</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
                   <UserCheck size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">156</span>
-                <span className="text-xs font-bold text-emerald-500 flex items-center">↑ 8%</span>
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  {liveCounts?.totalClinicians ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400">
+                  {liveCounts ? `${liveCounts.activeDoctors} MD` : '0 MD'}
+                </span>
               </div>
-              <div className="h-6 w-full mt-2">
-                <svg className="w-full h-full" viewBox="0 0 100 25" preserveAspectRatio="none">
-                  <path d="M0,22 Q25,18 50,14 T75,9 T100,4" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
+              <p className="text-[10px] text-cyan-300 font-bold mt-2">
+                {liveCounts ? `${liveCounts.activeNurses} Nurses on duty` : 'Loading...'}
+              </p>
             </motion.div>
 
-            {/* 3. Today's Appointments */}
+            {/* 3. Appointments (Done vs Not Yet Done) */}
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('clinical_roadmap')}
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Today's Appointments</span>
-                <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-400">{t('Appointments')}</span>
+                <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
                   <Calendar size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">243</span>
-                <span className="text-xs font-bold text-emerald-500 flex items-center">↑ 5%</span>
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  {liveCounts?.totalAppointments ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400">
+                  ✓ {liveCounts?.completedAppointments ?? 0} Done
+                </span>
               </div>
-              <div className="h-6 w-full mt-2">
-                <svg className="w-full h-full" viewBox="0 0 100 25" preserveAspectRatio="none">
-                  <path d="M0,18 Q30,22 55,12 T80,14 T100,6" fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
+              <p className="text-[10px] text-amber-300 font-bold mt-2">
+                ⏳ {liveCounts?.pendingAppointments ?? 0} not yet completed
+              </p>
             </motion.div>
 
-            {/* 4. Prescriptions Today */}
+            {/* 4. Prescriptions (Approved vs Pending) */}
             <motion.div 
               whileHover={{ y: -3 }}
               onClick={() => onNavigate('meds')}
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Prescriptions Today</span>
-                <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-400">{t('Prescriptions')}</span>
+                <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-400 flex items-center justify-center">
                   <Pill size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">187</span>
-                <span className="text-xs font-bold text-emerald-500 flex items-center">↑ 10%</span>
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  {liveCounts?.totalPrescriptions ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400">
+                  ✓ {liveCounts?.activePrescriptions ?? 0} Active
+                </span>
               </div>
-              <div className="h-6 w-full mt-2">
-                <svg className="w-full h-full" viewBox="0 0 100 25" preserveAspectRatio="none">
-                  <path d="M0,20 Q20,12 45,15 T75,8 T100,3" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
+              <p className="text-[10px] text-amber-300 font-bold mt-2">
+                ⏳ {liveCounts?.pendingPrescriptions ?? 0} awaiting approval
+              </p>
             </motion.div>
 
-            {/* 5. Lab Tests Today */}
+            {/* 5. Hospital Beds & Labs Summary */}
             <motion.div 
               whileHover={{ y: -3 }}
-              onClick={() => onNavigate('diagnostic_lab')}
-              className="p-4 rounded-2xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between col-span-2 sm:col-span-1"
+              onClick={() => onNavigate('doctors_dashboard')}
+              className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between col-span-2 sm:col-span-1"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Lab Tests Today</span>
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
-                  <FlaskConical size={16} />
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-400">{t('Hospital Beds')}</span>
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
+                  <Bed size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">120</span>
-                <span className="text-xs font-bold text-emerald-500 flex items-center">↑ 7%</span>
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  {liveBeds ? `${liveBeds.available}/${liveBeds.total}` : '0/0'}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400">
+                  Free
+                </span>
               </div>
-              <div className="h-6 w-full mt-2">
-                <svg className="w-full h-full" viewBox="0 0 100 25" preserveAspectRatio="none">
-                  <path d="M0,21 Q30,16 55,19 T80,10 T100,5" fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
+              <p className="text-[10px] text-cyan-300 font-bold mt-2 truncate">
+                {liveBeds ? `${liveBeds.occupied} occupied · ${liveBeds.cleaning} cleaning` : hospital.shortName}
+              </p>
             </motion.div>
 
           </div>
@@ -876,59 +1057,79 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="absolute bottom-1 w-20 h-2 rounded-full bg-cyan-400/40 blur-sm" />
                 </div>
 
-                {/* 4 Real-time Vitals Metric Pills connected to Live Sensors */}
+                {/* 4 Reactive Real-time Vitals Metric Buttons connected to Live Sensors */}
                 <div className="col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
                   
                   {/* Heart Rate */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] border border-slate-200/80 dark:border-blue-900/40">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => triggerFeatureFeedback('Heart Rate Telemetry Opened', 'monitor')}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/80 dark:border-blue-900/40 hover:border-rose-400/60 text-left transition-all cursor-pointer"
+                  >
                     <div className="flex items-center gap-1.5 text-rose-500">
                       <Heart size={14} className="animate-pulse" />
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Heart Rate</span>
                     </div>
-                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.heartRate : currentPatient.heartRate}{' '}
                       <span className="text-[10px] font-normal text-slate-400">bpm</span>
                     </div>
                     <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
-                  </div>
+                  </motion.button>
 
                   {/* Blood Pressure */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] border border-slate-200/80 dark:border-blue-900/40">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => triggerFeatureFeedback('Blood Pressure Monitor Opened', 'monitor')}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/80 dark:border-blue-900/40 hover:border-cyan-400/60 text-left transition-all cursor-pointer"
+                  >
                     <div className="flex items-center gap-1.5 text-blue-500">
                       <Activity size={14} />
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Blood Pressure</span>
                     </div>
-                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : currentPatient.bloodPressure}{' '}
                       <span className="text-[10px] font-normal text-slate-400">mmHg</span>
                     </div>
                     <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
-                  </div>
+                  </motion.button>
 
                   {/* Temperature */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] border border-slate-200/80 dark:border-blue-900/40">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => triggerFeatureFeedback('Thermal Telemetry Opened', 'monitor')}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/80 dark:border-blue-900/40 hover:border-amber-400/60 text-left transition-all cursor-pointer"
+                  >
                     <div className="flex items-center gap-1.5 text-amber-500">
                       <Thermometer size={14} />
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Temperature</span>
                     </div>
-                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.temperature.toFixed(1) : currentPatient.temperature}{' '}
                       <span className="text-[10px] font-normal text-slate-400">°C</span>
                     </div>
                     <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
-                  </div>
+                  </motion.button>
 
                   {/* SpO2 */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] border border-slate-200/80 dark:border-blue-900/40">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => triggerFeatureFeedback('Oxygen Saturation Opened', 'monitor')}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#0c1b3a] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/80 dark:border-blue-900/40 hover:border-cyan-400/60 text-left transition-all cursor-pointer"
+                  >
                     <div className="flex items-center gap-1.5 text-cyan-500">
                       <Wind size={14} />
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">SpO2</span>
                     </div>
-                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.spo2 : currentPatient.spo2}%
                     </div>
                     <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
-                  </div>
+                  </motion.button>
 
                 </div>
 
@@ -1013,29 +1214,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             </div>
 
-            {/* 3B. AI Assistant Interactive Card (4 Cols) */}
-            <div className="lg:col-span-4 p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
+            {/* 3B. Compact AI Assistant Interactive Card (4 Cols) */}
+            <div className="lg:col-span-4 p-4 doctorian-thick-card flex flex-col justify-between space-y-2.5">
               
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-md">
-                    <Bot size={18} />
+                  <div className="w-7.5 h-7.5 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-md">
+                    <Bot size={16} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white">AI Assistant</h3>
-                    <p className="text-[10px] text-slate-400">Doctorian Medical Neural Node</p>
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">AI Assistant</h3>
+                    <p className="text-[9.5px] text-slate-400">Doctorian Medical Neural Node</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online
-                </span>
+                <button
+                  type="button"
+                  onClick={() => triggerFeatureFeedback('Opening Full AI Assistant', 'ai_nexus')}
+                  className="px-2 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[9.5px] font-black uppercase flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online ↗
+                </button>
               </div>
 
               {/* Chat Messages Log */}
               <div 
                 ref={chatScrollRef}
-                className="flex-1 min-h-[160px] max-h-[190px] overflow-y-auto space-y-2 pr-1 text-xs"
+                className="flex-1 min-h-[125px] max-h-[155px] overflow-y-auto space-y-1.5 pr-1 text-[11px]"
               >
                 {chatMessages.map((msg, i) => (
                   <div
@@ -1043,7 +1248,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2 leading-relaxed ${
+                      className={`max-w-[85%] rounded-2xl px-3 py-1.5 leading-snug ${
                         msg.sender === 'user'
                           ? 'bg-blue-600 text-white font-medium rounded-tr-none'
                           : 'bg-slate-100 dark:bg-[#0e1d3e] text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-blue-800/60 rounded-tl-none'
@@ -1215,69 +1420,81 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {/* 4. Bottom Row of Card 1: Recent Patients + Lab Results + Appointments + System Performance */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
-            {/* 4A. Recent Patients */}
+            {/* 4A. Live Registered Patients */}
             <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Users size={16} className="text-blue-500" />
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Recent Patients</h4>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{t('Registered Patients')}</h4>
                 </div>
                 <button
                   type="button"
                   onClick={() => onNavigate('records')}
-                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline"
+                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
                 >
-                  View All →
+                  {t('View All')} →
                 </button>
               </div>
 
               <div className="space-y-2.5">
-                {[
-                  { name: 'Sarah Nakato', id: 'PT-00124', gender: 'Female', age: '28y', status: 'Active', avatar: '/portraits/patient_sarah.jpg', color: 'bg-emerald-500/15 text-emerald-600' },
-                  { name: 'John Doe', id: 'PT-00123', gender: 'Male', age: '45y', status: 'Consultation', avatar: '/portraits/dr_joseph_mukasa.jpg', color: 'bg-blue-500/15 text-blue-600' },
-                  { name: 'Mary Atim', id: 'PT-00122', gender: 'Female', age: '32y', status: 'Follow-up', avatar: '/portraits/patient_mary.jpg', color: 'bg-orange-500/15 text-orange-600' }
-                ].map((p, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => { setSelectedPatientId(idx === 0 ? 'sarah' : idx === 1 ? 'john' : 'mary'); onNavigate('records'); }}
-                    className="doctorian-thick-tile p-2.5 flex items-center justify-between cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={p.avatar}
-                        alt={p.name}
-                        className="w-9 h-9 rounded-full object-cover border-2 border-cyan-400/50 shadow-sm shrink-0"
-                      />
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug">{p.name}</p>
-                        <p className="text-[10px] text-slate-400 leading-snug">{p.id} • {p.gender} • {p.age}</p>
+                {(liveSummary?.recentPatients || []).slice(0, 3).map((p, idx) => {
+                  const avatar =
+                    p.gender === 'Male'
+                      ? '/portraits/dr_joseph_mukasa.jpg'
+                      : idx % 2 === 0
+                      ? '/portraits/patient_sarah.jpg'
+                      : '/portraits/patient_mary.jpg';
+                  const tierColor =
+                    p.risk_tier === 'Critical'
+                      ? 'bg-rose-500/20 text-rose-300'
+                      : p.risk_tier === 'Attention'
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'bg-emerald-500/15 text-emerald-400';
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => onNavigate('records')}
+                      className="doctorian-thick-tile p-2.5 flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={avatar}
+                          alt={p.full_name}
+                          className="w-9 h-9 rounded-full object-cover border-2 border-cyan-400/50 shadow-sm shrink-0"
+                        />
+                        <div className="text-left min-w-0">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug truncate">{p.full_name}</p>
+                          <p className="text-[10px] text-slate-400 leading-snug truncate">{p.mrn} • {p.district} • {p.age}y</p>
+                        </div>
                       </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tierColor}`}>
+                        {p.risk_tier}
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.color}`}>
-                      {p.status}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
+                {(!liveSummary || liveSummary.recentPatients.length === 0) && (
+                  <p className="text-xs text-slate-400 p-3 text-center">{t('No patients registered yet')}</p>
+                )}
               </div>
             </div>
 
-            {/* 4B. Lab Results Overview Donut */}
+            {/* 4B. Live Lab Results Overview Donut (Done vs Pending Review) */}
             <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <FlaskConical size={16} className="text-blue-500" />
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Lab Results Overview</h4>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{t('Lab Results Overview')}</h4>
                 </div>
                 <button
                   type="button"
                   onClick={() => onNavigate('diagnostic_lab')}
-                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline"
+                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
                 >
-                  View All →
+                  {t('View All')} →
                 </button>
               </div>
 
-              {/* Donut Graphic */}
               <div className="flex items-center justify-center gap-4 py-1">
                 <div className="relative w-24 h-24 flex items-center justify-center">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
@@ -1292,70 +1509,95 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       fill="none"
                       stroke="#10b981"
                       strokeWidth="3.5"
-                      strokeDasharray="96, 100"
+                      strokeDasharray={`${labNormalPct}, 100`}
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-base font-black text-slate-900 dark:text-white">96%</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase">Normal</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white">{labNormalPct}%</span>
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">{t('Normal')}</span>
                   </div>
                 </div>
 
                 <div className="space-y-1.5 text-xs text-left">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span className="font-semibold text-slate-600 dark:text-slate-300">Normal: 96%</span>
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">
+                      Normal: {liveCounts?.normalLabs ?? 0} ({labNormalPct}%)
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                    <span className="font-semibold text-slate-600 dark:text-slate-300">Abnormal: 4%</span>
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">
+                      Attention: {liveCounts?.abnormalLabs ?? 0} ({labAbnormalPct}%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                    <span className="font-semibold text-amber-300">
+                      Pending: {liveCounts?.pendingLabs ?? 0}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold flex items-center justify-center gap-1.5">
+              <div className={`p-2 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 ${
+                (liveCounts?.pendingLabs ?? 0) > 0
+                  ? 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+                  : 'bg-emerald-950/40 border-emerald-800/40 text-emerald-300'
+              }`}>
                 <CheckCircle2 size={13} />
-                <span>All tests are up to date</span>
+                <span>
+                  {(liveCounts?.pendingLabs ?? 0) > 0
+                    ? `${liveCounts?.completedLabs} reviewed · ${liveCounts?.pendingLabs} lab test(s) not yet reviewed`
+                    : `${liveCounts?.completedLabs ?? 0} completed · 0 pending`}
+                </span>
               </div>
             </div>
 
-            {/* 4C. Upcoming Appointments */}
+            {/* 4C. Live Appointments (Done vs Not Yet Done Toggle) */}
             <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <CalendarDays size={16} className="text-blue-500" />
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Upcoming Appointments</h4>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{t('Appointments (Live)')}</h4>
                 </div>
                 <button
                   type="button"
                   onClick={() => onNavigate('clinical_roadmap')}
-                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline"
+                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
                 >
-                  View Calendar →
+                  {t('Calendar')} →
                 </button>
               </div>
 
               <div className="space-y-2.5">
-                {[
-                  { time: '04:30 PM', doc: 'Dr. Sarah Nakitto', spec: 'General Checkup', tag: 'Today' },
-                  { time: '05:00 PM', doc: 'Dr. James Okello', spec: 'Cardiology Review', tag: 'Today' },
-                  { time: '05:30 PM', doc: 'Dr. Grace Auma', spec: 'Follow-up Visit', tag: 'Today' }
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => onNavigate('clinical_roadmap')}
-                    className="p-2.5 rounded-2xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/60 dark:border-blue-900/40 flex items-center justify-between cursor-pointer transition-colors"
-                  >
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-cyan-400">{item.time}</span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{item.doc}</p>
-                      <p className="text-[10px] text-slate-400 leading-tight">{item.spec}</p>
+                {(liveSummary?.recentAppointments || []).slice(0, 3).map((item) => {
+                  const isDone = item.status === 'Completed';
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleAppointmentStatus(item.id)}
+                      title="Click to toggle Done / Pending"
+                      className="p-2.5 rounded-2xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200/60 dark:border-blue-900/40 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-cyan-400">{item.scheduled_for}</span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate">{item.patient_name}</p>
+                        <p className="text-[10px] text-slate-400 leading-tight truncate">{item.clinician_name} • {item.visit_type}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                        isDone
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                      }`}>
+                        {isDone ? '✓ Done' : 'Pending'}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                      {item.tag}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
+                {(!liveSummary || liveSummary.recentAppointments.length === 0) && (
+                  <p className="text-xs text-slate-400 p-3 text-center">{t('No appointments scheduled yet')}</p>
+                )}
               </div>
             </div>
 
@@ -1412,57 +1654,77 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
               </div>
 
-              <div className="text-[10px] text-slate-400 text-center font-mono pt-1 border-t border-slate-100 dark:border-blue-900/40">
-                Last Updated: 04:15 PM EAT
+              <div className="text-[10px] text-slate-400 text-center font-mono pt-1 border-t border-slate-100 dark:border-blue-900/40 tabular-nums">
+                Last Updated: {liveTimeString} EAT
               </div>
             </div>
 
           </div>
 
-          {/* 5. Bottom Utility Ribbon with Emergency Call 112 */}
-          <div className="p-3 sm:p-4 doctorian-thick-card flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* 5. Reactive Bottom Utility Ribbon with Emergency Call 112 */}
+          <div className="p-3 sm:p-3.5 doctorian-thick-card flex flex-col md:flex-row items-center justify-between gap-3">
             
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto text-left">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full md:w-auto text-left">
               
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
-                  <Globe size={16} />
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => triggerFeatureFeedback('Language Settings Opened', 'settings')}
+                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-blue-500/10 transition-colors text-left cursor-pointer"
+              >
+                <div className="w-7.5 h-7.5 rounded-xl bg-blue-500/15 text-blue-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                  <Globe size={15} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">Multilingual Support</p>
-                  <p className="text-[10px] text-slate-400">(EN, Luganda, Swahili...)</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Multilingual Support</p>
+                  <p className="text-[9.5px] text-slate-400">(EN, Luganda, Swahili...)</p>
                 </div>
-              </div>
+              </motion.button>
 
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <WifiOff size={16} />
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => triggerFeatureFeedback('Offline Clinical Sync Active', 'records')}
+                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-emerald-500/10 transition-colors text-left cursor-pointer"
+              >
+                <div className="w-7.5 h-7.5 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <WifiOff size={15} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">Offline Mode</p>
-                  <p className="text-[10px] text-slate-400">(Work Without Internet)</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Offline Mode</p>
+                  <p className="text-[9.5px] text-slate-400">(Work Without Internet)</p>
                 </div>
-              </div>
+              </motion.button>
 
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <Lock size={16} />
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => triggerFeatureFeedback('Security & Privacy Shield Opened', 'privacy')}
+                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-purple-500/10 transition-colors text-left cursor-pointer"
+              >
+                <div className="w-7.5 h-7.5 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <Lock size={15} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">Secure & Private</p>
-                  <p className="text-[10px] text-slate-400">(Your Data is Safe)</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Secure & Private</p>
+                  <p className="text-[9.5px] text-slate-400">(AES-256 Encrypted)</p>
                 </div>
-              </div>
+              </motion.button>
 
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
-                  <Cpu size={16} />
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => triggerFeatureFeedback('Launching Doctorian AI Assistant', 'ai_nexus')}
+                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-cyan-500/10 transition-colors text-left cursor-pointer"
+              >
+                <div className="w-7.5 h-7.5 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                  <Cpu size={15} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">Powered by Doctorian AI</p>
-                  <p className="text-[10px] text-slate-400">(Advanced Healthcare Intelligence)</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Doctorian AI Core</p>
+                  <p className="text-[9.5px] text-slate-400">(Clinical Intelligence)</p>
                 </div>
-              </div>
+              </motion.button>
 
             </div>
 
@@ -1470,11 +1732,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={handleEmergencyCall}
-              className="w-full md:w-auto px-6 py-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-sm flex items-center justify-center gap-3 shadow-lg shadow-red-600/30 cursor-pointer shrink-0"
+              className="w-full md:w-auto px-5 py-2.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-red-600/30 cursor-pointer shrink-0"
             >
-              <PhoneCall size={18} className="animate-bounce" />
+              <PhoneCall size={16} className="animate-bounce" />
               <span>Emergency Call 112</span>
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </motion.button>
 
           </div>
@@ -1482,568 +1744,541 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </section>
 
         {/* ===================================================================== */}
-        {/* CARD 2: NEXT GENERATION FEATURES (Matching image_f83f3b8a.png)        */}
+        {/* CARD 2: COMPACT NEXT GENERATION FEATURES (Reactive & Crisp)           */}
         {/* ===================================================================== */}
-        <section className="space-y-6 pt-4">
+        <section className="space-y-4 pt-2">
 
-          {/* Banner with Rocket & Badges */}
-          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-xl min-h-[140px] flex items-center justify-between p-6 sm:p-8">
-            <div className="relative z-10 space-y-2 max-w-2xl">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">🚀</span>
+          {/* Compact Banner with Rocket & Interactive Feature Filter Chips */}
+          <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 text-white shadow-lg flex items-center justify-between p-4 sm:p-5">
+            <div className="relative z-10 space-y-1.5 max-w-2xl">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🚀</span>
                 <div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight">
+                  <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
                     Next Generation Features
                   </h2>
-                  <p className="text-xs sm:text-sm text-blue-100 font-medium mt-0.5">
-                    Advanced tools for smarter diagnosis, better care and a healthier future
+                  <p className="text-[11px] sm:text-xs text-blue-100 font-medium">
+                    Tap any module below for instant clinical telemetry, AI triage, or care tools
                   </p>
                 </div>
               </div>
 
-              {/* Feature Chips */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                <span className="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 font-bold text-amber-300">
+              {/* Reactive Feature Chips */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => triggerFeatureFeedback('Exploring Innovative Clinical Modules', 'features')}
+                  className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 font-bold text-amber-300 cursor-pointer"
+                >
                   ✨ Innovative
-                </span>
-                <span className="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 font-bold text-cyan-300">
+                </motion.button>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => triggerFeatureFeedback('Launching Intelligent AI Assistant', 'ai_nexus')}
+                  className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 font-bold text-cyan-300 cursor-pointer"
+                >
                   🧠 Intelligent
-                </span>
-                <span className="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 font-bold text-emerald-300">
+                </motion.button>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => setIsSensorModalOpen(true)}
+                  className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 font-bold text-emerald-300 cursor-pointer"
+                >
                   🔗 Connected
-                </span>
-                <span className="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 font-bold text-rose-300">
-                  ❤️ For a Healthier Tomorrow
-                </span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => triggerFeatureFeedback('Opening Vitality & Health Overview', 'vitality')}
+                  className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 font-bold text-rose-300 cursor-pointer"
+                >
+                  ❤️ Health Monitor
+                </motion.button>
               </div>
             </div>
 
-            {/* Right Hologram Silhouette */}
+            {/* Right Lockup */}
             <div className="relative z-10 hidden md:flex flex-col items-end text-right">
-              <span className="text-xl font-serif italic font-extrabold text-cyan-200 drop-shadow-md">
+              <span className="text-base font-serif italic font-extrabold text-cyan-200 drop-shadow-md">
                 Your Health
               </span>
-              <span className="text-xl font-serif italic font-extrabold text-white drop-shadow-md">
+              <span className="text-base font-serif italic font-extrabold text-white drop-shadow-md">
                 Our Priority
               </span>
             </div>
           </div>
 
-          {/* 3x3 Grid of 9 Interactive Feature Cards (Horizontal layout matching image 2) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 3x3 Compact Grid of 9 Reactive Feature Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             
             {/* 1. AI Health Assistant */}
-            <div 
-              onClick={() => onNavigate('ai_nexus')}
-              className="p-4 sm:p-5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening AI Health Assistant', 'ai_nexus')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 flex items-center justify-center text-3xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 flex items-center justify-center text-2xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 🤖
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     AI Health Assistant
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase shrink-0">
                     Active
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Ask health questions, get instant expert advice.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Ask health questions, get instant advice.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('ai_nexus');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-blue-600 dark:text-cyan-400 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 2. Laboratory Analyzer */}
-            <div 
-              onClick={() => onNavigate('diagnostic_lab')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Laboratory Analyzer', 'diagnostic_lab')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-purple-400 via-indigo-500 to-purple-600 flex items-center justify-center text-3xl shadow-md shadow-purple-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 via-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-md shadow-purple-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 🔬
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Laboratory Analyzer
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase shrink-0">
                     New
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
                   Analyze lab results with AI insights.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('diagnostic_lab');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-purple-600 dark:text-purple-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 3. Telemedicine */}
-            <div 
-              onClick={() => setIsVideoModalOpen(true)}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                triggerFeatureFeedback('Starting Telemedicine Video Suite');
+                setIsVideoModalOpen(true);
+              }}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-3xl shadow-md shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-2xl shadow-md shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 📹
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Telemedicine
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase flex items-center gap-1 shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase flex items-center gap-1 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Online
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Consult real doctors via video call.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Consult doctors via live video call.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsVideoModalOpen(true);
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-emerald-600 dark:text-emerald-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 4. Image & Scan Analysis */}
-            <div 
-              onClick={() => onNavigate('illustrator')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Medical Image & Scan Analyzer', 'illustrator')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 flex items-center justify-center text-3xl shadow-md shadow-orange-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 flex items-center justify-center text-2xl shadow-md shadow-orange-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 🖼️
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Image & Scan Analysis
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-black uppercase shrink-0">
                     Smart
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Analyze your medical images (X-ray, MRI, etc).
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Analyze X-ray, MRI & medical images.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('illustrator');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-orange-600 dark:text-amber-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 5. Health Monitor */}
-            <div 
-              onClick={() => onNavigate('vitality')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-cyan-300 dark:hover:border-cyan-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Vitality & Health Monitor', 'vitality')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-teal-400 via-cyan-500 to-blue-600 flex items-center justify-center text-3xl shadow-md shadow-cyan-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 via-cyan-500 to-blue-600 flex items-center justify-center text-2xl shadow-md shadow-cyan-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 ❤️
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Health Monitor
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase shrink-0">
                     Connected
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Track vitals: steps, heart rate, temperature & more.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Track steps, heart rate, SpO2 & temp.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('vitality');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-cyan-600 dark:text-cyan-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 6. Health Robot */}
-            <div 
-              onClick={() => onNavigate('biomatic')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Health Robot Assistant', 'biomatic')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-indigo-400 via-blue-600 to-indigo-700 flex items-center justify-center text-3xl shadow-md shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-400 via-blue-600 to-indigo-700 flex items-center justify-center text-2xl shadow-md shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 🦾
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Health Robot
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase shrink-0">
                     Ready
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Your personal health robot assistant.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Personal biometric health assistant.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('biomatic');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-indigo-600 dark:text-indigo-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 7. Prescription Manager */}
-            <div 
-              onClick={() => onNavigate('meds')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Prescription Manager', 'meds')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-green-600 flex items-center justify-center text-3xl shadow-md shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-green-600 flex items-center justify-center text-2xl shadow-md shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 💊
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Prescription Manager
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase shrink-0">
                     Active
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Get and manage prescriptions online or offline.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Manage prescriptions online or offline.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('meds');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-emerald-600 dark:text-emerald-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 8. Smart Appointments */}
-            <div 
-              onClick={() => onNavigate('clinical_roadmap')}
-              className="p-4 sm:p-5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Smart Appointments', 'clinical_roadmap')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-blue-400 via-indigo-500 to-blue-700 flex items-center justify-center text-3xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 via-indigo-500 to-blue-700 flex items-center justify-center text-2xl shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 📅
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Smart Appointments
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 text-[9px] font-black uppercase shrink-0">
                     Easy
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Book and manage your appointments.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Book and track upcoming visits.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('clinical_roadmap');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-blue-600 dark:text-cyan-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
             {/* 9. Preventive Care */}
-            <div 
-              onClick={() => onNavigate('genomic_longevity')}
-              className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#09152e] border border-slate-200/90 dark:border-blue-900/50 shadow-sm hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all cursor-pointer flex items-center gap-4 group"
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => triggerFeatureFeedback('Opening Preventive Care Suite', 'genomic_longevity')}
+              className="p-3 sm:p-3.5 doctorian-thick-card transition-all cursor-pointer flex items-center gap-3 group text-left w-full"
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-rose-400 via-pink-500 to-red-600 flex items-center justify-center text-3xl shadow-md shadow-rose-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 via-pink-500 to-red-600 flex items-center justify-center text-2xl shadow-md shadow-rose-500/20 shrink-0 group-hover:scale-105 transition-transform">
                 🛡️
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                     Preventive Care
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase shrink-0">
                     Proactive
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  Stay healthy with personalized health tips.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  Personalized health & longevity tips.
                 </p>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('genomic_longevity');
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Open</span>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-rose-600 dark:text-rose-300 mt-1 group-hover:translate-x-0.5 transition-transform">
+                  Open <ChevronRight size={12} />
+                </span>
               </div>
-            </div>
+            </motion.button>
 
           </div>
 
-          {/* Bottom Summary Row of Card 2: Health Summary + Activity + Actions + Security */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Bottom Compact Summary Row of Card 2 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             
-            {/* 1. Your Health Summary Donut */}
-            <div className="p-4 sm:p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
+            {/* 1. Live Completion Progress Donut (Shows what is Done vs Pending) */}
+            <div className="p-3.5 doctorian-thick-card flex flex-col justify-between space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Activity size={16} className="text-blue-500" />
+                  <Activity size={15} className="text-blue-500" />
                   <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    Your Health Summary
+                    {t('Done vs Pending')}
                   </h4>
                 </div>
-                <select className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg px-2 py-0.5 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer">
-                  <option>Last 30 Days</option>
-                  <option>Last 7 Days</option>
-                  <option>This Year</option>
-                </select>
+                <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                  Live
+                </span>
               </div>
 
-              <div className="flex items-center justify-between gap-3 py-1">
-                <div className="relative w-22 h-22 flex items-center justify-center shrink-0">
+              <div className="flex items-center justify-between gap-3 py-0.5">
+                <div className="relative w-18 h-18 flex items-center justify-center shrink-0">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" strokeOpacity="0.1" strokeWidth="3.5" />
-                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray="92, 100" strokeLinecap="round" />
+                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="3.5" />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.9155"
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="3.5"
+                      strokeDasharray={`${liveProgress?.overallScore ?? 0}, 100`}
+                      strokeLinecap="round"
+                    />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-base font-black text-slate-900 dark:text-white leading-none">92%</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Health Score</span>
+                    <span className="text-sm font-black text-slate-900 dark:text-white leading-none tabular-nums">
+                      {liveProgress?.overallScore ?? 0}%
+                    </span>
+                    <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{t('Completed')}</span>
                   </div>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-left flex-1">
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                <div className="space-y-1 text-[10.5px] text-left flex-1">
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-[10px] font-black">✓</span>
-                      Steps Goal
+                      <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
+                        stepsToday > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {stepsToday > 0 ? '✓' : '…'}
+                      </span>
+                      {t('Steps Goal')}
                     </span>
-                    <span className="font-black text-slate-900 dark:text-white">85%</span>
+                    <span className="font-black text-slate-900 dark:text-white tabular-nums">{stepsGoalPct}%</span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-[10px] font-black">✓</span>
-                      Medication
+                      <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
+                        (liveCounts?.pendingPrescriptions ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {(liveCounts?.pendingPrescriptions ?? 0) === 0 ? '✓' : '…'}
+                      </span>
+                      {t('Rx Approved')}
                     </span>
-                    <span className="font-black text-slate-900 dark:text-white">100%</span>
+                    <span className="font-black text-slate-900 dark:text-white tabular-nums">{liveProgress?.rxDonePct ?? 0}%</span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-[10px] font-black">✓</span>
-                      Appointments
+                      <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
+                        (liveCounts?.pendingAppointments ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {(liveCounts?.pendingAppointments ?? 0) === 0 ? '✓' : '…'}
+                      </span>
+                      {t('Appointments')}
                     </span>
-                    <span className="font-black text-slate-900 dark:text-white">100%</span>
+                    <span className="font-black text-slate-900 dark:text-white tabular-nums">{liveProgress?.apptsDonePct ?? 0}%</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 2. Recent Activity */}
-            <div className="p-4 sm:p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
+            {/* 2. Reactive Live Done vs Not-Yet-Done Checklist */}
+            <div className="p-3.5 doctorian-thick-card flex flex-col justify-between space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Clock size={16} className="text-blue-500" />
+                  <Clock size={15} className="text-blue-500" />
                   <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    Recent Activity
+                    {t('What Is Done vs Pending')}
                   </h4>
                 </div>
                 <button 
                   type="button" 
                   onClick={() => onNavigate('clinical_roadmap')} 
-                  className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
+                  className="text-[10.5px] font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
                 >
-                  View All →
+                  {t('View All')} →
                 </button>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div 
-                  onClick={() => onNavigate('ai_nexus')}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-slate-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="w-6 h-6 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center text-xs shrink-0">💬</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">AI consultation completed</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">2 min ago</span>
-                </div>
-                <div 
-                  onClick={() => onNavigate('meds')}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-slate-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-xs shrink-0">💊</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">Prescription updated</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">12 min ago</span>
-                </div>
-                <div 
-                  onClick={() => onNavigate('diagnostic_lab')}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-slate-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="w-6 h-6 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center text-xs shrink-0">🔬</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">Lab report ready</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">1 hour ago</span>
-                </div>
+              <div className="space-y-1.5 text-xs">
+                {(liveSummary?.checklist || []).slice(0, 3).map((task) => (
+                  <motion.button
+                    key={task.key}
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      const target = task.key.includes('step') ? 'vitality' : task.key.includes('rx') ? 'meds' : 'clinical_roadmap';
+                      triggerFeatureFeedback(`${task.label}: ${task.statusText}`, target);
+                    }}
+                    className="w-full flex items-center justify-between p-1.5 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-blue-500/10 border border-cyan-500/15 cursor-pointer text-left transition-colors"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="font-bold text-slate-800 dark:text-white truncate text-[10.5px]">{task.label}</p>
+                      <p className="text-[9.5px] text-slate-400 truncate">{task.statusText}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
+                      task.done
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                    }`}>
+                      {task.done ? t('Done') : t('Not Yet')}
+                    </span>
+                  </motion.button>
+                ))}
               </div>
             </div>
 
             {/* 3. Quick Actions */}
-            <div className="p-4 sm:p-5 doctorian-thick-card flex flex-col justify-between space-y-3">
+            <div className="p-3.5 doctorian-thick-card flex flex-col justify-between space-y-2.5">
               <div className="flex items-center gap-1.5">
-                <Sparkles size={16} className="text-blue-500" />
+                <Sparkles size={15} className="text-blue-500" />
                 <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
                   Quick Actions
                 </h4>
               </div>
 
-              <div className="space-y-2">
-                <button
+              <div className="space-y-1.5">
+                <motion.button
                   type="button"
-                  onClick={() => onNavigate('symptoms')}
-                  className="w-full p-2.5 rounded-2xl bg-blue-50/80 dark:bg-[#0c1a36] hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-cyan-300 text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => triggerFeatureFeedback('Opening Symptom Checker', 'symptoms')}
+                  className="w-full p-2 rounded-xl bg-blue-50/80 dark:bg-[#0c1a36] hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-cyan-300 text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs group-hover:scale-110 transition-transform">🩺</span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-5.5 h-5.5 rounded-lg bg-blue-600 text-white flex items-center justify-center text-[11px] group-hover:scale-110 transition-transform">🩺</span>
                     Check Symptoms
                   </span>
-                  <ChevronRight size={14} className="text-blue-400 group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                  <ChevronRight size={13} className="text-blue-400 group-hover:translate-x-0.5 transition-transform" />
+                </motion.button>
 
-                <button
+                <motion.button
                   type="button"
-                  onClick={() => onNavigate('vitality')}
-                  className="w-full p-2.5 rounded-2xl bg-emerald-50/80 dark:bg-[#0c1a36] hover:bg-emerald-100 dark:hover:bg-blue-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => triggerFeatureFeedback('Opening Health Data Analytics', 'vitality')}
+                  className="w-full p-2 rounded-xl bg-emerald-50/80 dark:bg-[#0c1a36] hover:bg-emerald-100 dark:hover:bg-blue-900/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs group-hover:scale-110 transition-transform">📊</span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-5.5 h-5.5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[11px] group-hover:scale-110 transition-transform">📊</span>
                     Analyze Health Data
                   </span>
-                  <ChevronRight size={14} className="text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                  <ChevronRight size={13} className="text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+                </motion.button>
 
-                <button
+                <motion.button
                   type="button"
-                  onClick={() => onNavigate('records')}
-                  className="w-full p-2.5 rounded-2xl bg-purple-50/80 dark:bg-[#0c1a36] hover:bg-purple-100 dark:hover:bg-blue-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => triggerFeatureFeedback('Opening Patient Records', 'records')}
+                  className="w-full p-2 rounded-xl bg-purple-50/80 dark:bg-[#0c1a36] hover:bg-purple-100 dark:hover:bg-blue-900/40 text-purple-700 dark:text-purple-300 text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center text-xs group-hover:scale-110 transition-transform">📁</span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-5.5 h-5.5 rounded-lg bg-purple-600 text-white flex items-center justify-center text-[11px] group-hover:scale-110 transition-transform">📁</span>
                     View My Records
                   </span>
-                  <ChevronRight size={14} className="text-purple-400 group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                  <ChevronRight size={13} className="text-purple-400 group-hover:translate-x-0.5 transition-transform" />
+                </motion.button>
               </div>
             </div>
 
-            {/* 4. Your Data is Safe with 3D glowing padlock */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-[#0c2340] via-[#091b33] to-[#040e1e] text-white shadow-md flex flex-col justify-between space-y-3 relative overflow-hidden border border-cyan-500/30">
-              {/* Glowing padlock background graphic on the right */}
-              <div className="absolute -right-4 -bottom-4 w-28 h-28 opacity-30 pointer-events-none flex items-center justify-center">
-                <div className="w-20 h-20 rounded-3xl bg-cyan-500/20 blur-xl absolute" />
-                <Lock size={64} className="text-cyan-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
-              </div>
-
+            {/* 4. Compact "Your Data is Safe" Card */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#0c2340] via-[#091b33] to-[#040e1e] text-white shadow-md flex flex-col justify-between space-y-2 relative overflow-hidden border border-cyan-500/30">
               <div className="flex items-center gap-2 relative z-10">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <ShieldCheck size={16} />
+                <div className="w-6.5 h-6.5 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <ShieldCheck size={14} />
                 </div>
                 <h4 className="text-xs font-black uppercase tracking-wider text-white">Your Data is Safe</h4>
               </div>
 
-              <p className="text-xs text-blue-200/90 leading-relaxed relative z-10">
-                Powered by advanced security and privacy protocols with AES-256 telemetry encryption.
+              <p className="text-[11px] text-blue-200/90 leading-snug relative z-10">
+                AES-256 encrypted health records and HIPAA-ready telemetry privacy.
               </p>
 
-              <div className="relative z-10 pt-1">
-                <button
+              <div className="relative z-10 pt-0.5">
+                <motion.button
                   type="button"
-                  onClick={() => onNavigate('privacy')}
-                  className="px-5 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => triggerFeatureFeedback('Opening Privacy & Data Protection Center', 'privacy')}
+                  className="px-4 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
                 >
                   <span>Learn More</span>
-                  <ChevronRight size={14} />
-                </button>
+                  <ChevronRight size={13} />
+                </motion.button>
               </div>
             </div>
 
@@ -2279,6 +2514,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       )}
+      <HospitalLocationGuideModal
+        isOpen={isHospitalGuideOpen}
+        onClose={() => setIsHospitalGuideOpen(false)}
+        hospital={hospital}
+        distanceKm={distanceKm}
+        estimatedArrivalMins={estimatedArrivalMins}
+        bearingDegrees={bearingDegrees}
+        cardinal={cardinal}
+        directionText={directionText}
+        googleMapsDirUrl={googleMapsDirUrl}
+        isGpsLive={isGpsLive}
+        isScanningGps={isScanningGps}
+        gpsError={gpsError}
+        nearbyHospitals={nearbyHospitals}
+        onScanGps={scanGps}
+        onSelectDistrict={selectDistrict}
+        onSelectHospitalById={selectHospitalById}
+        liveBeds={liveBeds}
+      />
     </div>
   );
 };

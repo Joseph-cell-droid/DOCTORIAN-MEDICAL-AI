@@ -1,4 +1,127 @@
+import { useState, useEffect, useCallback } from 'react';
 import { isMarianMTModeActive, runMarianInference } from './marianMT';
+
+export const DOCTORIAN_LANGUAGE_EVENT = 'doctorian-language-change';
+
+export const SUPPORTED_LANGUAGES: Array<{ code: LanguageCode; shortLabel: string; nativeLabel: string }> = [
+  { code: 'English (US)', shortLabel: 'English', nativeLabel: 'English (US)' },
+  { code: 'English (UK)', shortLabel: 'English (UK)', nativeLabel: 'English (UK)' },
+  { code: 'Luganda', shortLabel: 'Luganda', nativeLabel: 'Luganda' },
+  { code: 'Swahili', shortLabel: 'Kiswahili', nativeLabel: 'Kiswahili' },
+  { code: 'Runyankole-Rukiga', shortLabel: 'Runyankole', nativeLabel: 'Runyankole-Rukiga' },
+  { code: 'Acholi-Luo', shortLabel: 'Acholi', nativeLabel: 'Acholi-Luo' },
+  { code: 'Langi', shortLabel: 'Langi', nativeLabel: 'Langi' },
+  { code: 'Iteso', shortLabel: 'Iteso', nativeLabel: 'Iteso' },
+  { code: 'Lusoga', shortLabel: 'Lusoga', nativeLabel: 'Lusoga' },
+  { code: 'French', shortLabel: 'Français', nativeLabel: 'Français' },
+  { code: 'Spanish', shortLabel: 'Español', nativeLabel: 'Español' },
+  { code: 'Arabic', shortLabel: 'العربية', nativeLabel: 'العربية' },
+  { code: 'German', shortLabel: 'Deutsch', nativeLabel: 'Deutsch' },
+  { code: 'Portuguese', shortLabel: 'Português', nativeLabel: 'Português' },
+  { code: 'Hindi', shortLabel: 'हिन्दी', nativeLabel: 'हिन्दी' },
+  { code: 'Chinese', shortLabel: '中文', nativeLabel: '中文' },
+];
+
+export function normalizeLanguageCode(lang?: string | null): LanguageCode {
+  if (!lang) return 'English (US)';
+  const trimmed = lang.trim();
+  const aliasMap: Record<string, LanguageCode> = {
+    'en': 'English (US)',
+    'en-us': 'English (US)',
+    'english': 'English (US)',
+    'en-gb': 'English (UK)',
+    'lg': 'Luganda',
+    'lug': 'Luganda',
+    'sw': 'Swahili',
+    'kiswahili': 'Swahili',
+    'runyankole': 'Runyankole-Rukiga',
+    'rukiga': 'Runyankole-Rukiga',
+    'acholi': 'Acholi-Luo',
+    'luo': 'Acholi-Luo',
+    'fr': 'French',
+    'français': 'French',
+    'es': 'Spanish',
+    'español': 'Spanish',
+    'ar': 'Arabic',
+    'de': 'German',
+    'pt': 'Portuguese',
+    'hi': 'Hindi',
+    'zh': 'Chinese',
+  };
+  const lower = trimmed.toLowerCase();
+  if (aliasMap[lower]) return aliasMap[lower];
+  if (trimmed in translations) return trimmed as LanguageCode;
+  const fuzzy = (Object.keys(translations) as LanguageCode[]).find(
+    (k) => k.toLowerCase() === lower
+  );
+  return fuzzy || 'English (US)';
+}
+
+export function getAppLanguage(): LanguageCode {
+  if (typeof window === 'undefined') return 'English (US)';
+  try {
+    return normalizeLanguageCode(localStorage.getItem('app_lang'));
+  } catch {
+    return 'English (US)';
+  }
+}
+
+export function setAppLanguage(nextLang: string): LanguageCode {
+  const canonical = normalizeLanguageCode(nextLang);
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('app_lang', canonical);
+    } catch {}
+    document.documentElement.dir = canonical === 'Arabic' ? 'rtl' : 'ltr';
+    document.documentElement.lang =
+      canonical === 'Luganda' ? 'lg' :
+      canonical === 'Swahili' ? 'sw' :
+      canonical === 'French' ? 'fr' :
+      canonical === 'Spanish' ? 'es' :
+      canonical === 'Arabic' ? 'ar' :
+      canonical === 'German' ? 'de' :
+      canonical === 'Portuguese' ? 'pt' :
+      canonical === 'Hindi' ? 'hi' :
+      canonical === 'Chinese' ? 'zh' : 'en';
+    window.dispatchEvent(new CustomEvent(DOCTORIAN_LANGUAGE_EVENT, { detail: canonical }));
+    window.dispatchEvent(new Event('local_translations_updated'));
+  }
+  return canonical;
+}
+
+export function useAppLanguage(): [LanguageCode, (lang: string) => void, (text: string) => string] {
+  const [language, setLanguageState] = useState<LanguageCode>(() => getAppLanguage());
+
+  useEffect(() => {
+    const onLangEvent = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      setLanguageState(normalizeLanguageCode(detail || getAppLanguage()));
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'app_lang') {
+        setLanguageState(normalizeLanguageCode(e.newValue));
+      }
+    };
+    window.addEventListener(DOCTORIAN_LANGUAGE_EVENT, onLangEvent as EventListener);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(DOCTORIAN_LANGUAGE_EVENT, onLangEvent as EventListener);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  const changeLanguage = useCallback((nextLang: string) => {
+    const canonical = setAppLanguage(nextLang);
+    setLanguageState(canonical);
+  }, []);
+
+  const t = useCallback(
+    (text: string) => translate(text, language),
+    [language]
+  );
+
+  return [language, changeLanguage, t];
+}
 
 export interface TranslationKeys {
   // Page / Tab Titles
@@ -1655,6 +1778,548 @@ const simplifiedOfflineTranslations: Record<string, Record<string, string>> = {
   }
 };
 
+const UI_SCREEN_DICTIONARY: Partial<Record<LanguageCode, Record<string, string>>> = {
+  'Luganda': {
+    'Smart Healthcare. Better Life.': 'Obulamu Obulungi n’Obujjanjabi Obw’Omulembe.',
+    'Revolutionizing Healthcare Through Artificial Intelligence': 'Okutumbula Obujjanjabi nga Tuyita mu Magezi Agakola (AI)',
+    'Initializing Doctorian...': 'Etandika Doctorian...',
+    'Enter App': 'Yingira mu App',
+    'Welcome Back!': 'Tukusanyukidde Okudda!',
+    'Sign in to your account': 'Yingira mu akawunti yo',
+    'Email or Phone Number': 'Emeyilo oba Nnamba y’Essimu',
+    'Password': 'Akasumuluzo',
+    'Remember Me': 'Njijukira',
+    'Forgot Password?': 'Werabidde Akasumuluzo?',
+    'Log In': 'Yingira',
+    'Sign In': 'Yingira',
+    'Create Account': 'Kola Akawunti',
+    'Sign Up': 'Wewandiise',
+    'or continue with': 'oba yingirira ku',
+    "Don't have an account?": 'Tolina akawunti?',
+    'Continue without Account (Guest Clinical Mode)': 'Weyongerayo nga Omugenyi',
+    'Patient': 'Omulwadde',
+    'Doctor': 'Omusawo',
+    'Admin': 'Admin',
+    'Good Morning,': 'Wasuze otya,',
+    'Good Afternoon,': 'Osiibye otya,',
+    'Good Evening,': 'Osiibye otya,',
+    'Good Night,': 'Sula bulungi,',
+    'Stay healthy, stay strong!': 'Beera mulamu, beera wamaanyi!',
+    'Health Overview': 'Okulaba Obulamu',
+    'View Details': 'Laba Ebisingawo',
+    'Heart Rate': 'Okukuba kw’Omutima',
+    'Blood Pressure': 'Puleesa y’Omusaayi',
+    'SpO2': 'Omukka (SpO2)',
+    'Temp': 'Ebbugumu',
+    'Steps Today': 'Ebigeere Leero',
+    'Health Status': 'Embeera y’Obulamu',
+    'Excellent': 'Kirungi Nnyo',
+    'Quick Actions': 'Ebikolwa eby’Amangu',
+    'See All': 'Laba Byonna',
+    'AI Assistant': 'Omuyambi wa AI',
+    'E-Pharmacy': 'Eddagala ku Mutimbagano',
+    'Prescriptions': 'Empapula z’Eddagala',
+    'Laboratory': 'Ebyuma bya Labu',
+    'Home': 'Ewaka',
+    'Health': 'Obulamu',
+    'Apps': 'Ebyuma',
+    'Records': 'Ebiwandiiko',
+    'Profile': 'Ebikukwatako',
+    'Close': 'Ggalawo',
+    'All Modules': 'Ebitundu Byonna',
+    'All Clinical Modules': 'Ebitundu by’Obujjanjabi Byonna',
+    'AI Medical Assistant': 'Omuyambi w’Obujjanjabi wa AI',
+    'Online': 'Ku Mutimbagano',
+    'You can ask me about:': 'Osobola okumbuuza ku:',
+    'Symptoms & Treatments': 'Obubonero n’Obujjanjabi',
+    'Medication Information': 'Ebikwata ku Ddagala',
+    'Health Tips & Advice': 'Amagezi ku Bulamu',
+    'Medical Image Analysis': 'Okukebera Ebifaananyi',
+    'And much more...': 'N’ebirala bingi...',
+    'Type or speak...': 'Wandiika oba yogera...',
+    'My Prescriptions': 'Eddagala Lyange',
+    'Medication Tracker': 'Omukebera w’Eddagala',
+    'Medication Progress': 'Enkulaakulana y’Eddagala',
+    'Track': 'Goberera',
+    'Next Dose': 'Eddagala Eddako',
+    'Refill': 'Jjuzaayo',
+    'Pharmacy': 'Eddagala',
+    'History': 'Ebyayita',
+    'Active': 'Likola',
+    'Laboratory Analyzer': 'Omukebera wa Labu',
+    'Upload your test results or scan a laboratory report': 'Teekako ebyava mu kukebera oba sikaani lipoota ya labu',
+    'Get AI analysis and understand your results': 'Funa okwekenneenya kwa AI otegeere ebikwata ku lipoota yo',
+    'Upload Report': 'Teekako Lipoota',
+    'Scan Document': 'Sikaani Ekiwandiiko',
+    'Vitality Matrix': 'Ebizimbuka mu Bulamu',
+    'Overview': 'Okulaba Okutwalira Awamu',
+    'Trends': 'Enkyukakyuka',
+    'Health Score': 'Obubonero bw’Obulamu',
+    'Steps': 'Ebigeere',
+    'Sleep': 'Tulo',
+    'Calories': 'Kalori',
+    'Health Trend (7 Days)': 'Obulamu (Ennaku 7)',
+    'View All': 'Laba Byonna',
+    'Doctor Dashboard': 'Ekifo ky’Omusawo',
+    'General Physician': 'Omusawo Ow’awamu',
+    'Call': 'Kuba Essimu',
+    'Message': 'Wereza Obubaka',
+    'Patient Live Logs': 'Ebiwandiiko by’Abalwadde',
+    'Hospital Info': 'Ebikwata ku Ddwaliro',
+    'New Patient': 'Omulwadde Omuggya',
+    'Vital Signs Alert': 'Obubonero bw’Obulamu',
+    'Prescription Updated': 'Eddagala Liddiddwamu',
+    'Settings': 'Nteekateeka',
+    'Edit Profile': 'Kyusa Ebikukwatako',
+    'Account & Security': 'Akawunti n’Obukuumi',
+    'Notifications': 'Obubaka Obujjukiza',
+    'Language': 'Olulimi',
+    'Appearance': 'Endabika',
+    'Dark Mode': 'Ekizikiza',
+    'Light Mode': 'Ekitangaala',
+    'Offline Mode': 'Okukola Awatali Mutimbagano',
+    'Connected Devices': 'Ebyuma Ebiyungiddwa',
+    'About Doctorian AI': 'Ebikwata ku Doctorian AI',
+    'App Settings & Tools': 'Nteekateeka ya App n’Ebyuma',
+    'Search 16 clinical apps...': 'Noonya mu byuma 16...',
+  },
+  'Swahili': {
+    'Smart Healthcare. Better Life.': 'Afya Bora ya Kisasa. Maisha Bora.',
+    'Revolutionizing Healthcare Through Artificial Intelligence': 'Kuboresha Huduma za Afya Kupitia Akili Bandia',
+    'Initializing Doctorian...': 'Inaanzisha Doctorian...',
+    'Enter App': 'Fungua Programu',
+    'Welcome Back!': 'Karibu Tena!',
+    'Sign in to your account': 'Ingia kwenye akaunti yako',
+    'Email or Phone Number': 'Barua pepe au Namba ya Simu',
+    'Password': 'Nenosiri',
+    'Remember Me': 'Nikumbuke',
+    'Forgot Password?': 'Umesahau Nenosiri?',
+    'Log In': 'Ingia',
+    'Sign In': 'Ingia',
+    'Create Account': 'Fungua Akaunti',
+    'Sign Up': 'Jisajili',
+    'or continue with': 'au endelea na',
+    "Don't have an account?": 'Huna akaunti?',
+    'Continue without Account (Guest Clinical Mode)': 'Endelea bila Akaunti (Hali ya Mgeni)',
+    'Patient': 'Mgonjwa',
+    'Doctor': 'Daktari',
+    'Admin': 'Msimamizi',
+    'Good Morning,': 'Habari za Asubuhi,',
+    'Good Afternoon,': 'Habari za Mchana,',
+    'Good Evening,': 'Habari za Jioni,',
+    'Good Night,': 'Usiku Mwema,',
+    'Stay healthy, stay strong!': 'Kaa na afya njema, kaa imara!',
+    'Health Overview': 'Muhtasari wa Afya',
+    'View Details': 'Tazama Maelezo',
+    'Heart Rate': 'Mapigo ya Moyo',
+    'Blood Pressure': 'Shinikizo la Damu',
+    'SpO2': 'Oksijeni (SpO2)',
+    'Temp': 'Joto',
+    'Steps Today': 'Hatua Leo',
+    'Health Status': 'Hali ya Afya',
+    'Excellent': 'Bora Sana',
+    'Quick Actions': 'Vitendo vya Haraka',
+    'See All': 'Tazama Zote',
+    'AI Assistant': 'Msaidizi wa AI',
+    'E-Pharmacy': 'Duka la Dawa',
+    'Prescriptions': 'Maagizo ya Dawa',
+    'Laboratory': 'Maabara',
+    'Home': 'Nyumbani',
+    'Health': 'Afya',
+    'Apps': 'Programu',
+    'Records': 'Rekodi',
+    'Profile': 'Wasifu',
+    'Close': 'Funga',
+    'All Modules': 'Moduli Zote',
+    'All Clinical Modules': 'Moduli Zote za Kliniki',
+    'AI Medical Assistant': 'Msaidizi wa Matibabu wa AI',
+    'Online': 'Mtandaoni',
+    'You can ask me about:': 'Unaweza kuniuliza kuhusu:',
+    'Symptoms & Treatments': 'Dalili na Matibabu',
+    'Medication Information': 'Taarifa za Dawa',
+    'Health Tips & Advice': 'Vidokezo vya Afya na Ushauri',
+    'Medical Image Analysis': 'Uchambuzi wa Picha za Matibabu',
+    'And much more...': 'Na mengine mengi...',
+    'Type or speak...': 'Andika au zungumza...',
+    'My Prescriptions': 'Maagizo Yangu',
+    'Medication Tracker': 'Kifuatiliaji cha Dawa',
+    'Medication Progress': 'Maendeleo ya Dawa',
+    'Track': 'Fuatilia',
+    'Next Dose': 'Dozi Ijayo',
+    'Refill': 'Jaza Tena',
+    'Pharmacy': 'Famasia',
+    'History': 'Historia',
+    'Active': 'Inatumika',
+    'Laboratory Analyzer': 'Kichambuzi cha Maabara',
+    'Upload your test results or scan a laboratory report': 'Pakia matokeo yako au changanua ripoti ya maabara',
+    'Get AI analysis and understand your results': 'Pata uchambuzi wa AI na uelewe matokeo yako',
+    'Upload Report': 'Pakia Ripoti',
+    'Scan Document': 'Changanua Hati',
+    'Vitality Matrix': 'Vipimo vya Uhai',
+    'Overview': 'Muhtasari',
+    'Trends': 'Mwenendo',
+    'Health Score': 'Alama ya Afya',
+    'Steps': 'Hatua',
+    'Sleep': 'Usingizi',
+    'Calories': 'Kalori',
+    'Health Trend (7 Days)': 'Mwenendo wa Afya (Siku 7)',
+    'View All': 'Tazama Zote',
+    'Doctor Dashboard': 'Dashibodi ya Daktari',
+    'General Physician': 'Daktari Mkuu',
+    'Call': 'Piga Simu',
+    'Message': 'Ujumbe',
+    'Patient Live Logs': 'Kumbukumbu za Wagonjwa',
+    'Hospital Info': 'Taarifa za Hospitali',
+    'New Patient': 'Mgonjwa Mpya',
+    'Vital Signs Alert': 'Tahadhari ya Dalili Muhimu',
+    'Prescription Updated': 'Agizo Limesasishwa',
+    'Settings': 'Mipangilio',
+    'Edit Profile': 'Hariri Wasifu',
+    'Account & Security': 'Akaunti na Usalama',
+    'Notifications': 'Arifa',
+    'Language': 'Lugha',
+    'Appearance': 'Muonekano',
+    'Dark Mode': 'Hali ya Giza',
+    'Light Mode': 'Hali ya Mwanga',
+    'Offline Mode': 'Hali ya Nje ya Mtandao',
+    'Connected Devices': 'Vifaa Vilivyounganishwa',
+    'About Doctorian AI': 'Kuhusu Doctorian AI',
+    'App Settings & Tools': 'Mipangilio ya Programu na Zana',
+    'Search 16 clinical apps...': 'Tafuta programu 16 za kliniki...',
+  },
+  'Runyankole-Rukiga': {
+    'Welcome Back!': 'Mwaramutsya! Tugusanyukire',
+    'Sign in to your account': 'Taaha omu akawunti yaawe',
+    'Log In': 'Taaha',
+    'Sign Up': 'Hwandikwa',
+    'Good Morning,': 'Oraire gye,',
+    'Good Afternoon,': 'Osiibire gye,',
+    'Good Evening,': 'Osiibire gye,',
+    'Stay healthy, stay strong!': 'Guma oine amagara marungi!',
+    'Health Overview': 'Okureeba Amagara',
+    'View Details': 'Reeba Ebindi',
+    'Heart Rate': 'Okuteera kw’Omutima',
+    'Blood Pressure': 'Puresha y’Eshagama',
+    'Steps Today': 'Entambwe Erizooba',
+    'Health Status': 'Embeera y’Amagara',
+    'Excellent': 'Kirungi Munonga',
+    'Quick Actions': 'Ebikorwa by’Ahonaaho',
+    'AI Assistant': 'Omuyambi wa AI',
+    'E-Pharmacy': 'Edduuka ry’Emibazi',
+    'Prescriptions': 'Empapuro z’Emibazi',
+    'Laboratory': 'Laboratori',
+    'Home': 'Omuka',
+    'Health': 'Amagara',
+    'Apps': 'Ebyoma',
+    'Records': 'Ebihandiiko',
+    'Profile': 'Ebikukwataho',
+    'Settings': 'Enteekateeka',
+    'Language': 'Orurimi',
+    'Appearance': 'Endebeka',
+    'Offline Mode': 'Okukora hatariho Intaneeti',
+    'Doctor Dashboard': 'Obuheereza bwa Musawo',
+  },
+  'Acholi-Luo': {
+    'Welcome Back!': 'Wabino maber!',
+    'Sign in to your account': 'Dony i akaunt ni',
+    'Log In': 'Dony',
+    'Good Morning,': 'Ibuto maber,',
+    'Stay healthy, stay strong!': 'Bed ki yotkom maber!',
+    'Health Overview': 'Neno Yotkom',
+    'Heart Rate': 'Goyo pa Cwiny',
+    'Blood Pressure': 'Tek pa Remo',
+    'Quick Actions': 'Tic ma Oyot',
+    'Home': 'Gang',
+    'Health': 'Yotkom',
+    'Apps': 'Apu',
+    'Records': 'Rekod',
+    'Profile': 'Ngec ni',
+    'Language': 'Leb',
+    'Settings': 'Ter',
+  },
+  'Langi': {
+    'Welcome Back!': 'Ibino aber!',
+    'Log In': 'Dony iye',
+    'Good Morning,': 'Ibuto aber,',
+    'Home': 'Gang',
+    'Health': 'Yotkom',
+    'Apps': 'Apu',
+    'Records': 'Rekod',
+    'Profile': 'Ngec ni',
+    'Language': 'Leb',
+    'Settings': 'Ngec me ter',
+  },
+  'Iteso': {
+    'Welcome Back!': 'Yoga noi!',
+    'Log In': 'Loma',
+    'Good Morning,': 'Ejokuna,',
+    'Home': 'Oreo',
+    'Health': 'Angaleu',
+    'Apps': 'Apus',
+    'Records': 'Akiro',
+    'Profile': 'Akiro kon',
+    'Language': 'Angajep',
+    'Settings': 'Aitengener',
+  },
+  'Lusoga': {
+    'Welcome Back!': 'Tukusanyukidde okwirawo!',
+    'Log In': 'Yingira',
+    'Good Morning,': 'Wasuze otya,',
+    'Home': 'Eka',
+    'Health': 'Obulamu',
+    'Apps': 'Ebyuma',
+    'Records': 'Ebiwandiiko',
+    'Profile': 'Ebikukwatako',
+    'Language': 'Olulimi',
+    'Settings': 'Enteekateeka',
+  },
+  'French': {
+    'Smart Healthcare. Better Life.': 'Santé Intelligente. Vie Meilleure.',
+    'Revolutionizing Healthcare Through Artificial Intelligence': 'Révolutionner les soins de santé grâce à l’IA',
+    'Initializing Doctorian...': 'Initialisation de Doctorian...',
+    'Enter App': 'Entrer dans l’app',
+    'Welcome Back!': 'Bon Retour !',
+    'Sign in to your account': 'Connectez-vous à votre compte',
+    'Email or Phone Number': 'E-mail ou Numéro de Téléphone',
+    'Password': 'Mot de passe',
+    'Remember Me': 'Se souvenir de moi',
+    'Forgot Password?': 'Mot de passe oublié ?',
+    'Log In': 'Connexion',
+    'Sign In': 'Connexion',
+    'Create Account': 'Créer un compte',
+    'Sign Up': 'S’inscrire',
+    'or continue with': 'ou continuer avec',
+    "Don't have an account?": 'Pas encore de compte ?',
+    'Continue without Account (Guest Clinical Mode)': 'Continuer sans compte (Mode Invité)',
+    'Patient': 'Patient',
+    'Doctor': 'Médecin',
+    'Admin': 'Admin',
+    'Good Morning,': 'Bonjour,',
+    'Good Afternoon,': 'Bon après-midi,',
+    'Good Evening,': 'Bonsoir,',
+    'Good Night,': 'Bonne nuit,',
+    'Stay healthy, stay strong!': 'Restez en bonne santé, restez fort !',
+    'Health Overview': 'Aperçu Santé',
+    'View Details': 'Voir Détails',
+    'Heart Rate': 'Fréquence Cardiaque',
+    'Blood Pressure': 'Tension Artérielle',
+    'Steps Today': 'Pas Aujourd’hui',
+    'Health Status': 'État de Santé',
+    'Excellent': 'Excellent',
+    'Quick Actions': 'Actions Rapides',
+    'See All': 'Tout Voir',
+    'AI Assistant': 'Assistant IA',
+    'E-Pharmacy': 'E-Pharmacie',
+    'Prescriptions': 'Ordonnances',
+    'Laboratory': 'Laboratoire',
+    'Home': 'Accueil',
+    'Health': 'Santé',
+    'Apps': 'Apps',
+    'Records': 'Dossiers',
+    'Profile': 'Profil',
+    'Close': 'Fermer',
+    'All Modules': 'Tous les Modules',
+    'AI Medical Assistant': 'Assistant Médical IA',
+    'Online': 'En ligne',
+    'You can ask me about:': 'Vous pouvez me demander :',
+    'Symptoms & Treatments': 'Symptômes et Traitements',
+    'Medication Information': 'Informations Médicaments',
+    'Health Tips & Advice': 'Conseils Santé',
+    'Medical Image Analysis': 'Analyse d’Images Médicales',
+    'And much more...': 'Et bien plus encore...',
+    'Type or speak...': 'Écrivez ou parlez...',
+    'My Prescriptions': 'Mes Ordonnances',
+    'Medication Tracker': 'Suivi des Traitements',
+    'Medication Progress': 'Progrès du Traitement',
+    'Track': 'Suivre',
+    'Next Dose': 'Prochaine Dose',
+    'Refill': 'Renouveler',
+    'Pharmacy': 'Pharmacie',
+    'History': 'Historique',
+    'Active': 'Actif',
+    'Laboratory Analyzer': 'Analyseur de Laboratoire',
+    'Upload your test results or scan a laboratory report': 'Téléversez vos résultats ou scannez un rapport de laboratoire',
+    'Get AI analysis and understand your results': 'Obtenez une analyse IA de vos résultats',
+    'Upload Report': 'Importer Rapport',
+    'Scan Document': 'Scanner Document',
+    'Vitality Matrix': 'Matrice de Vitalité',
+    'Overview': 'Aperçu',
+    'Trends': 'Tendances',
+    'Health Score': 'Score Santé',
+    'Steps': 'Pas',
+    'Sleep': 'Sommeil',
+    'Health Trend (7 Days)': 'Tendance Santé (7 Jours)',
+    'View All': 'Tout Voir',
+    'Doctor Dashboard': 'Tableau Médecin',
+    'General Physician': 'Médecin Généraliste',
+    'Call': 'Appeler',
+    'Message': 'Message',
+    'Patient Live Logs': 'Journaux Patients en Direct',
+    'Hospital Info': 'Infos Hôpital',
+    'Settings': 'Paramètres',
+    'Edit Profile': 'Modifier le Profil',
+    'Account & Security': 'Compte et Sécurité',
+    'Notifications': 'Notifications',
+    'Language': 'Langue',
+    'Appearance': 'Apparence',
+    'Dark Mode': 'Mode Sombre',
+    'Light Mode': 'Mode Clair',
+    'Offline Mode': 'Mode Hors Ligne',
+    'Connected Devices': 'Appareils Connectés',
+    'About Doctorian AI': 'À propos de Doctorian AI',
+  },
+  'Spanish': {
+    'Smart Healthcare. Better Life.': 'Salud Inteligente. Mejor Vida.',
+    'Welcome Back!': '¡Bienvenido de nuevo!',
+    'Sign in to your account': 'Inicia sesión en tu cuenta',
+    'Email or Phone Number': 'Correo o Teléfono',
+    'Password': 'Contraseña',
+    'Remember Me': 'Recordarme',
+    'Forgot Password?': '¿Olvidaste tu contraseña?',
+    'Log In': 'Iniciar Sesión',
+    'Sign Up': 'Registrarse',
+    'or continue with': 'o continúa con',
+    "Don't have an account?": '¿No tienes cuenta?',
+    'Good Morning,': 'Buenos días,',
+    'Good Afternoon,': 'Buenas tardes,',
+    'Good Evening,': 'Buenas noches,',
+    'Stay healthy, stay strong!': '¡Mantente saludable y fuerte!',
+    'Health Overview': 'Resumen de Salud',
+    'View Details': 'Ver Detalles',
+    'Heart Rate': 'Ritmo Cardíaco',
+    'Blood Pressure': 'Presión Arterial',
+    'Steps Today': 'Pasos Hoy',
+    'Health Status': 'Estado de Salud',
+    'Excellent': 'Excelente',
+    'Quick Actions': 'Acciones Rápidas',
+    'See All': 'Ver Todo',
+    'AI Assistant': 'Asistente IA',
+    'E-Pharmacy': 'E-Farmacia',
+    'Prescriptions': 'Recetas',
+    'Laboratory': 'Laboratorio',
+    'Home': 'Inicio',
+    'Health': 'Salud',
+    'Apps': 'Apps',
+    'Records': 'Registros',
+    'Profile': 'Perfil',
+    'Close': 'Cerrar',
+    'Settings': 'Configuración',
+    'Language': 'Idioma',
+    'Appearance': 'Apariencia',
+    'Dark Mode': 'Modo Oscuro',
+    'Light Mode': 'Modo Claro',
+    'Offline Mode': 'Modo Sin Conexión',
+    'Connected Devices': 'Dispositivos Conectados',
+    'About Doctorian AI': 'Acerca de Doctorian AI',
+    'Doctor Dashboard': 'Panel Médico',
+    'Upload Report': 'Subir Informe',
+    'Scan Document': 'Escanear Documento',
+  },
+  'Arabic': {
+    'Smart Healthcare. Better Life.': 'رعاية صحية ذكية. حياة أفضل.',
+    'Welcome Back!': 'مرحبًا بعودتك!',
+    'Sign in to your account': 'سجّل الدخول إلى حسابك',
+    'Email or Phone Number': 'البريد الإلكتروني أو رقم الهاتف',
+    'Password': 'كلمة المرور',
+    'Remember Me': 'تذكرني',
+    'Forgot Password?': 'هل نسيت كلمة المرور؟',
+    'Log In': 'تسجيل الدخول',
+    'Sign Up': 'إنشاء حساب',
+    'or continue with': 'أو تابع باستخدام',
+    "Don't have an account?": 'ليس لديك حساب؟',
+    'Good Morning,': 'صباح الخير،',
+    'Good Afternoon,': 'مساء الخير،',
+    'Good Evening,': 'مساء الخير،',
+    'Stay healthy, stay strong!': 'ابق بصحة جيدة وقويًا!',
+    'Health Overview': 'نظرة عامة على الصحة',
+    'View Details': 'عرض التفاصيل',
+    'Heart Rate': 'معدل ضربات القلب',
+    'Blood Pressure': 'ضغط الدم',
+    'Steps Today': 'خطوات اليوم',
+    'Health Status': 'الحالة الصحية',
+    'Excellent': 'ممتاز',
+    'Quick Actions': 'إجراءات سريعة',
+    'See All': 'عرض الكل',
+    'AI Assistant': 'مساعد الذكاء الاصطناعي',
+    'E-Pharmacy': 'الصيدلية الإلكترونية',
+    'Prescriptions': 'الوصفات الطبية',
+    'Laboratory': 'المختبر',
+    'Home': 'الرئيسية',
+    'Health': 'الصحة',
+    'Apps': 'التطبيقات',
+    'Records': 'السجلات',
+    'Profile': 'الملف الشخصي',
+    'Close': 'إغلاق',
+    'Settings': 'الإعدادات',
+    'Language': 'اللغة',
+    'Appearance': 'المظهر',
+    'Dark Mode': 'الوضع الداكن',
+    'Light Mode': 'الوضع الفاتح',
+    'Offline Mode': 'وضع عدم الاتصال',
+    'Connected Devices': 'الأجهزة المتصلة',
+    'About Doctorian AI': 'حول Doctorian AI',
+    'Doctor Dashboard': 'لوحة الطبيب',
+    'Upload Report': 'رفع التقرير',
+    'Scan Document': 'مسح المستند',
+  },
+  'German': {
+    'Welcome Back!': 'Willkommen zurück!',
+    'Log In': 'Anmelden',
+    'Good Morning,': 'Guten Morgen,',
+    'Health Overview': 'Gesundheitsübersicht',
+    'Quick Actions': 'Schnellaktionen',
+    'Home': 'Start',
+    'Health': 'Gesundheit',
+    'Apps': 'Apps',
+    'Records': 'Akten',
+    'Profile': 'Profil',
+    'Language': 'Sprache',
+    'Settings': 'Einstellungen',
+  },
+  'Portuguese': {
+    'Welcome Back!': 'Bem-vindo de volta!',
+    'Log In': 'Entrar',
+    'Good Morning,': 'Bom dia,',
+    'Health Overview': 'Visão Geral de Saúde',
+    'Quick Actions': 'Ações Rápidas',
+    'Home': 'Início',
+    'Health': 'Saúde',
+    'Apps': 'Apps',
+    'Records': 'Registros',
+    'Profile': 'Perfil',
+    'Language': 'Idioma',
+    'Settings': 'Configurações',
+  },
+  'Hindi': {
+    'Welcome Back!': 'वापसी पर स्वागत है!',
+    'Log In': 'लॉग इन करें',
+    'Good Morning,': 'सुप्रभात,',
+    'Health Overview': 'स्वास्थ्य अवलोकन',
+    'Quick Actions': 'त्वरित कार्य',
+    'Home': 'होम',
+    'Health': 'स्वास्थ्य',
+    'Apps': 'ऐप्स',
+    'Records': 'रिकॉर्ड',
+    'Profile': 'प्रोफ़ाइल',
+    'Language': 'भाषा',
+    'Settings': 'सेटिंग्स',
+  },
+  'Chinese': {
+    'Welcome Back!': '欢迎回来！',
+    'Log In': '登录',
+    'Good Morning,': '早上好，',
+    'Health Overview': '健康概览',
+    'Quick Actions': '快捷操作',
+    'Home': '首页',
+    'Health': '健康',
+    'Apps': '应用',
+    'Records': '档案',
+    'Profile': '我的',
+    'Language': '语言',
+    'Settings': '设置',
+  },
+};
+
 export const translate = (text: string, selectedLanguage: string): string => {
   const trimmed = text.trim();
   if (!trimmed) return text;
@@ -1681,9 +2346,26 @@ export const translate = (text: string, selectedLanguage: string): string => {
   };
 
   const lookupKey = oldKeyFallbackMap[trimmed] || trimmed;
-  const langKey = selectedLanguage as LanguageCode;
+  const langKey = normalizeLanguageCode(selectedLanguage);
 
-  // 0. Check Simplified Offline Translations
+  // English does not require further parsing
+  if (langKey.startsWith('English')) {
+    return text;
+  }
+
+  // 0a. Check UI Screen Dictionary (Exact & Case-insensitive)
+  const screenDict = UI_SCREEN_DICTIONARY[langKey];
+  if (screenDict) {
+    if (lookupKey in screenDict) return screenDict[lookupKey];
+    const lowerLookup = lookupKey.toLowerCase();
+    for (const key of Object.keys(screenDict)) {
+      if (key.toLowerCase() === lowerLookup) {
+        return screenDict[key];
+      }
+    }
+  }
+
+  // 0b. Check Simplified Offline Translations
   if (simplifiedOfflineTranslations[langKey]) {
     const matched = simplifiedOfflineTranslations[langKey][lookupKey];
     if (matched) return matched;
@@ -1695,11 +2377,6 @@ export const translate = (text: string, selectedLanguage: string): string => {
         return simplifiedOfflineTranslations[langKey][key];
       }
     }
-  }
-
-  // English does not require further parsing
-  if (selectedLanguage.startsWith('English')) {
-    return text;
   }
 
   const systemTranslations = translations[langKey];

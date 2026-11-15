@@ -35,6 +35,7 @@ import { notifyLoginInGmail } from '../services/gmailNotification';
 import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { getOperationsConfig, AppOperationsConfig, OPERATIONS_CONFIG_EVENT } from '../utils/appOperationsConfig';
 import { trustDevice } from '../utils/deviceRecognition';
+import { SUPPORTED_LANGUAGES, useAppLanguage } from '../utils/translations';
 
 interface ModernAuthPageProps {
   onSuccess: (user: UserType, isSignUp?: boolean) => void;
@@ -98,9 +99,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   // Operations settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [opsConfig, setOpsConfig] = useState<AppOperationsConfig>(() => getOperationsConfig());
-  const [authLang, setAuthLang] = useState<string>(() => {
-    try { return localStorage.getItem('app_lang') || 'English'; } catch { return 'English'; }
-  });
+  const [authLang, setAuthLang, t] = useAppLanguage();
 
   // Listen to operations config events
   useEffect(() => {
@@ -529,67 +528,68 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
             )}
 
             {/* Clinical Real Role Selector */}
-            <div className="flex items-center gap-1 p-1 rounded-full bg-[#081534]/90 border border-cyan-500/30 backdrop-blur-md shadow-lg">
+            <div className="flex items-center gap-1 p-1 rounded-full bg-[#081534]/95 border-2 border-cyan-500/35 backdrop-blur-md shadow-lg">
               <button
                 type="button"
                 onClick={() => handleSelectRole('user')}
-                className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
                   portalRole === 'user'
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
-                Patient
+                {t('Patient')}
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectRole('doctor')}
-                className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
                   portalRole === 'doctor'
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
-                Doctor
+                {t('Doctor')}
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectRole('admin')}
-                className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
                   portalRole === 'admin'
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
-                Admin
+                {t('Admin')}
               </button>
             </div>
           </div>
 
-          {/* Right controls: Language Pill (English v) + Passkey + Settings */}
+          {/* Right controls: Interactive Language Pill (English v) + Passkey + Settings */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const langs = ['English', 'Luganda', 'Swahili', 'Runyankole'];
-                const next = langs[(langs.indexOf(authLang) + 1) % langs.length];
-                setAuthLang(next);
-                try { localStorage.setItem('app_lang', next); } catch {}
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#09183a]/90 border border-cyan-500/35 text-slate-200 hover:text-white hover:border-cyan-400 text-xs font-semibold transition-all cursor-pointer shadow-lg"
-              title="Switch Clinical Language"
-            >
-              <Globe size={13} className="text-cyan-400" />
-              <span>{authLang}</span>
-              <ChevronDown size={13} className="text-slate-400" />
-            </button>
+            <div className="relative flex items-center" data-no-translate>
+              <Globe size={13} className="absolute left-3 text-cyan-400 pointer-events-none" />
+              <select
+                aria-label={t('Language')}
+                value={authLang}
+                onChange={(e) => setAuthLang(e.target.value)}
+                className="pl-8 pr-3 py-1.5 rounded-full bg-[#09183a]/95 border-2 border-cyan-500/40 text-white hover:border-cyan-400 text-xs font-bold transition-all cursor-pointer shadow-lg focus:outline-none max-w-[140px] truncate"
+                title={t('Language')}
+              >
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
+                    {lang.nativeLabel}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <button
               type="button"
               onClick={handleBiometricAuth}
               disabled={isBiometricLoading}
               title="Hardware WebAuthn Passkey"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:border-cyan-400 text-xs font-medium transition-all cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-950/80 border-2 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:border-cyan-400 text-xs font-bold transition-all cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]"
             >
               <Fingerprint size={13} className="text-cyan-400" />
               <span className="hidden sm:inline">Passkey</span>
@@ -599,7 +599,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
               type="button"
               onClick={() => setIsSettingsOpen(true)}
               title="AES-256 Enclave Configuration"
-              className="p-2 rounded-full bg-[#09183a]/90 border border-slate-700/80 hover:border-cyan-500 text-slate-300 hover:text-cyan-300 transition-colors cursor-pointer"
+              className="p-2 rounded-full bg-[#09183a]/90 border-2 border-slate-700/80 hover:border-cyan-500 text-slate-300 hover:text-cyan-300 transition-colors cursor-pointer"
             >
               <Sliders size={14} />
             </button>
@@ -608,7 +608,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
 
         {/* Center Brand Lockup Matching Photo Screen 2 */}
         <div className="flex flex-col items-center text-center relative w-full">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.4rem] bg-gradient-to-b from-[#0d2455] to-[#050d24] p-2.5 border border-cyan-400/40 shadow-[0_14px_35px_rgba(6,182,212,0.35),inset_0_1px_0_rgba(255,255,255,0.18)] flex items-center justify-center mb-3">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.4rem] bg-gradient-to-b from-[#0d2455] to-[#050d24] p-2.5 border-2 border-cyan-400/45 shadow-[0_14px_35px_rgba(6,182,212,0.35),inset_0_1px_0_rgba(255,255,255,0.18)] flex items-center justify-center mb-3">
             <img
               src="/logo.png"
               alt="Doctorian Medical AI Logo"
@@ -623,8 +623,8 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
             </span>
           </h1>
 
-          <p className="text-slate-300 text-xs sm:text-sm font-medium tracking-wide mt-1">
-            Smart Healthcare. Better Life.
+          <p className="text-slate-300 text-xs sm:text-sm font-semibold tracking-wide mt-1">
+            {t('Smart Healthcare. Better Life.')}
           </p>
         </div>
 
@@ -698,10 +698,10 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       setSuccessMessage(null);
                       setActiveCard('signin');
                     }}
-                    className="py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(6,182,212,0.5)] hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] flex items-center justify-center gap-2.5 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                    className="doctorian-cta-btn py-4 px-6 text-sm tracking-wide flex items-center justify-center gap-2.5 cursor-pointer"
                   >
                     <Lock size={18} />
-                    <span>Sign In</span>
+                    <span>{t('Sign In')}</span>
                     <ArrowRight size={16} />
                   </button>
 
@@ -713,10 +713,10 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       setSuccessMessage(null);
                       setActiveCard('signup');
                     }}
-                    className="py-4 px-6 rounded-2xl bg-[#061533]/85 hover:bg-[#0c2452] border border-cyan-400/50 hover:border-cyan-300 text-white font-bold text-sm tracking-wide shadow-[0_0_18px_rgba(3,105,161,0.25)] flex items-center justify-center gap-2.5 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                    className="doctorian-dark-btn py-4 px-6 border-cyan-400/50 hover:border-cyan-300 text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 cursor-pointer"
                   >
                     <UserPlus size={18} className="text-cyan-400" />
-                    <span>Create Account</span>
+                    <span>{t('Create Account')}</span>
                   </button>
                 </div>
 
@@ -725,10 +725,10 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   <button
                     type="button"
                     onClick={handleContinueWithoutAccount}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-[#041a2f]/90 hover:bg-[#072c4f] border border-emerald-400/60 hover:border-emerald-300 text-white font-bold text-xs sm:text-sm tracking-wide shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                    className="w-full py-3.5 px-6 rounded-2xl bg-[#041a2f]/90 hover:bg-[#072c4f] border-2 border-b-[4px] border-emerald-400/60 hover:border-emerald-300 text-white font-bold text-xs sm:text-sm tracking-wide shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
                   >
                     <Stethoscope size={17} className="text-emerald-400 group-hover:rotate-12 transition-transform" />
-                    <span>Continue without Account (Guest Clinical Mode)</span>
+                    <span>{t('Continue without Account (Guest Clinical Mode)')}</span>
                     <Sparkles size={14} className="text-cyan-300" />
                   </button>
                 </div>
@@ -813,9 +813,9 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
               <div className="doctorian-thick-card p-6 sm:p-8 relative">
                 {/* Card Header: Welcome Back! / Sign in to your account */}
                 <div className="text-center mb-5">
-                  <h2 className="text-2xl font-black tracking-tight text-white">Welcome Back!</h2>
+                  <h2 className="text-2xl font-black tracking-tight text-white">{t('Welcome Back!')}</h2>
                   <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">
-                    Sign in to your account
+                    {t('Sign in to your account')}
                   </p>
                 </div>
 
@@ -847,8 +847,8 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       required
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="Email or Phone Number"
-                      className="w-full pl-11 pr-4 py-3.5 bg-[#09183a]/90 border border-blue-400/35 rounded-2xl text-sm text-white placeholder-slate-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                      placeholder={t('Email or Phone Number')}
+                      className="w-full pl-11 pr-4 py-3.5 bg-[#09183a]/95 border-2 border-blue-400/40 rounded-2xl text-sm text-white placeholder-slate-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all"
                     />
                   </div>
 
@@ -862,8 +862,8 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Password"
-                      className="w-full pl-11 pr-11 py-3.5 bg-[#09183a]/90 border border-blue-400/35 rounded-2xl text-sm text-white placeholder-slate-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                      placeholder={t('Password')}
+                      className="w-full pl-11 pr-11 py-3.5 bg-[#09183a]/95 border-2 border-blue-400/40 rounded-2xl text-sm text-white placeholder-slate-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all"
                     />
                     <button
                       type="button"
@@ -935,7 +935,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                         onChange={(e) => setRememberMe(e.target.checked)}
                         className="w-4 h-4 rounded accent-blue-500 bg-[#09183a] border-cyan-500/50 cursor-pointer"
                       />
-                      <span>Remember Me</span>
+                      <span>{t('Remember Me')}</span>
                     </label>
 
                     <button
@@ -946,7 +946,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       }}
                       className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors cursor-pointer"
                     >
-                      Forgot Password?
+                      {t('Forgot Password?')}
                     </button>
                   </div>
 
@@ -960,7 +960,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       <Loader2 size={20} className="animate-spin" />
                     ) : (
                       <>
-                        <span>Log In</span>
+                        <span>{t('Log In')}</span>
                         <ArrowRight size={18} />
                       </>
                     )}
@@ -974,7 +974,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   </div>
                   <div className="relative flex justify-center text-xs">
                     <span className="bg-[#09193c] px-3 text-slate-300 font-medium rounded-full">
-                      or continue with
+                      {t('or continue with')}
                     </span>
                   </div>
                 </div>
@@ -1030,7 +1030,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                 {/* Card Footer: Don't have an account? Sign Up + Guest Access */}
                 <div className="mt-5 pt-4 border-t border-blue-400/15 space-y-3 text-center text-xs">
                   <div className="text-slate-300">
-                    <span>Don't have an account? </span>
+                    <span>{t("Don't have an account?")} </span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1039,17 +1039,17 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                       }}
                       className="text-cyan-400 hover:text-cyan-300 font-bold hover:underline transition-colors cursor-pointer"
                     >
-                      Sign Up
+                      {t('Sign Up')}
                     </button>
                   </div>
 
                   <button
                     type="button"
                     onClick={handleContinueWithoutAccount}
-                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border-2 border-b-[3px] border-emerald-400/50 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <Stethoscope size={14} className="text-emerald-400" />
-                    <span>Continue without Account (Guest Clinical Mode)</span>
+                    <span>{t('Continue without Account (Guest Clinical Mode)')}</span>
                   </button>
                 </div>
               </div>

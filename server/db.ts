@@ -144,9 +144,67 @@ export function initDatabase() {
       details TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS hospital_beds (
+      id TEXT PRIMARY KEY,
+      hospital_id TEXT NOT NULL,
+      ward_name TEXT NOT NULL,
+      bed_number TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('occupied', 'available', 'cleaning')),
+      patient_name TEXT,
+      diagnosis TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS daily_telemetry (
+      id TEXT PRIMARY KEY,
+      user_key TEXT NOT NULL,
+      date_str TEXT NOT NULL,
+      steps INTEGER NOT NULL DEFAULT 0,
+      steps_goal INTEGER NOT NULL DEFAULT 10000,
+      calories INTEGER NOT NULL DEFAULT 0,
+      water_ml INTEGER NOT NULL DEFAULT 0,
+      sleep_minutes INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_key, date_str)
+    );
   `);
 
   seedInitialClinicalData();
+  ensureHospitalBeds('mulago-national');
+  ensureHospitalBeds('lira-regional');
+  ensureHospitalBeds('gulu-regional');
+  ensureHospitalBeds('mbarara-regional');
+}
+
+export function ensureHospitalBeds(hospitalId: string) {
+  const existing = (db.prepare('SELECT COUNT(*) as cnt FROM hospital_beds WHERE hospital_id = ?').get(hospitalId) as { cnt: number }).cnt;
+  if (existing > 0) return;
+
+  const prefix = hospitalId.split('-')[0].toUpperCase().slice(0, 4);
+  const insertBed = db.prepare(`
+    INSERT INTO hospital_beds (id, hospital_id, ward_name, bed_number, status, patient_name, diagnosis)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const seedBeds: Array<{ ward: string; num: string; status: 'occupied' | 'available' | 'cleaning'; patient: string | null; dx: string | null }> = [
+    { ward: 'Medical Ward A', num: `${prefix}-A01`, status: 'occupied', patient: 'Grace Namukasa', dx: 'Asthma follow-up' },
+    { ward: 'Medical Ward A', num: `${prefix}-A02`, status: 'occupied', patient: 'Robert Okello', dx: 'Hypertension workup' },
+    { ward: 'Medical Ward A', num: `${prefix}-A03`, status: 'available', patient: null, dx: null },
+    { ward: 'Medical Ward A', num: `${prefix}-A04`, status: 'available', patient: null, dx: null },
+    { ward: 'Maternity & Obs', num: `${prefix}-M01`, status: 'occupied', patient: 'Miriam Tumusiime', dx: '32-wk Obstetric BP Watch' },
+    { ward: 'Maternity & Obs', num: `${prefix}-M02`, status: 'available', patient: null, dx: null },
+    { ward: 'Maternity & Obs', num: `${prefix}-M03`, status: 'cleaning', patient: null, dx: 'Sanitization in progress' },
+    { ward: 'Pediatrics Ward', num: `${prefix}-P01`, status: 'occupied', patient: 'Isaac Wanyama', dx: 'Acute Febrile Illness' },
+    { ward: 'Pediatrics Ward', num: `${prefix}-P02`, status: 'available', patient: null, dx: null },
+    { ward: 'Emergency / ICU', num: `${prefix}-ICU1`, status: 'occupied', patient: 'Acute Trauma Watch', dx: 'High-Acuity Telemetry' },
+    { ward: 'Emergency / ICU', num: `${prefix}-ICU2`, status: 'available', patient: null, dx: null },
+    { ward: 'Emergency / ICU', num: `${prefix}-ICU3`, status: 'available', patient: null, dx: null },
+  ];
+
+  for (const b of seedBeds) {
+    insertBed.run(`bed-${hospitalId}-${b.num}`, hospitalId, b.ward, b.num, b.status, b.patient, b.dx);
+  }
 }
 
 function seedInitialClinicalData() {
@@ -205,7 +263,7 @@ function seedInitialClinicalData() {
       INSERT INTO appointments (id, patient_id, patient_name, clinician_id, clinician_name, facility, scheduled_for, visit_type, reason, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    insertAppt.run('apt-001', 'pat-001', 'Grace Namukasa', 'usr-doctor-01', 'Dr. Sarah M. Nakitto', 'Mulago Outpatient Clinic', '2026-11-14 10:30', 'Telemedicine', 'Post-antibiotic respiratory follow-up', 'Scheduled');
+    insertAppt.run('apt-001', 'pat-001', 'Grace Namukasa', 'usr-doctor-01', 'Dr. Sarah M. Nakitto', 'Mulago Outpatient Clinic', '2026-11-14 10:30', 'Telemedicine', 'Post-antibiotic respiratory follow-up', 'Completed');
     insertAppt.run('apt-002', 'pat-002', 'Robert Okello', 'usr-doctor-01', 'Dr. Sarah M. Nakitto', 'Gulu Regional Clinic', '2026-11-15 09:00', 'In-Person', 'Hypertension & glucose monitoring', 'Scheduled');
 
     const insertRef = db.prepare(`

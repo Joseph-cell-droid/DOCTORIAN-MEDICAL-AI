@@ -13,20 +13,36 @@ export interface UgandaHospital {
   level: 'National Referral Hospital' | 'Regional Referral Hospital' | 'General Hospital' | 'Health Centre IV';
   latitude: number;
   longitude: number;
+  photoUrl: string;
+  addressHint: string;
   emergencyPhone: string;
   ambulanceHotline: string;
   bedCapacity: number;
-  currentOccupancyRate: number; // percentage
+  currentOccupancyRate: number; // baseline reference percentage
   specialties: string[];
   maternalEmergencyReady: boolean;
   icuAvailable: boolean;
   bloodBankActive: boolean;
 }
 
+export interface NearbyHospitalItem {
+  hospital: UgandaHospital;
+  distanceKm: number;
+  estimatedArrivalMins: number;
+  bearingDegrees: number;
+  cardinal: string;
+  directionText: string;
+  googleMapsDirUrl: string;
+}
+
 export interface NearestHospitalResult {
   hospital: UgandaHospital;
   distanceKm: number;
   estimatedArrivalMins: number;
+  bearingDegrees: number;
+  cardinal: string;
+  directionText: string;
+  googleMapsDirUrl: string;
   isGpsLive: boolean;
   coordinates: {
     latitude: number;
@@ -45,6 +61,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'National Referral Hospital',
     latitude: 0.3378,
     longitude: 32.5761,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Upper Mulago Hill Road, Kampala',
     emergencyPhone: '+256 414 554 001',
     ambulanceHotline: '+256 772 400 112',
     bedCapacity: 1500,
@@ -63,6 +81,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'National Referral Hospital',
     latitude: 0.3601,
     longitude: 32.5594,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Bombo Road, Kawempe Division, Kampala',
     emergencyPhone: '+256 414 568 200',
     ambulanceHotline: '+256 701 999 112',
     bedCapacity: 450,
@@ -81,6 +101,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'National Referral Hospital',
     latitude: 0.2605,
     longitude: 32.6186,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Salaama Road, Kiruddu, Makindye',
     emergencyPhone: '+256 414 266 010',
     ambulanceHotline: '+256 782 555 119',
     bedCapacity: 450,
@@ -99,6 +121,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.3325,
     longitude: 32.6075,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Naguru Hill, Nakawa Division, Kampala',
     emergencyPhone: '+256 414 287 400',
     ambulanceHotline: '+256 704 112 233',
     bedCapacity: 300,
@@ -117,6 +141,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 0.0528,
     longitude: 32.4637,
+    photoUrl: '/hospitals/jinja.jpg',
+    addressHint: 'Circular Road, Entebbe Municipality (near Lake Victoria)',
     emergencyPhone: '+256 414 320 024',
     ambulanceHotline: '+256 772 321 445',
     bedCapacity: 280,
@@ -135,6 +161,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.3039,
     longitude: 32.5528,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Rubaga Hill Road, Kampala',
     emergencyPhone: '+256 414 270 203',
     ambulanceHotline: '+256 776 270 203',
     bedCapacity: 275,
@@ -153,6 +181,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.3122,
     longitude: 32.5606,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Albert Cook Road, Namirembe Hill, Kampala',
     emergencyPhone: '+256 414 270 222',
     ambulanceHotline: '+256 772 270 222',
     bedCapacity: 300,
@@ -171,6 +201,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.2975,
     longitude: 32.5892,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Nsambya Hill, Ggaba Road, Kampala',
     emergencyPhone: '+256 414 267 012',
     ambulanceHotline: '+256 702 267 012',
     bedCapacity: 360,
@@ -189,6 +221,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.3542,
     longitude: 32.7528,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Jinja-Kampala Highway, Mukono Town',
     emergencyPhone: '+256 414 290 120',
     ambulanceHotline: '+256 788 123 999',
     bedCapacity: 200,
@@ -207,6 +241,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.8358,
     longitude: 32.4975,
+    photoUrl: '/hospitals/lira.jpg',
+    addressHint: 'Gulu Highway, Kasana, Luwero',
     emergencyPhone: '+256 414 610 240',
     ambulanceHotline: '+256 777 610 240',
     bedCapacity: 150,
@@ -227,6 +263,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: -0.6125,
     longitude: 30.6586,
+    photoUrl: '/hospitals/mbarara.jpg',
+    addressHint: 'Kabale Road, opposite Mbarara University (MUST)',
     emergencyPhone: '+256 485 420 021',
     ambulanceHotline: '+256 772 485 021',
     bedCapacity: 600,
@@ -245,6 +283,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 0.6558,
     longitude: 30.2742,
+    photoUrl: '/hospitals/mbarara.jpg',
+    addressHint: 'Buhinga Hill, Fort Portal City',
     emergencyPhone: '+256 483 422 052',
     ambulanceHotline: '+256 782 422 052',
     bedCapacity: 350,
@@ -263,6 +303,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: -1.2522,
     longitude: 29.9886,
+    photoUrl: '/hospitals/mbarara.jpg',
+    addressHint: 'Makanga Hill, Kabale Municipality',
     emergencyPhone: '+256 486 422 033',
     ambulanceHotline: '+256 774 422 033',
     bedCapacity: 280,
@@ -281,6 +323,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 1.4328,
     longitude: 31.3533,
+    photoUrl: '/hospitals/mbarara.jpg',
+    addressHint: 'Old Tooro Road, Hoima City',
     emergencyPhone: '+256 465 440 011',
     ambulanceHotline: '+256 772 440 011',
     bedCapacity: 320,
@@ -299,6 +343,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: -0.3347,
     longitude: 31.7378,
+    photoUrl: '/uganda_hospital_building.jpg',
+    addressHint: 'Alex Ssebowa Road, Masaka City',
     emergencyPhone: '+256 481 420 018',
     ambulanceHotline: '+256 772 420 018',
     bedCapacity: 400,
@@ -317,6 +363,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: -0.5408,
     longitude: 30.1383,
+    photoUrl: '/hospitals/mbarara.jpg',
+    addressHint: 'Kasese-Mbarara Highway, Ishaka Town',
     emergencyPhone: '+256 485 443 001',
     ambulanceHotline: '+256 782 443 001',
     bedCapacity: 220,
@@ -337,6 +385,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 2.7744,
     longitude: 32.2989,
+    photoUrl: '/hospitals/gulu.jpg',
+    addressHint: 'Laroo Division, near Kaunda Grounds, Gulu City',
     emergencyPhone: '+256 471 432 022',
     ambulanceHotline: '+256 772 432 022',
     bedCapacity: 400,
@@ -355,6 +405,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 2.7661,
     longitude: 32.2536,
+    photoUrl: '/hospitals/gulu.jpg',
+    addressHint: 'Juba Road (6 km West of Gulu City Center)',
     emergencyPhone: '+256 471 432 245',
     ambulanceHotline: '+256 772 432 245',
     bedCapacity: 500,
@@ -373,6 +425,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 3.0311,
     longitude: 30.9108,
+    photoUrl: '/hospitals/arua.jpg',
+    addressHint: 'Hospital Road, Arua Hill Division, Arua City',
     emergencyPhone: '+256 476 420 025',
     ambulanceHotline: '+256 772 420 025',
     bedCapacity: 380,
@@ -391,6 +445,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 2.2472,
     longitude: 32.9011,
+    photoUrl: '/hospitals/lira.jpg',
+    addressHint: 'Police Road / Soroti Highway, Lira City',
     emergencyPhone: '+256 473 420 011',
     ambulanceHotline: '+256 772 420 011',
     bedCapacity: 350,
@@ -409,6 +465,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 2.5317,
     longitude: 34.6678,
+    photoUrl: '/hospitals/mbale.jpg',
+    addressHint: 'Circular Road, Moroto Municipality (near Mt. Moroto)',
     emergencyPhone: '+256 454 470 012',
     ambulanceHotline: '+256 782 470 012',
     bedCapacity: 200,
@@ -427,6 +485,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 3.2944,
     longitude: 32.8803,
+    photoUrl: '/hospitals/gulu.jpg',
+    addressHint: 'Uringi Road, Kitgum Municipality',
     emergencyPhone: '+256 471 439 011',
     ambulanceHotline: '+256 772 439 011',
     bedCapacity: 200,
@@ -447,6 +507,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 0.4286,
     longitude: 33.2036,
+    photoUrl: '/hospitals/jinja.jpg',
+    addressHint: 'Nalufenya / Rotary Road, near Lake Victoria shore, Jinja City',
     emergencyPhone: '+256 434 120 011',
     ambulanceHotline: '+256 772 120 011',
     bedCapacity: 500,
@@ -465,6 +527,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 1.0772,
     longitude: 34.1758,
+    photoUrl: '/hospitals/mbale.jpg',
+    addressHint: 'Pallisa Road, Mbale City (Mt. Elgon Foothills)',
     emergencyPhone: '+256 454 433 018',
     ambulanceHotline: '+256 772 433 018',
     bedCapacity: 450,
@@ -483,6 +547,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'Regional Referral Hospital',
     latitude: 1.7147,
     longitude: 33.6111,
+    photoUrl: '/hospitals/lira.jpg',
+    addressHint: 'Hospital Road, Soroti City Center',
     emergencyPhone: '+256 454 461 022',
     ambulanceHotline: '+256 772 461 022',
     bedCapacity: 300,
@@ -501,6 +567,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.6125,
     longitude: 33.4739,
+    photoUrl: '/hospitals/jinja.jpg',
+    addressHint: 'Nakavule, Kampala-Tororo Highway, Iganga',
     emergencyPhone: '+256 434 242 011',
     ambulanceHotline: '+256 772 242 011',
     bedCapacity: 180,
@@ -519,6 +587,8 @@ export const UGANDA_HOSPITALS: UgandaHospital[] = [
     level: 'General Hospital',
     latitude: 0.6931,
     longitude: 34.1814,
+    photoUrl: '/hospitals/mbale.jpg',
+    addressHint: 'Mbale-Tororo Road, Tororo Municipality',
     emergencyPhone: '+256 454 444 022',
     ambulanceHotline: '+256 772 444 022',
     bedCapacity: 200,
@@ -553,6 +623,88 @@ export function calculateDistanceKm(
 }
 
 /**
+ * Calculates initial compass bearing (0-359 deg) from phone coordinates to hospital coordinates
+ */
+export function calculateBearingDegrees(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const y = Math.sin(dLon) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLon);
+  const theta = Math.atan2(y, x);
+  return Math.round(((theta * 180) / Math.PI + 360) % 360);
+}
+
+export function getCardinalDirection(degrees: number): { cardinal: string; fullName: string } {
+  const dirs = [
+    { cardinal: 'N', fullName: 'North' },
+    { cardinal: 'NNE', fullName: 'North-Northeast' },
+    { cardinal: 'NE', fullName: 'Northeast' },
+    { cardinal: 'ENE', fullName: 'East-Northeast' },
+    { cardinal: 'E', fullName: 'East' },
+    { cardinal: 'ESE', fullName: 'East-Southeast' },
+    { cardinal: 'SE', fullName: 'Southeast' },
+    { cardinal: 'SSE', fullName: 'South-Southeast' },
+    { cardinal: 'S', fullName: 'South' },
+    { cardinal: 'SSW', fullName: 'South-Southwest' },
+    { cardinal: 'SW', fullName: 'Southwest' },
+    { cardinal: 'WSW', fullName: 'West-Southwest' },
+    { cardinal: 'W', fullName: 'West' },
+    { cardinal: 'WNW', fullName: 'West-Northwest' },
+    { cardinal: 'NW', fullName: 'Northwest' },
+    { cardinal: 'NNW', fullName: 'North-Northwest' }
+  ];
+  const idx = Math.round((degrees % 360) / 22.5) % 16;
+  return dirs[idx];
+}
+
+export function buildGoogleMapsDirectionsUrl(fromLat: number, fromLon: number, toLat: number, toLon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${fromLat.toFixed(5)},${fromLon.toFixed(5)}&destination=${toLat.toFixed(5)},${toLon.toFixed(5)}&travelmode=driving`;
+}
+
+export function buildDirectionGuidance(
+  hospital: UgandaHospital,
+  distanceKm: number,
+  bearingDegrees: number,
+  etaMins: number
+): { cardinal: string; directionText: string } {
+  const { cardinal, fullName } = getCardinalDirection(bearingDegrees);
+  if (distanceKm <= 1.2) {
+    return {
+      cardinal,
+      directionText: `You are right in ${hospital.district} (${distanceKm} km, ~${etaMins} min) — head ${fullName} along ${hospital.addressHint}`
+    };
+  }
+  return {
+    cardinal,
+    directionText: `Head ${fullName} (${bearingDegrees}° ${cardinal}) for ${distanceKm} km (~${etaMins} min drive) toward ${hospital.addressHint}`
+  };
+}
+
+/**
+ * Returns all Ugandan hospitals sorted from closest to furthest relative to phone coordinates
+ */
+export function getNearbyHospitalsSorted(lat: number, lon: number, limit: number = 8): NearbyHospitalItem[] {
+  return UGANDA_HOSPITALS.map((h) => {
+    const distanceKm = calculateDistanceKm(lat, lon, h.latitude, h.longitude);
+    const estimatedArrivalMins = Math.max(3, Math.round((distanceKm / 38) * 60 + 4));
+    const bearingDegrees = calculateBearingDegrees(lat, lon, h.latitude, h.longitude);
+    const { cardinal, directionText } = buildDirectionGuidance(h, distanceKm, bearingDegrees, estimatedArrivalMins);
+    return {
+      hospital: h,
+      distanceKm,
+      estimatedArrivalMins,
+      bearingDegrees,
+      cardinal,
+      directionText,
+      googleMapsDirUrl: buildGoogleMapsDirectionsUrl(lat, lon, h.latitude, h.longitude)
+    };
+  })
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, limit);
+}
+
+/**
  * Finds the nearest Ugandan hospital for given latitude and longitude coordinates
  */
 export function findNearestUgandanHospital(
@@ -571,13 +723,18 @@ export function findNearestUgandanHospital(
     }
   }
 
-  // Estimated driving/dispatch time: ~35 km/h average in Uganda traffic + 5 min dispatch overhead
-  const estimatedArrivalMins = Math.max(4, Math.round((minDistance / 35) * 60 + 5));
+  const estimatedArrivalMins = Math.max(3, Math.round((minDistance / 38) * 60 + 4));
+  const bearingDegrees = calculateBearingDegrees(lat, lon, closest.latitude, closest.longitude);
+  const { cardinal, directionText } = buildDirectionGuidance(closest, minDistance, bearingDegrees, estimatedArrivalMins);
 
   return {
     hospital: closest,
     distanceKm: minDistance,
     estimatedArrivalMins,
+    bearingDegrees,
+    cardinal,
+    directionText,
+    googleMapsDirUrl: buildGoogleMapsDirectionsUrl(lat, lon, closest.latitude, closest.longitude),
     isGpsLive: isLiveGps,
     coordinates: {
       latitude: lat,
@@ -591,17 +748,17 @@ export function findNearestUgandanHospital(
  */
 export const UGANDA_REGIONAL_CENTERS: Record<string, { lat: number; lon: number; name: string }> = {
   'Kampala': { lat: 0.3476, lon: 32.5825, name: 'Kampala Capital' },
+  'Lira': { lat: 2.2499, lon: 32.8998, name: 'Lira City (Lango)' },
+  'Gulu': { lat: 2.7724, lon: 32.2881, name: 'Gulu City (Northern)' },
+  'Mbarara': { lat: -0.6072, lon: 30.6545, name: 'Mbarara City (Western)' },
+  'Arua': { lat: 3.0201, lon: 30.9111, name: 'Arua City (West Nile)' },
+  'Mbale': { lat: 1.0821, lon: 34.1750, name: 'Mbale City (Eastern)' },
+  'Jinja': { lat: 0.4390, lon: 33.2032, name: 'Jinja City (Busoga)' },
+  'Soroti': { lat: 1.7147, lon: 33.6111, name: 'Soroti City (Teso)' },
   'Entebbe': { lat: 0.0512, lon: 32.4637, name: 'Entebbe / Wakiso South' },
   'Mukono': { lat: 0.3542, lon: 32.7528, name: 'Mukono / Greater Kampala' },
-  'Mbarara': { lat: -0.6125, lon: 30.6586, name: 'Mbarara City (Western)' },
-  'Gulu': { lat: 2.7744, lon: 32.2989, name: 'Gulu City (Northern)' },
-  'Jinja': { lat: 0.4286, lon: 33.2036, name: 'Jinja City (Busoga)' },
-  'Mbale': { lat: 1.0772, lon: 34.1758, name: 'Mbale City (Eastern)' },
-  'Arua': { lat: 3.0311, lon: 30.9108, name: 'Arua City (West Nile)' },
   'Fort Portal': { lat: 0.6558, lon: 30.2742, name: 'Fort Portal (Kabarole)' },
   'Masaka': { lat: -0.3347, lon: 31.7378, name: 'Masaka City' },
-  'Lira': { lat: 2.2472, lon: 32.9011, name: 'Lira City (Lango)' },
-  'Soroti': { lat: 1.7147, lon: 33.6111, name: 'Soroti City (Teso)' },
   'Kabale': { lat: -1.2522, lon: 29.9886, name: 'Kabale (Kigezi)' },
   'Hoima': { lat: 1.4328, lon: 31.3533, name: 'Hoima City (Bunyoro)' },
   'Moroto': { lat: 2.5317, lon: 34.6678, name: 'Moroto (Karamoja)' },
@@ -614,19 +771,36 @@ export const UGANDA_REGIONAL_CENTERS: Record<string, { lat: number; lon: number;
 const STORAGE_KEY = 'doctorian_nearest_hospital';
 
 /**
- * Get the stored nearest hospital or initialize with Mulago as default
+ * Get the stored nearest hospital (normalized with photoUrl & direction fields)
  */
 export function getSavedHospitalResult(): NearestHospitalResult {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw) as Partial<NearestHospitalResult>;
+      const match = UGANDA_HOSPITALS.find((h) => h.id === parsed?.hospital?.id);
+      if (match && parsed.coordinates) {
+        const dist = calculateDistanceKm(parsed.coordinates.latitude, parsed.coordinates.longitude, match.latitude, match.longitude);
+        const eta = Math.max(3, Math.round((dist / 38) * 60 + 4));
+        const bearing = calculateBearingDegrees(parsed.coordinates.latitude, parsed.coordinates.longitude, match.latitude, match.longitude);
+        const { cardinal, directionText } = buildDirectionGuidance(match, dist, bearing, eta);
+        return {
+          hospital: match,
+          distanceKm: dist,
+          estimatedArrivalMins: eta,
+          bearingDegrees: bearing,
+          cardinal,
+          directionText,
+          googleMapsDirUrl: buildGoogleMapsDirectionsUrl(parsed.coordinates.latitude, parsed.coordinates.longitude, match.latitude, match.longitude),
+          isGpsLive: Boolean(parsed.isGpsLive),
+          coordinates: parsed.coordinates
+        };
+      }
     }
   } catch (err) {
     console.warn('[GPS] Error reading saved hospital:', err);
   }
-  // Default to Kampala / Mulago if not yet resolved
-  return findNearestUgandanHospital(0.3378, 32.5761, false);
+  return findNearestUgandanHospital(0.3476, 32.5825, false);
 }
 
 /**
@@ -646,7 +820,7 @@ export function saveHospitalResult(result: NearestHospitalResult) {
  */
 export function requestLiveGpsHospital(): Promise<NearestHospitalResult> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       const fallback = getSavedHospitalResult();
       resolve(fallback);
       return;
@@ -667,8 +841,27 @@ export function requestLiveGpsHospital(): Promise<NearestHospitalResult> {
       {
         enableHighAccuracy: true,
         timeout: 8000,
-        maximumAge: 60000
+        maximumAge: 30000
       }
     );
   });
+}
+
+/**
+ * Continuous live GPS location watch (auto-switches hospital photo & distance when phone moves)
+ */
+export function watchLiveGpsHospital(onChange: (res: NearestHospitalResult) => void): () => void {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return () => {};
+  }
+  const watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const result = findNearestUgandanHospital(pos.coords.latitude, pos.coords.longitude, true);
+      saveHospitalResult(result);
+      onChange(result);
+    },
+    () => {},
+    { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 }
+  );
+  return () => navigator.geolocation.clearWatch(watchId);
 }

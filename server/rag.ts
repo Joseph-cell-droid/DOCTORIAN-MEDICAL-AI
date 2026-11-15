@@ -1,4 +1,4 @@
-import { searchGuidelines, formatGuidelineContext, ClinicalGuidelineEntry } from '../src/data/ugandaGuidelinesCorpus';
+import { searchGuidelines, formatGuidelineContext, type ClinicalGuidelineEntry } from '../src/data/ugandaGuidelinesCorpus.ts';
 
 export interface RagResult {
   entries: ClinicalGuidelineEntry[];

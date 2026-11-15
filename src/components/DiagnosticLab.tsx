@@ -38,6 +38,7 @@ import {
   Maximize2,
   Upload
 } from 'lucide-react';
+import { useAppLanguage } from '../utils/translations';
 
 interface DiagnosticLabProps {
   onNavigate?: (view: string) => void;
@@ -45,6 +46,7 @@ interface DiagnosticLabProps {
 }
 
 export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }) => {
+  const [, , t] = useAppLanguage();
   const [activeTab, setActiveTab] = useState<'results' | 'requests' | 'reports' | 'history' | 'analytics'>('results');
   const [timeRange, setTimeRange] = useState('Last 30 Days');
   const [searchQuery, setSearchQuery] = useState('');
@@ -267,8 +269,8 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
       {/* ========================================================================= */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        {/* SCREEN 6: LABORATORY ANALYZER HERO CARD (image_2605a2cb) */}
-        <section className="doctorian-thick-card p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* SCREEN 6: LABORATORY ANALYZER HERO CARD (image_77dd7586) */}
+        <section className="doctorian-thick-card p-5 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <input
             ref={reportInputRef}
             type="file"
@@ -276,40 +278,68 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ onNavigate, user }
             onChange={handleUploadReport}
             className="hidden"
           />
-          <div className="flex items-center gap-5 text-center sm:text-left flex-col sm:flex-row">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-cyan-500/25 via-blue-600/25 to-indigo-600/25 border-2 border-cyan-400/50 flex items-center justify-center text-cyan-400 shadow-[0_0_28px_rgba(0,210,255,0.3)] shrink-0">
-              <FlaskConical size={36} />
+          <div className="flex items-center gap-5 text-center sm:text-left flex-col sm:flex-row flex-1">
+            {/* Crisp Glowing Microscope + 3 Cyan/Purple Test Vials Artwork matching Screen 6 */}
+            <div className="w-40 h-32 rounded-3xl bg-gradient-to-br from-[#081d4a] via-[#071538] to-[#040d24] border-[2.5px] border-cyan-400/45 flex items-center justify-center shadow-[0_0_32px_rgba(0,210,255,0.28)] shrink-0 relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_45%,rgba(0,210,255,0.25),transparent_65%)] pointer-events-none" />
+              <svg viewBox="0 0 180 120" className="w-full h-full p-2" fill="none" aria-hidden="true">
+                {/* Faint medical cross watermark */}
+                <path d="M26 24 H38 V36 H50 V48 H38 V60 H26 V48 H14 V36 H26 Z" fill="#0ea5e9" fillOpacity="0.16" />
+                {/* 3 Glowing Test Vials */}
+                <rect x="20" y="54" width="12" height="44" rx="6" fill="#0c4a6e" stroke="#38bdf8" strokeWidth="2" />
+                <rect x="22" y="72" width="8" height="24" rx="4" fill="#06b6d4" />
+                <rect x="18" y="49" width="16" height="5" rx="2.5" fill="#7dd3fc" />
+
+                <rect x="40" y="46" width="12" height="52" rx="6" fill="#31105f" stroke="#a855f7" strokeWidth="2" />
+                <rect x="42" y="64" width="8" height="32" rx="4" fill="#a855f7" />
+                <rect x="38" y="41" width="16" height="5" rx="2.5" fill="#d8b4fe" />
+
+                <rect x="60" y="58" width="12" height="40" rx="6" fill="#0c4a6e" stroke="#22d3ee" strokeWidth="2" />
+                <rect x="62" y="74" width="8" height="22" rx="4" fill="#22d3ee" />
+                <rect x="58" y="53" width="16" height="5" rx="2.5" fill="#a5f3fc" />
+                {/* Vial rack */}
+                <rect x="14" y="96" width="64" height="6" rx="3" fill="#0284c7" opacity="0.7" />
+
+                {/* Modern Laboratory Microscope */}
+                <path d="M108 30 L124 22 L134 44 L118 52 Z" fill="#38bdf8" stroke="#bae6fd" strokeWidth="2" />
+                <rect x="115" y="16" width="12" height="10" rx="2" fill="#0284c7" transform="rotate(-24 115 16)" />
+                <path d="M126 44 C146 52 148 80 128 94" stroke="#60a5fa" strokeWidth="6" strokeLinecap="round" />
+                <rect x="94" y="94" width="60" height="8" rx="4" fill="#1d61f2" stroke="#93c5fd" strokeWidth="1.5" />
+                <rect x="98" y="72" width="28" height="5" rx="2.5" fill="#22d3ee" />
+                <circle cx="129" cy="48" r="5" fill="#00d2ff" />
+              </svg>
             </div>
-            <div className="space-y-1.5">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                Laboratory Analyzer
+
+            <div className="space-y-2">
+              <h1 className="text-xl sm:text-2xl font-[900] text-slate-900 dark:text-white tracking-tight">
+                {t('Laboratory Analyzer')}
               </h1>
-              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 max-w-md">
-                Upload your test results or scan a laboratory report
+              <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 max-w-md">
+                {t('Upload your test results or scan a laboratory report')}
               </p>
-              <p className="text-[11px] font-semibold text-blue-600 dark:text-cyan-300">
-                Get AI analysis and understand your results
+              <p className="text-[11px] font-bold text-blue-600 dark:text-cyan-300">
+                {t('Get AI analysis and understand your results')}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col items-center gap-2.5 w-full md:w-72 shrink-0">
             <button
               type="button"
               onClick={() => reportInputRef.current?.click()}
-              className="doctorian-cta-btn w-full sm:w-auto px-6 py-3 rounded-full text-xs sm:text-sm text-white flex items-center justify-center gap-2 cursor-pointer"
+              className="doctorian-cta-btn w-full px-6 py-3 min-h-[48px] rounded-full text-xs sm:text-sm text-white flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Upload size={16} />
-              <span>Upload Report</span>
+              <Upload size={17} />
+              <span>{t('Upload Report')}</span>
             </button>
-            <span className="text-xs font-bold text-slate-400 uppercase">or</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase">{t('or')}</span>
             <button
               type="button"
               onClick={startCameraStream}
-              className="doctorian-thick-tile w-full sm:w-auto px-6 py-3 text-xs sm:text-sm font-black text-slate-800 dark:text-white flex items-center justify-center gap-2 cursor-pointer"
+              className="doctorian-dark-btn w-full px-6 py-3 min-h-[48px] rounded-full text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Camera size={16} className="text-cyan-500" />
-              <span>Scan Document</span>
+              <Camera size={17} className="text-cyan-400" />
+              <span>{t('Scan Document')}</span>
             </button>
           </div>
         </section>

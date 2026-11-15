@@ -22,6 +22,7 @@ import { DownloadAppModal } from './DownloadAppModal';
 import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { TelehealthScribeHub } from './TelehealthScribeHub';
 import { computePredictiveTriage, VitalsInput } from '../services/predictiveTriageService';
+import { useAppLanguage } from '../utils/translations';
 
 export interface ChatbotAgent {
   id: 'primary' | 'emergency' | 'cardiology' | 'pediatric' | 'pharmacology' | 'lab' | 'maternal' | 'neurology' | 'preventive' | 'soap';
@@ -756,6 +757,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   onSwitchToMatrix,
   isDarkMode,
 }) => {
+  const [, , t] = useAppLanguage();
   // --- THEME SYNC (Light Mode / Dark Mode) ---
   const [effectiveDarkMode, setEffectiveDarkMode] = useState<boolean>(() => {
     if (typeof isDarkMode === 'boolean') return isDarkMode;
@@ -1679,7 +1681,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* 1. SCROLLABLE DOCTORIAN AI CONSULTATION UPPER BAR (Smart, Fast) */}
       {/* ─────────────────────────────────────────────────────────── */}
       <header 
-        className={`px-2.5 sm:px-4 py-2 sm:py-2.5 border-b ${effectiveDarkMode ? 'border-slate-800/80 bg-[#070e24]/95 text-slate-100' : 'border-slate-200/90 bg-white/95 text-slate-900'} backdrop-blur-xl flex items-center justify-between sticky top-0 z-30 shrink-0 gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x`}
+        className={`px-2.5 sm:px-3.5 py-1.5 border-b ${effectiveDarkMode ? 'border-slate-800/80 bg-[#070e24]/95 text-slate-100' : 'border-slate-200/90 bg-white/95 text-slate-900'} backdrop-blur-xl flex items-center justify-between sticky top-0 z-30 shrink-0 gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x`}
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* Left Group: Exit, Menu, Doctorian Brand */}
@@ -1695,15 +1697,15 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             <span className="hidden sm:inline">Exit</span>
           </button>
 
-          {/* Menu Drawer Button */}
+          {/* Menu Drawer Button (Opens Bottom Apps Card) */}
           <button
             type="button"
             onClick={() => {
               if (onOpenMenu) onOpenMenu();
-              else setIsSidebarOpen(true);
+              else window.dispatchEvent(new CustomEvent('doctorian-open-apps-card'));
             }}
-            className={`p-1.5 sm:p-2 rounded-xl ${effectiveDarkMode ? 'text-slate-400 hover:text-white hover:bg-slate-800 border-slate-700/60' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200'} transition-colors cursor-pointer shrink-0 border`}
-            title="App Navigation Drawer"
+            className={`p-1.5 sm:p-2 rounded-xl ${effectiveDarkMode ? 'text-slate-300 hover:text-white hover:bg-slate-800 border-cyan-500/35' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200'} transition-colors cursor-pointer shrink-0 border-2`}
+            title={t('Apps')}
           >
             <Menu size={17} />
           </button>
@@ -1716,14 +1718,14 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h2 className={`text-xs sm:text-sm font-black tracking-tight ${effectiveDarkMode ? 'text-white' : 'text-slate-900'} leading-tight truncate`}>
-                  AI Medical Assistant
+                  {t('AI Medical Assistant')}
                 </h2>
                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8px] font-mono font-bold ${effectiveDarkMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-emerald-50 text-emerald-600 border-emerald-200'} border`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${effectiveDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'} animate-ping`} /> Online
+                  <span className={`w-1.5 h-1.5 rounded-full ${effectiveDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'} animate-ping`} /> {t('Online')}
                 </span>
               </div>
               <p className={`text-[9px] sm:text-[10px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium tracking-wide truncate`}>
-                Doctorian AI · Your Health, Our Priority
+                Doctorian AI · {t('Smart Healthcare. Better Life.')}
               </p>
             </div>
           </div>
@@ -2102,7 +2104,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`overflow-hidden border-b ${
               effectiveDarkMode ? 'border-slate-800/80 bg-[#060c20]/98' : 'border-slate-200/90 bg-white/98'
-            } backdrop-blur-md sticky top-[53px] sm:top-[57px] z-20 shadow-md shrink-0`}
+            } backdrop-blur-md sticky top-[46px] sm:top-[48px] z-20 shadow-md shrink-0`}
           >
             <div className="px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2">
               {/* Left Indicator & Scroll Arrow */}
@@ -2231,7 +2233,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 2. CHAT STREAM (No text initially per user request) */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 custom-scrollbar flex flex-col">
+      <div className="flex-1 overflow-y-auto px-2.5 sm:px-4 py-2.5 sm:py-3 space-y-2.5 sm:space-y-3 custom-scrollbar flex flex-col">
         {filteredMessages.length === 0 ? (
           /* Doctorian Clinical Welcome Canvas with Quick Starts & Live Telemetry */
           <DoctorianWelcomeCanvas
@@ -2240,24 +2242,25 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             isUgandaMOHActive={isUgandaMOHActive}
           />
         ) : (
-          filteredMessages.map((msg) => (
+          <div className="w-full max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
+          {filteredMessages.map((msg) => (
             <div
               key={msg.id}
-              className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} py-1 sm:py-2`}
+              className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} py-0.5`}
             >
               {msg.sender === 'user' ? (
                 /* User Message */
-                <div className="flex items-start gap-2.5 max-w-[85%] sm:max-w-xl">
-                  <div className="bg-[#1d61f2] text-white p-3.5 sm:p-4 rounded-2xl rounded-tr-xs shadow-md shadow-blue-600/15">
-                    <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">
+                <div className="flex items-start gap-2 max-w-[82%] sm:max-w-md">
+                  <div className="bg-[#1d61f2] text-white p-2.5 sm:p-3 rounded-2xl rounded-tr-xs shadow-md shadow-blue-600/15">
+                    <p className="text-xs sm:text-[13px] font-medium leading-snug whitespace-pre-wrap">
                       {msg.text}
                     </p>
-                    <div className="flex items-center justify-end gap-1.5 mt-1.5 text-[10px] text-blue-200 font-mono">
+                    <div className="flex items-center justify-end gap-1 mt-1 text-[9.5px] text-blue-200 font-mono">
                       <span>{msg.timestamp}</span>
-                      <CheckCheck size={14} className="text-cyan-300 stroke-[2.5]" />
+                      <CheckCheck size={12} className="text-cyan-300 stroke-[2.5]" />
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full border-2 border-cyan-400/60 overflow-hidden bg-slate-800 flex items-center justify-center mt-0.5 shrink-0 shadow-sm">
+                  <div className="w-7 h-7 rounded-full border-2 border-cyan-400/60 overflow-hidden bg-slate-800 flex items-center justify-center mt-0.5 shrink-0 shadow-sm">
                     <img
                       src={user?.avatarUrl || user?.photoURL || '/portraits/akora_joseph.jpg'}
                       alt={user?.displayName || 'Akora Joseph'}
@@ -2267,9 +2270,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 </div>
               ) : (
                 /* Bot Message: Clinical Response Space */
-                <div className="flex items-start gap-3 sm:gap-4 w-full max-w-3xl">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25 border border-cyan-400/40 shrink-0 mt-0.5">
-                    <Sparkles size={16} className="text-cyan-200" />
+                <div className="flex items-start gap-2.5 sm:gap-3 w-full max-w-2xl">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 border border-cyan-400/40 shrink-0 mt-0.5">
+                    <Sparkles size={14} className="text-cyan-200" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <ModernBotResponseSpace
@@ -2283,7 +2286,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 </div>
               )}
             </div>
-          ))
+          ))}
+          </div>
         )}
 
         {/* Doctorian AI Seamless Background Thinking (Grok & ChatGPT style) */}
@@ -2360,10 +2364,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 3. DEDICATED SMART ACTIONS DOCK (Compact, Non-Blocking, Smart) */}
+      {/* 3. DEDICATED SMART ACTIONS DOCK (Clears Android-Style Bottom Bar) */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className={`mt-auto px-3 sm:px-6 pb-2.5 pt-1 ${effectiveDarkMode ? 'bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent' : 'bg-gradient-to-t from-slate-100 via-slate-50/98 to-transparent'} z-30 shrink-0`}>
-        <div className="max-w-4xl mx-auto space-y-1.5">
+      <div className={`mt-auto px-2.5 sm:px-4 pb-[64px] sm:pb-[68px] pt-1 ${effectiveDarkMode ? 'bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent' : 'bg-gradient-to-t from-slate-100 via-slate-50/98 to-transparent'} z-30 shrink-0`}>
+        <div className="max-w-2xl mx-auto space-y-1">
           
           {/* Temporary feedback notice toast */}
           <AnimatePresence>
@@ -2685,32 +2689,32 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               }}
             />
 
-            {/* Standard Modern Capsule Input Form */}
+            {/* Standard Modern Thick Capsule Input Form */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className={`flex items-center gap-2 rounded-full border-2 transition-all p-1.5 sm:p-2 ${
+              className={`flex items-center gap-1.5 rounded-full border-2 border-b-[4px] transition-all p-1 sm:p-1.5 ${
                 effectiveDarkMode
-                  ? 'bg-[#071535]/95 border-cyan-500/50 focus-within:border-cyan-300 focus-within:ring-2 focus-within:ring-cyan-400/30 shadow-[0_0_24px_rgba(0,210,255,0.2)]'
-                  : 'bg-white border-blue-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 shadow-md shadow-slate-200/50'
+                  ? 'bg-[#071535]/98 border-cyan-500/55 border-b-[#020817] focus-within:border-cyan-300 focus-within:ring-2 focus-within:ring-cyan-400/30 shadow-[0_10px_24px_rgba(2,8,23,0.85),0_0_18px_rgba(0,210,255,0.18)]'
+                  : 'bg-white border-blue-300 border-b-blue-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 shadow-md shadow-slate-300/60'
               }`}
             >
               {/* Plus Attachment Button */}
               <button
                 type="button"
                 onClick={() => setShowPlusMenu(!showPlusMenu)}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                className={`w-8.5 h-8.5 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer border-2 ${
                   showPlusMenu
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white border-blue-400'
                     : effectiveDarkMode
-                    ? 'bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-slate-800/90 border-cyan-500/30 text-slate-200 hover:text-white hover:bg-slate-700'
+                    : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200'
                 }`}
                 title="Attach document, photo, or clinical telemetry"
               >
-                <Plus size={18} className={`transition-transform duration-200 ${showPlusMenu ? 'rotate-45' : ''}`} />
+                <Plus size={16} className={`transition-transform duration-200 ${showPlusMenu ? 'rotate-45' : ''}`} />
               </button>
 
               {/* Text Input */}
@@ -2718,8 +2722,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 type="text"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
-                placeholder="Type or speak..."
-                className={`flex-1 bg-transparent text-sm sm:text-base font-normal px-2 py-1 focus:outline-hidden ${
+                placeholder={t('Type or speak...')}
+                className={`flex-1 bg-transparent text-xs sm:text-sm font-medium px-2 py-1 focus:outline-hidden ${
                   effectiveDarkMode ? 'text-white placeholder-slate-400' : 'text-slate-900 placeholder-slate-400'
                 }`}
               />
@@ -2728,32 +2732,32 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
               <button
                 type="button"
                 onClick={toggleSpeechRecognition}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                className={`w-8.5 h-8.5 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
                   isRecording
                     ? 'text-rose-500 bg-rose-500/20 animate-pulse'
                     : effectiveDarkMode
-                    ? 'text-slate-400 hover:text-cyan-300 hover:bg-white/5'
-                    : 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
+                    ? 'text-cyan-300 hover:text-white hover:bg-white/10'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100'
                 }`}
                 title={isRecording ? 'Listening... click to stop' : 'Click for speech dictation'}
               >
-                {isRecording ? <MicOff size={17} /> : <Mic size={17} />}
+                {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
               </button>
 
-              {/* Modern Send Button */}
+              {/* Thick Glowing Send CTA Button */}
               <button
                 type="submit"
                 disabled={!inputVal.trim() || isLoading}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white flex items-center justify-center shrink-0 shadow-md transition-all cursor-pointer active:scale-95"
+                className="doctorian-cta-btn w-9 h-8.5 sm:w-9.5 sm:h-9 rounded-full disabled:opacity-35 disabled:cursor-not-allowed text-white flex items-center justify-center shrink-0 cursor-pointer"
                 title="Send Message"
               >
-                <Send size={16} className="translate-x-0.5" />
+                <Send size={15} className="translate-x-0.5" />
               </button>
             </form>
           </div>
 
           {/* Clean Medical Disclaimer */}
-          <p className={`text-[10px] text-center ${effectiveDarkMode ? 'text-slate-500' : 'text-slate-400'} font-medium`}>
+          <p className={`text-[9.5px] text-center ${effectiveDarkMode ? 'text-slate-500' : 'text-slate-400'} font-medium`}>
             Doctorian AI provides clinical decision support • In an emergency, contact your nearest medical facility.
           </p>
         </div>

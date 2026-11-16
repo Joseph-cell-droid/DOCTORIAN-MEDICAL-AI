@@ -11,12 +11,14 @@ export interface DoctorianWelcomeCanvasProps {
   onSelectPrompt: (prompt: string) => void;
   arduino?: any;
   isUgandaMOHActive?: boolean;
+  userName?: string;
 }
 
 export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
   onSelectPrompt,
   arduino,
   isUgandaMOHActive = true,
+  userName = 'Akora Joseph',
 }) => {
   const [, , t] = useAppLanguage();
   const quickConsultations = [
@@ -69,24 +71,24 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
   const temp = arduino?.temperature || 36.8;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-2.5 sm:p-4 my-auto max-w-2xl mx-auto w-full space-y-3">
+    <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-3 my-auto max-w-xl mx-auto w-full space-y-2.5">
       {/* Screen 4 Greeting Bubble, Checklist & Malaria Sample Card */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-xl space-y-2.5"
+        className="w-full max-w-xl space-y-2"
       >
-        <div className="flex items-start gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-[0_0_16px_rgba(0,210,255,0.4)] border-2 border-cyan-300/70 shrink-0">
-            <Bot size={18} />
+        <div className="flex items-start gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-[0_0_14px_rgba(0,210,255,0.4)] border-2 border-cyan-300/70 shrink-0">
+            <Bot size={16} />
           </div>
-          <div className="doctorian-thick-card px-3.5 py-2.5 text-xs sm:text-[13px] text-slate-900 dark:text-slate-100 leading-snug flex-1">
-            Hello <strong className="text-blue-600 dark:text-cyan-300">Akora Joseph! 👋</strong>{' '}
+          <div className="doctorian-thick-card px-3 py-2 text-xs text-slate-900 dark:text-slate-100 leading-snug flex-1">
+            Hello <strong className="text-blue-600 dark:text-cyan-300">{userName}! 👋</strong>{' '}
             {t("I'm your Doctorian AI assistant. How can I help you today?")}
           </div>
         </div>
 
-        <div className="doctorian-thick-card p-3 sm:p-3.5 space-y-2 ml-0 sm:ml-10">
+        <div className="doctorian-thick-card p-2.5 sm:p-3 space-y-1.5 ml-0 sm:ml-9">
           <p className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-white">
             {t('You can ask me about:')}
           </p>
@@ -228,7 +230,7 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
                     <Icon size={14} />
                   </div>
                   <span className="text-[9.5px] font-bold uppercase tracking-wider text-blue-700 dark:text-cyan-300/90 font-mono px-1.5 py-0.5 rounded bg-blue-50 dark:bg-cyan-950/60 border border-blue-200 dark:border-cyan-500/30">
-                    {card.badge}
+                    {t(card.badge)}
                   </span>
                 </div>
                 <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-cyan-300 group-hover:bg-blue-50 dark:group-hover:bg-cyan-500/20 transition-colors">
@@ -237,10 +239,10 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
               </div>
 
               <div>
-                <h4 className="text-[13px] font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-cyan-200 transition-colors leading-tight">
-                  {card.title}
+                <h4 className="text-[12.5px] font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-cyan-200 transition-colors leading-tight">
+                  {t(card.title)}
                 </h4>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300/90 mt-0.5 leading-snug line-clamp-2">
+                <p className="text-[10.5px] text-slate-600 dark:text-slate-300/90 mt-0.5 leading-snug line-clamp-2">
                   {card.description}
                 </p>
               </div>
@@ -251,14 +253,14 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
 
       {/* Rapid One-Tap Clinical Chips */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.14 }}
-        className="mt-2 w-full flex flex-wrap items-center justify-center gap-1.5"
+        transition={{ delay: 0.12 }}
+        className="mt-1 w-full flex flex-wrap items-center justify-center gap-1.5"
       >
         <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
           <Zap size={11} className="text-blue-600 dark:text-cyan-400" />
-          <span>Quick Inquiries:</span>
+          <span>{t('Quick Inquiries:')}</span>
         </span>
         {[
           { label: '🌡️ Malaria Protocol', prompt: 'What is the Uganda MoH first-line protocol for confirmed uncomplicated malaria with Artemether-Lumefantrine?' },

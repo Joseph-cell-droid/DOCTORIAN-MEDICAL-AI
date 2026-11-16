@@ -2508,6 +2508,138 @@ const SHARED_LOCALIZATIONS: Record<string, Partial<Record<LanguageCode, string>>
     'Portuguese': 'Cuidado Preventivo',
     'Hindi': 'निवारक देखभाल',
     'Chinese': '预防保健'
+  },
+  "Check a patient's health": {
+    'Luganda': 'Kebera obulamu bw’omulwadde',
+    'Swahili': 'Angalia afya ya mgonjwa',
+    'French': 'Vérifier la santé du patient',
+    'Spanish': 'Revisar salud del paciente',
+    'Arabic': 'فحص صحة المريض',
+    'German': 'Patientengesundheit prüfen',
+    'Portuguese': 'Verificar saúde do paciente',
+    'Hindi': 'मरीज के स्वास्थ्य की जाँच करें',
+    'Chinese': '检查患者健康状况'
+  },
+  'Analyze test results': {
+    'Luganda': 'Kebera ebyava mu kukebera',
+    'Swahili': 'Chambua majibu ya vipimo',
+    'French': 'Analyser les résultats',
+    'Spanish': 'Analizar resultados de pruebas',
+    'Arabic': 'تحليل نتائج الفحوصات',
+    'German': 'Testergebnisse analysieren',
+    'Portuguese': 'Analisar resultados de exames',
+    'Hindi': 'परीक्षण परिणामों का विश्लेषण करें',
+    'Chinese': '分析检测结果'
+  },
+  'Create a prescription': {
+    'Luganda': 'Wandiika eddagala',
+    'Swahili': 'Andika dawa ya mgonjwa',
+    'French': 'Créer une ordonnance',
+    'Spanish': 'Crear una receta',
+    'Arabic': 'إنشاء وصفة طبية',
+    'German': 'Rezept erstellen',
+    'Portuguese': 'Criar uma receita',
+    'Hindi': 'नुस्खा तैयार करें',
+    'Chinese': '开具处方'
+  },
+  'General medical advice': {
+    'Luganda': 'Amagezi ku bujjanjabi obw’awamu',
+    'Swahili': 'Ushauri wa jumla wa matibabu',
+    'French': 'Conseils médicaux généraux',
+    'Spanish': 'Consejo médico general',
+    'Arabic': 'نصائح طبية عامة',
+    'German': 'Allgemeiner medizinischer Rat',
+    'Portuguese': 'Orientação médica geral',
+    'Hindi': 'सामान्य चिकित्सा सलाह',
+    'Chinese': '一般医疗建议'
+  },
+  'Thinking...': {
+    'Luganda': 'Elowooza...',
+    'Swahili': 'Inafikiri...',
+    'French': 'Réflexion...',
+    'Spanish': 'Pensando...',
+    'Arabic': 'جارٍ التفكير...',
+    'German': 'Denkt nach...',
+    'Portuguese': 'Pensando...',
+    'Hindi': 'सोच रहा है...',
+    'Chinese': '正在思考...'
+  },
+  'Quick Inquiries:': {
+    'Luganda': 'Ebibuuzo eby’Amangu:',
+    'Swahili': 'Maswali ya Haraka:',
+    'French': 'Questions rapides :',
+    'Spanish': 'Consultas rápidas:',
+    'Arabic': 'استفسارات سريعة:',
+    'German': 'Schnellanfragen:',
+    'Portuguese': 'Consultas rápidas:',
+    'Hindi': 'त्वरित प्रश्न:',
+    'Chinese': '快速咨询：'
+  },
+  'Acute Symptom Triage': {
+    'Luganda': 'Okukebera Obubonero Obw’amangu',
+    'Swahili': 'Uchunguzi wa Dalili za Haraka',
+    'French': 'Triage des symptômes aigus',
+    'Spanish': 'Triaje de síntomas agudos',
+    'Arabic': 'فرز الأعراض الحادة',
+    'German': 'Akute Symptom-Triage',
+    'Portuguese': 'Triagem de sintomas agudos',
+    'Hindi': 'तीव्र लक्षण ट्राइएज',
+    'Chinese': '急性症状分诊'
+  },
+  'Medication & Interaction Check': {
+    'Luganda': 'Okukebera Eddagala n’Enkolagana',
+    'Swahili': 'Ukaguzi wa Dawa na Mwingiliano',
+    'French': 'Vérification des médicaments',
+    'Spanish': 'Control de medicamentos',
+    'Arabic': 'فحص الأدوية والتداخلات',
+    'German': 'Medikamenten- & Interaktionscheck',
+    'Portuguese': 'Verificação de medicamentos',
+    'Hindi': 'दवा और इंटरैक्शन जाँच',
+    'Chinese': '用药与相互作用检查'
+  },
+  'Vitals & Telemetry Interpretation': {
+    'Luganda': 'Okutaputa Obubonero bw’Obulamu',
+    'Swahili': 'Tafsiri ya Ishara za Mwili',
+    'French': 'Interprétation des constantes',
+    'Spanish': 'Interpretación de signos vitales',
+    'Arabic': 'تفسير المؤشرات الحيوية',
+    'German': 'Vitalwert-Interpretation',
+    'Portuguese': 'Interpretação de sinais vitais',
+    'Hindi': 'वाइटल्स और टेलीमेट्री व्याख्या',
+    'Chinese': '生命体征解读'
+  },
+  'Maternal & Pediatric Danger Signs': {
+    'Luganda': 'Obubonero obw’Obulabe mu Baana n’Abakyala',
+    'Swahili': 'Dalili za Hatari kwa Mama na Mtoto',
+    'French': 'Signes de danger mère & enfant',
+    'Spanish': 'Signos de peligro materno-infantil',
+    'Arabic': 'علامات الخطر للأم والطفل',
+    'German': 'Warnzeichen Mutter & Kind',
+    'Portuguese': 'Sinais de perigo materno-infantil',
+    'Hindi': 'मातृ एवं शिशु खतरे के संकेत',
+    'Chinese': '孕产妇及儿童危险信号'
+  },
+  'Free': {
+    'Luganda': 'Ebikalu',
+    'Swahili': 'Wazi',
+    'French': 'Libres',
+    'Spanish': 'Libres',
+    'Arabic': 'متاح',
+    'German': 'Frei',
+    'Portuguese': 'Livres',
+    'Hindi': 'खाली',
+    'Chinese': '空闲'
+  },
+  'Stable': {
+    'Luganda': 'Mulamu',
+    'Swahili': 'Imara',
+    'French': 'Stable',
+    'Spanish': 'Estable',
+    'Arabic': 'مستقر',
+    'German': 'Stabil',
+    'Portuguese': 'Estável',
+    'Hindi': 'स्थिर',
+    'Chinese': '稳定'
   }
 };
 

@@ -554,11 +554,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="relative w-20 h-20 flex items-center justify-center">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
-                    <circle cx="40" cy="40" r="33" stroke="#ec4899" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * 0.22} strokeLinecap="round" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#ec4899" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * (1 - Math.min(0.95, Math.max(0.25, liveHeartRate / 150)))} strokeLinecap="round" fill="none" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <Heart size={13} className="text-rose-400 fill-rose-500 mb-0.5 animate-pulse" />
-                    <span className="text-base font-black text-slate-900 dark:text-white leading-none">{liveHeartRate}</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white leading-none tabular-nums">{liveHeartRate}</span>
                     <span className="text-[9px] font-bold text-slate-400">bpm</span>
                   </div>
                 </div>
@@ -573,10 +573,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="relative w-20 h-20 flex items-center justify-center">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
-                    <circle cx="40" cy="40" r="33" stroke="#00d2ff" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * 0.16} strokeLinecap="round" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#00d2ff" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * (1 - Math.min(0.95, Math.max(0.3, (parseInt(String(liveBP).split('/')[0] || '118', 10) || 118) / 160)))} strokeLinecap="round" fill="none" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-none">{liveBP}</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-none tabular-nums">{liveBP}</span>
                     <span className="text-[9px] font-bold text-slate-400 mt-0.5">mmHg</span>
                   </div>
                 </div>
@@ -594,8 +594,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <circle cx="40" cy="40" r="33" stroke="#10b981" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * (1 - liveSpo2 / 100)} strokeLinecap="round" fill="none" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-base font-black text-slate-900 dark:text-white leading-none">{liveSpo2}%</span>
-                    <span className="text-[9px] font-bold text-emerald-400 mt-0.5">{t('SpO2')}</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white leading-none tabular-nums">{liveSpo2}%</span>
+                    <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 mt-0.5">{t('SpO2')}</span>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">{t('SpO2')}</span>
@@ -609,11 +609,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="relative w-20 h-20 flex items-center justify-center">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="33" stroke="currentColor" strokeOpacity="0.12" strokeWidth="6.5" fill="none" />
-                    <circle cx="40" cy="40" r="33" stroke="#f59e0b" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * 0.25} strokeLinecap="round" fill="none" />
+                    <circle cx="40" cy="40" r="33" stroke="#f59e0b" strokeWidth="6.5" strokeDasharray="207.3" strokeDashoffset={207.3 * (1 - Math.min(0.95, Math.max(0.25, ((parseFloat(String(liveTemp)) || 36.8) - 34) / 7)))} strokeLinecap="round" fill="none" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-none">{liveTemp}°C</span>
-                    <span className="text-[9px] font-bold text-amber-400 mt-0.5">{t('Temp')}</span>
+                    <span className="text-sm font-black text-slate-900 dark:text-white leading-none tabular-nums">{liveTemp}°C</span>
+                    <span className="text-[9px] font-bold text-amber-500 dark:text-amber-400 mt-0.5">{t('Temp')}</span>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">{t('Temp')}</span>
@@ -923,20 +923,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-slate-400">{t('Patients Registered')}</span>
-                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{t('Patients Registered')}</span>
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <Users size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl sm:text-2xl font-black text-white">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums">
                   {liveCounts?.totalPatients ?? 0}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400">
-                  {liveCounts ? `${liveCounts.stablePatients} Stable` : 'Live DB'}
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  {liveCounts ? `${liveCounts.stablePatients} ${t('Stable')}` : 'Live DB'}
                 </span>
               </div>
-              <p className="text-[10px] text-amber-300 font-bold mt-2">
+              <p className="text-[10px] text-amber-700 dark:text-amber-300 font-bold mt-2">
                 {liveCounts ? `${liveCounts.attentionPatients} need follow-up` : 'Loading...'}
               </p>
             </motion.div>
@@ -948,20 +948,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-slate-400">{t('Active Clinicians')}</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{t('Active Clinicians')}</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <UserCheck size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl sm:text-2xl font-black text-white">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums">
                   {liveCounts?.totalClinicians ?? 0}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                   {liveCounts ? `${liveCounts.activeDoctors} MD` : '0 MD'}
                 </span>
               </div>
-              <p className="text-[10px] text-cyan-300 font-bold mt-2">
+              <p className="text-[10px] text-cyan-700 dark:text-cyan-300 font-bold mt-2">
                 {liveCounts ? `${liveCounts.activeNurses} Nurses on duty` : 'Loading...'}
               </p>
             </motion.div>
@@ -973,20 +973,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-slate-400">{t('Appointments')}</span>
-                <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{t('Appointments')}</span>
+                <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                   <Calendar size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl sm:text-2xl font-black text-white">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums">
                   {liveCounts?.totalAppointments ?? 0}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400">
-                  ✓ {liveCounts?.completedAppointments ?? 0} Done
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  ✓ {liveCounts?.completedAppointments ?? 0} {t('Done')}
                 </span>
               </div>
-              <p className="text-[10px] text-amber-300 font-bold mt-2">
+              <p className="text-[10px] text-amber-700 dark:text-amber-300 font-bold mt-2">
                 ⏳ {liveCounts?.pendingAppointments ?? 0} not yet completed
               </p>
             </motion.div>
@@ -998,20 +998,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-slate-400">{t('Prescriptions')}</span>
-                <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-400 flex items-center justify-center">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{t('Prescriptions')}</span>
+                <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center">
                   <Pill size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl sm:text-2xl font-black text-white">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums">
                   {liveCounts?.totalPrescriptions ?? 0}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400">
-                  ✓ {liveCounts?.activePrescriptions ?? 0} Active
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  ✓ {liveCounts?.activePrescriptions ?? 0} {t('Active')}
                 </span>
               </div>
-              <p className="text-[10px] text-amber-300 font-bold mt-2">
+              <p className="text-[10px] text-amber-700 dark:text-amber-300 font-bold mt-2">
                 ⏳ {liveCounts?.pendingPrescriptions ?? 0} awaiting approval
               </p>
             </motion.div>
@@ -1023,20 +1023,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="p-4 doctorian-thick-card transition-all cursor-pointer flex flex-col justify-between col-span-2 sm:col-span-1"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-slate-400">{t('Hospital Beds')}</span>
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{t('Hospital Beds')}</span>
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
                   <Bed size={16} />
                 </div>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl sm:text-2xl font-black text-white">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums">
                   {liveBeds ? `${liveBeds.available}/${liveBeds.total}` : '0/0'}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400">
-                  Free
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  {t('Free')}
                 </span>
               </div>
-              <p className="text-[10px] text-cyan-300 font-bold mt-2 truncate">
+              <p className="text-[10px] text-cyan-700 dark:text-cyan-300 font-bold mt-2 truncate">
                 {liveBeds ? `${liveBeds.occupied} occupied · ${liveBeds.cleaning} cleaning` : hospital.shortName}
               </p>
             </motion.div>
@@ -1296,7 +1296,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
                     </div>
                     <span className="font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-300 dark:to-blue-300 bg-clip-text text-transparent">
-                      Thinking...
+                      {t('Thinking...')}
                     </span>
                   </div>
                 )}
@@ -1316,7 +1316,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     onClick={() => handleSendMessage(chip)}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#0c1a36] hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200 dark:border-blue-900/50 text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-left truncate transition-colors cursor-pointer"
                   >
-                    {chip}
+                    {t(chip)}
                   </button>
                 ))}
               </div>
@@ -1473,10 +1473,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       : '/portraits/patient_mary.jpg';
                   const tierColor =
                     p.risk_tier === 'Critical'
-                      ? 'bg-rose-500/20 text-rose-300'
+                      ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
                       : p.risk_tier === 'Attention'
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-emerald-500/15 text-emerald-400';
+                      ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                      : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
                   return (
                     <div
                       key={p.id}
@@ -1491,7 +1491,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         />
                         <div className="text-left min-w-0">
                           <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug truncate">{p.full_name}</p>
-                          <p className="text-[10px] text-slate-400 leading-snug truncate">{p.mrn} • {p.district} • {p.age}y</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug truncate">{p.mrn} • {p.district} • {p.age}y</p>
                         </div>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tierColor}`}>
@@ -1540,27 +1540,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-base font-black text-slate-900 dark:text-white">{labNormalPct}%</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase">{t('Normal')}</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white tabular-nums">{labNormalPct}%</span>
+                    <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">{t('Normal')}</span>
                   </div>
                 </div>
 
                 <div className="space-y-1.5 text-xs text-left">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span className="font-semibold text-slate-600 dark:text-slate-300">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
                       Normal: {liveCounts?.normalLabs ?? 0} ({labNormalPct}%)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                    <span className="font-semibold text-slate-600 dark:text-slate-300">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
                       Attention: {liveCounts?.abnormalLabs ?? 0} ({labAbnormalPct}%)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                    <span className="font-semibold text-amber-300">
+                    <span className="font-semibold text-amber-700 dark:text-amber-300">
                       Pending: {liveCounts?.pendingLabs ?? 0}
                     </span>
                   </div>
@@ -1569,8 +1569,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
               <div className={`p-2 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 ${
                 (liveCounts?.pendingLabs ?? 0) > 0
-                  ? 'bg-amber-950/40 border-amber-500/40 text-amber-300'
-                  : 'bg-emerald-950/40 border-emerald-800/40 text-emerald-300'
+                  ? 'bg-amber-500/15 dark:bg-amber-950/40 border-amber-400/50 text-amber-800 dark:text-amber-300'
+                  : 'bg-emerald-500/15 dark:bg-emerald-950/40 border-emerald-400/50 text-emerald-800 dark:text-emerald-300'
               }`}>
                 <CheckCircle2 size={13} />
                 <span>
@@ -1610,14 +1610,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="min-w-0">
                         <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-cyan-400">{item.scheduled_for}</span>
                         <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate">{item.patient_name}</p>
-                        <p className="text-[10px] text-slate-400 leading-tight truncate">{item.clinician_name} • {item.visit_type}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight truncate">{item.clinician_name} • {item.visit_type}</p>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                         isDone
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
-                          : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                          : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/40'
                       }`}>
-                        {isDone ? '✓ Done' : 'Pending'}
+                        {isDone ? `✓ ${t('Done')}` : t('Pending')}
                       </span>
                     </div>
                   );
@@ -2137,7 +2137,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {t('Done vs Pending')}
                   </h4>
                 </div>
-                <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-400/30">
                   Live
                 </span>
               </div>
@@ -2161,7 +2161,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-sm font-black text-slate-900 dark:text-white leading-none tabular-nums">
                       {liveProgress?.overallScore ?? 0}%
                     </span>
-                    <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{t('Completed')}</span>
+                    <span className="text-[7.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter mt-0.5">{t('Completed')}</span>
                   </div>
                 </div>
 
@@ -2170,11 +2170,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     type="button"
                     whileTap={{ scale: 0.97 }}
                     onClick={() => triggerFeatureFeedback('Opening Steps & Vitality Tracker', 'vitality')}
-                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-400 transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-500 transition-colors cursor-pointer"
                   >
                     <span className="flex items-center gap-1.5">
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
-                        stepsToday > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                        stepsToday > 0 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                       }`}>
                         {stepsToday > 0 ? '✓' : '…'}
                       </span>
@@ -2186,11 +2186,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     type="button"
                     whileTap={{ scale: 0.97 }}
                     onClick={() => triggerFeatureFeedback('Opening Prescription Approvals', 'meds')}
-                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-400 transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-500 transition-colors cursor-pointer"
                   >
                     <span className="flex items-center gap-1.5">
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
-                        (liveCounts?.pendingPrescriptions ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                        (liveCounts?.pendingPrescriptions ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                       }`}>
                         {(liveCounts?.pendingPrescriptions ?? 0) === 0 ? '✓' : '…'}
                       </span>
@@ -2202,11 +2202,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     type="button"
                     whileTap={{ scale: 0.97 }}
                     onClick={() => triggerFeatureFeedback('Opening Clinical Appointments', 'clinical_roadmap')}
-                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-400 transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-500 transition-colors cursor-pointer"
                   >
                     <span className="flex items-center gap-1.5">
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
-                        (liveCounts?.pendingAppointments ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                        (liveCounts?.pendingAppointments ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                       }`}>
                         {(liveCounts?.pendingAppointments ?? 0) === 0 ? '✓' : '…'}
                       </span>
@@ -2250,12 +2250,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <div className="min-w-0 pr-2">
                       <p className="font-bold text-slate-800 dark:text-white truncate text-[10.5px]">{task.label}</p>
-                      <p className="text-[9.5px] text-slate-400 truncate">{task.statusText}</p>
+                      <p className="text-[9.5px] text-slate-500 dark:text-slate-400 truncate">{task.statusText}</p>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
                       task.done
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                        : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/40'
                     }`}>
                       {task.done ? t('Done') : t('Not Yet')}
                     </span>

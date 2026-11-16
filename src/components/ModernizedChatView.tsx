@@ -2240,6 +2240,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             onSelectPrompt={(p) => handleSendMessage(p)}
             arduino={arduino}
             isUgandaMOHActive={isUgandaMOHActive}
+            userName={user?.displayName || 'Akora Joseph'}
           />
         ) : (
           <div className="w-full max-w-2xl mx-auto space-y-2.5 sm:space-y-3">

@@ -156,13 +156,11 @@ export const VitalityMatrix: React.FC<VitalityMatrixProps> = ({ onNavigate, user
   ];
 
   const toggleRecommendation = (id: string) => {
-    setCompletedRecommendations(prev => {
-      const next = !prev[id];
-      if (addToast) {
-        addToast(next ? `Goal marked as Done!` : `Goal marked Pending.`, 'info');
-      }
-      return { ...prev, [id]: next };
-    });
+    const next = !completedRecommendations[id];
+    setCompletedRecommendations(prev => ({ ...prev, [id]: !prev[id] }));
+    if (addToast) {
+      addToast(next ? `Goal marked as Done!` : `Goal marked Pending.`, 'info');
+    }
   };
 
   const handleSaveVitals = async (e: React.FormEvent) => {

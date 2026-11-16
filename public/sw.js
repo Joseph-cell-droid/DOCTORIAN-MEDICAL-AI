@@ -1,5 +1,5 @@
 // Doctorian PWA Service Worker (Full Offline & Online Core)
-const CACHE_NAME = 'doctorian-offline-v2';
+const CACHE_NAME = 'doctorian-offline-v3';
 
 // Static assets to pre-cache as the application shell
 const PRECACHE_ASSETS = [
@@ -52,8 +52,18 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // 1. Bypass Server API and Real-Time Telemetry/Websocket Endpoints
-  if (url.pathname.startsWith('/api') || url.pathname.includes('/ws') || url.pathname.includes('/live')) {
+  // 1. Bypass Server API, Real-Time Endpoints, and Vite Dev / Source Modules
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.includes('/ws') ||
+    url.pathname.includes('/live') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/') ||
+    url.pathname.startsWith('/@') ||
+    url.pathname.endsWith('.tsx') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.jsx')
+  ) {
     return; // Let the network handle these directly
   }
 
@@ -78,7 +88,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Stale-While-Revalidate for JS, CSS, Images, and Web Fonts
+  // 3. Stale-While-Revalidate for bundled production JS, CSS, Images, and Web Fonts
   if (
     event.request.destination === 'script' ||
     event.request.destination === 'style' ||
@@ -100,9 +110,9 @@ self.addEventListener('fetch', (event) => {
             }
             return networkResponse;
           })
-          .catch((err) => {
-            console.debug('[Doctorian SW] Network fetch omitted (offline):', url.pathname);
-            return cachedResponse || new Response('', { status: 408, statusText: 'Offline' });
+          .catch(() => {
+            if (cachedResponse) return cachedResponse;
+            return fetch(event.request);
           });
 
         return cachedResponse || fetchPromise;

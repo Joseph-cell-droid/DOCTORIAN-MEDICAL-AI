@@ -256,7 +256,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
   const bedOccupancyPct = beds?.occupancyPct ?? 0;
 
   return (
-    <div className="w-full doctorian-canvas text-white font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
+    <div className="w-full doctorian-canvas text-slate-900 dark:text-white font-sans p-4 sm:p-6 lg:p-7 space-y-6 transition-colors duration-300">
       <main className="w-full space-y-6">
 
           {/* =================================================================== */}
@@ -264,7 +264,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
           {/* =================================================================== */}
           <section className="space-y-5">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-[900] text-white tracking-tight">{t('Doctor Dashboard')}</h1>
+              <h1 className="text-2xl font-[900] text-slate-900 dark:text-white tracking-tight">{t('Doctor Dashboard')}</h1>
               <button
                 type="button"
                 onClick={() => setIsUnlocked(false)}
@@ -286,10 +286,10 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
                 />
                 <div className="flex-1 min-w-0 space-y-2.5">
                   <div>
-                    <h2 className="text-lg font-black text-white leading-tight truncate">Dr. Sarah M. Nakalema</h2>
-                    <p className="text-xs text-slate-300 font-medium">{t('General Physician')}</p>
-                    <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> {t('Online')}
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight truncate">Dr. Sarah M. Nakalema</h2>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{t('General Physician')}</p>
+                    <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" /> {t('Online')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 pt-1">
@@ -316,7 +316,7 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
               {/* Patient Live Logs Thick Summary Stack (Live SQLite Telemetry) */}
               <div className="lg:col-span-4 doctorian-thick-card p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-white">{t('Patient Live Logs')}</h3>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">{t('Patient Live Logs')}</h3>
                   <button
                     type="button"
                     onClick={() => onNavigate?.('records')}
@@ -372,8 +372,8 @@ export const DoctorsDashboard: React.FC<DoctorsDashboardProps> = ({ addToast, on
                             <LogIcon size={16} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-black text-white truncate">{log.title}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{log.subtitle}</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">{log.title}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{log.subtitle}</p>
                           </div>
                         </div>
                         <span className="text-slate-400 text-xs font-bold shrink-0">&gt;</span>

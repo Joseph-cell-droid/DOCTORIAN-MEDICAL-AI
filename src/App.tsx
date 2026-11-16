@@ -159,22 +159,23 @@ function safeLazy<P extends object = any>(
   );
 
   return lazy(async () => {
-    try {
-      const module = await importFn();
-      const Component = getComponent(module);
-      return { default: Component };
-    } catch (error) {
-      console.warn("Retrying dynamic module import...", error);
+    const delays = [250, 750, 1500];
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        await new Promise(r => setTimeout(r, 200));
-        const retryModule = await importFn();
-        const Component = getComponent(retryModule);
+        const module = await importFn();
+        const Component = getComponent(module);
         return { default: Component };
-      } catch (retryError) {
-        console.error("Lazy module import failed after retry:", retryError);
-        return { default: Fallback };
+      } catch (error) {
+        if (attempt < delays.length) {
+          console.warn(`Retrying dynamic module import (${attempt + 1}/${delays.length})...`, error);
+          await new Promise(r => setTimeout(r, delays[attempt]));
+        } else {
+          console.warn("Lazy module import unavailable after retries, rendering recovery fallback:", error);
+          return { default: Fallback };
+        }
       }
     }
+    return { default: Fallback };
   }) as unknown as React.ComponentType<P>;
 }
 

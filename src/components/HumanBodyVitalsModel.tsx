@@ -41,71 +41,30 @@ export const HumanBodyVitalsModel: React.FC<HumanBodyVitalsModelProps> = ({
         />
       </div>
 
-      {/* 2. Hologram 3D Human Silhouette & Center ECG Heart Shield */}
-      <svg 
-        viewBox="0 0 200 220" 
-        className="w-32 h-32 sm:w-38 sm:h-38 z-10 drop-shadow-[0_0_18px_rgba(6,182,212,0.5)]"
-        fill="none" 
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Head with Contoured 3D Glow */}
-        <ellipse cx="100" cy="36" rx="17" ry="20" fill="url(#headGlowGrad)" stroke="#38bdf8" strokeWidth="1.6" />
-        <ellipse cx="100" cy="34" rx="12" ry="14" fill="#0284c7" fillOpacity="0.4" />
-
-        {/* Neck */}
-        <path d="M93 54 L93 64 L107 64 L107 54 Z" fill="url(#torsoMeshGrad)" stroke="#38bdf8" strokeWidth="1.4" />
-
-        {/* Shoulders, Upper Chest & Torso Contour */}
-        <path 
-          d="M58 82 C68 68, 132 68, 142 82 C152 96, 145 130, 138 165 C134 185, 126 215, 120 220 L80 220 C74 215, 66 185, 62 165 C55 130, 48 96, 58 82 Z" 
-          fill="url(#torsoMeshGrad)" 
-          stroke="#0ea5e9" 
-          strokeWidth="1.8" 
+      {/* 2. Real Clinical Anatomy Hologram Photograph + Center ECG Heart Shield */}
+      <div className="relative w-30 h-30 sm:w-34 sm:h-34 rounded-full overflow-hidden z-10 border-2 border-cyan-400/60 shadow-[0_0_24px_rgba(6,182,212,0.45)] bg-[#041129]">
+        <img
+          src="/portraits/hologram_anatomy.jpg"
+          alt="Clinical Anatomy Telemetry"
+          className="w-full h-full object-cover opacity-90"
         />
-
-        {/* Arm Contours */}
-        <path d="M54 86 C46 108, 42 140, 40 165" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" opacity="0.85" />
-        <path d="M146 86 C154 108, 158 140, 160 165" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" opacity="0.85" />
-
-        {/* Internal Bio-circuit Lines */}
-        <path d="M100 64 L100 95" stroke="#38bdf8" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
-        <path d="M84 90 L116 90" stroke="#38bdf8" strokeWidth="1" opacity="0.4" />
-
-        {/* Center Glowing Heart Shield with Bright White ECG Wave (Exact Photo) */}
-        <g transform="translate(82, 92)">
-          {/* Shield / Heart badge */}
-          <path 
-            d="M18 2 C26 2, 33 6, 34 14 C35 24, 25 32, 18 36 C11 32, 1 24, 2 14 C3 6, 10 2, 18 2 Z" 
-            fill="#0369a1" 
-            fillOpacity="0.95"
-            stroke="#38bdf8" 
-            strokeWidth="1.8"
-            className="drop-shadow-[0_0_12px_rgba(56,189,248,0.9)]"
-          />
-          {/* Pulsing White ECG Wave */}
-          <path 
-            d="M5 18 L11 18 L14 10 L18 26 L22 13 L25 21 L31 18" 
-            stroke="#ffffff" 
-            strokeWidth="2.2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="drop-shadow-[0_0_6px_#ffffff]"
-          />
-        </g>
-
-        <defs>
-          <linearGradient id="headGlowGrad" x1="100" y1="16" x2="100" y2="56" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#38bdf8" stopOpacity="0.6" />
-            <stop offset="0.6" stopColor="#0284c7" stopOpacity="0.4" />
-            <stop offset="1" stopColor="#0369a1" stopOpacity="0.7" />
-          </linearGradient>
-          <linearGradient id="torsoMeshGrad" x1="100" y1="64" x2="100" y2="220" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#0284c7" stopOpacity="0.45" />
-            <stop offset="0.4" stopColor="#0369a1" stopOpacity="0.3" />
-            <stop offset="1" stopColor="#075985" stopOpacity="0.6" />
-          </linearGradient>
-        </defs>
-      </svg>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030e24]/85 via-transparent to-cyan-500/15 pointer-events-none" />
+        {/* Center Glowing Heart Shield with Bright White ECG Wave */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-9 h-9 rounded-full bg-[#0369a1]/80 border border-cyan-300/80 shadow-[0_0_12px_rgba(56,189,248,0.85)] flex items-center justify-center backdrop-blur-xs">
+            <svg viewBox="0 0 36 36" className="w-6 h-6" fill="none">
+              <path
+                d="M5 18 L11 18 L14 10 L18 26 L22 13 L25 21 L31 18"
+                stroke="#ffffff"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="drop-shadow-[0_0_6px_#ffffff]"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
 
       {/* 3. Four Circular Orbital Node Badges (Exact Photo 6) */}
 

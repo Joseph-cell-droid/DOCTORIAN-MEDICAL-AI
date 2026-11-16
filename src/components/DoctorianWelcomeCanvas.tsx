@@ -157,43 +157,39 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
         </div>
       </motion.div>
 
-      {/* Top Clinical AI Hero Badge */}
+      {/* Top Clinical AI Hero Badge (Compact) */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-2 mb-2"
+        className="text-center space-y-1.5 mb-1 max-w-xl"
       >
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-gradient-to-r dark:from-cyan-950/80 dark:via-blue-950/80 dark:to-purple-950/80 border border-blue-200 dark:border-cyan-400/50 text-blue-700 dark:text-cyan-300 text-[11px] font-bold shadow-sm">
-          <Sparkles size={12} className="text-blue-600 dark:text-cyan-400 animate-pulse" />
-          <span>Doctorian Clinical Intelligence</span>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-gradient-to-r dark:from-cyan-950/80 dark:via-blue-950/80 dark:to-purple-950/80 border border-blue-200 dark:border-cyan-400/50 text-blue-700 dark:text-cyan-300 text-[10.5px] font-bold shadow-sm">
+          <Sparkles size={11} className="text-blue-600 dark:text-cyan-400 animate-pulse" />
+          <span>{t('Doctorian Clinical Intelligence')}</span>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-normal hidden sm:inline">Active Online</span>
+          <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-mono font-normal hidden sm:inline">{t('Online')}</span>
         </div>
 
-        <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-          How can I assist your clinical consultation today?
+        <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+          {t('How can I assist your clinical consultation today?')}
         </h2>
 
-        <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-snug">
-          Empathetic, evidence-based diagnostic co-pilot incorporating WHO protocols and Uganda Clinical Guidelines (UCG).
-        </p>
-
-        {/* Live Telemetry Status Bar */}
-        <div className="inline-flex items-center gap-2.5 sm:gap-3 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#091738]/90 border border-slate-200 dark:border-blue-500/30 text-[11px] text-slate-700 dark:text-slate-300 shadow-sm backdrop-blur-md flex-wrap justify-center">
+        {/* Compact Live Telemetry Status Bar */}
+        <div className="inline-flex items-center gap-2.5 px-3 py-1 rounded-xl bg-white/95 dark:bg-[#091738]/90 border border-slate-200 dark:border-blue-500/30 text-[10.5px] text-slate-700 dark:text-slate-300 shadow-sm backdrop-blur-md flex-wrap justify-center">
           <div className="flex items-center gap-1">
-            <Heart size={12} className="text-rose-500 dark:text-rose-400 animate-pulse" />
+            <Heart size={11} className="text-rose-500 dark:text-rose-400 animate-pulse" />
             <span className="text-slate-500 dark:text-slate-400">HR:</span>
             <span className="font-bold text-slate-900 dark:text-white font-mono tabular-nums">{hr} bpm</span>
           </div>
           <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
           <div className="flex items-center gap-1">
-            <Activity size={12} className="text-blue-600 dark:text-cyan-400" />
+            <Activity size={11} className="text-blue-600 dark:text-cyan-400" />
             <span className="text-slate-500 dark:text-slate-400">SpO2:</span>
             <span className="font-bold text-slate-900 dark:text-white font-mono tabular-nums">{spo2}%</span>
           </div>
           <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
           <div className="flex items-center gap-1">
-            <Thermometer size={12} className="text-amber-500 dark:text-amber-400" />
+            <Thermometer size={11} className="text-amber-500 dark:text-amber-400" />
             <span className="text-slate-500 dark:text-slate-400">Temp:</span>
             <span className="font-bold text-slate-900 dark:text-white font-mono tabular-nums">{temp}°C</span>
           </div>
@@ -201,7 +197,7 @@ export const DoctorianWelcomeCanvas: React.FC<DoctorianWelcomeCanvasProps> = ({
             <>
               <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
               <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-300">
-                <BookOpen size={12} className="text-emerald-600 dark:text-emerald-400" />
+                <BookOpen size={11} className="text-emerald-600 dark:text-emerald-400" />
                 <span className="font-semibold text-[10px]">UCG Active</span>
               </div>
             </>

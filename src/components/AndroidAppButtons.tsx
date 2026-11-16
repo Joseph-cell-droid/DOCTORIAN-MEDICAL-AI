@@ -967,7 +967,7 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
             <span className="text-[11px] font-medium leading-tight">
-              WHO & Uganda MoH Clinical Guidelines Active
+              {t('WHO & Uganda MoH Clinical Guidelines Active')}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 shrink-0">
@@ -997,9 +997,9 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                     {React.createElement(previewModule.icon, { size: 24 })}
                   </div>
                   <div>
-                    <h4 className="text-base font-black">{previewModule.label}</h4>
+                    <h4 className="text-base font-black">{t(previewModule.label)}</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      {previewModule.subtitle}
+                      {t(previewModule.subtitle)}
                     </p>
                   </div>
                 </div>
@@ -1016,19 +1016,19 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
               <div className="space-y-2 text-xs">
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-medium">Intelligence Engine:</span>
+                    <span className="text-slate-500 font-medium">{t('Intelligence Engine')}:</span>
                     <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">
                       {previewModule.intelligenceTag}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-medium">Clinical Standard:</span>
+                    <span className="text-slate-500 font-medium">{t('Clinical Standard')}:</span>
                     <span className="font-medium text-slate-700 dark:text-slate-300 font-mono text-[11px]">
                       {previewModule.guidelineCompliance}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-medium">Priority Level:</span>
+                    <span className="text-slate-500 font-medium">{t('Priority Level')}:</span>
                     <span className="font-bold uppercase text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">
                       {previewModule.priorityLevel}
                     </span>
@@ -1037,7 +1037,7 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
 
                 <div>
                   <p className="font-bold text-xs mb-1 text-slate-700 dark:text-slate-300">
-                    Clinical Capabilities:
+                    {t('Clinical Capabilities')}:
                   </p>
                   <ul className="space-y-1">
                     {previewModule.clinicalCapabilities.map((cap, i) => (
@@ -1060,7 +1060,7 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer"
                 >
-                  <span>Open {previewModule.label}</span>
+                  <span>{t('Open')} {t(previewModule.label)}</span>
                   <ArrowRight size={14} />
                 </button>
                 <button
@@ -1068,7 +1068,7 @@ export const AndroidAppButtons: React.FC<AndroidAppButtonsProps> = ({
                   onClick={() => setPreviewModule(null)}
                   className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer"
                 >
-                  Close
+                  {t('Close')}
                 </button>
               </div>
             </motion.div>

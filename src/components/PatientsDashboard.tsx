@@ -231,7 +231,7 @@ export const PatientsDashboard: React.FC = () => {
   });
 
   return (
-    <div className="w-full min-h-screen bg-[#071329] text-white font-sans pb-16 overflow-x-hidden border-box">
+    <div className="w-full min-h-screen bg-[#071329] text-white font-sans pb-24 overflow-x-hidden border-box">
       
       {/* ========================================================================= */}
       {/* TOP HEADER CONTROLS                                                       */}

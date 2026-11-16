@@ -547,10 +547,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 </div>
                 <div className="flex flex-col pr-1">
                   <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                    {activePageMeta.label.split(' ')[0]}
+                    {t(activePageMeta.label)}
                   </span>
                   <span className="text-[9px] text-blue-600 dark:text-blue-400 font-semibold uppercase">
-                    Apps • Tap to expand
+                    {t('Apps • Tap to expand')}
                   </span>
                 </div>
               </button>
@@ -587,7 +587,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   onNavigate('home');
                 }}
                 aria-label={t('Home')}
-                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
+                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
                   className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
@@ -617,7 +617,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   onNavigate('vitality');
                 }}
                 aria-label={t('Health')}
-                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
+                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
                   className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
@@ -679,7 +679,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   onNavigate('records');
                 }}
                 aria-label={t('Records')}
-                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
+                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
                   className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
@@ -709,7 +709,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   onNavigate('settings');
                 }}
                 aria-label={t('Profile')}
-                className="group relative flex-1 flex flex-col items-center justify-center h-full py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
+                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
               >
                 <div
                   className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${

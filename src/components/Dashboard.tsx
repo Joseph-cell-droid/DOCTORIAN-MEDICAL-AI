@@ -235,6 +235,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const currentPatient = patientsData[selectedPatientId] || patientsData.sarah;
 
+  // Dynamic online/DB/sensor telemetry for System Performance
+  const [isNetworkOnline, setIsNetworkOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  useEffect(() => {
+    const goOnline = () => setIsNetworkOnline(true);
+    const goOffline = () => setIsNetworkOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  // Build dynamic SVG waveform paths from selected patient or live sensor history
+  const chartPoints = (() => {
+    if (selectedPatientId === 'machine' && history && history.length >= 2) {
+      const slice = history.slice(-6);
+      return slice.map((item, idx) => ({
+        time: `${idx + 1}`,
+        hr: item.heartRate,
+        bp: item.systolicBP,
+        temp: item.temperature
+      }));
+    }
+    return currentPatient.trendPoints;
+  })();
+
+  const buildTrendPath = (values: number[], minVal: number, maxVal: number) => {
+    const xs = [10, 66, 122, 178, 234, 290];
+    const span = Math.max(1, maxVal - minVal);
+    return values
+      .slice(0, 6)
+      .map((val, i) => {
+        const clamped = Math.max(minVal, Math.min(maxVal, val));
+        const y = 70 - ((clamped - minVal) / span) * 54;
+        return `${i === 0 ? 'M' : 'L'}${xs[i] ?? 290},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  };
+
+  const hrDots = chartPoints.slice(0, 6).map((pt, i) => {
+    const xs = [10, 66, 122, 178, 234, 290];
+    const clamped = Math.max(50, Math.min(120, pt.hr));
+    const y = 70 - ((clamped - 50) / 70) * 54;
+    return { x: xs[i] ?? 290, y: Number(y.toFixed(1)) };
+  });
+
+  const hrTrendPath = buildTrendPath(chartPoints.map((p) => p.hr), 50, 120);
+  const bpTrendPath = buildTrendPath(chartPoints.map((p) => p.bp), 95, 160);
+  const tempTrendPath = buildTrendPath(chartPoints.map((p) => Number(p.temp) || 36.6), 35.5, 39.5);
+
   // Reactive feedback state for feature clicks
   const [activeFeaturePulse, setActiveFeaturePulse] = useState<string | null>(null);
   const triggerFeatureFeedback = (label: string, view?: string) => {
@@ -777,6 +830,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   src={hospital.photoUrl}
                   alt={hospital.name}
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/uganda_hospital_building.jpg';
+                  }}
                   onClick={() => setIsHospitalGuideOpen(true)}
                   className="w-full sm:w-28 h-24 rounded-xl object-cover border border-cyan-400/50 cursor-pointer shrink-0"
                 />
@@ -997,7 +1053,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Activity size={18} className="text-blue-500 shrink-0" />
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Live Health Monitoring</h3>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">{t('Live Health Monitoring')}</h3>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     {arduino?.connection?.connected ? 'Sensors Live' : 'Live'}
@@ -1030,32 +1086,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {/* Anatomy Hologram & Vitals Grid */}
               <div className="grid grid-cols-12 gap-3 items-center">
                 
-                {/* 3D Hologram Anatomy Figure */}
-                <div className="col-span-5 relative h-48 rounded-2xl bg-gradient-to-b from-blue-950/80 to-[#030914] border border-blue-500/20 flex items-center justify-center overflow-hidden p-2">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,229,255,0.15),transparent_70%)]" />
-                  
-                  {/* Glowing Hologram Anatomy Silhouette SVG with Pulsing Heart */}
-                  <svg className="w-full h-full max-h-40" viewBox="0 0 100 180" fill="none">
-                    {/* Head */}
-                    <circle cx="50" cy="20" r="12" stroke="#00e5ff" strokeWidth="1.5" opacity="0.8" />
-                    {/* Neck */}
-                    <path d="M48,32 L48,38 M52,32 L52,38" stroke="#00e5ff" strokeWidth="1.5" opacity="0.6" />
-                    {/* Torso */}
-                    <path d="M35,42 L65,42 L60,105 L40,105 Z" stroke="#00e5ff" strokeWidth="1.5" opacity="0.8" />
-                    {/* Chest Contours */}
-                    <path d="M42,50 Q50,60 58,50 M44,65 Q50,72 56,65" stroke="#00e5ff" strokeWidth="1" opacity="0.5" />
-                    {/* Arms */}
-                    <path d="M35,42 L22,75 L18,110 M65,42 L78,75 L82,110" stroke="#00e5ff" strokeWidth="1.5" opacity="0.7" />
-                    {/* Legs */}
-                    <path d="M43,105 L40,150 L38,175 M57,105 L60,150 L62,175" stroke="#00e5ff" strokeWidth="1.5" opacity="0.7" />
-                    {/* Pulsing Pink Heart Hologram */}
-                    <circle cx="52" cy="56" r="6" fill="#ff2d55" className="animate-ping" opacity="0.75" />
-                    <circle cx="52" cy="56" r="4.5" fill="#ff2d55" className="animate-pulse" />
-                  </svg>
-                  
-                  {/* Subtle pedestal glow */}
-                  <div className="absolute bottom-1 w-20 h-2 rounded-full bg-cyan-400/40 blur-sm" />
-                </div>
+                {/* Real Clinical Anatomy Hologram Photography Card (Clickable) */}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => triggerFeatureFeedback('Opening 3D Clinical Anatomy Telemetry', 'illustrator')}
+                  className="col-span-5 relative h-48 rounded-2xl bg-[#030914] border-2 border-cyan-500/35 hover:border-cyan-400/75 flex items-center justify-center overflow-hidden cursor-pointer group transition-all"
+                  title="Open 3D Clinical Anatomy Telemetry"
+                >
+                  <img
+                    src="/portraits/hologram_anatomy.jpg"
+                    alt="3D Clinical Anatomy Telemetry"
+                    className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#030914]/90 via-transparent to-cyan-500/15 pointer-events-none" />
+                  {/* Pulsing Cardiac Marker */}
+                  <div className="absolute top-[36%] left-[52%] -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <span className="absolute inset-0 w-5 h-5 rounded-full bg-rose-500/60 animate-ping" />
+                    <span className="relative block w-3 h-3 rounded-full bg-rose-500 border border-white shadow-[0_0_10px_#ff2d55]" />
+                  </div>
+                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[9px] font-black text-cyan-200 bg-black/55 backdrop-blur-xs px-2 py-1 rounded-lg border border-cyan-400/30">
+                    <span className="truncate">{currentPatient.name.split(' ')[0]}</span>
+                    <span className="text-emerald-300 shrink-0 tabular-nums">{liveHeartRate} bpm</span>
+                  </div>
+                </motion.button>
 
                 {/* 4 Reactive Real-time Vitals Metric Buttons connected to Live Sensors */}
                 <div className="col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
@@ -1069,13 +1123,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <div className="flex items-center gap-1.5 text-rose-500">
                       <Heart size={14} className="animate-pulse" />
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Heart Rate</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{t('Heart Rate')}</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.heartRate : currentPatient.heartRate}{' '}
                       <span className="text-[10px] font-normal text-slate-400">bpm</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : t('Normal')}</span>
                   </motion.button>
 
                   {/* Blood Pressure */}
@@ -1087,13 +1141,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <div className="flex items-center gap-1.5 text-blue-500">
                       <Activity size={14} />
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Blood Pressure</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{t('Blood Pressure')}</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? `${vitals.systolicBP}/${vitals.diastolicBP}` : currentPatient.bloodPressure}{' '}
                       <span className="text-[10px] font-normal text-slate-400">mmHg</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : t('Normal')}</span>
                   </motion.button>
 
                   {/* Temperature */}
@@ -1105,13 +1159,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <div className="flex items-center gap-1.5 text-amber-500">
                       <Thermometer size={14} />
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Temperature</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{t('Temperature')}</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.temperature.toFixed(1) : currentPatient.temperature}{' '}
                       <span className="text-[10px] font-normal text-slate-400">°C</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : t('Normal')}</span>
                   </motion.button>
 
                   {/* SpO2 */}
@@ -1123,30 +1177,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <div className="flex items-center gap-1.5 text-cyan-500">
                       <Wind size={14} />
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">SpO2</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{t('SpO2')}</span>
                     </div>
                     <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                       {(selectedPatientId === 'machine' || arduino?.connection?.connected) && vitals ? vitals.spo2 : currentPatient.spo2}%
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : 'Normal'}</span>
+                    <span className="text-[9px] font-bold text-emerald-500">● {arduino?.connection?.connected ? 'Sensor Live' : t('Normal')}</span>
                   </motion.button>
 
                 </div>
 
               </div>
 
-              {/* 24-hr Multi-line Trend Chart */}
+              {/* 24-hr Multi-line Trend Chart (Live Computed Paths) */}
               <div className="pt-2 border-t border-slate-100 dark:border-blue-900/40">
                 <div className="flex items-center justify-between text-[11px] mb-2 font-semibold">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1 text-blue-500 font-bold">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" /> Heart Rate
+                      <span className="w-2 h-2 rounded-full bg-blue-500" /> {t('Heart Rate')}
                     </span>
                     <span className="flex items-center gap-1 text-emerald-500 font-bold">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" /> BP
                     </span>
                     <span className="flex items-center gap-1 text-amber-500 font-bold">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" /> Temp
+                      <span className="w-2 h-2 rounded-full bg-amber-500" /> {t('Temp')}
                     </span>
                   </div>
                   <button
@@ -1154,59 +1208,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     onClick={() => onNavigate('monitor')}
                     className="text-blue-600 dark:text-cyan-400 hover:underline font-bold text-xs flex items-center gap-0.5 cursor-pointer"
                   >
-                    View Details →
+                    {t('View Details')} →
                   </button>
                 </div>
 
                 {/* SVG Multi-Parameter Graph */}
                 <div className="h-20 w-full relative">
                   <svg className="w-full h-full" viewBox="0 0 300 80" preserveAspectRatio="none">
-                    {/* Grid lines */}
                     <line x1="0" y1="20" x2="300" y2="20" stroke="currentColor" strokeOpacity="0.08" />
                     <line x1="0" y1="40" x2="300" y2="40" stroke="currentColor" strokeOpacity="0.08" />
                     <line x1="0" y1="60" x2="300" y2="60" stroke="currentColor" strokeOpacity="0.08" />
 
-                    {/* Heart Rate line (Blue) */}
-                    <path
-                      d="M10,50 L60,58 L110,40 L160,35 L210,45 L260,48 L290,46"
-                      fill="none"
-                      stroke="#3b82f6"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                    {/* Blood Pressure line (Teal/Emerald) */}
-                    <path
-                      d="M10,30 L60,35 L110,25 L160,22 L210,28 L260,30 L290,29"
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    {/* Temperature line (Amber) */}
-                    <path
-                      d="M10,65 L60,68 L110,60 L160,58 L210,64 L260,65 L290,66"
-                      fill="none"
-                      stroke="#f59e0b"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
+                    {/* Heart Rate line */}
+                    <path d={hrTrendPath} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+                    {/* Blood Pressure line */}
+                    <path d={bpTrendPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+                    {/* Temperature line */}
+                    <path d={tempTrendPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
 
-                    {/* Points on Heart Rate */}
-                    <circle cx="10" cy="50" r="3" fill="#3b82f6" />
-                    <circle cx="60" cy="58" r="3" fill="#3b82f6" />
-                    <circle cx="110" cy="40" r="3" fill="#3b82f6" />
-                    <circle cx="160" cy="35" r="3" fill="#3b82f6" />
-                    <circle cx="210" cy="45" r="3" fill="#3b82f6" />
-                    <circle cx="260" cy="48" r="3" fill="#3b82f6" />
+                    {hrDots.map((dot, idx) => (
+                      <circle key={idx} cx={dot.x} cy={dot.y} r="3" fill="#3b82f6" />
+                    ))}
                   </svg>
-                  {/* X Axis Time Labels */}
                   <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-1">
-                    <span>12AM</span>
-                    <span>4AM</span>
-                    <span>8AM</span>
-                    <span>12PM</span>
-                    <span>4PM</span>
-                    <span>8PM</span>
+                    {chartPoints.slice(0, 6).map((pt, idx) => (
+                      <span key={idx}>{pt.time}</span>
+                    ))}
                   </div>
                 </div>
 
@@ -1224,7 +1251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <Bot size={16} />
                   </div>
                   <div>
-                    <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">AI Assistant</h3>
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">{t('AI Assistant')}</h3>
                     <p className="text-[9.5px] text-slate-400">Doctorian Medical Neural Node</p>
                   </div>
                 </div>
@@ -1233,7 +1260,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => triggerFeatureFeedback('Opening Full AI Assistant', 'ai_nexus')}
                   className="px-2 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[9.5px] font-black uppercase flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online ↗
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {t('Online')} ↗
                 </button>
               </div>
 
@@ -1311,7 +1338,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Type your message..."
+                  placeholder={t('Type your message...')}
                   className="flex-1 px-3 py-2 bg-slate-100 dark:bg-[#0c1a36] border border-slate-200 dark:border-blue-900/50 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <button
@@ -1331,14 +1358,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Sparkles size={16} className="text-blue-500" />
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Quick Actions</h3>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">{t('Quick Actions')}</h3>
                 </div>
                 <button 
                   type="button" 
                   onClick={() => onNavigate('features')}
                   className="text-xs text-blue-600 dark:text-cyan-400 font-bold hover:underline"
                 >
-                  More →
+                  {t('See All')} →
                 </button>
               </div>
 
@@ -1353,7 +1380,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="p-2 rounded-xl bg-blue-600 text-white group-hover:scale-110 transition-transform">
                     <Plus size={16} />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">New Patient</span>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{t('New Patient')}</span>
                 </button>
 
                 <button
@@ -1364,7 +1391,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="p-2 rounded-xl bg-emerald-600 text-white group-hover:scale-110 transition-transform">
                     <Pill size={16} />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">New Prescription</span>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{t('New Prescription')}</span>
                 </button>
 
                 <button
@@ -1375,7 +1402,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="p-2 rounded-xl bg-purple-600 text-white group-hover:scale-110 transition-transform">
                     <Calendar size={16} />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">Book Appointment</span>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{t('Book Appointment')}</span>
                 </button>
 
                 <button
@@ -1386,7 +1413,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="p-2 rounded-xl bg-cyan-600 text-white group-hover:scale-110 transition-transform">
                     <FlaskConical size={16} />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">Run Lab Test</span>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{t('Run Lab Test')}</span>
                 </button>
 
                 <button
@@ -1397,7 +1424,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="p-2 rounded-xl bg-rose-600 text-white group-hover:scale-110 transition-transform">
                     <Video size={16} />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">Start Video Call</span>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{t('Start Video Call')}</span>
                 </button>
 
                 <button
@@ -1408,7 +1435,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="p-2 rounded-xl bg-indigo-600 text-white group-hover:scale-110 transition-transform">
                     <FileText size={16} />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">View Reports</span>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{t('View Reports')}</span>
                 </button>
 
               </div>
@@ -1601,61 +1628,78 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* 4D. System Performance */}
+            {/* 4D. Live System & Telemetry Status (Reactive, Real State) */}
             <div className="p-4 doctorian-thick-card flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Activity size={16} className="text-blue-500" />
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">System Performance</h4>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{t('System Performance')}</h4>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black">
-                  Optimal
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  isNetworkOnline ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                }`}>
+                  {isNetworkOnline ? t('Optimal') : t('Offline Mode')}
                 </span>
               </div>
 
-              {/* 3 Circular Ring Gauges */}
+              {/* 3 Interactive Ring Gauges driven by real app/DB/sensor telemetry */}
               <div className="grid grid-cols-3 gap-2 py-1 text-center">
                 
-                {/* Uptime */}
-                <div className="flex flex-col items-center">
+                {/* Network / Sync */}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => triggerFeatureFeedback(isNetworkOnline ? 'Clinical Network Online & Synced' : 'Running Local Offline Cache', 'records')}
+                  className="flex flex-col items-center cursor-pointer group"
+                >
                   <div className="relative w-14 h-14 flex items-center justify-center">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" strokeOpacity="0.1" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#06b6d4" strokeWidth="3" strokeDasharray="98, 100" />
+                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#06b6d4" strokeWidth="3" strokeDasharray={`${isNetworkOnline ? 100 : 35}, 100`} />
                     </svg>
-                    <span className="absolute text-[11px] font-black text-slate-900 dark:text-white">98%</span>
+                    <span className="absolute text-[10px] font-black text-slate-900 dark:text-white tabular-nums">{isNetworkOnline ? '100%' : 'OFF'}</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">Uptime</span>
-                </div>
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1 group-hover:text-cyan-400">Sync</span>
+                </motion.button>
 
-                {/* Response */}
-                <div className="flex flex-col items-center">
+                {/* Live Sensors */}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => setIsSensorModalOpen(true)}
+                  className="flex flex-col items-center cursor-pointer group"
+                >
                   <div className="relative w-14 h-14 flex items-center justify-center">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" strokeOpacity="0.1" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="95, 100" />
+                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray={`${arduino?.connection?.connected || vitals ? 100 : 0}, 100`} />
                     </svg>
-                    <span className="absolute text-[11px] font-black text-slate-900 dark:text-white">95%</span>
+                    <span className="absolute text-[10px] font-black text-slate-900 dark:text-white tabular-nums">{arduino?.connection?.connected || vitals ? 'LIVE' : '0%'}</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">Response</span>
-                </div>
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1 group-hover:text-blue-400">Sensors</span>
+                </motion.button>
 
-                {/* Database */}
-                <div className="flex flex-col items-center">
+                {/* Clinical DB Completion */}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => onNavigate('vitality')}
+                  className="flex flex-col items-center cursor-pointer group"
+                >
                   <div className="relative w-14 h-14 flex items-center justify-center">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" strokeOpacity="0.1" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray="97, 100" />
+                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray={`${liveProgress?.overallScore ?? 0}, 100`} />
                     </svg>
-                    <span className="absolute text-[11px] font-black text-slate-900 dark:text-white">97%</span>
+                    <span className="absolute text-[10px] font-black text-slate-900 dark:text-white tabular-nums">{liveProgress?.overallScore ?? 0}%</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">Database</span>
-                </div>
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1 group-hover:text-emerald-400">Care</span>
+                </motion.button>
 
               </div>
 
               <div className="text-[10px] text-slate-400 text-center font-mono pt-1 border-t border-slate-100 dark:border-blue-900/40 tabular-nums">
-                Last Updated: {liveTimeString} EAT
+                {liveTimeString} EAT · {liveCounts ? `${liveCounts.totalPatients} pts` : 'Syncing DB...'}
               </div>
             </div>
 
@@ -1676,7 +1720,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <Globe size={15} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Multilingual Support</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">{t('Multilingual Support')}</p>
                   <p className="text-[9.5px] text-slate-400">(EN, Luganda, Swahili...)</p>
                 </div>
               </motion.button>
@@ -1691,7 +1735,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <WifiOff size={15} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Offline Mode</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">{t('Offline Mode')}</p>
                   <p className="text-[9.5px] text-slate-400">(Work Without Internet)</p>
                 </div>
               </motion.button>
@@ -1706,7 +1750,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <Lock size={15} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Secure & Private</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">{t('Secure & Private')}</p>
                   <p className="text-[9.5px] text-slate-400">(AES-256 Encrypted)</p>
                 </div>
               </motion.button>
@@ -1721,7 +1765,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <Cpu size={15} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Doctorian AI Core</p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">{t('Doctorian AI Core')}</p>
                   <p className="text-[9.5px] text-slate-400">(Clinical Intelligence)</p>
                 </div>
               </motion.button>
@@ -1735,7 +1779,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="w-full md:w-auto px-5 py-2.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-red-600/30 cursor-pointer shrink-0"
             >
               <PhoneCall size={16} className="animate-bounce" />
-              <span>Emergency Call 112</span>
+              <span>{t('Emergency Call 112')}</span>
               <ChevronRight size={15} />
             </motion.button>
 
@@ -1755,7 +1799,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span className="text-2xl">🚀</span>
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                    Next Generation Features
+                    {t('Next Generation Features')}
                   </h2>
                   <p className="text-[11px] sm:text-xs text-blue-100 font-medium">
                     Tap any module below for instant clinical telemetry, AI triage, or care tools
@@ -1828,17 +1872,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    AI Health Assistant
+                    {t('AI Health Assistant')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase shrink-0">
-                    Active
+                    {t('Active')}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
                   Ask health questions, get instant advice.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-blue-600 dark:text-cyan-400 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -1857,7 +1901,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Laboratory Analyzer
+                    {t('Laboratory Analyzer')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase shrink-0">
                     New
@@ -1867,7 +1911,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Analyze lab results with AI insights.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-purple-600 dark:text-purple-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -1889,18 +1933,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Telemedicine
+                    {t('Telemedicine')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase flex items-center gap-1 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Online
+                    {t('Online')}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
                   Consult doctors via live video call.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-emerald-600 dark:text-emerald-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -1919,7 +1963,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Image & Scan Analysis
+                    {t('Image & Scan Analysis')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-black uppercase shrink-0">
                     Smart
@@ -1929,7 +1973,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Analyze X-ray, MRI & medical images.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-orange-600 dark:text-amber-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -1948,7 +1992,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Health Monitor
+                    {t('Health Monitor')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase shrink-0">
                     Connected
@@ -1958,7 +2002,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Track steps, heart rate, SpO2 & temp.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-cyan-600 dark:text-cyan-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -1977,7 +2021,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Health Robot
+                    {t('Health Robot')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase shrink-0">
                     Ready
@@ -1987,7 +2031,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Personal biometric health assistant.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-indigo-600 dark:text-indigo-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -2006,17 +2050,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Prescription Manager
+                    {t('Prescription Manager')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase shrink-0">
-                    Active
+                    {t('Active')}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
                   Manage prescriptions online or offline.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-emerald-600 dark:text-emerald-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -2035,7 +2079,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Smart Appointments
+                    {t('Smart Appointments')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 text-[9px] font-black uppercase shrink-0">
                     Easy
@@ -2045,7 +2089,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Book and track upcoming visits.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-blue-600 dark:text-cyan-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -2064,7 +2108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                    Preventive Care
+                    {t('Preventive Care')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase shrink-0">
                     Proactive
@@ -2074,7 +2118,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Personalized health & longevity tips.
                 </p>
                 <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-rose-600 dark:text-rose-300 mt-1 group-hover:translate-x-0.5 transition-transform">
-                  Open <ChevronRight size={12} />
+                  {t('Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </motion.button>
@@ -2122,7 +2166,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 <div className="space-y-1 text-[10.5px] text-left flex-1">
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => triggerFeatureFeedback('Opening Steps & Vitality Tracker', 'vitality')}
+                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-400 transition-colors cursor-pointer"
+                  >
                     <span className="flex items-center gap-1.5">
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
                         stepsToday > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
@@ -2132,8 +2181,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {t('Steps Goal')}
                     </span>
                     <span className="font-black text-slate-900 dark:text-white tabular-nums">{stepsGoalPct}%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => triggerFeatureFeedback('Opening Prescription Approvals', 'meds')}
+                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-400 transition-colors cursor-pointer"
+                  >
                     <span className="flex items-center gap-1.5">
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
                         (liveCounts?.pendingPrescriptions ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
@@ -2143,8 +2197,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {t('Rx Approved')}
                     </span>
                     <span className="font-black text-slate-900 dark:text-white tabular-nums">{liveProgress?.rxDonePct ?? 0}%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => triggerFeatureFeedback('Opening Clinical Appointments', 'clinical_roadmap')}
+                    className="w-full flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold hover:text-cyan-400 transition-colors cursor-pointer"
+                  >
                     <span className="flex items-center gap-1.5">
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black ${
                         (liveCounts?.pendingAppointments ?? 0) === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
@@ -2154,7 +2213,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {t('Appointments')}
                     </span>
                     <span className="font-black text-slate-900 dark:text-white tabular-nums">{liveProgress?.apptsDonePct ?? 0}%</span>
-                  </div>
+                  </motion.button>
                 </div>
               </div>
             </div>
@@ -2210,7 +2269,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex items-center gap-1.5">
                 <Sparkles size={15} className="text-blue-500" />
                 <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                  Quick Actions
+                  {t('Quick Actions')}
                 </h4>
               </div>
 
@@ -2223,7 +2282,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <span className="flex items-center gap-2">
                     <span className="w-5.5 h-5.5 rounded-lg bg-blue-600 text-white flex items-center justify-center text-[11px] group-hover:scale-110 transition-transform">🩺</span>
-                    Check Symptoms
+                    {t('Check Symptoms')}
                   </span>
                   <ChevronRight size={13} className="text-blue-400 group-hover:translate-x-0.5 transition-transform" />
                 </motion.button>
@@ -2236,7 +2295,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <span className="flex items-center gap-2">
                     <span className="w-5.5 h-5.5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[11px] group-hover:scale-110 transition-transform">📊</span>
-                    Analyze Health Data
+                    {t('Analyze Health Data')}
                   </span>
                   <ChevronRight size={13} className="text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
                 </motion.button>
@@ -2249,7 +2308,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <span className="flex items-center gap-2">
                     <span className="w-5.5 h-5.5 rounded-lg bg-purple-600 text-white flex items-center justify-center text-[11px] group-hover:scale-110 transition-transform">📁</span>
-                    View My Records
+                    {t('View My Records')}
                   </span>
                   <ChevronRight size={13} className="text-purple-400 group-hover:translate-x-0.5 transition-transform" />
                 </motion.button>
@@ -2262,7 +2321,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="w-6.5 h-6.5 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <ShieldCheck size={14} />
                 </div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-white">Your Data is Safe</h4>
+                <h4 className="text-xs font-black uppercase tracking-wider text-white">{t('Your Data is Safe')}</h4>
               </div>
 
               <p className="text-[11px] text-blue-200/90 leading-snug relative z-10">
@@ -2276,7 +2335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => triggerFeatureFeedback('Opening Privacy & Data Protection Center', 'privacy')}
                   className="px-4 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
                 >
-                  <span>Learn More</span>
+                  <span>{t('Learn More')}</span>
                   <ChevronRight size={13} />
                 </motion.button>
               </div>

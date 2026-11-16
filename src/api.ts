@@ -1,6 +1,14 @@
 
 import { generateProfessionalTitle } from './utils/titleGenerator';
 import { cleanAiResponse } from './utils/cleanAiResponse';
+import { runAutonomousOfflineMedicalAI } from './utils/offlineMedicalAI';
+import {
+  saveRememberedAccount,
+  saveLocalPharmacyOrder,
+  getLocalPharmacyOrders,
+  enqueueOutboxItem
+} from './utils/offlineVault';
+import { sendNeuralSignal, flushNeuralOutbox } from './utils/neuralClient';
 export { cleanAiResponse } from './utils/cleanAiResponse';
 
 export interface User {
@@ -34,13 +42,17 @@ export interface User {
   ollamaModel?: string;
   huggingfaceToken?: string;
   huggingfaceModel?: string;
-  status?: 'active' | 'suspended' | 'blocked' | 'locked';
+  status?: 'active' | 'suspended' | 'blocked' | 'locked' | 'pending_verification';
+  licenseVerified?: boolean;
+  licenseNumber?: string;
+  mfaEnabled?: boolean;
   lastActive?: string;
   isOnline?: boolean;
   ip?: string;
   userAgent?: string;
   isMainDoctor?: number;
   useMode?: string;
+  pendingMessage?: string;
 }
 
 export interface HealthRecord {
@@ -188,8 +200,13 @@ const customFetch = async function (input: RequestInfo | URL, init?: RequestInit
       isServerUnreachable = false; // Server responded, so it's reachable!
     }
 
-    // If login, signup, or social endpoints return successfully, extract token and store it
-    if (url.includes("/api/auth/login") || url.includes("/api/auth/signup") || url.includes("/api/auth/social")) {
+    // If login, signup, guest, or social endpoints return successfully, extract token and store it
+    if (
+      url.includes("/api/auth/login") ||
+      url.includes("/api/auth/signup") ||
+      url.includes("/api/auth/social") ||
+      url.includes("/api/auth/guest")
+    ) {
       try {
         const clone = response.clone();
         const data = await clone.json();
@@ -254,219 +271,10 @@ const isOffline = (): boolean => {
 };
 
 const generateOfflineMedicalResponse = (msg: string, targetLanguage?: string): string => {
-  const compute = (): string => {
-  const norm = msg.toLowerCase().trim();
-  const activeLang = (targetLanguage || '').toLowerCase();
-  
-  // 1. DYNAMIC OFFLINE KNOWLEDGE & NEURAL CACHE LOOKUP
-  let matchedNodes: any[] = [];
-  try {
-    const cachedStr = localStorage.getItem('medical_neural_cache') || '[]';
-    const nodes = JSON.parse(cachedStr);
-    if (Array.isArray(nodes)) {
-      matchedNodes = nodes.filter((n: any) => {
-        if (!n || !n.title) return false;
-        const titleLower = n.title.toLowerCase();
-        const contentLower = (n.content || '').toLowerCase();
-        
-        // Match full phrase or individual significant keywords
-        return norm.includes(titleLower) || 
-               titleLower.includes(norm) ||
-               titleLower.split(' ').some((w: string) => w.length > 4 && norm.includes(w)) ||
-               contentLower.includes(norm);
-      });
-    }
-  } catch (_) {}
-
-  // If we found custom-trained nodes, dynamically formulate response from them!
-  if (matchedNodes.length > 0) {
-    const node = matchedNodes[0];
-    let reply = `🤖 **[Local Offline Neural Node Active: ${node.title}]** 🧠\n\n`;
-    reply += `My browser-local offline neural matrices mapped your question to a custom clinical protocol synchronized from your **Neural Training Hub**:\n\n`;
-    reply += `${node.content}\n\n`;
-    if (matchedNodes.length > 1) {
-      reply += `*Additional related local nodes detected:* ${matchedNodes.slice(1).map(n => `"${n.title}"`).join(', ')}.\n\n`;
-    }
-    reply += `*Self-Correction Logs: Dynamic mapping successful. Response synthesized live from cached local training vectors without internet dependency.*`;
-    return reply;
-  }
-
-  // 2. DYNAMIC GREETING HANDLERS WITH MULTILINGUAL UGANDAN REGIONAL SUPPORT
-  const swahiliGreetings = ["jambo", "hujambo", "habari", "mambo"];
-  const lugandaGreetings = ["oli otya", "gyebaleko", "wasuze otya", "osibye otya", "ki kati", "ebisanyusa"];
-  const runyankoleGreetings = ["agandi", "oraire ota", "osibire ota"];
-  const acholiGreetings = ["kop ango", "itye maber", "amoti"];
-  const langiGreetings = ["itye aber", "kop ango"];
-  const itesoGreetings = ["banga", "yoga", "ejokona"];
-  const lusogaGreetings = ["kodheyo", "wasuze otya", "osibye otya"];
-  const lugbaraGreetings = ["asizu", "mi mi maber"];
-  const standardGreetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "howdy", "what's up", "yo"];
-
-  const isSwahili = swahiliGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("swahili");
-  const isLuganda = lugandaGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("luganda");
-  const isRunyankole = runyankoleGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("runyankole") || activeLang.includes("rukiga");
-  const isAcholi = acholiGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("acholi") || activeLang.includes("luo");
-  const isLangi = langiGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("langi");
-  const isIteso = itesoGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("iteso");
-  const isLusoga = lusogaGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("lusoga");
-  const isLugbara = lugbaraGreetings.some(g => norm.startsWith(g) || norm === g) || activeLang.includes("lugbara");
-  const isStandard = standardGreetings.some(g => norm.startsWith(g) || norm === g);
-
-  if (isLuganda) {
-    return `👋 **Gyebaleko! Oli otya?** 🇺🇬\n\nNsubira buli kimu kiri bulungi. Nze **Doctorian**, omuyambi wo ow'ebyobulamu ow'omunda (AI Clinical Assistant).\n\nNnyamba ku nsonga z'ebyobulamu zonna, okukyusa eddagala, n'okulondoola obulamu bwo. Nyamba ku kiki leero? \n\n*Weetegereze: Kyandibadde kirungi okulaba omusawo singa embeera eyongera okutabuka.*`;
-  }
-
-  if (isSwahili) {
-    return `👋 **Jambo! Habari gani?** 🌍\n\nMimi ni **Doctorian**, msaidizi wako wa kliniki wa kijasusi (AI Clinical Assistant). \n\nNaweza kukusaidia kwa miongozo ya matibabu, dalili za magonjwa, au kufasiri lugha za kienyeji. Nikusaidie na nini leo?\n\n*Ushauri wa daktari unapendekezwa sana.*`;
-  }
-
-  if (isRunyankole) {
-    return `👋 **Agandi! Oraiire ota? / Osibiire ota?** 🇺🇬\n\nNdyaha kuryha amazima. Nze **Doctorian**, omuyambi waawe w'ebyamagara (AI Clinical Assistant).\n\nNkabasa kukuhwera ku nsonga z'ebyamagara byona. Nooyenda nkuhedere ku ki eriizooba?\n\n*Ekyetengo ky'okureeba omushaho nikishabwa.*`;
-  }
-
-  if (isAcholi) {
-    return `👋 **Itye maber? Kop ango?** 🇺🇬\n\nAn aye **Doctorian**, lanyut yo me yotkom (AI Clinical Assistant).\n\nAtwero konyi ki twolo me kwena me yotkom ducu. Kop ango ma amiyo ikonyi kwede tin?\n\n*Yotkom obedo lanyut maber me neno daktar.*`;
-  }
-
-  if (isLangi) {
-    return `👋 **Itye aber? Kop ango?** 🇺🇬\n\nAn aye **Doctorian**, lanyut yotkom me bura (AI Clinical Assistant).\n\nApito pi konyi i yotkom ducu. Atwero konyi kope tin?\n\n*Neno daktari pigi tek maber.*`;
-  }
-
-  if (isIteso) {
-    return `👋 **Yoga! Ejokona?** 🇺🇬\n\nAraisi eong **Doctorian**, ekekon konyan loka amurwon (AI Clinical Assistant).\n\nKapedore eong akonyun jo ko iporositon loka amurwon kere. Nyo acamit jo akonyun kolo kwana?\n\n*Aanyun emurwon eyait keda iporositon.*`;
-  }
-
-  if (isLusoga) {
-    return `👋 **Kodheyo! Wasuze otya? / Osibye otya?** 🇺🇬\n\nNdi **Doctorian**, omughambi gho ogh'ebyobulamu (AI Clinical Assistant).\n\nNnyamba ku nsonga dh'ebyobulamu dhona. Nnyamba ku kiki leero ghano?\n\n*Okubona omusawo kiba kirungi singa obulwadhe bweyongera.*`;
-  }
-
-  if (isLugbara) {
-    return `👋 **Mi mi maber? Asizu!** 🇺🇬\n\nAma **Doctorian**, a'di mi konyi amviko 'ba yotikom ma e'do (AI Clinical Assistant).\n\nMa can mi konyi yi yotikom amviko dri. Ma mi konyi ngo dundru idri ducu?\n\n*Mide 'ba daktari ma niri maber kpere.*`;
-  }
-
-  if (isStandard || norm === "greetings") {
-    return `👋 **Hello! I am Doctorian, your AI Clinical Assistant!** 🩺🌟\n\nHow can I assist you with your clinical symptoms, wellness goals, or health analytics today?\n\nIf you have synchronized custom translation templates or local disease clinical protocols in the **Neural Training Hub**, feel free to ask me about them—I have mapped them into my active weights! \n\n*Medical attention is recommended.*`;
-  }
-
-  // 3. SPECIFIC EAST AFRICAN MEDICAL & TROPICAL PATHOLOGY TEMPLATES (OFFLINE SECURE FALLBACKS)
-  if (norm.includes("malaria") || norm.includes("musujja gw'omu nsiri") || norm.includes("plasmodium") || norm.includes("mosquito") || norm.includes("insiri") || norm.includes("mbu")) {
-    return `🦟 **Malaria Pathophysiology & Clinical Care Guidelines**
----
-- **Clinical Overview**: Malaria is a life-threatening disease caused by *Plasmodium* parasites transmitted through the bites of infected female *Anopheles* mosquitoes. Severe malaria (often *Plasmodium falciparum*) can progress to cerebral malaria, severe clinical anemia, metabolic acidosis, or acute kidney injury.
-- **Symptom Profile**: High fluctuating fever, intense chills, profuse sweating, severe headache, muscle/joint pain, vomiting, and extreme fatigue.
-- **Diagnostics**: Golden standard is microscopic evaluation of thick and thin blood smears (Giemsa stain) or malaria Rapid Diagnostic Test (RDT).
-- **First-Line Treatment (East Africa / WHO Clinical Protocol)**: 
-  - **Uncomplicated Malaria**: Artemisinin-based Combination Therapy (ACT) e.g., Artemether-Lumefantrine (Coartem), 6-dose regimen.
-  - **Severe Malaria**: Parenteral Artesunate (intravenous/intramuscular) immediately, followed by a full oral course of ACT once tolerated.
-  - **Pregnancy Prophylaxis**: Intermittent Preventive Treatment (IPTp) with Sulfadoxine-Pyrimethamine (SP) beginning from the second trimester.
-- **Supportive Care**: High fluid intake, rest, and antipyretics (e.g., Paracetamol; avoid Aspirin in pediatric cases to prevent Reye's syndrome).
-
-🚨 **Danger Signs**: If fever is accompanied by convulsions, altered consciousness (cerebral malaria), persistent vomiting, yellow eyes (jaundice), or severe breathing difficulty, immediately transfer to a referral hospital (HC IV or Regional Hospital).`;
-  }
-
-  if (norm.includes("diarrhea") || norm.includes("diarrhoea") || norm.includes("vomiting") || norm.includes("ors") || norm.includes("dehydration") || norm.includes("cholera") || norm.includes("ddiro") || norm.includes("okuddukana") || norm.includes("okusesema") || norm.includes("kuharisha")) {
-    return `💧 **Dehydration, Diarrheal Illness & WHO ORS Guidelines**
----
-- **Pathophysiology**: Acute diarrhea (due to rotavirus, cholera, or bacterial pathogens) leads to massive loss of water and critical electrolytes (sodium, potassium, chloride, bicarbonate), rapidly causing hypovolemic shock.
-- **WHO Standard Reduced Osmolarity ORS Formula**:
-  - **Glucose**: 13.5 g/L (aids sodium-glucose co-transport across intestinal mucosa)
-  - **Sodium Chloride**: 2.6 g/L
-  - **Trisodium Citrate Dihydrate**: 2.9 g/L (corrects metabolic acidosis)
-  - **Potassium Chloride**: 1.5 g/L (replaces intracellular potassium)
-  - *Total Osmolarity*: 245 mOsm/L (clinically proven to reduce stool output, vomiting, and need for IV infusions).
-- **Emergency Home Rehydration Formulation (if pre-packaged ORS is completely unavailable)**:
-  - **Clean Water**: 1 Liter (boiled and cooled)
-  - **Sugar**: 6 level teaspoons
-  - **Salt**: 1/2 level teaspoon
-  - *Stir until completely dissolved. Sip slowly after every loose stool.*
-- **Pediatric Zinc Supplementation**: For children under 5 years, administer Zinc (20 mg daily for 10-14 days; 10 mg if under 6 months) to accelerate mucosal healing.
-
-🚨 **Critical Danger Signs**: Sunken eyes, extreme lethargy, inability to drink or breastfeed, blood in stool (dysentery), or skin pinch returning very slowly (>2 seconds) indicate severe dehydration requiring immediate intravenous fluid therapy (Ringers Lactate).`;
-  }
-
-  if (norm.includes("pregnancy") || norm.includes("maternal") || norm.includes("mother") || norm.includes("olubuto") || norm.includes("obubuto") || norm.includes("okuzala") || norm.includes("mimba")) {
-    return `🤰 **Maternal Care & Pregnancy Clinical Protocols**
----
-- **Antenatal Care (ANC)**: Recommend at least 8 contacts with healthcare providers starting before 12 weeks of gestation to monitor maternal and fetal well-being.
-- **Routine Prophylaxis & Supplementation (Sub-Saharan Africa Guidelines)**:
-  - **Iron & Folic Acid**: Daily oral supplementation to prevent maternal iron-deficiency anemia and neural tube defects.
-  - **Intermittent Preventive Treatment of Malaria (IPTp)**: Administer Sulfadoxine-Pyrimethamine (SP) at each scheduled ANC contact starting in the second trimester (at least 3 doses, minimum 1 month apart).
-  - **Tetanus Toxoid**: Ensure maternal vaccination schedule is complete.
-- **Nutrition**: High-protein diet, iron-rich foods (green leafy vegetables, beans), and adequate calcium intake.
-
-🚨 **Obstetric Danger Signs**: Seek immediate emergency hospital admission if experiencing:
-- Vaginal bleeding or fluid leakage.
-- Severe headache with blurred vision (signs of pre-eclampsia/eclampsia).
-- Swelling of the face and hands.
-- High fever or severe abdominal pain.
-- Reduced fetal movement or contractions before term.`;
-  }
-
-  if (norm.includes("fever") || norm.includes("temperature") || norm.includes("hot") || norm.includes("musujja")) {
-    return `🌡️ **Hyperthermia & Fever Care Guidelines**
----
-- **Hydration**: Prioritize oral rehydration solution (ORS) or clean water to stay hydrated. 💧
-- **Monitoring**: Check and log temperature readings regularly. 📊
-- **Cooling Measures**: Rest in a well-ventilated, cool room. Apply damp cool cloths to the forehead or armpits if comfortable. 🧊
-- **Medication**: If appropriate, follow guidelines for paracetamol or ibuprofen to help manage comfort. 💊
-
-🚨 **Warning**: Contact a healthcare professional or go to the nearest clinic if the temperature exceeds 39.4°C (103°F) or persists for more than 48 hours.`;
-  } else if (norm.includes("chest") || norm.includes("heart") || norm.includes("palpitation") || norm.includes("pulse")) {
-    return `🫀 **Chest Discomfort & Palpitation Guidance**
----
-- **Posture**: Sit down or recline in a comfortable upright position immediately to ease breathing. 🛋️
-- **Breathing**: Practice slow, calm deep breathing (inhaling and exhaling slowly). 🧘‍♀️
-- **Vitals**: Check and document your heart rate and blood pressure if a home monitor is available. 📈
-- **Rest**: Rest in a quiet, low-stress environment.
-
-🚨 **Critical Warning**: If you experience crushing or squeezing chest pain that radiates to your arm, shoulder, neck, or jaw, or is accompanied by sweating, shortness of breath, or dizziness, please seek emergency medical help immediately.`;
-  } else if (norm.includes("bp") || norm.includes("pressure") || norm.includes("hypertension") || norm.includes("systolic") || norm.includes("diastolic")) {
-    return `📈 **Blood Pressure Management Guidelines**
----
-- **Rest Period**: Rest quietly in a calm, seated position for at least 15 minutes. 🔕
-- **Avoid Stimulants**: Refrain from caffeine, tobacco, alcohol, and high-sodium foods. ☕
-- **Stress Reduction**: Try deep breathing exercises or progressive muscle relaxation. 🧘‍♂️
-- **Logging**: Keep a detailed log of your measurements to share with your provider. 📋
-
-🚨 **Warning**: If your blood pressure is unusually high (e.g., above 180/120 mmHg) and you experience severe headache, chest pain, shortness of breath, or vision changes, seek urgent medical care.`;
-  } else if (norm.includes("headache") || norm.includes("migraine") || norm.includes("head")) {
-    return `🧠 **Headache & Migraine Care Guidelines**
----
-- **Hydration**: Drink plenty of water throughout the day. 🥤
-- **Environment**: Rest in a quiet, dark, or low-light room to reduce sensory triggers. 🕶️
-- **Relaxation**: Ease neck and shoulder tension with gentle stretches or a light massage. 🩹
-- **Tracking**: Note potential triggers such as stress, specific foods, or screen time.
-
-⚠️ *Seek medical attention for severe, sudden headaches ("thunderclap" headaches) or those accompanied by stiff neck, fever, or confusion.*`;
-  } else if (norm.includes("cough") || norm.includes("breathe") || norm.includes("shortness") || norm.includes("covid") || norm.includes("lungs")) {
-    return `🫁 **Respiratory Comfort Guidelines**
----
-- **Positioning**: Rest with your head elevated on pillows to keep airways open. 🛏️
-- **Steam & Moisture**: Consider humidifier use or inhaling steam from warm water to ease congestion. 🍵
-- **Fluid Intake**: Drink warm liquids, such as botanical teas or warm water with honey. 📈
-- **Air Quality**: Avoid exposure to second-hand smoke, chemical fumes, pollutants, and strong dust. 🚭
-
-🚨 **Warning**: If you experience severe difficulty breathing, shortness of breath at rest, or if your oxygen saturation (SPO2) falls below 92%, seek immediate clinical care.`;
-  }
-
-  // 4. GENERAL QUESTIONS ABOUT THE APP, DEVELOPER, DESIGNER, OR BRAIN
-  if (norm.includes("akora") || norm.includes("joseph") || norm.includes("ebro") || norm.includes("creator") || norm.includes("developer") || norm.includes("designer") || norm.includes("built") || norm.includes("designed") || norm.includes("brain") || norm.includes("who made")) {
-    return `👨‍💻 **Designer & Creator Metadata** 🩺\n\nI am **Doctorian Medical AI**. **Akora Joseph from EBRO Company. ltd designed this app and the AI brain**.\n\nAkora Joseph from EBRO Company. ltd engineered both the Doctorian clinical health platform, interface systems, and its entire neural AI brain architecture to serve as a high-fidelity medical decision support intelligence for clinicians, medical students, and patients worldwide.\n\nHow may I assist your medical diagnosis, vitals monitoring, or healthcare questions today?`;
-  }
-
-  // 5. UNKOWN / GENERAL USER INQUIRY DYNAMIC SYNTHESIS
-  return `💬 **Clinical Guidance System**
----
-I have received your offline inquiry: *"${msg}"*
-
-Since I am currently running in **offline local cache failover mode**, here is the guidance:
-- **Case Records & Health Logs**: You can view and manage patient profiles, medical calendars, and vitals. 📋
-- **Local Database**: All your logs and historical medical sheets are securely stored on your device. 🔐
-- **Consultation**: Ask about general health symptoms (such as fever, malaria, cholera ORS preparation, high BP, headache, respiratory concerns, or pregnancy guidelines) to display immediate clinical care references. 🔄
-
-*To run live, unrestricted neural reasoning across the entire medicine spectrum, please restore internet connectivity or sync new custom knowledge blocks in the Doctors' Dashboard -> Neural Training Hub.*`;
-  };
-  return cleanAiResponse(compute());
+  const activeLanguage =
+    targetLanguage ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('app_lang') || undefined : undefined);
+  return cleanAiResponse(runAutonomousOfflineMedicalAI(msg, activeLanguage));
 };
 
 export function getLocalLLMEndpoint(baseUrl: string): { url: string; isOpenAI: boolean } {
@@ -996,12 +804,14 @@ export const syncOfflineActions = async (): Promise<boolean> => {
     }));
   }
   
+  await flushNeuralOutbox();
   return remaining.length === 0;
 };
 
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     syncOfflineActions();
+    void flushNeuralOutbox();
   });
 }
 
@@ -1215,114 +1025,134 @@ export const api = {
     return isOffline();
   },
   auth: {
-    async signup(email: string, password: string, displayName?: string, role?: string, phone?: string) {
-      const offlineUser: User = {
-        id: "us_" + Date.now(),
-        email,
-        displayName: displayName || email.split("@")[0],
-        role: (role as any) || "user",
-        phone,
-        credits: role === 'admin' ? 5000 : (role === 'doctor' ? 3000 : 1000),
-        subscriptionTier: "free",
-        createdAt: new Date().toISOString()
-      };
-      
+    async getRegisterChallenge(): Promise<{
+      challengeId: string;
+      salt: string;
+      difficulty: number;
+      puzzleQuestion: string;
+      expiresAt: number;
+    }> {
+      const res = await fetch(`${API_BASE}/auth/register-challenge`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load human security challenge");
+      return data;
+    },
+    async verifyPrivileged(gate: 'doctor' | 'admin', secretKey: string, email?: string): Promise<{
+      verified: boolean;
+      gate: string;
+      stepUpToken?: string;
+    }> {
+      const res = await fetch(`${API_BASE}/auth/verify-privileged`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gate, secretKey, email }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Privileged security verification failed");
+      return data;
+    },
+    async signup(
+      email: string,
+      password: string,
+      displayName?: string,
+      role?: string,
+      phone?: string,
+      extra?: {
+        licenseNumber?: string;
+        facility?: string;
+        specialty?: string;
+        challengeId?: string;
+        powNonce?: string;
+        puzzleAnswer?: string;
+        honeypot?: string;
+      }
+    ) {
       if (isOffline()) {
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        if (users.some((u: any) => u.email === email)) {
-          throw new Error("Email address already registered offline");
-        }
-        users.push({ ...offlineUser, password });
-        setStorageItem("medical_offline_users", users);
-        setStorageItem("medical_user", offlineUser);
-        return offlineUser;
+        throw new Error("Account registration requires an active connection to the Doctorian Security Server to verify credentials.");
       }
 
-      try {
-        const res = await fetch(`${API_BASE}/auth/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, displayName, role, phone }),
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Signup failed");
-        
-        // Cache offline copy Synchronously
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        const cleanUsers = users.filter((u: any) => u.email !== email);
-        cleanUsers.push({ ...data.user, password });
-        setStorageItem("medical_offline_users", cleanUsers);
-        setStorageItem("medical_user", data.user);
-        return data.user as User;
-      } catch (err: any) {
-        if (err.message === "Email address already registered offline" || err.message?.includes("already registered") || err.message?.includes("already exists")) {
-          throw err;
-        }
-        console.warn("[Offline Auth] Signup network failure, falling back to local database secure registry...");
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        if (users.some((u: any) => u.email === email)) {
-          throw new Error("Email address already registered offline");
-        }
-        users.push({ ...offlineUser, password });
-        setStorageItem("medical_offline_users", users);
-        setStorageItem("medical_user", offlineUser);
-        return offlineUser;
+      const res = await fetch(`${API_BASE}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          displayName,
+          role,
+          phone,
+          licenseNumber: extra?.licenseNumber,
+          facility: extra?.facility,
+          specialty: extra?.specialty,
+          challengeId: extra?.challengeId,
+          powNonce: extra?.powNonce,
+          puzzleAnswer: extra?.puzzleAnswer,
+          honeypot: extra?.honeypot || "",
+        }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Signup failed");
+
+      if (data.pendingVerification) {
+        return {
+          ...(data.user || {}),
+          status: 'pending_verification',
+          pendingMessage: data.message,
+        } as User;
       }
+
+      if (data.token && typeof window !== "undefined") {
+        localStorage.setItem("doctorian_token", data.token);
+      }
+      // Cache profile metadata ONLY (never store password in localStorage)
+      setStorageItem("medical_user", data.user);
+      saveRememberedAccount(data.user);
+      return data.user as User;
     },
     async login(email: string, password: string) {
       if (isOffline()) {
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        const matched = users.find((u: any) => u.email === email && u.password === password);
-        if (matched) {
-          const sansPassword = { ...matched };
-          delete sansPassword.password;
-          setStorageItem("medical_user", sansPassword);
-          return sansPassword as User;
-        }
-        throw new Error("Invalid credentials when logging in offline.");
+        throw new Error("Sign-in requires server verification. Please reconnect to authenticate.");
       }
 
-      try {
-        const res = await fetch(`${API_BASE}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Login failed");
-        
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        const cleanUsers = users.filter((u: any) => u.email !== email);
-        cleanUsers.push({ ...data.user, password });
-        setStorageItem("medical_offline_users", cleanUsers);
-        setStorageItem("medical_user", data.user);
-        return data.user as User;
-      } catch (err: any) {
-        console.warn("[Offline Auth] Login server connection issue, running local offline validation pass...");
-        const users = getStorageItem<any[]>("medical_offline_users", []);
-        const matched = users.find((u: any) => u.email === email && u.password === password);
-        if (matched) {
-          const sansPassword = { ...matched };
-          delete sansPassword.password;
-          setStorageItem("medical_user", sansPassword);
-          return sansPassword as User;
-        }
-        throw err;
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+
+      if (data.token && typeof window !== "undefined") {
+        localStorage.setItem("doctorian_token", data.token);
       }
+      // Clean up any legacy insecure password cache if present
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("medical_offline_users");
+      }
+      setStorageItem("medical_user", data.user);
+      saveRememberedAccount(data.user);
+      return data.user as User;
     },
     async logout() {
       setStorageItem("medical_user", null);
-      localStorage.removeItem("doctorian_token");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("doctorian_token");
+        localStorage.removeItem("admin_direct_authorized");
+        sessionStorage.removeItem("doctor_authenticated");
+        sessionStorage.removeItem("admin_authenticated");
+      }
       if (isOffline()) return;
       try {
-        await fetch(`${API_BASE}/auth/logout`, { 
+        await fetch(`${API_BASE}/auth/logout`, {
           method: "POST",
           credentials: "include",
         });
       } catch (err) {
-        console.warn("[Offline Auth] Logout call completed offline locally.");
+        console.warn("[Auth] Logout completed locally.");
       }
     },
     async me() {
@@ -1331,21 +1161,30 @@ export const api = {
       }
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
         const res = await fetch(`${API_BASE}/auth/me`, {
           credentials: "include",
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
+        if (res.status === 401 || res.status === 403) {
+          // Authoritative server rejected session -> clear any spoofed or stale client user
+          setStorageItem("medical_user", null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("doctorian_token");
+          }
+          return null;
+        }
         if (!res.ok) {
           return getStorageItem<User | null>("medical_user", null);
         }
         const data = await res.json();
         if (data && data.user) {
           setStorageItem("medical_user", data.user);
+          saveRememberedAccount(data.user);
           return data.user as User;
         }
-        return getStorageItem<User | null>("medical_user", null);
+        return null;
       } catch (err) {
         return getStorageItem<User | null>("medical_user", null);
       }
@@ -1619,27 +1458,37 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid or expired code");
-      return { success: true, token: data?.token || '' };
+      return { success: true, token: data?.resetToken || data?.token || '' };
     },
     async resetPassword(token: string, password: string) {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ resetToken: token, newPassword: password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to reset password");
       return data;
     },
-    async socialLogin(user: { email: string; displayName: string; photoURL?: string; providerId: string }) {
+    async socialLogin(user: { email: string; displayName: string; photoURL?: string; providerId: string; idToken?: string }) {
       const res = await fetch(`${API_BASE}/auth/social`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(user),
+        body: JSON.stringify({
+          provider: user.providerId,
+          idToken: user.idToken,
+          email: user.email,
+          displayName: user.displayName,
+        }),
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Social login failed");
+      if (data.token && typeof window !== "undefined") {
+        localStorage.setItem("doctorian_token", data.token);
+      }
+      setStorageItem("medical_user", data.user);
+      saveRememberedAccount(data.user);
       return data.user as User;
     },
     async upgradeSubscription(tier: string, amount: number, evidence?: string) {
@@ -1670,7 +1519,67 @@ export const api = {
       return data as { idea: string; creditsRemaining?: number };
     }
   },
+  security: {
+    async getStatus(): Promise<{
+      shieldActive: boolean;
+      encryptionStandard: string;
+      antiFakeRegistration: {
+        proofOfWorkDifficulty: number;
+        disposableEmailFilter: boolean;
+        honeypotActive: boolean;
+        humanTimingGateMs: number;
+        adminPublicSignupBlocked: boolean;
+        clinicianVerificationQuarantine: boolean;
+      };
+      chainIntegrity: { valid: boolean; totalEvents: number; brokenAtId: string | null };
+      metrics: {
+        blockedThreatEvents: number;
+        activeTrackedSessions: number;
+        pendingClinicianApprovals: number;
+      };
+      recentEvents: Array<{
+        id: string;
+        event_type: string;
+        severity: string;
+        ip?: string;
+        email?: string;
+        details: string;
+        created_at: string;
+      }>;
+    }> {
+      const res = await fetch(`${API_BASE}/security/status`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch security telemetry");
+      return data;
+    },
+    async runAudit() {
+      const res = await fetch(`${API_BASE}/security/audit`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Security audit failed");
+      return data;
+    },
+  },
   admin: {
+    async pendingClinicians() {
+      const res = await fetch(`${API_BASE}/admin/pending-clinicians`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch pending clinicians");
+      return data.pending as any[];
+    },
+    async verifyClinician(id: string, approve = true) {
+      const res = await fetch(`${API_BASE}/admin/users/${id}/verify-clinician`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approve }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to verify clinician");
+      return data.user;
+    },
     async listUsers(page = 1, limit = 15, search = "", institution = "") {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -4074,6 +3983,105 @@ export const api = {
         return await res.json();
       } catch (e) {
         return { totalMessages: 0, totalUsers: 0, totalDoctors: 0, unreadCount: 0, networkStatus: "OFFLINE" };
+      }
+    }
+  },
+  pharmacy: {
+    async submitOrder(payload: {
+      customerName: string;
+      customerPhone: string;
+      deliveryAddress: string;
+      district: string;
+      pharmacyId: string;
+      pharmacyName: string;
+      fulfillmentType: 'delivery' | 'pickup';
+      paymentMethod: string;
+      items: Array<{ id: string; name: string; dosage: string; qty: number; unitPriceUgx: number; prescriptionRequired?: boolean }>;
+      prescriptionRef?: string;
+      notes?: string;
+    }): Promise<{ success: boolean; offline?: boolean; order: any; estimatedMinutes?: number }> {
+      const makeLocalOrder = () => {
+        const subtotalUgx = payload.items.reduce((s, it) => s + it.qty * it.unitPriceUgx, 0);
+        const deliveryFeeUgx = payload.fulfillmentType === 'pickup' ? 0 : (subtotalUgx >= 100000 ? 0 : 5000);
+        const totalUgx = subtotalUgx + deliveryFeeUgx;
+        const orderNumber = `RX-${new Date().getFullYear().toString().slice(-2)}${String(Date.now()).slice(-6)}`;
+        return {
+          id: `ord-off-${Date.now()}`,
+          orderNumber,
+          ...payload,
+          subtotalUgx,
+          deliveryFeeUgx,
+          totalUgx,
+          status: 'queued_offline',
+          createdAt: new Date().toISOString()
+        };
+      };
+
+      if (isOffline()) {
+        const localOrder = makeLocalOrder();
+        saveLocalPharmacyOrder(localOrder);
+        enqueueOutboxItem({
+          kind: 'pharmacy_order',
+          endpoint: `${API_BASE}/pharmacy/orders`,
+          method: 'POST',
+          payload
+        });
+        void sendNeuralSignal({
+          channel: 'epharmacy_dispatch',
+          eventType: 'order',
+          targetRole: 'doctor',
+          subject: `Offline E-Pharmacy Order #${localOrder.orderNumber}`,
+          content: `${payload.customerName} placed offline drug order (${payload.items.map(i => `${i.qty}x ${i.name}`).join(', ')}) at ${payload.pharmacyName}. Queued for automatic sync.`,
+          payload: localOrder,
+          priority: 'urgent'
+        });
+        return { success: true, offline: true, order: localOrder, estimatedMinutes: 45 };
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/pharmacy/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          credentials: "include"
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to place pharmacy order");
+        if (data.order) saveLocalPharmacyOrder(data.order);
+        return data;
+      } catch (err: any) {
+        // Only fall back to offline queue on network failure, not HTTP 400 validation errors
+        if (err?.message && !err.message.toLowerCase().includes('fetch') && !err.message.toLowerCase().includes('network')) {
+          throw err;
+        }
+        const localOrder = makeLocalOrder();
+        saveLocalPharmacyOrder(localOrder);
+        enqueueOutboxItem({
+          kind: 'pharmacy_order',
+          endpoint: `${API_BASE}/pharmacy/orders`,
+          method: 'POST',
+          payload
+        });
+        return { success: true, offline: true, order: localOrder, estimatedMinutes: 45 };
+      }
+    },
+    async getOrders(): Promise<any[]> {
+      const localOrders = getLocalPharmacyOrders();
+      if (isOffline()) return localOrders;
+      try {
+        const res = await fetch(`${API_BASE}/pharmacy/orders`, { credentials: "include" });
+        if (!res.ok) return localOrders;
+        const data = await res.json();
+        const serverOrders = Array.isArray(data?.orders) ? data.orders : [];
+        const mergedMap = new Map<string, any>();
+        for (const o of [...serverOrders, ...localOrders]) {
+          if (o?.orderNumber && !mergedMap.has(o.orderNumber)) {
+            mergedMap.set(o.orderNumber, o);
+          }
+        }
+        return Array.from(mergedMap.values());
+      } catch {
+        return localOrders;
       }
     }
   }

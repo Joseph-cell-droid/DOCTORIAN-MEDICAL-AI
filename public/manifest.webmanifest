@@ -2,13 +2,13 @@
   "id": "/",
   "scope": "/",
   "name": "Doctorian Medical AI",
-  "short_name": "Doctorian AI",
-  "description": "Autonomous Neural Healthcare & Diagnostic Interface. Live telemetry analysis, AI diagnostics, offline core, and emergency dispatch.",
+  "short_name": "Doctorian",
+  "description": "Autonomous Neural Healthcare & Diagnostic Interface. Live telemetry analysis, AI diagnostics, offline core, E-Pharmacy, and emergency dispatch.",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "background_color": "#03091a",
+  "theme_color": "#06b6d4",
   "orientation": "any",
   "categories": ["medical", "health", "lifestyle", "utilities"],
   "icons": [
@@ -55,17 +55,23 @@
       "purpose": "any"
     },
     {
+      "src": "/logo-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "shortcuts": [
     {
       "name": "Emergency SOS Call & SMS",
       "short_name": "Emergency SOS",
-      "description": "Trigger instant emergency live call and preformatted SMS to dispatch team",
+      "description": "Trigger instant emergency live call and dispatch alert",
       "url": "/?shortcut=sos",
       "icons": [{ "src": "/logo-96.png", "sizes": "96x96" }]
     },
@@ -77,9 +83,9 @@
       "icons": [{ "src": "/logo-96.png", "sizes": "96x96" }]
     },
     {
-      "name": "AI Diagnostics & Large Data",
-      "short_name": "Diagnostics",
-      "description": "Run AI clinical lab diagnosis and big data batch record analysis",
+      "name": "AI Diagnostics & Consultation",
+      "short_name": "AI Doctor",
+      "description": "Launch offline & cloud Doctorian AI medical assistant",
       "url": "/?shortcut=diagnostics",
       "icons": [{ "src": "/logo-96.png", "sizes": "96x96" }]
     }

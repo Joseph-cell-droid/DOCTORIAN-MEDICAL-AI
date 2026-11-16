@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, X, Mail, KeyRound, CheckCircle2, AlertTriangle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { api } from '../api';
 
 interface DoctorVerificationModalProps {
   isOpen: boolean;
@@ -21,8 +22,8 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
   const [verificationMode, setVerificationMode] = useState<'otp' | 'passkey'>('otp');
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [sentOtp, setSentOtp] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [otpSentMessage, setOtpSentMessage] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [isLockedOut, setIsLockedOut] = useState(false);
@@ -47,79 +48,94 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
       }
       setError('');
       setOtpSentMessage(null);
-      setSentOtp(null);
       setOtpCode('');
     }
   }, [isOpen]);
 
-  const handleSendAccountOTP = () => {
+  const handleSendAccountOTP = async () => {
     if (isLockedOut) return;
     setIsSendingOtp(true);
     setError('');
-    
-    // Generate 6-digit OTP code bound specifically to this user's email
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setSentOtp(code);
-
-    setTimeout(() => {
+    try {
+      const res: any = await api.auth.sendMfaToken(currentUserEmail);
+      setOtpSentMessage(
+        res?.message || `Cryptographic 6-digit 2FA token dispatched cleanly for ${currentUserEmail}.`
+      );
+    } catch (err: any) {
+      setError(err?.message || 'Unable to dispatch 2FA security challenge. Please sign in with a registered account.');
+    } finally {
       setIsSendingOtp(false);
-      setOtpSentMessage(`✨ Verification OTP [${code}] sent to account ${currentUserEmail}!`);
-    }, 800);
+    }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (isLockedOut) {
       setError('Access temporarily locked due to repeated invalid attempts.');
       return;
     }
 
     if (verificationMode === 'otp') {
-      if (!otpCode) {
-        setError('Please enter the 6-digit OTP code sent to your account.');
+      if (!otpCode.trim() || otpCode.trim().length < 6) {
+        setError('Please enter the 6-digit OTP code issued for your account.');
         return;
       }
 
-      if (sentOtp && otpCode.trim() === sentOtp) {
-        sessionStorage.setItem('doctor_authenticated', 'true');
-        setError('');
-        setOtpCode('');
-        onSuccess();
-        onClose();
-        return;
-      } else {
+      setIsVerifying(true);
+      try {
+        const res = await api.auth.verifyMfaToken(otpCode.trim(), currentUserEmail);
+        if (res?.success) {
+          sessionStorage.setItem('doctor_authenticated', 'true');
+          setError('');
+          setOtpCode('');
+          onSuccess();
+          onClose();
+          return;
+        }
+        throw new Error('Verification rejected by security vault.');
+      } catch (err: any) {
         const nextAttempts = attempts + 1;
         setAttempts(nextAttempts);
         if (nextAttempts >= 3) {
           setIsLockedOut(true);
           setError('Security restriction triggered: 3 invalid attempts. Verification locked.');
         } else {
-          setError(`Invalid OTP code for ${currentUserEmail}. ${3 - nextAttempts} attempt(s) remaining.`);
+          setError(err?.message || `Invalid OTP code. ${3 - nextAttempts} attempt(s) remaining.`);
         }
-        return;
+      } finally {
+        setIsVerifying(false);
       }
-    }
-
-    // Passkey Mode — validate against signed-in account or facility clinical PIN via API
-    if (!password.trim()) {
-      setError('Please enter your clinical passphrase or use Account OTP 2FA.');
       return;
     }
 
+    // Passkey Mode — strictly validate facility clinical security key on the server
+    if (!password.trim()) {
+      setError('Please enter your clinical security key or use Account OTP 2FA.');
+      return;
+    }
+
+    setIsVerifying(true);
     try {
-      const cached = localStorage.getItem('medical_user');
-      const parsed = cached ? JSON.parse(cached) : null;
-      const role = String(parsed?.role || '').toLowerCase();
-      if (!['doctor', 'clinician', 'nurse', 'admin'].includes(role) && !parsed?.isAdmin) {
-        setError('Clinician or administrator role is required. Use Account OTP 2FA or sign in as a clinician.');
-        return;
+      const res = await api.auth.verifyPrivileged('doctor', password.trim(), currentUserEmail);
+      if (res?.verified) {
+        sessionStorage.setItem('doctor_authenticated', 'true');
+        setError('');
+        setPassword('');
+        onSuccess();
+        onClose();
+      } else {
+        throw new Error('Clinical key rejected.');
       }
-      sessionStorage.setItem('doctor_authenticated', 'true');
-      setError('');
-      setPassword('');
-      onSuccess();
-      onClose();
-    } catch {
-      setError('Unable to verify clinical role. Please use Account OTP 2FA.');
+    } catch (err: any) {
+      const nextAttempts = attempts + 1;
+      setAttempts(nextAttempts);
+      if (nextAttempts >= 3) {
+        setIsLockedOut(true);
+        setError('Security restriction triggered: 3 invalid attempts. Access locked.');
+      } else {
+        setError(err?.message || 'Invalid clinical authorization key or insufficient role privileges.');
+      }
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -298,10 +314,10 @@ export const DoctorVerificationModal: React.FC<DoctorVerificationModalProps> = (
                 </button>
                 <button
                   onClick={handleVerify}
-                  disabled={isLockedOut}
+                  disabled={isLockedOut || isVerifying}
                   className="flex-[2] py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  Verify Account
+                  {isVerifying ? 'Verifying...' : 'Verify Account'}
                 </button>
               </div>
             </div>

@@ -168,7 +168,102 @@ export function initDatabase() {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_key, date_str)
     );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      jti TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      ip TEXT,
+      ua_hash TEXT,
+      expires_at INTEGER NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS security_challenges (
+      id TEXT PRIMARY KEY,
+      purpose TEXT NOT NULL,
+      email TEXT,
+      salt TEXT NOT NULL,
+      answer_hash TEXT NOT NULL,
+      difficulty INTEGER NOT NULL DEFAULT 3,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      expires_at INTEGER NOT NULL,
+      consumed INTEGER NOT NULL DEFAULT 0,
+      ip TEXT,
+      issued_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS security_events (
+      id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'high', 'critical')),
+      ip TEXT,
+      email TEXT,
+      details TEXT,
+      prev_hash TEXT NOT NULL,
+      entry_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS neural_messages (
+      id TEXT PRIMARY KEY,
+      channel TEXT NOT NULL DEFAULT 'neural_mesh',
+      event_type TEXT NOT NULL DEFAULT 'signal',
+      sender_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      sender_role TEXT NOT NULL,
+      sender_specialty TEXT,
+      target_role TEXT NOT NULL DEFAULT 'all',
+      target_user_id TEXT,
+      recipient_name TEXT,
+      subject TEXT,
+      content TEXT NOT NULL,
+      payload_json TEXT,
+      priority TEXT NOT NULL DEFAULT 'normal',
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS pharmacy_orders (
+      id TEXT PRIMARY KEY,
+      order_number TEXT UNIQUE NOT NULL,
+      user_id TEXT,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      delivery_address TEXT NOT NULL,
+      district TEXT NOT NULL,
+      pharmacy_id TEXT NOT NULL,
+      pharmacy_name TEXT NOT NULL,
+      fulfillment_type TEXT NOT NULL DEFAULT 'delivery',
+      payment_method TEXT NOT NULL DEFAULT 'momo',
+      items_json TEXT NOT NULL,
+      subtotal_ugx INTEGER NOT NULL,
+      delivery_fee_ugx INTEGER NOT NULL DEFAULT 0,
+      total_ugx INTEGER NOT NULL,
+      prescription_ref TEXT,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'confirmed',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  // Safe idempotent security column migrations for existing databases
+  const migrations = [
+    "ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN locked_until INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN license_verified INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0"
+  ];
+  for (const sql of migrations) {
+    try {
+      db.exec(sql);
+    } catch {
+      // Column already exists
+    }
+  }
 
   seedInitialClinicalData();
   ensureHospitalBeds('mulago-national');
@@ -220,6 +315,10 @@ function seedInitialClinicalData() {
     insertUser.run('usr-doctor-01', 'doctor@doctorian.org', defaultHash, 'Dr. Sarah M. Nakitto', 'doctor', 'Internal Medicine & Infectious Diseases', 'Mulago National Referral Hospital', '+256 772 881 104', 'UMDPC-UG-4821');
     insertUser.run('usr-nurse-01', 'nurse@doctorian.org', defaultHash, 'Sr. Beatrice Achieng', 'nurse', 'Triage & Community Nursing', 'Mbale Regional Referral Hospital', '+256 752 309 411', 'UNMC-UG-9104');
     insertUser.run('usr-admin-01', 'admin@doctorian.org', defaultHash, 'Samuel K. Mugisha', 'admin', 'Hospital Operations Director', 'Doctorian East Africa Network', '+256 701 640 990', 'ADMIN-UG-001');
+    db.exec("UPDATE users SET license_verified = 1 WHERE id IN ('usr-doctor-01', 'usr-nurse-01', 'usr-admin-01')");
+  } else {
+    // Ensure pre-seeded baseline clinicians retain license_verified=1 after migration
+    db.exec("UPDATE users SET license_verified = 1 WHERE id IN ('usr-doctor-01', 'usr-nurse-01', 'usr-admin-01') AND license_verified = 0");
   }
 
   const patientCount = (db.prepare('SELECT COUNT(*) as cnt FROM patients').get() as { cnt: number }).cnt;

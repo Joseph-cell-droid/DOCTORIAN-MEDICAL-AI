@@ -54,6 +54,7 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
   // Credentials stage states
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [serverStepUpVerified, setServerStepUpVerified] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<{ score: number; label: string; color: string }>({ score: 100, label: 'EXCELLENT (VAULT)', color: 'text-emerald-400' });
   
   // MFA stage states
@@ -275,14 +276,10 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
           clearInterval(pollInterval);
           setLogs(prev => [
             ...prev,
-            `[MFA BROADCAST] Handshake confirmed! Gmail verification clicked successfully.`,
+            `[MFA BROADCAST] Handshake confirmed! Two-factor challenge verified on security vault.`,
             `[SECURITY GATE] Credentials validation complete. Transitioning to Node Calibration...`
           ]);
           playSystemChime('success');
-          
-          try {
-            await api.auth.verifyMfaToken('VERIFIED_LINK', email);
-          } catch (err) {}
 
           setTimeout(() => {
             if (isSubscribed) {
@@ -337,57 +334,45 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
 
   // Autofill disabled for high-security compliance (verification code must be retrieved manually from Gmail)
 
-  // First Stage handler: Master Credential check
+  // First Stage handler: Server-side Cryptographic Key / PIN verification
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!password.trim()) {
+      triggerErrorEffect('Security key or authorization PIN is required.');
+      return;
+    }
     setIsLoading(true);
-    setLoadingPercent(0);
+    setLoadingPercent(25);
     playSystemChime('click');
 
-    const duration = 1200; // ms
-    const intervalTime = 30;
-    const stepCount = duration / intervalTime;
-    let currentStep = 0;
-    const tick = setInterval(() => {
-      currentStep++;
-      const pct = Math.min(100, Math.round((currentStep / stepCount) * 100));
-      setLoadingPercent(pct);
-      if (currentStep >= stepCount) {
-        clearInterval(tick);
+    try {
+      const email = getRegisteredEmail();
+      setLoadingPercent(65);
+      const res = await api.auth.verifyPrivileged(role, password.trim(), email);
+      setLoadingPercent(100);
+
+      if (res?.verified) {
+        setServerStepUpVerified(true);
+        playSystemChime('success');
+        setLogs(prev => [
+          ...prev,
+          `[SUCCESS] Cryptographic passkey verified by Doctorian Server Security Vault (${role.toUpperCase()}).`,
+          `[MFA PROTOCOL] Launching Multi-Factor Verification sequence.`
+        ]);
+        setStage('biometrics_mfa');
+      } else {
+        throw new Error('Server rejected privileged security key.');
       }
-    }, intervalTime);
-
-    await new Promise(resolve => setTimeout(resolve, duration));
-    clearInterval(tick);
-    setLoadingPercent(100);
-
-    const lowercasePass = password.trim();
-    const adminPasswords = ["admin@2026@doctorian", "admin", "admin@2026", "doctoriansecureadmin2026!", "haxzy20joseph21"];
-    const doctorPasswords = ["doctor@2026@doctorian", "doctor", "doctor@2026", "docsecure2026!"];
-
-    if (role === 'admin' && adminPasswords.includes(lowercasePass.toLowerCase())) {
-      playSystemChime('success');
-      setLogs(prev => [
-        ...prev, 
-        `[SUCCESS] Credentials verified against secure administrative database hash.`, 
-        `[MFA PROTOCOL] Launching Multi-Factor Hardware/Biometric verification sequence.`
-      ]);
-      setStage('biometrics_mfa');
-    } else if (role === 'doctor' && doctorPasswords.includes(lowercasePass.toLowerCase())) {
-      playSystemChime('success');
-      setLogs(prev => [
-        ...prev, 
-        `[SUCCESS] Clinical verification successful. Credentials verified.`, 
-        `[MFA PROTOCOL] Launching Multi-Factor Medical Workstation Biometrics.`
-      ]);
-      setStage('biometrics_mfa');
-    } else {
+    } catch (err: any) {
+      setServerStepUpVerified(false);
       playSystemChime('error');
-      triggerErrorEffect('Access forbidden. The passcode sequence provided is invalid.');
-      setLogs(prev => [...prev, `[THREAT ALERT] Unauthorized login signature rejected on master terminal.`]);
+      const msg = err?.message || 'Access forbidden. The security key or authorization PIN is invalid.';
+      triggerErrorEffect(msg);
+      setLogs(prev => [...prev, `[THREAT ALERT] Unauthorized passkey signature rejected by server: ${msg}`]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   // Run a real animated Fingerprint Scan sequence
@@ -611,6 +596,13 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
 
   // Electronic Signature Compliance
   const handleComplianceAndSignature = () => {
+    if (!serverStepUpVerified) {
+      playSystemChime('error');
+      triggerErrorEffect('Security policy violation: Server cryptographic step-up verification is required.');
+      setStage('credentials');
+      return;
+    }
+
     if (!consentA || !consentB || !consentC) {
       playSystemChime('error');
       triggerErrorEffect('You must read and consent to all high-level security & regulatory compliance provisions.');
@@ -629,10 +621,10 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
     setLogs(prev => [
       ...prev, 
       `[COMPLIANCE] Electronic stamp locked: "${eSignature.trim()}". Bounded cryptographically inside medical audit registry.`,
-      `[SECURITY REGISTRY] Session authorization ticket generated: SES_TOK_${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+      `[SECURITY REGISTRY] Session authorization ticket verified.`
     ]);
 
-    const duration = 1500; // ms
+    const duration = 900; // ms
     const intervalTime = 30;
     const stepCount = duration / intervalTime;
     let currentStep = 0;
@@ -651,10 +643,11 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
       playSystemChime('complete');
       setStage('granted');
       setIsLoading(false);
+      sessionStorage.setItem(role === 'admin' ? 'admin_authenticated' : 'doctor_authenticated', 'true');
       
       setTimeout(() => {
         onUnlock();
-      }, 1500);
+      }, 1000);
     }, duration);
   };
 
@@ -711,25 +704,12 @@ export const TerminalSecureGate: React.FC<TerminalSecureGateProps> = ({ role, on
           </div>
         </div>
 
-        {/* Instant Access Banner for Seamless Page Opening */}
-        <div className="mb-6 p-3.5 rounded-2xl bg-blue-950/50 border border-blue-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 size={17} className="text-emerald-400 shrink-0" />
-            <span className="text-xs text-slate-200 font-medium">
-              Reviewing the workstation? Instant authorized access is unlocked for review.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              playSystemChime('complete');
-              onUnlock();
-            }}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-black uppercase tracking-wider shrink-0 transition-all shadow-md shadow-blue-500/25 cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            <span>Instant Unlock</span>
-            <ArrowRight size={13} />
-          </button>
+        {/* Zero-Bypass Server-Enforced Terminal Lock Banner */}
+        <div className="mb-6 p-3.5 rounded-2xl bg-emerald-950/35 border border-emerald-500/35 flex items-center gap-3 relative z-10 shadow-sm">
+          <ShieldCheck size={17} className="text-emerald-400 shrink-0" />
+          <span className="text-xs text-slate-200 font-medium">
+            Zero-Bypass Hardware Gate Active: Server cryptographic key verification & audit-chained ingress enforced.
+          </span>
         </div>
 
         {/* SECURITY PROGRESS FLOWCHART BAR */}

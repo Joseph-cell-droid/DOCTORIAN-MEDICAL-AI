@@ -179,6 +179,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
   // Control Actions Loading
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Clinician Verification Quarantine & Live Security Shield State
+  const [pendingClinicians, setPendingClinicians] = useState<any[]>([]);
+  const [securityMetrics, setSecurityMetrics] = useState<{
+    chainValid: boolean;
+    totalEvents: number;
+    blockedThreatEvents: number;
+    activeTrackedSessions: number;
+  }>({ chainValid: true, totalEvents: 0, blockedThreatEvents: 0, activeTrackedSessions: 0 });
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const loadSecurityAndPending = async () => {
+    try {
+      const [pending, sec] = await Promise.all([
+        api.admin.pendingClinicians().catch(() => []),
+        api.security.getStatus().catch(() => null),
+      ]);
+      if (Array.isArray(pending)) setPendingClinicians(pending);
+      if (sec) {
+        setSecurityMetrics({
+          chainValid: sec.chainIntegrity.valid,
+          totalEvents: sec.chainIntegrity.totalEvents,
+          blockedThreatEvents: sec.metrics.blockedThreatEvents,
+          activeTrackedSessions: sec.metrics.activeTrackedSessions,
+        });
+      }
+    } catch {
+      // handled gracefully
+    }
+  };
+
+  const handleClinicianDecision = async (id: string, approve: boolean) => {
+    setVerifyingId(id);
+    try {
+      await api.admin.verifyClinician(id, approve);
+      setPendingClinicians(prev => prev.filter(c => c.id !== id));
+      addToast?.(
+        approve
+          ? 'Clinician license verified and account activated.'
+          : 'Clinician registration rejected and blocked.',
+        approve ? 'success' : 'info'
+      );
+      loadSecurityAndPending();
+    } catch (err: any) {
+      addToast?.(err?.message || 'Verification action failed.', 'error');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
   // Real App DB stats load
   useEffect(() => {
     const fetchRealData = async () => {
@@ -195,6 +244,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
       }
     };
     fetchRealData();
+    loadSecurityAndPending();
   }, []);
 
   // Update Live Clock Every Second
@@ -1364,6 +1414,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ addToast, onNavi
                 </div>
               </div>
 
+            </div>
+
+            {/* ----------------------------------------------------- */}
+            {/* ROW 5: CLINICIAN LICENSE QUARANTINE & ANTI-TAMPER SHIELD */}
+            {/* ----------------------------------------------------- */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-7 p-4 rounded-2xl bg-[#0b1736]/80 border border-blue-500/25 backdrop-blur-xl shadow-lg space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <UserCheck size={16} className="text-cyan-400" />
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                      Clinician License Verification Quarantine ({pendingClinicians.length})
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadSecurityAndPending}
+                    className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw size={11} /> Refresh
+                  </button>
+                </div>
+
+                {pendingClinicians.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-[#070e24]/80 border border-emerald-500/20 text-xs text-slate-300 flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                    <span>Zero unverified clinician signups waiting in quarantine. All active practitioners verified.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {pendingClinicians.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="p-3 rounded-xl bg-[#070e24]/90 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate">
+                            {doc.display_name || doc.displayName} ({doc.role})
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono truncate">
+                            {doc.email} • License: <span className="text-cyan-300 font-bold">{doc.license_number || doc.licenseNumber}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            disabled={verifyingId === doc.id}
+                            onClick={() => handleClinicianDecision(doc.id, true)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            disabled={verifyingId === doc.id}
+                            onClick={() => handleClinicianDecision(doc.id, false)}
+                            className="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="lg:col-span-5 p-4 rounded-2xl bg-[#0b1736]/80 border border-emerald-500/25 backdrop-blur-xl shadow-lg flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={16} className="text-emerald-400" />
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                      Anti-Tamper & Registration Defense
+                    </h4>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${securityMetrics.chainValid ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'}`}>
+                    {securityMetrics.chainValid ? 'HASH CHAIN INTACT' : 'CHAIN ALERT'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-2.5 rounded-xl bg-[#070e24] border border-blue-500/20">
+                    <p className="text-sm font-black font-mono text-rose-400">{securityMetrics.blockedThreatEvents}</p>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">Blocked Threats</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#070e24] border border-blue-500/20">
+                    <p className="text-sm font-black font-mono text-cyan-400">{securityMetrics.activeTrackedSessions}</p>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">Tracked JTI</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#070e24] border border-blue-500/20">
+                    <p className="text-sm font-black font-mono text-emerald-400">{securityMetrics.totalEvents}</p>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">Signed Events</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.('biosecurity')}
+                  className="w-full py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-cyan-300 text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all"
+                >
+                  Open Full Cryptographic Security Ledger →
+                </button>
+              </div>
             </div>
 
           </main>

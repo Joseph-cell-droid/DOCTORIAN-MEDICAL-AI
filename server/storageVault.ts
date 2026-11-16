@@ -237,10 +237,10 @@ export function setupStorageVaultRoutes(
         return res.status(403).json({ error: 'Invalid vault access credentials', locked: true });
       }
 
-      // Check if user still exists
-      const user: any = db.prepare('SELECT id, email, displayName, role FROM users WHERE id = ?').get(decoded.userId);
-      if (!user) {
-        return res.status(401).json({ error: 'Account not found', locked: true });
+      // Check if user still exists and is active
+      const user: any = db.prepare('SELECT id, email, display_name as displayName, role, status FROM users WHERE id = ?').get(decoded.userId);
+      if (!user || user.status !== 'active') {
+        return res.status(401).json({ error: 'Account not found or suspended', locked: true });
       }
 
       (req as any).vaultUser = user;
@@ -251,6 +251,16 @@ export function setupStorageVaultRoutes(
         locked: true,
       });
     }
+  }
+
+  function isPathContainedInVault(filePath: string): boolean {
+    const resolvedFile = path.resolve(filePath);
+    const resolvedRoot = path.resolve(UPLOADS_DIR);
+    return resolvedFile === resolvedRoot || resolvedFile.startsWith(resolvedRoot + path.sep);
+  }
+
+  function hashVaultCode(challengeId: string, code: string): string {
+    return crypto.createHash('sha256').update(`${challengeId}:${code}`).digest('hex');
   }
 
   // =========================================================================
@@ -275,13 +285,12 @@ export function setupStorageVaultRoutes(
       let decoded: any;
       try {
         decoded = jwt.verify(token, jwtSecret);
-      } catch (err: any) {
-        // Try without expiration check if silently renewing
-        try {
-          decoded = jwt.verify(token, jwtSecret, { ignoreExpiration: true });
-        } catch (e) {
-          return res.status(401).json({ error: 'Session token invalid or expired. Please sign in.' });
-        }
+      } catch {
+        return res.status(401).json({ error: 'Session token invalid or expired. Please sign in.' });
+      }
+
+      if (decoded.role === 'guest') {
+        return res.status(403).json({ error: 'Guest sandbox sessions cannot unlock the encrypted medical vault.' });
       }
 
       const userId = decoded.id || decoded.userId;
@@ -289,9 +298,9 @@ export function setupStorageVaultRoutes(
         return res.status(401).json({ error: 'Invalid user session token.' });
       }
 
-      const user: any = db.prepare('SELECT id, email, displayName, role FROM users WHERE id = ?').get(userId);
-      if (!user) {
-        return res.status(404).json({ error: 'Account not found in cloud registry.' });
+      const user: any = db.prepare('SELECT id, email, display_name as displayName, role, status FROM users WHERE id = ?').get(userId);
+      if (!user || user.status !== 'active') {
+        return res.status(404).json({ error: 'Active account not found in cloud registry.' });
       }
 
       // Issue Vault Unlock Token (4 hours session)
@@ -343,22 +352,30 @@ export function setupStorageVaultRoutes(
         return res.status(404).json({ error: 'Account not found. Please register or verify email.' });
       }
 
-      // Check if user is already authenticated via session token
+      // Check if user is already authenticated via valid session token
       let isSessionAuth = false;
       const authHeader = req.headers.authorization;
-      const sessionToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.cookies?.token;
+      const sessionToken =
+        authHeader && authHeader.startsWith('Bearer ')
+          ? authHeader.split(' ')[1]
+          : req.cookies?.doctorian_token || req.cookies?.token;
       if (sessionToken) {
         try {
-          const decoded: any = jwt.verify(sessionToken, jwtSecret, { ignoreExpiration: true });
-          if (decoded && (decoded.id === user.id || decoded.userId === user.id || decoded.email?.toLowerCase() === user.email.toLowerCase())) {
+          const decoded: any = jwt.verify(sessionToken, jwtSecret);
+          if (
+            decoded &&
+            decoded.role !== 'guest' &&
+            (decoded.id === user.id || decoded.userId === user.id || decoded.email?.toLowerCase() === user.email.toLowerCase())
+          ) {
             isSessionAuth = true;
           }
-        } catch (e) {}
+        } catch {}
       }
 
-      // If password provided, validate account password
+      // If password provided, validate account password against password_hash
       if (password) {
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const storedHash = user.password_hash || user.password || '';
+        const isPasswordValid = storedHash ? await bcrypt.compare(String(password), storedHash) : false;
         if (!isPasswordValid && !isSessionAuth) {
           return res.status(401).json({ error: 'Incorrect account password. Access denied.' });
         }
@@ -366,15 +383,16 @@ export function setupStorageVaultRoutes(
         return res.status(400).json({ error: 'Account password or active session is required to request two-way verification.' });
       }
 
-      // Generate a secure 6-digit verification code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const challengeId = 'ch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      // Generate a cryptographically random 6-digit verification code and store only its hash
+      const verificationCode = String(crypto.randomInt(100000, 1000000));
+      const challengeId = 'ch_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+      const codeHash = hashVaultCode(challengeId, verificationCode);
 
-      // Save challenge to database
+      // Save hashed challenge to database
       db.prepare(
         'INSERT INTO storage_2fa_challenges (id, userId, email, code, expiresAt, verified, attempts, createdAt) VALUES (?, ?, ?, ?, ?, 0, 0, ?)'
-      ).run(challengeId, user.id, user.email, verificationCode, expiresAt, new Date().toISOString());
+      ).run(challengeId, user.id, user.email, codeHash, expiresAt, new Date().toISOString());
 
       logAudit(user.id, '2FA_CHALLENGE_DISPATCHED', `2-Way verification code dispatched for vault unlock (Challenge: ${challengeId})`, req);
 
@@ -386,8 +404,8 @@ export function setupStorageVaultRoutes(
           : `***@${parts[1]}`;
 
       // Dispatch 2-way verification email notification
-      const emailText = `Hello ${user.displayName || 'Doctorian User'},\n\nYour two-way verification code to access your 1GB Free Cloud Document & File Vault is:\n\n🔑 ${verificationCode}\n\nThis security code is valid for 10 minutes.\nIf you did not initiate this request, please change your account password immediately.\n\nDoctorian Secure Core Team`;
-      
+      const emailText = `Hello ${user.display_name || 'Doctorian User'},\n\nYour two-way verification code to access your 1GB Free Cloud Document & File Vault is:\n\n🔑 ${verificationCode}\n\nThis security code is valid for 10 minutes.\nIf you did not initiate this request, please change your account password immediately.\n\nDoctorian Secure Core Team`;
+
       sendEmail(
         user.email,
         '🔑 1GB Vault Two-Way Verification Code: ' + verificationCode,
@@ -399,8 +417,6 @@ export function setupStorageVaultRoutes(
         message: `Two-way verification code sent to ${maskedEmail}`,
         challengeId,
         maskedEmail,
-        // Provided for developer preview, demo accounts, or when SMTP is offline
-        demoCode: verificationCode,
         expiresInSeconds: 600,
       });
     } catch (err: any) {
@@ -447,11 +463,18 @@ export function setupStorageVaultRoutes(
         return res.status(403).json({ error: 'Security alert: Too many incorrect attempts. Code revoked. Please request a new code.' });
       }
 
+      if (challenge.verified === 1) {
+        return res.status(400).json({ error: 'Verification code already used. Please request a new code.' });
+      }
+
       if (Date.now() > challenge.expiresAt) {
         return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
       }
 
-      if (challenge.code !== code.trim()) {
+      const candidateHash = hashVaultCode(challenge.id, String(code).trim());
+      const a = Buffer.from(candidateHash, 'utf8');
+      const b = Buffer.from(String(challenge.code || ''), 'utf8');
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
         db.prepare('UPDATE storage_2fa_challenges SET attempts = attempts + 1 WHERE id = ?').run(challenge.id);
         logAudit(user.id, '2FA_VERIFICATION_FAILED', `Incorrect 2FA code entered. Attempt ${challenge.attempts + 1} of 5.`, req);
         return res.status(401).json({ error: `Invalid two-way verification code (${4 - challenge.attempts} attempts remaining).` });
@@ -461,11 +484,12 @@ export function setupStorageVaultRoutes(
       db.prepare('UPDATE storage_2fa_challenges SET verified = 1 WHERE id = ?').run(challenge.id);
 
       // Issue Vault Unlock Token (4 hours session)
+      const displayName = user.display_name || user.displayName || 'Doctorian User';
       const vaultToken = jwt.sign(
         {
           userId: user.id,
           email: user.email,
-          displayName: user.displayName,
+          displayName,
           scope: '1gb_vault_unlocked',
         },
         jwtSecret,
@@ -484,7 +508,7 @@ export function setupStorageVaultRoutes(
         user: {
           id: user.id,
           email: user.email,
-          displayName: user.displayName,
+          displayName,
         },
       });
     } catch (err: any) {
@@ -989,7 +1013,7 @@ export function setupStorageVaultRoutes(
         .prepare('SELECT * FROM user_storage_files WHERE id = ? AND userId = ?')
         .get(fileId, user.id);
 
-      if (!file) {
+      if (!file || !isPathContainedInVault(file.filePath)) {
         return res.status(404).json({ error: 'File not found in your vault' });
       }
 
@@ -1052,7 +1076,7 @@ export function setupStorageVaultRoutes(
         .prepare('SELECT * FROM user_storage_files WHERE id = ? AND userId = ?')
         .get(fileId, user.id);
 
-      if (!file) {
+      if (!file || !isPathContainedInVault(file.filePath)) {
         return res.status(404).json({ error: 'File not found' });
       }
 
@@ -1117,9 +1141,9 @@ export function setupStorageVaultRoutes(
         return res.status(404).json({ error: 'File not found in your vault' });
       }
 
-      // Delete file from disk
+      // Delete file from disk (only within confined UPLOADS_DIR)
       try {
-        if (fs.existsSync(file.filePath)) {
+        if (isPathContainedInVault(file.filePath) && fs.existsSync(file.filePath)) {
           fs.unlinkSync(file.filePath);
         }
       } catch (err) {
@@ -1220,46 +1244,36 @@ export function setupStorageVaultRoutes(
         return res.status(400).json({ error: 'Invalid storage expansion tier selected' });
       }
 
-      // Resolve user from vault token, authorization header, or provided email
+      // Resolve user STRICTLY from authenticated token / vault session
       let targetUserId: string | null = null;
       let targetUserEmail: string | null = null;
       let targetDisplayName: string = 'Doctorian User';
 
       const authHeader = req.headers.authorization;
-      const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.body.token || req.cookies?.vault_token;
+      const token =
+        authHeader && authHeader.startsWith('Bearer ')
+          ? authHeader.split(' ')[1]
+          : req.cookies?.doctorian_token || req.cookies?.vault_token || req.body?.token;
 
       if (token) {
         try {
           const decoded: any = jwt.verify(token, jwtSecret);
-          if (decoded && decoded.userId) {
-            targetUserId = decoded.userId;
-            targetUserEmail = decoded.email || null;
-            targetDisplayName = decoded.displayName || 'Doctorian User';
+          const resolvedId = decoded?.userId || decoded?.id;
+          if (resolvedId && decoded?.role !== 'guest') {
+            const dbUser: any = db
+              .prepare('SELECT id, email, display_name as displayName, status FROM users WHERE id = ?')
+              .get(resolvedId);
+            if (dbUser && dbUser.status === 'active') {
+              targetUserId = dbUser.id;
+              targetUserEmail = dbUser.email;
+              targetDisplayName = dbUser.displayName || 'Doctorian User';
+            }
           }
-        } catch (e) {}
-      }
-
-      if (!targetUserId && email) {
-        const foundUser: any = db.prepare('SELECT id, email, displayName FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
-        if (foundUser) {
-          targetUserId = foundUser.id;
-          targetUserEmail = foundUser.email;
-          targetDisplayName = foundUser.displayName || 'Doctorian User';
-        }
-      }
-
-      // Fallback to first available account
-      if (!targetUserId) {
-        const firstUser: any = db.prepare('SELECT id, email, displayName FROM users LIMIT 1').get();
-        if (firstUser) {
-          targetUserId = firstUser.id;
-          targetUserEmail = firstUser.email;
-          targetDisplayName = firstUser.displayName || 'Doctorian User';
-        }
+        } catch {}
       }
 
       if (!targetUserId) {
-        return res.status(401).json({ error: 'Please authenticate to complete storage expansion' });
+        return res.status(401).json({ error: 'Authenticated account required to complete storage expansion.' });
       }
 
       // Read current quota
@@ -1276,7 +1290,8 @@ export function setupStorageVaultRoutes(
       const txId = transactionId || `TX-STORAGE-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
       db.prepare(`
-        INSERT INTO storage_purchases (\n          id, userId, tierId, tierName, addedBytes, previousQuotaBytes, newQuotaBytes, amount, currency, paymentMethod, phone, transactionId, createdAt
+        INSERT INTO storage_purchases (
+          id, userId, tierId, tierName, addedBytes, previousQuotaBytes, newQuotaBytes, amount, currency, paymentMethod, phone, transactionId, createdAt
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         purchaseId,
@@ -1346,35 +1361,33 @@ export function setupStorageVaultRoutes(
   });
 
   // ==========================================
-  // 16. SIMULATE / TOGGLE STORAGE FULL STATE
+  // 16. SIMULATE / TOGGLE STORAGE FULL STATE (AUTH REQUIRED)
   // ==========================================
   app.post('/api/storage/simulate-full', async (req: express.Request, res: express.Response) => {
     try {
-      const { email, setFull = true } = req.body;
+      const { setFull = true } = req.body;
       let targetUser: any = null;
 
       const authHeader = req.headers.authorization;
-      const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.body.token || req.cookies?.vault_token;
+      const token =
+        authHeader && authHeader.startsWith('Bearer ')
+          ? authHeader.split(' ')[1]
+          : req.cookies?.doctorian_token || req.cookies?.vault_token || req.body?.token;
 
       if (token) {
         try {
           const decoded: any = jwt.verify(token, jwtSecret);
-          if (decoded && decoded.userId) {
-            targetUser = db.prepare('SELECT id, email, displayName, storageQuotaBytes FROM users WHERE id = ?').get(decoded.userId);
+          const resolvedId = decoded?.userId || decoded?.id;
+          if (resolvedId && decoded?.role !== 'guest') {
+            targetUser = db
+              .prepare('SELECT id, email, display_name as displayName, storageQuotaBytes FROM users WHERE id = ?')
+              .get(resolvedId);
           }
-        } catch (e) {}
-      }
-
-      if (!targetUser && email) {
-        targetUser = db.prepare('SELECT id, email, displayName, storageQuotaBytes FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
+        } catch {}
       }
 
       if (!targetUser) {
-        targetUser = db.prepare('SELECT id, email, displayName, storageQuotaBytes FROM users LIMIT 1').get();
-      }
-
-      if (!targetUser) {
-        return res.status(404).json({ error: 'No user found to configure simulation' });
+        return res.status(401).json({ error: 'Authentication required to toggle storage simulation.' });
       }
 
       if (setFull) {

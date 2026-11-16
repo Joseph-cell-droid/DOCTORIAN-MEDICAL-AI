@@ -7,6 +7,7 @@ import {
   UserCheck, Building2, ChevronRight, Share2, Radio, Bell, CheckCircle2, ShieldAlert
 } from 'lucide-react';
 import { api, User, NetworkMessage } from '../api';
+import { reconnectNeuralMeshClient } from '../utils/neuralClient';
 
 interface AppServerNetworkProps {
   currentUser: User | null;
@@ -85,8 +86,18 @@ export const AppServerNetwork: React.FC<AppServerNetworkProps> = ({
   useEffect(() => {
     if (selectedPeerId) {
       loadMessages();
-      const interval = setInterval(loadMessages, 3500);
-      return () => clearInterval(interval);
+      const interval = setInterval(loadMessages, 5000);
+      const handleNeuralSignal = () => {
+        void loadMessages();
+      };
+      window.addEventListener('doctorian-neural-signal', handleNeuralSignal);
+      window.addEventListener('doctorian-neural-hydrated', handleNeuralSignal);
+      reconnectNeuralMeshClient();
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('doctorian-neural-signal', handleNeuralSignal);
+        window.removeEventListener('doctorian-neural-hydrated', handleNeuralSignal);
+      };
     }
   }, [selectedPeerId]);
 

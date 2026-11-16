@@ -10,7 +10,12 @@ import { api, User as UserType } from '../api';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { signInWithSocial, googleProvider, githubProvider, facebookProvider } from '../firebase';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
-import { validatePasswordStrength } from '../utils/security';
+import {
+  validatePasswordStrength,
+  solveRegistrationPow,
+  isDisposableEmail,
+  isValidClinicianLicense
+} from '../utils/security';
 import { Logo } from './Logo';
 
 interface AuthModalProps {
@@ -45,7 +50,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [signupRole, setSignupRole] = useState<'user' | 'doctor' | 'admin'>('user');
   const [signupSpecialty, setSignupSpecialty] = useState('Cardiology');
   const [signupPhone, setSignupPhone] = useState('+256 700 123 456');
-  const [signupLicense, setSignupLicense] = useState('UG-MED-2026');
+  const [signupLicense, setSignupLicense] = useState('UMDPC-MD-2026');
+  const [regChallenge, setRegChallenge] = useState<{
+    challengeId: string;
+    salt: string;
+    difficulty: number;
+    puzzleQuestion: string;
+  } | null>(null);
+  const [puzzleAnswer, setPuzzleAnswer] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,32 +66,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [biometricSuccess, setBiometricSuccess] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [resetCode, setResetCode] = useState('');
-  const [secondarySecurityPin, setSecondarySecurityPin] = useState('2026');
+  const [secondarySecurityPin, setSecondarySecurityPin] = useState('');
   const [resetAttempts, setResetAttempts] = useState(0);
   const [isResetLockedOut, setIsResetLockedOut] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showTermsOverlay, setShowTermsOverlay] = useState<'terms' | 'privacy' | null>(null);
 
+  const loadRegistrationChallenge = async () => {
+    try {
+      const ch = await api.auth.getRegisterChallenge();
+      setRegChallenge(ch);
+      setPuzzleAnswer('');
+    } catch {
+      setRegChallenge(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && view === 'signup') {
+      loadRegistrationChallenge();
+    }
+  }, [isOpen, view]);
+
   const fillDemo = (type: 'doctor-nakitto' | 'doctor-aaron' | 'doctor-sarah' | 'patient-sarah' | 'admin') => {
     if (type === 'doctor-nakitto') {
       setEmail('dr.nakitto@doctorian.org');
-      setPassword('Doctorian@2026!');
+      setPassword('');
       setPortalType('doctor');
     } else if (type === 'doctor-aaron') {
       setEmail('aaron.neuro@doctorian.org');
-      setPassword('Doctorian@2026!');
+      setPassword('');
       setPortalType('doctor');
     } else if (type === 'doctor-sarah') {
       setEmail('doctor@doctorian.org');
-      setPassword('Doctor@Doctorian2026!');
+      setPassword('');
       setPortalType('doctor');
     } else if (type === 'patient-sarah') {
-      setEmail('sarah.patient@doctorian.org');
-      setPassword('User@Doctorian2026!');
+      setEmail('patient@doctorian.org');
+      setPassword('');
       setPortalType('user');
     } else if (type === 'admin') {
       setEmail('admin@doctorian.org');
-      setPassword('Doctorian@2026!');
+      setPassword('');
       setPortalType('admin');
     }
     setError(null);
@@ -129,109 +158,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setBiometricSuccess(false);
     
     try {
-      let isSimulated = false;
-
-      if (authEmail && typeof window !== 'undefined' && window.PublicKeyCredential) {
-        try {
-          // 1. Get authentication options from server
-          const { options, userId } = await api.auth.webauthn.loginOptions(authEmail);
-
-          if (!options.allowCredentials || options.allowCredentials.length === 0) {
-            if (view === 'authorize') {
-              isSimulated = true;
-            } else {
-              throw new Error('No registered passkey found for this account. Sign in with password first to enroll your device.');
-            }
-          } else {
-            // 2. Start WebAuthn authentication
-            const asseResp = await startAuthentication({ optionsJSON: options });
-
-            // 3. Verify authentication with server
-            const verification = await api.auth.webauthn.loginVerify(asseResp, userId, authEmail);
-
-            if (verification.verified) {
-              setBiometricSuccess(true);
-              const userObj = verification.user;
-
-              if (view === 'authorize') {
-                setSuccessMessage("Identity verified with Secure Hardware Enclave.");
-                await new Promise(resolve => setTimeout(resolve, 1200));
-                onAuthorizeSuccess?.();
-                onClose();
-                return;
-              } else {
-                if (userObj.role === 'admin' || userObj.role === 'doctor') {
-                  setSuccessMessage(`Access verified: ${userObj.role.toUpperCase()}`);
-                } else {
-                  setSuccessMessage(`Welcome back, ${userObj.displayName || 'User'}!`);
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 1200));
-                onSuccess(userObj);
-                onClose();
-                return;
-              }
-            } else {
-              throw new Error('Biometric hardware verification was not accepted.');
-            }
-          }
-        } catch (webauthnErr: any) {
-          console.warn("WebAuthn check failed, executing secure enclave fallback:", webauthnErr);
-          if (view === 'authorize' || isIframe) {
-            isSimulated = true;
-          } else {
-            throw webauthnErr;
-          }
-        }
-      } else {
-        if (view === 'authorize' || isIframe) {
-          isSimulated = true;
-        } else {
-          throw new Error('Passkey hardware verification is not supported in this browser window.');
-        }
+      if (!authEmail || typeof window === 'undefined' || !window.PublicKeyCredential) {
+        throw new Error('Hardware WebAuthn passkeys are not available. Please sign in with your verified credentials.');
       }
 
-      if (isSimulated) {
-        setSuccessMessage("Verifying local biometric enrollment signature...");
-        await new Promise(resolve => setTimeout(resolve, 900));
-        setBiometricSuccess(true);
-        setSuccessMessage("Biometric verification confirmed (100% match confidence).");
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      const { options, userId } = await api.auth.webauthn.loginOptions(authEmail);
+      const challengeData = options || (await api.auth.webauthn.loginOptions(authEmail));
+      const asseResp = await startAuthentication({ optionsJSON: challengeData });
+      const verification = await api.auth.webauthn.loginVerify(asseResp, userId, authEmail);
 
-        if (view === 'authorize') {
-          onAuthorizeSuccess?.();
-          onClose();
-        } else {
-          try {
-            const verification = await api.auth.webauthn.simulateLogin(authEmail);
-            if (verification.verified) {
-              const userObj = verification.user;
-              if (userObj.role === 'admin' || userObj.role === 'doctor') {
-                setSuccessMessage(`Privileged access verified: ${userObj.role.toUpperCase()}`);
-              } else {
-                setSuccessMessage(`Welcome back, ${userObj.displayName || 'User'}!`);
-              }
-              await new Promise(resolve => setTimeout(resolve, 800));
-              onSuccess(userObj);
-              onClose();
-            } else {
-              throw new Error("Biometric verification failed.");
-            }
-          } catch (simErr: any) {
-            throw new Error(simErr.message || "No registered account found with this email. Please create an account first.");
-          }
-        }
+      if (!verification.verified) {
+        throw new Error('Biometric hardware verification was not accepted.');
+      }
+
+      setBiometricSuccess(true);
+      const userObj = verification.user;
+      if (view === 'authorize') {
+        setSuccessMessage('Identity verified with Secure Hardware Enclave.');
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        onAuthorizeSuccess?.();
+        onClose();
         return;
       }
+
+      setSuccessMessage(`Welcome back, ${userObj.displayName || 'User'}!`);
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      onSuccess(userObj);
+      onClose();
     } catch (err: any) {
-      console.error("Biometric error:", err);
-      let errorMessage = err.message || 'Biometric scan failed';
-      
-      if (errorMessage.includes('identitytoolkit') && errorMessage.includes('blocked')) {
-        errorMessage = "Identity Toolkit API is blocked or restricted in your cloud project. Please enable it in Google Cloud Console.";
-      }
-      
-      setError(errorMessage);
+      setError(err.message || 'Biometric verification failed. Please sign in with password.');
     } finally {
       setIsBiometricLoading(false);
     }
@@ -249,25 +204,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         
         // Enforce role-portal separation
         if (portalType === 'doctor') {
-          if (user.role !== 'doctor' && user.role !== 'clinician' && user.role !== 'admin') {
+          if (user.role !== 'doctor' && user.role !== 'nurse' && user.role !== 'admin') {
+            await api.auth.logout();
             throw new Error("Access Denied: This account is registered as a Patient. Please use the Patient Sign In portal.");
           }
           setSuccessMessage(`Clinician credentials verified. Loading clinical workstation...`);
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise(resolve => setTimeout(resolve, 600));
         } else if (portalType === 'admin') {
           if (user.role !== 'admin') {
+            await api.auth.logout();
             throw new Error("Access Denied: Restricted Administrative Node. This account does not have System Administrator privileges.");
           }
           setSuccessMessage(`Administrator access verified. Loading administration portal...`);
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise(resolve => setTimeout(resolve, 600));
         } else {
           setSuccessMessage(`Welcome back! Loading secure health portal...`);
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise(resolve => setTimeout(resolve, 600));
         }
         
         onSuccess(user);
         onClose();
       } else if (view === 'signup') {
+        if (signupRole === 'admin') {
+          throw new Error("Security Policy: Public Administrator signups are blocked. Contact a System Administrator.");
+        }
+        if (isDisposableEmail(email)) {
+          throw new Error("Disposable or test email domains are blocked to stop fake registrations.");
+        }
         if (password !== confirmPassword) {
           throw new Error("Passwords do not match. Please verify both passwords.");
         }
@@ -275,15 +238,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (!evalRes.isStrong) {
           throw new Error(`Password must meet all security requirements: ${evalRes.missingRequirements.join(', ')}.`);
         }
+        if (signupRole === 'doctor' && !isValidClinicianLicense(signupLicense)) {
+          throw new Error("Valid medical license format required (e.g. UMDPC-MD-12345).");
+        }
+        if (!regChallenge || !puzzleAnswer.trim()) {
+          throw new Error("Please solve the Anti-Bot Human Verification challenge first.");
+        }
         if (!agreedToTerms) {
           throw new Error("Please accept the Terms of Service & Clinical Privacy Agreement to proceed.");
         }
+
+        const powNonce = await solveRegistrationPow(
+          regChallenge.challengeId,
+          regChallenge.salt,
+          regChallenge.difficulty
+        );
+
         const formattedName = signupRole === 'doctor' && !displayName.toLowerCase().startsWith('dr.')
           ? `Dr. ${displayName}`
           : displayName;
-        const user = await api.auth.signup(email, password, formattedName, signupRole, signupPhone);
-        setSuccessMessage(`Account provisioned successfully as ${signupRole === 'doctor' ? 'Verified Clinician' : signupRole.toUpperCase()}! Welcome to Doctorian.`);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const user = await api.auth.signup(
+          email,
+          password,
+          formattedName,
+          signupRole === 'doctor' ? 'doctor' : 'patient',
+          signupPhone,
+          {
+            licenseNumber: signupRole === 'doctor' ? signupLicense.trim().toUpperCase() : undefined,
+            specialty: signupRole === 'doctor' ? signupSpecialty : undefined,
+            challengeId: regChallenge.challengeId,
+            powNonce,
+            puzzleAnswer: puzzleAnswer.trim(),
+            honeypot
+          }
+        );
+
+        if (user.status === 'pending_verification') {
+          setSuccessMessage(
+            user.pendingMessage ||
+              'Clinician account registered and quarantined pending Hospital Admin license approval.'
+          );
+          loadRegistrationChallenge();
+          return;
+        }
+
+        setSuccessMessage('Account provisioned and verified! Welcome to Doctorian.');
+        await new Promise(resolve => setTimeout(resolve, 700));
         onSuccess(user, true);
         onClose();
       } else if (view === 'forgot-password') {
@@ -402,13 +402,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMessage(`Signing in with ${providerName}...`);
     try {
       const firebaseUser = await signInWithSocial(provider);
-      setSuccessMessage("Identity verified. Preparing session...");
+      const idToken = await firebaseUser.getIdToken();
+      setSuccessMessage("Identity cryptographically verified. Preparing session...");
       if (firebaseUser.email) {
         const user = await api.auth.socialLogin({
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
           photoURL: firebaseUser.photoURL || undefined,
-          providerId: providerName
+          providerId: providerName,
+          idToken
         });
         onSuccess(user);
         onClose();
@@ -1089,6 +1091,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         </button>
                       </div>
                     </div>
+                  )}
+
+                  {/* Anti-Bot Human Shield (Sign Up view) */}
+                  {view === 'signup' && (
+                    <>
+                      <input
+                        type="text"
+                        name="website_url_check"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        value={honeypot}
+                        onChange={(e) => setHoneypot(e.target.value)}
+                        aria-hidden="true"
+                        className="sr-only absolute -left-[9999px] w-px h-px opacity-0"
+                      />
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 space-y-2 text-left">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-blue-600 dark:text-cyan-400 flex items-center gap-1.5">
+                            <ShieldCheck size={14} className="text-emerald-500" />
+                            <span>Anti-Bot Human Shield</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={loadRegistrationChallenge}
+                            className="text-[10px] text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
+                          >
+                            Refresh Puzzle
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white shrink-0">
+                            {regChallenge ? regChallenge.puzzleQuestion : 'Loading...'}
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            required
+                            value={puzzleAnswer}
+                            onChange={(e) => setPuzzleAnswer(e.target.value)}
+                            placeholder="Enter sum / product"
+                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {/* Terms Checkbox for Login and Signup */}

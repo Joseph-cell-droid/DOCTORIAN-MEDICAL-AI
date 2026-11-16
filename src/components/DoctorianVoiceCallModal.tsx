@@ -1,31 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Phone, 
-  PhoneOff, 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
-  Video, 
-  X, 
-  Settings, 
-  Globe, 
-  Sparkles, 
-  Check, 
-  Clock, 
-  Play, 
-  Pause, 
-  RotateCw, 
-  Heart, 
-  ChevronDown, 
-  Calendar, 
-  ShieldAlert, 
-  Bot, 
-  User, 
-  Users, 
-  PhoneCall 
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'motion/react';
+import {
+  Phone,
+  PhoneOff,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Video,
+  X,
+  Globe,
+  Clock,
+  Send,
+  ShieldAlert,
+  UserCheck,
+  Users,
+  Stethoscope,
+  WifiOff,
+  Play,
+  Copy,
+  Check
 } from 'lucide-react';
+import { UGANDAN_CLINICIAN_PERSONAS, ClinicianPersona } from '../utils/ugandanMedicalLexicon';
+import { speechEngine } from '../utils/speechEngine';
+import {
+  createCallRoomId,
+  generateClinicalCallReply,
+  getCallHistoryRecords,
+  getGreetingForLanguage,
+  getLocalPatientContext,
+  playSoftCallTone,
+  saveCallHistoryRecord,
+  TelehealthWebRTCSession,
+  CallTranscriptEntry,
+  PersistedCallRecord
+} from '../utils/telehealthCallEngine';
 
 interface DoctorianVoiceCallModalProps {
   isOpen: boolean;
@@ -33,523 +42,653 @@ interface DoctorianVoiceCallModalProps {
   onSwitchToVideo?: () => void;
 }
 
-export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = ({ 
-  isOpen, 
+type CallRecipientType = 'ai' | 'doctor' | 'family' | 'emergency';
+
+export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = ({
+  isOpen,
   onClose,
-  onSwitchToVideo 
+  onSwitchToVideo
 }) => {
-  const [activeCallOption, setActiveCallOption] = useState<'ai' | 'doctor' | 'family' | 'emergency'>('ai');
-  const [isMuted, setIsMuted] = useState(false);
+  const [recipientType, setRecipientType] = useState<CallRecipientType>('ai');
+  const [selectedClinician, setSelectedClinician] = useState<ClinicianPersona>(UGANDAN_CLINICIAN_PERSONAS[0]);
+  const [selectedLanguage, setSelectedLanguage] = useState<'English' | 'Luganda' | 'Swahili' | 'Runyankole' | 'Acholi'>('English');
+  const [selectedVoiceRate, setSelectedVoiceRate] = useState<'normal' | 'clear' | 'calm'>('normal');
+
+  // Call Media Controls
+  const [isMicOn, setIsMicOn] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
-  const [callDuration, setCallDuration] = useState(157); // 00:02:37
-  const [isCallActive, setIsCallActive] = useState(true);
+  const [callSeconds, setCallSeconds] = useState(0);
+  const [startedAt] = useState(() => new Date().toISOString());
+  const [roomId, setRoomId] = useState(() => createCallRoomId());
+  const [copiedRoom, setCopiedRoom] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(() =>
+    typeof window !== 'undefined' && (localStorage.getItem('medical_forced_offline') === 'true' || !navigator.onLine)
+  );
 
-  // Language & Voice
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [selectedVoice, setSelectedVoice] = useState('Natural Voice');
+  // Live Audio Waveform & Speech state
+  const [audioBars, setAudioBars] = useState<number[]>(Array(16).fill(18));
+  const [isClinicianSpeaking, setIsClinicianSpeaking] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [activeTranscript, setActiveTranscript] = useState<CallTranscriptEntry[]>(() => {
+    const g = getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], 'English');
+    return [
+      {
+        id: 'voice-init-1',
+        speaker: 'Doctor',
+        speakerName: UGANDAN_CLINICIAN_PERSONAS[0].name,
+        text: g.primary,
+        translatedText: g.translation,
+        time: '00:00'
+      }
+    ];
+  });
+  const [voiceInputText, setVoiceInputText] = useState('');
+  const [patientCtx] = useState(() => getLocalPatientContext());
+  const [callHistory, setCallHistory] = useState<PersistedCallRecord[]>(() => getCallHistoryRecords());
+  const [statusNotice, setStatusNotice] = useState<string>('Ready — tap Microphone to speak or type below.');
 
-  // Features Toggles
-  const [autoTranscript, setAutoTranscript] = useState(true);
-  const [realtimeTranslation, setRealtimeTranslation] = useState(true);
-  const [smartHealthTips, setSmartHealthTips] = useState(true);
-  const [saveCallRecord, setSaveCallRecord] = useState(true);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const webrtcRef = useRef<TelehealthWebRTCSession | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Animated Audio Wave Frequency Levels
-  const [audioWaves, setAudioWaves] = useState([20, 45, 75, 95, 60, 80, 40, 65, 90, 50, 70, 35]);
-  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-  const triggerVoiceNotice = (msg: string) => {
-    setVoiceNotice(msg);
-    setTimeout(() => setVoiceNotice(prev => (prev === msg ? null : prev)), 3500);
+  const formatTimer = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
   };
 
+  // Monitor offline state
   useEffect(() => {
-    if (!isOpen || !isCallActive) return;
-    const timer = setInterval(() => {
-      setCallDuration(prev => prev + 1);
-      setAudioWaves([
-        Math.floor(Math.random() * 50) + 20,
-        Math.floor(Math.random() * 70) + 20,
-        Math.floor(Math.random() * 90) + 20,
-        Math.floor(Math.random() * 95) + 30,
-        Math.floor(Math.random() * 75) + 25,
-        Math.floor(Math.random() * 85) + 20,
-        Math.floor(Math.random() * 60) + 20,
-        Math.floor(Math.random() * 75) + 25,
-        Math.floor(Math.random() * 95) + 30,
-        Math.floor(Math.random() * 70) + 20,
-        Math.floor(Math.random() * 80) + 20,
-        Math.floor(Math.random() * 45) + 15,
-      ]);
-    }, 150);
-    return () => clearInterval(timer);
-  }, [isOpen, isCallActive]);
+    const syncNet = () => {
+      setIsOfflineMode(localStorage.getItem('medical_forced_offline') === 'true' || !navigator.onLine);
+    };
+    window.addEventListener('online', syncNet);
+    window.addEventListener('offline', syncNet);
+    window.addEventListener('offline_forced_changed', syncNet);
+    return () => {
+      window.removeEventListener('online', syncNet);
+      window.removeEventListener('offline', syncNet);
+      window.removeEventListener('offline_forced_changed', syncNet);
+    };
+  }, []);
+
+  // Live Call Timer + Chime
+  useEffect(() => {
+    if (!isOpen) return;
+    playSoftCallTone('connect');
+    const timer = window.setInterval(() => setCallSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [isOpen]);
+
+  // WebRTC Peer Audio Room
+  useEffect(() => {
+    if (!isOpen) return;
+    const session = new TelehealthWebRTCSession({
+      roomId,
+      mode: 'voice',
+      onRemoteStream: (stream) => {
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = stream;
+        }
+        setStatusNotice(`Connected live audio with peer in Room ${roomId}.`);
+      },
+      onStateChange: (st) => {
+        if (st === 'ringing') setStatusNotice(`Ringing peer room ${roomId}...`);
+        if (st === 'connected') setStatusNotice(`Live peer voice channel active (${roomId}).`);
+      }
+    });
+    session.startListening();
+    webrtcRef.current = session;
+    return () => {
+      session.close();
+      webrtcRef.current = null;
+    };
+  }, [isOpen, roomId]);
+
+  // Cleanup hardware on close
+  useEffect(() => {
+    if (isOpen) return;
+    speechEngine.stopListening();
+    speechEngine.stopSpeaking();
+    speechEngine.stopMicrophoneAnalyser();
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+  }, [isOpen]);
+
+  const speakRate = selectedVoiceRate === 'clear' ? 0.88 : selectedVoiceRate === 'calm' ? 0.92 : 1.0;
+
+  const processVoiceQuery = useCallback(
+    async (spokenText: string) => {
+      const cleaned = spokenText.trim();
+      if (!cleaned) return;
+
+      const userEntry: CallTranscriptEntry = {
+        id: `pt-v-${Date.now()}`,
+        speaker: 'Patient',
+        speakerName: patientCtx.name,
+        text: cleaned,
+        time: formatTimer(callSeconds)
+      };
+      setActiveTranscript((prev) => [...prev, userEntry]);
+      setIsThinking(true);
+      setStatusNotice('Processing clinical audio response...');
+
+      const { reply, translation, offlineUsed } = await generateClinicalCallReply({
+        query: cleaned,
+        clinician: selectedClinician,
+        language: selectedLanguage,
+        patientName: patientCtx.name,
+        vitals: patientCtx.vitals,
+        forceOffline: isOfflineMode
+      });
+
+      setIsThinking(false);
+      setStatusNotice(
+        offlineUsed
+          ? 'Responded via Offline Clinical Voice Engine.'
+          : `Live consultation response from ${selectedClinician.name}.`
+      );
+
+      const docEntry: CallTranscriptEntry = {
+        id: `doc-v-${Date.now()}`,
+        speaker: 'Doctor',
+        speakerName: recipientType === 'emergency' ? 'Emergency Dispatch 112' : selectedClinician.name,
+        text: reply,
+        translatedText: selectedLanguage !== 'English' ? translation : undefined,
+        time: formatTimer(callSeconds + 1)
+      };
+      setActiveTranscript((prev) => [...prev, docEntry]);
+
+      if (isSpeakerOn) {
+        speechEngine.speak(reply, {
+          rate: speakRate,
+          onStart: () => setIsClinicianSpeaking(true),
+          onEnd: () => setIsClinicianSpeaking(false),
+          onError: () => setIsClinicianSpeaking(false)
+        });
+      }
+    },
+    [callSeconds, isOfflineMode, isSpeakerOn, patientCtx.name, patientCtx.vitals, recipientType, selectedClinician, selectedLanguage, speakRate]
+  );
+
+  // Real Microphone Analyser & Speech-to-Text
+  useEffect(() => {
+    if (!isOpen || !isMicOn) {
+      speechEngine.stopListening();
+      speechEngine.stopMicrophoneAnalyser();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      setAudioBars(Array(16).fill(14));
+      return;
+    }
+
+    let cancelled = false;
+    const freq = new Uint8Array(32);
+
+    void speechEngine.setupMicrophoneAnalyser().then((analyser) => {
+      if (cancelled) return;
+      if (!analyser) {
+        setStatusNotice('Microphone permission unavailable; type below or check browser permissions.');
+        return;
+      }
+      setStatusNotice('Microphone active — speak naturally.');
+      const tick = () => {
+        if (cancelled) return;
+        speechEngine.getAnalyserData(freq);
+        const bars = Array.from({ length: 16 }, (_, i) => {
+          const val = freq[i] || 0;
+          return Math.max(14, Math.min(96, Math.round((val / 255) * 95) + 12));
+        });
+        setAudioBars(bars);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    });
+
+    if (speechEngine.isSTTSupported()) {
+      speechEngine.startListening(
+        {
+          onResult: (spoken, isFinal) => {
+            if (isFinal && spoken.trim().length > 2) {
+              void processVoiceQuery(spoken);
+            }
+          }
+        },
+        { continuous: true, lang: selectedLanguage === 'Swahili' ? 'sw-KE' : 'en-US' }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+      speechEngine.stopListening();
+      speechEngine.stopMicrophoneAnalyser();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [isOpen, isMicOn, selectedLanguage, processVoiceQuery]);
+
+  // Animate wave smoothly while clinician TTS is speaking even if user mic is muted
+  useEffect(() => {
+    if (!isClinicianSpeaking || isMicOn) return;
+    const t = window.setInterval(() => {
+      setAudioBars(Array.from({ length: 16 }, (_, i) => 24 + ((Date.now() / 70 + i * 19) % 62)));
+    }, 110);
+    return () => window.clearInterval(t);
+  }, [isClinicianSpeaking, isMicOn]);
+
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeTranscript]);
+
+  const handleRecipientSwitch = (type: CallRecipientType) => {
+    setRecipientType(type);
+    if (type === 'doctor') {
+      webrtcRef.current?.sendRoomInvite('doctor', patientCtx.name);
+      setStatusNotice(`Paging on-call clinician in Room ${roomId} via WebRTC mesh...`);
+    } else if (type === 'emergency') {
+      playSoftCallTone('ring');
+      const alertText = 'Emergency Triage Priority active. State your exact location and chief symptom immediately.';
+      setStatusNotice('Emergency 112 Priority Voice Line Active.');
+      if (isSpeakerOn) speechEngine.speak(alertText, { rate: 0.98 });
+    } else if (type === 'family') {
+      setStatusNotice(`Share Room ID ${roomId} with caregiver or family member to join audio.`);
+    } else {
+      setStatusNotice('AI Clinical Voice Physician ready online or offline.');
+    }
+  };
+
+  const handleSendText = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!voiceInputText.trim() || isThinking) return;
+    const txt = voiceInputText;
+    setVoiceInputText('');
+    void processVoiceQuery(txt);
+  };
+
+  const handleHangUp = () => {
+    playSoftCallTone('end');
+    speechEngine.stopListening();
+    speechEngine.stopSpeaking();
+    speechEngine.stopMicrophoneAnalyser();
+
+    saveCallHistoryRecord({
+      id: `vcall-${Date.now()}`,
+      mode: 'voice',
+      peerName: recipientType === 'emergency' ? 'Emergency Triage 112' : selectedClinician.name,
+      peerSpecialty: selectedClinician.specialty,
+      language: selectedLanguage,
+      durationSec: callSeconds,
+      startedAt,
+      roomId,
+      summary: activeTranscript[activeTranscript.length - 1]?.text || 'Voice consultation',
+      transcript: activeTranscript.slice(-12)
+    });
+    setCallHistory(getCallHistoryRecords());
+    onClose();
+  };
 
   if (!isOpen) return null;
 
-  const formatTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 backdrop-blur-md">
+    <div
+      className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/88 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Doctorian Voice Call Studio"
+    >
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="relative w-full max-w-6xl rounded-3xl bg-[#06142e] border border-blue-500/40 text-white shadow-2xl overflow-hidden flex flex-col justify-between my-auto max-h-[95vh]"
-        style={{ minHeight: '620px' }}
+        initial={{ opacity: 0, scale: 0.97, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97, y: 12 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-6xl max-h-[92vh] rounded-3xl bg-[#070D19] border border-slate-800 text-slate-100 shadow-2xl overflow-hidden flex flex-col"
       >
-        
-        {/* ===================================================================== */}
-        {/* TOP BANNER (Matching image_39a5defe.png)                               */}
-        {/* ===================================================================== */}
-        <div className="relative px-6 py-4 bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-600 flex items-center justify-between border-b border-blue-400/30 shadow-md">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-2xl shadow-inner">
-              <PhoneCall size={24} />
+        {/* TOP BAR */}
+        <header className="px-4 sm:px-6 py-3.5 bg-[#0C1425] border-b border-slate-800 flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <Phone className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Voice Call</h2>
-              <p className="text-xs text-blue-100 font-medium">
-                Make voice calls, get medical advice, and communicate in any language.
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white truncate">Voice Consultation Studio</h2>
+              <p className="text-xs text-slate-400 truncate">
+                {selectedClinician.name} · {selectedLanguage}
+                {isOfflineMode ? ' · Offline Clinical Core' : ''}
               </p>
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
-            <span className="text-sm font-serif italic font-extrabold text-cyan-200">
-              Speak · Get Help · Stay Healthy
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="font-mono text-xs font-bold tabular-nums text-emerald-400 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
+              {formatTimer(callSeconds)}
             </span>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Powered by Doctorian AI
-            </span>
-          </div>
-
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* ===================================================================== */}
-        {/* 3-COLUMN MAIN BODY (Matching image_39a5defe.png)                       */}
-        {/* ===================================================================== */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 p-5 flex-1 overflow-y-auto">
-          
-          {/* ------------------------------------------------------------------- */}
-          {/* LEFT COLUMN: Call Options & AI Assistant Card (4 Cols)             */}
-          {/* ------------------------------------------------------------------- */}
-          <div className="lg:col-span-4 space-y-4">
-            
-            {/* Call Options Selector */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
-              <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Phone size={14} className="text-blue-400" />
-                <span>Call Options</span>
-              </h4>
-
-              <div className="grid grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveCallOption('ai')}
-                  className={`p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all ${
-                    activeCallOption === 'ai'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-[#051024] hover:bg-blue-950 text-slate-300 border border-blue-900/40'
-                  }`}
-                >
-                  <Bot size={16} />
-                  <span className="truncate">AI Assistant</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveCallOption('doctor')}
-                  className={`p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all ${
-                    activeCallOption === 'doctor'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-[#051024] hover:bg-blue-950 text-slate-300 border border-blue-900/40'
-                  }`}
-                >
-                  <User size={16} />
-                  <span className="truncate">Doctor</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveCallOption('family')}
-                  className={`p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all ${
-                    activeCallOption === 'family'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-[#051024] hover:bg-blue-950 text-slate-300 border border-blue-900/40'
-                  }`}
-                >
-                  <Users size={16} />
-                  <span className="truncate">Family</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveCallOption('emergency')}
-                  className={`p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all ${
-                    activeCallOption === 'emergency'
-                      ? 'bg-red-600 text-white shadow-md'
-                      : 'bg-[#051024] hover:bg-red-950 text-rose-300 border border-red-900/40'
-                  }`}
-                >
-                  <ShieldAlert size={16} />
-                  <span className="truncate">Emergency</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Doctorian AI Assistant Card */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 p-0.5">
-                  <div className="w-full h-full rounded-full bg-[#040e24] flex items-center justify-center text-xl">
-                    🤖
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-black text-white">Doctorian AI Assistant</h4>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  </div>
-                  <span className="text-[10px] text-emerald-400 font-bold">Online</span>
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Your personal health assistant. Ask questions, get advice, or request a call with a doctor.
-              </p>
-
-              <div className="space-y-1.5 text-xs text-slate-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-400">✓</span> Voice & Video Call
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-400">✓</span> Multilingual Support
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-400">✓</span> Medical Guidance
-                </div>
-              </div>
-
+            {onSwitchToVideo && (
               <button
                 type="button"
-                onClick={() => {
-                  setIsCallActive(true);
-                  setCallDuration(0);
-                }}
-                className="w-full py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
+                onClick={onSwitchToVideo}
+                className="min-h-[40px] px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <Phone size={14} />
-                <span>Start Voice Call →</span>
+                <Video className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Switch to Video</span>
               </button>
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={handleHangUp}
+              className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 cursor-pointer"
+              aria-label="Close voice call"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
 
-            {/* Quick Actions Pills */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-2.5">
-              <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles size={14} className="text-amber-400" />
-                <span>Quick Actions</span>
-              </h4>
+        {/* 3-COLUMN STUDIO BODY */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 sm:p-5 overflow-y-auto">
+          {/* LEFT 4 COLS: Recipient Selector & Quick Prompts */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="p-4 rounded-2xl bg-[#0C1425] border border-slate-800 space-y-3">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Call Line</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { id: 'ai', label: 'Clinical AI', icon: Stethoscope },
+                    { id: 'doctor', label: 'Ring Doctor', icon: UserCheck },
+                    { id: 'family', label: 'Family / Carer', icon: Users },
+                    { id: 'emergency', label: 'Emergency 112', icon: ShieldAlert }
+                  ] as const
+                ).map((opt) => {
+                  const Icon = opt.icon;
+                  const active = recipientType === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleRecipientSwitch(opt.id)}
+                      className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors border ${
+                        active
+                          ? opt.id === 'emergency'
+                            ? 'bg-rose-600 border-rose-500 text-white'
+                            : 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Peer Room ID</span>
                 <button
                   type="button"
-                  onClick={() => triggerVoiceNotice('Listening for medical query...')}
-                  className="p-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/40 text-center"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(roomId);
+                    setCopiedRoom(true);
+                    setTimeout(() => setCopiedRoom(false), 1800);
+                  }}
+                  className="font-mono font-bold text-cyan-300 flex items-center gap-1.5 cursor-pointer hover:underline"
                 >
-                  💬 Ask a Question (Voice)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => triggerVoiceNotice('Opening Doctor call booking...')}
-                  className="p-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-800/40 text-center"
-                >
-                  📅 Book a Call with Doctor
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => triggerVoiceNotice('Dispensing clinical health advice...')}
-                  className="p-2.5 rounded-xl bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/40 text-center"
-                >
-                  💊 Get Health Tips (Voice)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => triggerVoiceNotice('Translating live conversation...')}
-                  className="p-2.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-800/40 text-center"
-                >
-                  🌐 Translate Conversation
+                  <span>{roomId}</span>
+                  {copiedRoom ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              {voiceNotice && (
-                <div className="px-3 py-2 rounded-xl bg-teal-950/70 border border-teal-500/40 text-teal-200 text-[11px] font-semibold text-center">
-                  {voiceNotice}
-                </div>
-              )}
             </div>
 
+            <div className="p-4 rounded-2xl bg-[#0C1425] border border-slate-800 space-y-2.5">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quick Voice Topics</h3>
+              {[
+                'Check malaria symptoms and dosage guidance',
+                'Review my current blood pressure and heart rate',
+                'Give hydration and fever care instructions'
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => void processVoiceQuery(prompt)}
+                  disabled={isThinking}
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left text-xs text-slate-200 cursor-pointer transition-colors"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* ------------------------------------------------------------------- */}
-          {/* CENTER COLUMN: In Call Display with Pulsing Aura & Wave (4 Cols)   */}
-          {/* ------------------------------------------------------------------- */}
-          <div className="lg:col-span-4 p-5 rounded-3xl bg-gradient-to-b from-[#07173b] to-[#040e24] border border-blue-500/40 shadow-2xl flex flex-col justify-between items-center text-center space-y-6 relative overflow-hidden">
-            
-            {/* Top Call Timer Pill */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#051126] border border-blue-500/40 text-emerald-400 font-mono font-bold text-xs shadow-inner">
-              <Phone size={12} className="animate-pulse" />
-              <span>{formatTimer(callDuration)}</span>
+          {/* CENTER 4 COLS: Acoustic Stage + Spectrum + Primary Controls */}
+          <div className="lg:col-span-4 p-5 rounded-2xl bg-[#0C1425] border border-slate-800 flex flex-col items-center justify-between text-center space-y-5">
+            <div className="w-full flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5">
+                {isOfflineMode ? <WifiOff className="w-3.5 h-3.5 text-amber-400" /> : <Globe className="w-3.5 h-3.5 text-cyan-400" />}
+                <span>{isOfflineMode ? 'Offline Mode' : 'Encrypted VoIP'}</span>
+              </span>
+              <span className="font-mono tabular-nums text-slate-300">
+                HR {patientCtx.vitals.hr} · SpO2 {patientCtx.vitals.spo2}%
+              </span>
             </div>
 
-            {/* In Call... Talking status */}
-            <div>
-              <h3 className="text-xl font-black text-white">In Call...</h3>
-              <p className="text-xs text-cyan-300 font-medium mt-1">
-                Talking with Doctorian AI Assistant
-              </p>
-            </div>
+            {/* Active Clinician Acoustic Portrait */}
+            <div className="flex flex-col items-center space-y-3 py-2">
+              <div className="relative">
+                <div
+                  className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full p-1 transition-all duration-300 ${
+                    isMicOn || isClinicianSpeaking
+                      ? 'bg-gradient-to-tr from-cyan-400 to-blue-600 shadow-[0_0_32px_rgba(6,182,212,0.35)]'
+                      : 'bg-slate-800'
+                  }`}
+                >
+                  <img
+                    src={selectedClinician.avatar}
+                    alt={selectedClinician.name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full rounded-full object-cover object-top"
+                  />
+                </div>
+              </div>
 
-            {/* Glowing Microphone Aura & Animated Frequency Bars */}
-            <div className="relative w-44 h-44 rounded-full bg-gradient-to-b from-blue-900 to-[#030b1c] border-2 border-cyan-400/60 flex items-center justify-center shadow-[0_0_50px_rgba(0,229,255,0.4)]">
-              <div className="absolute inset-2 rounded-full border border-blue-400/30 animate-spin" style={{ animationDuration: '20s' }} />
-              
-              <div className="p-4 rounded-full bg-blue-600/30 text-white shadow-inner">
-                <Mic size={36} className="text-cyan-300 animate-pulse" />
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {recipientType === 'emergency' ? 'Emergency Dispatch 112' : selectedClinician.name}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">{selectedClinician.institution}</p>
+                <p className="text-xs text-cyan-300 font-medium mt-2">{statusNotice}</p>
               </div>
             </div>
 
-            {/* Frequency Bars Strip */}
-            <div className="flex items-center justify-center gap-1.5 h-12 w-full max-w-xs px-4">
-              {audioWaves.map((height, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ height: isMuted ? 4 : `${height}%` }}
-                  transition={{ duration: 0.1 }}
-                  className="w-1.5 bg-gradient-to-t from-blue-500 via-cyan-400 to-emerald-400 rounded-full shadow-[0_0_8px_rgba(0,229,255,0.6)]"
+            {/* Real Audio Frequency Bars */}
+            <div className="flex items-end justify-center gap-1.5 h-12 w-full max-w-xs px-2" aria-hidden="true">
+              {audioBars.map((val, idx) => (
+                <div
+                  key={idx}
+                  className={`w-1.5 rounded-full transition-all duration-75 ${
+                    isClinicianSpeaking
+                      ? 'bg-emerald-400'
+                      : isMicOn
+                      ? 'bg-cyan-400'
+                      : 'bg-slate-700'
+                  }`}
+                  style={{ height: `${Math.max(12, val)}%` }}
                 />
               ))}
             </div>
 
-            {/* Bottom 4 Call Action Buttons */}
-            <div className="grid grid-cols-4 gap-3 w-full pt-2">
-              
-              {/* Mute */}
+            {/* Ergonomic Call Control Bar */}
+            <div className="grid grid-cols-4 gap-2.5 w-full pt-2">
               <button
                 type="button"
-                onClick={() => setIsMuted(!isMuted)}
-                className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all ${
-                  isMuted ? 'bg-rose-600 text-white' : 'bg-[#091d44] hover:bg-blue-900/60 text-slate-300'
+                onClick={() => setIsMicOn((v) => !v)}
+                className={`min-h-[52px] rounded-2xl flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors ${
+                  isMicOn ? 'bg-blue-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
                 }`}
               >
-                {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
-                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+                {isMicOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-rose-400" />}
+                <span>{isMicOn ? 'Live' : 'Speak'}</span>
               </button>
 
-              {/* Speaker */}
               <button
                 type="button"
-                onClick={() => setIsSpeakerOn(!isSpeakerOn)}
-                className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all ${
-                  isSpeakerOn ? 'bg-blue-600 text-white' : 'bg-[#091d44] hover:bg-blue-900/60 text-slate-300'
+                onClick={() => {
+                  if (isSpeakerOn) speechEngine.stopSpeaking();
+                  setIsSpeakerOn((v) => !v);
+                }}
+                className={`min-h-[52px] rounded-2xl flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors ${
+                  isSpeakerOn ? 'bg-slate-800 text-cyan-300' : 'bg-slate-900 border border-slate-800 text-slate-500'
                 }`}
               >
-                {isSpeakerOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                {isSpeakerOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 <span>Speaker</span>
               </button>
 
-              {/* Video Switch */}
               <button
                 type="button"
-                onClick={onSwitchToVideo}
-                className="p-3 rounded-2xl bg-[#091d44] hover:bg-blue-900/60 text-slate-300 flex flex-col items-center justify-center gap-1 text-[10px] font-bold"
+                onClick={() => onSwitchToVideo?.()}
+                disabled={!onSwitchToVideo}
+                className="min-h-[52px] rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-200 flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer disabled:opacity-40"
               >
-                <Video size={16} />
+                <Video className="w-4 h-4" />
                 <span>Video</span>
               </button>
 
-              {/* End Call */}
               <button
                 type="button"
-                onClick={onClose}
-                className="p-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white flex flex-col items-center justify-center gap-1 text-[10px] font-black shadow-lg shadow-red-600/40"
+                onClick={handleHangUp}
+                className="min-h-[52px] rounded-2xl bg-rose-600 hover:bg-rose-500 text-white flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer"
               >
-                <PhoneOff size={16} />
-                <span>End Call</span>
+                <PhoneOff className="w-4 h-4" />
+                <span>End</span>
               </button>
-
             </div>
-
           </div>
 
-          {/* ------------------------------------------------------------------- */}
-          {/* RIGHT COLUMN: Language & Voice + Features + History (4 Cols)       */}
-          {/* ------------------------------------------------------------------- */}
-          <div className="lg:col-span-4 space-y-4">
-            
-            {/* Language & Voice Selector */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-blue-900/40">
-                <div className="flex items-center gap-1.5 text-xs font-black text-white">
-                  <Globe size={14} className="text-cyan-400" />
-                  <span>Language & Voice</span>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => triggerVoiceNotice('Language preferences saved')}
-                  className="text-[10px] text-cyan-400 font-bold hover:underline"
-                >
-                  Change
-                </button>
-              </div>
-
-              <div className="space-y-2 text-xs">
+          {/* RIGHT 4 COLS: Language, Transcript Input & Saved Call History */}
+          <div className="lg:col-span-4 flex flex-col gap-4 min-h-0">
+            <div className="p-4 rounded-2xl bg-[#0C1425] border border-slate-800 space-y-2.5 shrink-0">
+              <div className="grid grid-cols-2 gap-2">
                 <select
                   value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="w-full bg-[#050e20] border border-blue-800/60 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:outline-none"
+                  onChange={(e) => setSelectedLanguage(e.target.value as any)}
+                  aria-label="Call language"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                 >
-                  <option value="English">🇺🇸 English</option>
-                  <option value="Luganda">🇺🇬 Luganda</option>
-                  <option value="Swahili">🇹🇿 Swahili</option>
-                  <option value="Runyankole">🇺🇬 Runyankole</option>
-                  <option value="Acholi">🇺🇬 Acholi</option>
+                  <option value="English">English</option>
+                  <option value="Luganda">Luganda</option>
+                  <option value="Swahili">Kiswahili</option>
+                  <option value="Runyankole">Runyankole</option>
+                  <option value="Acholi">Acholi</option>
                 </select>
 
                 <select
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="w-full bg-[#050e20] border border-blue-800/60 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:outline-none"
+                  value={selectedVoiceRate}
+                  onChange={(e) => setSelectedVoiceRate(e.target.value as any)}
+                  aria-label="Voice pace"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                 >
-                  <option value="Natural Voice">🎙️ Natural Voice</option>
-                  <option value="Clinical Professional">👩‍⚕️ Clinical Professional</option>
-                  <option value="Calm & Soothing">🌿 Calm & Soothing</option>
+                  <option value="normal">Normal Pace</option>
+                  <option value="clear">Clear &amp; Slow</option>
+                  <option value="calm">Calm Bedside</option>
                 </select>
               </div>
+
+              <select
+                value={selectedClinician.id}
+                onChange={(e) => {
+                  const found = UGANDAN_CLINICIAN_PERSONAS.find((d) => d.id === e.target.value);
+                  if (found) setSelectedClinician(found);
+                }}
+                aria-label="Select physician"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+              >
+                {UGANDAN_CLINICIAN_PERSONAS.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.name} — {doc.specialty}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Call Features Toggles */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-2.5">
-              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles size={14} className="text-blue-400" />
-                <span>Call Features</span>
-              </h4>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Auto Transcript</span>
-                  <button
-                    type="button"
-                    onClick={() => setAutoTranscript(!autoTranscript)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors ${autoTranscript ? 'bg-blue-600' : 'bg-slate-700'}`}
+            {/* Live Transcript & Type Fallback */}
+            <div className="flex-1 min-h-[180px] p-3.5 rounded-2xl bg-[#0C1425] border border-slate-800 flex flex-col">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 shrink-0">
+                Live Voice Transcript
+              </h3>
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
+                {activeTranscript.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`p-2.5 rounded-xl ${
+                      item.speaker === 'Patient'
+                        ? 'bg-blue-600/20 border border-blue-500/30 text-slate-100'
+                        : 'bg-slate-900 border border-slate-800 text-slate-200'
+                    }`}
                   >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${autoTranscript ? 'translate-x-4' : ''}`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Real-time Translation</span>
-                  <button
-                    type="button"
-                    onClick={() => setRealtimeTranslation(!realtimeTranslation)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors ${realtimeTranslation ? 'bg-blue-600' : 'bg-slate-700'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${realtimeTranslation ? 'translate-x-4' : ''}`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Smart Health Tips</span>
-                  <button
-                    type="button"
-                    onClick={() => setSmartHealthTips(!smartHealthTips)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors ${smartHealthTips ? 'bg-blue-600' : 'bg-slate-700'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${smartHealthTips ? 'translate-x-4' : ''}`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Save Call Record</span>
-                  <button
-                    type="button"
-                    onClick={() => setSaveCallRecord(!saveCallRecord)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors ${saveCallRecord ? 'bg-blue-600' : 'bg-slate-700'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${saveCallRecord ? 'translate-x-4' : ''}`} />
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 mb-0.5">
+                      <span className="font-semibold">{item.speakerName}</span>
+                      <span className="font-mono tabular-nums">{item.time}</span>
+                    </div>
+                    <p>{item.text}</p>
+                    {item.translatedText && (
+                      <p className="text-[11px] text-cyan-300 mt-1">{item.translatedText}</p>
+                    )}
+                  </div>
+                ))}
+                <div ref={transcriptEndRef} />
               </div>
-            </div>
 
-            {/* Call History */}
-            <div className="p-4 rounded-3xl bg-[#091838] border border-blue-900/50 shadow-sm space-y-2.5">
-              <div className="flex items-center justify-between pb-1 border-b border-blue-900/40">
-                <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock size={14} className="text-cyan-400" />
-                  <span>Call History</span>
-                </h4>
-                <button type="button" className="text-[10px] text-cyan-400 font-bold hover:underline">
-                  View All →
+              <form onSubmit={handleSendText} className="mt-2.5 flex items-center gap-2 shrink-0">
+                <input
+                  type="text"
+                  value={voiceInputText}
+                  onChange={(e) => setVoiceInputText(e.target.value)}
+                  placeholder="Type if mic is unavailable..."
+                  className="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!voiceInputText.trim() || isThinking}
+                  className="min-h-[38px] px-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold cursor-pointer shrink-0"
+                  aria-label="Send voice prompt"
+                >
+                  <Send className="w-3.5 h-3.5" />
                 </button>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="p-2 rounded-2xl bg-[#051024] border border-blue-900/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
-                      <PhoneCall size={14} />
-                    </div>
-                    <div>
-                      <p className="font-bold text-white text-[11px]">Today, 04:15 PM</p>
-                      <p className="text-[9px] text-slate-400">AI Health Assistant</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-[10px] text-slate-300">
-                    <span>02:37</span>
-                    <button type="button" className="p-1 rounded-md bg-blue-600 text-white">
-                      <Play size={10} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-2xl bg-[#051024] border border-blue-900/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
-                      <PhoneCall size={14} />
-                    </div>
-                    <div>
-                      <p className="font-bold text-white text-[11px]">Yesterday, 08:20 AM</p>
-                      <p className="text-[9px] text-slate-400">Dr. James Okello</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-[10px] text-slate-300">
-                    <span>12:14</span>
-                    <button type="button" className="p-1 rounded-md bg-blue-600 text-white">
-                      <Play size={10} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              </form>
             </div>
 
+            {/* Real Saved Call History */}
+            <div className="p-3.5 rounded-2xl bg-[#0C1425] border border-slate-800 space-y-2 shrink-0">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Recent Calls</span>
+              </h3>
+              {callHistory.length === 0 ? (
+                <p className="text-xs text-slate-500">Your completed consultations will be saved here.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-24 overflow-y-auto">
+                  {callHistory.slice(0, 3).map((rec) => (
+                    <div key={rec.id} className="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white truncate">{rec.peerName}</p>
+                        <p className="text-[11px] text-slate-400">{rec.mode} · {rec.language}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono tabular-nums text-cyan-400">{formatTimer(rec.durationSec)}</span>
+                        <button
+                          type="button"
+                          onClick={() => speechEngine.speak(rec.summary, { rate: speakRate })}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-blue-600 text-white cursor-pointer"
+                          title="Replay summary audio"
+                        >
+                          <Play className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-
         </div>
-
       </motion.div>
     </div>
   );

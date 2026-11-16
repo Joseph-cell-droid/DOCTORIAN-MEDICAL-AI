@@ -36,6 +36,13 @@ import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { getOperationsConfig, AppOperationsConfig, OPERATIONS_CONFIG_EVENT } from '../utils/appOperationsConfig';
 import { trustDevice } from '../utils/deviceRecognition';
 import { SUPPORTED_LANGUAGES, useAppLanguage } from '../utils/translations';
+import {
+  solveRegistrationPow,
+  validatePasswordStrength,
+  isDisposableEmail,
+  isValidClinicianLicense
+} from '../utils/security';
+import { getRememberedAccounts, type RememberedAccount } from '../utils/offlineVault';
 
 interface ModernAuthPageProps {
   onSuccess: (user: UserType, isSignUp?: boolean) => void;
@@ -101,6 +108,33 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
   const [opsConfig, setOpsConfig] = useState<AppOperationsConfig>(() => getOperationsConfig());
   const [authLang, setAuthLang, t] = useAppLanguage();
 
+  // Anti-Fake-Registration & Anti-Bot Challenge State
+  const [regChallenge, setRegChallenge] = useState<{
+    challengeId: string;
+    salt: string;
+    difficulty: number;
+    puzzleQuestion: string;
+  } | null>(null);
+  const [puzzleAnswer, setPuzzleAnswer] = useState('');
+  const [honeypot, setHoneypot] = useState('');
+  const [signupLicenseId, setSignupLicenseId] = useState('');
+
+  const loadRegistrationChallenge = async () => {
+    try {
+      const ch = await api.auth.getRegisterChallenge();
+      setRegChallenge(ch);
+      setPuzzleAnswer('');
+    } catch {
+      setRegChallenge(null);
+    }
+  };
+
+  useEffect(() => {
+    if (activeCard === 'signup') {
+      loadRegistrationChallenge();
+    }
+  }, [activeCard]);
+
   // Listen to operations config events
   useEffect(() => {
     const handleOpsUpdate = () => {
@@ -158,215 +192,157 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
 
     try {
       const socialUser = await signInWithSocial(googleProvider);
-      const appUser: any = {
-        id: socialUser.uid || `google-${Date.now()}`,
-        email: socialUser.email || 'user@doctorian.org',
-        displayName: socialUser.displayName || 'Alex Johnson',
-        role: 'user',
-        isDoctor: false
-      };
+      const idToken = await socialUser.getIdToken();
+      const verifiedUser = await api.auth.socialLogin({
+        email: socialUser.email || '',
+        displayName: socialUser.displayName || 'Doctorian User',
+        photoURL: socialUser.photoURL || undefined,
+        providerId: 'google',
+        idToken
+      });
       if (rememberMe) {
         trustDevice(true);
       }
-      setSuccessMessage(`Google ID authenticated. Welcome, ${appUser.displayName}.`);
-      notifyLoginInGmail(appUser).catch(() => {});
+      setSuccessMessage(`Google ID cryptographically verified. Welcome, ${verifiedUser.displayName}.`);
+      notifyLoginInGmail(verifiedUser).catch(() => {});
       await new Promise(r => setTimeout(r, 600));
-      // Card disappears after process is done
       setActiveCard('none');
-      onSuccess(appUser as UserType);
+      onSuccess(verifiedUser);
     } catch (err: any) {
       console.warn("Google OAuth error:", err);
-      setError("Google authentication was cancelled or could not be completed.");
+      setError(err?.message || "Google authentication was cancelled or could not be verified by the server.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Apple Social Sign In
+  // Apple Social Sign In (Requires real federated OAuth token)
   const handleAppleSignIn = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    // 100% Security Restriction: Social shortcuts cannot bypass Doctor or Admin gates
-    if (portalRole === 'doctor' || portalRole === 'admin') {
-      setError("SECURITY RESTRICTION: Privileged Health Worker & Administrator consoles are 100% restricted. Consumer social shortcuts cannot bypass clinical licensing verification or admin master passkeys.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const appleUser: any = {
-        id: `apple-user-${Date.now()}`,
-        email: loginIdentifier || signupEmail || 'apple.id@doctorian.org',
-        displayName: signupFullName || 'Apple Healthcare User',
-        role: 'user',
-        isDoctor: false
-      };
-      if (rememberMe) {
-        trustDevice(true);
-      }
-      setSuccessMessage(`Authenticated with Apple ID (${appleUser.email}).`);
-      notifyLoginInGmail(appleUser).catch(() => {});
-      await new Promise(r => setTimeout(r, 600));
-      // Card disappears after process is done
-      setActiveCard('none');
-      onSuccess(appleUser as UserType);
-    } catch (err: any) {
-      setError(err.message || 'Apple Sign In encountered an error.');
-    } finally {
-      setIsLoading(false);
-    }
+    setError("Apple Sign-In federation is restricted until your Apple Service ID OAuth certificate is linked. Please sign in with verified email credentials or Google OAuth.");
   };
 
-  // Microsoft Social Sign In (Patient Only Access)
+  // Microsoft Social Sign In (Requires real federated OAuth token)
   const handleMicrosoftSignIn = async () => {
-    setIsLoading(true);
-    setError(null);
-    if (portalRole === 'doctor' || portalRole === 'admin') {
-      setError("SECURITY RESTRICTION: Privileged Health Worker & Administrator consoles are 100% restricted. Consumer social shortcuts cannot bypass clinical licensing verification or admin master passkeys.");
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const msUser: any = {
-        id: `ms-user-${Date.now()}`,
-        email: loginIdentifier || signupEmail || 'akora.joseph@outlook.com',
-        displayName: signupFullName || 'Akora Joseph',
-        role: 'user',
-        isDoctor: false,
-        photoURL: '/portraits/akora_joseph.jpg'
-      };
-      if (rememberMe) {
-        trustDevice(true);
-      }
-      setSuccessMessage(`Microsoft Identity verified (${msUser.email}).`);
-      notifyLoginInGmail(msUser).catch(() => {});
-      await new Promise(r => setTimeout(r, 500));
-      setActiveCard('none');
-      onSuccess(msUser as UserType);
-    } catch (err: any) {
-      setError(err.message || 'Microsoft Sign In encountered an error.');
-    } finally {
-      setIsLoading(false);
-    }
+    setError("Microsoft Entra ID federation requires tenant SSO provisioning. Please sign in with verified email credentials or Google OAuth.");
   };
 
-  // Continue without Account (Guest Clinical Mode)
-  const handleContinueWithoutAccount = () => {
+  // Continue without Account (Guest Clinical Mode - Sandbox Only)
+  const handleContinueWithoutAccount = async () => {
     if (rememberMe) {
       trustDevice(true);
     }
     if (onContinueAsGuest) {
       onContinueAsGuest();
     } else {
-      const guestUser: any = {
-        id: `guest-${Date.now()}`,
-        email: 'guest.clinical@doctorian.org',
-        displayName: 'Guest Clinical Officer',
-        role: 'user',
-        isGuest: true,
-        isDoctor: false
-      };
-      onSuccess(guestUser);
+      try {
+        const res = await fetch('/api/auth/guest', { method: 'POST', credentials: 'include' });
+        const data = await res.json();
+        if (data?.user) {
+          onSuccess(data.user);
+        }
+      } catch {
+        const guestUser: any = {
+          id: `guest-${Date.now()}`,
+          email: 'guest.demo@doctorian.org',
+          displayName: 'Guest Explorer (Demo Mode)',
+          role: 'guest',
+          isGuest: true,
+          isDoctor: false
+        };
+        onSuccess(guestUser);
+      }
     }
     setActiveCard('none');
   };
 
-  // Hardware Biometric Passkey
+  // Hardware Biometric Passkey (Real WebAuthn only — no simulation bypass)
   const handleBiometricAuth = async () => {
     setIsBiometricLoading(true);
     setError(null);
     setSuccessMessage(null);
-    const targetEmail = loginIdentifier.trim() || (portalRole === 'admin' ? 'admin@doctorian.org' : portalRole === 'doctor' ? 'doctor@doctorian.org' : 'user@doctorian.org');
+    const targetEmail = loginIdentifier.trim();
+    if (!targetEmail) {
+      setError("Enter your registered email first to look up your hardware passkey.");
+      setIsBiometricLoading(false);
+      return;
+    }
 
     try {
-      try {
-        const optionsRes = await api.auth.webauthn.loginOptions(targetEmail);
-        if (optionsRes && (optionsRes.options || optionsRes.challenge)) {
-          const challengeData = optionsRes.options || optionsRes;
-          const authResp = await startAuthentication({ optionsJSON: challengeData });
-          const verifyRes = await api.auth.webauthn.loginVerify(authResp, null, targetEmail, challengeData.challenge);
-          if (verifyRes.verified && verifyRes.user) {
-            setSuccessMessage("Hardware biometric passkey verified!");
-            notifyLoginInGmail(verifyRes.user).catch(() => {});
-            await new Promise(r => setTimeout(r, 600));
-            // Card disappears after process is done
-            setActiveCard('none');
-            onSuccess(verifyRes.user);
-            return;
-          }
-        }
-      } catch (nativeErr) {
-        // Fallback to simulated biometric passkey
+      if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+        throw new Error("Hardware WebAuthn passkeys are not available in this browser context. Sign in with your verified password.");
       }
-
-      setSuccessMessage("Validating biometric sensor authentication...");
-      await new Promise(r => setTimeout(r, 600));
-      const sim = await api.auth.webauthn.simulateLogin(targetEmail);
-      if (sim.verified && sim.user) {
-        setSuccessMessage(`Biometric Identity Confirmed (${sim.user.displayName || sim.user.email}).`);
-        notifyLoginInGmail(sim.user).catch(() => {});
+      const optionsRes = await api.auth.webauthn.loginOptions(targetEmail);
+      const challengeData = optionsRes.options || optionsRes;
+      const authResp = await startAuthentication({ optionsJSON: challengeData });
+      const verifyRes = await api.auth.webauthn.loginVerify(authResp, null, targetEmail, challengeData.challenge);
+      if (verifyRes.verified && verifyRes.user) {
+        setSuccessMessage("Hardware biometric passkey verified!");
+        notifyLoginInGmail(verifyRes.user).catch(() => {});
         await new Promise(r => setTimeout(r, 600));
-        // Card disappears after process is done
         setActiveCard('none');
-        onSuccess(sim.user);
-      } else {
-        throw new Error("Biometric sensor verification denied.");
+        onSuccess(verifyRes.user);
+        return;
       }
+      throw new Error("Hardware passkey signature was rejected.");
     } catch (err: any) {
-      setError(err.message || "Biometric authentication failed. Ensure biometric sensor is available.");
+      setError(err.message || "Hardware passkey verification failed. Please sign in with your verified credentials.");
     } finally {
       setIsBiometricLoading(false);
     }
   };
 
-  // Real Sign In submit handler: stores session and enforces 100% strict role restriction
+  // Real Sign In submit handler: server-verified login + server-verified privileged keys
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
     if (!loginIdentifier.trim() || !loginPassword.trim()) {
-      setError("Please enter both your email address/username and password.");
+      setError("Please enter both your email address and password.");
       return;
     }
 
-    // 100% Restricted Gate for Health Worker / Doctor
     if (portalRole === 'doctor') {
       if (!medicalLicenseId.trim() || !clinicalPin.trim()) {
-        setError("ACCESS RESTRICTED: Valid Uganda Medical Council (UMDPC) License ID and 4-digit Clinical PIN are strictly required for Health Worker accounts.");
+        setError("ACCESS RESTRICTED: Valid Medical Council License ID and Clinical PIN are strictly required.");
         return;
       }
-      const isValidLicense = /^(UMDPC|MD|RN|CO|DR)[-_A-Za-z0-9]{3,}$/i.test(medicalLicenseId.trim()) || medicalLicenseId.trim().length >= 6;
-      if (!isValidLicense || clinicalPin.trim().length < 4) {
-        setError("ACCESS DENIED: Medical License ID format or Clinical PIN is invalid. Verification rejected.");
+      if (!isValidClinicianLicense(medicalLicenseId.trim())) {
+        setError("ACCESS DENIED: Invalid Medical Council License ID format (e.g. UMDPC-MD-94021).");
         return;
       }
     }
 
-    // 100% Restricted Gate for System Administrator
-    if (portalRole === 'admin') {
-      if (!adminMasterKey.trim()) {
-        setError("ACCESS RESTRICTED: System Administrator console is 100% restricted. Master Authorization Passkey (Level 7 Root) is required.");
-        return;
-      }
-      const validAdminKeys = ["DOC-ADM-2026-ROOT", "admin@2026@Doctorian", "Haxzy20Joseph21", "ADMIN-LEVEL7-2026"];
-      if (!validAdminKeys.includes(adminMasterKey.trim())) {
-        setError("CRITICAL SECURITY VIOLATION: Unauthorized Admin Master Key. System console access is completely restricted.");
-        return;
-      }
+    if (portalRole === 'admin' && !adminMasterKey.trim()) {
+      setError("ACCESS RESTRICTED: Administrator Master Authorization Passkey is required.");
+      return;
     }
 
     setIsLoading(true);
     try {
       const user = await api.auth.login(loginIdentifier.trim(), loginPassword);
+
+      // Verify privileged role & server-side step-up key when entering clinical/admin portal
+      if (portalRole === 'admin') {
+        if (user.role !== 'admin') {
+          await api.auth.logout();
+          throw new Error("SECURITY VIOLATION: This account does not hold verified Administrator privileges.");
+        }
+        await api.auth.verifyPrivileged('admin', adminMasterKey.trim(), user.email);
+      } else if (portalRole === 'doctor') {
+        if (!['doctor', 'nurse', 'admin'].includes(user.role)) {
+          await api.auth.logout();
+          throw new Error("ACCESS DENIED: Account is not a licensed clinician. Use Patient portal.");
+        }
+        await api.auth.verifyPrivileged('doctor', clinicalPin.trim(), user.email);
+      }
+
       if (rememberMe) {
         trustDevice(true);
       }
       setSuccessMessage(`Authentication confirmed. Welcome, ${user.displayName || user.email}!`);
       notifyLoginInGmail(user).catch(() => {});
       await new Promise(r => setTimeout(r, 550));
-      // Card disappears after process is done
       setActiveCard('none');
       onSuccess(user, false);
     } catch (err: any) {
@@ -376,50 +352,91 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
     }
   };
 
-  // Real Sign Up submit handler: stores user in database
+  // Real Sign Up submit handler: Anti-Fake-Registration PoW + Human Puzzle + Server Validation
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
-    if (!signupEmail.trim() || !signupPassword.trim()) {
-      setError("Please enter your email and a secure password.");
+    if (portalRole === 'admin') {
+      setError("SECURITY POLICY: Administrator accounts cannot be created via public signup. Contact an active System Administrator.");
       return;
     }
+
+    if (!signupFullName.trim() || signupFullName.trim().length < 3) {
+      setError("Please enter your real full legal name (minimum 3 characters).");
+      return;
+    }
+
+    if (!signupEmail.trim() || isDisposableEmail(signupEmail)) {
+      setError("Disposable, temporary, or test email domains are blocked. Please use a genuine email address.");
+      return;
+    }
+
+    const strength = validatePasswordStrength(signupPassword);
+    if (!strength.isStrong) {
+      setError(`Weak password rejected: requires ${strength.missingRequirements.join(', ')}.`);
+      return;
+    }
+
     if (signupPassword !== signupConfirmPassword) {
       setError("Passwords do not match. Please re-enter.");
       return;
     }
-    // 100% Restricted Gate for System Administrator Sign Up
-    if (portalRole === 'admin') {
-      if (!adminMasterKey.trim() || !["DOC-ADM-2026-ROOT", "admin@2026@Doctorian", "Haxzy20Joseph21", "ADMIN-LEVEL7-2026"].includes(adminMasterKey.trim())) {
-        setError("RESTRICTED: Administrator creation requires a verified Level 7 Master Passkey.");
-        setIsLoading(false);
-        return;
-      }
+
+    if (portalRole === 'doctor' && !isValidClinicianLicense(signupLicenseId)) {
+      setError("Valid Medical Council License ID required for Doctor signup (e.g. UMDPC-MD-12345).");
+      return;
+    }
+
+    if (!regChallenge || !puzzleAnswer.trim()) {
+      setError("Please complete the anti-bot human verification puzzle.");
+      return;
     }
 
     setIsLoading(true);
     try {
+      const powNonce = await solveRegistrationPow(
+        regChallenge.challengeId,
+        regChallenge.salt,
+        regChallenge.difficulty
+      );
+
       const user = await api.auth.signup(
         signupEmail.trim(),
         signupPassword,
-        signupFullName.trim() || undefined,
-        portalRole,
-        signupPhone.trim() || undefined
+        signupFullName.trim(),
+        portalRole === 'doctor' ? 'doctor' : 'patient',
+        signupPhone.trim() || undefined,
+        {
+          licenseNumber: portalRole === 'doctor' ? signupLicenseId.trim().toUpperCase() : undefined,
+          challengeId: regChallenge.challengeId,
+          powNonce,
+          puzzleAnswer: puzzleAnswer.trim(),
+          honeypot
+        }
       );
+
+      if (user.status === 'pending_verification') {
+        setSuccessMessage(
+          user.pendingMessage ||
+            "Clinician registration received and quarantined for Hospital Admin & Medical Council license verification before login is enabled."
+        );
+        loadRegistrationChallenge();
+        return;
+      }
 
       if (rememberMe) {
         trustDevice(true);
       }
-      setSuccessMessage("Account created successfully! Credentials stored in system database.");
+      setSuccessMessage("Verified human registration complete! Welcome to Doctorian AI.");
       notifyLoginInGmail(user).catch(() => {});
       await new Promise(r => setTimeout(r, 600));
-      // Card disappears after process is done
       setActiveCard('none');
       onSuccess(user, true);
     } catch (err: any) {
-      setError(err.message || "Failed to create account. If already registered, please sign in.");
+      setError(err.message || "Failed to create account.");
+      loadRegistrationChallenge();
     } finally {
       setIsLoading(false);
     }
@@ -835,6 +852,55 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   </div>
                 )}
 
+                {/* Remembered Accounts Quick-Recall Strip (Metadata Only — Still Requires Password/Passkey) */}
+                {(() => {
+                  const savedAccounts: RememberedAccount[] = getRememberedAccounts();
+                  if (savedAccounts.length === 0) return null;
+                  return (
+                    <div className="mb-4 space-y-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        Remembered Accounts on This Device
+                      </p>
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                        {savedAccounts.map((acc) => {
+                          const isSelected = loginIdentifier.trim().toLowerCase() === acc.email;
+                          return (
+                            <button
+                              key={acc.email}
+                              type="button"
+                              onClick={() => {
+                                const mappedRole: ClinicalRole =
+                                  acc.role === 'admin' ? 'admin' :
+                                  (acc.role === 'doctor' || acc.role === 'nurse') ? 'doctor' : 'user';
+                                setPortalRole(mappedRole);
+                                setLoginIdentifier(acc.email);
+                                setError(null);
+                              }}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left transition-all cursor-pointer shrink-0 ${
+                                isSelected
+                                  ? 'bg-cyan-500/20 border-cyan-400 text-white'
+                                  : 'bg-[#09183a]/80 border-slate-700/80 text-slate-300 hover:border-cyan-400/50'
+                              }`}
+                            >
+                              <span className="w-6 h-6 rounded-lg bg-blue-600/80 text-white text-[10px] font-black flex items-center justify-center uppercase shrink-0">
+                                {(acc.displayName || acc.email).slice(0, 1)}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-[11px] font-bold leading-tight truncate max-w-[125px]">
+                                  {acc.displayName}
+                                </span>
+                                <span className="block text-[9px] text-slate-400 uppercase tracking-wider">
+                                  {acc.role}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Sign In Form */}
                 <form onSubmit={handleSignInSubmit} className="space-y-3.5">
                   {/* Thick Input: Email or Phone Number */}
@@ -1227,20 +1293,73 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                     </button>
                   </div>
 
-                  {/* RESTRICTED: Admin Master Authorization Key for Admin Signup */}
+                  {/* Clinician License ID Field (Doctor Signup) */}
+                  {portalRole === 'doctor' && (
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-cyan-400">
+                        <Stethoscope size={16} />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={signupLicenseId}
+                        onChange={(e) => setSignupLicenseId(e.target.value)}
+                        placeholder="Medical Council License ID (e.g. UMDPC-MD-12345)"
+                        className="w-full pl-10 pr-4 py-2.5 bg-cyan-950/40 border border-cyan-500/50 rounded-xl text-xs text-white placeholder-cyan-200/50 focus:outline-none focus:border-cyan-400 font-mono"
+                      />
+                    </div>
+                  )}
+
+                  {/* Admin Public Signup Lock Notice */}
                   {portalRole === 'admin' && (
-                    <div className="pt-1 border-t border-amber-500/20">
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400">
-                          <KeyRound size={16} />
-                        </div>
+                    <div className="p-3 rounded-xl bg-amber-950/50 border border-amber-500/50 text-amber-200 text-xs flex items-start gap-2">
+                      <ShieldCheck size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                      <span>
+                        Public administrator self-registration is permanently locked. Switch to <strong>Patient</strong> or <strong>Doctor</strong>, or sign in as an authorized administrator.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Silent Anti-Bot Honeypot */}
+                  <input
+                    type="text"
+                    name="organization_website"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                    aria-hidden="true"
+                    className="sr-only absolute -left-[9999px] w-px h-px opacity-0"
+                  />
+
+                  {/* Anti-Bot Human Shield Verification */}
+                  {portalRole !== 'admin' && (
+                    <div className="p-3 rounded-xl bg-[#04112c]/90 border border-cyan-500/35 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                          <ShieldCheck size={14} className="text-emerald-400" />
+                          <span>Anti-Bot Human Shield</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={loadRegistrationChallenge}
+                          className="text-[10px] text-cyan-400 hover:underline cursor-pointer"
+                        >
+                          New Challenge
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-2 rounded-lg bg-cyan-950/70 border border-cyan-500/40 text-xs font-mono font-bold text-white shrink-0">
+                          {regChallenge ? regChallenge.puzzleQuestion : 'Loading...'}
+                        </span>
                         <input
-                          type="password"
+                          type="text"
+                          inputMode="numeric"
                           required
-                          value={adminMasterKey}
-                          onChange={(e) => setAdminMasterKey(e.target.value)}
-                          placeholder="Master Passkey (Level 7 Root Required)"
-                          className="w-full pl-10 pr-4 py-2.5 bg-amber-950/40 border border-amber-500/50 rounded-xl text-xs text-white placeholder-amber-200/50 focus:outline-none focus:border-amber-400 font-mono"
+                          value={puzzleAnswer}
+                          onChange={(e) => setPuzzleAnswer(e.target.value)}
+                          placeholder="Answer"
+                          className="flex-1 px-3 py-2 bg-[#061533] border border-cyan-500/30 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 font-mono"
                         />
                       </div>
                     </div>
@@ -1249,7 +1368,7 @@ export const ModernAuthPage: React.FC<ModernAuthPageProps> = ({
                   {/* Primary Create Account Button */}
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || portalRole === 'admin'}
                     className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm tracking-wide shadow-[0_0_22px_rgba(6,182,212,0.45)] hover:shadow-[0_0_28px_rgba(6,182,212,0.65)] flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 mt-2"
                   >
                     {isLoading ? (

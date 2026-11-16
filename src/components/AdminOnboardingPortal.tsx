@@ -33,57 +33,32 @@ export const AdminOnboardingPortal: React.FC<AdminOnboardingPortalProps> = ({
   // Passkey / PIN
   const [pinInput, setPinInput] = useState('');
 
-  // 1-Click Quick Admin Logins
-  const handleQuickAdminLogin = async (email: string, pass: string, name: string) => {
+  // Verified Server Admin Login
+  const handleQuickAdminLogin = async (email: string, pass: string, _name: string) => {
     setIsSubmitting(true);
     setError(null);
     try {
       const data = await api.auth.login(email, pass);
-      const adminUser: User = {
-        ...data,
-        role: 'admin',
-        credits: 5000,
-        subscriptionTier: data.subscriptionTier || 'enterprise',
-        createdAt: data.createdAt || new Date().toISOString(),
-        displayName: data.displayName || name
-      };
-      localStorage.setItem('medical_user', JSON.stringify(adminUser));
-      localStorage.setItem('admin_direct_authorized', 'true');
-      onUserUpdate(adminUser);
+      if (data.role !== 'admin') {
+        await api.auth.logout();
+        throw new Error('Access Denied: Account does not possess verified Administrator privileges.');
+      }
+      localStorage.setItem('medical_user', JSON.stringify(data));
+      onUserUpdate(data);
       onAdminAuthenticated();
-      if (addToast) addToast(`Welcome Lead Administrator ${adminUser.displayName || name}! Command console unlocked.`, 'success');
+      if (addToast) addToast(`Welcome Lead Administrator ${data.displayName || data.email}! Command console unlocked.`, 'success');
     } catch (e: any) {
-      console.warn("Direct login fallback with administrative authorization:", e);
-      // Fallback authorized admin session
-      const fallbackAdmin: User = {
-        id: 'admin-authorized-' + Date.now(),
-        email,
-        displayName: name,
-        role: 'admin',
-        credits: 5000,
-        subscriptionTier: 'enterprise',
-        createdAt: new Date().toISOString(),
-        status: 'active'
-      };
-      localStorage.setItem('medical_user', JSON.stringify(fallbackAdmin));
-      localStorage.setItem('admin_direct_authorized', 'true');
-      onUserUpdate(fallbackAdmin);
-      onAdminAuthenticated();
-      if (addToast) addToast(`Admin console unlocked for ${name}.`, 'success');
+      setError(e?.message || 'Administrator authentication failed.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Create Brand New Admin
+  // Administrator accounts cannot be created anonymously on the client
   const handleCreateNewAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAdminEmail.trim() || !newAdminPassword.trim() || !newAdminName.trim()) {
-      setError("Please fill in all administrator credentials.");
-      return;
-    }
-    if (newAdminPassword.length < 6) {
-      setError("Administrator password must be at least 6 characters.");
+    if (!newAdminEmail.trim() || !newAdminPassword.trim()) {
+      setError("Please enter your registered Administrator email and password.");
       return;
     }
 
@@ -91,55 +66,46 @@ export const AdminOnboardingPortal: React.FC<AdminOnboardingPortalProps> = ({
     setError(null);
 
     try {
-      const res = await api.auth.signup(
-        newAdminEmail.trim(),
-        newAdminPassword.trim(),
-        newAdminName.trim(),
-        'admin',
-        newAdminPhone.trim()
-      );
-      
-      const createdAdmin: User = {
-        ...res,
-        role: 'admin',
-        credits: 5000,
-        subscriptionTier: res.subscriptionTier || 'enterprise',
-        createdAt: res.createdAt || new Date().toISOString(),
-        displayName: newAdminName.trim()
-      };
-
-      localStorage.setItem('medical_user', JSON.stringify(createdAdmin));
-      localStorage.setItem('admin_direct_authorized', 'true');
-      onUserUpdate(createdAdmin);
+      const data = await api.auth.login(newAdminEmail.trim(), newAdminPassword.trim());
+      if (data.role !== 'admin') {
+        await api.auth.logout();
+        throw new Error("SECURITY VIOLATION: Only pre-provisioned System Administrators may access this portal.");
+      }
+      if (clearanceCode.trim()) {
+        await api.auth.verifyPrivileged('admin', clearanceCode.trim(), data.email);
+      }
+      onUserUpdate(data);
       onAdminAuthenticated();
-      if (addToast) addToast(`Administrator ${newAdminName} created successfully! Full permissions active.`, 'success');
+      if (addToast) addToast(`Administrator ${data.displayName} cryptographically verified!`, 'success');
     } catch (err: any) {
-      console.warn("Direct server signup fallback:", err);
-      // Ensure instant admin creation
-      const localAdmin: User = {
-        id: 'admin-' + Math.random().toString(36).substring(2, 9),
-        email: newAdminEmail.trim(),
-        displayName: newAdminName.trim(),
-        role: 'admin',
-        phone: newAdminPhone.trim(),
-        credits: 5000,
-        subscriptionTier: 'enterprise',
-        createdAt: new Date().toISOString(),
-        status: 'active'
-      };
-      localStorage.setItem('medical_user', JSON.stringify(localAdmin));
-      localStorage.setItem('admin_direct_authorized', 'true');
-      onUserUpdate(localAdmin);
-      onAdminAuthenticated();
-      if (addToast) addToast(`New Administrator ${newAdminName} created and verified!`, 'success');
+      setError(err?.message || "Public administrator creation is disabled. Sign in with verified admin credentials.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Administrative override requires real server-authenticated admin session
-  const handlePinBypass = () => {
-    setError("Administrative access requires signing in with a verified Hospital Administrator account through the main login portal.");
+  // Server-verified Administrative Passkey check
+  const handlePinBypass = async () => {
+    if (!pinInput.trim()) {
+      setError("Enter the Master Administrative Authorization Key.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const activeUser = await api.auth.me();
+      if (!activeUser || activeUser.role !== 'admin') {
+        throw new Error("Administrative passkey requires an active server-authenticated Administrator session.");
+      }
+      await api.auth.verifyPrivileged('admin', pinInput.trim(), activeUser.email);
+      onUserUpdate(activeUser);
+      onAdminAuthenticated();
+      if (addToast) addToast('Administrative Directorate Clearance Verified!', 'success');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid Administrative Security Passkey.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

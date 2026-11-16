@@ -105,6 +105,9 @@ import { useNearestHospital } from './hooks/useNearestHospital';
 import { getThemeSchedulerConfig, evaluateThemeSchedule, fetchSolarTimes } from './utils/themeScheduler';
 import { vibrateSOS, vibrateCriticalAlert, vibrateWarning, vibratePulse, stopVibration } from './utils/haptics';
 import { trustDevice, untrustDevice, detectDeviceName } from './utils/deviceRecognition';
+import { SmartInstallButton } from './components/SmartInstallButton';
+import { saveRememberedAccount } from './utils/offlineVault';
+import { startNeuralMeshClient } from './utils/neuralClient';
 
 function safeLazy<P extends object = any>(
   importFn: () => Promise<any>,
@@ -938,10 +941,10 @@ export default function App() {
       target = 'systems_hub';
     }
 
-    if (target === 'doctors_dashboard' && (user?.role === 'doctor' || (user as any)?.isDoctor || isAdmin)) {
+    if (target === 'doctors_dashboard' && isDoctor) {
       setIsDoctorAuthenticated(true);
     }
-    if (target === 'admin' && (user?.role === 'admin' || (user as any)?.isAdmin)) {
+    if (target === 'admin' && isAdmin) {
       setIsAdminAuthenticated(true);
     }
 
@@ -1169,27 +1172,33 @@ export default function App() {
 
     let progress = 0;
     const interval = setInterval(() => {
-      progress += 5;
+      progress += 10;
       setFaceScanProgress(progress);
       if (progress >= 100) {
         clearInterval(interval);
-        setFaceScanStatus('success');
-        
-        setTimeout(() => {
-          setIsAdminAuthenticated(true);
-          setShowAdminLogin(false);
+        const videoEl = document.getElementById('admin-face-video') as HTMLVideoElement;
+        if (videoEl && videoEl.srcObject) {
+          const stream = videoEl.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+        }
+
+        if (isAdmin) {
+          setFaceScanStatus('success');
+          setTimeout(() => {
+            setIsAdminAuthenticated(true);
+            setShowAdminLogin(false);
+            setIsFaceScanning(false);
+            setFaceScanStatus('idle');
+            setFaceScanProgress(0);
+            setCurrentView('admin');
+            addToast("Admin Level 7 Session Confirmed.", "success");
+          }, 800);
+        } else {
+          setFaceScanStatus('failed');
           setIsFaceScanning(false);
-          setFaceScanStatus('idle');
           setFaceScanProgress(0);
-          setCurrentView('admin');
-          addToast("Admin Level 7 Signature Confirmed: Face of Akora Joseph recognized.", "success");
-          
-          const videoEl = document.getElementById('admin-face-video') as HTMLVideoElement;
-          if (videoEl && videoEl.srcObject) {
-            const stream = videoEl.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-          }
-        }, 1200);
+          setAdminError("Biometric template not bound to an active Administrator session. Enter your server security passkey.");
+        }
       }
     }, 150);
   };
@@ -1277,31 +1286,48 @@ export default function App() {
     setToast,
   });
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'doctor_admin' || user?.email === 'gloriajayakullo@gmail.com' || user?.email === 'admin@doctorian.com' || (user && !user.role); // Fallback to true if logged in for full admin control, else restrict based on explicit values
-  const isDoctor = user?.role === 'doctor' || user?.role === 'doctor_admin' || user?.email === 'gloriajayakullo@gmail.com' || user?.email === 'doctor@doctorian.com' || isAdmin;
+  const isGuestUser = Boolean((user as any)?.isGuest || user?.role === 'guest');
+  const isAdmin = Boolean(
+    user?.id &&
+      !isGuestUser &&
+      (user.role === 'admin' ||
+        user.role === 'doctor_admin' ||
+        user.email?.toLowerCase() === 'gloriajayakullo@gmail.com')
+  );
+  const isDoctor = Boolean(
+    user?.id &&
+      !isGuestUser &&
+      (user.role === 'doctor' || user.role === 'nurse' || user.role === 'doctor_admin' || isAdmin)
+  );
 
   const handleNeuralCoreAccess = () => {
-    if (isAdminAuthenticated) {
-      setCurrentView('admin');
-    } else {
-      setCurrentView('admin');
-    }
+    setCurrentView('admin');
   };
 
   const handleAdminAccess = () => {
     setCurrentView('admin');
   };
 
-  const verifyAdminAuth = () => {
-    // Administrative passkey validation
-    if (adminPassInput === "Haxzy20Joseph21" || adminPassInput === "admin@2026@Doctorian") {
-       setIsAdminAuthenticated(true);
-       setShowAdminLogin(false);
-       setCurrentView('admin');
-       setAdminPassInput('');
-       addToast("Admin Neural Authorization Level 7 Confirmed.", "success");
-    } else {
-       setAdminError("Neural signature invalid. Authorization denied.");
+  const verifyAdminAuth = async () => {
+    if (!adminPassInput.trim()) {
+      setAdminError("Cryptographic security passkey is required.");
+      return;
+    }
+    try {
+      const res = await api.auth.verifyPrivileged('admin', adminPassInput.trim(), user?.email);
+      if (res?.verified) {
+        setIsAdminAuthenticated(true);
+        sessionStorage.setItem('admin_authenticated', 'true');
+        setShowAdminLogin(false);
+        setCurrentView('admin');
+        setAdminPassInput('');
+        setAdminError('');
+        addToast("Admin Neural Authorization Level 7 Confirmed.", "success");
+      } else {
+        setAdminError("Neural signature invalid. Authorization denied.");
+      }
+    } catch (err: any) {
+      setAdminError(err?.message || "Neural signature invalid. Authorization denied.");
     }
   };
 
@@ -1384,11 +1410,15 @@ export default function App() {
       };
       const firebaseUser = await fb.signInWithSocial(providerMap[providerKey]);
       if (firebaseUser.email) {
+        const idToken = typeof (firebaseUser as any).getIdToken === 'function'
+          ? await (firebaseUser as any).getIdToken()
+          : undefined;
         const loggedInUser = await api.auth.socialLogin({
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
           photoURL: firebaseUser.photoURL || undefined,
-          providerId: providerName
+          providerId: providerName,
+          idToken
         });
         setUser(loggedInUser);
         setToast({ message: `Access sequence confirmed. Welcome ${loggedInUser.displayName || loggedInUser.email}.`, type: 'success' });
@@ -1825,10 +1855,38 @@ export default function App() {
       }).catch(console.error);
     }
 
+    // Preload high-frequency feature modules silently during idle browser time for instant navigation
+    const preloadCoreViews = () => {
+      void import("./components/EPharmacyAndMedics");
+      void import("./components/AppMedics");
+      void import("./components/MedicationTracker");
+      void import("./components/DiagnosticLab");
+      void import("./components/HealthRecords");
+      void import("./components/AppointmentsView");
+      void import("./components/AppServerNetwork");
+      void import("./components/UgandaPatientTriage");
+    };
+    const idleTimer = window.setTimeout(preloadCoreViews, 1500);
+
+    // Connect live WebSocket + BroadcastChannel Neural Mesh for server-to-self & role-to-role comms
+    startNeuralMeshClient();
+    const handleLiveNeuralSignal = (ev: any) => {
+      const sig = ev?.detail;
+      if (!sig) return;
+      if (sig.eventType === 'alarm' || sig.priority === 'stat_emergency') {
+        setToast({ message: `🚨 ${sig.subject || 'STAT Clinical Alert'}: ${sig.content}`, type: 'error' });
+      } else if (sig.eventType === 'order') {
+        setToast({ message: `💊 ${sig.subject || 'Pharmacy Order'}: ${sig.content}`, type: 'success' });
+      }
+    };
+    window.addEventListener('doctorian-neural-signal', handleLiveNeuralSignal);
+
     return () => {
+      window.clearTimeout(idleTimer);
       window.removeEventListener('offline_action_queued', handleActionQueued);
       window.removeEventListener('offline_actions_synced', handleActionsSynced);
       window.removeEventListener('navigate_view', handleNavigateView);
+      window.removeEventListener('doctorian-neural-signal', handleLiveNeuralSignal);
     };
   }, []);
 
@@ -1908,14 +1966,17 @@ export default function App() {
   }, [user, currentView]);
 
   useEffect(() => {
-    sessionStorage.setItem('doctor_authenticated', 'true');
-    sessionStorage.setItem('admin_authenticated', 'true');
-
     const checkAuth = async () => {
       try {
         const authenticatedUser = await api.auth.me();
         if (authenticatedUser) {
           setUser(authenticatedUser);
+        } else {
+          setUser(null);
+          setIsAdminAuthenticated(false);
+          setIsDoctorAuthenticated(false);
+          sessionStorage.removeItem('doctor_authenticated');
+          sessionStorage.removeItem('admin_authenticated');
         }
       } catch (error: any) {
         console.warn("[Doctorian] Background session check:", error?.message || error);
@@ -2303,27 +2364,7 @@ export default function App() {
     setIsAdminInfoOpen(true);
   };
 
-  const triggerPWAInstall = async () => {
-    const promptObj = deferredPrompt || (window as any).deferredPWAInstallPrompt;
-
-    if (promptObj && !isInIframe) {
-      try {
-        promptObj.prompt();
-        const { outcome } = await promptObj.userChoice;
-        if (outcome === 'accepted') {
-          addToast("Successfully installed Doctorian Application!", "success");
-          setShowInstallButton(false);
-          setIsStandalone(true);
-          setHasInstalledApp(true);
-          setDeferredPrompt(null);
-          (window as any).deferredPWAInstallPrompt = null;
-          return;
-        }
-      } catch (err) {
-        console.warn("Direct install prompt trigger error:", err);
-      }
-    }
-
+  const triggerPWAInstall = () => {
     setIsDownloadAppOpen(true);
   };
 
@@ -2637,25 +2678,42 @@ export default function App() {
             isDarkMode={isDarkMode}
             onToggleTheme={() => setIsDarkMode(!isDarkMode)}
             initialMode="login"
-            onContinueAsGuest={() => {
-              const guestUser: any = {
+            onContinueAsGuest={async () => {
+              let guestUser: any = {
                 id: `guest-${Date.now()}`,
                 email: 'guest.clinical@doctorian.org',
-                displayName: 'Guest Clinical Officer',
-                role: 'user',
+                displayName: 'Guest Clinical Explorer (Demo)',
+                role: 'guest',
                 isGuest: true,
                 isDoctor: false
               };
+              try {
+                const res = await fetch('/api/auth/guest', { method: 'POST', credentials: 'include' });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data?.token) {
+                    localStorage.setItem('doctorian_token', data.token);
+                  }
+                  if (data?.user) {
+                    guestUser = { ...data.user, isGuest: true, isDoctor: false };
+                  }
+                }
+              } catch {
+                // Offline guest fallback
+              }
               setUser(guestUser);
               localStorage.setItem('medical_user', JSON.stringify(guestUser));
+              setIsAdminAuthenticated(false);
+              setIsDoctorAuthenticated(false);
               trustDevice(true);
               setHasEnteredApp(true);
               setIsAuthModalOpen(false);
-              addToast("Guest Clinical Mode active. Diagnostic and consultation tools enabled.", "info");
+              addToast("Guest Sandbox Mode active. Account mutations and privileged areas remain locked.", "info");
             }}
             onSuccess={(authenticatedUser, isSignUp) => {
               setUser(authenticatedUser);
               localStorage.setItem('medical_user', JSON.stringify(authenticatedUser));
+              saveRememberedAccount(authenticatedUser);
               trustDevice(true);
               setHasEnteredApp(true);
               setIsAuthModalOpen(false);
@@ -2673,6 +2731,29 @@ export default function App() {
             }}
           />
         </Suspense>
+        <SmartInstallButton
+          onOpenFullModal={() => setIsDownloadAppOpen(true)}
+          onInstalledToast={(msg) => {
+            setHasInstalledApp(true);
+            setIsStandalone(true);
+            setShowInstallButton(false);
+            addToast(msg, 'success');
+          }}
+        />
+        {isDownloadAppOpen && (
+          <Suspense fallback={null}>
+            <DownloadAppModal
+              isOpen={isDownloadAppOpen}
+              onClose={() => setIsDownloadAppOpen(false)}
+              onInstalled={() => {
+                setHasInstalledApp(true);
+                setIsStandalone(true);
+                setShowInstallButton(false);
+                addToast('Doctorian native app package ready with offline modules!', 'success');
+              }}
+            />
+          </Suspense>
+        )}
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -3568,7 +3649,7 @@ export default function App() {
             />
           </motion.div>
         ) : currentView === 'admin' ? (
-          isAdmin || isAdminAuthenticated || user?.email === 'gloriajayakullo@gmail.com' || (typeof window !== 'undefined' && localStorage.getItem('admin_direct_authorized') === 'true') ? (
+          isAdmin || isAdminAuthenticated ? (
             <motion.div
               key="admin"
               initial={{ opacity: 0, x: 20 }}
@@ -3678,7 +3759,7 @@ export default function App() {
                 <Loader2 size={32} className="text-blue-500 animate-spin" />
               </div>
             }>
-              <EPharmacyAndMedics onNavigate={setCurrentView} addToast={addToast} />
+              <EPharmacyAndMedics onNavigate={setCurrentView} addToast={addToast} user={user} />
             </Suspense>
           </motion.div>
         ) : currentView === 'emergency' ? (
@@ -4787,6 +4868,17 @@ export default function App() {
 
       </div>
     </div>
+
+    {/* Intelligent Auto-Hiding Install Button (Appears ONLY if not yet installed on this device) */}
+    <SmartInstallButton
+      onOpenFullModal={() => setIsDownloadAppOpen(true)}
+      onInstalledToast={(msg) => {
+        setHasInstalledApp(true);
+        setIsStandalone(true);
+        setShowInstallButton(false);
+        addToast(msg, 'success');
+      }}
+    />
 
     {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << (Hidden in full-screen AI chat to prevent blocking the input card) */}
     {currentView !== 'ai_nexus' && (

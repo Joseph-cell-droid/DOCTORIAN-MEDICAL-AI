@@ -1,13 +1,15 @@
-// Doctorian PWA Service Worker (Full Offline & Online Core)
-const CACHE_NAME = 'doctorian-offline-v3';
+// Doctorian Service Worker v5 — Full Offline App Shell, Telehealth Portraits, Native Packages & API Cache
+const SHELL_CACHE = 'doctorian-shell-v5';
+const RUNTIME_CACHE = 'doctorian-runtime-v5';
+const API_CACHE = 'doctorian-api-v5';
 
-// Static assets to pre-cache as the application shell
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/logo.svg',
   '/logo.png',
+  '/apple-touch-icon.png',
   '/logo-512.png',
   '/logo-192.png',
   '/logo-144.png',
@@ -15,131 +17,189 @@ const PRECACHE_ASSETS = [
   '/logo-72.png',
   '/logo-48.png',
   '/favicon.ico',
+  '/rx_hero_banner.png',
+  '/rx_capsule_3d.png',
+  '/rx_doctor_telemed.png',
+  '/rx_patient_avatar.png',
+  '/african_doctor_female.png',
+  '/african_doctor_male.png',
+  '/portraits/dr_sarah_nakalema.jpg',
+  '/portraits/dr_emmanuel_kato.jpg',
+  '/portraits/dr_achan_grace.jpg',
+  '/portraits/dr_joseph_mukasa.jpg',
+  '/portraits/patient_sarah.jpg',
+  '/downloads/Doctorian-Offline-Package-Suite.json',
+  '/downloads/Doctorian-Setup.exe',
+  '/downloads/Doctorian-MedicalAI-Android.apk',
+  '/downloads/Doctorian-Tablet-HD.apk'
 ];
 
-// Install: Cache core application shell
+// Read-only safe API GET paths to mirror offline so dashboards, guidelines, orders, and chats stay alive
+const CACHEABLE_API_PREFIXES = [
+  '/api/guidelines',
+  '/api/dashboard/live-summary',
+  '/api/network/users',
+  '/api/network/messages',
+  '/api/network/stats',
+  '/api/neural/events',
+  '/api/pharmacy/orders',
+  '/api/ai/status'
+];
+
 self.addEventListener('install', (event) => {
-  console.log('[Doctorian SW] Service Worker installing...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Doctorian SW] Pre-caching Core Offline Shell');
-      return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => self.skipWaiting())
+    caches
+      .open(SHELL_CACHE)
+      .then((cache) =>
+        Promise.allSettled(
+          PRECACHE_ASSETS.map((url) =>
+            cache.add(url).catch(() => null)
+          )
+        )
+      )
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate: Claim clients and purge legacy system caches
 self.addEventListener('activate', (event) => {
-  console.log('[Doctorian SW] Service Worker activating...');
+  const validCaches = new Set([SHELL_CACHE, RUNTIME_CACHE, API_CACHE]);
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            console.log('[Doctorian SW] Clearing legacy cache:', cache);
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names.map((name) => (!validCaches.has(name) ? caches.delete(name) : Promise.resolve(false)))
+        )
+      )
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch Interceptor
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests for caching
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
 
-  // 1. Bypass Server API, Real-Time Endpoints, and Vite Dev / Source Modules
+  // Never cache WebSocket upgrades or SSE/live endpoints
+  if (url.pathname.includes('/ws') || url.pathname.includes('/live')) {
+    return;
+  }
+
+  // 1. Safe GET API Endpoints -> NetworkFirst with Offline Cache Fallback
+  if (url.pathname.startsWith('/api/')) {
+    const isCacheableApi = CACHEABLE_API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+    if (!isCacheableApi) return;
+
+    event.respondWith(
+      fetch(event.request)
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const copy = networkRes.clone();
+            caches.open(API_CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return networkRes;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return new Response(
+            JSON.stringify({ offline: true, message: 'Served offline cache fallback.' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          );
+        })
+    );
+    return;
+  }
+
+  // 2. SPA Navigation -> NetworkFirst with instant cached App Shell fallback
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const copy = networkRes.clone();
+            caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy));
+          }
+          return networkRes;
+        })
+        .catch(async () => {
+          return (
+            (await caches.match('/index.html')) ||
+            (await caches.match('/')) ||
+            new Response('Doctorian AI Offline Shell Unavailable', { status: 503 })
+          );
+        })
+    );
+    return;
+  }
+
+  // 3. Native Installers (/downloads/*) -> NetworkFirst with guaranteed offline Shell Cache fallback
+  if (url.pathname.startsWith('/downloads/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const copy = networkRes.clone();
+            caches.open(SHELL_CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return networkRes;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return new Response('Offline package not yet cached', { status: 503 });
+        })
+    );
+    return;
+  }
+
+  // 4. Vite dev source modules (/src/, /@vite/, /node_modules/) -> NetworkFirst with offline cache backup
   if (
-    url.pathname.startsWith('/api') ||
-    url.pathname.includes('/ws') ||
-    url.pathname.includes('/live') ||
     url.pathname.startsWith('/src/') ||
     url.pathname.startsWith('/node_modules/') ||
     url.pathname.startsWith('/@') ||
     url.pathname.endsWith('.tsx') ||
-    url.pathname.endsWith('.ts') ||
-    url.pathname.endsWith('.jsx')
+    url.pathname.endsWith('.ts')
   ) {
-    return; // Let the network handle these directly
-  }
-
-  // 2. Navigation Request (SPA client-side router routing fallback)
-  if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put('/index.html', responseClone);
-            });
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const copy = networkRes.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => cache.put(event.request, copy));
           }
-          return response;
+          return networkRes;
         })
-        .catch(() => {
-          console.warn('[Doctorian SW] Offline mode detected. Serving cached SPA shell...');
-          return caches.match('/index.html') || caches.match('/');
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          throw new Error('Offline source module not yet cached');
         })
     );
     return;
   }
 
-  // 3. Stale-While-Revalidate for bundled production JS, CSS, Images, and Web Fonts
-  if (
-    event.request.destination === 'script' ||
-    event.request.destination === 'style' ||
-    event.request.destination === 'image' ||
-    event.request.destination === 'font' ||
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
-    url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|otf)$/i)
-  ) {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
-              const responseClone = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseClone);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            if (cachedResponse) return cachedResponse;
-            return fetch(event.request);
-          });
-
-        return cachedResponse || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  // 4. Default standard caching - Cache falling back to network
+  // 5. Production Assets, Images, CSS, JS, Fonts -> Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return (
-        response ||
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseClone);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            return new Response('', { status: 404, statusText: 'Not Found' });
-          })
-      );
+    caches.match(event.request).then((cachedRes) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200 && (networkRes.type === 'basic' || networkRes.type === 'cors')) {
+            const copy = networkRes.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return networkRes;
+        })
+        .catch(() => cachedRes || new Response('', { status: 404 }));
+
+      return cachedRes || fetchPromise;
     })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

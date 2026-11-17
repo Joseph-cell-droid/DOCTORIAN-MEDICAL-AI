@@ -6,6 +6,9 @@
   html, body {
     overscroll-behavior-y: contain;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -14,7 +17,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    font-family: 'Outfit', 'Plus Jakarta Sans', 'DM Sans', sans-serif;
   }
 
   .font-mono, .tabular-nums {
@@ -170,4 +173,173 @@
 
 .animate-spin-slow {
   animation: spin-slow 12s linear infinite;
+}
+
+/* Greeting Waving Hand Motion */
+@keyframes doctorian-hand-wave {
+  0%, 100% { transform: rotate(0deg) translateY(0px) scale(1); }
+  12% { transform: rotate(18deg) translateY(-2px) scale(1.06); }
+  24% { transform: rotate(-12deg) translateY(-1px) scale(1.04); }
+  36% { transform: rotate(16deg) translateY(-2px) scale(1.06); }
+  48% { transform: rotate(-8deg) translateY(0px) scale(1.02); }
+  60% { transform: rotate(12deg) translateY(-1px) scale(1.04); }
+  74% { transform: rotate(0deg) translateY(0px) scale(1); }
+}
+
+.doctorian-greeting-wave {
+  display: inline-block;
+  transform-origin: 72% 76%;
+  animation: doctorian-hand-wave 2.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Continuous Left-and-Right Flowing Spectrum Text for Greetings */
+@keyframes doctorian-prism-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.doctorian-greeting-prism {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  background-image: linear-gradient(
+    90deg,
+    #0284c7 0%,
+    #2563eb 16%,
+    #7c3aed 33%,
+    #db2777 50%,
+    #d97706 67%,
+    #059669 84%,
+    #0284c7 100%
+  );
+  background-size: 320% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: doctorian-prism-flow 7.5s ease-in-out infinite;
+  will-change: background-position;
+}
+
+.dark .doctorian-greeting-prism {
+  background-image: linear-gradient(
+    90deg,
+    #22d3ee 0%,
+    #60a5fa 16%,
+    #a78bfa 33%,
+    #f472b6 50%,
+    #fbbf24 67%,
+    #34d399 84%,
+    #22d3ee 100%
+  );
+  background-size: 320% 100%;
+}
+
+.doctorian-greeting-prism-sub {
+  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  background-image: linear-gradient(
+    90deg,
+    #0f766e 0%,
+    #0369a1 25%,
+    #6d28d9 50%,
+    #be185d 75%,
+    #0f766e 100%
+  );
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: doctorian-prism-flow 9s ease-in-out infinite reverse;
+}
+
+.dark .doctorian-greeting-prism-sub {
+  background-image: linear-gradient(
+    90deg,
+    #5eead4 0%,
+    #38bdf8 25%,
+    #c4b5fd 50%,
+    #f9a8d4 75%,
+    #5eead4 100%
+  );
+  background-size: 280% 100%;
+}
+
+/* Small Floating Crystal Bubbles in Greeting Backdrop */
+@keyframes doctorian-crystal-drift {
+  0% {
+    transform: translate3d(0px, 18px, 0) scale(0.85) rotate(0deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.92;
+  }
+  50% {
+    transform: translate3d(var(--drift-x, 12px), -18px, 0) scale(1.06) rotate(12deg);
+    opacity: 0.95;
+  }
+  84% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(calc(var(--drift-x, 12px) * -0.7), -54px, 0) scale(0.88) rotate(-10deg);
+    opacity: 0;
+  }
+}
+
+.doctorian-crystal-bubble {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 30% 28%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(125, 211, 252, 0.55) 36%,
+    rgba(99, 102, 241, 0.25) 74%,
+    rgba(56, 189, 248, 0.12) 100%
+  );
+  border: 1px solid rgba(14, 165, 233, 0.42);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    0 2px 8px rgba(14, 165, 233, 0.18);
+  animation: doctorian-crystal-drift var(--bubble-duration, 7s) ease-in-out infinite;
+  animation-delay: var(--bubble-delay, 0s);
+  will-change: transform, opacity;
+}
+
+.dark .doctorian-crystal-bubble {
+  background: radial-gradient(
+    circle at 30% 28%,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(34, 211, 238, 0.5) 38%,
+    rgba(167, 139, 250, 0.26) 76%,
+    rgba(56, 189, 248, 0.1) 100%
+  );
+  border: 1px solid rgba(165, 243, 252, 0.45);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.85),
+    0 0 12px rgba(34, 211, 238, 0.35);
+}
+
+/* Upper-Bar Alarm Bell Ringing Feedback */
+@keyframes doctorian-alarm-ring {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(16deg); }
+  30% { transform: rotate(-14deg); }
+  45% { transform: rotate(12deg); }
+  60% { transform: rotate(-10deg); }
+  75% { transform: rotate(6deg); }
+}
+
+.doctorian-alarm-ring {
+  transform-origin: top center;
+  animation: doctorian-alarm-ring 0.9s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doctorian-greeting-wave,
+  .doctorian-greeting-prism,
+  .doctorian-greeting-prism-sub,
+  .doctorian-crystal-bubble,
+  .doctorian-alarm-ring {
+    animation: none !important;
+  }
 }

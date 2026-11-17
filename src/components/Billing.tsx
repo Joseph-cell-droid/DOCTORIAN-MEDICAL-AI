@@ -22,9 +22,14 @@ import {
   Printer,
   Download,
   ShieldCheck,
-  X
+  X,
+  FileText,
+  RefreshCw,
+  Search,
+  RotateCcw,
+  MessageSquare
 } from 'lucide-react';
-import { api, User } from '../api';
+import { api, User, type BillingTransaction } from '../api';
 import { openFlutterwavePayment } from '../utils/flutterwave';
 import { 
   STORAGE_EXPANSION_PLANS, 
@@ -99,11 +104,39 @@ interface BillingProps {
   user: User | null;
   onUpdateUser: (user: User) => void;
   onShowToast: (msg: string, type: 'success' | 'error' | 'info') => void;
-  initialTab?: 'protocols' | 'storage';
+  initialTab?: 'protocols' | 'storage' | 'sms' | 'ledger';
 }
 
+const SMS_BUNDLES = [
+  {
+    id: 'sms_pack_100',
+    name: 'Clinical Starter 100 SMS',
+    credits: 100,
+    amount: 12000,
+    rateLabel: '120 UGX / SMS',
+    description: 'Ideal for patient follow-ups, call alerts & appointment reminders.'
+  },
+  {
+    id: 'sms_pack_500',
+    name: 'Ward Pro 500 SMS',
+    credits: 500,
+    amount: 45000,
+    rateLabel: '90 UGX / SMS · Save 40%',
+    isPopular: true,
+    description: 'High-margin clinic broadcast & automatic doctor/patient GSM alerts.'
+  },
+  {
+    id: 'sms_pack_2500',
+    name: 'Hospital Network 2,500 SMS',
+    credits: 2500,
+    amount: 180000,
+    rateLabel: '72 UGX / SMS · Enterprise Margin',
+    description: 'Facility-wide server multi-user alert dispatching across wards.'
+  }
+];
+
 export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToast, initialTab }) => {
-  const [billingTab, setBillingTab] = useState<'protocols' | 'storage'>(() => {
+  const [billingTab, setBillingTab] = useState<'protocols' | 'storage' | 'sms' | 'ledger'>(() => {
     if (initialTab) return initialTab;
     if (typeof localStorage !== 'undefined' && localStorage.getItem('doctorian_storage_open_billing') === 'true') {
       localStorage.removeItem('doctorian_storage_open_billing');
@@ -120,24 +153,151 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
   const [selectedPlan, setSelectedPlan] = useState<string>('catalyst');
   const [loading, setLoading] = useState(false);
 
+  // SMS Bundle Checkout States
+  const [selectedSmsBundle, setSelectedSmsBundle] = useState<string>('sms_pack_500');
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsPaymentMethod, setSmsPaymentMethod] = useState<'momo' | 'airtel_money' | 'card'>('momo');
+  const [smsPayerPhone, setSmsPayerPhone] = useState(user?.phone || '+256772100200');
+
   // Cloud Storage Expansion States
   const [selectedStoragePlan, setSelectedStoragePlan] = useState<string>('storage_20gb');
   const [storageLoading, setStorageLoading] = useState(false);
-  const [storageMomoPhone, setStorageMomoPhone] = useState(user?.phone || '');
-  const [storagePaymentMethod, setStoragePaymentMethod] = useState<'momo' | 'flutterwave'>('momo');
+  const [storageMomoPhone, setStorageMomoPhone] = useState(user?.phone || '+256 772 100 200');
+  const [storagePaymentMethod, setStoragePaymentMethod] = useState<'momo' | 'airtel_money' | 'flutterwave'>('momo');
   const [storageSuccessMessage, setStorageSuccessMessage] = useState<string | null>(null);
+
+  // Transaction Ledger & Invoice Management State
+  const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
+  const [ledgerSummary, setLedgerSummary] = useState<{
+    totalSpentUgx: number;
+    completedCount: number;
+    refundedCount: number;
+  }>({ totalSpentUgx: 0, completedCount: 0, refundedCount: 0 });
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerKind, setLedgerKind] = useState<'all' | 'protocol' | 'storage' | 'sms_bundle'>('all');
+  const [ledgerStatus, setLedgerStatus] = useState<'all' | 'completed' | 'refunded'>('all');
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [verifyingTxId, setVerifyingTxId] = useState<string | null>(null);
+  const [verifiedSignatures, setVerifiedSignatures] = useState<Record<string, { verified: boolean; signaturePrefix: string }>>({});
+  const [confirmRefundId, setConfirmRefundId] = useState<string | null>(null);
+  const [refundingTxId, setRefundingTxId] = useState<string | null>(null);
+
+  const loadBillingLedger = React.useCallback(async () => {
+    if (!user || user.role === 'guest') return;
+    setLedgerLoading(true);
+    try {
+      const data = await api.billing.getHistory({
+        page: 1,
+        limit: 40,
+        kind: ledgerKind,
+        status: ledgerStatus,
+        search: ledgerSearch.trim() || undefined
+      });
+      setTransactions(data.history || []);
+      if (data.summary) setLedgerSummary(data.summary);
+      if (data.account && user) {
+        onUpdateUser({
+          ...user,
+          subscriptionTier: (data.account.subscriptionTier as any) || user.subscriptionTier,
+          credits: data.account.credits ?? user.credits,
+          smsCredits: (data.account as any).smsCredits ?? user.smsCredits,
+          storageQuotaBytes: data.account.storageQuotaBytes ?? user.storageQuotaBytes
+        });
+      }
+    } catch {
+      // Non-blocking in offline preview mode
+    } finally {
+      setLedgerLoading(false);
+    }
+  }, [user?.id, user?.role, ledgerKind, ledgerStatus, ledgerSearch]);
+
+  React.useEffect(() => {
+    void loadBillingLedger();
+  }, [loadBillingLedger]);
 
   const currentPlan = PLANS.find(p => p.id === selectedPlan);
   const currentStoragePlan = STORAGE_EXPANSION_PLANS.find(p => p.id === selectedStoragePlan) || STORAGE_EXPANSION_PLANS[1];
+
+  const completeVerifiedStorageOrder = async (method: string, externalRef: string) => {
+    if (!user) return;
+    const plan = currentStoragePlan;
+    const idempotencyKey = `st_${user.id}_${plan.id}_${externalRef}`;
+    try {
+      const res = await api.billing.checkout({
+        kind: 'storage',
+        itemId: selectedStoragePlan,
+        paymentMethod: method,
+        payerPhone: storageMomoPhone || user.phone || undefined,
+        externalRef,
+        idempotencyKey
+      });
+
+      const nextQuota = res.user?.storageQuotaBytes || ((user.storageQuotaBytes || FREE_STORAGE_QUOTA_BYTES) + plan.addedBytes);
+      const userIdKey = (user.email || 'default_user').replace(/[^a-zA-Z0-9]/g, '_');
+      try {
+        localStorage.setItem(`doctorian_storage_quota_bytes_${userIdKey}`, String(nextQuota));
+      } catch {}
+
+      onUpdateUser({
+        ...user,
+        storageQuotaBytes: nextQuota
+      });
+
+      const msg = `Added ${plan.formattedSize} (${plan.name}) to encrypted cloud vault!`;
+      setStorageSuccessMessage(msg);
+      onShowToast(msg, 'success');
+
+      if (res.transaction) {
+        setReceiptData({
+          receiptNo: res.transaction.invoiceNumber,
+          date: new Date(res.transaction.createdAt).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          planName: res.transaction.itemName,
+          planDescription: plan.description,
+          subtotal: `${res.transaction.subtotalUgx.toLocaleString()} UGX`,
+          vat: `${res.transaction.vatUgx.toLocaleString()} UGX (18% UG-VAT)`,
+          amount: `${res.transaction.amountUgx.toLocaleString()} UGX`,
+          paymentMethod: res.transaction.paymentMethod.toUpperCase(),
+          txRef: res.transaction.externalRef || res.transaction.id,
+          hmacPrefix: res.transaction.receiptHmac?.slice(0, 18),
+          customerName: res.transaction.userName,
+          customerEmail: res.transaction.userEmail,
+          status: 'PAID & CRYPTO-SIGNED'
+        });
+        setShowReceiptModal(true);
+      }
+      void loadBillingLedger();
+    } catch {
+      const fallback = await purchaseStorageExpansion(
+        '',
+        selectedStoragePlan,
+        method,
+        storageMomoPhone,
+        externalRef,
+        user.email
+      );
+      setStorageSuccessMessage(fallback.message);
+      onShowToast(fallback.message, 'success');
+    }
+  };
 
   const handleStoragePurchase = async () => {
     if (!user) {
       onShowToast("Please log in to purchase storage", "error");
       return;
     }
+    if (user.role === 'guest') {
+      onShowToast("Guest demo accounts cannot purchase storage. Please register or sign in.", "error");
+      return;
+    }
     const plan = currentStoragePlan;
-    if (storagePaymentMethod === 'momo' && (!storageMomoPhone || storageMomoPhone.length < 9)) {
-      onShowToast("Please enter a valid MTN MoMo phone number", "error");
+    if ((storagePaymentMethod === 'momo' || storagePaymentMethod === 'airtel_money') && (!storageMomoPhone || storageMomoPhone.length < 9)) {
+      onShowToast("Please enter a valid Uganda Mobile Money phone number", "error");
       return;
     }
 
@@ -163,16 +323,7 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
           },
           callback: async (response: any) => {
             if (response.status === "successful" || response.status === "completed") {
-              const res = await purchaseStorageExpansion(
-                '',
-                selectedStoragePlan,
-                'flutterwave',
-                storageMomoPhone,
-                response.transaction_id.toString(),
-                user.email
-              );
-              setStorageSuccessMessage(res.message);
-              onShowToast(res.message, "success");
+              await completeVerifiedStorageOrder('flutterwave', String(response.transaction_id || Date.now()));
             }
           },
           onclose: () => {
@@ -180,21 +331,68 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
           }
         });
       } else {
-        const res = await purchaseStorageExpansion(
-          '',
-          selectedStoragePlan,
-          'momo',
-          storageMomoPhone,
-          `TX-MOMO-${Date.now()}`,
-          user.email
-        );
-        setStorageSuccessMessage(res.message);
-        onShowToast(res.message, "success");
+        await completeVerifiedStorageOrder(storagePaymentMethod, `TX-${storagePaymentMethod.toUpperCase()}-${Date.now()}`);
       }
     } catch (err: any) {
       onShowToast(err.message || "Storage purchase failed", "error");
     } finally {
       setStorageLoading(false);
+    }
+  };
+
+  const currentSmsBundle = SMS_BUNDLES.find((b) => b.id === selectedSmsBundle) || SMS_BUNDLES[1];
+
+  const handleSmsBundlePurchase = async () => {
+    if (!user || user.role === 'guest') {
+      onShowToast("Please sign in with a registered account to purchase SMS bundles.", "error");
+      return;
+    }
+    if ((smsPaymentMethod === 'momo' || smsPaymentMethod === 'airtel_money') && (!smsPayerPhone || smsPayerPhone.trim().length < 9)) {
+      onShowToast("Enter a valid Uganda Mobile Money phone number", "error");
+      return;
+    }
+    setSmsLoading(true);
+    try {
+      const extRef = `SMS-${smsPaymentMethod.toUpperCase()}-${Date.now()}`;
+      const res = await api.billing.checkout({
+        kind: 'sms_bundle',
+        itemId: currentSmsBundle.id,
+        paymentMethod: smsPaymentMethod,
+        payerPhone: smsPayerPhone.trim() || user.phone || undefined,
+        externalRef: extRef,
+        idempotencyKey: `sms_${user.id}_${currentSmsBundle.id}_${extRef}`
+      });
+      const updatedCredits = (res.user as any)?.smsCredits ?? ((user.smsCredits ?? 25) + currentSmsBundle.credits);
+      onUpdateUser({
+        ...user,
+        smsCredits: updatedCredits
+      });
+      onShowToast(`Added +${currentSmsBundle.credits.toLocaleString()} SMS credits! Balance: ${updatedCredits.toLocaleString()} SMS.`, "success");
+      if (res.transaction) {
+        setReceiptData({
+          receiptNo: res.transaction.invoiceNumber,
+          date: new Date(res.transaction.createdAt).toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          }),
+          planName: res.transaction.itemName,
+          planDescription: currentSmsBundle.description,
+          subtotal: `${res.transaction.subtotalUgx.toLocaleString()} UGX`,
+          vat: `${res.transaction.vatUgx.toLocaleString()} UGX (18% UG-VAT)`,
+          amount: `${res.transaction.amountUgx.toLocaleString()} UGX`,
+          paymentMethod: res.transaction.paymentMethod.toUpperCase(),
+          txRef: res.transaction.externalRef || res.transaction.id,
+          hmacPrefix: res.transaction.receiptHmac?.slice(0, 18),
+          customerName: res.transaction.userName,
+          customerEmail: res.transaction.userEmail,
+          status: 'PAID & SMS CREDITED'
+        });
+        setShowReceiptModal(true);
+      }
+      void loadBillingLedger();
+    } catch (err: any) {
+      onShowToast(err.message || "SMS bundle checkout failed", "error");
+    } finally {
+      setSmsLoading(false);
     }
   };
 
@@ -264,31 +462,41 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
     setLoading(true);
     try {
       const generatedTxId = txId || `DOC-TXN-${Date.now()}`;
-      await api.billing.subscribe(selectedPlan, generatedTxId);
-      onShowToast(`🎉 Protocol ${currentPlan?.name} activated successfully!`, "success");
-      
+      const methodKey = paymentType.toLowerCase().includes('momo')
+        ? 'momo'
+        : paymentType.toLowerCase().includes('flutterwave')
+        ? 'flutterwave'
+        : 'card';
+      const subRes = await api.billing.subscribe(selectedPlan, generatedTxId, methodKey, momoPhone);
+      onShowToast(`Protocol ${currentPlan?.name} activated successfully!`, "success");
+
       const updatedUser = await api.auth.me();
       if (updatedUser) {
         onUpdateUser(updatedUser);
+      } else if (subRes.user && user) {
+        onUpdateUser({ ...user, ...subRes.user } as User);
       }
 
-      // Generate Official Receipt
+      const tx = subRes.transaction;
       const receipt = {
-        receiptNo: `DOC-INV-2026-${Math.floor(100000 + Math.random() * 900000)}`,
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        planName: currentPlan?.name || 'Neural Protocol',
+        receiptNo: tx?.invoiceNumber || `DOC-INV-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+        date: new Date(tx?.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        planName: tx?.itemName || currentPlan?.name || 'Neural Protocol',
         planDescription: currentPlan?.description || '',
-        amount: currentPlan?.price || '50,000 UGX',
-        vat: 'Included (18% UG-VAT)',
+        subtotal: tx ? `${tx.subtotalUgx.toLocaleString()} UGX` : undefined,
+        vat: tx ? `${tx.vatUgx.toLocaleString()} UGX (18% UG-VAT)` : 'Included (18% UG-VAT)',
+        amount: tx ? `${tx.amountUgx.toLocaleString()} UGX` : currentPlan?.price || '50,000 UGX',
         paymentMethod: paymentType,
-        txRef: generatedTxId,
-        customerName: user?.displayName || user?.email?.split('@')[0] || 'Valued Patient',
-        customerEmail: user?.email || 'patient@doctorian.org',
-        status: 'PAID & CONFIRMED'
+        txRef: tx?.externalRef || generatedTxId,
+        hmacPrefix: tx?.receiptHmac?.slice(0, 18),
+        customerName: tx?.userName || user?.displayName || user?.email?.split('@')[0] || 'Valued Patient',
+        customerEmail: tx?.userEmail || user?.email || 'patient@doctorian.org',
+        status: 'PAID & CRYPTO-SIGNED'
       };
       setReceiptData(receipt);
       setShowCheckoutModal(false);
       setShowReceiptModal(true);
+      void loadBillingLedger();
     } catch (err: any) {
       onShowToast(err.message || "Protocol activation failed", "error");
     } finally {
@@ -382,19 +590,21 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
       {/* Category Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 mb-10 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-fit border border-slate-200 dark:border-slate-700">
         <button
+          type="button"
           onClick={() => setBillingTab('protocols')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             billingTab === 'protocols'
               ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Cpu className="w-4 h-4" />
-          <span>Neural Diagnostics & Protocols</span>
+          <span>Neural Diagnostics &amp; Protocols</span>
         </button>
         <button
+          type="button"
           onClick={() => setBillingTab('storage')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             billingTab === 'storage'
               ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -406,9 +616,423 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
             Auto-Billing
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setBillingTab('sms')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            billingTab === 'sms'
+              ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>SMS Bundles</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-500/15 text-sky-600 dark:text-sky-300 font-black tabular-nums">
+            {user?.smsCredits ?? 25}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setBillingTab('ledger');
+            void loadBillingLedger();
+          }}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            billingTab === 'ledger'
+              ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Transaction Ledger &amp; Invoices</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-black">
+            {transactions.length}
+          </span>
+        </button>
       </div>
 
-      {billingTab === 'storage' ? (
+      {billingTab === 'sms' ? (
+        <div className="space-y-8">
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-emerald-500/10 border border-sky-200 dark:border-sky-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-sky-600 dark:text-sky-400">Commercial GSM Carrier Billing</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">Profitable SMS Credit Bundles</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xl">
+                Every 160-character SMS segment bills at 150 UGX retail against 60 UGX carrier cost (+90 UGX net platform margin per segment). Top up bundles below at wholesale volume rates.
+              </p>
+            </div>
+            <div className="px-5 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs shrink-0">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Available Balance</p>
+              <p className="text-2xl font-black text-sky-600 dark:text-sky-400 tabular-nums">
+                {(user?.smsCredits ?? 25).toLocaleString()} <span className="text-xs text-slate-500">SMS</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {SMS_BUNDLES.map((bundle) => {
+              const selected = selectedSmsBundle === bundle.id;
+              return (
+                <div
+                  key={bundle.id}
+                  onClick={() => setSelectedSmsBundle(bundle.id)}
+                  className={`cursor-pointer relative p-6 rounded-3xl border-2 transition-all flex flex-col justify-between ${
+                    selected
+                      ? 'bg-white dark:bg-slate-900 border-sky-600 shadow-xl ring-2 ring-sky-500/20'
+                      : 'bg-white/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">{bundle.rateLabel}</span>
+                      {bundle.isPopular && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-sky-600 text-white text-[10px] font-black uppercase">Best Margin</span>
+                      )}
+                    </div>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white">{bundle.name}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-5">{bundle.description}</p>
+                    <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums mb-1">
+                      {bundle.amount.toLocaleString()} <span className="text-xs text-slate-400 font-bold">UGX</span>
+                    </p>
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums mb-6">
+                      +{bundle.credits.toLocaleString()} SMS Credits Instant Top-Up
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer ${
+                      selected
+                        ? 'bg-sky-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {selected ? 'Selected Bundle' : 'Select Bundle'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 dark:bg-slate-800 text-white grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+            <div>
+              <h4 className="text-xl font-black mb-1">{currentSmsBundle.name}</h4>
+              <p className="text-sm text-slate-300">
+                Adds <span className="font-bold text-sky-400">+{currentSmsBundle.credits.toLocaleString()} SMS credits</span> directly to {user?.email || 'your account'} with HMAC-SHA256 receipt &amp; 18% UG VAT invoice.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                {(['momo', 'airtel_money', 'card'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setSmsPaymentMethod(m)}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold uppercase cursor-pointer ${
+                      smsPaymentMethod === m ? 'bg-sky-500 text-white' : 'bg-white/10 text-slate-300 hover:bg-white/15'
+                    }`}
+                  >
+                    {m === 'momo' ? 'MTN MoMo' : m === 'airtel_money' ? 'Airtel' : 'Card'}
+                  </button>
+                ))}
+              </div>
+              {smsPaymentMethod !== 'card' && (
+                <input
+                  type="tel"
+                  value={smsPayerPhone}
+                  onChange={(e) => setSmsPayerPhone(e.target.value)}
+                  placeholder="+256772100200"
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-sm font-mono text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              )}
+              <button
+                type="button"
+                disabled={smsLoading}
+                onClick={handleSmsBundlePurchase}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {smsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                <span>Pay {currentSmsBundle.amount.toLocaleString()} UGX &amp; Credit +{currentSmsBundle.credits} SMS</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {billingTab === 'ledger' ? (
+        /* =================================================================== */
+        /* VERIFIED SERVER TRANSACTION LEDGER & INVOICES VIEW                   */
+        /* =================================================================== */
+        <div className="space-y-6">
+          {/* Summary Metrics Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Verified Spend</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1 tabular-nums">
+                {ledgerSummary.totalSpentUgx.toLocaleString()} <span className="text-xs text-slate-400">UGX</span>
+              </p>
+            </div>
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Cloud Vault Quota</p>
+              <p className="text-2xl font-black text-indigo-600 dark:text-cyan-400 mt-1 tabular-nums">
+                {formatBytes(user?.storageQuotaBytes || FREE_STORAGE_QUOTA_BYTES)}
+              </p>
+            </div>
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Confirmed Invoices</p>
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+                {ledgerSummary.completedCount}
+              </p>
+            </div>
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Refunded / Rolled Back</p>
+              <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 tabular-nums">
+                {ledgerSummary.refundedCount}
+              </p>
+            </div>
+          </div>
+
+          {/* Filter & CSV Export Toolbar */}
+          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 flex-1">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={ledgerSearch}
+                  onChange={(e) => setLedgerSearch(e.target.value)}
+                  placeholder="Search invoice #, package, or payer..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <select
+                value={ledgerKind}
+                onChange={(e) => setLedgerKind(e.target.value as any)}
+                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200"
+              >
+                <option value="all">All Categories</option>
+                <option value="protocol">Protocols</option>
+                <option value="storage">Cloud Storage</option>
+                <option value="sms_bundle">SMS Bundles</option>
+              </select>
+              <select
+                value={ledgerStatus}
+                onChange={(e) => setLedgerStatus(e.target.value as any)}
+                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200"
+              >
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => void loadBillingLedger()}
+                disabled={ledgerLoading}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${ledgerLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+              <a
+                href={api.billing.exportUrl()}
+                download
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV Ledger</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Transaction Ledger Rows */}
+          {ledgerLoading && transactions.length === 0 ? (
+            <div className="py-14 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <Loader2 className="w-7 h-7 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-xs font-bold text-slate-500">Loading HMAC-signed financial ledger...</p>
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="py-14 px-6 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-800 dark:text-white">No billing transactions matched your filter</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {user?.role === 'guest'
+                  ? 'Sign in with a registered patient or doctor account to inspect your live billing ledger.'
+                  : 'Complete a protocol activation or cloud storage expansion to generate an HMAC-signed invoice.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {transactions.map((tx) => {
+                const sigInfo = verifiedSignatures[tx.id];
+                const isRefunded = tx.status === 'refunded';
+                return (
+                  <div
+                    key={tx.id}
+                    className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-black text-blue-600 dark:text-cyan-400">
+                          {tx.invoiceNumber}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            isRefunded
+                              ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                              : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                          }`}
+                        >
+                          {tx.status}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                          {tx.kind}
+                        </span>
+                        {sigInfo && (
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold flex items-center gap-1 ${
+                              sigInfo.verified
+                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
+                                : 'bg-rose-500/15 text-rose-500'
+                            }`}
+                          >
+                            <ShieldCheck className="w-3 h-3" />
+                            {sigInfo.verified ? `HMAC OK (${sigInfo.signaturePrefix})` : 'HMAC MISMATCH'}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">{tx.itemName}</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        {new Date(tx.createdAt).toLocaleString('en-GB')} · {tx.paymentMethod.toUpperCase()}
+                        {tx.payerPhone ? ` (${tx.payerPhone})` : ''} · Subtotal {tx.subtotalUgx.toLocaleString()} + VAT 18% {tx.vatUgx.toLocaleString()} UGX
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <span className="text-base font-black text-slate-900 dark:text-white mr-2 tabular-nums">
+                        {tx.amountUgx.toLocaleString()} UGX
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={verifyingTxId === tx.id}
+                        onClick={async () => {
+                          setVerifyingTxId(tx.id);
+                          try {
+                            const v = await api.billing.verifyReceipt(tx.id);
+                            setVerifiedSignatures((prev) => ({
+                              ...prev,
+                              [tx.id]: { verified: v.verified, signaturePrefix: v.signaturePrefix }
+                            }));
+                            onShowToast(
+                              v.verified
+                                ? `Receipt ${v.invoiceNumber} cryptographically verified (${v.signaturePrefix})`
+                                : 'Signature check mismatch detected!',
+                              v.verified ? 'success' : 'error'
+                            );
+                          } catch (err: any) {
+                            onShowToast(err.message || 'Verification error', 'error');
+                          } finally {
+                            setVerifyingTxId(null);
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer"
+                      >
+                        {verifyingTxId === tx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
+                        <span>Verify HMAC</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReceiptData({
+                            receiptNo: tx.invoiceNumber,
+                            date: new Date(tx.createdAt).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }),
+                            planName: tx.itemName,
+                            subtotal: `${tx.subtotalUgx.toLocaleString()} UGX`,
+                            vat: `${tx.vatUgx.toLocaleString()} UGX (18% UG-VAT)`,
+                            amount: `${tx.amountUgx.toLocaleString()} UGX`,
+                            paymentMethod: tx.paymentMethod.toUpperCase(),
+                            txRef: tx.externalRef || tx.id,
+                            hmacPrefix: tx.receiptHmac?.slice(0, 18),
+                            customerName: tx.userName,
+                            customerEmail: tx.userEmail,
+                            status: tx.status.toUpperCase()
+                          });
+                          setShowReceiptModal(true);
+                        }}
+                        className="px-3 py-2 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Invoice</span>
+                      </button>
+
+                      {!isRefunded && tx.amountUgx > 0 && (
+                        confirmRefundId === tx.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={refundingTxId === tx.id}
+                              onClick={async () => {
+                                setRefundingTxId(tx.id);
+                                try {
+                                  const rf = await api.billing.refundTransaction(tx.id);
+                                  if (rf.user && user) {
+                                    onUpdateUser({
+                                      ...user,
+                                      subscriptionTier: (rf.user.subscriptionTier as any) || user.subscriptionTier,
+                                      credits: rf.user.credits ?? user.credits,
+                                      smsCredits: (rf.user as any).smsCredits ?? user.smsCredits,
+                                      storageQuotaBytes: rf.user.storageQuotaBytes ?? user.storageQuotaBytes
+                                    });
+                                  }
+                                  setConfirmRefundId(null);
+                                  onShowToast(`Transaction ${tx.invoiceNumber} refunded cleanly.`, 'success');
+                                  void loadBillingLedger();
+                                } catch (err: any) {
+                                  onShowToast(err.message || 'Refund declined', 'error');
+                                } finally {
+                                  setRefundingTxId(null);
+                                }
+                              }}
+                              className="px-2.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                            >
+                              {refundingTxId === tx.id ? '...' : 'Confirm'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRefundId(null)}
+                              className="px-2 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmRefundId(tx.id)}
+                            className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Refund</span>
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : billingTab === 'storage' ? (
         /* =================================================================== */
         /* CLOUD STORAGE EXPANSION PLANS VIEW                                  */
         /* =================================================================== */
@@ -615,7 +1239,7 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
             </div>
           </div>
         </div>
-      ) : (
+      ) : billingTab === 'protocols' ? (
         /* =================================================================== */
         /* NEURAL DIAGNOSTICS & CLINICAL PROTOCOLS VIEW                         */
         /* =================================================================== */
@@ -816,7 +1440,7 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* REALISTIC CHECKOUT & PROTOCOL ACTIVATION MODAL              */}
@@ -1092,6 +1716,24 @@ export const Billing: React.FC<BillingProps> = ({ user, onUpdateUser, onShowToas
                   <span className="text-slate-400 font-medium">Payment Channel</span>
                   <span className="font-medium text-slate-700 dark:text-slate-300">{receiptData.paymentMethod}</span>
                 </div>
+                {receiptData.subtotal && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-slate-400 font-medium">Net Subtotal</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300 text-[11px]">{receiptData.subtotal}</span>
+                  </div>
+                )}
+                {receiptData.vat && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-slate-400 font-medium">Uganda VAT</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300 text-[11px]">{receiptData.vat}</span>
+                  </div>
+                )}
+                {receiptData.hmacPrefix && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-slate-400 font-medium">HMAC-SHA256 Seal</span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400 text-[11px]">{receiptData.hmacPrefix}...</span>
+                  </div>
+                )}
                 <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/80">
                   <span className="text-slate-400 font-medium">Transaction Timestamp</span>
                   <span className="font-mono text-slate-700 dark:text-slate-300 text-[11px]">{receiptData.date}</span>

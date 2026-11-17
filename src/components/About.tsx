@@ -30,11 +30,11 @@ export const About: React.FC = () => {
   ];
 
   const techStack = [
-    { icon: <Globe size={24} />, name: "Multi-Lingual Core", desc: "Fluent in 56+ Ugandan languages & technical English" },
-    { icon: <Brain size={24} />, name: "Doctorian General AI", desc: "Fastest clinical reasoning edge core" },
-    { icon: <Layers size={24} />, name: "Doctorian Clinical AI", desc: "Speed cloud diagnostic intelligence" },
-    { icon: <Shield size={24} />, name: "Doctorian Uganda AI", desc: "Deep neural expert reasoning engine" },
-    { icon: <Database size={24} />, name: "Doctorian Research AI", desc: "Quantum diagnostic multi-modal core" },
+    { icon: <Globe size={24} />, name: "Doctorian Haxzyon", desc: "Flagship multimodal clinical reasoning & 56+ language core" },
+    { icon: <Brain size={24} />, name: "Doctorian Carbonex", desc: "Precision pharmacology, interaction & differential engine" },
+    { icon: <Layers size={24} />, name: "Hectopus", desc: "Parallel bio-telemetry & multi-system diagnostics intelligence" },
+    { icon: <Shield size={24} />, name: "Ominex", desc: "Autonomous offline & clinical triage specialist brain" },
+    { icon: <Database size={24} />, name: "Nitragon", desc: "High-speed emergency resuscitation & trauma protocol core" },
   ];
 
   const milestones = [
@@ -93,16 +93,31 @@ export const About: React.FC = () => {
           designed to empower every individual with the collective knowledge of modern medicine.
         </motion.p>
 
-        <div className="flex flex-wrap justify-center gap-4">
-          {['Doctorian General AI', 'Doctorian Clinical AI', 'Doctorian Triage AI', 'Doctorian Patient Education AI', 'Doctorian Uganda AI', 'Doctorian Research AI'].map((node, i) => (
+        <div className="max-w-3xl mx-auto mb-10 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">App Creator</span>
+            <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-0.5">Akora Joseph</p>
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">Company</span>
+            <p className="text-sm sm:text-base font-bold text-blue-600 dark:text-cyan-400 mt-0.5">EBRO (EBRO Company Ltd)</p>
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">Clinical Platform</span>
+            <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-0.5">Doctorian AI Suite</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-3">
+          {['Doctorian Haxzyon', 'Doctorian Carbonex', 'Hectopus', 'Ominex', 'Nitragon'].map((node, i) => (
              <motion.div
                key={`about-node-${node}-${i}`}
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
-               transition={{ delay: 0.2 + (i * 0.1) }}
-               className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl shadow-slate-200/20 dark:shadow-none text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
+               transition={{ delay: 0.15 + (i * 0.08) }}
+               className="px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs text-xs font-bold text-slate-700 dark:text-slate-300"
              >
-               {node} Active
+               {node}
              </motion.div>
           ))}
         </div>
@@ -365,23 +380,19 @@ export const About: React.FC = () => {
                     />
                     <div className="text-center">
                        <p className="text-2xl font-black tracking-tight">Akora Joseph</p>
-                       <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Founder & Lead Engineer</p>
+                       <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">App Creator · EBRO Company</p>
                     </div>
                  </div>
               </div>
            </div>
            <div className="lg:w-2/3">
-             <h2 id="developer-title" className="text-3xl sm:text-5xl font-black mb-8 tracking-tighter">The Visionary Behind the Engine</h2>
+             <h2 id="developer-title" className="text-3xl sm:text-5xl font-black mb-8 tracking-tighter">App Creator &amp; EBRO Engineering</h2>
              <div className="space-y-6 text-slate-300 text-lg md:text-xl font-bold leading-relaxed">
                <p>
-                 Doctorian was conceptualized with a single, unyielding focus: to leverage 
-                 exponential technology for radical social good. Akora Joseph recognized the 
-                 fragmented nature of health resource accessibility and sought to build a bridge.
+                 Created by <span className="text-white">Akora Joseph</span> at <span className="text-cyan-300">EBRO</span> (EBRO Company Ltd), Doctorian was designed with a single focus: to leverage clinical intelligence and resilient offline engineering for accessible healthcare.
                </p>
                <p>
-                 By combining advanced LLM reasoning with strict privacy-first architecture, 
-                 this platform serves as more than just a tool—it&apos;s a clinical companion 
-                 available 24/7, anywhere in the world.
+                 By combining Doctorian Haxzyon, Doctorian Carbonex, Hectopus, Ominex, and Nitragon models with strict privacy-first architecture, EBRO delivers a dependable clinical companion available 24/7.
                </p>
                <div className="pt-8 flex flex-wrap gap-4">
                  {['Systems Architecture', 'Cognis Networks', 'Clinical UX', 'Bio-Informatics'].map((tag, tIdx) => (

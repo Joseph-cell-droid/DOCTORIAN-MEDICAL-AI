@@ -1,36 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   HelpCircle,
   X,
   ChevronRight,
   ChevronLeft,
-  Sparkles,
-  CheckCircle,
+  CheckCircle2,
   Activity,
   HardDrive,
   Video,
-  Phone,
   ShieldCheck,
   Stethoscope,
   Pill,
-  Radio,
   Zap,
-  Globe,
   ArrowRight,
   Layers,
-  HeartPulse
+  HeartPulse,
+  Monitor,
+  FileText,
+  Compass,
+  Keyboard
 } from 'lucide-react';
-import { translate } from '../utils/translations';
 
 export interface PageTutorialStep {
   title: string;
-  badge: string;
+  category: string;
   description: string;
   lugandaDescription?: string;
   swahiliDescription?: string;
-  icon: any;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   actionLabel?: string;
+  targetView?: string;
   onAction?: () => void;
   tips: string[];
 }
@@ -61,6 +61,7 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
   onNavigate,
   onTriggerAction
 }) => {
+  const [tutorialMode, setTutorialMode] = useState<'page' | 'tour'>('page');
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [tutorialLang, setTutorialLang] = useState<'en' | 'lg' | 'sw'>(
     currentLanguage.includes('Luganda') ? 'lg' : currentLanguage.includes('Swahili') ? 'sw' : 'en'
@@ -72,60 +73,61 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
     else setTutorialLang('en');
   }, [currentLanguage]);
 
-  // Reset to first step whenever the current view changes
+  // Reset step when view or mode changes
   useEffect(() => {
     setActiveStepIndex(0);
-  }, [currentView]);
+  }, [currentView, tutorialMode]);
 
-  // Comprehensive page tutorial registry for each key module in Doctorian
-  const getTutorialContent = (view: string): PageTutorialData => {
+  const getPageTutorialContent = (view: string): PageTutorialData => {
     switch (view) {
       case 'home':
       case 'dashboard':
         return {
           pageId: 'home',
-          pageTitle: 'Doctorian Priority Clinical Dashboard',
+          pageTitle: 'Clinical Command Dashboard',
           lugandaTitle: 'Wwebbulaasi y’Obulamu eya Doctorian',
           swahiliTitle: 'Dashibodi ya Afya ya Doctorian',
-          subtitle: 'Your central clinical cockpit: live vitals, hourly health tips, and emergency triage at a glance.',
+          subtitle: 'Live bio-telemetry, Ministry of Health preventive protocols, and urgent dispatch from one screen.',
           steps: [
             {
-              title: '1. Vitality Matrix & Real-Time Bio-Status',
-              badge: 'Bio-Telemetry',
+              title: 'Vitality Matrix & Live Bio-Telemetry',
+              category: 'Bio-Telemetry',
               icon: HeartPulse,
-              description: 'Monitors your cardiovascular flux, neural energy, hydration score, and physiological baseline in real-time.',
+              description: 'Tracks your cardiovascular flux, neural energy balance, hydration level, and physiological baseline continuously.',
               lugandaDescription: 'Ekyuma kino kikeba okukuba kw’omutima gwo, amaanyi g’omubiri, n’amazzi mu mubiri mu buli kaseera.',
               swahiliDescription: 'Inafuatilia mapigo ya moyo, nishati ya mwili na kiwango cha maji kwa wakati halisi.',
+              actionLabel: 'Open Bio-Monitor',
+              targetView: 'monitor',
               tips: [
-                'Vitals update dynamically via simulated or physical Arduino Bluetooth bio-sensors',
-                'Green badge denotes stable hemodynamic parameters',
-                'Red alert indicates immediate clinical attention needed'
+                'Supports real Arduino Bluetooth sensors alongside offline clinical simulation',
+                'Hemodynamic stability and warning thresholds update in tabular precision',
+                'Critical drops escalate automatically to SOS Emergency Dispatch'
               ]
             },
             {
-              title: '2. Preventive Care & Hourly MoH Health Tips',
-              badge: 'Guidance',
-              icon: Sparkles,
-              description: 'Provides proactive, localized health recommendations aligned with Uganda Ministry of Health protocols.',
+              title: 'Preventive Care & Daily MoH Guidance',
+              category: 'Clinical Guidance',
+              icon: Activity,
+              description: 'Localized preventive recommendations aligned with Uganda Ministry of Health clinical standards.',
               lugandaDescription: 'Ewa amagezi ag’amangu agakwatagana n’ebiragiro bya Minisitule y’Obulamu eya Uganda ku kwerinda omusujja n’endwadde.',
               swahiliDescription: 'Inatoa ushauri wa kuzuia magonjwa kwa kuzingatia miongozo ya Wizara ya Afya ya Uganda.',
               tips: [
-                'Covers malaria prevention (ITN nets), hydration, hypertension salt intake, and hygiene',
-                'Click "More Details" to read deep clinical evidence'
+                'Covers malaria prevention, hypertension nutrition, and respiratory hygiene',
+                'Select any tip card for evidence-backed clinical explanation'
               ]
             },
             {
-              title: '3. Rapid Emergency SOS & VHT Community Dispatch',
-              badge: 'Emergency',
+              title: 'Rapid Emergency SOS & VHT Dispatch',
+              category: 'Emergency',
               icon: Zap,
-              description: 'One-click emergency gateway connecting to Uganda national ambulance dispatch (911/999) and local VHTs.',
+              description: 'Direct gateway to ambulance dispatch (911/999) and Village Health Team (VHT) community responders.',
               lugandaDescription: 'Gino mikutu gy’amangu gye weyambisa okufuna ambyulensi oba abasawo ba VHT mu kitundu kyo singa wabaawo obuzibu.',
               swahiliDescription: 'Mfumo wa dharura wa kuita gari la wagonjwa na wahudumu wa afya wa jamii mara moja.',
-              actionLabel: 'Explore Emergency Tools',
-              onAction: () => onNavigate?.('emergency'),
+              actionLabel: 'Open Emergency Hub',
+              targetView: 'emergency',
               tips: [
-                'Toll-free hotlines 0800-100-066 / 0800-203-033 pre-loaded',
-                'Automatic SMS dispatch with GPS geo-coordinates'
+                'Pre-loaded toll-free national dispatch lines 0800-100-066 and 0800-203-033',
+                'Supports instant SMS dispatch with GPS location coordinates'
               ]
             }
           ]
@@ -134,82 +136,48 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
       case 'ai_nexus':
         return {
           pageId: 'ai_nexus',
-          pageTitle: 'Doctorian Neural Core & AI Nexus Consultation',
+          pageTitle: 'AI Consultation & Telehealth Studio',
           lugandaTitle: 'Omutima gwa Doctorian AI & Okubuuza Abasawo',
           swahiliTitle: 'Kiini cha AI cha Doctorian & Mashauriano',
-          subtitle: 'Multi-specialist clinical reasoning layer with voice & video consultations and automated SOAP notes.',
+          subtitle: 'Multi-specialist clinical reasoning, HD telehealth calls, and structured SOAP note capture.',
           steps: [
             {
-              title: '1. Multi-Specialist Clinical Chatbots',
-              badge: 'Specialists',
+              title: 'Multi-Specialist Clinical Personas',
+              category: 'Specialists',
               icon: Stethoscope,
-              description: 'Switch between General Clinical, Pediatric Triage, Cardiology, Infectious Disease, and Obstetric specialists.',
+              description: 'Switch seamlessly between General Medicine, Pediatrics, Cardiology, Infectious Disease, and Obstetrics.',
               lugandaDescription: 'Wano osobola okwerondera omusawo gw’oyagala: Ow’abaana, ow’omutima, ow’embuto oba ow’omusujja.',
               swahiliDescription: 'Badili wataalamu wa AI kulingana na mahitaji: Watoto, Moyo, Uzazi, au Magonjwa Ambukizi.',
               tips: [
-                'Click the specialist badge on the chat bar to switch persona',
-                'Zero-hallucination guardrails trained on WHO & Uganda Clinical Guidelines'
+                'Uses Uganda Clinical Guidelines and WHO primary care guardrails',
+                'Operates offline with local clinical reasoning models when connectivity drops'
               ]
             },
             {
-              title: '2. Upgraded Voice & HD Video Calls',
-              badge: 'Telehealth',
+              title: 'HD Video & Voice Telehealth Calls',
+              category: 'Telehealth',
               icon: Video,
-              description: 'Conduct live audio/video telehealth calls with simulated Uganda clinicians, live vitals overlay, and speech-to-text.',
+              description: 'Conduct live audio or video calls with real-time vitals overlays and speech-to-text transcription.',
               lugandaDescription: 'Kola olukiiko lw’eddoboozi oba lwa vidiyo n’omusawo. By’oyogera biwandiikibwa mu kaseera ako ako.',
               swahiliDescription: 'Piga simu ya sauti au video na daktari, huku vipimo vyako vikionyeshwa papo hapo.',
-              actionLabel: 'Launch Voice & Video Hub',
+              actionLabel: 'Launch Telehealth Call',
               onAction: () => onTriggerAction?.('open_telehealth'),
               tips: [
-                'Supports hands-free speech recognition in Luganda and English',
-                'Real-time acoustic Milky Way visualizer during voice calls'
+                'Supports live microphone voice capture and acoustic call indicators',
+                'Allows switching audio-only low-bandwidth mode on rural networks'
               ]
             },
             {
-              title: '3. Automated SOAP Clinical Note & Referral Slip',
-              badge: 'EHR',
+              title: 'Automated SOAP Notes & Referrals',
+              category: 'Clinical Records',
               icon: Layers,
-              description: 'Doctorian automatically structures every consultation into Subjective, Objective, Assessment, and Plan (SOAP) records.',
+              description: 'Automatically formats consultations into Subjective, Objective, Assessment, and Plan clinical summaries.',
               lugandaDescription: 'Buli lwe mwogera, ekyuma kiwandiika ebiwandiiko ebitongole eby’eddwaliro (SOAP) n’ebbaluwa y’eddagala.',
               swahiliDescription: 'Mazungumzo yako hurekodiwa kiotomatiki katika muundo rasmi wa matibabu wa SOAP tayari kwa hospitali.',
+              actionLabel: 'Open EHR Vault',
+              targetView: 'records',
               tips: [
-                '1-click export to Google Sheets or PDF referral slip',
-                'Stores securely in your lifetime Free 1GB Cloud Vault'
-              ]
-            }
-          ]
-        };
-
-      case 'monitor':
-        return {
-          pageId: 'monitor',
-          pageTitle: 'Real-Time Bio-Monitor & Sensor Fusion Console',
-          lugandaTitle: 'Ekyuma ekikeba Obulamu mu kaseera ako ako',
-          swahiliTitle: 'Dashibodi ya Kufuatilia Vipimo vya Mwili',
-          subtitle: 'Live bio-sensor streams, SpO2 & ECG rhythm traces, body temperature, and anomaly thresholds.',
-          steps: [
-            {
-              title: '1. Live Sensor Telemetry Stream',
-              badge: 'Sensors',
-              icon: Activity,
-              description: 'Visualizes continuous telemetry: Heart Rate (BPM), Blood Oxygen (SpO2), Systolic/Diastolic BP, and Core Temp (°C).',
-              lugandaDescription: 'Kiraga okukuba kw’omutima, omukka gwa oxygen mu musaayi, puleesa, n’ebbujje ly’omubiri.',
-              swahiliDescription: 'Inaonyesha kasi ya mapigo ya moyo, oksijeni ya damu, shinikizo la damu, na joto la mwili.',
-              tips: [
-                'Normal adult pulse: 60-100 BPM; SpO2 >= 95%',
-                'Supports Arduino serial connection and simulated realistic physiology'
-              ]
-            },
-            {
-              title: '2. Automated Anomaly Detection & Alerts',
-              badge: 'Triage Alerts',
-              icon: Zap,
-              description: 'Instantly alerts when arrhythmia, hypoxemia (SpO2 < 90%), or hypertensive crisis is detected.',
-              lugandaDescription: 'Ekyuma kikuweerawo obubonero singa omutima gukuba bubi oba nga omukka gwa oxygen gusse nnyo.',
-              swahiliDescription: 'Inatoa tahadhari ya haraka iwapo mapigo ya moyo au oksijeni itashuka chini ya viwango salama.',
-              tips: [
-                'Color-coded telemetry badges: Green = Normal, Amber = Borderline, Red = Critical',
-                'Telemetry snapshots can be saved directly to your 1GB vault'
+                'Exportable to referral slips or saved offline in your encrypted vault'
               ]
             }
           ]
@@ -218,33 +186,44 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
       case 'symptoms':
         return {
           pageId: 'symptoms',
-          pageTitle: 'Intelligent Symptom Triage & Red Flag Checker',
+          pageTitle: 'National Symptom Triage & Referral Queue',
           lugandaTitle: 'Okukebera Obubonero bw’Endwadde',
           swahiliTitle: 'Uchunguzi wa Dalili na Hatari za Magonjwa',
-          subtitle: 'Syndromic algorithm assessing clinical urgency and Uganda MoH infectious risk factors.',
+          subtitle: 'Interactive NEWS2 clinical scoring, regional hospital queue management, and RBAC privacy shield.',
           steps: [
             {
-              title: '1. Structured Symptom Assessment',
-              badge: 'Triage',
+              title: 'Interactive Symptom Triage Intake',
+              category: 'Clinical Triage',
               icon: Stethoscope,
-              description: 'Select your symptoms (fever, chills, headache, cough, abdominal pain) to run diagnostic probability matching.',
+              description: 'Run a structured symptom & vitals assessment to score urgency from Level 1 (Resuscitation) to Level 4 (Stable).',
               lugandaDescription: 'Londa obubonero bw’owulira (omusujja, omutwe, ekifuba, olubuto) okumanya obulwadde obuyinza okuba nga bwe bukuluma.',
               swahiliDescription: 'Chagua dalili unazohisi ili mfumo utambue magonjwa yanayowezekana kwa kufuata itifaki za kitabibu.',
               tips: [
-                'Includes endemic Uganda conditions like Malaria, Typhoid, Dengue, and Pneumonia',
-                'Provides recommended next clinical actions (e.g., mRDT, blood slide, chest X-ray)'
+                'Screens fever, dyspnea, chest pain, SpO2, heart rate, and red-flag signs',
+                'Newly triaged patients persist directly inside your active hospital queue'
               ]
             },
             {
-              title: '2. Red-Flag Danger Signs',
-              badge: 'Danger Signs',
-              icon: ShieldCheck,
-              description: 'Screens for signs requiring immediate physical admission: lethargy, neck stiffness, severe dyspnea, and convulsions.',
-              lugandaDescription: 'Ekebera obubonero obw’akabi ennyo obwetaagisa okugenda mu ddwaliro amangu ddala awatali kulwa.',
-              swahiliDescription: 'Inakagua dalili za hatari kama vile kukakamaa shingo au kupumua kwa shida zinazohitaji kulazwa hospitalini.',
+              title: 'Regional Hospital Filter & Queue Control',
+              category: 'Referral Network',
+              icon: Activity,
+              description: 'Filter live beds and admitted cases across Mulago, Mbarara, Gulu, Jinja, Kiruddu, and Entebbe wards.',
+              lugandaDescription: 'Kebera abalwadde n’ebitanda mu malwaliro amanene mu Uganda mu kaseera ako ako.',
+              swahiliDescription: 'Chuja wagonjwa na upatikanaji wa vitanda katika hospitali kuu za rufaa za Uganda.',
               tips: [
-                'In maternal cases, high BP + headache indicates urgent pre-eclampsia triage',
-                'Directly links to ambulance SOS'
+                'Update triage status directly inside any patient inspection modal',
+                'Escalate complex cases straight to AI Consultation or E-Pharmacy'
+              ]
+            },
+            {
+              title: 'Role-Based Privacy & Data Protection',
+              category: 'Security Shield',
+              icon: ShieldCheck,
+              description: 'Enforces Uganda Data Protection Act 2019 rules so non-clinicians only inspect authorized personal records.',
+              lugandaDescription: 'Ekuuma ebiwandiiko by’abalwadde nga tewali muntu atakkirizibwa ayinza kubikebera.',
+              swahiliDescription: 'Inalinda rekodi za wagonjwa kwa kuzingatia Sheria ya Ulinzi wa Data ya Uganda 2019.',
+              tips: [
+                'Clinicians and Admins unlock complete referral charts; patients see personal files only'
               ]
             }
           ]
@@ -253,32 +232,66 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
       case 'pharmacy':
         return {
           pageId: 'pharmacy',
-          pageTitle: 'Precision Bio-Pharmacy Depot & Drug Safety Core',
+          pageTitle: 'Verified E-Pharmacy & Dispensary',
           lugandaTitle: 'Ettundiro ly’Eddagala n’Obukuumi bw’Eddagala',
           swahiliTitle: 'Bohari ya Dawa na Usalama wa Matumizi',
-          subtitle: 'Dosage calculations, drug contraindication audits, and Uganda National Drug Authority stock verification.',
+          subtitle: 'NDA-verified stock catalog, instant bag management, prescription validation, and order dispatch.',
           steps: [
             {
-              title: '1. Drug Contraindication & Interaction Checker',
-              badge: 'Pharmacovigilance',
+              title: 'Real-Stock Catalog & OTC/Rx Filtering',
+              category: 'Catalog',
               icon: Pill,
-              description: 'Cross-checks your prescription against known allergies, chronic conditions, and other active medications.',
-              lugandaDescription: 'Ekebera eddagala ly’omira okulaba nga terikontana oba okukosa obulamu bwo.',
-              swahiliDescription: 'Inachunguza mwingiliano wa dawa ili kuzuia madhara yanayotokana na kunywa dawa zisizoendana.',
+              description: 'Browse verified essential medicines with live unit pricing in UGX and Over-the-Counter vs Prescription filters.',
+              lugandaDescription: 'Laba eddagala ekkakafu n’emiwendo gyalyo mu siringi za Uganda mu matundiro agakkirizibwa.',
+              swahiliDescription: 'Vinjari dawa zilizothibitishwa pamoja na bei na uchujaji wa dawa za kawaida au za cheti.',
               tips: [
-                'Prevents adverse drug-drug interactions (e.g., NSAIDs with ACE inhibitors)',
-                'Shows pediatric weight-based dosage (mg/kg/day)'
+                'Add quantities inline without leaving the dispensary catalog',
+                'Check pediatric and adult dosing instructions on every medication card'
               ]
             },
             {
-              title: '2. Local Uganda Pharmacy Stock & Generic Equivalents',
-              badge: 'Stock & Cost',
-              icon: CheckCircle,
-              description: 'Helps locate generic equivalents to reduce healthcare costs across Kampala and regional health centers.',
-              lugandaDescription: 'Ekulaga amannya g’eddagala ag’omuwendo oguteebereka mu matundiro g’eddagala agali okumpi.',
-              swahiliDescription: 'Inasaidia kupata dawa mbadala zenye gharama nafuu katika maduka ya dawa yaliyo karibu nawe.',
+              title: 'Secure Checkout, Receipts & Reordering',
+              category: 'Dispensary Dispatch',
+              icon: CheckCircle2,
+              description: 'Submit hospital/home delivery orders with instant printable receipts and one-click prescription reordering.',
+              lugandaDescription: 'Tumya eddagala awaka oba ku ddwaliro era ofune lisiiti mu kaseera ako.',
+              swahiliDescription: 'Agiza dawa ziletwe nyumbani au hospitalini na upate risiti ya kuchapisha papo hapo.',
               tips: [
-                'Verified against Uganda National Formulary (UNF) standards'
+                'Transmits encrypted order signals seamlessly online or queues offline'
+              ]
+            }
+          ]
+        };
+
+      case 'monitor':
+        return {
+          pageId: 'monitor',
+          pageTitle: 'Live Bio-Monitor & Sensor Fusion',
+          lugandaTitle: 'Ekyuma ekikeba Obulamu mu kaseera ako ako',
+          swahiliTitle: 'Dashibodi ya Kufuatilia Vipimo vya Mwili',
+          subtitle: 'Continuous ECG, SpO2, blood pressure, and temperature waveforms with threshold alerting.',
+          steps: [
+            {
+              title: 'Continuous Physiological Waveforms',
+              category: 'Sensors',
+              icon: Monitor,
+              description: 'Streams real-time heart rate, SpO2 percentage, blood pressure, and core temperature.',
+              lugandaDescription: 'Kiraga okukuba kw’omutima, omukka gwa oxygen mu musaayi, puleesa, n’ebbujje ly’omubiri.',
+              swahiliDescription: 'Inaonyesha kasi ya mapigo ya moyo, oksijeni ya damu, shinikizo la damu, na joto la mwili.',
+              tips: [
+                'Normal adult pulse spans 60–100 BPM; healthy resting SpO2 >= 95%',
+                'Supports physical Arduino USB/Bluetooth serial streams or offline simulations'
+              ]
+            },
+            {
+              title: 'Automated Anomaly Thresholds',
+              category: 'Clinical Alerts',
+              icon: Zap,
+              description: 'Raises immediate visual & audio warnings for hypoxemia (SpO2 < 90%) or acute tachycardia.',
+              lugandaDescription: 'Ekyuma kikuweerawo obubonero singa omutima gukuba bubi oba nga omukka gwa oxygen gusse nnyo.',
+              swahiliDescription: 'Inatoa tahadhari ya haraka iwapo mapigo ya moyo au oksijeni itashuka chini ya viwango salama.',
+              tips: [
+                'Sync vital snapshots straight into your encrypted EHR history vault'
               ]
             }
           ]
@@ -286,34 +299,33 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
 
       default:
         return {
-          pageId: 'storage',
-          pageTitle: 'Free 1GB Encrypted Cloud Storage Vault',
+          pageId: 'vault',
+          pageTitle: 'Encrypted 1GB Clinical Vault & Records',
           lugandaTitle: 'Kakebe k’Obulamu aka 1GB ku Bwereere',
           swahiliTitle: 'Bohari ya Hifadhi ya GB 1 ya Bure ya Kidijitali',
-          subtitle: 'Military-grade AES-256 encrypted space for DICOM X-rays, lab PDFs, and lifetime clinical telemetry.',
+          subtitle: 'Offline-resilient encrypted storage for lab reports, DICOM imaging, prescriptions, and telemetry.',
           steps: [
             {
-              title: '1. Lifetime Free 1.00 GB Medical Quota',
-              badge: '1GB Free',
+              title: '1.00 GB Encrypted Personal Health Vault',
+              category: 'Storage Quota',
               icon: HardDrive,
-              description: 'Every verified user is granted 1,024 MB of real cloud storage for medical records, lab reports, and imaging scans.',
+              description: 'Safely store medical scans, immunization records, consultation PDFs, and telemetry captures.',
               lugandaDescription: 'Buli mukozesa aweebwa 1GB y’obwereere okutereka ebiwandiiko by’eddwaliro, ebipimo, n’ebifaananyi bya X-ray.',
               swahiliDescription: 'Kila mtumiaji hupewa GB 1 kamili ya bure kuhifadhi ripoti za maabara, picha za eksirei na rekodi za afya.',
               tips: [
-                'Visual multi-segment storage bar tracks your consumption in real time',
-                'Breakdown categories: EHR Docs, Scans, Labs, Telemetry, and Audio'
+                'Accessible both online and during network blackouts via local indexed persistence',
+                'Organized across EHR Docs, Imaging, Lab Results, and Audio Notes'
               ]
             },
             {
-              title: '2. AES-256 Encryption & SHA-256 Bit-Level Proof',
-              badge: 'Security',
+              title: 'AES-256 & Session Security Controls',
+              category: 'Privacy',
               icon: ShieldCheck,
-              description: 'Each uploaded clinical file is cryptographically hashed and secured with AES-256 privacy-aligned encryption.',
+              description: 'Account-scoped session locking ensures medical files remain isolated to verified account credentials.',
               lugandaDescription: 'Buli fayiro eteekebwamu esibibwa n’amakubo g’ebyokwerinda ag’amaanyi ennyo nga tewali ayinza kugiyingirira.',
-              swahiliDescription: 'Kila faili linalohifadhiwa hulindwa kwa usimbaji fiche wa kijeshi wa AES-256 na uthibitisho wa SHA-256.',
+              swahiliDescription: 'Kila faili linalohifadhiwa hulindwa kwa usimbaji fiche wa kijeshi wa AES-256.',
               tips: [
-                'Two-Factor Authentication (2FA) protects your vault from unauthorized device access',
-                '1-click sync saves live telemetry snapshots instantly'
+                'Supports one-click encrypted JSON export for hospital transfers'
               ]
             }
           ]
@@ -321,191 +333,386 @@ export const PageTutorialModal: React.FC<PageTutorialModalProps> = ({
     }
   };
 
-  const currentData = getTutorialContent(currentView);
-  const currentStep = currentData.steps[activeStepIndex] || currentData.steps[0];
+  const fullPlatformTour: PageTutorialData = {
+    pageId: 'full_tour',
+    pageTitle: 'Doctorian Platform Walkthrough',
+    lugandaTitle: 'Okuyiga Enkozesa ya Doctorian Yonna',
+    swahiliTitle: 'Mwongozo Kamili wa Jukwaa la Doctorian',
+    subtitle: 'Jump directly into any clinical module across the workspace.',
+    steps: [
+      {
+        title: 'Clinical Cockpit & Dashboard',
+        category: 'Module 01',
+        targetView: 'home',
+        actionLabel: 'Open Dashboard',
+        icon: Activity,
+        description: 'Monitor active sync queues, daily health advisories, vital summaries, and launch diagnostic tools.',
+        tips: [
+          'Check live neurological and preventive Ministry of Health guidance',
+          'Open any module from the clean bottom Menu drawer or card tiles'
+        ]
+      },
+      {
+        title: 'AI Consultation & Telehealth',
+        category: 'Module 02',
+        targetView: 'ai_nexus',
+        actionLabel: 'Open AI Consultation',
+        icon: Stethoscope,
+        description: 'Consult multi-specialty AI physicians, launch live video/voice telehealth, and generate structured SOAP notes.',
+        tips: [
+          'Dedicated distraction-free chat bar pinned cleanly at the bottom',
+          'Works even offline using built-in clinical knowledge packs'
+        ]
+      },
+      {
+        title: 'National Symptom Triage Queue',
+        category: 'Module 03',
+        targetView: 'symptoms',
+        actionLabel: 'Open Symptom Triage',
+        icon: HeartPulse,
+        description: 'Score patient urgency using NEWS2 vitals & red-flag intake, inspect hospital queues, and triage referrals.',
+        tips: [
+          'Press New Symptom Triage to score and admit patients live',
+          'Filter across Mulago, Mbarara, Gulu, Jinja, Kiruddu, and Entebbe'
+        ]
+      },
+      {
+        title: 'Live Patient & Waveform Monitor',
+        category: 'Module 04',
+        targetView: 'monitor',
+        actionLabel: 'Open Bio-Monitor',
+        icon: Monitor,
+        description: 'Visualize real-time ECG, SpO2, blood pressure, and temperature waveforms from external sensors or simulations.',
+        tips: [
+          'Connect Bluetooth/Serial sensors or run built-in clinical telemetry'
+        ]
+      },
+      {
+        title: 'Verified E-Pharmacy Dispensary',
+        category: 'Module 05',
+        targetView: 'pharmacy',
+        actionLabel: 'Open E-Pharmacy',
+        icon: Pill,
+        description: 'Order NDA-verified medicines with live stock status, Rx checks, printable receipts, and rapid reorder.',
+        tips: [
+          'Switch cleanly between All, OTC, and Prescription categories'
+        ]
+      },
+      {
+        title: 'EHR History & Security Systems Hub',
+        category: 'Module 06',
+        targetView: 'records',
+        actionLabel: 'Open Medical Records',
+        icon: FileText,
+        description: 'Store consultations, medications, and diagnostic files offline-first with strict session & encryption controls.',
+        tips: [
+          'Export medical records or inspect Help & Security settings anytime'
+        ]
+      }
+    ]
+  };
+
+  const activeGuide = tutorialMode === 'page' ? getPageTutorialContent(currentView) : fullPlatformTour;
+  const totalSteps = activeGuide.steps.length;
+  const safeIndex = Math.min(activeStepIndex, Math.max(0, totalSteps - 1));
+  const currentStep = activeGuide.steps[safeIndex] || activeGuide.steps[0];
   const StepIcon = currentStep.icon;
+
+  const handleNext = useCallback(() => {
+    if (safeIndex < totalSteps - 1) {
+      setActiveStepIndex((prev) => prev + 1);
+    } else {
+      onClose();
+    }
+  }, [safeIndex, totalSteps, onClose]);
+
+  const handlePrev = useCallback(() => {
+    setActiveStepIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowRight') handleNext();
+      else if (e.key === 'ArrowLeft') handlePrev();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose, handleNext, handlePrev]);
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 15 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 15 }}
-        className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col text-slate-900 dark:text-slate-100"
-      >
-        {/* Header with Language Selector & Progress */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-              <HelpCircle size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-black tracking-tight uppercase">
-                  {tutorialLang === 'lg' && currentData.lugandaTitle ? currentData.lugandaTitle : tutorialLang === 'sw' && currentData.swahiliTitle ? currentData.swahiliTitle : currentData.pageTitle}
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                  Step {activeStepIndex + 1} of {currentData.steps.length}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {currentData.subtitle}
-              </p>
-            </div>
-          </div>
+  const displayTitle =
+    tutorialLang === 'lg' && activeGuide.lugandaTitle
+      ? activeGuide.lugandaTitle
+      : tutorialLang === 'sw' && activeGuide.swahiliTitle
+      ? activeGuide.swahiliTitle
+      : activeGuide.pageTitle;
 
-          <div className="flex items-center gap-2">
-            {/* Tutorial Language Switcher */}
-            <div className="flex items-center bg-slate-200 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-300 dark:border-slate-700 text-[10px] font-bold">
-              <button
-                type="button"
-                onClick={() => setTutorialLang('en')}
-                className={`px-2 py-1 rounded-lg transition-all ${tutorialLang === 'en' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                onClick={() => setTutorialLang('lg')}
-                className={`px-2 py-1 rounded-lg transition-all ${tutorialLang === 'lg' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-                title="Luganda Language"
-              >
-                LG
-              </button>
-              <button
-                type="button"
-                onClick={() => setTutorialLang('sw')}
-                className={`px-2 py-1 rounded-lg transition-all ${tutorialLang === 'sw' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-                title="Kiswahili Language"
-              >
-                SW
-              </button>
+  const displayDescription =
+    tutorialLang === 'lg' && currentStep.lugandaDescription
+      ? currentStep.lugandaDescription
+      : tutorialLang === 'sw' && currentStep.swahiliDescription
+      ? currentStep.swahiliDescription
+      : currentStep.description;
+
+  return (
+    <AnimatePresence>
+      <div
+        className="fixed inset-0 z-[160] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-slate-950/75 backdrop-blur-sm"
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="doctorian-tutorial-title"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.98 }}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full sm:max-w-2xl max-h-[90dvh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-900 dark:text-slate-100"
+        >
+          {/* Top Header */}
+          <div className="px-5 py-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                <HelpCircle size={20} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-medium text-blue-600 dark:text-cyan-400">
+                    {tutorialMode === 'page' ? 'Page Guide' : 'Platform Tour'}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="tabular-nums font-mono">
+                    Step {safeIndex + 1} of {totalSteps}
+                  </span>
+                </div>
+                <h3
+                  id="doctorian-tutorial-title"
+                  className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate mt-0.5"
+                >
+                  {displayTitle}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                  {activeGuide.subtitle}
+                </p>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Close Tutorial"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
-        </div>
 
-        {/* Step Body */}
-        <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto">
-          {/* Progress Bar */}
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden flex gap-1">
-            {currentData.steps.map((_, idx) => (
-              <div
-                key={idx}
-                className={`h-full flex-1 rounded-full transition-all duration-300 ${
-                  idx <= activeStepIndex ? 'bg-blue-600' : 'bg-transparent'
+          {/* Interactive Mode & Language Toolbar */}
+          <div className="px-5 py-2.5 sm:px-6 border-b border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-900">
+            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setTutorialMode('page')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  tutorialMode === 'page'
+                    ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
-              />
-            ))}
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="w-14 h-14 rounded-3xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-inner">
-              <StepIcon size={28} />
+              >
+                <Compass size={13} />
+                <span>This Page</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTutorialMode('tour')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  tutorialMode === 'tour'
+                    ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Layers size={13} />
+                <span>Full App Tour</span>
+              </button>
             </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md bg-blue-500/10">
-                {currentStep.badge}
-              </span>
-              <h4 className="text-lg sm:text-xl font-black mt-1">
-                {currentStep.title}
-              </h4>
-            </div>
-          </div>
 
-          {/* Description translated */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
-            <p className="text-sm sm:text-base leading-relaxed text-slate-700 dark:text-slate-300">
-              {tutorialLang === 'lg' && currentStep.lugandaDescription
-                ? currentStep.lugandaDescription
-                : tutorialLang === 'sw' && currentStep.swahiliDescription
-                ? currentStep.swahiliDescription
-                : currentStep.description}
-            </p>
-            {tutorialLang !== 'en' && (
-              <p className="text-xs text-slate-400 italic pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                English Reference: {currentStep.description}
-              </p>
-            )}
-          </div>
-
-          {/* Clinical Insights / Tips */}
-          <div className="space-y-2">
-            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">
-              {tutorialLang === 'lg' ? 'Ebikulu eby’okumanya:' : tutorialLang === 'sw' ? 'Mambo muhimu ya kuzingatia:' : 'Key Clinical Tips:'}
-            </h5>
-            <div className="space-y-2">
-              {currentStep.tips.map((tip, tIdx) => (
-                <div key={tIdx} className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-                  <CheckCircle size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                  <span>{tip}</span>
-                </div>
+            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              {(
+                [
+                  { code: 'en', label: 'EN', title: 'English' },
+                  { code: 'lg', label: 'LG', title: 'Luganda' },
+                  { code: 'sw', label: 'SW', title: 'Kiswahili' }
+                ] as const
+              ).map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  title={lang.title}
+                  onClick={() => setTutorialLang(lang.code)}
+                  className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    tutorialLang === lang.code
+                      ? 'bg-white dark:bg-slate-950 text-blue-600 dark:text-cyan-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {lang.label}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Action trigger button if present */}
-          {currentStep.actionLabel && currentStep.onAction && (
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  currentStep.onAction?.();
-                  onClose();
-                }}
-                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
-              >
-                <span>{currentStep.actionLabel}</span>
-                <ArrowRight size={16} />
-              </button>
+          {/* Main Scrollable Step Content */}
+          <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
+            {/* Clickable Segmented Progress Indicator */}
+            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}>
+              {activeGuide.steps.map((step, idx) => (
+                <button
+                  key={step.title}
+                  type="button"
+                  onClick={() => setActiveStepIndex(idx)}
+                  aria-label={`Jump to step ${idx + 1}: ${step.title}`}
+                  className="group py-1.5 text-left cursor-pointer focus:outline-none"
+                >
+                  <div
+                    className={`h-1.5 w-full rounded-full transition-colors duration-150 ${
+                      idx === safeIndex
+                        ? 'bg-blue-600 dark:bg-cyan-400'
+                        : idx < safeIndex
+                        ? 'bg-blue-300 dark:bg-cyan-700'
+                        : 'bg-slate-200 dark:bg-slate-800 group-hover:bg-slate-300 dark:group-hover:bg-slate-700'
+                    }`}
+                  />
+                </button>
+              ))}
             </div>
-          )}
-        </div>
 
-        {/* Modal Navigation Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between">
-          <button
-            type="button"
-            disabled={activeStepIndex === 0}
-            onClick={() => setActiveStepIndex((prev) => Math.max(0, prev - 1))}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5 transition-colors"
-          >
-            <ChevronLeft size={16} />
-            <span>Previous</span>
-          </button>
+            {/* Step Title Lockup */}
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                <StepIcon size={24} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-semibold text-blue-600 dark:text-cyan-400">{currentStep.category}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="tabular-nums">0{safeIndex + 1}</span>
+                </div>
+                <h4 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white mt-0.5">
+                  {currentStep.title}
+                </h4>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-2">
-            {activeStepIndex < currentData.steps.length - 1 ? (
+            {/* Step Explanation */}
+            <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+              <p className="text-sm sm:text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">
+                {displayDescription}
+              </p>
+              {tutorialLang !== 'en' && displayDescription !== currentStep.description && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                  English: {currentStep.description}
+                </p>
+              )}
+            </div>
+
+            {/* Clinical Workflow Tips */}
+            <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-4 space-y-2.5">
+              <h5 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {tutorialLang === 'lg'
+                  ? 'Ebikulu eby’okumanya'
+                  : tutorialLang === 'sw'
+                  ? 'Mambo muhimu ya kuzingatia'
+                  : 'Clinical workflow highlights'}
+              </h5>
+              <ul className="space-y-2">
+                {currentStep.tips.map((tip, tIdx) => (
+                  <li key={tIdx} className="flex items-start gap-2.5 text-xs sm:text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Contextual Navigation Action */}
+            {currentStep.actionLabel && (currentStep.onAction || currentStep.targetView) && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentStep.onAction) {
+                      currentStep.onAction();
+                    } else if (currentStep.targetView) {
+                      onNavigate?.(currentStep.targetView);
+                    }
+                    onClose();
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <span>{currentStep.actionLabel}</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-5 py-3.5 sm:px-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setActiveStepIndex((prev) => Math.min(currentData.steps.length - 1, prev + 1))}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition-all active:scale-95"
+                disabled={safeIndex === 0}
+                onClick={handlePrev}
+                className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 disabled:opacity-35 disabled:pointer-events-none flex items-center gap-1.5 transition-colors cursor-pointer min-h-[40px]"
               >
-                <span>Next Step</span>
-                <ChevronRight size={16} />
+                <ChevronLeft size={16} />
+                <span>Previous</span>
               </button>
-            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400">
+                <Keyboard size={12} />
+                <span>Arrows to navigate</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all active:scale-95"
+                className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer min-h-[40px]"
               >
-                <CheckCircle size={16} />
-                <span>Got it! Start Using</span>
+                Skip
               </button>
-            )}
+
+              {safeIndex < totalSteps - 1 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[40px] whitespace-nowrap shrink-0"
+                >
+                  <span>Next Step</span>
+                  <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[40px] whitespace-nowrap shrink-0"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Done</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 };
+
+export default PageTutorialModal;

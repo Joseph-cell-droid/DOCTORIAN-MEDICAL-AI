@@ -53,6 +53,9 @@ export interface User {
   isMainDoctor?: number;
   useMode?: string;
   pendingMessage?: string;
+  smsCredits?: number;
+  linkedPatientId?: string | null;
+  storageQuotaBytes?: number;
 }
 
 export interface HealthRecord {
@@ -1895,27 +1898,126 @@ export const api = {
     }
   },
   billing: {
-    async getHistory(page: number = 1, limit: number = 10) {
-      const res = await fetch(`${API_BASE}/billing/history?page=${page}&limit=${limit}`, {
+    async getPlans() {
+      const res = await fetch(`${API_BASE}/billing/plans`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch billing catalog");
+      return data as {
+        success: boolean;
+        protocols: any[];
+        storagePacks: any[];
+        smsBundles?: any[];
+        currency: string;
+        vatRatePct: number;
+      };
+    },
+    async getHistory(
+      pageOrParams: number | { page?: number; limit?: number; status?: string; kind?: string; search?: string } = 1,
+      limit: number = 20
+    ) {
+      const params =
+        typeof pageOrParams === 'number'
+          ? { page: pageOrParams, limit }
+          : { page: 1, limit: 20, ...pageOrParams };
+      const qs = new URLSearchParams();
+      if (params.page) qs.set('page', String(params.page));
+      if (params.limit) qs.set('limit', String(params.limit));
+      if (params.status && params.status !== 'all') qs.set('status', params.status);
+      if (params.kind && params.kind !== 'all') qs.set('kind', params.kind);
+      if (params.search) qs.set('search', params.search);
+
+      const res = await fetch(`${API_BASE}/billing/history?${qs.toString()}`, {
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch billing history");
-      return data as { history: any[], pagination: any };
+      return data as {
+        success: boolean;
+        history: BillingTransaction[];
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+        summary: { totalSpentUgx: number; completedCount: number; refundedCount: number };
+        account?: Partial<User> | null;
+      };
     },
     exportUrl() {
       return `${API_BASE}/billing/export`;
     },
-    async subscribe(planId: string, transaction_id?: string) {
+    async checkout(payload: {
+      kind: 'protocol' | 'storage' | 'sms_bundle';
+      itemId: string;
+      paymentMethod: string;
+      payerPhone?: string;
+      externalRef?: string;
+      idempotencyKey?: string;
+    }) {
+      const res = await fetch(`${API_BASE}/billing/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to process verified billing checkout");
+      return data as {
+        success: boolean;
+        deduplicated?: boolean;
+        transaction: BillingTransaction;
+        user: Partial<User> | null;
+      };
+    },
+    async subscribe(planId: string, transaction_id?: string, paymentMethod: string = 'card', payerPhone?: string) {
       const res = await fetch(`${API_BASE}/billing/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, transaction_id }),
+        body: JSON.stringify({
+          planId,
+          transaction_id,
+          paymentMethod,
+          payerPhone,
+          idempotencyKey: transaction_id
+        }),
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to process subscription");
-      return data as { success: boolean, tier: string, creditsAdded: number };
+      return data as {
+        success: boolean;
+        tier: string;
+        creditsAdded: number;
+        transaction?: BillingTransaction;
+        user?: Partial<User> | null;
+      };
+    },
+    async verifyReceipt(id: string) {
+      const res = await fetch(`${API_BASE}/billing/transactions/${encodeURIComponent(id)}/verify`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to verify receipt signature");
+      return data as {
+        success: boolean;
+        verified: boolean;
+        invoiceNumber: string;
+        status: string;
+        signaturePrefix: string;
+        verifiedAt: string;
+      };
+    },
+    async refundTransaction(id: string) {
+      const res = await fetch(`${API_BASE}/billing/transactions/${encodeURIComponent(id)}/refund`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to process refund");
+      return data as {
+        success: boolean;
+        transaction: BillingTransaction;
+        user: Partial<User> | null;
+      };
     },
     async createPaymentLink(planId: string) {
       const res = await fetch(`${API_BASE}/billing/create-payment-link`, {
@@ -1926,7 +2028,7 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create payment link");
-      return data as { link: string };
+      return data as { link: string; reference?: string };
     },
     async getPaymentMethods() {
       const res = await fetch(`${API_BASE}/billing/payment-methods`, {
@@ -1935,6 +2037,163 @@ export const api = {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch payment methods");
       return data;
+    }
+  },
+  telephony: {
+    async getDirectory(): Promise<{
+      doctors: TelephonyContact[];
+      patients: TelephonyContact[];
+      emergency: TelephonyContact[];
+    }> {
+      const emergencyOnly = {
+        doctors: [] as TelephonyContact[],
+        patients: [] as TelephonyContact[],
+        emergency: [
+          {
+            id: 'emg-ug-112',
+            name: 'Uganda Emergency Medical Dispatch (112)',
+            role: 'emergency' as const,
+            phone: '+256112',
+            specialty: 'Ambulance & Trauma Response',
+            facility: 'National Emergency Coordination Center',
+            isOnline: true
+          }
+        ]
+      };
+
+      if (isOffline()) return emergencyOnly;
+      try {
+        const res = await fetch(`${API_BASE}/telephony/directory`, { credentials: "include" });
+        if (!res.ok) return emergencyOnly;
+        const data = await res.json();
+        return {
+          doctors: Array.isArray(data.doctors) ? data.doctors : [],
+          patients: Array.isArray(data.patients) ? data.patients : [],
+          emergency: Array.isArray(data.emergency) && data.emergency.length > 0 ? data.emergency : emergencyOnly.emergency
+        };
+      } catch {
+        return emergencyOnly;
+      }
+    },
+    async callAndSms(payload: {
+      roomId: string;
+      callMode: 'voice' | 'video';
+      calleeId?: string;
+      calleeName: string;
+      calleeRole: 'doctor' | 'nurse' | 'patient' | 'admin' | 'emergency';
+      calleePhone?: string;
+      autoSendSms?: boolean;
+      customSmsMessage?: string;
+      notifyPatientId?: string;
+      notifyDoctorId?: string;
+    }): Promise<{ success: boolean; callSession: CallSessionRecord; smsDispatches: SmsDispatchRecord[]; offline?: boolean }> {
+      const localFallback = () => {
+        const now = new Date().toISOString();
+        const sessionId = `call-off-${Date.now()}`;
+        const sms: SmsDispatchRecord[] =
+          payload.autoSendSms !== false && payload.calleePhone
+            ? [
+                {
+                  id: `sms-off-${Date.now()}`,
+                  callSessionId: sessionId,
+                  senderName: 'Doctorian Local Node',
+                  recipientId: payload.calleeId || null,
+                  recipientName: payload.calleeName,
+                  recipientRole: payload.calleeRole,
+                  recipientPhone: payload.calleePhone,
+                  messageBody:
+                    payload.customSmsMessage?.trim() ||
+                    `Doctorian ${payload.callMode.toUpperCase()} Alert: Call initiated in Room ${payload.roomId}.`,
+                  dispatchMode: 'auto_call_sms',
+                  gatewayProvider: 'Offline Outbox GSM Queue',
+                  providerMessageId: `OFF-${Date.now().toString(36).toUpperCase()}`,
+                  status: 'queued_offline',
+                  createdAt: now
+                }
+              ]
+            : [];
+        return {
+          success: true,
+          offline: true,
+          callSession: {
+            id: sessionId,
+            roomId: payload.roomId,
+            callMode: payload.callMode,
+            calleeId: payload.calleeId || null,
+            calleeName: payload.calleeName,
+            calleeRole: payload.calleeRole,
+            calleePhone: payload.calleePhone || '',
+            autoSmsSent: sms.length > 0,
+            createdAt: now
+          },
+          smsDispatches: sms
+        };
+      };
+
+      if (isOffline()) {
+        enqueueOutboxItem({
+          kind: 'telephony_call_sms',
+          endpoint: `${API_BASE}/telephony/call-and-sms`,
+          method: 'POST',
+          payload
+        });
+        return localFallback();
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/telephony/call-and-sms`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          credentials: "include"
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Call & Auto-SMS failed");
+        return data;
+      } catch (err: any) {
+        if (err?.message && !err.message.toLowerCase().includes('fetch') && !err.message.toLowerCase().includes('network')) {
+          throw err;
+        }
+        return localFallback();
+      }
+    },
+    async sendSms(payload: {
+      recipientId?: string;
+      recipientName: string;
+      recipientRole?: string;
+      recipientPhone?: string;
+      message: string;
+    }): Promise<{ success: boolean; sms: SmsDispatchRecord }> {
+      const res = await fetch(`${API_BASE}/telephony/send-sms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const err: any = new Error(data.error || "Failed to dispatch SMS");
+        err.blockedForAbuse = Boolean(data.blockedForAbuse);
+        err.connectionRequired = Boolean(data.connectionRequired);
+        err.connectionStatus = data.connectionStatus;
+        err.requiresSmsTopUp = Boolean(data.requiresSmsTopUp) || res.status === 402;
+        throw err;
+      }
+      return data;
+    },
+    async getLogs(): Promise<{ calls: CallSessionRecord[]; sms: SmsDispatchRecord[] }> {
+      if (isOffline()) return { calls: [], sms: [] };
+      try {
+        const res = await fetch(`${API_BASE}/telephony/logs`, { credentials: "include" });
+        if (!res.ok) return { calls: [], sms: [] };
+        const data = await res.json();
+        return {
+          calls: Array.isArray(data.calls) ? data.calls : [],
+          sms: Array.isArray(data.sms) ? data.sms : []
+        };
+      } catch {
+        return { calls: [], sms: [] };
+      }
     }
   },
   notifications: {
@@ -3936,7 +4195,13 @@ export const api = {
         return { users: [], total: 0 };
       }
     },
-    async getMessages(params?: { channel?: string; peerId?: string }): Promise<{ messages: NetworkMessage[]; count: number }> {
+    async getMessages(params?: { channel?: string; peerId?: string }): Promise<{
+      messages: NetworkMessage[];
+      count: number;
+      blocked?: boolean;
+      connectionStatus?: string;
+      blockReason?: string | null;
+    }> {
       try {
         const query = new URLSearchParams();
         if (params?.channel) query.set("channel", params.channel);
@@ -3966,7 +4231,13 @@ export const api = {
         credentials: "include"
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to transmit message over server network");
+      if (!res.ok) {
+        const err: any = new Error(json.error || "Failed to transmit message over server network");
+        err.blockedForAbuse = Boolean(json.blockedForAbuse);
+        err.connectionRequired = Boolean(json.connectionRequired);
+        err.connectionStatus = json.connectionStatus;
+        throw err;
+      }
       return json;
     },
     async markAsRead(id: string): Promise<void> {
@@ -3984,6 +4255,148 @@ export const api = {
       } catch (e) {
         return { totalMessages: 0, totalUsers: 0, totalDoctors: 0, unreadCount: 0, networkStatus: "OFFLINE" };
       }
+    }
+  },
+  connections: {
+    async getDirectory(): Promise<{
+      accounts: any[];
+      summary: { totalAccounts: number; connectedCount: number; pendingIncoming: number; blockedCount: number };
+      moderationIncidents: any[];
+    }> {
+      const res = await fetch(`${API_BASE}/connections/directory`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sign in with a registered account to view network accounts.");
+      return data;
+    },
+    async sendRequest(targetUserId: string, note?: string, sharePatientData?: boolean) {
+      const res = await fetch(`${API_BASE}/connections/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId, note, sharePatientData }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send friend request");
+      return data;
+    },
+    async accept(connectionId: string, patientDataConsent: boolean = true) {
+      const res = await fetch(`${API_BASE}/connections/${encodeURIComponent(connectionId)}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patientDataConsent }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to accept connection");
+      return data;
+    },
+    async decline(connectionId: string) {
+      const res = await fetch(`${API_BASE}/connections/${encodeURIComponent(connectionId)}/decline`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to decline request");
+      return data;
+    },
+    async block(targetUserId: string, reason?: string) {
+      const res = await fetch(`${API_BASE}/connections/block`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId, reason }),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to block conversation");
+      return data;
+    },
+    async unblock(connectionId: string) {
+      const res = await fetch(`${API_BASE}/connections/${encodeURIComponent(connectionId)}/unblock`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to restore blocked connection");
+      return data;
+    }
+  },
+  patientMemory: {
+    async getMe() {
+      const res = await fetch(`${API_BASE}/patient-memory/me`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load remembered patient record");
+      return data as { success: boolean; remembered: boolean; patientMemory: any };
+    },
+    async updateMe(payload: {
+      age?: number;
+      gender?: string;
+      district?: string;
+      phone?: string;
+      bloodGroup?: string;
+      allergies?: string;
+      chronicConditions?: string;
+    }) {
+      const res = await fetch(`${API_BASE}/patient-memory/me`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save patient memory");
+      return data as { success: boolean; patientMemory: any };
+    },
+    async getPatientDossier(patientId: string) {
+      const res = await fetch(`${API_BASE}/patient-memory/${encodeURIComponent(patientId)}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) {
+        const err: any = new Error(data.error || "Restricted patient record");
+        err.restricted = Boolean(data.restricted);
+        throw err;
+      }
+      return data;
+    }
+  },
+  sms: {
+    async getAnalytics() {
+      const res = await fetch(`${API_BASE}/sms/analytics`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load SMS profitability metrics");
+      return data as {
+        success: boolean;
+        mySmsCredits: number;
+        totalSent: number;
+        totalSegments: number;
+        totalRevenueUgx: number;
+        totalWholesaleCostUgx: number;
+        totalProfitUgx: number;
+        unitPriceUgx: number;
+        unitCostUgx: number;
+        unitMarginUgx: number;
+        recentDispatches: any[];
+      };
+    },
+    async serverDispatch(payload: { recipientUserIds: string[]; subject?: string; message: string }) {
+      const res = await fetch(`${API_BASE}/sms/server-dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const err: any = new Error(data.error || "Server SMS dispatch failed");
+        err.blockedForAbuse = Boolean(data.blockedForAbuse);
+        err.requiresSmsTopUp = Boolean(data.requiresSmsTopUp) || res.status === 402;
+        throw err;
+      }
+      return data as {
+        success: boolean;
+        sentCount: number;
+        dispatches: any[];
+        skipped: Array<{ userId: string; reason: string }>;
+        remainingSmsCredits: number;
+      };
     }
   },
   pharmacy: {
@@ -4168,4 +4581,73 @@ export interface AmbientScribeRecord {
   syncStatus: 'LOCAL_DRAFT' | 'PEER_SYNCED' | 'CLOUD_PERSISTED';
   createdAt?: string;
 }
+
+export interface BillingTransaction {
+  id: string;
+  invoiceNumber: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  kind: 'protocol' | 'storage';
+  itemId: string;
+  itemName: string;
+  subtotalUgx: number;
+  vatUgx: number;
+  amountUgx: number;
+  currency: string;
+  paymentMethod: string;
+  payerPhone?: string | null;
+  externalRef?: string | null;
+  status: 'completed' | 'refunded' | 'pending' | 'failed';
+  receiptHmac: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TelephonyContact {
+  id: string;
+  name: string;
+  role: 'doctor' | 'nurse' | 'patient' | 'admin' | 'emergency';
+  phone: string;
+  specialty?: string | null;
+  facility?: string | null;
+  district?: string | null;
+  riskTier?: string | null;
+  mrn?: string | null;
+  isOnline?: boolean;
+}
+
+export interface CallSessionRecord {
+  id: string;
+  roomId: string;
+  callMode: 'voice' | 'video';
+  callerName?: string;
+  callerRole?: string;
+  calleeId?: string | null;
+  calleeName: string;
+  calleeRole: string;
+  calleePhone: string;
+  autoSmsSent: boolean;
+  smsDispatchId?: string | null;
+  status?: string;
+  createdAt: string;
+}
+
+export interface SmsDispatchRecord {
+  id: string;
+  callSessionId?: string | null;
+  senderName?: string;
+  recipientId?: string | null;
+  recipientName: string;
+  recipientRole: string;
+  recipientPhone: string;
+  messageBody: string;
+  dispatchMode?: string;
+  gatewayProvider: string;
+  providerMessageId: string;
+  status: string;
+  createdAt: string;
+}
+
 

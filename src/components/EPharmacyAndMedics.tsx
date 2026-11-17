@@ -28,6 +28,13 @@ import {
 import { api, User } from '../api';
 import { UGANDA_MEDICINES, UGANDA_PHARMACIES, MedicineItem } from './AppMedics';
 
+import antimalarialImg from '../assets/images/epharmacy_antimalarial_pack_1794853380660.jpg';
+import antibioticImg from '../assets/images/epharmacy_antibiotic_capsules_1794853380786.jpg';
+import cardioDiabetesImg from '../assets/images/epharmacy_cardio_diabetes_1794853380087.jpg';
+import painVitaminsImg from '../assets/images/epharmacy_pain_vitamins_1794853380298.jpg';
+import respiratoryImg from '../assets/images/epharmacy_respiratory_inhaler_1794853380830.jpg';
+import gastroMaternalImg from '../assets/images/epharmacy_gastro_maternal_1794853380864.jpg';
+
 interface EPharmacyAndMedicsProps {
   onNavigate?: (tab: any) => void;
   addToast?: (msg: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -101,14 +108,25 @@ const CATEGORY_TABS: Array<{ id: string; label: string }> = [
 ];
 
 const CATEGORY_VISUALS: Record<string, { accent: string; bg: string; img: string; shortType: string }> = {
-  antimalarial: { accent: 'text-amber-600 dark:text-amber-400', bg: 'from-amber-50 to-orange-100/70 dark:from-amber-950/40 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'ACT PROTOCOL' },
-  antibiotic: { accent: 'text-blue-600 dark:text-blue-400', bg: 'from-blue-50 to-cyan-100/70 dark:from-blue-950/40 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'ANTIMICROBIAL' },
-  cardio_diabetes: { accent: 'text-rose-600 dark:text-rose-400', bg: 'from-rose-50 to-pink-100/60 dark:from-rose-950/35 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'CHRONIC CARE' },
-  pain_analgesic: { accent: 'text-emerald-600 dark:text-emerald-400', bg: 'from-emerald-50 to-teal-100/60 dark:from-emerald-950/35 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'OTC ESSENTIAL' },
-  respiratory: { accent: 'text-cyan-600 dark:text-cyan-400', bg: 'from-cyan-50 to-sky-100/70 dark:from-cyan-950/35 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'AIRWAY CARE' },
-  gastro: { accent: 'text-violet-600 dark:text-violet-400', bg: 'from-violet-50 to-indigo-100/60 dark:from-violet-950/35 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'GI RELIEF' },
-  maternal_child: { accent: 'text-teal-600 dark:text-teal-400', bg: 'from-teal-50 to-emerald-100/60 dark:from-teal-950/35 dark:to-slate-900', img: '/rx_capsule_3d.png', shortType: 'FAMILY & PEDS' }
+  antimalarial: { accent: 'text-amber-600 dark:text-amber-400', bg: 'from-amber-50 to-orange-100/70 dark:from-amber-950/40 dark:to-slate-900', img: antimalarialImg, shortType: 'ACT Protocol' },
+  antibiotic: { accent: 'text-blue-600 dark:text-blue-400', bg: 'from-blue-50 to-cyan-100/70 dark:from-blue-950/40 dark:to-slate-900', img: antibioticImg, shortType: 'Antimicrobial' },
+  cardio_diabetes: { accent: 'text-rose-600 dark:text-rose-400', bg: 'from-rose-50 to-pink-100/60 dark:from-rose-950/35 dark:to-slate-900', img: cardioDiabetesImg, shortType: 'Chronic Care' },
+  pain_analgesic: { accent: 'text-emerald-600 dark:text-emerald-400', bg: 'from-emerald-50 to-teal-100/60 dark:from-emerald-950/35 dark:to-slate-900', img: painVitaminsImg, shortType: 'OTC Essential' },
+  respiratory: { accent: 'text-cyan-600 dark:text-cyan-400', bg: 'from-cyan-50 to-sky-100/70 dark:from-cyan-950/35 dark:to-slate-900', img: respiratoryImg, shortType: 'Airway Care' },
+  gastro: { accent: 'text-violet-600 dark:text-violet-400', bg: 'from-violet-50 to-indigo-100/60 dark:from-violet-950/35 dark:to-slate-900', img: gastroMaternalImg, shortType: 'GI & Hydration' },
+  maternal_child: { accent: 'text-teal-600 dark:text-teal-400', bg: 'from-teal-50 to-emerald-100/60 dark:from-teal-950/35 dark:to-slate-900', img: gastroMaternalImg, shortType: 'Maternal & Peds' }
 };
+
+function getMedicinePhoto(med: MedicineItem): string {
+  const n = med.name.toLowerCase();
+  if (n.includes('paracetamol') || n.includes('vitamin')) return painVitaminsImg;
+  if (n.includes('coartem') || n.includes('lonart') || n.includes('artemether')) return antimalarialImg;
+  if (n.includes('amoxicil') || n.includes('azithro') || n.includes('cipro') || n.includes('cefix')) return antibioticImg;
+  if (n.includes('metformin') || n.includes('amlodipine') || n.includes('atorvastatin') || n.includes('losartan')) return cardioDiabetesImg;
+  if (n.includes('salbutamol') || n.includes('inhaler') || n.includes('cetirizine')) return respiratoryImg;
+  if (n.includes('ors') || n.includes('zinc') || n.includes('omeprazole') || n.includes('iron') || n.includes('folic')) return gastroMaternalImg;
+  return (CATEGORY_VISUALS[med.category] || CATEGORY_VISUALS.pain_analgesic).img;
+}
 
 export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
   onNavigate = () => {},
@@ -117,6 +135,7 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [prescriptionFilter, setPrescriptionFilter] = useState<'all' | 'otc' | 'rx'>('all');
   const [selectedPharmacyId, setSelectedPharmacyId] = useState<string>('ecopharm');
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
@@ -175,6 +194,8 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
     return ALL_CATALOG_MEDICINES.filter((m) => {
       const catOk = selectedCategory === 'all' || m.category === selectedCategory;
       if (!catOk) return false;
+      if (prescriptionFilter === 'otc' && m.prescriptionRequired) return false;
+      if (prescriptionFilter === 'rx' && !m.prescriptionRequired) return false;
       if (!q) return true;
       return (
         m.name.toLowerCase().includes(q) ||
@@ -183,7 +204,7 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
         m.form.toLowerCase().includes(q)
       );
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, prescriptionFilter]);
 
   const resolvePriceForPharmacy = (med: MedicineItem, pharmId: string) => {
     const branchOffer = med.pharmacyPrices.find((p) => p.pharmacyId === pharmId);
@@ -296,39 +317,42 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
   return (
     <div className="min-h-screen w-full bg-[#f5f7fa] dark:bg-[#050d21] text-slate-900 dark:text-slate-100 pb-28">
       {/* Top Storefront Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-[#07132c]/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+      <header className="bg-white/95 dark:bg-[#07132c]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 rounded-2xl mx-2 sm:mx-4 mt-2 shadow-xs">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => onNavigate('home')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              aria-label="Back to Dashboard"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Dashboard</span>
+              <span className="hidden sm:inline">Dashboard</span>
             </button>
 
             <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
+              <h1 className="text-xs sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
                 Doctorian E-Pharmacy &amp; Dispensary
               </h1>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                NDA-Verified Uganda Essential Medicines · Live Clinical Dispatch
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                NDA-Verified Essential Medicines · Live Clinical Dispatch
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
                 setDrawerTab('orders');
                 setIsDrawerOpen(true);
               }}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              title="Sent Pharmacy Orders"
             >
               <History className="w-3.5 h-3.5" />
-              <span>Orders ({recentOrders.length})</span>
+              <span className="hidden sm:inline">Orders</span>
+              <span className="tabular-nums">({recentOrders.length})</span>
             </button>
 
             <button
@@ -418,11 +442,11 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
             <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-center justify-center gap-4">
               <div className="w-full rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 p-4 flex items-center gap-4">
                 <img
-                  src="/rx_hero_banner.png"
-                  alt="Verified Medical Dispensary"
+                  src="/rx_doctor_telemed.png"
+                  alt="Clinical Tele-Pharmacist"
                   className="w-24 h-20 rounded-xl object-cover shrink-0 bg-slate-900"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/rx_capsule_3d.png';
+                    (e.target as HTMLImageElement).src = painVitaminsImg;
                   }}
                 />
                 <div className="space-y-1.5 min-w-0">
@@ -475,6 +499,14 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
+                onClick={() => window.print()}
+                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/60"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Print</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setDrawerTab('orders');
                   setIsDrawerOpen(true);
@@ -518,19 +550,37 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
 
         {/* Strict 3-Column Uniform Retail Medication Grid */}
         <section aria-label="Medication catalog">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Showing {filteredMedicines.length} Verified Medications · Dispensing from {activePharmacy.name}
             </p>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
-              >
-                Clear search
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-xl bg-white dark:bg-[#091834] border border-slate-200 dark:border-slate-800 p-0.5 text-[11px] font-bold">
+                {(['all', 'otc', 'rx'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPrescriptionFilter(mode)}
+                    className={`px-2.5 py-1 rounded-lg uppercase cursor-pointer transition-colors ${
+                      prescriptionFilter === mode
+                        ? 'bg-slate-900 dark:bg-cyan-500 text-white dark:text-slate-950'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {mode === 'all' ? 'All' : mode === 'otc' ? 'OTC Only' : 'Rx Only'}
+                  </button>
+                ))}
+              </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
           </div>
 
           {filteredMedicines.length === 0 ? (
@@ -555,7 +605,11 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMedicines.map((med) => {
                 const visual = CATEGORY_VISUALS[med.category] || CATEGORY_VISUALS.pain_analgesic;
+                const photoUrl = getMedicinePhoto(med);
                 const priceUgx = resolvePriceForPharmacy(med, selectedPharmacyId);
+                const matchingCartItem = cart.find(
+                  (c) => c.medicine.id === med.id && c.selectedPharmacyId === selectedPharmacyId
+                );
                 const inBagQty = cart
                   .filter((c) => c.medicine.id === med.id)
                   .reduce((sum, c) => sum + c.qty, 0);
@@ -565,26 +619,27 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
                     key={med.id}
                     className="group bg-white dark:bg-[#091834] border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between transition-all hover:border-blue-400/60 dark:hover:border-cyan-500/45 hover:shadow-lg"
                   >
-                    {/* Top Product Stage (>60% clean visual presentation) */}
+                    {/* Top Product Stage (>60% real studio pharmaceutical photo) */}
                     <button
                       type="button"
                       onClick={() => setDetailMedicine(med)}
-                      className={`relative w-full aspect-[16/10] bg-gradient-to-br ${visual.bg} p-5 flex items-center justify-center overflow-hidden text-left cursor-pointer border-b border-slate-100 dark:border-slate-800/80`}
+                      className="relative w-full aspect-[4/3] bg-slate-100 dark:bg-slate-900 overflow-hidden text-left cursor-pointer border-b border-slate-100 dark:border-slate-800/80"
                     >
                       <img
-                        src={visual.img}
-                        alt={med.name}
-                        className="w-24 h-24 object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-300"
+                        src={photoUrl}
+                        alt={`${med.name} packaging`}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/logo-96.png';
+                          (e.target as HTMLImageElement).src = '/rx_capsule_3d.png';
                         }}
                       />
-                      <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
-                        {visual.shortType}
-                      </span>
-                      <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        {med.prescriptionRequired ? 'Rx Required' : 'OTC Available'}
-                      </span>
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
+                      <div className="absolute inset-x-3 bottom-2.5 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-white/95 drop-shadow">
+                        <span>{visual.shortType}</span>
+                        <span>{med.prescriptionRequired ? 'Rx Required' : 'OTC Ready'}</span>
+                      </div>
                     </button>
 
                     {/* Clean Typography Details + Price + Action */}
@@ -614,14 +669,38 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => addToCart(med)}
-                          className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 text-xs font-extrabold transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5"
-                        >
-                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>{inBagQty > 0 ? `Add (${inBagQty})` : 'Add to Order'}</span>
-                        </button>
+                        {matchingCartItem ? (
+                          <div className="flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => updateCartQty(med.id, selectedPharmacyId, -1)}
+                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                              aria-label={`Remove one ${med.name}`}
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 text-center text-xs font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                              {matchingCartItem.qty}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addToCart(med)}
+                              className="w-7 h-7 rounded-lg bg-slate-900 dark:bg-cyan-500 text-white dark:text-slate-950 flex items-center justify-center cursor-pointer hover:bg-blue-600 dark:hover:bg-cyan-400 transition-colors"
+                              aria-label={`Add one more ${med.name}`}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => addToCart(med)}
+                            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 text-xs font-extrabold transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>{inBagQty > 0 ? `Add (${inBagQty})` : 'Add to Order'}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -668,6 +747,14 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
               </div>
 
               <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+                  <img
+                    src={getMedicinePhoto(detailMedicine)}
+                    alt={detailMedicine.name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/70 p-4 border border-slate-200/70 dark:border-slate-800 space-y-1.5">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Clinical Indication</p>
                   <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">{detailMedicine.primaryIndication}</p>
@@ -1011,13 +1098,43 @@ export const EPharmacyAndMedics: React.FC<EPharmacyAndMedicsProps> = ({
                           <p className="text-[11px] text-slate-600 dark:text-slate-300">
                             {(ord.items || []).map((i: any) => `${i.qty}x ${i.name}`).join(', ')}
                           </p>
-                          <div className="pt-2 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between text-xs">
-                            <span className="text-slate-500 dark:text-slate-400">
+                          <div className="pt-2 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between gap-2 text-xs">
+                            <span className="text-slate-500 dark:text-slate-400 truncate">
                               {new Date(ord.createdAt || ord.created_at || Date.now()).toLocaleString()}
                             </span>
-                            <span className="font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
-                              UGX {Number(ord.totalUgx ?? ord.total_ugx ?? 0).toLocaleString()}
-                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                                UGX {Number(ord.totalUgx ?? ord.total_ugx ?? 0).toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const reorderItems: CartItem[] = [];
+                                  for (const rawItem of ord.items || []) {
+                                    const med = ALL_CATALOG_MEDICINES.find(
+                                      (m) => m.id === rawItem.id || m.name === rawItem.name
+                                    );
+                                    if (med) {
+                                      reorderItems.push({
+                                        medicine: med,
+                                        qty: Number(rawItem.qty || 1),
+                                        selectedPharmacyId: ord.pharmacyId || selectedPharmacyId,
+                                        selectedPharmacyName: ord.pharmacyName || ord.pharmacy_name || activePharmacy.name,
+                                        unitPriceUgx: Number(rawItem.unitPriceUgx || med.priceUGX)
+                                      });
+                                    }
+                                  }
+                                  if (reorderItems.length > 0) {
+                                    setCart(reorderItems);
+                                    setDrawerTab('cart');
+                                    addToast(`Loaded ${reorderItems.length} item(s) from #${ord.orderNumber || ord.order_number} into bag.`, 'success');
+                                  }
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-slate-900 dark:bg-cyan-500 text-white dark:text-slate-950 text-[11px] font-bold cursor-pointer hover:opacity-90"
+                              >
+                                Reorder
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))

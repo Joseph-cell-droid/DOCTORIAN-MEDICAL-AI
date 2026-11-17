@@ -19,8 +19,13 @@ import {
   WifiOff,
   Play,
   Copy,
-  Check
+  Check,
+  MessageSquare,
+  CheckCircle2,
+  PhoneCall,
+  Loader2
 } from 'lucide-react';
+import { api, type TelephonyContact, type SmsDispatchRecord } from '../api';
 import { UGANDAN_CLINICIAN_PERSONAS, ClinicianPersona } from '../utils/ugandanMedicalLexicon';
 import { speechEngine } from '../utils/speechEngine';
 import {
@@ -85,7 +90,22 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
   const [voiceInputText, setVoiceInputText] = useState('');
   const [patientCtx] = useState(() => getLocalPatientContext());
   const [callHistory, setCallHistory] = useState<PersistedCallRecord[]>(() => getCallHistoryRecords());
-  const [statusNotice, setStatusNotice] = useState<string>('Ready — tap Microphone to speak or type below.');
+  const [statusNotice, setStatusNotice] = useState<string>('Ready — tap Microphone to speak or place Call + Auto-SMS.');
+
+  // Registered Doctors & Patients Telephony + Auto-SMS State
+  const [directory, setDirectory] = useState<{
+    doctors: TelephonyContact[];
+    patients: TelephonyContact[];
+    emergency: TelephonyContact[];
+  }>({ doctors: [], patients: [], emergency: [] });
+  const [directoryTab, setDirectoryTab] = useState<'doctor' | 'patient'>('doctor');
+  const [selectedContact, setSelectedContact] = useState<TelephonyContact | null>(null);
+  const [pairedNotifyId, setPairedNotifyId] = useState<string>('');
+  const [autoSmsEnabled, setAutoSmsEnabled] = useState<boolean>(true);
+  const [customSmsText, setCustomSmsText] = useState<string>('');
+  const [manualSmsText, setManualSmsText] = useState<string>('');
+  const [smsDispatches, setSmsDispatches] = useState<SmsDispatchRecord[]>([]);
+  const [isPlacingCallSms, setIsPlacingCallSms] = useState<boolean>(false);
 
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const webrtcRef = useRef<TelehealthWebRTCSession | null>(null);
@@ -113,12 +133,27 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
     };
   }, []);
 
-  // Live Call Timer + Chime
+  // Live Call Timer + Chime + Load Registered Doctor/Patient Directory
   useEffect(() => {
     if (!isOpen) return;
     playSoftCallTone('connect');
     const timer = window.setInterval(() => setCallSeconds((s) => s + 1), 1000);
-    return () => window.clearInterval(timer);
+
+    let cancelled = false;
+    void api.telephony.getDirectory().then((dir) => {
+      if (cancelled) return;
+      setDirectory(dir);
+      setSelectedContact((prev) => prev || dir.doctors[0] || dir.patients[0] || null);
+    });
+    void api.telephony.getLogs().then((logs) => {
+      if (cancelled) return;
+      if (logs.sms.length > 0) setSmsDispatches(logs.sms);
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [isOpen]);
 
   // WebRTC Peer Audio Room
@@ -278,18 +313,108 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeTranscript]);
 
+  const triggerCallAndAutoSms = useCallback(
+    async (contactOverride?: TelephonyContact) => {
+      const target = contactOverride || selectedContact;
+      if (!target) {
+        setStatusNotice('Select a registered doctor or patient first.');
+        return;
+      }
+
+      setIsPlacingCallSms(true);
+      playSoftCallTone('ring');
+      webrtcRef.current?.sendRoomInvite(target.role === 'patient' ? 'patient' : 'doctor', target.name);
+
+      try {
+        const res = await api.telephony.callAndSms({
+          roomId,
+          callMode: 'voice',
+          calleeId: target.id,
+          calleeName: target.name,
+          calleeRole: target.role,
+          calleePhone: target.phone,
+          autoSendSms: autoSmsEnabled,
+          customSmsMessage: customSmsText.trim() || undefined,
+          notifyPatientId: target.role !== 'patient' && pairedNotifyId ? pairedNotifyId : undefined,
+          notifyDoctorId: target.role === 'patient' && pairedNotifyId ? pairedNotifyId : undefined
+        });
+
+        if (res.smsDispatches?.length > 0) {
+          setSmsDispatches((prev) => [...res.smsDispatches, ...prev].slice(0, 25));
+          const summaryPhones = res.smsDispatches.map((s) => `${s.recipientName} (${s.recipientPhone})`).join(' & ');
+          setStatusNotice(`Calling ${target.name} (${target.phone}) · Auto-SMS sent to ${summaryPhones}`);
+          setActiveTranscript((prev) => [
+            ...prev,
+            {
+              id: `sys-sms-${Date.now()}`,
+              speaker: 'System',
+              speakerName: 'GSM Auto-SMS Gateway',
+              text: `Voice Call initiated to ${target.name} (${target.phone}). Automatic SMS dispatched to ${summaryPhones} [${res.smsDispatches[0].providerMessageId}].`,
+              time: formatTimer(callSeconds)
+            }
+          ]);
+        } else {
+          setStatusNotice(`Voice Call ringing ${target.name} (${target.phone}) in Room ${roomId}.`);
+        }
+        setCustomSmsText('');
+      } catch (err: any) {
+        setStatusNotice(err?.message || 'Unable to place call / SMS.');
+      } finally {
+        setIsPlacingCallSms(false);
+      }
+    },
+    [selectedContact, roomId, autoSmsEnabled, customSmsText, pairedNotifyId, callSeconds]
+  );
+
+  const handleSendQuickSms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContact || !manualSmsText.trim() || isPlacingCallSms) return;
+    setIsPlacingCallSms(true);
+    try {
+      const res = await api.telephony.sendSms({
+        recipientId: selectedContact.id,
+        recipientName: selectedContact.name,
+        recipientRole: selectedContact.role,
+        recipientPhone: selectedContact.phone,
+        message: manualSmsText.trim()
+      });
+      if (res.sms) {
+        setSmsDispatches((prev) => [res.sms, ...prev].slice(0, 25));
+        setStatusNotice(`Direct SMS delivered to ${selectedContact.name} (${selectedContact.phone}).`);
+      }
+      setManualSmsText('');
+    } catch (err: any) {
+      setStatusNotice(err?.message || 'SMS send failed.');
+    } finally {
+      setIsPlacingCallSms(false);
+    }
+  };
+
   const handleRecipientSwitch = (type: CallRecipientType) => {
     setRecipientType(type);
     if (type === 'doctor') {
-      webrtcRef.current?.sendRoomInvite('doctor', patientCtx.name);
-      setStatusNotice(`Paging on-call clinician in Room ${roomId} via WebRTC mesh...`);
+      setDirectoryTab('doctor');
+      const doc = directory.doctors[0];
+      if (doc) {
+        setSelectedContact(doc);
+        void triggerCallAndAutoSms(doc);
+      } else {
+        webrtcRef.current?.sendRoomInvite('doctor', patientCtx.name);
+        setStatusNotice(`Paging on-call clinician in Room ${roomId} via WebRTC mesh...`);
+      }
     } else if (type === 'emergency') {
       playSoftCallTone('ring');
+      const emg = directory.emergency[0];
+      if (emg) {
+        void triggerCallAndAutoSms(emg);
+      }
       const alertText = 'Emergency Triage Priority active. State your exact location and chief symptom immediately.';
-      setStatusNotice('Emergency 112 Priority Voice Line Active.');
+      setStatusNotice('Emergency 112 Priority Voice Line + Auto-SMS Active.');
       if (isSpeakerOn) speechEngine.speak(alertText, { rate: 0.98 });
     } else if (type === 'family') {
-      setStatusNotice(`Share Room ID ${roomId} with caregiver or family member to join audio.`);
+      setDirectoryTab('patient');
+      if (directory.patients[0]) setSelectedContact(directory.patients[0]);
+      setStatusNotice(`Select a registered patient below to call & dispatch automatic SMS (Room ${roomId}).`);
     } else {
       setStatusNotice('AI Clinical Voice Physician ready online or offline.');
     }
@@ -437,6 +562,128 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
               </div>
             </div>
 
+            {/* Registered Doctors & Patients Call + Automatic SMS Card */}
+            <div className="p-4 rounded-2xl bg-[#0C1425] border border-cyan-500/30 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Registered Phone Directory</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAutoSmsEnabled((v) => !v)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase cursor-pointer border transition-colors ${
+                    autoSmsEnabled
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                      : 'bg-slate-900 border-slate-700 text-slate-400'
+                  }`}
+                >
+                  Auto-SMS: {autoSmsEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDirectoryTab('doctor');
+                    setPairedNotifyId('');
+                    if (directory.doctors[0]) setSelectedContact(directory.doctors[0]);
+                  }}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                    directoryTab === 'doctor' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Doctors ({directory.doctors.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDirectoryTab('patient');
+                    setPairedNotifyId('');
+                    if (directory.patients[0]) setSelectedContact(directory.patients[0]);
+                  }}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                    directoryTab === 'patient' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Patients ({directory.patients.length})
+                </button>
+              </div>
+
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {(directoryTab === 'doctor' ? directory.doctors : directory.patients).map((c) => {
+                  const isSel = selectedContact?.id === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedContact(c)}
+                      className={`w-full px-2.5 py-2 rounded-xl border text-left transition-colors cursor-pointer flex items-center justify-between gap-2 ${
+                        isSel
+                          ? 'bg-blue-600/20 border-cyan-400 text-white'
+                          : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate">{c.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {c.specialty || c.district || c.mrn || c.role}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-cyan-300 shrink-0">{c.phone}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-2 pt-1 border-t border-slate-800">
+                <select
+                  value={pairedNotifyId}
+                  onChange={(e) => setPairedNotifyId(e.target.value)}
+                  aria-label="Also auto-SMS paired contact"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500"
+                >
+                  <option value="">
+                    {directoryTab === 'doctor'
+                      ? 'Optional: Also Auto-SMS a registered patient...'
+                      : 'Optional: Also Auto-SMS supervising doctor...'}
+                  </option>
+                  {(directoryTab === 'doctor' ? directory.patients : directory.doctors).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.phone})
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  value={customSmsText}
+                  onChange={(e) => setCustomSmsText(e.target.value)}
+                  placeholder="Optional custom SMS alert note..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                />
+
+                <button
+                  type="button"
+                  disabled={!selectedContact || isPlacingCallSms}
+                  onClick={() => void triggerCallAndAutoSms()}
+                  className="w-full min-h-[42px] px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/50"
+                >
+                  {isPlacingCallSms ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <PhoneCall className="w-4 h-4" />
+                  )}
+                  <span className="truncate">
+                    {selectedContact
+                      ? `Call & Auto-SMS ${selectedContact.name.split(' ')[0]}`
+                      : 'Call & Dispatch Auto-SMS'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             <div className="p-4 rounded-2xl bg-[#0C1425] border border-slate-800 space-y-2.5">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quick Voice Topics</h3>
               {[
@@ -449,7 +696,7 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
                   type="button"
                   onClick={() => void processVoiceQuery(prompt)}
                   disabled={isThinking}
-                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left text-xs text-slate-200 cursor-pointer transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left text-xs text-slate-200 cursor-pointer transition-colors"
                 >
                   {prompt}
                 </button>
@@ -653,6 +900,59 @@ export const DoctorianVoiceCallModal: React.FC<DoctorianVoiceCallModalProps> = (
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </form>
+            </div>
+
+            {/* Live SMS Dispatch Receipts & Manual Follow-up SMS */}
+            <div className="p-3.5 rounded-2xl bg-[#0C1425] border border-emerald-500/30 space-y-2 shrink-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Auto-SMS Dispatch Receipts ({smsDispatches.length})</span>
+                </h3>
+              </div>
+
+              {smsDispatches.length === 0 ? (
+                <p className="text-[11px] text-slate-500">
+                  Place a call above to automatically dispatch SMS alerts to registered doctor &amp; patient numbers.
+                </p>
+              ) : (
+                <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                  {smsDispatches.slice(0, 5).map((s) => (
+                    <div key={s.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-white truncate flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                          {s.recipientName}
+                        </span>
+                        <span className="font-mono text-cyan-300 shrink-0">{s.recipientPhone}</span>
+                      </div>
+                      <p className="text-slate-300 line-clamp-2">{s.messageBody}</p>
+                      <p className="text-[10px] font-mono text-slate-500">
+                        {s.gatewayProvider} · {s.providerMessageId} · {s.status.toUpperCase()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedContact && (
+                <form onSubmit={handleSendQuickSms} className="flex items-center gap-1.5 pt-1">
+                  <input
+                    type="text"
+                    value={manualSmsText}
+                    onChange={(e) => setManualSmsText(e.target.value)}
+                    placeholder={`SMS ${selectedContact.name} (${selectedContact.phone})...`}
+                    className="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!manualSmsText.trim() || isPlacingCallSms}
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[11px] font-bold cursor-pointer shrink-0"
+                  >
+                    Send SMS
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Real Saved Call History */}

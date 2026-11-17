@@ -32,10 +32,12 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS patients (
       id TEXT PRIMARY KEY,
       mrn TEXT UNIQUE NOT NULL,
+      user_id TEXT,
       full_name TEXT NOT NULL,
       age INTEGER NOT NULL,
       gender TEXT NOT NULL,
       district TEXT NOT NULL,
+      phone TEXT,
       blood_group TEXT,
       allergies TEXT DEFAULT 'None documented',
       chronic_conditions TEXT DEFAULT 'None documented',
@@ -247,15 +249,153 @@ export function initDatabase() {
       status TEXT NOT NULL DEFAULT 'confirmed',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS billing_transactions (
+      id TEXT PRIMARY KEY,
+      invoice_number TEXT UNIQUE NOT NULL,
+      user_id TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('protocol', 'storage', 'sms_bundle', 'pharmacy', 'consultation')),
+      item_id TEXT NOT NULL,
+      item_name TEXT NOT NULL,
+      subtotal_ugx INTEGER NOT NULL,
+      vat_ugx INTEGER NOT NULL DEFAULT 0,
+      amount_ugx INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'UGX',
+      payment_method TEXT NOT NULL,
+      payer_phone TEXT,
+      external_ref TEXT,
+      idempotency_key TEXT UNIQUE,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed', 'refunded')) DEFAULT 'completed',
+      receipt_hmac TEXT NOT NULL,
+      metadata_json TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS sms_dispatches (
+      id TEXT PRIMARY KEY,
+      call_session_id TEXT,
+      sender_id TEXT,
+      sender_name TEXT NOT NULL,
+      sender_role TEXT NOT NULL,
+      recipient_id TEXT,
+      recipient_name TEXT NOT NULL,
+      recipient_role TEXT NOT NULL CHECK (recipient_role IN ('doctor', 'nurse', 'patient', 'admin', 'emergency')),
+      recipient_phone TEXT NOT NULL,
+      message_body TEXT NOT NULL,
+      dispatch_mode TEXT NOT NULL DEFAULT 'auto_call_sms',
+      gateway_provider TEXT NOT NULL DEFAULT 'Doctorian GSM Neural Gateway',
+      provider_message_id TEXT,
+      status TEXT NOT NULL CHECK (status IN ('queued', 'sent', 'delivered', 'failed')) DEFAULT 'delivered',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS call_sessions (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      call_mode TEXT NOT NULL CHECK (call_mode IN ('voice', 'video')),
+      caller_id TEXT,
+      caller_name TEXT NOT NULL,
+      caller_role TEXT NOT NULL,
+      callee_id TEXT,
+      callee_name TEXT NOT NULL,
+      callee_role TEXT NOT NULL,
+      callee_phone TEXT,
+      auto_sms_sent INTEGER NOT NULL DEFAULT 0,
+      sms_dispatch_id TEXT,
+      status TEXT NOT NULL DEFAULT 'initiated',
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS account_connections (
+      id TEXT PRIMARY KEY,
+      pair_key TEXT UNIQUE NOT NULL,
+      requester_id TEXT NOT NULL,
+      recipient_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'declined', 'blocked_abuse', 'blocked_manual')) DEFAULT 'pending',
+      request_note TEXT,
+      initiated_by TEXT NOT NULL,
+      blocked_by TEXT,
+      block_reason TEXT,
+      patient_data_consent INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS moderation_incidents (
+      id TEXT PRIMARY KEY,
+      offender_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      pair_key TEXT NOT NULL,
+      channel TEXT NOT NULL,
+      matched_category TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      excerpt TEXT,
+      auto_blocked INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
-  // Safe idempotent security column migrations for existing databases
+  // Ensure billing_transactions CHECK allows sms_bundle if pre-existing DB was initialized earlier
+  try {
+    const btSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='billing_transactions'").get() as { sql?: string } | undefined;
+    if (btSqlRow?.sql && !btSqlRow.sql.includes("'sms_bundle'")) {
+      db.exec(`
+        ALTER TABLE billing_transactions RENAME TO billing_transactions_old;
+        CREATE TABLE billing_transactions (
+          id TEXT PRIMARY KEY,
+          invoice_number TEXT UNIQUE NOT NULL,
+          user_id TEXT NOT NULL,
+          user_email TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('protocol', 'storage', 'sms_bundle', 'pharmacy', 'consultation')),
+          item_id TEXT NOT NULL,
+          item_name TEXT NOT NULL,
+          subtotal_ugx INTEGER NOT NULL,
+          vat_ugx INTEGER NOT NULL DEFAULT 0,
+          amount_ugx INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'UGX',
+          payment_method TEXT NOT NULL,
+          payer_phone TEXT,
+          external_ref TEXT,
+          idempotency_key TEXT UNIQUE,
+          status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed', 'refunded')) DEFAULT 'completed',
+          receipt_hmac TEXT NOT NULL,
+          metadata_json TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO billing_transactions SELECT * FROM billing_transactions_old;
+        DROP TABLE billing_transactions_old;
+      `);
+    }
+  } catch (err) {
+    console.warn('billing_transactions migration check skipped:', err);
+  }
+
+  // Safe idempotent column migrations for existing databases
   const migrations = [
     "ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN locked_until INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN license_verified INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1",
-    "ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0"
+    "ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN subscription_tier TEXT NOT NULL DEFAULT 'free'",
+    "ALTER TABLE users ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'active'",
+    "ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT 400",
+    "ALTER TABLE users ADD COLUMN storageQuotaBytes INTEGER NOT NULL DEFAULT 1073741824",
+    "ALTER TABLE users ADD COLUMN billing_updated_at TEXT",
+    "ALTER TABLE users ADD COLUMN sms_credits INTEGER NOT NULL DEFAULT 25",
+    "ALTER TABLE users ADD COLUMN sms_revenue_ugx INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN linked_patient_id TEXT",
+    "ALTER TABLE patients ADD COLUMN phone TEXT",
+    "ALTER TABLE patients ADD COLUMN user_id TEXT",
+    "ALTER TABLE sms_dispatches ADD COLUMN segments INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE sms_dispatches ADD COLUMN cost_ugx INTEGER NOT NULL DEFAULT 60",
+    "ALTER TABLE sms_dispatches ADD COLUMN price_ugx INTEGER NOT NULL DEFAULT 150",
+    "ALTER TABLE sms_dispatches ADD COLUMN margin_ugx INTEGER NOT NULL DEFAULT 90"
   ];
   for (const sql of migrations) {
     try {
@@ -264,6 +404,12 @@ export function initDatabase() {
       // Column already exists
     }
   }
+
+  // Ensure every registered user without quota gets exact 1 GB free allocation and baseline SMS credits
+  try {
+    db.exec("UPDATE users SET storageQuotaBytes = 1073741824 WHERE storageQuotaBytes IS NULL OR storageQuotaBytes <= 0");
+    db.exec("UPDATE users SET sms_credits = 25 WHERE sms_credits IS NULL");
+  } catch {}
 
   seedInitialClinicalData();
   ensureHospitalBeds('mulago-national');
@@ -324,13 +470,36 @@ function seedInitialClinicalData() {
   const patientCount = (db.prepare('SELECT COUNT(*) as cnt FROM patients').get() as { cnt: number }).cnt;
   if (patientCount === 0) {
     const insertPatient = db.prepare(`
-      INSERT INTO patients (id, mrn, full_name, age, gender, district, blood_group, allergies, chronic_conditions, risk_tier, assigned_clinician_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO patients (id, mrn, user_id, full_name, age, gender, district, phone, blood_group, allergies, chronic_conditions, risk_tier, assigned_clinician_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    insertPatient.run('pat-001', 'DAI-2026-1187', 'Grace Namukasa', 29, 'Female', 'Kampala (Kawempe)', 'O+', 'None documented', 'Mild intermittent asthma', 'Stable', 'usr-doctor-01');
-    insertPatient.run('pat-002', 'DAI-2026-1204', 'Robert Okello', 47, 'Male', 'Gulu', 'A+', 'Sulfonamides', 'Essential Hypertension', 'Attention', 'usr-doctor-01');
-    insertPatient.run('pat-003', 'DAI-2026-1219', 'Miriam Tumusiime', 34, 'Female', 'Mbarara', 'B+', 'None documented', 'Gestational hypertension (32 wks)', 'Critical', 'usr-doctor-01');
-    insertPatient.run('pat-004', 'DAI-2026-1240', 'Isaac Wanyama', 6, 'Male', 'Mbale', 'O+', 'None documented', 'Acute febrile illness monitoring', 'Attention', 'usr-nurse-01');
+    insertPatient.run('pat-001', 'DAI-2026-1187', 'usr-patient-01', 'Grace Namukasa', 29, 'Female', 'Kampala (Kawempe)', '+256 772 410 220', 'O+', 'None documented', 'Mild intermittent asthma', 'Stable', 'usr-doctor-01');
+    insertPatient.run('pat-002', 'DAI-2026-1204', null, 'Robert Okello', 47, 'Male', 'Gulu', '+256 772 518 390', 'A+', 'Sulfonamides', 'Essential Hypertension', 'Attention', 'usr-doctor-01');
+    insertPatient.run('pat-003', 'DAI-2026-1219', null, 'Miriam Tumusiime', 34, 'Female', 'Mbarara', '+256 782 641 205', 'B+', 'None documented', 'Gestational hypertension (32 wks)', 'Critical', 'usr-doctor-01');
+    insertPatient.run('pat-004', 'DAI-2026-1240', null, 'Isaac Wanyama', 6, 'Male', 'Mbale', '+256 752 890 114', 'O+', 'None documented', 'Acute febrile illness monitoring', 'Attention', 'usr-nurse-01');
+  } else {
+    // Backfill registered phone numbers and patient user binding on existing seeded patients if null
+    try {
+      db.prepare("UPDATE patients SET phone = COALESCE(phone, '+256 772 410 220'), user_id = COALESCE(user_id, 'usr-patient-01') WHERE id = 'pat-001'").run();
+      db.prepare("UPDATE patients SET phone = COALESCE(phone, '+256 772 518 390') WHERE id = 'pat-002'").run();
+      db.prepare("UPDATE patients SET phone = COALESCE(phone, '+256 782 641 205') WHERE id = 'pat-003'").run();
+      db.prepare("UPDATE patients SET phone = COALESCE(phone, '+256 752 890 114') WHERE id = 'pat-004'").run();
+    } catch {}
+  }
+  try {
+    db.prepare("UPDATE users SET linked_patient_id = 'pat-001' WHERE id = 'usr-patient-01' AND linked_patient_id IS NULL").run();
+    // Pre-establish primary care doctor-patient accepted connection between usr-patient-01 and usr-doctor-01
+    const connCount = (db.prepare('SELECT COUNT(*) as cnt FROM account_connections').get() as { cnt: number }).cnt;
+    if (connCount === 0) {
+      db.prepare(`
+        INSERT OR IGNORE INTO account_connections (id, pair_key, requester_id, recipient_id, status, request_note, initiated_by, patient_data_consent)
+        VALUES ('conn-seed-001', 'usr-doctor-01::usr-patient-01', 'usr-patient-01', 'usr-doctor-01', 'accepted', 'Primary assigned physician link', 'usr-patient-01', 1)
+      `).run();
+    }
+  } catch {}
+
+  const rxCount = (db.prepare('SELECT COUNT(*) as cnt FROM prescriptions').get() as { cnt: number }).cnt;
+  if (rxCount === 0) {
 
     const insertRx = db.prepare(`
       INSERT INTO prescriptions (id, patient_id, patient_name, prescriber_id, prescriber_name, medication_name, dosage, frequency, duration, route, instructions, status, adherence_percent)

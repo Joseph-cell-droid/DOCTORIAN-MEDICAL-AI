@@ -4,16 +4,19 @@ export type DevicePlatformFamily = 'windows' | 'android' | 'tablet' | 'ios' | 'd
 
 export interface AppDownloadState {
   isInstalled: boolean;
+  hasSeenOnce: boolean;
   canPromptNatively: boolean;
   isIOS: boolean;
   isInIframe: boolean;
   platformFamily: DevicePlatformFamily;
   platformLabel: string;
   markInstalled: () => void;
+  markSeenOnce: (hideImmediately?: boolean) => void;
   triggerInstall: () => Promise<'accepted' | 'dismissed' | 'manual_guide'>;
 }
 
 const INSTALLED_STORAGE_KEY = 'doctorian_pwa_installed_flag';
+const INSTALL_SEEN_ONCE_KEY = 'doctorian_install_icon_seen_once_v1';
 
 function detectInstalledShell(): boolean {
   if (typeof window === 'undefined') return false;
@@ -56,6 +59,14 @@ export function usePWAInstall(): AppDownloadState {
     if (typeof window === 'undefined') return false;
     return detectInstalledShell() || localStorage.getItem(INSTALLED_STORAGE_KEY) === 'true';
   });
+  const [hasSeenOnce, setHasSeenOnce] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      localStorage.getItem(INSTALL_SEEN_ONCE_KEY) === 'true' ||
+      localStorage.getItem(INSTALLED_STORAGE_KEY) === 'true' ||
+      detectInstalledShell()
+    );
+  });
 
   const isIOS =
     typeof navigator !== 'undefined' &&
@@ -86,7 +97,11 @@ export function usePWAInstall(): AppDownloadState {
     const evaluateInstallStatus = async () => {
       if (detectInstalledShell()) {
         localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
-        if (mounted) setIsInstalled(true);
+        localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
+        if (mounted) {
+          setIsInstalled(true);
+          setHasSeenOnce(true);
+        }
         return;
       }
 
@@ -96,7 +111,11 @@ export function usePWAInstall(): AppDownloadState {
           const apps = await getRelated.call(navigator);
           if (Array.isArray(apps) && apps.length > 0) {
             localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
-            if (mounted) setIsInstalled(true);
+            localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
+            if (mounted) {
+              setIsInstalled(true);
+              setHasSeenOnce(true);
+            }
             return;
           }
         }
@@ -109,19 +128,19 @@ export function usePWAInstall(): AppDownloadState {
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
-      localStorage.removeItem(INSTALLED_STORAGE_KEY);
       (window as any).deferredPWAInstallPrompt = e;
       if (mounted) {
-        setIsInstalled(false);
         setDeferredPrompt(e);
       }
     };
 
     const onAppInstalled = () => {
       localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
+      localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
       (window as any).deferredPWAInstallPrompt = null;
       if (mounted) {
         setIsInstalled(true);
+        setHasSeenOnce(true);
         setDeferredPrompt(null);
       }
     };
@@ -136,11 +155,22 @@ export function usePWAInstall(): AppDownloadState {
     };
   }, []);
 
+  const markSeenOnce = useCallback((hideImmediately = false) => {
+    try {
+      localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
+    } catch {}
+    if (hideImmediately) {
+      setHasSeenOnce(true);
+    }
+  }, []);
+
   const markInstalled = useCallback(() => {
     try {
       localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
+      localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
     } catch {}
     setIsInstalled(true);
+    setHasSeenOnce(true);
   }, []);
 
   const triggerInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'manual_guide'> => {
@@ -155,22 +185,25 @@ export function usePWAInstall(): AppDownloadState {
           (window as any).deferredPWAInstallPrompt = null;
           return 'accepted';
         }
+        markSeenOnce(true);
         return 'dismissed';
       } catch {
         return 'manual_guide';
       }
     }
     return 'manual_guide';
-  }, [deferredPrompt, isInIframe, markInstalled]);
+  }, [deferredPrompt, isInIframe, markInstalled, markSeenOnce]);
 
   return {
     isInstalled,
+    hasSeenOnce,
     canPromptNatively: Boolean(deferredPrompt && !isInIframe),
     isIOS,
     isInIframe,
     platformFamily,
     platformLabel,
     markInstalled,
+    markSeenOnce,
     triggerInstall
   };
 }

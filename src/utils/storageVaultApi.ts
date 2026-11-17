@@ -69,6 +69,58 @@ export const STORAGE_EXPANSION_PLANS: StoragePlan[] = [
   },
 ];
 
+export interface StoragePolicy {
+  tier: 'free_1gb' | 'expanded_clinical' | 'enterprise_archive';
+  label: string;
+  totalQuotaBytes: number;
+  maxFileSizeBytes: number;
+  maxFiles: number;
+  uploadsPer10Min: number;
+  guestBlocked: boolean;
+  encryptionAtRest: 'AES-256-GCM';
+  magicByteFirewall: boolean;
+}
+
+export function computeLocalStoragePolicy(totalQuotaBytes: number): StoragePolicy {
+  if (totalQuotaBytes > 25 * 1024 * 1024 * 1024) {
+    return {
+      tier: 'enterprise_archive',
+      label: 'Enterprise Medical Repository',
+      totalQuotaBytes,
+      maxFileSizeBytes: 250 * 1024 * 1024,
+      maxFiles: 25000,
+      uploadsPer10Min: 80,
+      guestBlocked: true,
+      encryptionAtRest: 'AES-256-GCM',
+      magicByteFirewall: true,
+    };
+  }
+  if (totalQuotaBytes > FREE_STORAGE_QUOTA_BYTES) {
+    return {
+      tier: 'expanded_clinical',
+      label: 'Paid Clinical Expansion Vault',
+      totalQuotaBytes,
+      maxFileSizeBytes: 100 * 1024 * 1024,
+      maxFiles: 5000,
+      uploadsPer10Min: 60,
+      guestBlocked: true,
+      encryptionAtRest: 'AES-256-GCM',
+      magicByteFirewall: true,
+    };
+  }
+  return {
+    tier: 'free_1gb',
+    label: 'Free 1.00 GB Restricted Vault',
+    totalQuotaBytes: FREE_STORAGE_QUOTA_BYTES,
+    maxFileSizeBytes: 25 * 1024 * 1024,
+    maxFiles: 150,
+    uploadsPer10Min: 15,
+    guestBlocked: true,
+    encryptionAtRest: 'AES-256-GCM',
+    magicByteFirewall: true,
+  };
+}
+
 export interface StorageQuota {
   totalQuotaBytes: number;
   usedBytes: number;
@@ -76,6 +128,10 @@ export interface StorageQuota {
   fileCount: number;
   percentUsed: number;
   isFull?: boolean;
+  maxFiles?: number;
+  maxFileSizeBytes?: number;
+  tier?: string;
+  policy?: StoragePolicy;
 }
 
 export interface VaultFile {
@@ -170,6 +226,8 @@ export function getOfflineQuota(userId: string): StorageQuota {
   const percentUsed = Math.min(100, Number(((usedBytes / totalQuota) * 100).toFixed(2)));
   const isFull = usedBytes >= totalQuota || percentUsed >= 100;
 
+  const policy = computeLocalStoragePolicy(totalQuota);
+
   return {
     totalQuotaBytes: totalQuota,
     usedBytes,
@@ -177,6 +235,10 @@ export function getOfflineQuota(userId: string): StorageQuota {
     fileCount: files.length,
     percentUsed,
     isFull,
+    maxFiles: policy.maxFiles,
+    maxFileSizeBytes: policy.maxFileSizeBytes,
+    tier: policy.tier,
+    policy,
   };
 }
 
@@ -405,10 +467,12 @@ export async function uploadVaultFile(
     const data = await res.json();
     if (!res.ok) {
       const error: any = new Error(data.error || 'Upload failed');
-      error.quotaExceeded = Boolean(data.quotaExceeded || res.status === 400);
+      error.policyViolation = Boolean(data.policyViolation || res.status === 403 || res.status === 429);
+      error.quotaExceeded = Boolean(data.quotaExceeded);
       error.requiresBilling = Boolean(data.requiresBilling || data.quotaExceeded);
       error.isFull = Boolean(data.isFull);
       error.quota = data.quota;
+      error.policy = data.policy;
       throw error;
     }
 
@@ -417,8 +481,8 @@ export async function uploadVaultFile(
       quota: data.quota,
     };
   } catch (err: any) {
-    // If quota exceeded or requires billing, rethrow immediately to trigger billing
-    if (err.quotaExceeded || err.requiresBilling) {
+    // If quota exceeded, billing triggered, or security/storage policy violated, rethrow immediately
+    if (err.quotaExceeded || err.requiresBilling || err.policyViolation) {
       throw err;
     }
 
@@ -427,6 +491,32 @@ export async function uploadVaultFile(
     const email = sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
     const userId = email.replace(/[^a-zA-Z0-9]/g, '_');
     const currentQuota = getOfflineQuota(userId);
+    const policy = computeLocalStoragePolicy(currentQuota.totalQuotaBytes);
+
+    const blockedExts = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.vbs', '.scr', '.ps1', '.dll', '.apk', '.jar'];
+    if (blockedExts.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+      const secErr: any = new Error(`Security Firewall: Executable or binary files (${file.name}) are blocked from the clinical vault.`);
+      secErr.policyViolation = true;
+      throw secErr;
+    }
+
+    if (file.size > policy.maxFileSizeBytes) {
+      const sizeErr: any = new Error(
+        `Tier Restriction: Single file exceeds the ${formatBytes(policy.maxFileSizeBytes)} per-file limit on ${policy.label}. Upgrade storage to raise this ceiling.`
+      );
+      sizeErr.policyViolation = true;
+      sizeErr.requiresBilling = true;
+      throw sizeErr;
+    }
+
+    if (currentQuota.fileCount >= policy.maxFiles) {
+      const countErr: any = new Error(
+        `Object Cap Reached: ${policy.label} allows a maximum of ${policy.maxFiles} files (${currentQuota.fileCount} stored). Delete unused records or expand storage.`
+      );
+      countErr.policyViolation = true;
+      countErr.requiresBilling = true;
+      throw countErr;
+    }
 
     if (currentQuota.usedBytes + file.size > currentQuota.totalQuotaBytes) {
       const quotaErr: any = new Error(
@@ -494,7 +584,8 @@ export async function saveVaultUserData(
     const data = await res.json();
     if (!res.ok) {
       const error: any = new Error(data.error || 'Failed to save data to vault');
-      error.quotaExceeded = Boolean(data.quotaExceeded || res.status === 400);
+      error.policyViolation = Boolean(data.policyViolation || res.status === 403 || res.status === 429);
+      error.quotaExceeded = Boolean(data.quotaExceeded);
       error.requiresBilling = Boolean(data.requiresBilling || data.quotaExceeded);
       error.isFull = Boolean(data.isFull);
       error.quota = data.quota;
@@ -506,7 +597,7 @@ export async function saveVaultUserData(
       quota: data.quota,
     };
   } catch (err: any) {
-    if (err.quotaExceeded || err.requiresBilling) {
+    if (err.quotaExceeded || err.requiresBilling || err.policyViolation) {
       throw err;
     }
 
@@ -517,6 +608,15 @@ export async function saveVaultUserData(
     const size = new Blob([strContent]).size;
 
     const currentQuota = getOfflineQuota(userId);
+    const policy = computeLocalStoragePolicy(currentQuota.totalQuotaBytes);
+    if (currentQuota.fileCount >= policy.maxFiles) {
+      const countErr: any = new Error(
+        `Object Cap Reached: ${policy.label} allows max ${policy.maxFiles} objects.`
+      );
+      countErr.policyViolation = true;
+      countErr.requiresBilling = true;
+      throw countErr;
+    }
     if (currentQuota.usedBytes + size > currentQuota.totalQuotaBytes) {
       const quotaErr: any = new Error('Storage quota exceeded! Please purchase an expansion pack to continue.');
       quotaErr.quotaExceeded = true;
@@ -915,4 +1015,37 @@ export async function getVaultStatus(vaultToken: string): Promise<any> {
     },
   };
 }
+
+/**
+ * Fetch active account storage tier policy & strict restrictions
+ */
+export async function fetchStoragePolicies(vaultToken?: string): Promise<{
+  freeQuotaBytes: number;
+  activePolicy: StoragePolicy;
+  tiers: StoragePolicy[];
+}> {
+  try {
+    const res = await fetch('/api/storage/policies', {
+      headers: vaultToken ? { Authorization: `Bearer ${vaultToken}` } : undefined,
+      credentials: 'include',
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {}
+
+  const email = sessionStorage.getItem('doctorian_vault_user_email') || 'default_user';
+  const userId = email.replace(/[^a-zA-Z0-9]/g, '_');
+  const q = getOfflineQuota(userId);
+  return {
+    freeQuotaBytes: FREE_STORAGE_QUOTA_BYTES,
+    activePolicy: computeLocalStoragePolicy(q.totalQuotaBytes),
+    tiers: [
+      computeLocalStoragePolicy(FREE_STORAGE_QUOTA_BYTES),
+      computeLocalStoragePolicy(5 * FREE_STORAGE_QUOTA_BYTES),
+      computeLocalStoragePolicy(100 * FREE_STORAGE_QUOTA_BYTES),
+    ],
+  };
+}
+
 

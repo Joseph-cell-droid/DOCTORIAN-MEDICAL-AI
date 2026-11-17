@@ -33,6 +33,17 @@ import {
   timingSafeCompare
 } from './server/security.ts';
 import { setupStorageVaultRoutes } from './server/storageVault.ts';
+import { setupBillingRoutes } from './server/billing.ts';
+import { setupTelephonyRoutes } from './server/telephony.ts';
+import {
+  setupConnectionsRoutes,
+  inspectContentForAbuse,
+  blockConversationForAbuse,
+  canUsersConverse,
+  canAccessPatientRecord,
+  resolveOrRememberPatientProfile,
+  getConnectionBetween
+} from './server/connections.ts';
 import {
   initNeuralBus,
   dispatchNeuralSignal,
@@ -93,6 +104,12 @@ interface AuthUser {
   licenseNumber?: string | null;
   licenseVerified?: boolean;
   mfaEnabled?: boolean;
+  subscriptionTier?: string;
+  subscriptionStatus?: string;
+  credits?: number;
+  smsCredits?: number;
+  linkedPatientId?: string | null;
+  storageQuotaBytes?: number;
 }
 
 interface AuthedRequest extends Request {
@@ -155,7 +172,7 @@ function attachUser(req: AuthedRequest, _res: Response, next: NextFunction) {
       }
       // Always verify authoritative DB status & role
       const row = db
-        .prepare('SELECT id, email, display_name, role, specialty, facility, phone, license_number, status, license_verified, mfa_enabled FROM users WHERE id = ?')
+        .prepare('SELECT id, email, display_name, role, specialty, facility, phone, license_number, status, license_verified, mfa_enabled, subscription_tier, subscription_status, credits, sms_credits, linked_patient_id, storageQuotaBytes FROM users WHERE id = ?')
         .get(decoded.id) as any;
       if (!row || row.status !== 'active') {
         req.user = undefined;
@@ -171,7 +188,13 @@ function attachUser(req: AuthedRequest, _res: Response, next: NextFunction) {
         phone: row.phone,
         licenseNumber: row.license_number,
         licenseVerified: Boolean(row.license_verified),
-        mfaEnabled: Boolean(row.mfa_enabled)
+        mfaEnabled: Boolean(row.mfa_enabled),
+        subscriptionTier: row.subscription_tier || 'free',
+        subscriptionStatus: row.subscription_status || 'active',
+        credits: Number(row.credits ?? 400),
+        smsCredits: Number(row.sms_credits ?? 25),
+        linkedPatientId: row.linked_patient_id || null,
+        storageQuotaBytes: Number(row.storageQuotaBytes ?? 1073741824)
       };
       req.sessionJti = decoded.jti;
     } catch {
@@ -330,15 +353,26 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
     phone: row.phone,
     licenseNumber: row.license_number,
     licenseVerified: Boolean(row.license_verified),
-    mfaEnabled: Boolean(row.mfa_enabled)
+    mfaEnabled: Boolean(row.mfa_enabled),
+    subscriptionTier: row.subscription_tier || 'free',
+    subscriptionStatus: row.subscription_status || 'active',
+    credits: Number(row.credits ?? 400),
+    smsCredits: Number(row.sms_credits ?? 25),
+    linkedPatientId: row.linked_patient_id || null,
+    storageQuotaBytes: Number(row.storageQuotaBytes ?? 1073741824)
   };
+
+  const remembered = resolveOrRememberPatientProfile(user);
+  if (remembered?.patient?.id) {
+    user.linkedPatientId = remembered.patient.id;
+  }
 
   const token = signAuthToken(user, req);
   setSessionCookie(req, res, token);
 
   logAudit(user.id, user.email, user.role, 'USER_LOGIN', 'auth', 'Authenticated session started');
   recordSecurityEvent('USER_LOGIN_SUCCESS', 'info', ip, user.email, `Signed in cleanly as ${user.role}`);
-  return res.json({ user, token });
+  return res.json({ user, token, patientMemory: remembered });
 });
 
 app.post('/api/auth/signup', signupLimiter, (req, res) => {
@@ -443,15 +477,26 @@ app.post('/api/auth/signup', signupLimiter, (req, res) => {
     specialty: null,
     facility: facility ? String(facility).trim().slice(0, 100) : 'Doctorian Telehealth Clinic',
     phone: phone ? String(phone).trim().slice(0, 30) : null,
-    licenseVerified: false
+    licenseVerified: false,
+    subscriptionTier: 'free',
+    subscriptionStatus: 'active',
+    credits: 400,
+    smsCredits: 25,
+    linkedPatientId: null,
+    storageQuotaBytes: 1073741824
   };
+
+  const remembered = resolveOrRememberPatientProfile(user);
+  if (remembered?.patient?.id) {
+    user.linkedPatientId = remembered.patient.id;
+  }
 
   const token = signAuthToken(user, req);
   setSessionCookie(req, res, token);
 
   logAudit(user.id, user.email, user.role, 'USER_REGISTERED', 'auth', `Verified human registration as patient`);
   recordSecurityEvent('PATIENT_REGISTERED', 'info', ip, user.email, 'Verified patient registration via PoW + Puzzle');
-  return res.status(201).json({ user, token });
+  return res.status(201).json({ user, token, patientMemory: remembered });
 });
 
 app.post('/api/auth/guest', (req, res) => {
@@ -595,12 +640,22 @@ app.post('/api/auth/social', loginLimiter, async (req, res) => {
     specialty: row.specialty,
     facility: row.facility,
     phone: row.phone,
-    licenseVerified: Boolean(row.license_verified)
+    licenseVerified: Boolean(row.license_verified),
+    subscriptionTier: row.subscription_tier || 'free',
+    subscriptionStatus: row.subscription_status || 'active',
+    credits: Number(row.credits ?? 400),
+    smsCredits: Number(row.sms_credits ?? 25),
+    linkedPatientId: row.linked_patient_id || null,
+    storageQuotaBytes: Number(row.storageQuotaBytes ?? 1073741824)
   };
+  const remembered = resolveOrRememberPatientProfile(user);
+  if (remembered?.patient?.id) {
+    user.linkedPatientId = remembered.patient.id;
+  }
   const token = signAuthToken(user, req);
   setSessionCookie(req, res, token);
   logAudit(user.id, user.email, user.role, 'SOCIAL_LOGIN', 'auth', `Authenticated via ${provider}`);
-  return res.json({ user, token });
+  return res.json({ user, token, patientMemory: remembered });
 });
 
 app.patch('/api/auth/profile', requireNonGuest, (req: AuthedRequest, res) => {
@@ -631,7 +686,7 @@ app.patch('/api/auth/profile', requireNonGuest, (req: AuthedRequest, res) => {
 
   params.push(req.user!.id);
   db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-  const row = db.prepare('SELECT id, email, display_name, role, specialty, facility, phone, license_verified FROM users WHERE id = ?').get(req.user!.id) as any;
+  const row = db.prepare('SELECT id, email, display_name, role, specialty, facility, phone, license_verified, subscription_tier, subscription_status, credits, sms_credits, linked_patient_id, storageQuotaBytes FROM users WHERE id = ?').get(req.user!.id) as any;
   const user: AuthUser = {
     id: row.id,
     email: row.email,
@@ -640,7 +695,13 @@ app.patch('/api/auth/profile', requireNonGuest, (req: AuthedRequest, res) => {
     specialty: row.specialty,
     facility: row.facility,
     phone: row.phone,
-    licenseVerified: Boolean(row.license_verified)
+    licenseVerified: Boolean(row.license_verified),
+    subscriptionTier: row.subscription_tier || 'free',
+    subscriptionStatus: row.subscription_status || 'active',
+    credits: Number(row.credits ?? 400),
+    smsCredits: Number(row.sms_credits ?? 25),
+    linkedPatientId: row.linked_patient_id || null,
+    storageQuotaBytes: Number(row.storageQuotaBytes ?? 1073741824)
   };
   logAudit(user.id, user.email, user.role, 'PROFILE_UPDATED', 'auth', 'Updated own profile details');
   return res.json({ user });
@@ -755,8 +816,12 @@ app.get('/api/auth/me', (req: AuthedRequest, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
+  const remembered = req.user.role !== 'guest' ? resolveOrRememberPatientProfile(req.user) : null;
+  if (remembered?.patient?.id && !req.user.linkedPatientId) {
+    req.user.linkedPatientId = remembered.patient.id;
+  }
   issueCsrfCookie(req, res);
-  res.json({ user: req.user });
+  res.json({ user: req.user, patientMemory: remembered });
 });
 
 // ---------------------------------------------------------------------------
@@ -1246,11 +1311,12 @@ app.post('/api/clinical/predictive-triage', (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/patients', requireNonGuest, (req: AuthedRequest, res) => {
   if (req.user?.role === 'patient') {
-    const own = db.prepare('SELECT * FROM patients WHERE LOWER(full_name) = LOWER(?) LIMIT 1').all(req.user.displayName);
-    return res.json({ patients: own });
+    const remembered = resolveOrRememberPatientProfile(req.user);
+    return res.json({ patients: remembered?.patient ? [remembered.patient] : [] });
   }
-  const patients = db.prepare('SELECT * FROM patients ORDER BY updated_at DESC').all();
-  res.json({ patients });
+  const allPatients = db.prepare('SELECT * FROM patients ORDER BY updated_at DESC').all() as any[];
+  const authorized = allPatients.filter((p) => canAccessPatientRecord(req.user, p));
+  res.json({ patients: authorized });
 });
 
 app.post('/api/patients', requireRoles(['doctor', 'nurse', 'admin']), (req: AuthedRequest, res) => {
@@ -1272,10 +1338,17 @@ app.post('/api/patients', requireRoles(['doctor', 'nurse', 'admin']), (req: Auth
 
 app.get('/api/prescriptions', requireNonGuest, (req: AuthedRequest, res) => {
   if (req.user?.role === 'patient') {
-    const rows = db.prepare('SELECT * FROM prescriptions WHERE LOWER(patient_name) = LOWER(?) ORDER BY created_at DESC').all(req.user.displayName);
-    return res.json({ prescriptions: rows.length ? rows : db.prepare('SELECT * FROM prescriptions WHERE patient_id = ?').all('pat-001') });
+    const remembered = resolveOrRememberPatientProfile(req.user);
+    const pid = remembered?.patient?.id;
+    const rows = pid
+      ? db.prepare('SELECT * FROM prescriptions WHERE patient_id = ? OR LOWER(patient_name) = LOWER(?) ORDER BY created_at DESC').all(pid, req.user.displayName)
+      : [];
+    return res.json({ prescriptions: rows });
   }
-  const rows = db.prepare('SELECT * FROM prescriptions ORDER BY created_at DESC').all();
+  const allPatients = db.prepare('SELECT * FROM patients').all() as any[];
+  const allowedIds = new Set(allPatients.filter((p) => canAccessPatientRecord(req.user, p)).map((p) => p.id));
+  const rows = (db.prepare('SELECT * FROM prescriptions ORDER BY created_at DESC').all() as any[])
+    .filter((r) => allowedIds.has(r.patient_id) || r.prescriber_id === req.user?.id);
   res.json({ prescriptions: rows });
 });
 
@@ -1283,6 +1356,10 @@ app.post('/api/prescriptions', requireRoles(['doctor', 'admin']), (req: AuthedRe
   const { patientId = 'pat-001', patientName, medicationName, dosage, frequency, duration, route = 'Oral', instructions = '' } = req.body || {};
   if (!patientName || !medicationName || !dosage || !frequency || !duration) {
     return res.status(400).json({ error: 'Patient name, medication, dosage, frequency, and duration are required.' });
+  }
+  const targetPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId) as any;
+  if (targetPatient && !canAccessPatientRecord(req.user, targetPatient)) {
+    return res.status(403).json({ error: 'Access denied: patient connection or assignment required to prescribe for this record.' });
   }
   const id = `rx-${Date.now()}`;
   db.prepare(`
@@ -1303,13 +1380,20 @@ app.patch('/api/prescriptions/:id', requireRoles(['doctor', 'nurse', 'admin', 'p
     return res.status(404).json({ error: 'Prescription not found.' });
   }
   if (req.user?.role === 'patient') {
+    const remembered = resolveOrRememberPatientProfile(req.user);
     const isOwner =
-      existingRx.patient_name?.toLowerCase() === req.user.displayName.toLowerCase() || existingRx.patient_id === 'pat-001';
+      existingRx.patient_name?.toLowerCase() === req.user.displayName.toLowerCase() ||
+      (remembered?.patient?.id && existingRx.patient_id === remembered.patient.id);
     if (!isOwner) {
       return res.status(403).json({ error: 'Access denied: cannot modify another patient prescription.' });
     }
     if (status && status === 'active') {
       return res.status(403).json({ error: 'Only licensed clinicians may approve prescriptions.' });
+    }
+  } else {
+    const targetPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(existingRx.patient_id) as any;
+    if (targetPatient && !canAccessPatientRecord(req.user, targetPatient)) {
+      return res.status(403).json({ error: 'Access denied: no accepted care connection with this patient.' });
     }
   }
   if (status) {
@@ -1324,10 +1408,17 @@ app.patch('/api/prescriptions/:id', requireRoles(['doctor', 'nurse', 'admin', 'p
 
 app.get('/api/labs', requireNonGuest, (req: AuthedRequest, res) => {
   if (req.user?.role === 'patient') {
-    const rows = db.prepare('SELECT * FROM lab_results WHERE LOWER(patient_name) = LOWER(?) ORDER BY created_at DESC').all(req.user.displayName);
-    return res.json({ labs: rows.length ? rows : db.prepare('SELECT * FROM lab_results WHERE patient_id = ?').all('pat-001') });
+    const remembered = resolveOrRememberPatientProfile(req.user);
+    const pid = remembered?.patient?.id;
+    const rows = pid
+      ? db.prepare('SELECT * FROM lab_results WHERE patient_id = ? OR LOWER(patient_name) = LOWER(?) ORDER BY created_at DESC').all(pid, req.user.displayName)
+      : [];
+    return res.json({ labs: rows });
   }
-  const rows = db.prepare('SELECT * FROM lab_results ORDER BY created_at DESC').all();
+  const allPatients = db.prepare('SELECT * FROM patients').all() as any[];
+  const allowedIds = new Set(allPatients.filter((p) => canAccessPatientRecord(req.user, p)).map((p) => p.id));
+  const rows = (db.prepare('SELECT * FROM lab_results ORDER BY created_at DESC').all() as any[])
+    .filter((r) => allowedIds.has(r.patient_id));
   res.json({ labs: rows });
 });
 
@@ -1335,6 +1426,10 @@ app.post('/api/labs', requireRoles(['doctor', 'nurse', 'admin']), (req: AuthedRe
   const { patientId = 'pat-001', patientName, testName, category = 'General', resultValue, referenceRange = 'See guideline', unit = '', interpretation = 'Normal' } = req.body || {};
   if (!patientName || !testName || !resultValue) {
     return res.status(400).json({ error: 'Patient name, test name, and result value are required.' });
+  }
+  const targetPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId) as any;
+  if (targetPatient && !canAccessPatientRecord(req.user, targetPatient)) {
+    return res.status(403).json({ error: 'Access denied: patient connection or assignment required to log lab results.' });
   }
   const id = `lab-${Date.now()}`;
   db.prepare(`
@@ -1348,17 +1443,25 @@ app.post('/api/labs', requireRoles(['doctor', 'nurse', 'admin']), (req: AuthedRe
 
 app.get('/api/vitals', requireNonGuest, (req: AuthedRequest, res) => {
   if (req.user?.role === 'patient') {
-    const ownPatient = db
-      .prepare('SELECT id FROM patients WHERE LOWER(full_name) = LOWER(?) LIMIT 1')
-      .get(req.user.displayName) as { id?: string } | undefined;
-    const scopedId = ownPatient?.id || 'pat-001';
+    const remembered = resolveOrRememberPatientProfile(req.user);
+    const scopedId = remembered?.patient?.id;
+    if (!scopedId) return res.json({ vitals: [] });
     const rows = db.prepare('SELECT * FROM vital_signs WHERE patient_id = ? ORDER BY recorded_at DESC LIMIT 30').all(scopedId);
     return res.json({ vitals: rows });
   }
   const patientId = typeof req.query.patientId === 'string' ? req.query.patientId : null;
-  const rows = patientId
-    ? db.prepare('SELECT * FROM vital_signs WHERE patient_id = ? ORDER BY recorded_at DESC LIMIT 30').all(patientId)
-    : db.prepare('SELECT * FROM vital_signs ORDER BY recorded_at DESC LIMIT 30').all();
+  if (patientId) {
+    const targetPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId) as any;
+    if (targetPatient && !canAccessPatientRecord(req.user, targetPatient)) {
+      return res.status(403).json({ error: 'Access denied: patient connection or assignment required to view vitals.' });
+    }
+    return res.json({ vitals: db.prepare('SELECT * FROM vital_signs WHERE patient_id = ? ORDER BY recorded_at DESC LIMIT 30').all(patientId) });
+  }
+  const allPatients = db.prepare('SELECT * FROM patients').all() as any[];
+  const allowedIds = new Set(allPatients.filter((p) => canAccessPatientRecord(req.user, p)).map((p) => p.id));
+  const rows = (db.prepare('SELECT * FROM vital_signs ORDER BY recorded_at DESC LIMIT 60').all() as any[])
+    .filter((v) => allowedIds.has(v.patient_id))
+    .slice(0, 30);
   res.json({ vitals: rows });
 });
 
@@ -1366,10 +1469,13 @@ app.post('/api/vitals', requireRoles(['doctor', 'nurse', 'admin', 'patient']), (
   const { patientId = 'pat-001', heartRate, systolicBp, diastolicBp, spo2, temperature, respiratoryRate = 18, notes = '' } = req.body || {};
   let effectivePatientId = patientId;
   if (req.user?.role === 'patient') {
-    const ownPatient = db
-      .prepare('SELECT id FROM patients WHERE LOWER(full_name) = LOWER(?) LIMIT 1')
-      .get(req.user.displayName) as { id?: string } | undefined;
-    effectivePatientId = ownPatient?.id || 'pat-001';
+    const remembered = resolveOrRememberPatientProfile(req.user);
+    effectivePatientId = remembered?.patient?.id || patientId;
+  } else {
+    const targetPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(effectivePatientId) as any;
+    if (targetPatient && !canAccessPatientRecord(req.user, targetPatient)) {
+      return res.status(403).json({ error: 'Access denied: cannot record vitals for an unconnected patient.' });
+    }
   }
   const id = `vit-${Date.now()}`;
   db.prepare(`
@@ -1405,12 +1511,18 @@ app.post('/api/vitals', requireRoles(['doctor', 'nurse', 'admin', 'patient']), (
 
 app.get('/api/appointments', requireNonGuest, (req: AuthedRequest, res) => {
   if (req.user?.role === 'patient') {
-    const own = db
-      .prepare('SELECT * FROM appointments WHERE LOWER(patient_name) = LOWER(?) ORDER BY scheduled_for ASC')
-      .all(req.user.displayName);
+    const remembered = resolveOrRememberPatientProfile(req.user);
+    const pid = remembered?.patient?.id;
+    const own = pid
+      ? db.prepare('SELECT * FROM appointments WHERE patient_id = ? OR LOWER(patient_name) = LOWER(?) ORDER BY scheduled_for ASC').all(pid, req.user.displayName)
+      : db.prepare('SELECT * FROM appointments WHERE LOWER(patient_name) = LOWER(?) ORDER BY scheduled_for ASC').all(req.user.displayName);
     return res.json({ appointments: own });
   }
-  res.json({ appointments: db.prepare('SELECT * FROM appointments ORDER BY scheduled_for ASC').all() });
+  const allPatients = db.prepare('SELECT * FROM patients').all() as any[];
+  const allowedIds = new Set(allPatients.filter((p) => canAccessPatientRecord(req.user, p)).map((p) => p.id));
+  const rows = (db.prepare('SELECT * FROM appointments ORDER BY scheduled_for ASC').all() as any[])
+    .filter((a) => allowedIds.has(a.patient_id));
+  res.json({ appointments: rows });
 });
 
 app.post('/api/appointments', requireNonGuest, (req: AuthedRequest, res) => {
@@ -1756,43 +1868,70 @@ app.post('/api/dashboard/appointments/:id/toggle', requireNonGuest, (req: Authed
   res.json(getLiveDashboardSummaryPayload(hospitalId, req.user!.id));
 });
 
-// Mount Hardened 1GB Encrypted Cloud Storage Vault Routes
+// Mount Hardened 1GB Encrypted Cloud Storage Vault, Verified Billing Ledger, Telephony Auto-SMS & Account Connection Privacy Routes
 setupStorageVaultRoutes(app, db, JWT_SECRET, async () => {});
+setupBillingRoutes(app, dispatchNeuralSignal);
+setupTelephonyRoutes(app, dispatchNeuralSignal);
+setupConnectionsRoutes(app, dispatchNeuralSignal);
 
 // ---------------------------------------------------------------------------
 // MULTI-ROLE SERVER NEURAL COMMUNICATION BUS & NETWORK MESSENGER ROUTES
 // ---------------------------------------------------------------------------
-app.get('/api/network/users', (req: AuthedRequest, res) => {
+app.get('/api/network/users', requireNonGuest, (req: AuthedRequest, res) => {
+  const meId = req.user!.id;
   const rows = db
     .prepare(`
       SELECT id, email, display_name, role, specialty, facility, phone, status, created_at
       FROM users
-      WHERE status = 'active'
+      WHERE status = 'active' AND role != 'guest'
       ORDER BY role ASC, display_name ASC
     `)
     .all() as any[];
 
-  const users = rows.map((u) => ({
-    id: u.id,
-    email: req.user ? u.email : `${u.role}@doctorian.org`,
-    displayName: u.display_name,
-    role: u.role,
-    specialty: u.specialty,
-    facility: u.facility,
-    phone: req.user && req.user.role !== 'guest' ? u.phone : undefined,
-    isDoctor: u.role === 'doctor' || u.role === 'nurse',
-    isAdmin: u.role === 'admin',
-    isOnline: true,
-    createdAt: u.created_at
-  }));
+  const users = rows.map((u) => {
+    const conn = u.id === meId ? null : getConnectionBetween(meId, u.id);
+    const connectionStatus = u.id === meId ? 'self' : conn?.status || 'none';
+    const isConnected = connectionStatus === 'accepted';
+    return {
+      id: u.id,
+      email: isConnected || req.user!.role === 'admin' || u.id === meId ? u.email : `${u.role}@doctorian.org`,
+      displayName: u.display_name,
+      role: u.role,
+      specialty: u.specialty,
+      facility: u.facility,
+      phone: isConnected || req.user!.role === 'admin' || u.id === meId ? u.phone : undefined,
+      isDoctor: u.role === 'doctor' || u.role === 'nurse',
+      isAdmin: u.role === 'admin',
+      isOnline: true,
+      connectionId: conn?.id || null,
+      connectionStatus,
+      isConnected,
+      initiatedByMe: conn ? conn.initiated_by === meId : false,
+      blockReason: conn?.block_reason || null,
+      createdAt: u.created_at
+    };
+  });
 
   res.json({ users, total: users.length });
 });
 
-app.get('/api/network/messages', (req: AuthedRequest, res) => {
+app.get('/api/network/messages', requireNonGuest, (req: AuthedRequest, res) => {
   const channel = typeof req.query.channel === 'string' ? req.query.channel : undefined;
   const peerId = typeof req.query.peerId === 'string' ? req.query.peerId : undefined;
   const eventType = typeof req.query.eventType === 'string' ? req.query.eventType : undefined;
+
+  if (peerId && peerId.startsWith('usr-')) {
+    const conn = getConnectionBetween(req.user!.id, peerId);
+    if (conn && (conn.status === 'blocked_abuse' || conn.status === 'blocked_manual')) {
+      return res.json({
+        messages: [],
+        count: 0,
+        blocked: true,
+        connectionStatus: conn.status,
+        blockReason: conn.block_reason || 'Conversation locked for safety.'
+      });
+    }
+  }
 
   const messages = queryNeuralMessages({
     channel,
@@ -1805,7 +1944,7 @@ app.get('/api/network/messages', (req: AuthedRequest, res) => {
   res.json({ messages, count: messages.length });
 });
 
-app.post('/api/network/messages', requireAuth, (req: AuthedRequest, res) => {
+app.post('/api/network/messages', requireNonGuest, (req: AuthedRequest, res) => {
   const {
     recipientId = 'all',
     recipientName,
@@ -1819,6 +1958,62 @@ app.post('/api/network/messages', requireAuth, (req: AuthedRequest, res) => {
 
   if (!content || !String(content).trim()) {
     return res.status(400).json({ error: 'Message content is required.' });
+  }
+
+  const cleanText = String(content).trim().slice(0, 4000);
+  const targetUserId =
+    recipientId && !String(recipientId).startsWith('role:') && recipientId !== 'all'
+      ? String(recipientId)
+      : null;
+
+  // 1. Real-time Abuse Shield inspection before routing
+  const abuse = inspectContentForAbuse(`${subject || ''} ${cleanText}`);
+  if (abuse.isAbusive) {
+    if (targetUserId && targetUserId.startsWith('usr-')) {
+      const blockResult = blockConversationForAbuse({
+        offenderId: req.user!.id,
+        offenderEmail: req.user!.email,
+        offenderRole: req.user!.role,
+        targetId: targetUserId,
+        channel: String(channel),
+        category: abuse.matchedCategory,
+        severity: abuse.severity,
+        reason: abuse.reason,
+        excerpt: cleanText,
+        ip: getClientIp(req)
+      });
+      dispatchNeuralSignal({
+        channel: 'security_alerts',
+        eventType: 'alert',
+        senderId: 'safety-moderation-shield',
+        senderName: 'Doctorian Safety Shield',
+        senderRole: 'admin',
+        targetRole: 'all',
+        targetUserId: targetUserId,
+        subject: 'Abusive Conversation Automatically Locked',
+        content: `A direct message between ${req.user!.displayName} and recipient was blocked (${abuse.reason}).`,
+        payload: blockResult,
+        priority: 'stat_emergency'
+      });
+    }
+    return res.status(403).json({
+      error: `Abusive content detected (${abuse.reason}). Conversation between these two accounts has been automatically blocked.`,
+      blockedForAbuse: true,
+      connectionStatus: 'blocked_abuse'
+    });
+  }
+
+  // 2. Enforce accepted Friend Request for direct registered-account conversations
+  if (targetUserId && targetUserId.startsWith('usr-') && targetUserId !== req.user!.id) {
+    const gate = canUsersConverse(req.user!.id, targetUserId);
+    if (!gate.allowed) {
+      return res.status(403).json({
+        error: gate.reason || 'Send and accept a friend request before messaging this account.',
+        connectionRequired: gate.status === 'none' || gate.status === 'pending' || gate.status === 'declined',
+        connectionStatus: gate.status,
+        blockedForAbuse: gate.status === 'blocked_abuse'
+      });
+    }
   }
 
   let targetRole: 'all' | 'patient' | 'doctor' | 'nurse' | 'admin' = 'all';
@@ -1841,10 +2036,10 @@ app.post('/api/network/messages', requireAuth, (req: AuthedRequest, res) => {
     senderRole: req.user!.role,
     senderSpecialty: req.user!.specialty || undefined,
     targetRole,
-    targetUserId: recipientId && !String(recipientId).startsWith('role:') && recipientId !== 'all' ? String(recipientId) : null,
+    targetUserId,
     recipientName: recipientName ? String(recipientName) : null,
     subject: subject ? String(subject) : undefined,
-    content: String(content).trim().slice(0, 4000),
+    content: cleanText,
     payload: attachments,
     priority: ['normal', 'urgent', 'stat_emergency'].includes(priority) ? priority : 'normal'
   });

@@ -25,8 +25,12 @@ import {
   Check,
   WifiOff,
   Clock,
-  FileText
+  FileText,
+  PhoneCall,
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
+import { api, type TelephonyContact, type SmsDispatchRecord } from '../api';
 import { UGANDAN_CLINICIAN_PERSONAS, ClinicianPersona } from '../utils/ugandanMedicalLexicon';
 import { speechEngine } from '../utils/speechEngine';
 import {
@@ -69,7 +73,7 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Side drawer tabs
-  const [activeTab, setActiveTab] = useState<'dialogue' | 'vitals' | 'room'>('dialogue');
+  const [activeTab, setActiveTab] = useState<'dialogue' | 'sms' | 'vitals' | 'room'>('dialogue');
 
   // Call timing & WebRTC state
   const [callSeconds, setCallSeconds] = useState(0);
@@ -108,6 +112,21 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
   const [savedHistory, setSavedHistory] = useState<PersistedCallRecord[]>(() => getCallHistoryRecords());
   const [rxSentNotice, setRxSentNotice] = useState<string | null>(null);
 
+  // Registered Doctors & Patients Telephony + Auto-SMS State
+  const [directory, setDirectory] = useState<{
+    doctors: TelephonyContact[];
+    patients: TelephonyContact[];
+    emergency: TelephonyContact[];
+  }>({ doctors: [], patients: [], emergency: [] });
+  const [smsGroup, setSmsGroup] = useState<'doctor' | 'patient'>('doctor');
+  const [selectedSmsContact, setSelectedSmsContact] = useState<TelephonyContact | null>(null);
+  const [pairedNotifyId, setPairedNotifyId] = useState<string>('');
+  const [autoSmsEnabled, setAutoSmsEnabled] = useState<boolean>(true);
+  const [customSmsNote, setCustomSmsNote] = useState<string>('');
+  const [smsDispatches, setSmsDispatches] = useState<SmsDispatchRecord[]>([]);
+  const [isDispatchingSms, setIsDispatchingSms] = useState<boolean>(false);
+  const [smsStatusBanner, setSmsStatusBanner] = useState<string | null>(null);
+
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -137,15 +156,83 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
     };
   }, []);
 
-  // Call duration timer & soft connect chime
+  // Call duration timer, soft connect chime, and Registered Phone Directory sync
   useEffect(() => {
     if (!isOpen) return;
     playSoftCallTone('connect');
     const timer = window.setInterval(() => {
       setCallSeconds((s) => s + 1);
     }, 1000);
-    return () => window.clearInterval(timer);
+
+    let cancelled = false;
+    void api.telephony.getDirectory().then((dir) => {
+      if (cancelled) return;
+      setDirectory(dir);
+      setSelectedSmsContact((prev) => prev || dir.doctors[0] || dir.patients[0] || null);
+    });
+    void api.telephony.getLogs().then((logs) => {
+      if (cancelled) return;
+      if (logs.sms.length > 0) setSmsDispatches(logs.sms);
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [isOpen]);
+
+  const handleVideoCallAndSms = useCallback(
+    async (targetOverride?: TelephonyContact) => {
+      const target = targetOverride || selectedSmsContact;
+      if (!target) {
+        setSmsStatusBanner('Select a registered doctor or patient first.');
+        return;
+      }
+      setIsDispatchingSms(true);
+      playSoftCallTone('ring');
+      setPeerState('ringing');
+      webrtcRef.current?.sendRoomInvite(target.role === 'patient' ? 'patient' : 'doctor', target.name);
+
+      try {
+        const res = await api.telephony.callAndSms({
+          roomId,
+          callMode: 'video',
+          calleeId: target.id,
+          calleeName: target.name,
+          calleeRole: target.role,
+          calleePhone: target.phone,
+          autoSendSms: autoSmsEnabled,
+          customSmsMessage: customSmsNote.trim() || undefined,
+          notifyPatientId: target.role !== 'patient' && pairedNotifyId ? pairedNotifyId : undefined,
+          notifyDoctorId: target.role === 'patient' && pairedNotifyId ? pairedNotifyId : undefined
+        });
+
+        if (res.smsDispatches?.length > 0) {
+          setSmsDispatches((prev) => [...res.smsDispatches, ...prev].slice(0, 25));
+          const sentTo = res.smsDispatches.map((s) => `${s.recipientName} (${s.recipientPhone})`).join(' & ');
+          setSmsStatusBanner(`Video Invite & Auto-SMS sent to ${sentTo}`);
+          setTranscript((prev) => [
+            ...prev,
+            {
+              id: `sys-vsms-${Date.now()}`,
+              speaker: 'System',
+              speakerName: 'Telephony & Auto-SMS Gateway',
+              text: `Video Consultation ringing ${target.name} (${target.phone}). Automatic SMS dispatched to ${sentTo} [${res.smsDispatches[0].providerMessageId}].`,
+              time: formatTimer(callSeconds)
+            }
+          ]);
+        } else {
+          setSmsStatusBanner(`Video Room ${roomId} ringing ${target.name} (${target.phone}).`);
+        }
+        setCustomSmsNote('');
+      } catch (err: any) {
+        setSmsStatusBanner(err?.message || 'Failed to ring / dispatch SMS.');
+      } finally {
+        setIsDispatchingSms(false);
+      }
+    },
+    [selectedSmsContact, roomId, autoSmsEnabled, customSmsNote, pairedNotifyId, callSeconds]
+  );
 
   // WebRTC Peer Session Lifecycle
   useEffect(() => {
@@ -677,11 +764,11 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
           {/* RIGHT 4 COLS: Smart Clinical Consultation Panel */}
           <aside className="lg:col-span-4 flex flex-col min-h-0 rounded-2xl bg-[#0C1425] border border-slate-800 overflow-hidden">
             {/* Segmented Tab Control */}
-            <div className="p-2 bg-[#08101E] border-b border-slate-800 grid grid-cols-3 gap-1 shrink-0">
+            <div className="p-2 bg-[#08101E] border-b border-slate-800 grid grid-cols-4 gap-1 shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('dialogue')}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                   activeTab === 'dialogue' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -689,21 +776,30 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab('sms')}
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                  activeTab === 'sms' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Call &amp; SMS
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab('vitals')}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                   activeTab === 'vitals' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Vitals & Rx
+                Vitals &amp; Rx
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('room')}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                   activeTab === 'room' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Peer & Log
+                Peer &amp; Log
               </button>
             </div>
 
@@ -781,6 +877,147 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
                     <span>Send</span>
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* Tab: Registered Doctors & Patients Video Ring + Automatic SMS */}
+            {activeTab === 'sms' && (
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>Registered Numbers</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setAutoSmsEnabled((v) => !v)}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase cursor-pointer border ${
+                      autoSmsEnabled
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-900 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    Auto-SMS: {autoSmsEnabled ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmsGroup('doctor');
+                      setPairedNotifyId('');
+                      if (directory.doctors[0]) setSelectedSmsContact(directory.doctors[0]);
+                    }}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold cursor-pointer ${
+                      smsGroup === 'doctor' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Doctors ({directory.doctors.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmsGroup('patient');
+                      setPairedNotifyId('');
+                      if (directory.patients[0]) setSelectedSmsContact(directory.patients[0]);
+                    }}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold cursor-pointer ${
+                      smsGroup === 'patient' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Patients ({directory.patients.length})
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {(smsGroup === 'doctor' ? directory.doctors : directory.patients).map((c) => {
+                    const isSel = selectedSmsContact?.id === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedSmsContact(c)}
+                        className={`w-full px-2.5 py-2 rounded-xl border text-left cursor-pointer flex items-center justify-between gap-2 ${
+                          isSel
+                            ? 'bg-blue-600/20 border-cyan-400 text-white'
+                            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">{c.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {c.specialty || c.district || c.mrn || c.role}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold text-cyan-300 shrink-0">{c.phone}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <select
+                    value={pairedNotifyId}
+                    onChange={(e) => setPairedNotifyId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="">
+                      {smsGroup === 'doctor'
+                        ? 'Optional: Also Auto-SMS a registered patient...'
+                        : 'Optional: Also Auto-SMS supervising doctor...'}
+                    </option>
+                    {(smsGroup === 'doctor' ? directory.patients : directory.doctors).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.phone})
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    value={customSmsNote}
+                    onChange={(e) => setCustomSmsNote(e.target.value)}
+                    placeholder="Custom SMS video invite or triage note..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={!selectedSmsContact || isDispatchingSms}
+                    onClick={() => void handleVideoCallAndSms()}
+                    className="w-full min-h-[42px] px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isDispatchingSms ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}
+                    <span>
+                      {selectedSmsContact ? `Video Call & Auto-SMS ${selectedSmsContact.name.split(' ')[0]}` : 'Call & Auto-SMS'}
+                    </span>
+                  </button>
+
+                  {smsStatusBanner && (
+                    <p className="text-[11px] text-emerald-300 bg-emerald-950/40 border border-emerald-700/40 rounded-xl px-2.5 py-1.5">
+                      {smsStatusBanner}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Dispatched SMS Log ({smsDispatches.length})
+                  </p>
+                  {smsDispatches.slice(0, 6).map((s) => (
+                    <div key={s.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-white truncate flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                          {s.recipientName}
+                        </span>
+                        <span className="font-mono text-cyan-300 shrink-0">{s.recipientPhone}</span>
+                      </div>
+                      <p className="text-slate-300 line-clamp-2">{s.messageBody}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -882,10 +1119,15 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
                     </button>
                     <button
                       type="button"
-                      onClick={() => webrtcRef.current?.sendRoomInvite('doctor', patientCtx.name)}
+                      onClick={() => {
+                        setActiveTab('sms');
+                        const doc = directory.doctors[0];
+                        if (doc) void handleVideoCallAndSms(doc);
+                        else webrtcRef.current?.sendRoomInvite('doctor', patientCtx.name);
+                      }}
                       className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white cursor-pointer"
                     >
-                      Ring Doctor Node
+                      Ring &amp; Auto-SMS Doctor
                     </button>
                   </div>
 

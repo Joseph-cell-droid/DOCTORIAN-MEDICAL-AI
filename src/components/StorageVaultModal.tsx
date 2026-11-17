@@ -67,6 +67,9 @@ import {
   getVaultAuditLogs,
   getVaultStatus,
   AuditLogEntry,
+  StoragePolicy,
+  computeLocalStoragePolicy,
+  fetchStoragePolicies,
 } from '../utils/storageVaultApi';
 
 interface StorageVaultModalProps {
@@ -158,6 +161,7 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
   const [purchaseSuccessMessage, setPurchaseSuccessMessage] = useState<string | null>(null);
   const [isSimulatingFull, setIsSimulatingFull] = useState<boolean>(false);
   const [deviceStorage, setDeviceStorage] = useState<{ usage: number; quota: number; persisted?: boolean } | null>(null);
+  const [storagePolicy, setStoragePolicy] = useState<StoragePolicy>(() => computeLocalStoragePolicy(FREE_STORAGE_QUOTA_BYTES));
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -281,6 +285,16 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
       const result = await listVaultFiles(token);
       setFiles(result.files);
       setQuota(result.quota);
+      if (result.quota?.policy) {
+        setStoragePolicy(result.quota.policy);
+      } else if (result.quota?.totalQuotaBytes) {
+        setStoragePolicy(computeLocalStoragePolicy(result.quota.totalQuotaBytes));
+      }
+      fetchStoragePolicies(token)
+        .then((p) => {
+          if (p?.activePolicy) setStoragePolicy(p.activePolicy);
+        })
+        .catch(() => {});
       if (
         result.quota &&
         (result.quota.isFull ||
@@ -431,6 +445,9 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
       );
 
       setQuota(res.quota);
+      if (res.quota?.totalQuotaBytes) {
+        setStoragePolicy(res.quota.policy || computeLocalStoragePolicy(res.quota.totalQuotaBytes));
+      }
       setPurchaseSuccessMessage(res.message);
       if (onShowToast) onShowToast(res.message, 'success');
 
@@ -490,12 +507,44 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
   const processFile = async (file: File) => {
     if (!file) return;
 
-    // Dangerous extension check on frontend
-    const dangerousExtensions = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.vbs', '.scr'];
+    // Dangerous extension check on frontend (aligned with backend Magic-Byte Firewall)
+    const dangerousExtensions = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.vbs', '.scr', '.ps1', '.dll', '.apk', '.jar'];
     const hasBadExt = dangerousExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
     if (hasBadExt) {
       if (onShowToast) {
-        onShowToast(`Security restriction: Executable files (${file.name}) are blocked from the medical storage vault.`, 'error');
+        onShowToast(`Security Firewall: Executable files (${file.name}) are blocked from the clinical vault.`, 'error');
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const activePolicy = quota.policy || storagePolicy || computeLocalStoragePolicy(quota.totalQuotaBytes);
+
+    // Per-file cap enforcement (25 MB on Free 1GB, 100–250 MB on Paid)
+    if (file.size > activePolicy.maxFileSizeBytes) {
+      setPendingFile(file);
+      setShowStorageBilling(true);
+      setBillingReason('upload_overflow');
+      if (onShowToast) {
+        onShowToast(
+          `Tier Restriction: "${file.name}" (${formatBytes(file.size)}) exceeds the ${formatBytes(activePolicy.maxFileSizeBytes)} per-file limit on ${activePolicy.label}. Upgrade storage to raise limit.`,
+          'error'
+        );
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Object count cap enforcement (150 files on Free 1GB)
+    if (quota.fileCount >= activePolicy.maxFiles) {
+      setPendingFile(file);
+      setShowStorageBilling(true);
+      setBillingReason('quota_full');
+      if (onShowToast) {
+        onShowToast(
+          `Object Cap Reached: ${activePolicy.label} allows max ${activePolicy.maxFiles} files. Upgrade quota to store up to 5,000+ objects.`,
+          'error'
+        );
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
@@ -524,16 +573,19 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
       setUploadProgress(100);
       setFiles((prev) => [res.file, ...prev]);
       setQuota(res.quota);
+      if (res.quota?.totalQuotaBytes) {
+        setStoragePolicy(res.quota.policy || computeLocalStoragePolicy(res.quota.totalQuotaBytes));
+      }
       if (onShowToast) {
-        onShowToast(`"${file.name}" saved with SHA-256 cryptographic verification!`, 'success');
+        onShowToast(`"${file.name}" encrypted (AES-256-GCM) with SHA-256 integrity!`, 'success');
       }
     } catch (err: any) {
       if (err.quotaExceeded || err.requiresBilling) {
         setPendingFile(file);
         setShowStorageBilling(true);
-        setBillingReason('upload_overflow');
+        setBillingReason(err.policyViolation ? 'quota_full' : 'upload_overflow');
         if (onShowToast) {
-          onShowToast('Storage quota exceeded! Billing opened automatically for expansion purchase.', 'error');
+          onShowToast(err.message || 'Storage tier limit reached! Upgrade panel opened.', 'error');
         }
       } else {
         if (onShowToast) onShowToast(err.message || 'Upload failed', 'error');
@@ -1382,6 +1434,54 @@ export const StorageVaultModal: React.FC<StorageVaultModalProps> = ({
                       })()}
                     </div>
                   )}
+
+                  {/* Strict 1GB Free Governance, Encryption & Tier Restrictions Grid */}
+                  {(() => {
+                    const p = quota.policy || storagePolicy || computeLocalStoragePolicy(quota.totalQuotaBytes);
+                    const isPaidTier = p.tier !== 'free_1gb';
+                    return (
+                      <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/75 border border-slate-800/90 space-y-2.5 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className={`w-4 h-4 ${isPaidTier ? 'text-cyan-400' : 'text-amber-400'}`} />
+                            <span className="font-bold text-white uppercase tracking-wider text-[11px]">
+                              {p.label} • Governance &amp; Security Policy
+                            </span>
+                          </div>
+                          {!isPaidTier && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowStorageBilling(true);
+                                setBillingReason('manual');
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                            >
+                              Upgrade &amp; Raise Limits
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                            <span className="text-[10px] text-slate-400 block">Max File Size</span>
+                            <span className="font-mono font-bold text-white">{formatBytes(p.maxFileSizeBytes, 0)} / file</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                            <span className="text-[10px] text-slate-400 block">Stored Objects</span>
+                            <span className="font-mono font-bold text-cyan-300">{quota.fileCount} / {p.maxFiles.toLocaleString()}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                            <span className="text-[10px] text-slate-400 block">Upload Rate Shield</span>
+                            <span className="font-mono font-bold text-emerald-300">{p.uploadsPer10Min} / 10 min</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                            <span className="text-[10px] text-slate-400 block">At-Rest Crypto</span>
+                            <span className="font-mono font-bold text-indigo-300">{p.encryptionAtRest} + Firewall</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Real Hardware & Device Storage Sub-Card */}
                   <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-slate-950/80 via-blue-950/20 to-slate-950/80 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

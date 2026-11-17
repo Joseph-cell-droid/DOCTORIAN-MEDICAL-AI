@@ -1450,8 +1450,8 @@ export const AppSettingsPage: React.FC<AppSettingsPageProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-300 pt-1">
-                <span>Founder: Akora Joseph • Patient ID: DAI-2026-1187</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300 pt-1">
+                <span>App Creator: <strong className="text-slate-900 dark:text-white">Akora Joseph</strong> · Company: <strong className="text-blue-600 dark:text-cyan-300">EBRO</strong> · ID: DAI-2026-1187</span>
                 <button
                   type="button"
                   onClick={() => setIsAboutModalOpen(false)}

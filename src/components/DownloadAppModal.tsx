@@ -131,6 +131,8 @@ export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onCl
 
     try {
       localStorage.setItem('doctorian_last_downloaded_pkg', filename);
+      localStorage.setItem('doctorian_pwa_installed_flag', 'true');
+      localStorage.setItem('doctorian_install_icon_seen_once_v1', 'true');
     } catch {}
     onInstalled?.();
   };

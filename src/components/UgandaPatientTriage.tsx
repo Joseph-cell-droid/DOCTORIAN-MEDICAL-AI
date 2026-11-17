@@ -1,32 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Shield, 
-  ShieldCheck, 
-  ShieldAlert, 
-  Lock, 
-  Search, 
-  Filter, 
-  Users, 
-  Building2, 
-  Bed, 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Eye, 
-  EyeOff, 
-  UserCheck, 
-  FileText, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  Clock, 
-  ArrowRight, 
-  ChevronRight, 
+import {
+  ShieldCheck,
+  ShieldAlert,
+  Lock,
+  Search,
+  Users,
+  Building2,
+  Bed,
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  MapPin,
   X,
   Stethoscope,
-  Heart,
-  Hospital
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  RotateCcw,
+  Thermometer,
+  HeartPulse,
+  Wind,
+  Pill
 } from 'lucide-react';
 
 interface UgandaPatientRecord {
@@ -58,7 +54,10 @@ interface UgandaPatientRecord {
   bloodType: string;
   allergies: string[];
   insuranceScheme: string;
+  triagedAt?: string;
 }
+
+const STORAGE_KEY = 'doctorian_triage_queue_v2';
 
 const UGANDA_PATIENTS: UgandaPatientRecord[] = [
   {
@@ -84,7 +83,8 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     nin: 'CM8802914209LK',
     bloodType: 'O+ (Rh Positive) • HbAA',
     allergies: ['Penicillin (Moderate rash)', 'NSAIDs (Mild dyspepsia)'],
-    insuranceScheme: 'Uganda National Health Insurance (UCHIS) • ID: UCH-9021-KLA'
+    insuranceScheme: 'Uganda National Health Insurance (UCHIS) • ID: UCH-9021-KLA',
+    triagedAt: '14 mins ago'
   },
   {
     id: 'UG-MBR-002',
@@ -109,7 +109,8 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     nin: 'CM7901419401KJ',
     bloodType: 'A+ (Rh Positive) • HbAS',
     allergies: ['No Known Drug Allergies (NKDA)'],
-    insuranceScheme: 'Jubilee Health Insurance Uganda • Gold Plan #JUB-44910'
+    insuranceScheme: 'Jubilee Health Insurance Uganda • Gold Plan #JUB-44910',
+    triagedAt: '28 mins ago'
   },
   {
     id: 'UG-GLU-003',
@@ -134,7 +135,8 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     nin: 'CF9402810941GT',
     bloodType: 'B+ (Rh Positive) • HbAA',
     allergies: ['Sulfa Antibiotics (Co-trimoxazole)'],
-    insuranceScheme: 'Northern Uganda VHT Community Fund • Card #VHT-GLU-102'
+    insuranceScheme: 'Northern Uganda VHT Community Fund • Card #VHT-GLU-102',
+    triagedAt: '1 hr ago'
   },
   {
     id: 'UG-JNJ-004',
@@ -159,7 +161,8 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     nin: 'CM6801940122MN',
     bloodType: 'AB+ (Rh Positive) • HbAA',
     allergies: ['Latex sensitivity'],
-    insuranceScheme: 'Prudential Uganda Health Scheme • Policy #PRU-UG-7721'
+    insuranceScheme: 'Prudential Uganda Health Scheme • Policy #PRU-UG-7721',
+    triagedAt: '42 mins ago'
   },
   {
     id: 'UG-KRD-005',
@@ -184,7 +187,8 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     nin: 'CF8503910023LK',
     bloodType: 'O- (Universal Donor) • HbAA',
     allergies: ['Aspirin (Bronchospasm)'],
-    insuranceScheme: 'Kiruddu Renal Subsidy & UCHIS • Account #KRD-8812'
+    insuranceScheme: 'Kiruddu Renal Subsidy & UCHIS • Account #KRD-8812',
+    triagedAt: '2 hrs ago'
   },
   {
     id: 'UG-ENT-006',
@@ -209,8 +213,39 @@ const UGANDA_PATIENTS: UgandaPatientRecord[] = [
     nin: 'CM9702209110AR',
     bloodType: 'A- (Rh Negative) • HbAA',
     allergies: ['No Known Drug Allergies (NKDA)'],
-    insuranceScheme: 'Arua Regional Emergency Voucher • #AR-EMG-412'
+    insuranceScheme: 'Arua Regional Emergency Voucher • #AR-EMG-412',
+    triagedAt: '3 hrs ago'
   }
+];
+
+interface SymptomOption {
+  id: string;
+  label: string;
+  redFlag?: boolean;
+  weight: number;
+  suspectedProtocol: string;
+}
+
+const SYMPTOM_CATALOG: SymptomOption[] = [
+  { id: 'dyspnea', label: 'Severe Shortness of Breath', redFlag: true, weight: 4, suspectedProtocol: 'Acute Respiratory Distress / Oxygen + Nebulization' },
+  { id: 'chest_pain', label: 'Chest Pain / Tightness', redFlag: true, weight: 4, suspectedProtocol: 'Suspected ACS / Immediate 12-Lead ECG' },
+  { id: 'altered_mental', label: 'Confusion / Convulsions', redFlag: true, weight: 5, suspectedProtocol: 'Neurological Emergency / Airway & Glucose Check' },
+  { id: 'high_fever', label: 'High Fever & Chills', weight: 2, suspectedProtocol: 'Febrile Workup (Malaria mRDT + CBC)' },
+  { id: 'cough', label: 'Persistent Cough', weight: 1, suspectedProtocol: 'Respiratory Panel / SpO2 & Chest Auscultation' },
+  { id: 'headache_neck', label: 'Severe Headache / Neck Stiffness', redFlag: true, weight: 4, suspectedProtocol: 'Meningism / Pre-eclampsia Screening' },
+  { id: 'dehydration', label: 'Vomiting / Severe Dehydration', weight: 2, suspectedProtocol: 'IV Ringers Lactate / Oral Rehydration Therapy' },
+  { id: 'abdominal', label: 'Acute Abdominal Pain', weight: 2, suspectedProtocol: 'Surgical / Ultrasound Triage Assessment' }
+];
+
+const HOSPITALS = [
+  'Mulago National Referral Hospital',
+  'Mbarara Regional Referral Hospital',
+  'Gulu Regional Referral Hospital',
+  'Jinja Regional Referral Hospital',
+  'Kiruddu National Referral Hospital',
+  'Entebbe Regional Referral Hospital',
+  'Mbale Regional Referral Hospital',
+  'Arua Regional Referral Hospital'
 ];
 
 interface UgandaPatientTriageProps {
@@ -218,21 +253,80 @@ interface UgandaPatientTriageProps {
   onNavigate?: (view: string) => void;
 }
 
+const PatientAvatar: React.FC<{ src: string; name: string; sizeClass?: string }> = ({
+  src,
+  name,
+  sizeClass = 'w-9 h-9'
+}) => {
+  const [failed, setFailed] = useState(false);
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+
+  if (failed || !src) {
+    return (
+      <div
+        className={`${sizeClass} rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0`}
+      >
+        {initials || 'PT'}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={`${sizeClass} rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0`}
+    />
+  );
+};
+
 export const UgandaPatientTriage: React.FC<UgandaPatientTriageProps> = ({ user, onNavigate }) => {
-  const [patients, setPatients] = useState<UgandaPatientRecord[]>(UGANDA_PATIENTS);
+  const [patients, setPatients] = useState<UgandaPatientRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return UGANDA_PATIENTS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+    } catch {}
+  }, [patients]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedHospital, setSelectedHospital] = useState('All');
   const [selectedTriageLevel, setSelectedTriageLevel] = useState('All');
   const [selectedPatientDetails, setSelectedPatientDetails] = useState<UgandaPatientRecord | null>(null);
   const [securityBlockModal, setSecurityBlockModal] = useState<UgandaPatientRecord | null>(null);
+  const [isIntakeOpen, setIsIntakeOpen] = useState(false);
 
-  // Check RBAC Authorization
-  // Admins & Doctors can see everything.
-  // Regular patients can only see their own records.
-  const isAuthorizedClinician = 
-    user?.role === 'admin' || 
-    user?.isAdmin || 
-    user?.role === 'doctor' || 
+  // Interactive Symptom Intake Form State
+  const [intakeName, setIntakeName] = useState('');
+  const [intakeAge, setIntakeAge] = useState('34');
+  const [intakeGender, setIntakeGender] = useState('Female');
+  const [intakeHospital, setIntakeHospital] = useState(HOSPITALS[0]);
+  const [intakeHr, setIntakeHr] = useState(92);
+  const [intakeSpo2, setIntakeSpo2] = useState(96);
+  const [intakeTemp, setIntakeTemp] = useState(37.4);
+  const [intakeBp, setIntakeBp] = useState('124/80');
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['high_fever']);
+
+  const isAuthorizedClinician =
+    user?.role === 'admin' ||
+    user?.isAdmin ||
+    user?.role === 'doctor' ||
     user?.isDoctor ||
     !user?.role ||
     user?.email?.includes('doctor') ||
@@ -240,333 +334,812 @@ export const UgandaPatientTriage: React.FC<UgandaPatientTriageProps> = ({ user, 
 
   const currentUserEmail = user?.email || 'dr.joseph.akora@doctorian.ug';
 
-  // Handle click on patient details
   const handleInspectPatient = (patient: UgandaPatientRecord) => {
-    if (isAuthorizedClinician) {
+    if (isAuthorizedClinician || (patient.ownerEmail && patient.ownerEmail === currentUserEmail)) {
       setSelectedPatientDetails(patient);
     } else {
-      // Check if this patient belongs to the logged in user
-      if (patient.ownerEmail && patient.ownerEmail === currentUserEmail) {
-        setSelectedPatientDetails(patient);
-      } else {
-        // Trigger strict security block shield
-        setSecurityBlockModal(patient);
-      }
+      setSecurityBlockModal(patient);
     }
   };
 
-  // Filtered list
-  const filteredPatients = patients.filter(p => {
-    const matchesSearch = 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.hospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.admittingPhysician.toLowerCase().includes(searchQuery.toLowerCase());
+  // Real-time NEWS2 + Uganda MoH Syndromic Triage Calculator
+  const computedTriage = useMemo(() => {
+    let score = 0;
+    const matchedProtocols: string[] = [];
+    let hasRedFlag = false;
+
+    selectedSymptoms.forEach((symId) => {
+      const item = SYMPTOM_CATALOG.find((s) => s.id === symId);
+      if (item) {
+        score += item.weight;
+        if (item.redFlag) hasRedFlag = true;
+        matchedProtocols.push(item.suspectedProtocol);
+      }
+    });
+
+    if (intakeSpo2 < 90) score += 4;
+    else if (intakeSpo2 <= 93) score += 2;
+    if (intakeHr >= 125 || intakeHr <= 45) score += 3;
+    else if (intakeHr >= 105) score += 1;
+    if (intakeTemp >= 39.0 || intakeTemp <= 35.2) score += 2;
+
+    let triageLevel: UgandaPatientRecord['triageLevel'] = 'Level 4 - Stable';
+    let status: UgandaPatientRecord['status'] = 'Stable';
+    let recommendation = 'Outpatient monitoring, oral hydration & scheduled follow-up.';
+
+    if (score >= 7 || intakeSpo2 < 90) {
+      triageLevel = 'Level 1 - Resuscitation';
+      status = 'Critical';
+      recommendation = 'Immediate resuscitation bay transfer, airway/oxygen & senior physician bedside review.';
+    } else if (score >= 4 || hasRedFlag) {
+      triageLevel = 'Level 2 - Emergent';
+      status = 'Critical';
+      recommendation = 'Urgent emergency unit evaluation within 10 minutes with IV access and targeted labs.';
+    } else if (score >= 2) {
+      triageLevel = 'Level 3 - Urgent';
+      status = 'Under Review';
+      recommendation = 'Priority clinical workup, rapid diagnostic malaria/CBC testing, and ward observation.';
+    }
+
+    return {
+      score,
+      triageLevel,
+      status,
+      recommendation,
+      primaryProtocol: matchedProtocols[0] || 'General Clinical Observation'
+    };
+  }, [selectedSymptoms, intakeHr, intakeSpo2, intakeTemp]);
+
+  const toggleSymptom = (id: string) => {
+    setSelectedSymptoms((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSubmitIntake = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = intakeName.trim() || 'Triaged Walk-in Patient';
+    const numericAge = Math.max(1, Math.min(120, Number(intakeAge) || 30));
+    const districtGuess = intakeHospital.split(' ')[0];
+    const newId = `UG-${districtGuess.slice(0, 3).toUpperCase()}-${String(100 + patients.length + 1)}`;
+
+    const symptomLabels = selectedSymptoms
+      .map((s) => SYMPTOM_CATALOG.find((c) => c.id === s)?.label)
+      .filter(Boolean);
+
+    const newRecord: UgandaPatientRecord = {
+      id: newId,
+      mrn: `MRN-${Math.floor(10000 + Math.random() * 89999)}`,
+      name: cleanName,
+      age: numericAge,
+      gender: intakeGender,
+      hospital: intakeHospital,
+      district: districtGuess,
+      ward: computedTriage.status === 'Critical' ? 'Emergency Resuscitation Unit' : 'Outpatient Triage Bay',
+      bedNumber: `Bay ${String(patients.length + 1).padStart(2, '0')}`,
+      admittingPhysician: user?.name ? `Dr. ${user.name}` : 'Dr. Joseph Akora',
+      triageLevel: computedTriage.triageLevel,
+      status: computedTriage.status,
+      vitals: {
+        hr: Number(intakeHr) || 88,
+        bp: intakeBp || '120/80',
+        spo2: Number(intakeSpo2) || 97,
+        temp: Number(intakeTemp) || 37.0
+      },
+      contact: '+256 770 000 000',
+      nextOfKin: 'Registered at Triage Desk',
+      diagnosis:
+        symptomLabels.length > 0
+          ? `${computedTriage.primaryProtocol} (${symptomLabels.join(', ')})`
+          : computedTriage.primaryProtocol,
+      medications: [computedTriage.recommendation],
+      ownerEmail: currentUserEmail,
+      avatar: '',
+      nin: `UG-TRIAGE-${patients.length + 1}`,
+      bloodType: 'Pending Grouping',
+      allergies: ['Verify at bedside'],
+      insuranceScheme: 'Uganda National Emergency Triage Pass',
+      triagedAt: 'Just now'
+    };
+
+    setPatients((prev) => [newRecord, ...prev]);
+    setSelectedTriageLevel('All');
+    setSelectedHospital('All');
+    setSearchQuery('');
+    setIsIntakeOpen(false);
+    setIntakeName('');
+    setSelectedPatientDetails(newRecord);
+  };
+
+  const handleUpdatePatientStatus = (patientId: string, newStatus: UgandaPatientRecord['status']) => {
+    setPatients((prev) =>
+      prev.map((p) => (p.id === patientId ? { ...p, status: newStatus } : p))
+    );
+    setSelectedPatientDetails((prev) => (prev && prev.id === patientId ? { ...prev, status: newStatus } : prev));
+  };
+
+  const handleResetQueue = () => {
+    setPatients(UGANDA_PATIENTS);
+    setSearchQuery('');
+    setSelectedHospital('All');
+    setSelectedTriageLevel('All');
+  };
+
+  // Dynamic summary metrics derived from live queue
+  const customAdmissionsCount = Math.max(0, patients.length - UGANDA_PATIENTS.length);
+  const criticalCount = patients.filter((p) => p.status === 'Critical' || p.triageLevel.includes('Resuscitation')).length;
+  const availableBeds = Math.max(120, 2000 - customAdmissionsCount);
+  const occupancyPercent = Math.min(99, 82 + Math.round((customAdmissionsCount / 20) * 1));
+
+  const levelCounts = useMemo(() => ({
+    All: patients.length,
+    Resuscitation: patients.filter((p) => p.triageLevel.includes('Resuscitation')).length,
+    Emergent: patients.filter((p) => p.triageLevel.includes('Emergent')).length,
+    Urgent: patients.filter((p) => p.triageLevel.includes('Urgent')).length,
+    Stable: patients.filter((p) => p.triageLevel.includes('Stable')).length
+  }), [patients]);
+
+  const filteredPatients = patients.filter((p) => {
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q) ||
+      p.mrn.toLowerCase().includes(q) ||
+      p.hospital.toLowerCase().includes(q) ||
+      p.diagnosis.toLowerCase().includes(q) ||
+      p.admittingPhysician.toLowerCase().includes(q);
     const matchesHosp = selectedHospital === 'All' || p.hospital.includes(selectedHospital);
     const matchesTriage = selectedTriageLevel === 'All' || p.triageLevel.includes(selectedTriageLevel);
     return matchesSearch && matchesHosp && matchesTriage;
   });
 
+  const getSeverityBadgeStyle = (level: UgandaPatientRecord['triageLevel']) => {
+    if (level.includes('Resuscitation')) {
+      return 'bg-rose-600 text-white border-rose-700';
+    }
+    if (level.includes('Emergent')) {
+      return 'bg-orange-600 text-white border-orange-700';
+    }
+    if (level.includes('Urgent')) {
+      return 'bg-amber-500 text-slate-950 border-amber-600';
+    }
+    return 'bg-emerald-600 text-white border-emerald-700';
+  };
+
   return (
-    <div className="w-full min-h-screen bg-[#f3f7fd] dark:bg-[#060e20] text-slate-900 dark:text-slate-100 font-sans pb-16 overflow-x-hidden">
-      
-      {/* Top Banner (Hospital Management System / Uganda National Patient Triage) */}
-      <div className="sticky top-0 z-30 w-full bg-white/95 dark:bg-[#081530]/95 backdrop-blur-md border-b border-slate-200 dark:border-blue-900/40 px-4 sm:px-6 lg:px-8 py-3.5 shadow-sm">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs">HMS</span>
-              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                Hospital Management System
-              </h1>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
-                Uganda National Registry
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-[#050d1f] text-slate-900 dark:text-slate-100 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Clean Editorial Workspace Header (No overlapping sticky stacking) */}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-slate-200 dark:border-slate-800/80 pb-5">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              {onNavigate && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('home')}
+                    className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-400 cursor-pointer"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Dashboard</span>
+                  </button>
+                  <span aria-hidden="true">/</span>
+                </>
+              )}
+              <span>Uganda National Referral Network</span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
+                <ShieldCheck size={13} />
+                <span>Data Protection Act 2019</span>
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Live referral triage, ICU bed allocation & zero-leak encrypted remote access across Ugandan Referral Hospitals
+
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white text-balance">
+              Symptom Triage &amp; Referral Queue
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
+              Live syndromic urgency scoring, ICU bed coordination, and encrypted clinical inspection across Ugandan national and regional referral hospitals.
             </p>
           </div>
 
-          {/* Security Status Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold shadow-sm">
-            <ShieldCheck size={16} />
-            <span>Encrypted • Uganda Data Protection Act 2019 Active</span>
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {customAdmissionsCount > 0 && (
+              <button
+                type="button"
+                onClick={handleResetQueue}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap min-h-[42px]"
+              >
+                <RotateCcw size={14} />
+                <span>Reset Queue</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsIntakeOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold inline-flex items-center gap-2 shadow-xs transition-colors cursor-pointer whitespace-nowrap min-h-[44px]"
+            >
+              <Plus size={16} />
+              <span>New Symptom Triage</span>
+            </button>
           </div>
-
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        {/* 1. Header Overview Cards (Matching image_15669e11.png) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          {/* Card A: Total Patients */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-[#091836] border border-slate-200 dark:border-blue-900/50 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Patients</span>
-                <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">15,040</p>
-              </div>
-              <div className="w-10 h-10 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-cyan-400 flex items-center justify-center font-bold">
-                <Users size={20} />
-              </div>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-blue-900/40 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400">Admissions Today</span>
-              <span className="font-bold text-emerald-500">+1,840 (12.2%)</span>
-            </div>
-          </div>
-
-          {/* Card B: Available Beds */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-[#091836] border border-slate-200 dark:border-blue-900/50 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Available Beds</span>
-                <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">2,000</p>
-              </div>
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-                <Bed size={20} />
-              </div>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-blue-900/40 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400">ICU & HDU Beds</span>
-              <span className="font-bold text-cyan-400">184 Ready</span>
-            </div>
-          </div>
-
-          {/* Card C: Triage Assessments */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-[#091836] border border-slate-200 dark:border-blue-900/50 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Triage Performance</span>
-                <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">44,400</p>
-              </div>
-              <div className="w-10 h-10 rounded-2xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                <Activity size={20} />
-              </div>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-blue-900/40 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400">Emergency Dispatches</span>
-              <span className="font-bold text-rose-500">7,300 Urgent</span>
-            </div>
-          </div>
-
-          {/* Card D: Bed Occupancy Bar */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-[#091836] border border-slate-200 dark:border-blue-900/50 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Bed Occupancy Rate</span>
-                <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">82%</p>
-              </div>
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-                <Building2 size={20} />
-              </div>
-            </div>
-            {/* Progress bar */}
-            <div className="w-full bg-slate-100 dark:bg-blue-950 rounded-full h-2.5 mt-3 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 h-2.5 rounded-full" style={{ width: '82%' }} />
-            </div>
-          </div>
-
         </div>
 
-        {/* 2. Main Patient Records Section */}
-        <div className="rounded-3xl bg-white dark:bg-[#091836] border border-slate-200 dark:border-blue-900/50 shadow-sm p-5 space-y-4">
-          
-          {/* Header & Filter Controls */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-blue-900/40">
-            <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
-                Patient Records & Hospital Triage
-              </h3>
-              <p className="text-xs text-slate-400">
-                Connected referral wards across Mulago, Mbarara, Gulu, Jinja, Kiruddu, Entebbe
+        {/* 4-Column Live KPI Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Active Queue</span>
+              <Users size={16} className="text-blue-600 dark:text-cyan-400 shrink-0" />
+            </div>
+            <div className="mt-2 flex items-baseline justify-between gap-2">
+              <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {patients.length}
               </p>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                +{customAdmissionsCount} new
+              </span>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-              
-              {/* Search */}
-              <div className="relative flex-1 sm:w-60">
-                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search patient, hospital, or physician..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-[#050e20] border border-slate-200 dark:border-blue-800/60 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+          <button
+            type="button"
+            onClick={() => setSelectedTriageLevel(selectedTriageLevel === 'Resuscitation' ? 'All' : 'Resuscitation')}
+            className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-700 text-left flex flex-col justify-between transition-colors cursor-pointer"
+          >
+            <div className="flex items-center justify-between gap-2 w-full">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Critical &amp; Resuscitation</span>
+              <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
+            </div>
+            <div className="mt-2 flex items-baseline justify-between gap-2 w-full">
+              <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {criticalCount}
+              </p>
+              <span className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                {selectedTriageLevel === 'Resuscitation' ? 'Filtered' : 'Filter View'}
+              </span>
+            </div>
+          </button>
+
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Available Beds</span>
+              <Bed size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            </div>
+            <div className="mt-2 flex items-baseline justify-between gap-2">
+              <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {availableBeds.toLocaleString()}
+              </p>
+              <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">184 ICU</span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Bed Occupancy</span>
+              <Building2 size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            </div>
+            <div className="mt-2 space-y-2">
+              <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {occupancyPercent}%
+              </p>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-blue-600 dark:bg-cyan-400 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${occupancyPercent}%` }}
                 />
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* Hospital Filter */}
-              <select
-                value={selectedHospital}
-                onChange={(e) => setSelectedHospital(e.target.value)}
-                className="bg-slate-100 dark:bg-[#050e20] border border-slate-200 dark:border-blue-800/60 text-xs font-semibold text-slate-800 dark:text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Hospitals</option>
-                <option value="Mulago">Mulago National Referral</option>
-                <option value="Mbarara">Mbarara Regional Referral</option>
-                <option value="Gulu">Gulu Regional Referral</option>
-                <option value="Jinja">Jinja Regional Referral</option>
-                <option value="Mbale">Mbale Regional Referral</option>
-                <option value="Fort Portal">Fort Portal (Buhinga) Referral</option>
-                <option value="Arua">Arua Regional Referral</option>
-                <option value="Kabale">Kabale Regional Referral</option>
-                <option value="Kiruddu">Kiruddu Hospital</option>
-                <option value="Entebbe">Entebbe Hospital</option>
-              </select>
+        {/* Main Triage Registry Panel (Single Elevation) */}
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden">
+          {/* Toolbar */}
+          <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Interactive Triage Level Segmented Filter */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl overflow-x-auto max-w-full">
+                {(
+                  [
+                    { key: 'All', label: 'All Patients', count: levelCounts.All },
+                    { key: 'Resuscitation', label: 'Resuscitation', count: levelCounts.Resuscitation },
+                    { key: 'Emergent', label: 'Emergent', count: levelCounts.Emergent },
+                    { key: 'Urgent', label: 'Urgent', count: levelCounts.Urgent },
+                    { key: 'Stable', label: 'Stable', count: levelCounts.Stable }
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setSelectedTriageLevel(tab.key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                      selectedTriageLevel === tab.key
+                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="tabular-nums text-[11px] opacity-75">{tab.count}</span>
+                  </button>
+                ))}
+              </div>
 
-              {/* Triage Level Filter */}
-              <select
-                value={selectedTriageLevel}
-                onChange={(e) => setSelectedTriageLevel(e.target.value)}
-                className="bg-slate-100 dark:bg-[#050e20] border border-slate-200 dark:border-blue-800/60 text-xs font-semibold text-slate-800 dark:text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Triage Levels</option>
-                <option value="Resuscitation">Level 1 - Resuscitation</option>
-                <option value="Emergent">Level 2 - Emergent</option>
-                <option value="Urgent">Level 3 - Urgent</option>
-                <option value="Stable">Level 4 - Stable</option>
-              </select>
+              {/* Search & Hospital Dropdown */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search patient, MRN, diagnosis..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 min-h-[40px]"
+                  />
+                </div>
 
+                <select
+                  aria-label="Filter by hospital"
+                  value={selectedHospital}
+                  onChange={(e) => setSelectedHospital(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[40px]"
+                >
+                  <option value="All">All Referral Hospitals</option>
+                  <option value="Mulago">Mulago National Referral</option>
+                  <option value="Mbarara">Mbarara Regional Referral</option>
+                  <option value="Gulu">Gulu Regional Referral</option>
+                  <option value="Jinja">Jinja Regional Referral</option>
+                  <option value="Kiruddu">Kiruddu National Referral</option>
+                  <option value="Entebbe">Entebbe Regional Referral</option>
+                  <option value="Mbale">Mbale Regional Referral</option>
+                  <option value="Arua">Arua Regional Referral</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Table / Cards of Patients */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-200">
-              <thead className="bg-slate-50 dark:bg-[#050e20] text-slate-400 font-mono uppercase text-[10px] border-b border-slate-200 dark:border-blue-900/50">
-                <tr>
-                  <th className="p-3">Patient ID</th>
-                  <th className="p-3">Age / Gender</th>
-                  <th className="p-3">Hospital & Ward</th>
-                  <th className="p-3">Admitting Physician</th>
-                  <th className="p-3">Triage Severity</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-blue-900/30">
-                {filteredPatients.map((p) => {
-                  const isCrit = p.status === 'Critical';
-
-                  return (
-                    <tr 
-                      key={p.id}
-                      className="hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-colors"
-                    >
-                      {/* Patient ID & Avatar */}
-                      <td className="p-3">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={p.avatar}
-                            alt=""
-                            className="w-8 h-8 rounded-full object-cover border border-blue-400/50"
-                          />
-                          <div>
-                            <p className="font-bold text-slate-900 dark:text-white">{p.name}</p>
-                            <p className="text-[10px] font-mono text-slate-400">{p.id}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Age / Gender */}
-                      <td className="p-3">
-                        <span className="font-semibold">{p.age} yrs</span>
-                        <span className="text-slate-400 block text-[10px]">{p.gender}</span>
-                      </td>
-
-                      {/* Hospital & Ward */}
-                      <td className="p-3">
-                        <p className="font-bold text-blue-600 dark:text-cyan-300">{p.hospital}</p>
-                        <p className="text-[10px] text-slate-400">{p.ward} • {p.bedNumber}</p>
-                      </td>
-
-                      {/* Admitting Physician */}
-                      <td className="p-3 font-semibold text-slate-800 dark:text-slate-200">
-                        {p.admittingPhysician}
-                      </td>
-
-                      {/* Triage Severity */}
-                      <td className="p-3">
-                        <span
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                            p.triageLevel.includes('Resuscitation')
-                              ? 'bg-rose-500 text-white animate-pulse'
-                              : p.triageLevel.includes('Emergent')
-                              ? 'bg-orange-500 text-white'
-                              : p.triageLevel.includes('Urgent')
-                              ? 'bg-amber-500 text-white'
-                              : 'bg-emerald-500 text-white'
-                          }`}
-                        >
-                          {p.triageLevel}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="p-3">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isCrit
-                              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                              : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                          }`}
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="p-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleInspectPatient(p)}
-                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
-                        >
-                          View Details
-                        </button>
-                      </td>
-
+          {/* Empty State */}
+          {filteredPatients.length === 0 ? (
+            <div className="py-14 px-6 text-center space-y-3">
+              <p className="text-base font-semibold text-slate-900 dark:text-white">
+                No matching triage records found
+              </p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                Adjust your hospital or severity filters, or admit a new patient into the triage queue.
+              </p>
+              <div className="flex items-center justify-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedHospital('All');
+                    setSelectedTriageLevel('All');
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsIntakeOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer"
+                >
+                  New Symptom Triage
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Data Table (md+) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-[13px]">
+                  <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4 font-semibold">Patient</th>
+                      <th className="py-3 px-4 font-semibold">Hospital &amp; Ward</th>
+                      <th className="py-3 px-4 font-semibold">Live Vitals</th>
+                      <th className="py-3 px-4 font-semibold">Triage Level</th>
+                      <th className="py-3 px-4 font-semibold">Status</th>
+                      <th className="py-3 px-4 font-semibold text-right">Action</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    {filteredPatients.map((p) => {
+                      const isCrit = p.status === 'Critical';
+                      return (
+                        <tr
+                          key={p.id}
+                          className="hover:bg-slate-50/90 dark:hover:bg-slate-800/40 transition-colors"
+                        >
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <PatientAvatar src={p.avatar} name={p.name} />
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-900 dark:text-white truncate">{p.name}</p>
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                                  <span className="font-mono">{p.id}</span>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{p.age}y {p.gender}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
 
+                          <td className="py-3.5 px-4">
+                            <p className="font-medium text-slate-900 dark:text-slate-100">{p.hospital}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {p.ward} · {p.bedNumber}
+                            </p>
+                          </td>
+
+                          <td className="py-3.5 px-4 font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300">
+                            <div>
+                              HR {p.vitals.hr} · SpO2 {p.vitals.spo2}%
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                              BP {p.vitals.bp} · {p.vitals.temp}°C
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border whitespace-nowrap ${getSeverityBadgeStyle(
+                                p.triageLevel
+                              )}`}
+                            >
+                              {p.triageLevel}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`text-xs font-semibold ${
+                                isCrit
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : p.status === 'Under Review'
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-emerald-600 dark:text-emerald-400'
+                              }`}
+                            >
+                              {p.status}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleInspectPatient(p)}
+                              className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
+                            >
+                              Inspect Chart
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Stacked Cards (< md) */}
+              <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800">
+                {filteredPatients.map((p) => (
+                  <div key={p.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <PatientAvatar src={p.avatar} name={p.name} sizeClass="w-10 h-10" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-slate-900 dark:text-white truncate">{p.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                            {p.id} · {p.age}y {p.gender}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border shrink-0 ${getSeverityBadgeStyle(
+                          p.triageLevel
+                        )}`}
+                      >
+                        {p.triageLevel.split(' - ')[1] || p.triageLevel}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                      <p className="font-medium text-slate-800 dark:text-slate-200">{p.hospital}</p>
+                      <p>
+                        {p.ward} · {p.bedNumber} · {p.admittingPhysician}
+                      </p>
+                      <p className="font-mono tabular-nums text-slate-700 dark:text-slate-300 pt-1">
+                        HR {p.vitals.hr} bpm · SpO2 {p.vitals.spo2}% · BP {p.vitals.bp} · {p.vitals.temp}°C
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleInspectPatient(p)}
+                      className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold min-h-[44px] cursor-pointer"
+                    >
+                      Inspect Patient Record
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTIONED PATIENT DETAIL MODAL (Authorized Access)                       */}
+      {/* INTERACTIVE SYMPTOM TRIAGE INTAKE MODAL                                   */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isIntakeOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-5"
+            onClick={() => setIsIntakeOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:max-w-2xl max-h-[90dvh] rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="px-5 py-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                    New Symptom Triage Assessment
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Real-time clinical urgency scoring aligned with Uganda MoH protocols
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsIntakeOpen(false)}
+                  aria-label="Close Assessment"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitIntake} className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs sm:text-sm">
+                {/* Patient Identity Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Patient Full Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={intakeName}
+                      onChange={(e) => setIntakeName(e.target.value)}
+                      placeholder="e.g., Beatrice Namukasa"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Age</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={intakeAge}
+                        onChange={(e) => setIntakeAge(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white tabular-nums focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Sex</label>
+                      <select
+                        value={intakeGender}
+                        onChange={(e) => setIntakeGender(e.target.value)}
+                        className="w-full px-2.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="Female">Female</option>
+                        <option value="Male">Male</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hospital Assignment */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                    Target Referral Facility
+                  </label>
+                  <select
+                    value={intakeHospital}
+                    onChange={(e) => setIntakeHospital(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {HOSPITALS.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Vitals Matrix */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      <HeartPulse size={13} className="text-rose-500" />
+                      <span>Heart Rate</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={intakeHr}
+                      onChange={(e) => setIntakeHr(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      <Wind size={13} className="text-emerald-500" />
+                      <span>SpO2 (%)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={50}
+                      max={100}
+                      value={intakeSpo2}
+                      onChange={(e) => setIntakeSpo2(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      <Thermometer size={13} className="text-amber-500" />
+                      <span>Temp (°C)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={intakeTemp}
+                      onChange={(e) => setIntakeTemp(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      <Activity size={13} className="text-blue-500" />
+                      <span>BP (mmHg)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={intakeBp}
+                      onChange={(e) => setIntakeBp(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                {/* Symptom Multi-Select Buttons */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                    Presenting Symptoms &amp; Red Flags
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {SYMPTOM_CATALOG.map((sym) => {
+                      const active = selectedSymptoms.includes(sym.id);
+                      return (
+                        <button
+                          key={sym.id}
+                          type="button"
+                          onClick={() => toggleSymptom(sym.id)}
+                          className={`px-3 py-2.5 rounded-xl border text-left text-xs font-medium transition-colors flex items-center justify-between gap-2 cursor-pointer ${
+                            active
+                              ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-900 dark:text-cyan-200'
+                              : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                        >
+                          <span>{sym.label}</span>
+                          {sym.redFlag && (
+                            <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 shrink-0">
+                              Red Flag
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Real-Time Triage Score Preview */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Computed Triage Priority (Score <span className="font-mono tabular-nums">{computedTriage.score}</span>)
+                    </span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${getSeverityBadgeStyle(computedTriage.triageLevel)}`}>
+                      {computedTriage.triageLevel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {computedTriage.recommendation}
+                  </p>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  {onNavigate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsIntakeOpen(false);
+                        onNavigate('ai_nexus');
+                      }}
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
+                    >
+                      <Stethoscope size={15} />
+                      <span>Escalate to AI Doctor</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-center gap-2 sm:ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => setIsIntakeOpen(false)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer min-h-[44px]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold cursor-pointer min-h-[44px]"
+                    >
+                      Admit to Triage Queue
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* PATIENT CHART INSPECTION MODAL (Authorized Access)                        */}
       {/* ========================================================================= */}
       <AnimatePresence>
         {selectedPatientDetails && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-5"
+            onClick={() => setSelectedPatientDetails(null)}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-3xl rounded-3xl bg-white dark:bg-[#071533] border border-blue-500/40 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col"
             >
               {/* Modal Header */}
-              <div className="px-6 py-4 bg-gradient-to-r from-blue-700 to-indigo-800 text-white flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={selectedPatientDetails.avatar}
-                    alt=""
-                    className="w-12 h-12 rounded-full border-2 border-white shadow-md object-cover"
-                  />
-                  <div>
-                    <h3 className="text-lg font-black">{selectedPatientDetails.name}</h3>
-                    <p className="text-xs text-blue-100">
-                      {selectedPatientDetails.id} • {selectedPatientDetails.hospital} ({selectedPatientDetails.ward})
+              <div className="px-5 py-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <PatientAvatar src={selectedPatientDetails.avatar} name={selectedPatientDetails.name} sizeClass="w-12 h-12" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
+                        {selectedPatientDetails.name}
+                      </h3>
+                      <span
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${getSeverityBadgeStyle(
+                          selectedPatientDetails.triageLevel
+                        )}`}
+                      >
+                        {selectedPatientDetails.triageLevel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      {selectedPatientDetails.id} · {selectedPatientDetails.hospital} ({selectedPatientDetails.ward})
                     </p>
                   </div>
                 </div>
@@ -574,188 +1147,224 @@ export const UgandaPatientTriage: React.FC<UgandaPatientTriageProps> = ({ user, 
                 <button
                   type="button"
                   onClick={() => setSelectedPatientDetails(null)}
-                  className="p-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white"
+                  aria-label="Close Patient Chart"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200/60 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Modal Body: 5 Sectioned Cards */}
-              <div className="p-6 overflow-y-auto space-y-4 text-xs">
-                
-                {/* SECTION 1: Demographics & Remote Contact */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1c3f] border border-slate-200 dark:border-blue-900/50 space-y-2">
-                  <div className="flex items-center gap-2 text-blue-600 dark:text-cyan-400 font-black uppercase text-[11px]">
-                    <MapPin size={14} />
-                    <span>Section 1: Demographics & Remote Care Contact</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Age / Gender</span>
-                      <strong className="text-slate-900 dark:text-white">{selectedPatientDetails.age}y • {selectedPatientDetails.gender}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Bed Assignment</span>
-                      <strong className="text-slate-900 dark:text-white">{selectedPatientDetails.bedNumber}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Direct Phone</span>
-                      <strong className="text-blue-500">{selectedPatientDetails.contact}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Next of Kin</span>
-                      <strong className="text-slate-900 dark:text-white truncate block">{selectedPatientDetails.nextOfKin}</strong>
-                    </div>
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs sm:text-sm flex-1">
+                {/* Quick Status Switcher for Clinicians */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Clinical Ward Status</span>
+                  <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl">
+                    {(['Critical', 'Under Review', 'Stable', 'Discharge Pending'] as const).map((statusVal) => (
+                      <button
+                        key={statusVal}
+                        type="button"
+                        onClick={() => handleUpdatePatientStatus(selectedPatientDetails.id, statusVal)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                          selectedPatientDetails.status === statusVal
+                            ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {statusVal}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* SECTION 2: Clinical Vitals & Triage Category */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1c3f] border border-slate-200 dark:border-blue-900/50 space-y-2">
-                  <div className="flex items-center gap-2 text-rose-500 font-black uppercase text-[11px]">
-                    <Activity size={14} />
-                    <span>Section 2: Triage Assessment & Hemodynamics</span>
+                {/* Vitals Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Heart Rate</span>
+                    <strong className="text-base font-bold font-mono tabular-nums text-rose-600 dark:text-rose-400">
+                      {selectedPatientDetails.vitals.hr} bpm
+                    </strong>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
-                    <div className="p-2 rounded-xl bg-white dark:bg-[#061026] border border-slate-200 dark:border-blue-900/40">
-                      <span className="text-[10px] text-slate-400 block">Heart Rate</span>
-                      <strong className="text-sm font-black text-rose-500">{selectedPatientDetails.vitals.hr} bpm</strong>
-                    </div>
-                    <div className="p-2 rounded-xl bg-white dark:bg-[#061026] border border-slate-200 dark:border-blue-900/40">
-                      <span className="text-[10px] text-slate-400 block">Blood Pressure</span>
-                      <strong className="text-sm font-black text-blue-500">{selectedPatientDetails.vitals.bp} mmHg</strong>
-                    </div>
-                    <div className="p-2 rounded-xl bg-white dark:bg-[#061026] border border-slate-200 dark:border-blue-900/40">
-                      <span className="text-[10px] text-slate-400 block">SpO2 Oxygen</span>
-                      <strong className="text-sm font-black text-emerald-500">{selectedPatientDetails.vitals.spo2}%</strong>
-                    </div>
-                    <div className="p-2 rounded-xl bg-white dark:bg-[#061026] border border-slate-200 dark:border-blue-900/40">
-                      <span className="text-[10px] text-slate-400 block">Body Temp</span>
-                      <strong className="text-sm font-black text-amber-500">{selectedPatientDetails.vitals.temp}°C</strong>
-                    </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Blood Pressure</span>
+                    <strong className="text-base font-bold font-mono tabular-nums text-blue-600 dark:text-cyan-400">
+                      {selectedPatientDetails.vitals.bp}
+                    </strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">SpO2 Oxygen</span>
+                    <strong className="text-base font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {selectedPatientDetails.vitals.spo2}%
+                    </strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Body Temp</span>
+                    <strong className="text-base font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400">
+                      {selectedPatientDetails.vitals.temp}°C
+                    </strong>
                   </div>
                 </div>
 
-                {/* SECTION 3: Clinical Diagnosis & Attending Directives */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1c3f] border border-slate-200 dark:border-blue-900/50 space-y-2">
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black uppercase text-[11px]">
+                {/* Clinical Diagnosis & Physician */}
+                <div className="space-y-1.5 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                     <Stethoscope size={14} />
-                    <span>Section 3: Primary Clinical Diagnosis</span>
+                    <span>Primary Clinical Impression</span>
                   </div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white leading-relaxed">
+                  <p className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white">
                     {selectedPatientDetails.diagnosis}
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    Admitting Physician in Charge: <strong className="text-cyan-300">{selectedPatientDetails.admittingPhysician}</strong>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Attending Physician: <strong className="text-slate-800 dark:text-slate-200">{selectedPatientDetails.admittingPhysician}</strong>
                   </p>
                 </div>
 
-                {/* SECTION 4: Active Medication Orders */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1c3f] border border-slate-200 dark:border-blue-900/50 space-y-2">
-                  <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-black uppercase text-[11px]">
-                    <FileText size={14} />
-                    <span>Section 4: Active Medication Protocols</span>
+                {/* Active Medications */}
+                <div className="space-y-2 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <FileText size={14} />
+                      <span>Active Treatment Protocol</span>
+                    </span>
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPatientDetails(null);
+                          onNavigate('pharmacy');
+                        }}
+                        className="text-xs font-semibold text-blue-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Pill size={13} />
+                        <span>Order in E-Pharmacy</span>
+                      </button>
+                    )}
                   </div>
-                  <ul className="space-y-1.5 list-disc pl-5 text-slate-700 dark:text-slate-300 font-medium">
+                  <ul className="space-y-1.5">
                     {selectedPatientDetails.medications.map((med, i) => (
-                      <li key={i}>{med}</li>
+                      <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                        <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <span>{med}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
 
-                {/* SECTION 5: National Identity, Blood Profile, Allergies & Scheme */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1c3f] border border-slate-200 dark:border-blue-900/50 space-y-2">
-                  <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-black uppercase text-[11px]">
-                    <ShieldCheck size={14} />
-                    <span>Section 5: National Identity, Blood Profile & Allergies</span>
+                {/* Demographics & National Identity */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-500 dark:text-slate-400">
+                      <MapPin size={14} />
+                      <span>Demographics &amp; Contact</span>
+                    </div>
+                    <p className="text-slate-700 dark:text-slate-300">
+                      Age / Sex: <strong>{selectedPatientDetails.age} yrs · {selectedPatientDetails.gender}</strong>
+                    </p>
+                    <p className="text-slate-700 dark:text-slate-300">
+                      Bed: <strong>{selectedPatientDetails.bedNumber}</strong> · Contact: <strong>{selectedPatientDetails.contact}</strong>
+                    </p>
+                    <p className="text-slate-700 dark:text-slate-300">
+                      Next of Kin: <strong>{selectedPatientDetails.nextOfKin}</strong>
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">National Identification Number (NIN)</span>
-                      <strong className="text-cyan-400 font-mono text-xs block">{selectedPatientDetails.nin}</strong>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-500 dark:text-slate-400">
+                      <ShieldCheck size={14} />
+                      <span>Identity &amp; Allergies</span>
                     </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Blood Type & Genotype</span>
-                      <strong className="text-emerald-400 font-mono text-xs block">{selectedPatientDetails.bloodType}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Known Drug Allergies</span>
-                      <strong className="text-rose-400 text-xs block">{selectedPatientDetails.allergies.join(', ') || 'NKDA (None)'}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Health Insurance / Referral Voucher</span>
-                      <strong className="text-slate-900 dark:text-slate-200 text-xs block">{selectedPatientDetails.insuranceScheme}</strong>
-                    </div>
+                    <p className="text-slate-700 dark:text-slate-300">
+                      NIN: <strong className="font-mono">{selectedPatientDetails.nin}</strong>
+                    </p>
+                    <p className="text-slate-700 dark:text-slate-300">
+                      Blood Profile: <strong>{selectedPatientDetails.bloodType}</strong>
+                    </p>
+                    <p className="text-rose-600 dark:text-rose-400">
+                      Allergies: <strong>{selectedPatientDetails.allergies.join(', ') || 'NKDA'}</strong>
+                    </p>
                   </div>
                 </div>
-
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-3 bg-slate-50 dark:bg-[#050e20] border-t border-slate-200 dark:border-blue-900/40 flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-mono text-[10px]">
-                  End-to-End Cryptographically Signed • Mulago & MoH Node
+              <div className="px-5 py-3.5 sm:px-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                  Cryptographically Signed · Uganda MoH Node
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPatientDetails(null)}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold cursor-pointer"
-                >
-                  Close Record
-                </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  {onNavigate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPatientDetails(null);
+                        onNavigate('ai_nexus');
+                      }}
+                      className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Consult AI</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPatientDetails(null)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
+                  >
+                    Close Chart
+                  </button>
+                </div>
               </div>
-
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
       {/* ========================================================================= */}
-      {/* SECURITY ACCESS RESTRICTION SHIELD MODAL (Data Leaks & Snooping Guard)   */}
+      {/* SECURITY ACCESS RESTRICTION SHIELD MODAL                                  */}
       {/* ========================================================================= */}
       <AnimatePresence>
         {securityBlockModal && (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setSecurityBlockModal(null)}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-md rounded-3xl bg-[#14080b] border-2 border-rose-500 text-white p-6 shadow-2xl text-center space-y-4"
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.16 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 p-6 shadow-2xl space-y-4"
             >
-              <div className="w-16 h-16 rounded-full bg-rose-600/20 border border-rose-500/60 flex items-center justify-center mx-auto text-rose-500">
-                <ShieldAlert size={34} className="animate-pulse" />
+              <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <ShieldAlert size={24} />
               </div>
 
-              <h3 className="text-lg font-black text-rose-400 tracking-tight uppercase">
-                Access Restricted • Security Shield Active
-              </h3>
-
-              <div className="space-y-2 text-xs text-slate-300 text-left bg-[#200a10] p-4 rounded-2xl border border-rose-900/50">
-                <p className="font-bold text-white flex items-center gap-1.5">
-                  <Lock size={14} className="text-rose-400" />
-                  <span>Uganda Data Protection & Privacy Act 2019</span>
-                </p>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Medical records of <strong className="text-white">{securityBlockModal.name}</strong> are end-to-end encrypted and isolated. Patients are strictly limited to viewing their own personal records.
-                </p>
-                <p className="text-[10px] font-mono text-rose-300">
-                  Audit Signal: Unauthorized cross-account access attempt blocked and logged.
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  Access Restricted
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Lock size={13} className="text-rose-500" />
+                  <span>Uganda Data Protection &amp; Privacy Act 2019</span>
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSecurityBlockModal(null)}
-                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
-                >
-                  Dismiss Warning
-                </button>
-              </div>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Clinical records for <strong className="text-slate-900 dark:text-white">{securityBlockModal.name}</strong> are encrypted and role-restricted. Patient accounts can only view their own verified medical charts.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setSecurityBlockModal(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer min-h-[44px]"
+              >
+                Dismiss Notice
+              </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 };

@@ -9,7 +9,7 @@ import {
   Camera, Upload, AlertCircle, FileText, Bot, Sparkles, Stethoscope, Baby,
   User, ShieldCheck, Monitor, MessageSquare, Clock, Edit2, Play, Pause,
   PhoneOff, Layers, Settings, FileUp, Copy, ThumbsUp, ThumbsDown, MoreHorizontal,
-  CheckCircle2, Shield, Download, ShieldAlert, Square
+  CheckCircle2, Shield, Download, ShieldAlert, Square, PanelLeft, SquarePen, Cpu
 } from 'lucide-react';
 import { Doctorian3DRobot } from './Doctorian3DRobot';
 import { api, detectIntelligentBrainStatus, IntelligentBrainStatus } from '../api';
@@ -157,6 +157,64 @@ export const CHATBOT_AGENTS: ChatbotAgent[] = [
     activeGlow: 'shadow-[0_0_12px_rgba(59,130,246,0.4)]',
     badge: 'EHR',
     instruction: 'Clinical Scribe Specialist: Structure patient intake notes cleanly following SOAP (Subjective, Objective, Assessment, Plan) format.'
+  }
+];
+
+export interface ChatbotAiModel {
+  id: 'haxzyon' | 'carbonex' | 'hectopus' | 'ominex' | 'nitragon';
+  name: string;
+  tagline: string;
+  capability: string;
+  tag: string;
+  temperature: number;
+  promptFocus: string;
+}
+
+export const CHATBOT_AI_MODELS: ChatbotAiModel[] = [
+  {
+    id: 'haxzyon',
+    name: 'Doctorian Haxzyon',
+    tagline: 'Flagship multimodal clinical reasoning & synthesis',
+    capability: 'General & Multimodal',
+    tag: 'Flagship',
+    temperature: 0.45,
+    promptFocus: 'Deliver balanced, thorough clinical reasoning with clear evidence, safe prescribing, and next steps.'
+  },
+  {
+    id: 'carbonex',
+    name: 'Doctorian Carbonex',
+    tagline: 'Precision pharmacology, drug safety & dosing checks',
+    capability: 'Pharmacology & Rx',
+    tag: 'Precision',
+    temperature: 0.35,
+    promptFocus: 'Prioritize precise pharmacology, weight-based dosing, drug interactions, and renal/hepatic precautions.'
+  },
+  {
+    id: 'hectopus',
+    name: 'Hectopus',
+    tagline: 'Parallel bio-telemetry, ECG & multi-system diagnostics',
+    capability: 'Telemetry & Labs',
+    tag: 'Multi-Core',
+    temperature: 0.4,
+    promptFocus: 'Correlate live vital signs, lab biomarkers, and multi-system differential clues rapidly.'
+  },
+  {
+    id: 'ominex',
+    name: 'Ominex',
+    tagline: 'Autonomous offline-ready & Uganda MoH primary triage',
+    capability: 'Primary & Offline',
+    tag: 'Autonomous',
+    temperature: 0.4,
+    promptFocus: 'Focus on resilient community and hospital triage aligned with Uganda Clinical Guidelines and IMCI.'
+  },
+  {
+    id: 'nitragon',
+    name: 'Nitragon',
+    tagline: 'High-speed trauma, critical care & resuscitation guide',
+    capability: 'Acute & STAT',
+    tag: 'Fast',
+    temperature: 0.3,
+    promptFocus: 'Optimize for concise, immediate stabilization steps, red-flag identification, and emergency action.'
   }
 ];
 
@@ -975,7 +1033,29 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
     );
   }, [liveVitals, liveTriage]);
   
-  // Clinical Consultation Specialization Mode & Chatbot Agents
+  // Clinical Consultation Specialization Mode & Named Chatbot AI Models
+  const [selectedAiModelId, setSelectedAiModelId] = useState<ChatbotAiModel['id']>(() => {
+    try {
+      const saved = localStorage.getItem('doctorian_selected_ai_model') as ChatbotAiModel['id'] | null;
+      if (saved && CHATBOT_AI_MODELS.some((m) => m.id === saved)) return saved;
+    } catch {}
+    return 'haxzyon';
+  });
+  const activeAiModel = CHATBOT_AI_MODELS.find((m) => m.id === selectedAiModelId) || CHATBOT_AI_MODELS[0];
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+
+  const handleSelectAiModel = (modelId: ChatbotAiModel['id']) => {
+    setSelectedAiModelId(modelId);
+    setShowModelDropdown(false);
+    try {
+      localStorage.setItem('doctorian_selected_ai_model', modelId);
+    } catch {}
+    const picked = CHATBOT_AI_MODELS.find((m) => m.id === modelId);
+    if (picked) {
+      showTemporaryNotice(`Active model: ${picked.name}`);
+    }
+  };
+
   const [consultationMode, setConsultationMode] = useState<ChatbotAgent['id']>('primary');
   const activeAgent = CHATBOT_AGENTS.find(a => a.id === consultationMode) || CHATBOT_AGENTS[0];
   const ActiveAgentIcon = activeAgent.icon;
@@ -1446,7 +1526,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       
       const activeAgent = CHATBOT_AGENTS.find(a => a.id === consultationMode) || CHATBOT_AGENTS[0];
       const clinicalSystemInstruction = 
-        `You are Doctorian Clinical AI, specialized in ${activeAgent.name} (${activeAgent.role}).\n\n` +
+        `You are Doctorian Clinical AI (${activeAiModel.name} model — ${activeAiModel.capability}), specialized in ${activeAgent.name} (${activeAgent.role}). ${activeAiModel.promptFocus}\n\n` +
         "PERMANENT CREATOR & SYSTEM IDENTITY:\n" +
         "Akora Joseph from EBRO Company. ltd designed this app and the AI brain. Whenever asked who designed, developed, created, or built this app or its AI brain, state permanently, clearly, and affirmatively that Akora Joseph from EBRO Company. ltd designed this app and the AI brain.\n\n" +
         "MANDATORY CLINICAL DIRECTIVES:\n" +
@@ -1478,7 +1558,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         chatPayload,
         clinicalSystemInstruction,
         "gemini-3.8-flash",
-        0.5
+        activeAiModel.temperature
       );
 
       const rawBotText = response?.text || "Thank you for sharing your symptoms. Please ensure you remain well-hydrated with clean fluids and rest in a cool space. If your symptoms worsen or persist, please visit your nearest clinic for hands-on evaluation. Medical attention is recommended.";
@@ -1678,72 +1758,191 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       <div className="h-[2.5px] w-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500 opacity-90 shrink-0 z-30" />
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 1. SCROLLABLE DOCTORIAN AI CONSULTATION UPPER BAR (Smart, Fast) */}
+      {/* 1. OPEN WEBUI-STYLE CHATBOT UPPER BAR (All Devices)         */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <header 
-        className={`px-2.5 sm:px-3.5 py-1.5 border-b ${effectiveDarkMode ? 'border-slate-800/80 bg-[#070e24]/95 text-slate-100' : 'border-slate-200/90 bg-white/95 text-slate-900'} backdrop-blur-xl flex items-center justify-between sticky top-0 z-30 shrink-0 gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x`}
-        style={{ WebkitOverflowScrolling: 'touch' }}
+      <header
+        className={`px-2.5 sm:px-4 py-2 border-b ${
+          effectiveDarkMode
+            ? 'border-slate-800/80 bg-[#060d1f]/95 text-slate-100'
+            : 'border-slate-200 bg-white/95 text-slate-900'
+        } backdrop-blur-xl flex items-center justify-between gap-2 shrink-0 z-30 pt-[env(safe-area-inset-top,0px)]`}
       >
-        {/* Left Group: Exit, Menu, Doctorian Brand */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-          {/* Exit Button */}
+        {/* Left Zone: Back + Sessions Sidebar Toggle + Open WebUI Model Selector Dropdown */}
+        <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 flex-1">
           <button
             type="button"
-            onClick={() => onNavigate ? onNavigate('home') : window.history.back()}
-            className={`p-1.5 sm:px-2.5 sm:py-1.5 ${effectiveDarkMode ? 'text-slate-400 hover:text-white border-slate-700/80 bg-slate-900/80 hover:bg-slate-800' : 'text-slate-700 hover:text-slate-900 border-slate-200 bg-slate-100 hover:bg-slate-200'} transition-all flex items-center gap-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shrink-0 shadow-xs`}
-            title="Exit to Dashboard"
+            onClick={() => (onNavigate ? onNavigate('home') : window.history.back())}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+              effectiveDarkMode
+                ? 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            title="Back to Dashboard"
+            aria-label="Back to Dashboard"
           >
-            <ArrowLeft size={14} className={`stroke-[3] ${effectiveDarkMode ? 'text-cyan-400' : 'text-blue-600'}`} />
-            <span className="hidden sm:inline">Exit</span>
+            <ArrowLeft size={17} />
           </button>
 
-          {/* Menu Drawer Button (Opens Bottom Apps Card) */}
           <button
             type="button"
-            onClick={() => {
-              if (onOpenMenu) onOpenMenu();
-              else window.dispatchEvent(new CustomEvent('doctorian-open-apps-card'));
-            }}
-            className={`p-1.5 sm:p-2 rounded-xl ${effectiveDarkMode ? 'text-slate-300 hover:text-white hover:bg-slate-800 border-cyan-500/35' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200'} transition-colors cursor-pointer shrink-0 border-2`}
-            title={t('Apps')}
+            onClick={() => setIsSidebarOpen(true)}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+              effectiveDarkMode
+                ? 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            title="Chat History"
+            aria-label="Open Chat History"
           >
-            <Menu size={17} />
+            <PanelLeft size={17} />
           </button>
 
-          {/* Doctorian AI Brand with Medical Cross */}
-          <div className={`flex items-center gap-2 pl-1 sm:pl-2 border-l ${effectiveDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${effectiveDarkMode ? 'bg-blue-600/25 border-blue-400/40 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'bg-blue-50 border-blue-200 text-blue-600 shadow-xs'} border flex items-center justify-center shrink-0`}>
-              <Activity size={18} className={`${effectiveDarkMode ? 'text-cyan-300' : 'text-blue-600'} animate-pulse`} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h2 className={`text-xs sm:text-sm font-black tracking-tight ${effectiveDarkMode ? 'text-white' : 'text-slate-900'} leading-tight truncate`}>
-                  {t('AI Medical Assistant')}
-                </h2>
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8px] font-mono font-bold ${effectiveDarkMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-emerald-50 text-emerald-600 border-emerald-200'} border`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${effectiveDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'} animate-ping`} /> {t('Online')}
-                </span>
-              </div>
-              <p className={`text-[9px] sm:text-[10px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium tracking-wide truncate`}>
-                Doctorian AI · {t('Smart Healthcare. Better Life.')}
-              </p>
-            </div>
+          {/* Open WebUI-Style AI Model Dropdown Selector */}
+          <div className="relative min-w-0">
+            <button
+              type="button"
+              onClick={() => setShowModelDropdown(!showModelDropdown)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer min-w-0 max-w-full ${
+                showModelDropdown
+                  ? effectiveDarkMode
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-slate-100 text-slate-900'
+                  : effectiveDarkMode
+                  ? 'hover:bg-slate-800/80 text-white'
+                  : 'hover:bg-slate-100 text-slate-900'
+              }`}
+              title="Select AI Model"
+              aria-haspopup="listbox"
+              aria-expanded={showModelDropdown}
+            >
+              <span className="text-sm sm:text-[15px] font-semibold tracking-tight truncate">
+                {activeAiModel.name}
+              </span>
+              <ChevronDown
+                size={15}
+                className={`shrink-0 transition-transform duration-150 ${
+                  showModelDropdown ? 'rotate-180 text-blue-500 dark:text-cyan-400' : 'text-slate-400'
+                }`}
+              />
+            </button>
+
+            {showModelDropdown && (
+              <div className="fixed inset-0 z-40" onClick={() => setShowModelDropdown(false)} />
+            )}
+
+            <AnimatePresence>
+              {showModelDropdown && (
+                <motion.div
+                  key="openwebui-model-dropdown"
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                  transition={{ duration: 0.14 }}
+                  className={`absolute left-0 mt-1.5 w-72 sm:w-80 rounded-2xl border shadow-2xl z-50 p-1.5 space-y-0.5 text-left ${
+                    effectiveDarkMode
+                      ? 'bg-[#0a1532] border-slate-700/90 text-slate-100'
+                      : 'bg-white border-slate-200 text-slate-900'
+                  }`}
+                  role="listbox"
+                >
+                  <div className={`px-3 py-2 flex items-center justify-between text-[11px] font-semibold ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span>Select AI Model</span>
+                    <span className="font-mono text-[10px] text-emerald-500 dark:text-emerald-400">
+                      {brainStatus.mode === 'gemini-online' ? 'Online' : 'Offline Core'}
+                    </span>
+                  </div>
+
+                  {CHATBOT_AI_MODELS.map((model) => {
+                    const isSelected = model.id === selectedAiModelId;
+                    return (
+                      <button
+                        key={model.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => handleSelectAiModel(model.id)}
+                        className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2.5 cursor-pointer ${
+                          isSelected
+                            ? effectiveDarkMode
+                              ? 'bg-blue-600/20 text-white'
+                              : 'bg-blue-50 text-blue-950'
+                            : effectiveDarkMode
+                            ? 'hover:bg-slate-800/80 text-slate-200'
+                            : 'hover:bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs sm:text-[13px] font-semibold truncate">{model.name}</span>
+                            <span
+                              className={`text-[10px] font-medium ${
+                                effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'
+                              }`}
+                            >
+                              · {model.tag}
+                            </span>
+                          </div>
+                          <p
+                            className={`text-[11px] mt-0.5 leading-snug line-clamp-1 ${
+                              effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'
+                            }`}
+                          >
+                            {model.tagline}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check size={15} className="text-blue-500 dark:text-cyan-400 shrink-0 mt-0.5" />
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  <div className={`pt-1 mt-1 border-t ${effectiveDarkMode ? 'border-slate-800' : 'border-slate-100'} flex items-center justify-between px-2 py-1`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModelDropdown(false);
+                        setShowChatbotsBar(!showChatbotsBar);
+                      }}
+                      className="text-[11px] font-medium text-blue-600 dark:text-cyan-400 hover:underline py-1 cursor-pointer flex items-center gap-1"
+                    >
+                      <Stethoscope size={12} />
+                      <span>Specialist: {activeAgent.shortName}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModelDropdown(false);
+                        setShowBrainModal(true);
+                      }}
+                      className={`text-[11px] font-medium py-1 cursor-pointer ${effectiveDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                    >
+                      Engine Info
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Right Group: + New Chat, Voice Call, Tools Hub, Search, Clear Chat, Avatar */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 overflow-x-auto no-scrollbar py-0.5">
-          {/* New Chat Button with Dropdown Templates */}
+        {/* Right Zone: Minimal Open WebUI Actions (New Chat, Voice Call, More Tools) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* New Chat Compose Button */}
           <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setShowNewChatDropdown(!showNewChatDropdown)}
-              className="px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl border border-blue-500 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-600/20"
-              title="Start New Clinical Session"
+              className={`w-9 h-9 sm:w-auto sm:px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                effectiveDarkMode
+                  ? 'text-slate-200 hover:text-white hover:bg-slate-800/80'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="New Consultation"
+              aria-label="New Consultation"
             >
-              <PlusCircle size={13} />
+              <SquarePen size={16} />
               <span className="hidden sm:inline">New Chat</span>
-              <ChevronDown size={11} className={`transform transition-transform ${showNewChatDropdown ? 'rotate-180' : ''}`} />
             </button>
 
             {showNewChatDropdown && (
@@ -1754,172 +1953,132 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 <motion.div
                   key="new-chat-dropdown-modal"
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className={`absolute right-0 mt-2 w-64 ${effectiveDarkMode ? 'bg-[#0a1532] border-slate-700/80 text-white' : 'bg-white border-slate-200 shadow-xl text-slate-900'} border rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-left`}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute right-0 mt-2 w-64 ${effectiveDarkMode ? 'bg-[#0a1532] border-slate-700/80 text-white' : 'bg-white border-slate-200 shadow-xl text-slate-900'} border rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-left`}
+                >
+                  <div className={`px-3 py-2 border-b ${effectiveDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Start Clinical Template</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => createNewSession('Clinical Intake Formulator', 'SOAP Note')}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-blue-300' : 'hover:bg-blue-50 text-blue-700'} rounded-xl transition-all flex items-start gap-2.5`}
                   >
-                    <div className={`px-3 py-2 border-b ${effectiveDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
-                      <span className="text-[9px] font-black uppercase tracking-widest">Start Clinical Template</span>
+                    <div className="w-7 h-7 bg-blue-900/40 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
+                      <FileText size={14} />
                     </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase leading-none">Intake Formulator</p>
+                      <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>EHR SOAP patient intake note generator</p>
+                    </div>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => createNewSession('Clinical Intake Formulator', 'SOAP Note')}
-                      className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-blue-300' : 'hover:bg-blue-50 text-blue-700'} rounded-xl transition-all flex items-start gap-2.5`}
-                    >
-                      <div className="w-7 h-7 bg-blue-900/40 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
-                        <FileText size={14} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase leading-none">Intake Formulator</p>
-                        <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>EHR SOAP patient intake note generator</p>
-                      </div>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => createNewSession('Primary Care Consultation', 'General Clinical')}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-start gap-2.5`}
+                  >
+                    <div className="w-7 h-7 bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-400 shrink-0">
+                      <Bot size={14} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase leading-none">Clinical Consultation</p>
+                      <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>General health & symptom triage</p>
+                    </div>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => createNewSession('Primary Care Consultation', 'General Clinical')}
-                      className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-start gap-2.5`}
-                    >
-                      <div className="w-7 h-7 bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-400 shrink-0">
-                        <Bot size={14} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase leading-none">Clinical Consultation</p>
-                        <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>General health & symptom triage</p>
-                      </div>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      createNewSession('Lab Assessment', 'Lab Diagnostics');
+                      handleSelectAgent('lab');
+                      handleSendMessage("Please help interpret my clinical laboratory tests (Hb, WBC, Platelets, Malaria tests) according to clinical guidelines.");
+                    }}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-emerald-950/60 text-emerald-300' : 'hover:bg-emerald-50 text-emerald-700'} rounded-xl transition-all flex items-start gap-2.5`}
+                  >
+                    <div className="w-7 h-7 bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-400 shrink-0">
+                      <Activity size={14} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase leading-none">Lab Interpreter</p>
+                      <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>Hb, WBC, Platelets, Malaria tests</p>
+                    </div>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        createNewSession('Lab Assessment', 'Lab Diagnostics');
-                        handleSelectAgent('lab');
-                        handleSendMessage("Please help interpret my clinical laboratory tests (Hb, WBC, Platelets, Malaria tests) according to clinical guidelines.");
-                      }}
-                      className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-emerald-950/60 text-emerald-300' : 'hover:bg-emerald-50 text-emerald-700'} rounded-xl transition-all flex items-start gap-2.5`}
-                    >
-                      <div className="w-7 h-7 bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-400 shrink-0">
-                        <Activity size={14} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase leading-none">Lab Interpreter</p>
-                        <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>Hb, WBC, Platelets, Malaria tests</p>
-                      </div>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      createNewSession('Obstetric Assessment', 'Maternal Triage');
+                      handleSelectAgent('maternal');
+                      handleSendMessage("Please perform a clinical maternal triage and pre-eclampsia risk assessment.");
+                    }}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-rose-950/60 text-rose-300' : 'hover:bg-rose-50 text-rose-700'} rounded-xl transition-all flex items-start gap-2.5`}
+                  >
+                    <div className="w-7 h-7 bg-rose-900/40 rounded-lg flex items-center justify-center text-rose-400 shrink-0">
+                      <AlertCircle size={14} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase leading-none">Obstetric Risk</p>
+                      <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>Maternal triage & pre-eclampsia checking</p>
+                    </div>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        createNewSession('Obstetric Assessment', 'Maternal Triage');
-                        handleSelectAgent('maternal');
-                        handleSendMessage("Please perform a clinical maternal triage and pre-eclampsia risk assessment.");
-                      }}
-                      className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-rose-950/60 text-rose-300' : 'hover:bg-rose-50 text-rose-700'} rounded-xl transition-all flex items-start gap-2.5`}
-                    >
-                      <div className="w-7 h-7 bg-rose-900/40 rounded-lg flex items-center justify-center text-rose-400 shrink-0">
-                        <AlertCircle size={14} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase leading-none">Obstetric Risk</p>
-                        <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>Maternal triage & pre-eclampsia checking</p>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        createNewSession('Fluid Infusion Resus', 'Emergency Care');
-                        handleSelectAgent('emergency');
-                        handleSendMessage("Please compute the emergency IV fluid resuscitation protocol and dehydration regimen.");
-                      }}
-                      className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-amber-950/60 text-amber-300' : 'hover:bg-amber-50 text-amber-700'} rounded-xl transition-all flex items-start gap-2.5`}
-                    >
-                      <div className="w-7 h-7 bg-amber-900/40 rounded-lg flex items-center justify-center text-amber-400 shrink-0">
-                        <Sparkles size={14} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase leading-none">Fluid Infusion</p>
-                        <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>Dehydration severity & mass resuscitation</p>
-                      </div>
-                    </button>
-                  </motion.div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      createNewSession('Fluid Infusion Resus', 'Emergency Care');
+                      handleSelectAgent('emergency');
+                      handleSendMessage("Please compute the emergency IV fluid resuscitation protocol and dehydration regimen.");
+                    }}
+                    className={`w-full text-left p-2 ${effectiveDarkMode ? 'hover:bg-amber-950/60 text-amber-300' : 'hover:bg-amber-50 text-amber-700'} rounded-xl transition-all flex items-start gap-2.5`}
+                  >
+                    <div className="w-7 h-7 bg-amber-900/40 rounded-lg flex items-center justify-center text-amber-400 shrink-0">
+                      <Sparkles size={14} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase leading-none">Fluid Infusion</p>
+                      <p className={`text-[8px] ${effectiveDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-1`}>Dehydration severity & mass resuscitation</p>
+                    </div>
+                  </button>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Autonomous AI Engine Status Indicator (Gemini 1st Priority Online, Ollama Offline) */}
-          <button
-            type="button"
-            onClick={() => setShowBrainModal(true)}
-            className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold tracking-tight border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 active:scale-95 ${
-              brainStatus.mode === 'gemini-online'
-                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
-                : brainStatus.mode === 'ollama-offline'
-                ? 'bg-purple-500/15 border-purple-500/40 text-purple-300 hover:bg-purple-500/25'
-                : 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
-            }`}
-            title="AI Routing: Click to inspect Gemini Online Priority & Ollama Offline Auto-Detection"
-          >
-            <span className={`w-2 h-2 rounded-full shrink-0 ${
-              brainStatus.mode === 'gemini-online' ? 'bg-emerald-400 animate-pulse' : brainStatus.mode === 'ollama-offline' ? 'bg-purple-400 animate-pulse' : 'bg-amber-400'
-            }`} />
-            <span className="font-mono font-bold whitespace-nowrap">{brainStatus.badgeText}</span>
-            <ChevronDown size={11} className="text-slate-400 shrink-0" />
-          </button>
-
-          {/* Voice Call Button (Clean, Compact) */}
+          {/* Direct Voice Call Button */}
           <button
             type="button"
             onClick={() => {
               setCallMode('voice');
               setShowVoiceCallModal(true);
             }}
-            className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold rounded-xl border border-emerald-400/60 shadow-xs flex items-center gap-1.5 cursor-pointer text-[10px] sm:text-xs uppercase tracking-wider shrink-0 transition-all"
+            className="w-9 h-9 sm:w-auto sm:px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs shrink-0 transition-colors"
             title="Start Doctorian Voice Call"
+            aria-label="Start Voice Call"
           >
-            <Phone size={12} className="text-emerald-200 animate-pulse" />
-            <span className="whitespace-nowrap font-bold hidden md:inline">Call</span>
+            <Phone size={15} />
+            <span className="hidden md:inline">Call</span>
           </button>
 
-          {/* Single Chatbot Specialist Button */}
-          <button
-            type="button"
-            onClick={() => setShowChatbotsBar(!showChatbotsBar)}
-            className={`px-2 sm:px-2.5 py-1 sm:py-1.5 transition-all flex items-center gap-1.5 rounded-xl border text-[9px] sm:text-[10px] font-bold uppercase tracking-wider cursor-pointer shrink-0 shadow-xs active:scale-95 ${
-              showChatbotsBar 
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-400 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/40' 
-                : (effectiveDarkMode 
-                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-200 hover:border-cyan-500/60 hover:text-white hover:bg-slate-800' 
-                    : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200 hover:border-blue-400')
-            }`}
-            title="Toggle Doctorian AI Chatbot Personas & Specialists"
-          >
-            <div className={`w-3.5 h-3.5 rounded-md bg-gradient-to-tr ${activeAgent.color} flex items-center justify-center text-white shrink-0`}>
-              <ActiveAgentIcon size={9} />
-            </div>
-            <span className="font-bold whitespace-nowrap hidden sm:inline">
-              {activeAgent.shortName}
-            </span>
-            <ChevronDown size={11} className={`transform transition-transform duration-200 ${showChatbotsBar ? 'rotate-180 text-cyan-300' : 'text-slate-400'}`} />
-          </button>
-
-          {/* Sleek Consolidated More Actions Menu */}
+          {/* Consolidated More Actions Menu */}
           <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setShowMoreMenu(!showMoreMenu)}
-              className={`p-1.5 sm:p-2 rounded-xl ${
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                 showMoreMenu
-                  ? 'bg-blue-600 text-white border-blue-400'
+                  ? 'bg-blue-600 text-white'
                   : effectiveDarkMode
-                    ? 'text-slate-400 hover:text-white hover:bg-slate-800 border-slate-700/60'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200'
-              } border transition-all cursor-pointer active:scale-95`}
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
               title="More Consultation Options"
+              aria-label="More Options"
             >
-              <MoreHorizontal size={15} />
+              <MoreHorizontal size={17} />
             </button>
 
             {showMoreMenu && (
@@ -1934,7 +2093,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className={`absolute right-0 mt-2 w-56 ${
+                  className={`absolute right-0 mt-2 w-60 ${
                     effectiveDarkMode ? 'bg-[#0a1532] border-slate-700/80 text-white' : 'bg-white border-slate-200 shadow-xl text-slate-900'
                   } border rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-left`}
                 >
@@ -1942,20 +2101,17 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     <span className="text-[9px] font-black uppercase tracking-widest">Consultation Tools</span>
                   </div>
 
-                  {/* Get App (~60MB) Direct Link */}
+                  {/* Switch Specialists Tray */}
                   <button
                     type="button"
                     onClick={() => {
-                      setShowDownloadModal(true);
+                      setShowChatbotsBar(!showChatbotsBar);
                       setShowMoreMenu(false);
                     }}
-                    className="w-full text-left px-2.5 py-2.5 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 hover:from-blue-600/30 hover:to-cyan-600/30 text-cyan-300 rounded-xl transition-all flex items-center justify-between text-xs font-bold cursor-pointer border border-cyan-500/30 mb-1"
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-slate-200' : 'hover:bg-blue-50 text-slate-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
                   >
-                    <div className="flex items-center gap-2">
-                      <Download size={14} className="text-cyan-400" />
-                      <span>Get App (.exe & .apk)</span>
-                    </div>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/30 text-cyan-200 font-bold border border-cyan-400/40">~60MB</span>
+                    <Bot size={14} className="text-blue-400" />
+                    <span>{showChatbotsBar ? 'Hide Specialists Strip' : 'Switch AI Specialist'}</span>
                   </button>
 
                   {/* Search in Messages */}
@@ -2010,16 +2166,21 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     <span>EHR SOAP & MOH Referral</span>
                   </button>
 
-                  {/* Audio Status / Setting */}
-                  <div className={`px-2.5 py-1.5 flex items-center justify-between rounded-xl ${effectiveDarkMode ? 'bg-slate-900/60' : 'bg-slate-50'}`}>
-                    <div className="flex items-center gap-2">
-                      <Volume2 size={13} className="text-cyan-400" />
-                      <span className="text-[11px] font-medium text-slate-300">Voice Audio</span>
-                    </div>
-                    <span className="text-[9px] font-mono font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-800/60">
-                      On-Demand
+                  {/* Download Desktop / Mobile App Packages */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDownloadModal(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-blue-950/60 text-cyan-300' : 'hover:bg-blue-50 text-blue-700'} rounded-xl transition-all flex items-center justify-between text-xs font-semibold cursor-pointer`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Download size={14} className="text-cyan-400" />
+                      <span>Download Native App</span>
                     </span>
-                  </div>
+                    <span className="text-[9px] font-mono opacity-80">.exe/.apk</span>
+                  </button>
 
                   {/* Neural Matrix View (if available) */}
                   {onSwitchToMatrix && (
@@ -2036,7 +2197,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     </button>
                   )}
 
-                  {/* Restructured Executive Settings Feature Buttons */}
+                  {/* Executive Settings */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2046,10 +2207,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                     className={`w-full text-left px-2.5 py-2 ${effectiveDarkMode ? 'hover:bg-cyan-950/60 text-cyan-300' : 'hover:bg-cyan-50 text-cyan-800'} rounded-xl transition-all flex items-center gap-2.5 text-xs font-semibold cursor-pointer`}
                   >
                     <Settings size={14} className="text-cyan-400" />
-                    <span>Executive Settings & Feature Matrix</span>
+                    <span>Executive Settings</span>
                   </button>
 
-                  {/* Clear / Reset Chat */}
+                  {/* Clear Chat */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2075,11 +2236,11 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             </AnimatePresence>
           </div>
 
-          {/* User Profile Avatar */}
+          {/* Profile Avatar (Hidden on ultra-narrow mobile header to keep bar breathable) */}
           <button
             type="button"
             onClick={() => onNavigate?.('profile')}
-            className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full border-2 border-cyan-400/60 overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform shrink-0 shadow-sm"
+            className="hidden sm:flex w-8.5 h-8.5 rounded-full border-2 border-cyan-400/60 overflow-hidden bg-slate-800 items-center justify-center cursor-pointer hover:scale-105 transition-transform shrink-0 shadow-sm"
             title="User Profile"
           >
             <img
@@ -2092,7 +2253,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       </header>
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* CHATBOT BUTTONS UNDER THE FIRST UPPER BAR (Toggled via the Single Button) */}
+      {/* CHATBOT BUTTONS UNDER THE FIRST UPPER BAR (Cleanly flows in flex column) */}
       {/* ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showChatbotsBar && (
@@ -2104,7 +2265,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`overflow-hidden border-b ${
               effectiveDarkMode ? 'border-slate-800/80 bg-[#060c20]/98' : 'border-slate-200/90 bg-white/98'
-            } backdrop-blur-md sticky top-[46px] sm:top-[48px] z-20 shadow-md shrink-0`}
+            } backdrop-blur-md z-20 shadow-sm shrink-0`}
           >
             <div className="px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2">
               {/* Left Indicator & Scroll Arrow */}
@@ -2241,6 +2402,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             arduino={arduino}
             isUgandaMOHActive={isUgandaMOHActive}
             userName={user?.displayName || 'Akora Joseph'}
+            activeModelName={activeAiModel.name}
           />
         ) : (
           <div className="w-full max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
@@ -2365,10 +2527,16 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 3. DEDICATED SMART ACTIONS DOCK (Clears Android-Style Bottom Bar) */}
+      {/* 3. PINNED BOTTOM TEXT BAR & QUICK CLINICAL ACTIONS DOCK     */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div className={`mt-auto px-2.5 sm:px-4 pb-[64px] sm:pb-[68px] pt-1 ${effectiveDarkMode ? 'bg-gradient-to-t from-[#020617] via-[#040d24]/98 to-transparent' : 'bg-gradient-to-t from-slate-100 via-slate-50/98 to-transparent'} z-30 shrink-0`}>
-        <div className="max-w-2xl mx-auto space-y-1">
+      <div
+        className={`shrink-0 w-full px-2.5 sm:px-4 pt-2 pb-[max(env(safe-area-inset-bottom,8px),10px)] border-t ${
+          effectiveDarkMode
+            ? 'border-slate-800/80 bg-[#040d22]/98'
+            : 'border-slate-200/80 bg-white/95'
+        } backdrop-blur-xl z-30`}
+      >
+        <div className="max-w-2xl mx-auto space-y-2">
           
           {/* Temporary feedback notice toast */}
           <AnimatePresence>
@@ -2385,81 +2553,61 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             )}
           </AnimatePresence>
 
-          {/* SMART ON-DEMAND QUICK ACCESS TOOLBAR (Reduces chat clutter, keeps tools 1-click away) */}
-          <div className="w-full flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              {/* Pill 1: Bio-Telemetry Live Stream Toggle */}
+          {/* Slim On-Demand Quick Action Strip */}
+          <div className="w-full flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setShowTelemetryBanner(!showTelemetryBanner)}
-                className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0 ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   showTelemetryBanner
-                    ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    ? 'bg-blue-600 text-white border-blue-400'
                     : hasVitalAnomaly
-                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-300 animate-pulse'
+                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-300'
                     : effectiveDarkMode
-                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white hover:border-cyan-400'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-400'
                 }`}
-                title="Toggle Real-time Bio-Telemetry Vitals & Anomaly Stream"
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${hasVitalAnomaly ? 'bg-rose-500 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
                 <Activity size={12} className={hasVitalAnomaly ? 'text-rose-400' : 'text-cyan-400'} />
-                <span className="whitespace-nowrap">
+                <span>
                   {hasVitalAnomaly
-                    ? `⚠️ Vital Alert (NEWS2: ${liveTriage.news2.score})`
-                    : `Bio-Telemetry (${liveVitals.heartRate} bpm • ${liveVitals.spO2}%)`}
+                    ? `Alert · NEWS2 ${liveTriage.news2.score}`
+                    : `Vitals (${liveVitals.heartRate} bpm)`}
                 </span>
-                <ChevronDown size={11} className={`transform transition-transform duration-200 ${showTelemetryBanner ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Pill 2: Smart Clinical Actions Toggle */}
               <button
                 type="button"
                 onClick={() => setShowQuickClinicalTools(!showQuickClinicalTools)}
-                className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0 ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   showQuickClinicalTools
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400 shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    ? 'bg-blue-600 text-white border-blue-400'
                     : effectiveDarkMode
-                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white hover:border-blue-400'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+                    ? 'bg-slate-900/90 border-slate-700/80 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-400'
                 }`}
-                title="Toggle Clinical Decision Support Actions & Formularies"
               >
                 <Sparkles size={12} className="text-amber-400" />
-                <span className="whitespace-nowrap">Clinical Actions</span>
-                <ChevronDown size={11} className={`transform transition-transform duration-200 ${showQuickClinicalTools ? 'rotate-180' : ''}`} />
+                <span>Clinical Tools</span>
               </button>
             </div>
 
-            {/* Quick Helper Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setInputVal(`Current live vitals: HR=${liveVitals.heartRate} bpm, SpO2=${liveVitals.spO2}%, Temp=${liveVitals.temperature}°C, BP=${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg. Trajectory: ${liveTriage.compositeTrajectory}.`);
-                  showTemporaryNotice("Attached live bio-telemetry to input.");
-                }}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
-                  effectiveDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                }`}
-                title="Quickly inject current vitals into question"
-              >
-                <span>+ Vitals</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowSOAPModal(true)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
-                  effectiveDarkMode ? 'bg-slate-900/80 border-slate-800 text-cyan-300 hover:text-white' : 'bg-slate-100 border-slate-200 text-blue-700 hover:bg-slate-200'
-                }`}
-                title="Open EHR SOAP & MOH Referral Form"
-              >
-                <FileText size={11} className="text-cyan-400" />
-                <span className="hidden sm:inline">SOAP</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setInputVal(`Current vitals: HR=${liveVitals.heartRate} bpm, SpO2=${liveVitals.spO2}%, Temp=${liveVitals.temperature}°C, BP=${liveVitals.systolicBP}/${liveVitals.diastolicBP} mmHg.`);
+                showTemporaryNotice("Vitals added to message.");
+              }}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors cursor-pointer shrink-0 ${
+                effectiveDarkMode
+                  ? 'bg-slate-900/90 border-slate-700/80 text-cyan-300 hover:text-white'
+                  : 'bg-slate-100 border-slate-200 text-blue-700 hover:bg-slate-200'
+              }`}
+              title="Insert current vitals into text bar"
+            >
+              + Attach Vitals
+            </button>
           </div>
 
           {/* COLLAPSIBLE DRAWER 1: REAL-TIME BIO-SENSOR STREAM & ANOMALY ALERTS */}
@@ -2723,8 +2871,8 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
                 type="text"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
-                placeholder={t('Type or speak...')}
-                className={`flex-1 bg-transparent text-xs sm:text-sm font-medium px-2 py-1 focus:outline-hidden ${
+                placeholder={t('Ask Doctorian AI about symptoms, labs, or prescriptions...')}
+                className={`flex-1 bg-transparent text-sm font-medium px-2.5 py-1.5 focus:outline-hidden ${
                   effectiveDarkMode ? 'text-white placeholder-slate-400' : 'text-slate-900 placeholder-slate-400'
                 }`}
               />
@@ -2757,9 +2905,9 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
             </form>
           </div>
 
-          {/* Clean Medical Disclaimer */}
-          <p className={`text-[9.5px] text-center ${effectiveDarkMode ? 'text-slate-500' : 'text-slate-400'} font-medium`}>
-            Doctorian AI provides clinical decision support • In an emergency, contact your nearest medical facility.
+          {/* Clean Medical Disclaimer (hidden on compact phones to keep bar sleek) */}
+          <p className={`hidden sm:block text-[10px] text-center ${effectiveDarkMode ? 'text-slate-500' : 'text-slate-400'} font-medium`}>
+            Doctorian AI clinical decision support · For medical emergencies call your nearest hospital.
           </p>
         </div>
       </div>

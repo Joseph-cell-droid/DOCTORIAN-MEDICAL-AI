@@ -2,35 +2,58 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Home,
-  Heart,
   Folder,
-  User,
+  User as UserIcon,
   Sparkles,
   Bot,
   Monitor,
   Pill,
   Activity,
   Calendar,
-  AlertTriangle,
   FlaskConical,
   ShieldCheck,
-  ChevronsRight,
-  ChevronsLeft,
   X,
   Search,
   Layers,
-  ArrowRightLeft,
   HardDrive,
   LayoutGrid,
   Mic,
+  MessageSquare,
+  PhoneCall,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Globe,
+  Sun,
+  Moon,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 import { AndroidAppButtons, CLINICAL_MODULES_REGISTRY } from './AndroidAppButtons';
-import { useAppLanguage } from '../utils/translations';
+import { useAppLanguage, SUPPORTED_LANGUAGES, normalizeLanguageCode, setAppLanguage } from '../utils/translations';
+import type { User } from '../api';
 
 interface MobileBottomNavProps {
   currentView: string;
   onNavigate: (view: string) => void;
   onOpenMenu?: () => void;
+  user?: User | null;
+  unreadAlertsCount?: number;
+  canGoPrev?: boolean;
+  canGoNext?: boolean;
+  onGoPrev?: () => void;
+  onGoNext?: () => void;
+  onOpenSearch?: () => void;
+  onOpenVoiceCall?: () => void;
+  onOpenVault?: () => void;
+  onOpenAlerts?: () => void;
+  onOpenProfileModal?: () => void;
+  onOpenAuth?: () => void;
+  onLogout?: () => void;
+  isDarkMode?: boolean;
+  onToggleTheme?: () => void;
+  currentLanguage?: string;
+  onChangeLanguage?: (lang: string) => void;
 }
 
 export interface PageItem {
@@ -43,11 +66,7 @@ export interface PageItem {
   badgeColor?: string;
 }
 
-/**
- * Registry of all Doctorian clinical pages and modules.
- */
 export const ALL_APP_PAGES: PageItem[] = [
-  // Core Care Views
   {
     id: 'home',
     label: 'Clinical Dashboard',
@@ -61,8 +80,15 @@ export const ALL_APP_PAGES: PageItem[] = [
     subtitle: 'Chat with AI doctor',
     category: 'core',
     icon: <Bot size={20} className="text-purple-600" />,
-    badge: 'NEW',
-    badgeColor: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    badge: 'AI',
+  },
+  {
+    id: 'server_network',
+    label: 'SMS Hub & Care Mesh',
+    subtitle: 'Friend requests & commercial SMS',
+    category: 'core',
+    icon: <MessageSquare size={20} className="text-cyan-600" />,
+    badge: 'SMS',
   },
   {
     id: 'symptoms',
@@ -77,13 +103,11 @@ export const ALL_APP_PAGES: PageItem[] = [
     subtitle: 'Real-time health tracking',
     category: 'core',
     icon: <Monitor size={20} className="text-amber-500" />,
-    badge: 'LIVE',
-    badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   },
   {
     id: 'meds',
     label: 'Medication & Prescriptions',
-    subtitle: 'Prescription studio & adherence tracker',
+    subtitle: 'Prescription studio & adherence',
     category: 'core',
     icon: <Pill size={20} className="text-blue-600" />,
   },
@@ -104,31 +128,23 @@ export const ALL_APP_PAGES: PageItem[] = [
   {
     id: 'storage_vault',
     label: '1GB Cloud Storage',
-    subtitle: 'Free 1GB vault for files & docs',
+    subtitle: 'Encrypted files & records',
     category: 'core',
     icon: <HardDrive size={20} className="text-indigo-600" />,
-    badge: '1GB FREE',
-    badgeColor: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
   },
   {
     id: 'app_medics',
     label: 'App Medics (Uganda)',
-    subtitle: 'Drugs & pharmacy prices in Uganda',
+    subtitle: 'E-pharmacy & deliveries',
     category: 'core',
     icon: <Pill size={20} className="text-emerald-500" />,
-    badge: 'UG RX',
-    badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   },
-
-  // Diagnostics & Pathology
   {
     id: 'ambient_scribe',
     label: 'Ambient SOAP Scribe',
-    subtitle: 'Multilingual speech-to-SOAP notes & mesh sync',
+    subtitle: 'Multilingual speech-to-SOAP notes',
     category: 'diag',
     icon: <Mic size={20} className="text-blue-600" />,
-    badge: 'NEW',
-    badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   },
   {
     id: 'diagnostic_lab',
@@ -154,18 +170,16 @@ export const ALL_APP_PAGES: PageItem[] = [
   {
     id: 'neuro',
     label: 'Neural Synthesis',
-    subtitle: 'Cognitive state & neuro-mapping',
+    subtitle: 'Cognitive neuro-mapping',
     category: 'diag',
     icon: <Monitor size={20} className="text-indigo-600" />,
   },
-
-  // Specialized & Management
   {
     id: 'profile',
     label: 'Profile & Settings',
     subtitle: 'Account & biometric parameters',
     category: 'specialized',
-    icon: <User size={20} className="text-blue-600" />,
+    icon: <UserIcon size={20} className="text-blue-600" />,
   },
   {
     id: 'features',
@@ -183,73 +197,32 @@ export const ALL_APP_PAGES: PageItem[] = [
   },
 ];
 
-/**
- * Strict Android Phone Detection:
- * ONLY appears on real Android phones and never on another devices.
- * Explicitly excludes:
- *  - iPhones, iPads, iPods (Apple iOS/iPadOS)
- *  - Laptops, Desktops (Mac, Windows, Linux, Chromebooks)
- *  - Tablets (iPad, Android tablets without mobile phone user agents)
- *  - Resized desktop browsers or non-Android devices
- */
 export function isAndroidOrTabletDevice(): boolean {
-  // Unified native Android-style experience across Phone, Tablet, and Windows/Desktop views (no sidebar anywhere).
   return typeof window !== 'undefined';
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   currentView,
   onNavigate,
+  user,
+  unreadAlertsCount = 0,
+  canGoPrev = false,
+  canGoNext = false,
+  onGoPrev,
+  onGoNext,
+  onOpenSearch,
+  onOpenVoiceCall,
+  onOpenVault,
+  onOpenAlerts,
+  onOpenProfileModal,
+  onOpenAuth,
+  onLogout,
+  isDarkMode = true,
+  onToggleTheme,
+  currentLanguage = 'English',
+  onChangeLanguage,
 }) => {
   const [, , t] = useAppLanguage();
-  const [isAllowedDevice, setIsAllowedDevice] = useState<boolean>(() => typeof window !== 'undefined');
-
-  useEffect(() => {
-    const updateDeviceCheck = () => {
-      setIsAllowedDevice(isAndroidOrTabletDevice());
-    };
-
-    updateDeviceCheck();
-    window.addEventListener('resize', updateDeviceCheck, { passive: true });
-    window.addEventListener('orientationchange', updateDeviceCheck, { passive: true });
-
-    let mqlWidth: MediaQueryList | null = null;
-    let mqlPointer: MediaQueryList | null = null;
-    let mqlHover: MediaQueryList | null = null;
-
-    if (typeof window.matchMedia === 'function') {
-      try {
-        mqlWidth = window.matchMedia('(max-width: 1023px)');
-        mqlPointer = window.matchMedia('(pointer: fine)');
-        mqlHover = window.matchMedia('(hover: hover)');
-
-        mqlWidth.addEventListener?.('change', updateDeviceCheck);
-        mqlPointer.addEventListener?.('change', updateDeviceCheck);
-        mqlHover.addEventListener?.('change', updateDeviceCheck);
-      } catch {
-        mqlWidth?.addListener?.(updateDeviceCheck);
-        mqlPointer?.addListener?.(updateDeviceCheck);
-        mqlHover?.addListener?.(updateDeviceCheck);
-      }
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateDeviceCheck);
-      window.removeEventListener('orientationchange', updateDeviceCheck);
-      if (mqlWidth) {
-        try {
-          mqlWidth.removeEventListener?.('change', updateDeviceCheck);
-          mqlPointer?.removeEventListener?.('change', updateDeviceCheck);
-          mqlHover?.removeEventListener?.('change', updateDeviceCheck);
-        } catch {
-          mqlWidth.removeListener?.(updateDeviceCheck);
-          mqlPointer?.removeListener?.(updateDeviceCheck);
-          mqlHover?.removeListener?.(updateDeviceCheck);
-        }
-      }
-    };
-  }, []);
-
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [appCardMode, setAppCardMode] = useState<'grid' | 'detailed'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,7 +234,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         setAppCardMode(detail.mode);
       }
       setIsSwitcherOpen(true);
-      setIsCornerDocked(false);
     };
     const closeAppsCard = () => setIsSwitcherOpen(false);
     window.addEventListener('doctorian-open-apps-card', openAppsCard);
@@ -272,62 +244,24 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     };
   }, []);
 
-  // Persistent dock state: corner collapsed vs expanded card
-  const [isCornerDocked, setIsCornerDocked] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('doctorian_bottom_nav_corner') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  // Corner side: 'right' | 'left'
-  const [dockSide, setDockSide] = useState<'right' | 'left'>(() => {
-    try {
-      return (localStorage.getItem('doctorian_bottom_nav_side') as 'right' | 'left') || 'right';
-    } catch {
-      return 'right';
-    }
-  });
-
-  const activePageMeta = useMemo(() => {
-    return ALL_APP_PAGES.find((p) => p.id === currentView) || ALL_APP_PAGES[0];
-  }, [currentView]);
-
-  const toggleCornerDock = (side?: 'right' | 'left') => {
-    const nextDocked = !isCornerDocked;
-    const targetSide = side || dockSide;
-    setIsCornerDocked(nextDocked);
-    if (side) setDockSide(targetSide);
-    try {
-      localStorage.setItem('doctorian_bottom_nav_corner', String(nextDocked));
-      if (side) localStorage.setItem('doctorian_bottom_nav_side', targetSide);
-    } catch {}
-  };
-
-  const switchDockSide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextSide = dockSide === 'right' ? 'left' : 'right';
-    setDockSide(nextSide);
-    try {
-      localStorage.setItem('doctorian_bottom_nav_side', nextSide);
-    } catch {}
-  };
-
-  // If not on Android or Tablet, or in the dedicated full-screen AI Consultation view,
-  // do not render the bottom bar (all hooks have already executed above).
-  if (!isAllowedDevice || currentView === 'ai_nexus') {
+  if (typeof window === 'undefined' || currentView === 'ai_nexus') {
     return null;
   }
 
   const isHomeActive = currentView === 'home';
-  const isHealthActive = currentView === 'monitor' || currentView === 'vitality';
-  const isRecordsActive = currentView === 'records' || currentView === 'health_trace';
-  const isProfileActive = currentView === 'profile' || currentView === 'admin';
+  const isAiActive = currentView === 'ai_nexus' || currentView === 'symptoms';
+  const isSmsActive = currentView === 'server_network' || currentView === 'gsm_sms_gateway';
+  const isAccountActive = currentView === 'profile' || currentView === 'settings' || currentView === 'billing' || currentView === 'admin';
+
+  const closeSheetAndRun = (fn?: () => void) => {
+    setIsSwitcherOpen(false);
+    setSearchQuery('');
+    fn?.();
+  };
 
   return (
     <>
-      {/* 1. Bottom Card for App Buttons Anchored at Footer Side */}
+      {/* Expandable Smart App Hub & Command Drawer (Houses smart actions cleanly without crowding top bar) */}
       <AnimatePresence>
         {isSwitcherOpen && (
           <motion.div
@@ -339,97 +273,211 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               setIsSwitcherOpen(false);
               setSearchQuery('');
             }}
-            className="fixed inset-0 z-[135] bg-[#020817]/70 backdrop-blur-md cursor-pointer"
+            className="fixed inset-0 z-[135] bg-slate-950/65 backdrop-blur-sm cursor-pointer"
           />
         )}
         {isSwitcherOpen && (
           <motion.div
             key="switcher-bottom-card"
-            initial={{ opacity: 0, y: 36, scale: 0.98 }}
+            initial={{ opacity: 0, y: 28, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.98, transition: { duration: 0.16 } }}
-            transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-            className="fixed inset-x-0 bottom-[62px] sm:bottom-[66px] z-[138] pointer-events-none flex flex-col items-center justify-end px-2.5 sm:px-5"
+            exit={{ opacity: 0, y: 24, scale: 0.98, transition: { duration: 0.16 } }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className="fixed inset-x-0 bottom-[74px] sm:bottom-[78px] z-[138] pointer-events-none flex flex-col items-center justify-end px-2.5 sm:px-5"
           >
-            <div className="pointer-events-auto w-full max-w-2xl mx-auto doctorian-thick-card bg-[#071530]/96 dark:bg-[#051026]/98 border-cyan-500/40 p-3 sm:p-4 shadow-[0_-14px_42px_rgba(0,180,255,0.22)] max-h-[54vh] flex flex-col overflow-hidden">
-              {/* Top Drag Handle + Card Title */}
-              <div className="w-9 h-1 rounded-full bg-cyan-400/40 mx-auto mb-2 shrink-0" />
+            <div className="pointer-events-auto w-full max-w-2xl mx-auto rounded-3xl bg-white/98 dark:bg-[#07132c]/98 border border-slate-200 dark:border-cyan-500/35 p-3.5 sm:p-4 shadow-2xl max-h-[72vh] flex flex-col overflow-hidden text-slate-900 dark:text-white">
+              {/* Top Handle & Smart Account Summary */}
+              <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-cyan-400/35 mx-auto mb-2.5 shrink-0" />
 
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md border border-cyan-300/40">
-                    <LayoutGrid size={16} />
+              <div className="flex items-center justify-between gap-2 pb-3 mb-2.5 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => closeSheetAndRun(onOpenProfileModal)}
+                  className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                    {user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : 'DR'}
                   </div>
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-black text-white leading-tight">
-                      {t('All Clinical Apps')} <span className="text-cyan-400">({CLINICAL_MODULES_REGISTRY.length})</span>
-                    </h3>
-                    <p className="text-[10px] text-slate-300 font-semibold">
-                      {t('Quick Actions')} · {t('Tap a clinical module')}
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-slate-900 dark:text-white truncate group-hover:text-cyan-500">
+                      {user?.displayName || 'Doctorian Member'}
+                    </p>
+                    <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                      {user?.role || 'guest'} · {user?.smsCredits ?? 25} SMS credits
                     </p>
                   </div>
-                </div>
+                </button>
 
-                <div className="flex items-center gap-1.5">
-                  {/* Switch between Compact App Grid & Full App Hub */}
-                  <div className="flex items-center p-0.5 rounded-xl bg-[#040c1e] border border-blue-900/60">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {onGoPrev && (
                     <button
                       type="button"
-                      onClick={() => setAppCardMode('grid')}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                        appCardMode === 'grid'
-                          ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
-                          : 'text-slate-300 hover:text-white'
+                      disabled={!canGoPrev}
+                      onClick={() => closeSheetAndRun(onGoPrev)}
+                      className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                        canGoPrev
+                          ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white cursor-pointer hover:border-cyan-400'
+                          : 'bg-slate-50 dark:bg-slate-900 border-slate-200/50 dark:border-slate-800 text-slate-400 cursor-not-allowed'
                       }`}
+                      title="Previous Page"
+                      aria-label="Previous Page"
                     >
-                      {t('Grid')}
+                      <ChevronLeft size={15} />
                     </button>
+                  )}
+                  {onGoNext && (
                     <button
                       type="button"
-                      onClick={() => setAppCardMode('detailed')}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                        appCardMode === 'detailed'
-                          ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
-                          : 'text-slate-300 hover:text-white'
+                      disabled={!canGoNext}
+                      onClick={() => closeSheetAndRun(onGoNext)}
+                      className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                        canGoNext
+                          ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white cursor-pointer hover:border-cyan-400'
+                          : 'bg-slate-50 dark:bg-slate-900 border-slate-200/50 dark:border-slate-800 text-slate-400 cursor-not-allowed'
                       }`}
+                      title="Next Page"
+                      aria-label="Next Page"
                     >
-                      {t('All Details')}
+                      <ChevronRight size={15} />
                     </button>
-                  </div>
-
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setIsSwitcherOpen(false);
                       setSearchQuery('');
                     }}
-                    className="h-8 px-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white border border-b-2 border-slate-600/80 text-[11px] font-extrabold flex items-center gap-1 transition-all cursor-pointer active:scale-95 shrink-0"
-                    title={t('Close')}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+                    aria-label={t('Close')}
                   >
-                    <X size={13} />
-                    <span>{t('Close')}</span>
+                    <X size={15} />
                   </button>
+                </div>
+              </div>
+
+              {/* Quick Smart Actions Strip (Replaces Upper Bar Functions Cleanly) */}
+              <div className="grid grid-cols-4 gap-1.5 mb-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => closeSheetAndRun(onOpenAlerts)}
+                  className="relative p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
+                >
+                  <Bell size={15} className={unreadAlertsCount > 0 ? 'text-rose-500' : 'text-cyan-600 dark:text-cyan-400'} />
+                  <span className="text-[10px] font-bold truncate max-w-full">Live Alerts</span>
+                  {unreadAlertsCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center tabular-nums">
+                      {unreadAlertsCount > 99 ? '99+' : unreadAlertsCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => closeSheetAndRun(onOpenVoiceCall)}
+                  className="p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
+                >
+                  <PhoneCall size={15} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[10px] font-bold truncate max-w-full">Call &amp; SMS</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => closeSheetAndRun(onOpenVault)}
+                  className="p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
+                >
+                  <HardDrive size={15} className="text-indigo-600 dark:text-indigo-400" />
+                  <span className="text-[10px] font-bold truncate max-w-full">1GB Vault</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => closeSheetAndRun(onOpenSearch)}
+                  className="p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
+                >
+                  <Search size={15} className="text-blue-600 dark:text-blue-400" />
+                  <span className="text-[10px] font-bold truncate max-w-full">Search App</span>
+                </button>
+              </div>
+
+              {/* Compact Preferences Row: Language, Theme, Auth Switch */}
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 px-1 shrink-0" data-no-translate>
+                <div className="flex items-center gap-1.5">
+                  <div className="relative flex items-center">
+                    <Globe size={12} className="absolute left-2.5 text-cyan-500 pointer-events-none" />
+                    <select
+                      aria-label="Language"
+                      value={normalizeLanguageCode(currentLanguage)}
+                      onChange={(e) => {
+                        const canonical = setAppLanguage(e.target.value);
+                        onChangeLanguage?.(canonical);
+                      }}
+                      className="pl-7 pr-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none"
+                    >
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
+                          {lang.nativeLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {onToggleTheme && (
+                    <button
+                      type="button"
+                      onClick={onToggleTheme}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {isDarkMode ? <Sun size={12} className="text-amber-400" /> : <Moon size={12} className="text-indigo-500" />}
+                      <span>{isDarkMode ? 'Light' : 'Dark'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setAppCardMode(appCardMode === 'grid' ? 'detailed' : 'grid')}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold cursor-pointer"
+                  >
+                    {appCardMode === 'grid' ? 'Detailed List' : 'Compact Grid'}
+                  </button>
+                  {user && user.role !== 'guest' && onLogout ? (
+                    <button
+                      type="button"
+                      onClick={() => closeSheetAndRun(onLogout)}
+                      className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <LogOut size={12} />
+                      <span>Sign Out</span>
+                    </button>
+                  ) : onOpenAuth ? (
+                    <button
+                      type="button"
+                      onClick={() => closeSheetAndRun(onOpenAuth)}
+                      className="px-2.5 py-1.5 rounded-xl bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <LogIn size={12} />
+                      <span>Sign In</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
               {appCardMode === 'grid' && (
                 <div className="relative mb-2 shrink-0">
-                  <Search
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300/75 pointer-events-none"
-                  />
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t('Search 16 clinical apps...')}
-                    className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-[#040c1e]/90 border border-cyan-500/30 text-white placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-cyan-400 shadow-inner"
+                    placeholder={t('Filter clinical apps...')}
+                    className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-cyan-400"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                     >
                       <X size={13} />
                     </button>
@@ -437,14 +485,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 </div>
               )}
 
-              {/* Scrollable Compact Thick App Buttons Grid or Detailed Hub */}
+              {/* Clinical Modules Grid or Detailed List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5">
                 {appCardMode === 'detailed' ? (
                   <AndroidAppButtons
                     currentView={currentView}
-                    onNavigate={(viewId) => {
-                      onNavigate(viewId);
-                    }}
+                    onNavigate={(viewId) => onNavigate(viewId)}
                     onItemClick={() => {
                       setIsSwitcherOpen(false);
                       setSearchQuery('');
@@ -458,59 +504,35 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       return (
                         btn.label.toLowerCase().includes(q) ||
                         t(btn.label).toLowerCase().includes(q) ||
-                        btn.subtitle.toLowerCase().includes(q) ||
-                        btn.categoryLabel.toLowerCase().includes(q)
+                        btn.subtitle.toLowerCase().includes(q)
                       );
-                    }).map((btn, index) => {
+                    }).map((btn) => {
                       const isActive = currentView === btn.id;
                       const IconComp = btn.icon;
-
                       return (
-                        <motion.button
+                        <button
                           key={`bottom-app-${btn.id}`}
                           type="button"
-                          initial={{ opacity: 0, scale: 0.92, y: 8 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          transition={{
-                            type: 'spring',
-                            damping: 22,
-                            stiffness: 360,
-                            delay: Math.min(index * 0.012, 0.16),
-                          }}
-                          whileHover={{ y: -2 }}
-                          whileTap={{ scale: 0.94 }}
                           onClick={() => {
                             onNavigate(btn.id);
                             setIsSwitcherOpen(false);
                             setSearchQuery('');
                           }}
-                          className={`group flex flex-col items-center justify-center p-2 rounded-xl border-2 border-b-[3px] transition-all cursor-pointer select-none relative ${
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all cursor-pointer select-none ${
                             isActive
-                              ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_6px_16px_rgba(0,210,255,0.3)]'
-                              : 'bg-[#0b1b3a]/90 hover:bg-[#10254f] border-blue-800/70 hover:border-cyan-400/70 shadow-md'
+                              ? 'bg-cyan-500/15 border-cyan-500 text-cyan-700 dark:text-cyan-300'
+                              : 'bg-slate-50 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-700/70'
                           }`}
                         >
-                          <div className="relative mb-1.5">
-                            <div
-                              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr ${btn.theme.iconGradient} text-white flex items-center justify-center shadow-[0_6px_14px_rgba(0,0,0,0.35)] border border-white/25 transition-transform duration-200 group-hover:scale-105`}
-                            >
-                              <IconComp size={18} className="text-white drop-shadow-sm" />
-                            </div>
-                            {btn.isUrgent ? (
-                              <span className="absolute -top-1 -right-1 px-1 py-0.2 rounded-full bg-rose-500 text-[7px] font-black text-white uppercase shadow animate-pulse">
-                                SOS
-                              </span>
-                            ) : btn.badge ? (
-                              <span className="absolute -top-1 -right-1.5 px-1 py-0.2 rounded-full bg-slate-950/90 text-[6.5px] font-black text-cyan-300 uppercase border border-cyan-400/40 shadow">
-                                {btn.badge.replace(' FREE', '').replace(' AI', '').replace(' LIVE', '').slice(0, 6)}
-                              </span>
-                            ) : null}
+                          <div
+                            className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${btn.theme.iconGradient} text-white flex items-center justify-center shadow-sm mb-1`}
+                          >
+                            <IconComp size={17} />
                           </div>
-
-                          <span className="text-[10px] font-extrabold text-white text-center leading-tight line-clamp-1">
+                          <span className="text-[10px] font-bold text-center leading-tight line-clamp-1">
                             {t(btn.label)}
                           </span>
-                        </motion.button>
+                        </button>
                       );
                     })}
                   </div>
@@ -521,220 +543,151 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         )}
       </AnimatePresence>
 
-      {/* 2. Floating Pill Bottom Bar (Matching Image 2 Bottom) */}
-      <AnimatePresence mode="wait">
-        {isCornerDocked ? (
-          /* Collapsed Floating Corner Pill */
-          <motion.div
-            key="corner-docked-pill"
-            initial={{ opacity: 0, scale: 0.8, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 15 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 350 }}
-            className={`fixed bottom-4 z-[140] ${
-              dockSide === 'right' ? 'right-4' : 'left-4'
-            }`}
+      {/* Modern Uncrowded Floating Bottom App Navigation Bar */}
+      <nav
+        role="navigation"
+        aria-label="Modern App Navigation"
+        className="fixed bottom-2.5 sm:bottom-3.5 left-2.5 right-2.5 z-[140] pointer-events-none select-none pb-[env(safe-area-inset-bottom,0px)]"
+      >
+        <div className="pointer-events-auto max-w-lg mx-auto rounded-2xl bg-white/95 dark:bg-[#06132b]/95 border border-slate-200/90 dark:border-cyan-500/35 shadow-[0_12px_36px_rgba(2,12,35,0.2)] dark:shadow-[0_12px_38px_rgba(0,180,255,0.2)] backdrop-blur-2xl px-2 py-1.5 flex items-center justify-between gap-1">
+          {/* 1. Home */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSwitcherOpen(false);
+              onNavigate('home');
+            }}
+            aria-label={t('Home')}
+            className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
           >
-            <div className="bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 rounded-full shadow-2xl backdrop-blur-xl p-1.5 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => toggleCornerDock()}
-                className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
-                title="Expand Navigation Bar"
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
-                  <LayoutGrid size={16} strokeWidth={2.4} />
-                </div>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                    {t(activePageMeta.label)}
-                  </span>
-                  <span className="text-[9px] text-blue-600 dark:text-blue-400 font-semibold uppercase">
-                    {t('Apps • Tap to expand')}
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={switchDockSide}
-                title={`Switch to ${dockSide === 'right' ? 'left' : 'right'} side`}
-                className="p-2 rounded-full text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-              >
-                <ArrowRightLeft size={14} />
-              </button>
+            <div
+              className={`w-9 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                isHomeActive
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <Home size={16} strokeWidth={isHomeActive ? 2.5 : 2} />
             </div>
-          </motion.div>
-        ) : (
-          /* Unified Native Bottom Dock Card for Android, Tablet, and Desktop */
-          <motion.nav
-            key="bottom-flat-nav"
-            role="navigation"
-            aria-label="Primary App Dock"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-0 left-0 right-0 z-[140] w-full select-none"
+            <span
+              className={`text-[10px] leading-none whitespace-nowrap ${
+                isHomeActive ? 'font-black text-blue-600 dark:text-cyan-300' : 'font-semibold text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {t('Home')}
+            </span>
+          </button>
+
+          {/* 2. Care AI */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSwitcherOpen(false);
+              onNavigate('ai_nexus');
+            }}
+            aria-label={t('Care AI')}
+            className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
           >
-            <div className="bg-white/96 dark:bg-[#05122c]/96 text-slate-900 dark:text-slate-100 border-t-2 border-slate-200 dark:border-cyan-500/45 shadow-[0_-10px_28px_rgba(15,23,42,0.12)] dark:shadow-[0_-10px_32px_rgba(0,190,255,0.2)] backdrop-blur-2xl min-h-[54px] sm:min-h-[58px] pb-[env(safe-area-inset-bottom,0px)] px-2 sm:px-5 flex items-center justify-around max-w-xl sm:max-w-2xl mx-auto md:rounded-t-2xl md:border-x-2">
-
-              {/* 1. Home Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSwitcherOpen(false);
-                  onNavigate('home');
-                }}
-                aria-label={t('Home')}
-                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
-              >
-                <div
-                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
-                    isHomeActive
-                      ? 'bg-gradient-to-tr from-cyan-500 to-blue-600 text-white border border-b-2 border-cyan-300/60 shadow-[0_4px_12px_rgba(14,165,233,0.4)]'
-                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
-                  }`}
-                >
-                  <Home size={16} strokeWidth={isHomeActive ? 2.6 : 2} />
-                </div>
-                <span
-                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
-                    isHomeActive
-                      ? 'font-black text-cyan-600 dark:text-cyan-300'
-                      : 'font-semibold text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {t('Home')}
-                </span>
-              </button>
-
-              {/* 2. Health Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSwitcherOpen(false);
-                  onNavigate('vitality');
-                }}
-                aria-label={t('Health')}
-                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
-              >
-                <div
-                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
-                    isHealthActive
-                      ? 'bg-gradient-to-tr from-rose-500 to-pink-600 text-white border border-b-2 border-rose-300/60 shadow-[0_4px_12px_rgba(244,63,94,0.4)]'
-                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
-                  }`}
-                >
-                  <Heart size={16} strokeWidth={isHealthActive ? 2.6 : 2} />
-                  <span className="absolute top-0.5 right-0.5 flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
-                  </span>
-                </div>
-                <span
-                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
-                    isHealthActive
-                      ? 'font-black text-rose-500 dark:text-rose-400'
-                      : 'font-semibold text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {t('Health')}
-                </span>
-              </button>
-
-              {/* 3. Center Promoted Sleek App Buttons Card Launcher */}
-              <div className="relative shrink-0 px-1 flex flex-col items-center justify-center">
-                <div className="absolute -inset-1 top-0 rounded-full bg-cyan-500/25 blur-sm -z-10 animate-pulse" />
-                <button
-                  type="button"
-                  onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-                  title={`${t('Apps')} (+16)`}
-                  aria-label={`${t('Apps')} (+16)`}
-                  className="w-11 h-11 sm:w-12 sm:h-12 -mt-3.5 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white flex flex-col items-center justify-center shadow-[0_8px_20px_rgba(0,210,255,0.48)] active:scale-95 hover:scale-105 transition-all cursor-pointer border-2 border-b-[3px] border-cyan-200/70 ring-2 ring-white dark:ring-[#05122c] group relative"
-                >
-                  {isSwitcherOpen ? (
-                    <div className="flex flex-col items-center justify-center">
-                      <X size={17} className="text-white drop-shadow-sm" />
-                      <span className="text-[7px] font-black uppercase text-cyan-100 leading-none mt-0.5">
-                        {t('Close')}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center">
-                      <LayoutGrid size={17} strokeWidth={2.5} className="text-white drop-shadow-sm" />
-                      <span className="text-[7px] font-black uppercase text-cyan-100 leading-none mt-0.5">
-                        {t('Apps')}
-                      </span>
-                    </div>
-                  )}
-                </button>
-              </div>
-
-              {/* 4. Records Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSwitcherOpen(false);
-                  onNavigate('records');
-                }}
-                aria-label={t('Records')}
-                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
-              >
-                <div
-                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
-                    isRecordsActive
-                      ? 'bg-gradient-to-tr from-emerald-500 to-teal-600 text-white border border-b-2 border-emerald-300/60 shadow-[0_4px_12px_rgba(16,185,129,0.4)]'
-                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
-                  }`}
-                >
-                  <Folder size={16} strokeWidth={isRecordsActive ? 2.6 : 2} />
-                </div>
-                <span
-                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
-                    isRecordsActive
-                      ? 'font-black text-emerald-600 dark:text-emerald-400'
-                      : 'font-semibold text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {t('Records')}
-                </span>
-              </button>
-
-              {/* 5. Profile / Settings Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSwitcherOpen(false);
-                  onNavigate('settings');
-                }}
-                aria-label={t('Profile')}
-                className="group relative flex-1 flex flex-col items-center justify-center min-h-[46px] py-1 text-center transition-all duration-200 active:scale-95 cursor-pointer min-w-0"
-              >
-                <div
-                  className={`w-9.5 h-6.5 sm:w-10.5 sm:h-7 rounded-xl flex items-center justify-center transition-all duration-200 relative ${
-                    isProfileActive || currentView === 'settings'
-                      ? 'bg-gradient-to-tr from-indigo-500 to-blue-600 text-white border border-b-2 border-indigo-300/60 shadow-[0_4px_12px_rgba(99,102,241,0.4)]'
-                      : 'text-slate-500 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white group-hover:bg-slate-100/80 dark:group-hover:bg-white/10'
-                  }`}
-                >
-                  <User size={16} strokeWidth={isProfileActive || currentView === 'settings' ? 2.6 : 2} />
-                </div>
-                <span
-                  className={`text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 leading-none transition-colors ${
-                    isProfileActive || currentView === 'settings'
-                      ? 'font-black text-indigo-600 dark:text-indigo-400'
-                      : 'font-semibold text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {t('Profile')}
-                </span>
-              </button>
-
+            <div
+              className={`w-9 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                isAiActive
+                  ? 'bg-violet-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <Bot size={16} strokeWidth={isAiActive ? 2.5 : 2} />
             </div>
-          </motion.nav>
-        )}
-      </AnimatePresence>
+            <span
+              className={`text-[10px] leading-none whitespace-nowrap ${
+                isAiActive ? 'font-black text-violet-600 dark:text-violet-300' : 'font-semibold text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Care AI
+            </span>
+          </button>
+
+          {/* 3. Center Smart Hub Button */}
+          <div className="relative px-1 flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsSwitcherOpen((o) => !o)}
+              aria-label={t('Menu')}
+              aria-expanded={isSwitcherOpen}
+              className={`w-12 h-11 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer active:scale-95 shadow-lg ${
+                isSwitcherOpen
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                  : 'bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white'
+              }`}
+            >
+              {isSwitcherOpen ? <X size={17} strokeWidth={2.5} /> : <LayoutGrid size={17} strokeWidth={2.5} />}
+              <span className="text-[8px] font-black uppercase tracking-wide leading-none">
+                {isSwitcherOpen ? t('Close') : t('Menu')}
+              </span>
+            </button>
+            {unreadAlertsCount > 0 && !isSwitcherOpen && (
+              <span className="absolute -top-1 right-0 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white dark:ring-[#06132b] tabular-nums pointer-events-none">
+                {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
+              </span>
+            )}
+          </div>
+
+          {/* 4. SMS Hub */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSwitcherOpen(false);
+              onNavigate('server_network');
+            }}
+            aria-label="SMS Hub"
+            className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
+          >
+            <div
+              className={`w-9 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                isSmsActive
+                  ? 'bg-cyan-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <MessageSquare size={16} strokeWidth={isSmsActive ? 2.5 : 2} />
+            </div>
+            <span
+              className={`text-[10px] leading-none whitespace-nowrap ${
+                isSmsActive ? 'font-black text-cyan-600 dark:text-cyan-300' : 'font-semibold text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              SMS Hub
+            </span>
+          </button>
+
+          {/* 5. Account */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSwitcherOpen(false);
+              onNavigate('settings');
+            }}
+            aria-label="Account"
+            className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
+          >
+            <div
+              className={`w-9 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                isAccountActive
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <UserIcon size={16} strokeWidth={isAccountActive ? 2.5 : 2} />
+            </div>
+            <span
+              className={`text-[10px] leading-none whitespace-nowrap ${
+                isAccountActive ? 'font-black text-indigo-600 dark:text-indigo-300' : 'font-semibold text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Account
+            </span>
+          </button>
+        </div>
+      </nav>
     </>
   );
 };

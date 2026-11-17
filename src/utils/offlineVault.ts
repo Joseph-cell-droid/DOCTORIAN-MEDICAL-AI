@@ -19,7 +19,7 @@ export interface RememberedAccount {
 
 export interface OfflineOutboxItem {
   id: string;
-  kind: 'neural_signal' | 'pharmacy_order' | 'clinical_mutation';
+  kind: 'neural_signal' | 'pharmacy_order' | 'clinical_mutation' | 'telephony_call_sms';
   endpoint: string;
   method: 'POST' | 'PATCH' | 'DELETE';
   payload: any;

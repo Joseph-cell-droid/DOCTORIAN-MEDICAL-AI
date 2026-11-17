@@ -13,7 +13,6 @@ import { Compass,
   Scale, 
   PlusCircle, 
   Stethoscope,
-  Menu,
   Bell,
   Search,
   Monitor,
@@ -108,6 +107,7 @@ import { trustDevice, untrustDevice, detectDeviceName } from './utils/deviceReco
 import { SmartInstallButton } from './components/SmartInstallButton';
 import { saveRememberedAccount } from './utils/offlineVault';
 import { startNeuralMeshClient } from './utils/neuralClient';
+import { LiveAlarmNotificationCenter } from './components/LiveAlarmNotificationCenter';
 
 function safeLazy<P extends object = any>(
   importFn: () => Promise<any>,
@@ -248,7 +248,6 @@ const MarianConsole = safeLazy(() => import("./components/MarianConsole"), "Mari
 const DownloadAppModal = safeLazy(() => import("./components/DownloadAppModal"), "DownloadAppModal");
 const NextGenTechSuiteModal = safeLazy(() => import("./components/NextGenTechSuiteModal"), "NextGenTechSuiteModal");
 const SubscriptionModal = safeLazy(() => import("./components/SubscriptionModal"), "SubscriptionModal");
-const AppTutorial = safeLazy(() => import("./components/AppTutorial"), "AppTutorial");
 const DoctorVerificationModal = safeLazy(() => import("./components/DoctorVerificationModal"), "DoctorVerificationModal");
 const AmbientClinicalScribe = safeLazy(() => import("./components/AmbientClinicalScribe"), "AmbientClinicalScribe");
 const LearnMore = safeLazy(() => import("./components/LearnMore"), "LearnMore");
@@ -887,8 +886,16 @@ export default function App() {
   const [isDoctorVerifyOpen, setIsDoctorVerifyOpen] = useState(false);
   const [pendingView, setPendingView] = useState<any>(null);
 
-  const [navigationHistory, setNavigationHistory] = useState<any[]>(['home']);
+  const [navigationHistory, setNavigationHistory] = useState<{ stack: any[]; index: number }>({
+    stack: ['home'],
+    index: 0,
+  });
   const [isBackHovered, setIsBackHovered] = useState(false);
+
+  const canGoPrev = navigationHistory.index > 0;
+  const canGoNext = navigationHistory.index < navigationHistory.stack.length - 1;
+  const prevTargetView = canGoPrev ? navigationHistory.stack[navigationHistory.index - 1] : null;
+  const nextTargetView = canGoNext ? navigationHistory.stack[navigationHistory.index + 1] : null;
 
   const setCurrentView = (view: any) => {
     let target = view;
@@ -900,7 +907,9 @@ export default function App() {
       setIsNextGenSuiteOpen(true);
       return;
     }
-    if (view === 'doctors') {
+    if (view === 'consult' || view === 'chat' || view === 'ai') {
+      target = 'ai_nexus';
+    } else if (view === 'doctors') {
       target = 'doctors_dashboard';
     } else if (view === 'scribe' || view === 'ambient' || view === 'soap' || view === 'ambient_scribe') {
       target = 'ambient_scribe';
@@ -949,13 +958,18 @@ export default function App() {
     }
 
     _setCurrentView(target);
-    
-    // Track chronological sequential navigation path
+
+    // Track bidirectional chronological navigation path
     setNavigationHistory((prev) => {
-      if (prev.length > 0 && prev[prev.length - 1] === target) {
+      const currentAtCursor = prev.stack[prev.index];
+      if (currentAtCursor === target) {
         return prev;
       }
-      return [...prev, target];
+      const nextStack = [...prev.stack.slice(0, prev.index + 1), target];
+      return {
+        stack: nextStack,
+        index: nextStack.length - 1,
+      };
     });
 
     // Restores viewport scroll to the top for seamless navigation
@@ -966,23 +980,37 @@ export default function App() {
     }
   };
 
-  const handleGoBack = () => {
-    if (navigationHistory.length <= 1) return;
-    
-    const previousView = navigationHistory[navigationHistory.length - 2];
-    const newHistory = navigationHistory.slice(0, -1);
-    
-    setNavigationHistory(newHistory);
+  const handleGoPrev = () => {
+    if (navigationHistory.index <= 0) return;
+    const nextIndex = navigationHistory.index - 1;
+    const previousView = navigationHistory.stack[nextIndex];
+    setNavigationHistory((prev) => ({ ...prev, index: nextIndex }));
     _setCurrentView(previousView);
-    
+
     window.scrollTo({ top: 0, behavior: 'instant' as any });
     const viewport = document.getElementById('app-scroll-viewport');
     if (viewport) {
       viewport.scrollTop = 0;
     }
-    
-    addToast(`◀ Returned to ${viewNamesMap[previousView] || previousView}`, "info");
+    addToast(`Previous: ${viewNamesMap[previousView] || previousView}`, 'info');
   };
+
+  const handleGoNext = () => {
+    if (navigationHistory.index >= navigationHistory.stack.length - 1) return;
+    const nextIndex = navigationHistory.index + 1;
+    const forwardView = navigationHistory.stack[nextIndex];
+    setNavigationHistory((prev) => ({ ...prev, index: nextIndex }));
+    _setCurrentView(forwardView);
+
+    window.scrollTo({ top: 0, behavior: 'instant' as any });
+    const viewport = document.getElementById('app-scroll-viewport');
+    if (viewport) {
+      viewport.scrollTop = 0;
+    }
+    addToast(`Next: ${viewNamesMap[forwardView] || forwardView}`, 'info');
+  };
+
+  const handleGoBack = handleGoPrev;
 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -2811,6 +2839,7 @@ export default function App() {
           currentView === 'ai_nexus' ? 'overflow-hidden' : 'overflow-y-auto'
         }`}>
         <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
+        {currentView !== 'ai_nexus' && (
         <motion.header 
           initial={false}
           animate={{
@@ -2832,47 +2861,36 @@ export default function App() {
           className="sticky top-0 z-[100] backdrop-blur-2xl border-b-2 overflow-visible pt-[env(safe-area-inset-top,0px)]"
         >
           <div className="w-full px-3 sm:px-5 lg:px-6 max-w-5xl mx-auto">
-            <div className="flex items-center justify-between py-2 gap-3 w-full">
+            <div className="flex items-center justify-between py-1.5 sm:py-2 gap-2 sm:gap-3 w-full">
               
-              {/* Left Side: ≡ Bottom Apps Card Button + Clean Doctorian Brand */}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('doctorian-open-apps-card'))}
-                  className="p-2 rounded-xl bg-slate-100 dark:bg-[#0b1b3a] border-2 border-b-[3px] border-slate-300 dark:border-cyan-500/35 text-slate-800 dark:text-cyan-200 hover:border-cyan-400 cursor-pointer shadow-sm active:scale-95 transition-all shrink-0"
-                  aria-label="Open App Buttons Card"
-                  title="Open App Buttons Card"
-                >
-                  <Menu size={18} strokeWidth={2.4} />
-                </button>
-
-                {/* Brand Logo (Clean & Uncrowded) */}
+              {/* Left Side: Extended Doctorian AI Brand Logo flush to top-left */}
+              <div className="flex items-center min-w-0">
                 <button
                   type="button"
                   onClick={() => setCurrentView('home')}
-                  className="flex items-center gap-2 shrink-0 cursor-pointer group"
+                  className="flex items-center gap-2.5 sm:gap-3 min-w-0 py-0.5 pr-2 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-xl"
                 >
-                  <div className="w-8.5 h-8.5 rounded-xl bg-white/10 dark:bg-[#0b1b3a] border-2 border-cyan-400/35 p-1 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/15 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/35 p-1 flex items-center justify-center shadow-xs shrink-0">
                     <img 
                       src="/assets/aistudio/image_3d2127ab.png" 
                       alt="Doctorian AI" 
-                      className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform"
+                      className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-150"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/logo.png';
                       }} 
                     />
                   </div>
-                  <div className="text-left leading-none">
-                    <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-                      Doctorian <span className="text-cyan-500 dark:text-cyan-400">AI</span>
+                  <div className="text-left leading-none min-w-0">
+                    <span className="text-[15px] sm:text-[17px] font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap block">
+                      Doctorian <span className="text-cyan-600 dark:text-cyan-400">AI</span>
                     </span>
                   </div>
                 </button>
               </div>
 
-              {/* Right Side: Compact Search, Language Selector, Notification Bell, User Avatar */}
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Compact Search Icon Button (All screens) */}
+              {/* Right Side: Uncrowded Smart Icons (Search, Call & Auto-SMS, 1 GB Vault, Live Alarm Bell, Profile) */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                {/* Compact Search Icon Button */}
                 <button
                   type="button"
                   onClick={() => setIsSearchOpen(true)}
@@ -2883,8 +2901,38 @@ export default function App() {
                   <Search size={15} />
                 </button>
 
-                {/* Global Instant Language Switcher Pill */}
-                <div className="relative flex items-center" data-no-translate>
+                {/* Smart Function 1: Instant Call & Auto-SMS to Registered Doctors / Patients */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUpperBarAlertsOpen(false);
+                    setIsProfileOpen(false);
+                    setIsVoiceCallOpen(true);
+                  }}
+                  className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-cyan-500/12 dark:bg-cyan-500/15 border border-cyan-300/70 dark:border-cyan-400/35 hover:border-cyan-400 text-cyan-700 dark:text-cyan-300 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 transition-all shrink-0"
+                  title={translate("Call & Auto-SMS Registered Doctors or Patients", currentLanguage)}
+                  aria-label="Call and Auto-SMS"
+                >
+                  <PhoneCall size={15} />
+                </button>
+
+                {/* Smart Function 2: Encrypted 1 GB Cloud Data Vault & Storage Restrictions */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUpperBarAlertsOpen(false);
+                    setIsProfileOpen(false);
+                    setIsStorageVaultOpen(true);
+                  }}
+                  className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-indigo-500/12 dark:bg-indigo-500/15 border border-indigo-300/70 dark:border-indigo-400/35 hover:border-indigo-400 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 transition-all shrink-0"
+                  title={translate("1 GB Encrypted Cloud Storage Vault", currentLanguage)}
+                  aria-label="1 GB Encrypted Storage Vault"
+                >
+                  <HardDrive size={15} />
+                </button>
+
+                {/* Desktop/Tablet Language Switcher (Hidden on tiny Android upper bar to keep it uncrowded; available inside Profile menu) */}
+                <div className="hidden sm:flex relative items-center" data-no-translate>
                   <Globe size={13} className="absolute left-2.5 text-cyan-500 dark:text-cyan-400 pointer-events-none" />
                   <select
                     aria-label="Select Language"
@@ -2895,7 +2943,7 @@ export default function App() {
                       setCurrentLanguage(canonical);
                       addToast(`Language changed to ${canonical}`, 'success');
                     }}
-                    className="pl-7 pr-2 py-1.5 rounded-full bg-slate-100 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/35 text-[11px] font-extrabold text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-cyan-400 max-w-[92px] sm:max-w-[114px] truncate"
+                    className="pl-7 pr-2 py-1.5 rounded-full bg-slate-100 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/35 text-[11px] font-extrabold text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-cyan-400 max-w-[114px] truncate"
                   >
                     {SUPPORTED_LANGUAGES.map((lang) => (
                       <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
@@ -2905,116 +2953,19 @@ export default function App() {
                   </select>
                 </div>
 
-                {/* 1. Notification Bell with "3" Red Badge & Popover */}
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsUpperBarAlertsOpen(!isUpperBarAlertsOpen);
-                      setIsProfileOpen(false);
-                    }}
-                    className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative shrink-0"
-                    title="3 Urgent Clinical Notifications"
-                    aria-label="Clinical Notifications"
-                  >
-                    <Bell size={15} className="text-slate-700 dark:text-slate-200" />
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
-                      3
-                    </span>
-                  </button>
-
-                  {/* 3 Alerts Notification Popover */}
-                  <AnimatePresence>
-                    {isUpperBarAlertsOpen && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-40"
-                          onClick={() => setIsUpperBarAlertsOpen(false)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 z-50 overflow-hidden"
-                        >
-                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                              <Bell size={16} className="text-red-500" />
-                              <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Clinical Alerts</span>
-                            </div>
-                            <span className="text-[10px] font-bold bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">3 Critical</span>
-                          </div>
-
-                          <div className="divide-y divide-slate-100 dark:divide-slate-800/60 max-h-80 overflow-y-auto custom-scrollbar">
-                            {/* Alert 1 */}
-                            <div 
-                              onClick={() => {
-                                setCurrentView('diagnostic_lab');
-                                setIsUpperBarAlertsOpen(false);
-                                addToast('Navigating to Diagnostic Lab for James Okwera', 'info');
-                              }}
-                              className="py-3 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <span className="text-xs font-black text-rose-600 dark:text-rose-400">Critical Lab Alert</span>
-                                <span className="text-[9px] text-slate-400">5m ago</span>
-                              </div>
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">James Okwera (#P-10244)</p>
-                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Fasting Blood Sugar flagged high at 184 mg/dL. Mulago Hospital node.</p>
-                            </div>
-
-                            {/* Alert 2 */}
-                            <div 
-                              onClick={() => {
-                                setCurrentView('doctors_dashboard');
-                                setIsUpperBarAlertsOpen(false);
-                                addToast('Navigating to Doctors Hub for Rebecca Namagembe', 'info');
-                              }}
-                              className="py-3 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">High Temp Flag</span>
-                                <span className="text-[9px] text-slate-400">7m ago</span>
-                              </div>
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">Rebecca Namagembe (#P-10241)</p>
-                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Body temperature elevated at 38.6°C febrile spike. Triage required.</p>
-                            </div>
-
-                            {/* Alert 3 */}
-                            <div 
-                              onClick={() => {
-                                setCurrentView('clinical_roadmap');
-                                setIsUpperBarAlertsOpen(false);
-                                addToast('Opening Appointments schedule', 'info');
-                              }}
-                              className="py-3 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <span className="text-xs font-black text-blue-600 dark:text-blue-400">Upcoming Consultation</span>
-                                <span className="text-[9px] text-slate-400">In 15m</span>
-                              </div>
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">Grace Akello (#P-10245)</p>
-                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Cardiology Clinic Room 3 with Dr. Sarah Nakato at Mulago Hospital.</p>
-                            </div>
-                          </div>
-
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsUpperBarAlertsOpen(false);
-                                addToast('All alerts marked as reviewed', 'success');
-                              }}
-                              className="text-[11px] font-black text-blue-600 dark:text-cyan-400 uppercase tracking-wider hover:underline"
-                            >
-                              Mark All as Reviewed
-                            </button>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
+                {/* 1. Live Notification Alarm Bell with Real-Time Receiving & Sending */}
+                <LiveAlarmNotificationCenter
+                  user={user}
+                  isOpen={isUpperBarAlertsOpen}
+                  onToggle={() => {
+                    setIsUpperBarAlertsOpen(!isUpperBarAlertsOpen);
+                    setIsProfileOpen(false);
+                  }}
+                  onClose={() => setIsUpperBarAlertsOpen(false)}
+                  onNavigate={(targetView) => setCurrentView(targetView)}
+                  addToast={addToast}
+                  onUnreadChange={(cnt) => setHasNotification(cnt > 0)}
+                />
 
                 {/* 2. Small Smart User Profile Avatar Icon */}
                 <div className="relative shrink-0">
@@ -3099,6 +3050,30 @@ export default function App() {
                               </div>
                               
                               <div className="px-2 space-y-1">
+                                {/* Compact Language Selector on Mobile Profile Drawer */}
+                                <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 mb-1" data-no-translate>
+                                  <span className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    <Globe size={14} className="text-cyan-500" />
+                                    <span>Language</span>
+                                  </span>
+                                  <select
+                                    aria-label="Select Language Mobile"
+                                    value={normalizeLanguageCode(currentLanguage)}
+                                    onChange={(e) => {
+                                      const nextLang = e.target.value;
+                                      const canonical = setAppLanguage(nextLang);
+                                      setCurrentLanguage(canonical);
+                                      addToast(`Language changed to ${canonical}`, 'success');
+                                    }}
+                                    className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-white focus:outline-none"
+                                  >
+                                    {SUPPORTED_LANGUAGES.map((lang) => (
+                                      <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
+                                        {lang.nativeLabel}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                                 {/* Upgraded Uganda Digital Health ID Card Button */}
                                 <button
                                   type="button"
@@ -3242,6 +3217,7 @@ export default function App() {
               </div>
             </div>
           </motion.header>
+        )}
 
       {/* Visual Offline Mode Banner */}
       <AnimatePresence>
@@ -3292,6 +3268,47 @@ export default function App() {
       <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
         currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0 overflow-hidden' : 'pb-16 sm:pb-20'
       }`} id="main-content">
+          {currentView !== 'ai_nexus' && (
+            <div className="w-full px-3 sm:px-5 lg:px-6 max-w-6xl mx-auto flex items-center justify-end pt-2 pb-0.5 shrink-0">
+              <div
+                className="inline-flex items-center gap-1 rounded-xl bg-white/85 dark:bg-[#081533]/85 backdrop-blur-md border border-slate-200/90 dark:border-cyan-500/25 p-0.5 shadow-xs"
+                role="navigation"
+                aria-label="Page history navigation"
+              >
+                <button
+                  type="button"
+                  onClick={handleGoPrev}
+                  disabled={!canGoPrev}
+                  title={canGoPrev && prevTargetView ? `Previous: ${viewNamesMap[prevTargetView] || prevTargetView}` : 'No previous page'}
+                  aria-label="Previous page"
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    canGoPrev
+                      ? 'text-slate-800 dark:text-cyan-100 hover:bg-cyan-500/15 hover:text-cyan-700 dark:hover:text-cyan-300 cursor-pointer active:scale-95'
+                      : 'text-slate-400/60 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                >
+                  <ChevronLeft size={14} />
+                  <span>Prev</span>
+                </button>
+                <div className="w-px h-3.5 bg-slate-200 dark:bg-cyan-500/25" />
+                <button
+                  type="button"
+                  onClick={handleGoNext}
+                  disabled={!canGoNext}
+                  title={canGoNext && nextTargetView ? `Next: ${viewNamesMap[nextTargetView] || nextTargetView}` : 'No next page'}
+                  aria-label="Next page"
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    canGoNext
+                      ? 'text-slate-800 dark:text-cyan-100 hover:bg-cyan-500/15 hover:text-cyan-700 dark:hover:text-cyan-300 cursor-pointer active:scale-95'
+                      : 'text-slate-400/60 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                >
+                  <span>Next</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus'
               ? 'py-0 px-0 max-w-full h-full min-h-0 space-y-0' 
@@ -3425,7 +3442,7 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full h-full"
+              className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden"
             >
               <MedicalAI 
                 user={user} 
@@ -4368,15 +4385,6 @@ export default function App() {
 
   </Suspense>
 
-    <Suspense fallback={null}>
-      <AppTutorial 
-        isOpen={isTutorialOpen} 
-        onClose={() => setIsTutorialOpen(false)} 
-        onNavigate={setCurrentView} 
-        currentView={currentView} 
-      />
-    </Suspense>
-
   {/* Admin Authentication Overlay */}
   <AnimatePresence>
     {showAdminLogin && (
@@ -4871,6 +4879,7 @@ export default function App() {
 
     {/* Intelligent Auto-Hiding Install Button (Appears ONLY if not yet installed on this device) */}
     <SmartInstallButton
+      hidden={currentView === 'ai_nexus'}
       onOpenFullModal={() => setIsDownloadAppOpen(true)}
       onInstalledToast={(msg) => {
         setHasInstalledApp(true);

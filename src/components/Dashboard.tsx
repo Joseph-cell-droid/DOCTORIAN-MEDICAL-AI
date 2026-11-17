@@ -497,30 +497,87 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* SCREEN 3: CENTERED LIVE EAST AFRICAN TIME GREETING & HEALTH OVERVIEW   */}
         {/* ===================================================================== */}
         <section className="space-y-4">
-          {/* Centered Live East African Time Greeting Header */}
-          <div className="flex flex-col items-center justify-center text-center mx-auto max-w-2xl px-2 pt-0.5 pb-1 space-y-1.5">
-            <h1 className="text-xl sm:text-2xl md:text-[1.75rem] font-[900] tracking-tight text-slate-900 dark:text-white leading-tight flex items-center justify-center gap-1.5 flex-wrap">
-              <span>{t(greetingData.prefix)}</span>
-              <span className="bg-gradient-to-r from-cyan-500 to-blue-600 dark:from-cyan-300 dark:to-blue-400 bg-clip-text text-transparent">
-                {user?.displayName || 'Akora Joseph'}
-              </span>
-              <span>👋</span>
-            </h1>
+          {/* Modernized Crystalline Greeting Banner with Moving Bubbles, Waving Hand & Spectrum Text */}
+          <div className="relative overflow-hidden rounded-3xl border border-cyan-200/75 dark:border-cyan-400/20 bg-white/75 dark:bg-[#081533]/80 backdrop-blur-xl px-5 py-5 sm:px-8 sm:py-6 shadow-[0_14px_38px_-12px_rgba(14,165,233,0.18)] dark:shadow-[0_18px_48px_-12px_rgba(0,210,255,0.2)]">
+            {/* Ambient Soft Prism Aura */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_50%_0%,rgba(56,189,248,0.14),transparent_70%)] dark:bg-[radial-gradient(ellipse_80%_70%_at_50%_0%,rgba(34,211,238,0.16),transparent_70%)]"
+            />
 
-            <div className="flex items-center justify-center gap-2 flex-wrap text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-300">
-              <span className="inline-flex items-center gap-1.5 font-mono font-bold text-cyan-600 dark:text-cyan-300 tabular-nums">
-                <greetingData.icon size={13} className="text-amber-500 dark:text-cyan-300 shrink-0" />
-                <span>{liveTimeString} EAT</span>
-              </span>
-              <span className="text-slate-400">·</span>
-              <span>{todayFormatted}</span>
-              <span className="text-slate-400 hidden sm:inline">·</span>
-              <span className="hidden sm:inline text-slate-500 dark:text-slate-400">{t(greetingData.shift)}</span>
+            {/* Moving Small Crystal Bubbles Layer */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+              {[
+                { left: '6%', bottom: '-6px', size: 11, duration: '6.8s', delay: '0s', drift: '14px' },
+                { left: '13%', bottom: '8px', size: 7, duration: '5.4s', delay: '1.2s', drift: '-10px' },
+                { left: '20%', bottom: '-4px', size: 15, duration: '8.2s', delay: '0.6s', drift: '16px' },
+                { left: '28%', bottom: '4px', size: 9, duration: '6.1s', delay: '2.1s', drift: '-14px' },
+                { left: '36%', bottom: '-8px', size: 13, duration: '7.5s', delay: '0.9s', drift: '12px' },
+                { left: '44%', bottom: '6px', size: 6, duration: '5.2s', delay: '2.8s', drift: '-8px' },
+                { left: '52%', bottom: '-5px', size: 16, duration: '8.6s', delay: '1.7s', drift: '15px' },
+                { left: '60%', bottom: '2px', size: 8, duration: '5.9s', delay: '0.4s', drift: '-12px' },
+                { left: '68%', bottom: '-6px', size: 14, duration: '7.8s', delay: '2.4s', drift: '11px' },
+                { left: '75%', bottom: '10px', size: 7, duration: '5.6s', delay: '1.1s', drift: '-13px' },
+                { left: '83%', bottom: '-4px', size: 12, duration: '6.9s', delay: '3.1s', drift: '14px' },
+                { left: '91%', bottom: '4px', size: 9, duration: '6.4s', delay: '0.7s', drift: '-11px' },
+                { left: '16%', bottom: '24%', size: 8, duration: '7.2s', delay: '3.5s', drift: '10px' },
+                { left: '48%', bottom: '22%', size: 10, duration: '6.7s', delay: '2.6s', drift: '-12px' },
+                { left: '79%', bottom: '26%', size: 8, duration: '7.4s', delay: '1.9s', drift: '9px' },
+                { left: '95%', bottom: '18%', size: 6, duration: '5.5s', delay: '2.9s', drift: '-9px' }
+              ].map((b, idx) => (
+                <span
+                  key={idx}
+                  className="doctorian-crystal-bubble"
+                  style={
+                    {
+                      left: b.left,
+                      bottom: b.bottom,
+                      width: `${b.size}px`,
+                      height: `${b.size}px`,
+                      '--bubble-duration': b.duration,
+                      '--bubble-delay': b.delay,
+                      '--drift-x': b.drift
+                    } as React.CSSProperties
+                  }
+                />
+              ))}
             </div>
 
-            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-              {t('Stay healthy, stay strong!')}
-            </p>
+            {/* Foreground Greeting Content */}
+            <div className="relative z-10 flex flex-col items-center justify-center text-center mx-auto max-w-2xl space-y-2">
+              <h1 className="text-2xl sm:text-3xl md:text-[2.1rem] font-extrabold tracking-[-0.025em] leading-[1.15] flex items-center justify-center gap-2 flex-wrap [text-wrap:balance]">
+                <span className="doctorian-greeting-prism">
+                  {t(greetingData.prefix)}
+                </span>
+                <span className="doctorian-greeting-prism">
+                  {user?.displayName || 'Akora Joseph'}
+                </span>
+                <span
+                  className="doctorian-greeting-wave select-none drop-shadow-[0_2px_8px_rgba(251,191,36,0.35)]"
+                  role="img"
+                  aria-label="Waving hand"
+                >
+                  👋
+                </span>
+              </h1>
+
+              <div className="flex items-center justify-center gap-2 flex-wrap text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+                <span className="inline-flex items-center gap-1.5 font-mono font-bold tabular-nums">
+                  <greetingData.icon size={14} className="text-amber-500 dark:text-cyan-300 shrink-0" />
+                  <span className="doctorian-greeting-prism-sub">{liveTimeString} EAT</span>
+                </span>
+                <span className="text-slate-400" aria-hidden="true">·</span>
+                <span className="doctorian-greeting-prism-sub font-semibold">{todayFormatted}</span>
+                <span className="text-slate-400 hidden sm:inline" aria-hidden="true">·</span>
+                <span className="hidden sm:inline doctorian-greeting-prism-sub font-semibold">{t(greetingData.shift)}</span>
+              </div>
+
+              <p className="text-xs sm:text-sm font-bold tracking-tight">
+                <span className="doctorian-greeting-prism-sub">
+                  {t('Stay healthy, stay strong!')}
+                </span>
+              </p>
+            </div>
           </div>
 
           {/* Thick Elevated Card: Health Overview */}

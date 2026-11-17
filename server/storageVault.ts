@@ -5,9 +5,63 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { SERVER_SECRETS, getClientIp, recordSecurityEvent } from './security.ts';
+import { executeVerifiedCheckout } from './billing.ts';
 
 // 1 GB allocated in bytes (1024 * 1024 * 1024 bytes)
 export const FREE_STORAGE_QUOTA_BYTES = 1073741824; // 1,073,741,824 bytes = 1 GB
+
+export interface StoragePolicy {
+  tier: 'free_1gb' | 'expanded_clinical' | 'enterprise_archive';
+  label: string;
+  totalQuotaBytes: number;
+  maxFileSizeBytes: number;
+  maxFiles: number;
+  uploadsPer10Min: number;
+  guestBlocked: boolean;
+  encryptionAtRest: 'AES-256-GCM';
+  magicByteFirewall: boolean;
+}
+
+export function computeStoragePolicy(totalQuotaBytes: number): StoragePolicy {
+  if (totalQuotaBytes > 25 * 1024 * 1024 * 1024) {
+    return {
+      tier: 'enterprise_archive',
+      label: 'Enterprise Medical Repository',
+      totalQuotaBytes,
+      maxFileSizeBytes: 250 * 1024 * 1024, // 250 MB single file
+      maxFiles: 25000,
+      uploadsPer10Min: 80,
+      guestBlocked: true,
+      encryptionAtRest: 'AES-256-GCM',
+      magicByteFirewall: true
+    };
+  }
+  if (totalQuotaBytes > FREE_STORAGE_QUOTA_BYTES) {
+    return {
+      tier: 'expanded_clinical',
+      label: 'Paid Clinical Expansion Vault',
+      totalQuotaBytes,
+      maxFileSizeBytes: 100 * 1024 * 1024, // 100 MB single file
+      maxFiles: 5000,
+      uploadsPer10Min: 60,
+      guestBlocked: true,
+      encryptionAtRest: 'AES-256-GCM',
+      magicByteFirewall: true
+    };
+  }
+  return {
+    tier: 'free_1gb',
+    label: 'Free 1.00 GB Restricted Vault',
+    totalQuotaBytes: FREE_STORAGE_QUOTA_BYTES,
+    maxFileSizeBytes: 25 * 1024 * 1024, // Strict 25 MB max per file on Free 1 GB tier
+    maxFiles: 150, // Strict 150 file objects cap on Free 1 GB tier
+    uploadsPer10Min: 15, // Strict 15 uploads per 10 minutes on Free 1 GB tier
+    guestBlocked: true,
+    encryptionAtRest: 'AES-256-GCM',
+    magicByteFirewall: true
+  };
+}
 
 export interface StorageVaultFile {
   id: string;
@@ -20,6 +74,7 @@ export interface StorageVaultFile {
   filePath: string;
   sha256?: string;
   encryption?: string;
+  encryptionMeta?: string;
   metadata?: string;
   createdAt: string;
   updatedAt: string;
@@ -40,17 +95,13 @@ export function setupStorageVaultRoutes(
 
   // Create tables for 1GB Vault Files, 2-Way Verification & Security Audit Logs
   try {
-    // Check and add storageQuotaBytes column to users table if missing
     try {
       db.exec(`ALTER TABLE users ADD COLUMN storageQuotaBytes INTEGER DEFAULT 1073741824;`);
-    } catch (e) {
-      // Column already exists
-    }
+    } catch {}
 
-    // Allocate 1GB to all registered accounts that do not have quota set
     try {
       db.exec(`UPDATE users SET storageQuotaBytes = 1073741824 WHERE storageQuotaBytes IS NULL OR storageQuotaBytes <= 0;`);
-    } catch (e) {}
+    } catch {}
 
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_storage_files (
@@ -64,6 +115,7 @@ export function setupStorageVaultRoutes(
         filePath TEXT NOT NULL,
         sha256 TEXT,
         encryption TEXT DEFAULT 'AES-256-GCM',
+        encryption_meta TEXT,
         metadata TEXT,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
@@ -109,12 +161,12 @@ export function setupStorageVaultRoutes(
       );
     `);
 
-    // In case tables existed previously without newer security columns
-    try { db.exec(`ALTER TABLE user_storage_files ADD COLUMN sha256 TEXT;`); } catch (e) {}
-    try { db.exec(`ALTER TABLE user_storage_files ADD COLUMN encryption TEXT DEFAULT 'AES-256-GCM';`); } catch (e) {}
-    try { db.exec(`ALTER TABLE storage_2fa_challenges ADD COLUMN attempts INTEGER DEFAULT 0;`); } catch (e) {}
+    try { db.exec(`ALTER TABLE user_storage_files ADD COLUMN sha256 TEXT;`); } catch {}
+    try { db.exec(`ALTER TABLE user_storage_files ADD COLUMN encryption TEXT DEFAULT 'AES-256-GCM';`); } catch {}
+    try { db.exec(`ALTER TABLE user_storage_files ADD COLUMN encryption_meta TEXT;`); } catch {}
+    try { db.exec(`ALTER TABLE storage_2fa_challenges ADD COLUMN attempts INTEGER DEFAULT 0;`); } catch {}
 
-    console.log('[Storage Vault] Database schemas verified: 1GB Free Cloud Computing storage enabled per account.');
+    console.log('[Storage Vault] Hardened AES-256-GCM Vault initialized: strict 1GB Free Cloud allocation per registered user.');
   } catch (err: any) {
     console.error('[Storage Vault] Schema initialization error:', err.message);
   }
@@ -134,11 +186,117 @@ export function setupStorageVaultRoutes(
     }
   }
 
-  // File Security Check
-  const DANGEROUS_EXTENSIONS = new Set(['.exe', '.bat', '.cmd', '.sh', '.vbs', '.msi', '.scr', '.pif', '.ps1', '.jar', '.com']);
-  function isFileSafe(filename: string): boolean {
+  // File Security & Magic-Byte Signature Firewall
+  const DANGEROUS_EXTENSIONS = new Set([
+    '.exe', '.bat', '.cmd', '.sh', '.vbs', '.msi', '.scr', '.pif', '.ps1', '.jar', '.com',
+    '.dll', '.so', '.dylib', '.apk', '.deb', '.rpm', '.php', '.jsp', '.asp', '.hta', '.wsf'
+  ]);
+  const ALLOWED_EXTENSIONS = new Set([
+    '.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tif', '.tiff',
+    '.dcm', '.dicom', '.txt', '.csv', '.json', '.xml', '.md', '.rtf',
+    '.mp3', '.wav', '.ogg', '.webm', '.mp4', '.m4a', '.doc', '.docx', '.xls', '.xlsx'
+  ]);
+
+  function inspectMagicBytes(filename: string, buffer: Buffer): { ok: boolean; reason?: string } {
     const ext = path.extname(filename).toLowerCase();
-    return !DANGEROUS_EXTENSIONS.has(ext);
+    if (DANGEROUS_EXTENSIONS.has(ext) || !ALLOWED_EXTENSIONS.has(ext)) {
+      return {
+        ok: false,
+        reason: `Extension '${ext || '(none)'}' is blocked by the Medical Vault Firewall.`
+      };
+    }
+    if (!buffer || buffer.length === 0) {
+      return { ok: false, reason: 'Empty zero-byte files are not permitted.' };
+    }
+
+    const head = buffer.subarray(0, 16);
+    // Reject executable signatures (PE/MZ, ELF, Mach-O, shell shebang) regardless of extension
+    if (head[0] === 0x4d && head[1] === 0x5a) {
+      return { ok: false, reason: 'Windows PE executable signature (MZ) blocked.' };
+    }
+    if (head[0] === 0x7f && head[1] === 0x45 && head[2] === 0x4c && head[3] === 0x46) {
+      return { ok: false, reason: 'Linux ELF binary executable blocked.' };
+    }
+    if (
+      (head[0] === 0xcf && head[1] === 0xfa && head[2] === 0xed && head[3] === 0xfe) ||
+      (head[0] === 0xfe && head[1] === 0xed && head[2] === 0xfa && head[3] === 0xce) ||
+      (head[0] === 0x23 && head[1] === 0x21)
+    ) {
+      return { ok: false, reason: 'Native binary or executable script shebang blocked.' };
+    }
+
+    // Strict header verification for critical formats
+    if (ext === '.pdf' && head.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      return { ok: false, reason: 'PDF header signature (%PDF-) mismatch — spoofed file rejected.' };
+    }
+    if (ext === '.png' && !(head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47)) {
+      return { ok: false, reason: 'PNG binary signature mismatch — spoofed image rejected.' };
+    }
+    if ((ext === '.jpg' || ext === '.jpeg') && !(head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff)) {
+      return { ok: false, reason: 'JPEG binary signature mismatch — spoofed image rejected.' };
+    }
+    return { ok: true };
+  }
+
+  // AES-256-GCM Master Vault Key derived from persistent server root secret
+  const VAULT_MASTER_KEY = crypto
+    .createHash('sha256')
+    .update(`${SERVER_SECRETS.jwtSecret}:doctorian-vault-aes256-gcm-v2`)
+    .digest();
+
+  function encryptVaultBuffer(plainBuffer: Buffer): { ciphertext: Buffer; encryptionMeta: string } {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', VAULT_MASTER_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(plainBuffer), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return {
+      ciphertext: encrypted,
+      encryptionMeta: JSON.stringify({
+        alg: 'aes-256-gcm',
+        iv: iv.toString('hex'),
+        tag: tag.toString('hex'),
+        plaintextBytes: plainBuffer.length
+      })
+    };
+  }
+
+  function decryptVaultBuffer(storedBuffer: Buffer, encryptionMetaJson?: string | null): Buffer {
+    if (!encryptionMetaJson) return storedBuffer; // Legacy plaintext fallback
+    try {
+      const meta = JSON.parse(encryptionMetaJson);
+      if (!meta?.iv || !meta?.tag) return storedBuffer;
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        VAULT_MASTER_KEY,
+        Buffer.from(meta.iv, 'hex')
+      );
+      decipher.setAuthTag(Buffer.from(meta.tag, 'hex'));
+      return Buffer.concat([decipher.update(storedBuffer), decipher.final()]);
+    } catch (err) {
+      throw new Error('Cryptographic integrity check failed while decrypting vault object.');
+    }
+  }
+
+  function readDecryptedVaultFile(fileRecord: any): Buffer {
+    const raw = fs.readFileSync(fileRecord.filePath);
+    return decryptVaultBuffer(raw, fileRecord.encryption_meta);
+  }
+
+  // Sliding upload window limiter per userId
+  const uploadRateMap = new Map<string, number[]>();
+  function checkUploadRateLimit(userId: string, policy: StoragePolicy): { allowed: boolean; retrySec?: number } {
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1000;
+    const prev = (uploadRateMap.get(userId) || []).filter((ts) => now - ts < windowMs);
+    if (prev.length >= policy.uploadsPer10Min) {
+      const oldest = prev[0] || now;
+      const retrySec = Math.max(5, Math.ceil((oldest + windowMs - now) / 1000));
+      uploadRateMap.set(userId, prev);
+      return { allowed: false, retrySec };
+    }
+    prev.push(now);
+    uploadRateMap.set(userId, prev);
+    return { allowed: true };
   }
 
   // Compute Cryptographic SHA-256 Checksum
@@ -153,24 +311,24 @@ export function setupStorageVaultRoutes(
       const userDir = path.join(UPLOADS_DIR, user?.id || 'common');
       try {
         fs.mkdirSync(userDir, { recursive: true });
-      } catch (e) {}
+      } catch {}
       cb(null, userDir);
     },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      cb(null, `${uniqueSuffix}-${safeName}`);
+      cb(null, `${uniqueSuffix}-${safeName}.enc`);
     },
   });
 
   const upload = multer({
     storage,
     limits: {
-      fileSize: 250 * 1024 * 1024, // 250MB single file limit, capped by total account quota
+      fileSize: 250 * 1024 * 1024, // Hard ceiling; tighter tier cap enforced right below
     },
   });
 
-  // Helper to calculate used bytes with dynamic account quota
+  // Helper to calculate used bytes & strict tier policy with dynamic account quota
   function getUserStorageUsage(userId: string) {
     try {
       let totalQuotaBytes = FREE_STORAGE_QUOTA_BYTES;
@@ -179,7 +337,7 @@ export function setupStorageVaultRoutes(
         if (userRow && userRow.storageQuotaBytes && Number(userRow.storageQuotaBytes) > 0) {
           totalQuotaBytes = Number(userRow.storageQuotaBytes);
         }
-      } catch (e) {}
+      } catch {}
 
       const row: any = db
         .prepare(
@@ -190,7 +348,8 @@ export function setupStorageVaultRoutes(
       const fileCount = Number(row?.fileCount || 0);
       const freeBytes = Math.max(0, totalQuotaBytes - usedBytes);
       const percentUsed = Math.min(100, Number(((usedBytes / totalQuotaBytes) * 100).toFixed(2)));
-      const isFull = usedBytes >= totalQuotaBytes || percentUsed >= 100;
+      const policy = computeStoragePolicy(totalQuotaBytes);
+      const isFull = usedBytes >= totalQuotaBytes || percentUsed >= 100 || fileCount >= policy.maxFiles;
 
       return {
         totalQuotaBytes,
@@ -199,8 +358,12 @@ export function setupStorageVaultRoutes(
         fileCount,
         percentUsed,
         isFull,
+        maxFiles: policy.maxFiles,
+        maxFileSizeBytes: policy.maxFileSizeBytes,
+        tier: policy.tier
       };
-    } catch (err) {
+    } catch {
+      const policy = computeStoragePolicy(FREE_STORAGE_QUOTA_BYTES);
       return {
         totalQuotaBytes: FREE_STORAGE_QUOTA_BYTES,
         usedBytes: 0,
@@ -208,6 +371,9 @@ export function setupStorageVaultRoutes(
         fileCount: 0,
         percentUsed: 0,
         isFull: false,
+        maxFiles: policy.maxFiles,
+        maxFileSizeBytes: policy.maxFileSizeBytes,
+        tier: policy.tier
       };
     }
   }
@@ -237,15 +403,14 @@ export function setupStorageVaultRoutes(
         return res.status(403).json({ error: 'Invalid vault access credentials', locked: true });
       }
 
-      // Check if user still exists and is active
       const user: any = db.prepare('SELECT id, email, display_name as displayName, role, status FROM users WHERE id = ?').get(decoded.userId);
-      if (!user || user.status !== 'active') {
-        return res.status(401).json({ error: 'Account not found or suspended', locked: true });
+      if (!user || user.status !== 'active' || user.role === 'guest') {
+        return res.status(403).json({ error: 'Verified registered account required for encrypted vault access.', locked: true });
       }
 
       (req as any).vaultUser = user;
       next();
-    } catch (err: any) {
+    } catch {
       return res.status(401).json({
         error: 'Vault session expired. Please re-authenticate with credentials or two-way verification.',
         locked: true,
@@ -264,6 +429,20 @@ export function setupStorageVaultRoutes(
   }
 
   // =========================================================================
+  // 0. PUBLIC / SESSION STORAGE GOVERNANCE POLICY SPECIFICATION
+  // =========================================================================
+  app.get('/api/storage/policies', (req: express.Request, res: express.Response) => {
+    const totalQuota = FREE_STORAGE_QUOTA_BYTES;
+    res.json({
+      success: true,
+      freePolicy: computeStoragePolicy(totalQuota),
+      expandedPolicy: computeStoragePolicy(5 * 1024 * 1024 * 1024),
+      enterprisePolicy: computeStoragePolicy(100 * 1024 * 1024 * 1024),
+      allowedExtensions: Array.from(ALLOWED_EXTENSIONS)
+    });
+  });
+
+  // =========================================================================
   // 1. QUICK UNLOCK VIA ACTIVE AUTHENTICATED SESSION OR DEVICE BIOMETRIC KEY
   // =========================================================================
   app.post('/api/storage/quick-unlock', async (req: express.Request, res: express.Response) => {
@@ -272,9 +451,11 @@ export function setupStorageVaultRoutes(
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
-      } else if (req.cookies && req.cookies.token) {
+      } else if (req.cookies?.doctorian_token) {
+        token = req.cookies.doctorian_token;
+      } else if (req.cookies?.token) {
         token = req.cookies.token;
-      } else if (req.body.token) {
+      } else if (req.body?.token) {
         token = req.body.token;
       }
 
@@ -319,12 +500,14 @@ export function setupStorageVaultRoutes(
       logAudit(user.id, 'QUICK_SESSION_UNLOCK', `User unlocked 1GB Vault via verified credentials (${req.body.method || 'session_key'})`, req);
 
       const usage = getUserStorageUsage(user.id);
+      const policy = computeStoragePolicy(usage.totalQuotaBytes);
 
       return res.json({
         success: true,
         message: '1GB Secure Cloud Storage Vault unlocked via verified active credentials.',
         vaultToken,
         quota: usage,
+        policy,
         user: {
           id: user.id,
           email: user.email,
@@ -499,12 +682,14 @@ export function setupStorageVaultRoutes(
       logAudit(user.id, '2FA_VERIFICATION_SUCCESS', `1GB Vault unlocked via two-way verification.`, req);
 
       const usage = getUserStorageUsage(user.id);
+      const policy = computeStoragePolicy(usage.totalQuotaBytes);
 
       return res.json({
         success: true,
         message: '1GB Secure Cloud Vault unlocked successfully!',
         vaultToken,
         quota: usage,
+        policy,
         user: {
           id: user.id,
           email: user.email,
@@ -523,8 +708,8 @@ export function setupStorageVaultRoutes(
   app.get('/api/storage/status', requireVaultAuth, (req: express.Request, res: express.Response) => {
     const user = (req as any).vaultUser;
     const usage = getUserStorageUsage(user.id);
+    const policy = computeStoragePolicy(usage.totalQuotaBytes);
 
-    // Get breakdown by category
     const categories = db
       .prepare(
         'SELECT category, COUNT(*) as count, COALESCE(SUM(size), 0) as bytes FROM user_storage_files WHERE userId = ? GROUP BY category'
@@ -534,10 +719,11 @@ export function setupStorageVaultRoutes(
     return res.json({
       success: true,
       quota: usage,
+      policy,
       categories,
       cloudInfrastructure: {
-        node: 'Doctorian Cloud Node West (Encrypted Object Cluster)',
-        encryption: 'AES-256-GCM + SHA-256 Bit-Level Integrity',
+        node: 'Doctorian Cloud Node West (AES-256-GCM Encrypted Cluster)',
+        encryption: 'AES-256-GCM At-Rest + SHA-256 Bit-Level Integrity',
         sla: '99.99% Availability',
         tlsVersion: 'TLS 1.3 Strict Transport Security',
         accountIsolation: 'Isolated Tenant Namespace',
@@ -570,16 +756,18 @@ export function setupStorageVaultRoutes(
 
     const files = db.prepare(query).all(...params);
     const usage = getUserStorageUsage(user.id);
+    const policy = computeStoragePolicy(usage.totalQuotaBytes);
 
     return res.json({
       success: true,
       files,
       quota: usage,
+      policy,
     });
   });
 
   // ==========================================
-  // 6. UPLOAD FILE INTO 1GB VAULT
+  // 6. UPLOAD FILE INTO 1GB VAULT (HIGH RESTRICTIONS + AES-256-GCM)
   // ==========================================
   app.post(
     '/api/storage/upload',
@@ -594,43 +782,81 @@ export function setupStorageVaultRoutes(
           return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Security Validation: Disallow dangerous executable extensions
-        if (!isFileSafe(file.originalname)) {
-          try { fs.unlinkSync(file.path); } catch (e) {}
-          logAudit(user.id, 'MALICIOUS_FILE_BLOCKED', `Blocked dangerous executable: ${file.originalname}`, req);
-          return res.status(400).json({
-            error: 'Security Violation: Executable binaries, scripts, or installer files cannot be stored in the medical cloud vault.',
+        const usage = getUserStorageUsage(user.id);
+        const policy = computeStoragePolicy(usage.totalQuotaBytes);
+        const fileSize = file.size;
+
+        // 1. Sliding Rate Limit Restriction
+        const rateCheck = checkUploadRateLimit(user.id, policy);
+        if (!rateCheck.allowed) {
+          try { fs.unlinkSync(file.path); } catch {}
+          return res.status(429).json({
+            error: `Upload velocity limit exceeded (${policy.uploadsPer10Min} files / 10 min for ${policy.label}). Retry in ${rateCheck.retrySec}s.`,
+            policyViolation: true,
+            retryAfterSeconds: rateCheck.retrySec,
+            policy,
           });
         }
 
-        const fileSize = file.size;
-        const usage = getUserStorageUsage(user.id);
+        // 2. Strict Object Count Restriction
+        if (usage.fileCount >= policy.maxFiles) {
+          try { fs.unlinkSync(file.path); } catch {}
+          return res.status(400).json({
+            error: `Vault object count limit reached (${policy.maxFiles} files max on ${policy.label}). Delete old files or expand storage.`,
+            quotaExceeded: true,
+            requiresBilling: true,
+            policyViolation: true,
+            quota: usage,
+            policy,
+          });
+        }
 
-        // Check if upload exceeds the total dynamic quota
+        // 3. Strict Per-File Byte Cap Restriction (25 MB Free vs 100/250 MB Paid)
+        if (fileSize > policy.maxFileSizeBytes) {
+          try { fs.unlinkSync(file.path); } catch {}
+          const maxMb = (policy.maxFileSizeBytes / (1024 * 1024)).toFixed(0);
+          const gotMb = (fileSize / (1024 * 1024)).toFixed(2);
+          return res.status(400).json({
+            error: `Single-file restriction: "${file.originalname}" (${gotMb} MB) exceeds the ${maxMb} MB per-file cap on ${policy.label}. Upgrade storage to unlock 100–250 MB uploads.`,
+            policyViolation: true,
+            requiresBilling: policy.tier === 'free_1gb',
+            quota: usage,
+            policy,
+          });
+        }
+
+        // 4. Total Quota Restriction
         if (usage.usedBytes + fileSize > usage.totalQuotaBytes) {
-          try {
-            fs.unlinkSync(file.path);
-          } catch (e) {}
-
+          try { fs.unlinkSync(file.path); } catch {}
           const remainingMB = (usage.freeBytes / (1024 * 1024)).toFixed(2);
           const requestedMB = (fileSize / (1024 * 1024)).toFixed(2);
           return res.status(400).json({
-            error: `Storage quota exceeded! Your cloud vault is full. Requested: ${requestedMB} MB, Available: ${remainingMB} MB. Please purchase an expansion pack to continue uploading.`,
+            error: `Storage quota exceeded! Available: ${remainingMB} MB, Requested: ${requestedMB} MB. Purchase an expansion pack to continue uploading.`,
             quotaExceeded: true,
             isFull: true,
             requiresBilling: true,
             quota: usage,
+            policy,
           });
         }
 
-        // Compute real cryptographic SHA-256 checksum for audit & tamper-proofing
-        let sha256Hash = '';
-        try {
-          const fileBuffer = fs.readFileSync(file.path);
-          sha256Hash = computeBufferHash(fileBuffer);
-        } catch (hErr) {
-          sha256Hash = crypto.createHash('sha256').update(file.originalname + Date.now()).digest('hex');
+        // 5. Magic-Byte Signature & Extension Firewall
+        const plainBuffer = fs.readFileSync(file.path);
+        const magicCheck = inspectMagicBytes(file.originalname, plainBuffer);
+        if (!magicCheck.ok) {
+          try { fs.unlinkSync(file.path); } catch {}
+          logAudit(user.id, 'MALICIOUS_FILE_BLOCKED', `${file.originalname}: ${magicCheck.reason}`, req);
+          recordSecurityEvent('VAULT_FIREWALL_BLOCKED', 'high', getClientIp(req), user.email, `${file.originalname} -> ${magicCheck.reason}`);
+          return res.status(400).json({
+            error: `Security Firewall Rejected Upload: ${magicCheck.reason}`,
+            policyViolation: true,
+          });
         }
+
+        // 6. Compute SHA-256 checksum on plaintext, then encrypt at rest with AES-256-GCM
+        const sha256Hash = computeBufferHash(plainBuffer);
+        const encrypted = encryptVaultBuffer(plainBuffer);
+        fs.writeFileSync(file.path, encrypted.ciphertext);
 
         const fileId = 'vf_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
         const category = (req.body.category as string) || determineCategory(file.mimetype, file.originalname);
@@ -639,8 +865,8 @@ export function setupStorageVaultRoutes(
 
         db.prepare(`
           INSERT INTO user_storage_files (
-            id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, metadata, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, encryption_meta, metadata, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           fileId,
           user.id,
@@ -652,18 +878,19 @@ export function setupStorageVaultRoutes(
           file.path,
           sha256Hash,
           'AES-256-GCM',
-          JSON.stringify({ encoding: file.encoding, destination: file.destination }),
+          encrypted.encryptionMeta,
+          JSON.stringify({ encoding: file.encoding, tierAtUpload: policy.tier }),
           now,
           now
         );
 
-        logAudit(user.id, 'FILE_UPLOADED', `Uploaded "${customName}" (${fileSize} bytes, SHA256: ${sha256Hash.substring(0, 16)}...)`, req);
+        logAudit(user.id, 'FILE_UPLOADED_AES256', `Encrypted & stored "${customName}" (${fileSize} bytes, SHA256: ${sha256Hash.substring(0, 16)}...)`, req);
 
         const updatedUsage = getUserStorageUsage(user.id);
 
         return res.json({
           success: true,
-          message: 'File successfully stored in your 1GB Cloud Storage Vault with SHA-256 verification.',
+          message: `File encrypted (AES-256-GCM) and stored safely (${policy.label}).`,
           file: {
             id: fileId,
             userId: user.id,
@@ -677,6 +904,7 @@ export function setupStorageVaultRoutes(
             createdAt: now,
           },
           quota: updatedUsage,
+          policy: computeStoragePolicy(updatedUsage.totalQuotaBytes),
         });
       } catch (err: any) {
         console.error('[Storage Vault Upload Error]:', err);
@@ -686,7 +914,7 @@ export function setupStorageVaultRoutes(
   );
 
   // ==========================================
-  // 7. SAVE STRUCTURED USER DATA / TEXT DOCUMENT
+  // 7. SAVE STRUCTURED USER DATA / TEXT DOCUMENT (AES-256-GCM)
   // ==========================================
   app.post('/api/storage/save-data', requireVaultAuth, (req: express.Request, res: express.Response) => {
     try {
@@ -698,9 +926,30 @@ export function setupStorageVaultRoutes(
       }
 
       const stringContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      const byteSize = Buffer.byteLength(stringContent, 'utf8');
+      const plainBuffer = Buffer.from(stringContent, 'utf8');
+      const byteSize = plainBuffer.length;
 
       const usage = getUserStorageUsage(user.id);
+      const policy = computeStoragePolicy(usage.totalQuotaBytes);
+
+      if (usage.fileCount >= policy.maxFiles) {
+        return res.status(400).json({
+          error: `Vault object count limit reached (${policy.maxFiles} files max). Upgrade storage or prune older files.`,
+          quotaExceeded: true,
+          requiresBilling: true,
+          policyViolation: true,
+          quota: usage,
+          policy,
+        });
+      }
+      if (byteSize > policy.maxFileSizeBytes) {
+        return res.status(400).json({
+          error: `Document exceeds ${(policy.maxFileSizeBytes / (1024 * 1024)).toFixed(0)} MB per-file cap on ${policy.label}.`,
+          policyViolation: true,
+          quota: usage,
+          policy,
+        });
+      }
       if (usage.usedBytes + byteSize > usage.totalQuotaBytes) {
         return res.status(400).json({
           error: 'Storage quota exceeded! Your cloud vault is full. Please purchase an expansion pack to continue saving clinical records.',
@@ -708,6 +957,7 @@ export function setupStorageVaultRoutes(
           isFull: true,
           requiresBilling: true,
           quota: usage,
+          policy,
         });
       }
 
@@ -715,17 +965,18 @@ export function setupStorageVaultRoutes(
       fs.mkdirSync(userDir, { recursive: true });
 
       const fileId = 'vf_data_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-      const safeFilename = `${fileId}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const safeFilename = `${fileId}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}.enc`;
       const filePath = path.join(userDir, safeFilename);
 
-      fs.writeFileSync(filePath, stringContent, 'utf8');
-      const sha256Hash = computeBufferHash(Buffer.from(stringContent, 'utf8'));
+      const sha256Hash = computeBufferHash(plainBuffer);
+      const encrypted = encryptVaultBuffer(plainBuffer);
+      fs.writeFileSync(filePath, encrypted.ciphertext);
 
       const now = new Date().toISOString();
       db.prepare(`
         INSERT INTO user_storage_files (
-          id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, metadata, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, encryption_meta, metadata, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         fileId,
         user.id,
@@ -737,21 +988,23 @@ export function setupStorageVaultRoutes(
         filePath,
         sha256Hash,
         'AES-256-GCM',
-        JSON.stringify({ type: 'structured_user_data' }),
+        encrypted.encryptionMeta,
+        JSON.stringify({ type: 'structured_user_data', tier: policy.tier }),
         now,
         now
       );
 
-      logAudit(user.id, 'DATA_SAVED', `Saved structured record "${name}" (${byteSize} bytes)`, req);
+      logAudit(user.id, 'DATA_SAVED_AES256', `Encrypted & saved structured record "${name}" (${byteSize} bytes)`, req);
 
       const updatedUsage = getUserStorageUsage(user.id);
 
       return res.json({
         success: true,
-        message: 'Data successfully recorded in your 1GB Vault',
+        message: 'Data encrypted (AES-256-GCM) and recorded in your Vault',
         file: {
           id: fileId,
           name,
+          mimeType,
           size: byteSize,
           category,
           sha256: sha256Hash,
@@ -759,6 +1012,7 @@ export function setupStorageVaultRoutes(
           createdAt: now,
         },
         quota: updatedUsage,
+        policy,
       });
     } catch (err: any) {
       return res.status(500).json({ error: 'Failed to save data: ' + err.message });
@@ -787,14 +1041,18 @@ export function setupStorageVaultRoutes(
         clinicalData: data,
       }, null, 2);
 
-      const byteSize = Buffer.byteLength(payloadString, 'utf8');
+      const plainBuffer = Buffer.from(payloadString, 'utf8');
+      const byteSize = plainBuffer.length;
       const usage = getUserStorageUsage(user.id);
-      if (usage.usedBytes + byteSize > usage.totalQuotaBytes) {
+      const policy = computeStoragePolicy(usage.totalQuotaBytes);
+
+      if (usage.fileCount >= policy.maxFiles || usage.usedBytes + byteSize > usage.totalQuotaBytes) {
         return res.status(400).json({
-          error: 'Storage quota exceeded! Cloud vault is full.',
+          error: 'Storage quota or object count limit reached! Expansion required.',
           quotaExceeded: true,
           requiresBilling: true,
           quota: usage,
+          policy,
         });
       }
 
@@ -803,48 +1061,53 @@ export function setupStorageVaultRoutes(
 
       const fileId = 'vf_rec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
       const safeTitle = (title || recordType).replace(/[^a-zA-Z0-9._-]/g, '_');
-      const filename = `${fileId}_${safeTitle}.json`;
+      const filename = `${fileId}_${safeTitle}.json.enc`;
       const filePath = path.join(userDir, filename);
 
-      fs.writeFileSync(filePath, payloadString, 'utf8');
-      const sha256Hash = computeBufferHash(Buffer.from(payloadString, 'utf8'));
+      const sha256Hash = computeBufferHash(plainBuffer);
+      const encrypted = encryptVaultBuffer(plainBuffer);
+      fs.writeFileSync(filePath, encrypted.ciphertext);
       const now = new Date().toISOString();
 
       db.prepare(`
         INSERT INTO user_storage_files (
-          id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, metadata, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, encryption_meta, metadata, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         fileId,
         user.id,
         `${title || 'Clinical Record Snapshot'}.json`,
-        filename,
+        `${safeTitle}.json`,
         'application/json',
         byteSize,
         'user_data',
         filePath,
         sha256Hash,
         'AES-256-GCM',
+        encrypted.encryptionMeta,
         JSON.stringify({ type: 'clinical_sync', recordType }),
         now,
         now
       );
 
-      logAudit(user.id, 'CLINICAL_RECORD_SYNCED', `Record synced: ${title} (${byteSize} bytes, SHA256: ${sha256Hash.substring(0, 16)}...)`, req);
+      logAudit(user.id, 'CLINICAL_RECORD_SYNCED_AES256', `Record encrypted & synced: ${title} (${byteSize} bytes)`, req);
 
       const updatedUsage = getUserStorageUsage(user.id);
       return res.json({
         success: true,
-        message: `Clinical record synced to 1GB Cloud Vault with SHA-256 integrity verification.`,
+        message: `Clinical record encrypted (AES-256-GCM) & synced to Cloud Vault.`,
         file: {
           id: fileId,
           name: `${title || 'Clinical Record Snapshot'}.json`,
+          mimeType: 'application/json',
           size: byteSize,
           sha256: sha256Hash,
+          encryption: 'AES-256-GCM',
           category: 'user_data',
           createdAt: now,
         },
         quota: updatedUsage,
+        policy,
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -921,27 +1184,36 @@ export function setupStorageVaultRoutes(
       }
 
       const payloadString = JSON.stringify(contentObject, null, 2);
-      const byteSize = Buffer.byteLength(payloadString, 'utf8');
+      const plainBuffer = Buffer.from(payloadString, 'utf8');
+      const byteSize = plainBuffer.length;
 
       const usage = getUserStorageUsage(user.id);
-      if (usage.usedBytes + byteSize > usage.totalQuotaBytes) {
-        return res.status(400).json({ error: 'Storage full! Expansion required.' });
+      const policy = computeStoragePolicy(usage.totalQuotaBytes);
+      if (usage.fileCount >= policy.maxFiles || usage.usedBytes + byteSize > usage.totalQuotaBytes) {
+        return res.status(400).json({
+          error: 'Storage limit reached! Expansion required.',
+          quotaExceeded: true,
+          requiresBilling: true,
+          quota: usage,
+          policy,
+        });
       }
 
       const userDir = path.join(UPLOADS_DIR, user.id);
       fs.mkdirSync(userDir, { recursive: true });
 
       const fileId = 'vf_smp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-      const filePath = path.join(userDir, `${fileId}_${filename}`);
-      fs.writeFileSync(filePath, payloadString, 'utf8');
+      const filePath = path.join(userDir, `${fileId}_${filename}.enc`);
+      const sha256Hash = computeBufferHash(plainBuffer);
+      const encrypted = encryptVaultBuffer(plainBuffer);
+      fs.writeFileSync(filePath, encrypted.ciphertext);
 
-      const sha256Hash = computeBufferHash(Buffer.from(payloadString, 'utf8'));
       const now = new Date().toISOString();
 
       db.prepare(`
         INSERT INTO user_storage_files (
-          id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, metadata, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, userId, name, originalName, mimeType, size, category, filePath, sha256, encryption, encryption_meta, metadata, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         fileId,
         user.id,
@@ -953,17 +1225,18 @@ export function setupStorageVaultRoutes(
         filePath,
         sha256Hash,
         'AES-256-GCM',
+        encrypted.encryptionMeta,
         JSON.stringify({ isSample: true, sampleType }),
         now,
         now
       );
 
-      logAudit(user.id, 'SAMPLE_CLINICAL_FILE_GENERATED', `Generated sample ${filename} (${byteSize} bytes, SHA-256: ${sha256Hash.substring(0, 16)}...)`, req);
+      logAudit(user.id, 'SAMPLE_CLINICAL_FILE_GENERATED', `Encrypted sample ${filename} (${byteSize} bytes)`, req);
 
       const updatedUsage = getUserStorageUsage(user.id);
       return res.json({
         success: true,
-        message: `Generated verified clinical record "${filename}" with SHA-256 checksum!`,
+        message: `Generated encrypted clinical record "${filename}" with SHA-256 checksum!`,
         file: {
           id: fileId,
           name: filename,
@@ -976,6 +1249,7 @@ export function setupStorageVaultRoutes(
           createdAt: now,
         },
         quota: updatedUsage,
+        policy,
       });
     } catch (err: any) {
       return res.status(500).json({ error: 'Sample generation failed: ' + err.message });
@@ -1002,7 +1276,7 @@ export function setupStorageVaultRoutes(
   });
 
   // =========================================================================
-  // 11. DOWNLOAD / STREAM FILE WITH RANGE REQUESTS & SHA-256 INTEGRITY HEADER
+  // 11. DOWNLOAD / STREAM DECRYPTED FILE WITH RANGE REQUESTS & SHA-256 HEADER
   // =========================================================================
   app.get('/api/storage/download/:fileId', requireVaultAuth, (req: express.Request, res: express.Response) => {
     try {
@@ -1021,31 +1295,26 @@ export function setupStorageVaultRoutes(
         return res.status(404).json({ error: 'File content does not exist on disk' });
       }
 
-      const stat = fs.statSync(file.filePath);
-      const totalSize = stat.size;
+      const plainBuffer = readDecryptedVaultFile(file);
+      const totalSize = plainBuffer.length;
 
-      // Set Security & Checksum Headers
       res.setHeader('X-SHA256-Checksum', file.sha256 || '');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'private, no-transform');
 
-      // Range header for streaming large files / scans
       const range = req.headers.range;
       if (range) {
         const parts = range.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
-        const chunkSize = end - start + 1;
+        const slice = plainBuffer.subarray(start, end + 1);
 
         res.status(206);
         res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
         res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Content-Length', chunkSize);
+        res.setHeader('Content-Length', slice.length);
         res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
-
-        const stream = fs.createReadStream(file.filePath, { start, end });
-        stream.pipe(res);
-        return;
+        return res.send(slice);
       }
 
       res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
@@ -1055,17 +1324,15 @@ export function setupStorageVaultRoutes(
       );
       res.setHeader('Content-Length', totalSize);
 
-      logAudit(user.id, 'FILE_DOWNLOADED', `Downloaded file: ${file.name} (SHA-256: ${(file.sha256 || '').substring(0, 16)}...)`, req);
-
-      const stream = fs.createReadStream(file.filePath);
-      stream.pipe(res);
+      logAudit(user.id, 'FILE_DOWNLOADED_DECRYPTED', `Decrypted & downloaded: ${file.name}`, req);
+      return res.send(plainBuffer);
     } catch (err: any) {
       res.status(500).json({ error: 'Download error: ' + err.message });
     }
   });
 
   // ==========================================
-  // 12. PREVIEW / VIEW FILE CONTENT
+  // 12. PREVIEW / VIEW DECRYPTED FILE CONTENT
   // ==========================================
   app.get('/api/storage/preview/:fileId', requireVaultAuth, (req: express.Request, res: express.Response) => {
     try {
@@ -1084,41 +1351,38 @@ export function setupStorageVaultRoutes(
         return res.status(404).json({ error: 'File not found on disk' });
       }
 
+      const plainBuffer = readDecryptedVaultFile(file);
       res.setHeader('X-SHA256-Checksum', file.sha256 || '');
 
-      // If text/json and small, return content as string
       if (
         file.size < 2 * 1024 * 1024 &&
         (file.mimeType.startsWith('text/') || file.mimeType.includes('json') || file.mimeType.includes('xml'))
       ) {
-        const text = fs.readFileSync(file.filePath, 'utf8');
         return res.json({
           success: true,
           file,
           previewType: 'text',
-          content: text,
+          content: plainBuffer.toString('utf8'),
         });
       }
 
-      // For images, pipe inline
       if (file.mimeType.startsWith('image/')) {
         res.setHeader('Content-Type', file.mimeType);
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
-        return fs.createReadStream(file.filePath).pipe(res);
+        return res.send(plainBuffer);
       }
 
-      // For PDFs, pipe inline
       if (file.mimeType === 'application/pdf') {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
-        return fs.createReadStream(file.filePath).pipe(res);
+        return res.send(plainBuffer);
       }
 
       return res.json({
         success: true,
         file,
         previewType: 'binary',
-        message: 'File can be downloaded',
+        message: 'Decrypted binary ready for download',
       });
     } catch (err: any) {
       res.status(500).json({ error: 'Preview error: ' + err.message });
@@ -1233,18 +1497,17 @@ export function setupStorageVaultRoutes(
   });
 
   // ==========================================
-  // 15. PURCHASE ADDITIONAL STORAGE (BILLING)
+  // 15. PURCHASE ADDITIONAL STORAGE (AUTHORITATIVE BILLING LEDGER)
   // ==========================================
   app.post('/api/storage/purchase', async (req: express.Request, res: express.Response) => {
     try {
-      const { tierId, paymentMethod = 'momo', phone, transactionId, email } = req.body;
-      
+      const { tierId, paymentMethod = 'momo', phone, transactionId, idempotencyKey } = req.body;
+
       const tier = STORAGE_EXPANSION_TIERS[tierId];
       if (!tier) {
         return res.status(400).json({ error: 'Invalid storage expansion tier selected' });
       }
 
-      // Resolve user STRICTLY from authenticated token / vault session
       let targetUserId: string | null = null;
       let targetUserEmail: string | null = null;
       let targetDisplayName: string = 'Doctorian User';
@@ -1276,83 +1539,47 @@ export function setupStorageVaultRoutes(
         return res.status(401).json({ error: 'Authenticated account required to complete storage expansion.' });
       }
 
-      // Read current quota
-      const userRow: any = db.prepare('SELECT storageQuotaBytes FROM users WHERE id = ?').get(targetUserId);
-      const previousQuota = Number(userRow?.storageQuotaBytes || FREE_STORAGE_QUOTA_BYTES);
-      const newQuota = previousQuota + tier.addedBytes;
+      const checkoutResult = executeVerifiedCheckout({
+        userId: targetUserId,
+        kind: 'storage',
+        itemId: tier.id,
+        paymentMethod: String(paymentMethod),
+        payerPhone: phone ? String(phone) : undefined,
+        externalRef: transactionId ? String(transactionId) : undefined,
+        idempotencyKey: idempotencyKey ? String(idempotencyKey) : undefined,
+        ip: getClientIp(req),
+      });
 
-      // Update user storage quota in database
-      db.prepare('UPDATE users SET storageQuotaBytes = ? WHERE id = ?').run(newQuota, targetUserId);
+      const updatedUsage = getUserStorageUsage(targetUserId);
+      const updatedPolicy = computeStoragePolicy(updatedUsage.totalQuotaBytes);
+      const newQuota = updatedUsage.totalQuotaBytes;
 
-      // Record purchase in storage_purchases
-      const purchaseId = 'sp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-      const now = new Date().toISOString();
-      const txId = transactionId || `TX-STORAGE-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      logAudit(targetUserId, 'STORAGE_EXPANSION_PURCHASED', `Added ${tier.formattedSize} (${tier.name}) - Invoice ${checkoutResult.transaction.invoiceNumber}`, req);
 
-      db.prepare(`
-        INSERT INTO storage_purchases (
-          id, userId, tierId, tierName, addedBytes, previousQuotaBytes, newQuotaBytes, amount, currency, paymentMethod, phone, transactionId, createdAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        purchaseId,
-        targetUserId,
-        tier.id,
-        tier.name,
-        tier.addedBytes,
-        previousQuota,
-        newQuota,
-        tier.amount,
-        'UGX',
-        paymentMethod,
-        phone || null,
-        txId,
-        now
-      );
-
-      // Record in payments table if available
-      try {
-        db.prepare(`
-          INSERT INTO payments (id, userId, tier, amount, currency, status, externalId)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          'pay_' + purchaseId,
-          targetUserId,
-          tier.id,
-          tier.amount,
-          'UGX',
-          'completed',
-          txId
-        );
-      } catch (e) {}
-
-      logAudit(targetUserId, 'STORAGE_EXPANSION_PURCHASED', `Added ${tier.formattedSize} storage (${tier.name}) - New Total: ${(newQuota / (1024 * 1024 * 1024)).toFixed(2)} GB`, req);
-
-      // Dispatch receipt email
       if (targetUserEmail) {
         const emailBody = `Hello ${targetDisplayName},\n\n` +
-          `Your Cloud Storage Expansion has been activated successfully!\n\n` +
-          `📦 Package: ${tier.name} (${tier.formattedSize})\n` +
-          `💰 Amount Paid: ${tier.price}\n` +
-          `🚀 New Total Vault Capacity: ${(newQuota / (1024 * 1024 * 1024)).toFixed(2)} GB\n` +
-          `🧾 Transaction Ref: ${txId}\n` +
-          `📅 Date: ${new Date().toLocaleString()}\n\n` +
-          `Thank you for using Doctorian Medical AI Cloud Vault.\n\nDoctorian Billing & Infrastructure Team`;
+          `Your Cloud Storage Expansion has been activated!\n\n` +
+          `Package: ${tier.name} (${tier.formattedSize})\n` +
+          `Amount Paid: ${tier.price}\n` +
+          `New Total Vault Capacity: ${(newQuota / (1024 * 1024 * 1024)).toFixed(2)} GB\n` +
+          `Invoice: ${checkoutResult.transaction.invoiceNumber}\n\n` +
+          `Doctorian Billing & Infrastructure Team`;
 
         sendEmail(
           targetUserEmail,
-          `📦 Storage Activated: ${tier.name} (${tier.formattedSize}) Added!`,
+          `Storage Activated: ${tier.name} (${tier.formattedSize}) Added!`,
           emailBody
-        ).catch((err) => console.warn('[Storage Purchase] Receipt email dispatch notice:', err.message));
+        ).catch(() => {});
       }
-
-      const updatedUsage = getUserStorageUsage(targetUserId);
 
       return res.json({
         success: true,
         message: `Successfully expanded storage! Added ${tier.formattedSize} (${tier.name}). New total capacity: ${(newQuota / (1024 * 1024 * 1024)).toFixed(2)} GB.`,
-        purchaseId,
+        purchaseId: checkoutResult.transaction.id,
+        transaction: checkoutResult.transaction,
         tier,
         quota: updatedUsage,
+        policy: updatedPolicy,
       });
     } catch (err: any) {
       console.error('[Storage Purchase Error]:', err);

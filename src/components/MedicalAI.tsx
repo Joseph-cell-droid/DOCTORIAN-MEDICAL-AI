@@ -66,7 +66,7 @@ export function MedicalAI({ user, onUpdate, onRefreshUser, onNavigate, arduino, 
           )}
         </AnimatePresence>
 
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 min-h-0 h-full flex flex-col relative overflow-hidden">
           {chatMode === 'modern' ? (
             <ModernizedChatView 
               user={user} 

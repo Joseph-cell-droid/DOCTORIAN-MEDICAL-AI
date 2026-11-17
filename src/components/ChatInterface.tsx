@@ -4136,56 +4136,47 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                       {[
                         { 
                           id: 'gemma3-tfjs' as const, 
-                          title: 'Doctorian General', 
-                          desc: 'General Health & Everyday Wellness', 
-                          license: 'General Health Mode', 
+                          title: 'Doctorian Haxzyon', 
+                          desc: 'Flagship Clinical Reasoning & Everyday Triage', 
+                          license: 'Haxzyon Core', 
                           payment: 'Zero-Latency Logic', 
                           features: ['General health questions & symptoms', 'Dietary & wellness guidance', 'Instant offline support'],
                           color: 'from-amber-600 to-orange-600'
                         },
                         { 
                           id: 'gemma-cloud' as const, 
-                          title: 'Doctorian Clinical', 
-                          desc: 'Differential Clinical Reasoning', 
-                          license: 'Clinical Decision Support', 
+                          title: 'Doctorian Carbonex', 
+                          desc: 'Precision Pharmacology & Differential Reasoning', 
+                          license: 'Carbonex Core', 
                           payment: 'Cloud Intelligence', 
                           features: ['Differential diagnostic pathways', 'Multimodal lab report analysis', 'Structured clinical breakdown'],
                           color: 'from-blue-600 to-indigo-600'
                         },
                         { 
                           id: 'huggingface' as const, 
-                          title: 'Doctorian Triage', 
-                          desc: 'Emergency Triage & Urgency Scoring', 
-                          license: 'Emergency & Triage Mode', 
+                          title: 'Hectopus', 
+                          desc: 'Parallel Bio-Telemetry & Multi-System Diagnostics', 
+                          license: 'Hectopus Engine', 
                           payment: 'High-Priority Relay', 
                           features: ['NEWS2 score assessment guidance', 'Red-flag symptom detection', 'Urgent referral pathway alerts'],
                           color: 'from-rose-600 to-red-600'
                         },
                         { 
-                          id: 'llama-clinical' as const, 
-                          title: 'Doctorian Health Education', 
-                          desc: 'Patient Education & Guidance', 
-                          license: 'Patient Education Mode', 
-                          payment: 'Jargon-Free Explanations', 
-                          features: ['Patient-friendly medical explanations', 'Condition & treatment guidance', 'Clear care instructions'],
-                          color: 'from-emerald-600 to-teal-600'
-                        },
-                        { 
                           id: 'medlm-medium' as const, 
-                          title: 'Doctorian Uganda (MoH Guidelines)', 
-                          desc: 'Uganda Ministry of Health & WHO Standards', 
-                          license: 'Uganda MoH Knowledge Base', 
+                          title: 'Ominex', 
+                          desc: 'Autonomous Offline & Uganda MoH Guidelines', 
+                          license: 'Ominex Clinical Base', 
                           payment: 'National Clinical Protocols', 
                           features: ['Uganda MoH 2023/2026 guidelines', 'Endemic diseases (Malaria RDT, Typhoid, TB, Cholera)', 'HSSP II & regional referral centers'],
                           color: 'from-yellow-600 to-amber-700'
                         },
                         { 
                           id: 'medlm-large' as const, 
-                          title: 'Doctorian Research', 
-                          desc: 'Evidence-Based Clinical Literature', 
-                          license: 'Clinical Evidence Mode', 
-                          payment: 'Literature RAG Engine', 
-                          features: ['Evidence-based PubMed / WHO citations', 'Clinical trial protocol summaries', 'Peer-reviewed evidence synthesis'],
+                          title: 'Nitragon', 
+                          desc: 'High-Speed Trauma, Emergency & Research Core', 
+                          license: 'Nitragon Pro Engine', 
+                          payment: 'Literature & STAT Engine', 
+                          features: ['Evidence-based PubMed / WHO citations', 'Rapid resuscitation protocols', 'Peer-reviewed evidence synthesis'],
                           color: 'from-violet-600 to-purple-600'
                         }
                       ].map((core, mapIdx_4155) => {
@@ -6386,12 +6377,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {[
-                        { id: 'gemma3-tfjs' as const, label: 'Doctorian General AI', desc: 'Fastest Local Edge Core', tier: 'Always Free' },
-                        { id: 'gemma-cloud' as const, label: 'Doctorian Clinical AI', desc: 'Speed Cloud Core', tier: 'Always Free' },
-                        { id: 'huggingface' as const, label: 'Doctorian Triage AI', desc: 'Clinical Synapse Core', tier: 'Standard' },
-                        { id: 'llama-clinical' as const, label: 'Doctorian Patient Education AI', desc: 'Pro Guideline Core', tier: 'Pro' },
-                        { id: 'medlm-medium' as const, label: 'Doctorian Uganda AI', desc: 'Expert Co-Pilot Brain', tier: 'Pro Required' },
-                        { id: 'medlm-large' as const, label: 'Doctorian Research AI', desc: 'Quantum Max Core', tier: 'Matrix Required' }
+                        { id: 'gemma3-tfjs' as const, label: 'Doctorian Haxzyon', desc: 'Flagship Reasoning Core', tier: 'Always Free' },
+                        { id: 'gemma-cloud' as const, label: 'Doctorian Carbonex', desc: 'Precision Pharmacology Core', tier: 'Always Free' },
+                        { id: 'huggingface' as const, label: 'Hectopus', desc: 'Parallel Telemetry Core', tier: 'Standard' },
+                        { id: 'medlm-medium' as const, label: 'Ominex', desc: 'Autonomous Clinical Triage', tier: 'Pro Required' },
+                        { id: 'medlm-large' as const, label: 'Nitragon', desc: 'High-Speed Trauma & Research', tier: 'Matrix Required' }
                       ].map((engineOption, engineIdx) => {
                         const { hasAccess, tierName } = checkModelAccess(engineOption.id);
                         const isSelected = clinicalEngine === engineOption.id;
@@ -6696,11 +6686,11 @@ INSTRUCTIONS FOR FORMULATING LIVE RESPONSE:
                           })
                         });
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian General AI (Speed Core)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian Clinical AI (Cloud Core)' : (clinicalEngine === 'huggingface' ? 'Doctorian Triage AI (Triage Core)' : (clinicalEngine === 'llama-clinical' ? 'Doctorian Patient Education AI' : (clinicalEngine === 'medlm-medium' ? 'Doctorian Uganda (MoH Guidelines)' : 'Doctorian Research AI (Literature RAG)'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian Haxzyon' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian Carbonex' : (clinicalEngine === 'huggingface' ? 'Hectopus' : (clinicalEngine === 'medlm-medium' ? 'Ominex' : 'Nitragon')));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       } catch (e) {
                         setShowSettings(false);
-                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian General AI (Speed Core)' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian Clinical AI (Cloud Core)' : (clinicalEngine === 'huggingface' ? 'Doctorian Triage AI (Triage Core)' : (clinicalEngine === 'llama-clinical' ? 'Doctorian Patient Education AI' : (clinicalEngine === 'medlm-medium' ? 'Doctorian Uganda (MoH Guidelines)' : 'Doctorian Research AI (Literature RAG)'))));
+                        const engineName = clinicalEngine === 'gemma3-tfjs' ? 'Doctorian Haxzyon' : (clinicalEngine === 'gemma-cloud' ? 'Doctorian Carbonex' : (clinicalEngine === 'huggingface' ? 'Hectopus' : (clinicalEngine === 'medlm-medium' ? 'Ominex' : 'Nitragon')));
                         setTerminalLogs(prev => [...prev.slice(-3), `SYS: Clinical brain aligned to ${engineName}. Grounding: ${clinicalGrounding ? 'ONLINE' : 'OFFLINE'}`]);
                       }
                     }}

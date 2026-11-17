@@ -244,7 +244,7 @@ export const AppOperationsSettingsModal: React.FC<AppOperationsSettingsModalProp
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Modern interactive feature buttons — click any button to instantly activate or reconfigure.
+                Created by Akora Joseph · Company: EBRO — click any control below to configure system behavior.
               </p>
             </div>
           </div>
